@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import 'profile_avatar_image.dart';
+import '../network/makolo_api_client.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
@@ -22,6 +24,12 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.hasConversationAttention = false,
     this.hasUnreadNotifications = false,
     this.avatarLetter,
+    this.avatarUrl,
+    this.avatarProfileId,
+    this.avatarApi,
+    this.avatarRevision,
+    this.avatarVisual,
+    this.avatarContextLabel,
     this.profileUsername,
   });
 
@@ -36,7 +44,23 @@ class MakoloPrimaryHeader extends StatelessWidget
   final bool hasConversationAttention;
   final bool hasUnreadNotifications;
   final String? avatarLetter;
+  final String? avatarUrl;
+  final String? avatarProfileId;
+  final MakoloApiClient? avatarApi;
+  final Object? avatarRevision;
+  final Widget? avatarVisual;
+  final String? avatarContextLabel;
   final String? profileUsername;
+
+  Widget _avatarFallback(BuildContext context) => Center(
+    child: Text(
+      avatarLetter ?? '?',
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimaryContainer,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -177,7 +201,7 @@ class MakoloPrimaryHeader extends StatelessWidget
         ..._contextActions(),
         Semantics(
           button: true,
-          label: 'Avatar',
+          label: avatarContextLabel ?? 'Avatar',
           child: IconButton(
             tooltip: 'Avatar',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
@@ -189,23 +213,16 @@ class MakoloPrimaryHeader extends StatelessWidget
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
-              child: avatarLetter == null
-                  ? Icon(
-                      Icons.person_outline,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    )
-                  : Center(
-                      child: Text(
-                        avatarLetter!,
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+              child: ClipOval(
+                child: avatarVisual ?? ProfileAvatarImage(
+                  profileId: avatarProfileId,
+                  url: avatarUrl,
+                  api: avatarApi,
+                  revision: avatarRevision,
+                  size: 36,
+                  fallback: _avatarFallback(context),
+                ),
+              ),
             ),
           ),
         ),

@@ -3,6 +3,7 @@ from __future__ import annotations
 from intelligence.interoperability import project_provider_connection, provider_connections_for_profile
 
 from .projections import build_interoperability_payload
+from .domain_integrations import profile_domain_integrations
 
 
 def build_profile_interoperability_payload(actor):
@@ -18,4 +19,5 @@ def build_profile_interoperability_payload(actor):
         self_link="/api/v1/me/interoperability/",
         actor=actor,
         authority_context=actor,
+        domain_integrations=profile_domain_integrations(actor),
     )

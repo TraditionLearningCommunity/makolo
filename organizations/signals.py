@@ -124,6 +124,23 @@ def emit_team_membership_changed(sender, instance, created, raw=False, **kwargs)
 
 
 @receiver(
+    pre_save,
+    sender=OrganizationMembership,
+    dispatch_uid="organizations.guard_legacy_active_member_capacity",
+)
+def guard_legacy_active_member_capacity(sender, instance, raw=False, **kwargs):
+    """Reject a new active legacy collaborator before its compatibility write.
+
+    Canonical services additionally take a Space row lock for serialization.
+    Do not re-enforce an existing active user when changing a legacy role.
+    """
+    if raw or not instance.is_active or not instance.organization_id:
+        return
+    from .team_entitlement import require_team_member_capacity
+    require_team_member_capacity(instance.organization, instance.user)
+
+
+@receiver(
     post_save,
     sender=OrganizationMembership,
     dispatch_uid="organizations.sync_legacy_membership_authority",

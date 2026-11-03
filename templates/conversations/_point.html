@@ -1,0 +1,50 @@
+{% load conversation_tags %}
+<article id="point-{{ point.pk }}" class="scroll-mt-28 rounded-2xl border border-[color:var(--mk-border)] bg-[color:var(--mk-surface)] px-5 py-4 sm:px-6" tabindex="-1">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <p class="text-xs font-semibold tracking-wide" style="color:var(--mk-muted)">{{ point.get_kind_display }}{% if point.lifecycle == 'superseded' %} · Ancien{% endif %}</p>
+      <h3 class="mt-1 text-base font-extrabold leading-snug">{{ point.title|default:point.get_kind_display }}</h3>
+    </div>
+    {% if point.deadline_at and point.lifecycle == 'open' %}<span class="text-xs" style="color:var(--mk-muted)">Avant le {{ point.deadline_at|date:'d/m à H:i' }}</span>{% endif %}
+  </div>
+  {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm leading-6">{{ point.body }}</p>{% endif %}
+  {% if point.lifecycle == 'resolved' and point.resolution %}<div class="mt-3 border-l-2 pl-3 text-sm font-semibold" style="border-color:var(--mk-brand)">✓ {{ point.resolution.summary }}</div>{% endif %}
+  {% if reason == 'acknowledge' and point.requires_acknowledgement %}
+    <form method="post" action="{% url 'conversations:point-acknowledge' point.pk %}" class="mt-4">{% csrf_token %}
+      <button class="mk-btn mk-btn-primary" type="submit">Bien reçu</button>
+    </form>
+  {% endif %}
+  {% if reason == 'form' %}
+    {% conversation_point_form_request point request.user as form_request %}
+    {% if form_request %}<a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">Remplir le formulaire</a>{% endif %}
+  {% endif %}
+  {% if reason == 'respond' %}
+    <form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">{% csrf_token %}
+      {% if point.response_mode == 'single_choice' %}
+        {% for option in point.options.all %}<label class="flex items-center gap-3 text-sm"><input type="radio" name="choice" value="{{ option.pk }}" required> {{ option.label }}</label>{% endfor %}
+      {% elif point.response_mode == 'multiple_choice' %}
+        {% for option in point.options.all %}<label class="flex items-center gap-3 text-sm"><input type="checkbox" name="choices" value="{{ option.pk }}"> {{ option.label }}</label>{% endfor %}
+      {% elif point.response_mode == 'boolean' %}
+        <div class="flex gap-5 text-sm"><label><input type="radio" name="value" value="true" required> Oui</label><label><input type="radio" name="value" value="false" required> Non</label></div>
+      {% elif point.response_mode == 'number' %}
+        <input class="mk-input w-full" type="number" step="any" inputmode="decimal" name="value" required aria-label="Votre réponse">
+      {% elif point.response_mode == 'date' %}
+        <input class="mk-input w-full" type="date" name="value" required aria-label="Date">
+      {% elif point.response_mode == 'datetime' %}
+        <input class="mk-input w-full" type="datetime-local" name="value" required aria-label="Date et heure">
+      {% elif point.response_mode == 'free_text' %}
+        <textarea class="mk-input w-full" rows="3" name="value" required aria-label="Votre réponse"></textarea>
+      {% endif %}
+      {% if point.response_mode != 'none' and point.response_mode != 'file' and point.response_mode != 'voice' %}
+        <button class="mk-btn mk-btn-primary" type="submit">Répondre</button>
+      {% endif %}
+    </form>
+  {% endif %}
+  {% if point.kind == 'exchange' and point.lifecycle == 'open' %}
+    <form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-4 flex flex-wrap gap-2">{% csrf_token %}
+      <label class="sr-only" for="exchange-{{ point.pk }}">Écrire dans cet échange</label>
+      <input id="exchange-{{ point.pk }}" class="mk-input min-w-0 flex-1" name="body" required placeholder="Votre message…">
+      <button class="mk-btn mk-btn-secondary" type="submit">Envoyer</button>
+    </form>
+  {% endif %}
+</article>

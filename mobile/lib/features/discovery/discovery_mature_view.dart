@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../design/makolo_components.dart';
@@ -5,27 +7,69 @@ import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
+import '../../platform/location/location_capability.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
+import '../../platform/maps/discovery_map_controller.dart';
+import '../../network/makolo_api_client.dart';
+import '../../presentation/search/load_more_on_scroll.dart';
+import '../../presentation/media/retained_public_discovery_image.dart';
+import '../../presentation/possibilities/discovery_offline_store.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
+import 'discovery_share_sheet.dart';
 
 typedef DiscoveryOpenItem = void Function(DiscoveryItemPresentation item);
+typedef DiscoverySaveItem = Future<void> Function(
+  DiscoveryItemPresentation item,
+);
+typedef DiscoveryResolveItem = Future<DiscoveryItemPresentation?> Function(
+  DiscoveryItemPresentation item,
+);
 
 class DiscoveryExplorationView extends StatefulWidget {
   const DiscoveryExplorationView({
     super.key,
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
+    this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
     this.onResetCriteria,
+    this.onMap,
+    this.onWatch,
+    this.fieldKey,
+    this.scrollController,
+    this.initialFocusedCandidateKey,
+    this.onFocusedCandidateChanged,
   });
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
+  final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
+  final ValueChanged<String?>? onMap;
+  final VoidCallback? onWatch;
+  final String? fieldKey;
+  final ScrollController? scrollController;
+  final String? initialFocusedCandidateKey;
+  final ValueChanged<String?>? onFocusedCandidateChanged;
 
   @override
   State<DiscoveryExplorationView> createState() =>
@@ -36,12 +80,29 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
   String? _focusedCandidateKey;
 
   @override
+  void initState() {
+    super.initState();
+    _focusedCandidateKey = widget.initialFocusedCandidateKey;
+  }
+
+  void _focus(String? candidateKey) {
+    setState(() => _focusedCandidateKey = candidateKey);
+    widget.onFocusedCandidateChanged?.call(candidateKey);
+  }
+
+  @override
   void didUpdateWidget(covariant DiscoveryExplorationView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialFocusedCandidateKey !=
+        widget.initialFocusedCandidateKey) {
+      _focusedCandidateKey = widget.initialFocusedCandidateKey;
+    }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
-    if (_focusedCandidateKey != null && !keys.contains(_focusedCandidateKey)) {
+    if (_focusedCandidateKey != null &&
+        keys.isNotEmpty &&
+        !keys.contains(_focusedCandidateKey)) {
       _focusedCandidateKey = null;
     }
   }
@@ -69,22 +130,53 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           return DiscoveryFieldView(
             selection: widget.selection,
             onOpen: widget.onOpen,
+            onSave: widget.onSave,
+            onWatch: widget.onWatch,
+            baseUri: widget.baseUri,
+            shareApi: widget.shareApi,
+            profileId: widget.profileId,
+            allowOwnerActions: widget.allowOwnerActions,
             onPage: widget.onPage,
+            autoLoadMore: widget.autoLoadMore,
+            loadingMore: widget.loadingMore,
+            loadMoreFailed: widget.loadMoreFailed,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
+            selectedCandidateKey: _focusedCandidateKey,
+            onMap: widget.onMap == null
+                ? null
+                : () => widget.onMap!(
+                    focused?.isMappable == true ? _focusedCandidateKey : null,
+                  ),
+            fieldKey: widget.fieldKey,
+            scrollController: widget.scrollController,
           );
         }
 
         final field = DiscoveryFieldView(
           selection: widget.selection,
           onOpen: widget.onOpen,
+          onSave: widget.onSave,
+          onWatch: widget.onWatch,
+          baseUri: widget.baseUri,
+          shareApi: widget.shareApi,
+          profileId: widget.profileId,
+          allowOwnerActions: widget.allowOwnerActions,
           onPage: widget.onPage,
+          autoLoadMore: widget.autoLoadMore,
+          loadingMore: widget.loadingMore,
+          loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
+          onMap: widget.onMap == null
+              ? null
+              : () => widget.onMap!(
+                  focused?.isMappable == true ? _focusedCandidateKey : null,
+                ),
+          fieldKey: widget.fieldKey,
+          scrollController: widget.scrollController,
           selectedCandidateKey: _focusedCandidateKey,
-          onSelect: (item) => setState(() {
-            _focusedCandidateKey = item.candidateKey;
-          }),
+          onSelect: (item) => _focus(item.candidateKey),
           selectOnCardTap: true,
         );
         if (focused == null) return field;
@@ -94,7 +186,8 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           field: field,
           focus: _DiscoveryFocusPane(
             item: focused,
-            onClose: () => setState(() => _focusedCandidateKey = null),
+            baseUri: widget.baseUri,
+            onClose: () => _focus(null),
             onOpen: () => widget.onOpen(focused),
           ),
           narrow: field,
@@ -109,34 +202,58 @@ class DiscoveryFieldView extends StatelessWidget {
     super.key,
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
+    this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
     this.onResetCriteria,
     this.selectedCandidateKey,
     this.onSelect,
     this.selectionActionLabel,
     this.selectOnCardTap = false,
+    this.onMap,
+    this.onWatch,
+    this.fieldKey,
+    this.scrollController,
   });
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
+  final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
   final bool selectOnCardTap;
+  final VoidCallback? onMap;
+  final VoidCallback? onWatch;
+  final String? fieldKey;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
     return MakoloSurfaceStateView(
       state: selection.surface,
       blockingErrorMessage: 'Ce contenu n’est pas disponible.',
-      recoverableErrorMessage: onRetry == null
-          ? null
-          : 'Découvrir n’a pas pu être chargé.',
-      preservedMessage: 'Les possibilités déjà enregistrées sur cet appareil sont conservées.',
+      // The connectivity cue is already shown by the shell. Keep usable
+      // cached possibilities visible without a second verbose error notice.
+      recoverableErrorMessage: null,
+      preservedMessage: null,
       onRetry: onRetry,
       empty: _DiscoveryEmptyState(
         states: selection.states,
@@ -146,11 +263,282 @@ class DiscoveryFieldView extends StatelessWidget {
       content: _DiscoveryScrollableField(
         selection: selection,
         onOpen: onOpen,
+        onSave: onSave,
+        baseUri: baseUri,
+        shareApi: shareApi,
+        profileId: profileId,
+        allowOwnerActions: allowOwnerActions,
         onPage: onPage,
+        autoLoadMore: autoLoadMore,
+        loadingMore: loadingMore,
+        loadMoreFailed: loadMoreFailed,
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
         selectOnCardTap: selectOnCardTap,
+        onMap: onMap,
+        onWatch: onWatch,
+        fieldKey: fieldKey,
+        scrollController: scrollController,
+      ),
+    );
+  }
+}
+
+/// A bounded choice of distinct possibilities sharing a rendered coordinate.
+/// It does not treat coordinate equality as proof of one canonical Place.
+class DiscoveryCoLocatedPicker extends StatefulWidget {
+  const DiscoveryCoLocatedPicker({
+    super.key,
+    required this.items,
+    required this.onChoose,
+  });
+
+  final List<DiscoveryItemPresentation> items;
+  final ValueChanged<DiscoveryItemPresentation> onChoose;
+
+  @override
+  State<DiscoveryCoLocatedPicker> createState() =>
+      _DiscoveryCoLocatedPickerState();
+}
+
+class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
+  bool _expanded = false;
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  void _showAll() {
+    setState(() => _expanded = true);
+    if (_sheetController.isAttached) {
+      unawaited(
+        _sheetController.animateTo(
+          0.76,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    final place = items.isEmpty ? null : items.first.place;
+    final commonPlace = place != null &&
+        place.trim().isNotEmpty &&
+        items.every((item) => item.place == place);
+    final visible = _expanded || items.length <= 2 ? items.length : 2;
+    return DraggableScrollableSheet(
+      key: const Key('discover-map-colocated-sheet'),
+      controller: _sheetController,
+      expand: false,
+      initialChildSize: 0.40,
+      minChildSize: 0.26,
+      maxChildSize: 0.78,
+      builder: (context, scrollController) => ListView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.md,
+          MakoloSpacing.sm,
+          MakoloSpacing.md,
+          MakoloSpacing.xl,
+        ),
+        itemCount: visible + (_expanded || visible == items.length ? 1 : 2),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${items.length} possibilités à cet emplacement',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (commonPlace)
+                    Text(
+                      place!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                ],
+              ),
+            );
+          }
+          if (index == visible + 1) {
+            return TextButton.icon(
+              key: const Key('discover-map-colocated-more'),
+              onPressed: _showAll,
+              icon: const Icon(Icons.expand_more_rounded),
+              label: Text('Voir les ${items.length} possibilités'),
+            );
+          }
+          final item = items[index - 1];
+          return ListTile(
+            key: ValueKey('discover-map-place-choice-${item.candidateKey}'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: item.place == null
+                ? null
+                : Text(
+                    item.place!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => widget.onChoose(item),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Short-lived context for a map selection. Never a second Discovery N2.
+class _DiscoveryMapPreview extends StatelessWidget {
+  const _DiscoveryMapPreview({
+    required this.item,
+    required this.place,
+    required this.detail,
+    required this.saving,
+    required this.onClose,
+    required this.onOpen,
+    required this.onSave,
+    this.shareApi,
+    this.shareAuthenticated = false,
+    this.baseUri,
+  });
+
+  final DiscoveryItemPresentation item;
+  final String? place;
+  final DiscoveryItemPresentation? detail;
+  final bool saving;
+  final VoidCallback onClose;
+  final VoidCallback onOpen;
+  final VoidCallback? onSave;
+  final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
+  final Uri? baseUri;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = detail;
+    final canChangeSaved = onSave != null &&
+        resolved != null &&
+        (resolved.savedState == 'saved'
+            ? resolved.canUnsave
+            : resolved.canSave);
+    final canShare = resolved != null &&
+        (shareAuthenticated
+            ? resolved.links['web'] != null ||
+                resolved.links['web_share'] != null
+            : resolved.links['web'] != null);
+    return Card(
+      key: const Key('discover-map-selected-preview'),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fermer l’aperçu',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            if (resolved?.eyebrow != null &&
+                resolved!.eyebrow!.trim().isNotEmpty)
+              Text(
+                resolved!.eyebrow!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            if (place != null && place!.trim().isNotEmpty)
+              Text(
+                place!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            if (resolved?.owner != null)
+              Text(
+                resolved!.owner!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            if (resolved?.timing != null)
+              Text(
+                resolved!.timing!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (canChangeSaved)
+                  IconButton(
+                    key: const Key('discover-map-save'),
+                    tooltip: resolved!.savedState == 'saved'
+                        ? 'Retirer des enregistrements'
+                        : 'Enregistrer',
+                    onPressed: saving ? null : onSave,
+                    icon: Icon(
+                      resolved!.savedState == 'saved'
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_border_rounded,
+                    ),
+                  ),
+                if (canShare)
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: DiscoveryShareControl(
+                      key: ValueKey(
+                        'discover-map-share-${resolved!.candidateKey}',
+                      ),
+                      item: resolved!,
+                      api: shareApi,
+                      authenticated: shareAuthenticated,
+                      enabled: !saving,
+                      baseUri: baseUri,
+                      iconOnly: true,
+                    ),
+                  ),
+                TextButton(
+                  key: const Key('discover-map-open-n2'),
+                  onPressed: onOpen,
+                  child: const Text('Voir le détail'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -162,15 +550,55 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.selection,
     required this.mapConfig,
     required this.onOpen,
+    this.location,
+    this.onSave,
+    this.resolveItem,
+    this.baseUri,
+    this.shareApi,
+    this.shareAuthenticated = false,
+    this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
+    this.initialSelectedCandidateKey,
+    this.showMapOnCompact = false,
+    this.fieldKey,
+    this.onSelectionChanged,
+    this.detailRefreshRevision = 0,
+    this.spatialRevision,
+    this.restoredViewport,
+    this.onViewportChanged,
   });
 
   final DiscoveryFieldSelection selection;
   final MakoloMapsConfig mapConfig;
   final DiscoveryOpenItem onOpen;
+  final LocationCapability? location;
+  final DiscoverySaveItem? onSave;
+  final DiscoveryResolveItem? resolveItem;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
+  final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
+  final String? initialSelectedCandidateKey;
+  final bool showMapOnCompact;
+  final String? fieldKey;
+  final ValueChanged<String?>? onSelectionChanged;
+  /// N2 returned; refresh owner-confirmed actions, never the map's camera.
+  final int detailRefreshRevision;
+  /// Stable owner snapshot revision, independent from widget rebuilds.
+  final DateTime? spatialRevision;
+  final MapViewport? restoredViewport;
+  final ValueChanged<MapViewport>? onViewportChanged;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -179,17 +607,403 @@ class DiscoverySpatialView extends StatefulWidget {
 class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   static const _selector = DiscoverySelector();
   String? _selectedCandidateKey;
+  DiscoveryMapController? _mapController;
+  final Map<Object, DiscoverySpatialAnchor> _circleAnchors = {};
+  DiscoverySpatialAnchor? _focusedAnchor;
+  int _pinGeneration = 0;
+  bool _initialCameraPositioned = false;
+  double? _deviceLatitude;
+  double? _deviceLongitude;
+  DiscoveryItemPresentation? _confirmedDetail;
+  int _detailGeneration = 0;
+  bool _savingSelected = false;
+
+  @override
+  void dispose() {
+    ++_pinGeneration;
+    ++_detailGeneration;
+    _circleAnchors.clear();
+    _mapController = null;
+    super.dispose();
+  }
+
+  void _select(
+    String key, {
+    bool moveCamera = true,
+    DiscoverySpatialAnchor? anchor,
+  }) {
+    final changed = _selectedCandidateKey != key;
+    setState(() {
+      _selectedCandidateKey = key;
+      _focusedAnchor = anchor;
+      if (changed) _confirmedDetail = null;
+    });
+    widget.onSelectionChanged?.call(key);
+    if (changed) unawaited(_resolveSelected());
+    if (!moveCamera) return;
+    final anchors = _selector.spatialAnchorsFromCollection(
+      widget.selection.collection,
+    );
+    for (final anchor in anchors) {
+      if (anchor.candidateKey != key) continue;
+      final controller = _mapController;
+      if (controller != null) {
+        unawaited(_moveCamera(controller, anchor));
+      }
+      break;
+    }
+  }
+
+  void _clearSelection() {
+    ++_detailGeneration;
+    setState(() {
+      _selectedCandidateKey = null;
+      _focusedAnchor = null;
+      _confirmedDetail = null;
+    });
+    widget.onSelectionChanged?.call(null);
+  }
+
+  Future<void> _resolveSelected() async {
+    final resolver = widget.resolveItem;
+    final key = _selectedCandidateKey;
+    if (resolver == null || key == null) return;
+    final candidates = widget.selection.collection.items
+        .where((item) => item.candidateKey == key);
+    if (candidates.isEmpty) return;
+    final generation = ++_detailGeneration;
+    try {
+      final detail = await resolver(candidates.first);
+      if (!mounted ||
+          generation != _detailGeneration ||
+          _selectedCandidateKey != key) {
+        return;
+      }
+      setState(() {
+        _confirmedDetail = detail?.candidateKey == key ? detail : null;
+      });
+    } on Object {
+      // Unverified detail never unlocks a mutation. The canonical N2
+      // remains available and rechecks its own authorization.
+      if (mounted && generation == _detailGeneration) {
+        setState(() => _confirmedDetail = null);
+      }
+    }
+  }
+
+  Future<void> _saveSelected() async {
+    final item = _confirmedDetail;
+    final save = widget.onSave;
+    if (_savingSelected || item == null || save == null) return;
+    if (item.savedState == 'saved' ? !item.canUnsave : !item.canSave) {
+      return;
+    }
+    setState(() => _savingSelected = true);
+    try {
+      await save(item);
+      if (mounted && _selectedCandidateKey == item.candidateKey) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              item.savedState == 'saved'
+                  ? 'Retiré des enregistrements.'
+                  : 'Possibilité enregistrée.',
+            ),
+          ),
+        );
+        // This is a new owner-confirmed saved state, not an optimistic one.
+        await _resolveSelected();
+      }
+    } on Object {
+      if (mounted && _selectedCandidateKey == item.candidateKey) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('L’enregistrement n’a pas pu être confirmé.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingSelected = false);
+    }
+  }
+
+  Future<void> _moveCamera(
+    DiscoveryMapController controller,
+    DiscoverySpatialAnchor anchor,
+  ) async {
+    try {
+      await controller.moveTo(anchor.latitude, anchor.longitude);
+    } on Object {
+      // The list selection remains usable while the map is unavailable.
+    }
+  }
+
+  void _mapCreated(DiscoveryMapController controller) {
+    _mapController = controller;
+    _initialCameraPositioned = widget.restoredViewport != null;
+    _circleAnchors.clear();
+    controller.onPinTapped((circle) {
+      final point = _circleAnchors[circle];
+      if (!mounted || point == null) return;
+      final anchors = _selector.spatialAnchorsFromCollection(
+        widget.selection.collection,
+      );
+      final keys = anchors
+          .where(
+            (anchor) =>
+                anchor.latitude == point.latitude &&
+                anchor.longitude == point.longitude,
+          )
+          .map((anchor) => anchor.candidateKey)
+          .toSet();
+      if (keys.isEmpty) return;
+      if (keys.length == 1) {
+        final actual = anchors.firstWhere(
+          (anchor) =>
+              anchor.candidateKey == keys.first &&
+              anchor.latitude == point.latitude &&
+              anchor.longitude == point.longitude,
+        );
+        _select(keys.first, anchor: actual, moveCamera: false);
+      } else {
+        unawaited(_chooseCoLocated(keys, at: point));
+      }
+    });
+  }
+
+  Future<void> _chooseCoLocated(
+    Set<String> candidateKeys, {
+    required DiscoverySpatialAnchor at,
+  }) async {
+    final items = widget.selection.collection.items
+        .where((item) => candidateKeys.contains(item.candidateKey))
+        .toList();
+    if (items.isEmpty) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => DiscoveryCoLocatedPicker(
+        items: items,
+        onChoose: (item) {
+          Navigator.of(sheetContext).pop();
+          if (!mounted) return;
+          final matches = _selector
+              .spatialAnchorsFromCollection(widget.selection.collection)
+              .where(
+                (anchor) =>
+                    anchor.candidateKey == item.candidateKey &&
+                    anchor.latitude == at.latitude &&
+                    anchor.longitude == at.longitude,
+              );
+          _select(
+            item.candidateKey,
+            anchor: matches.isEmpty ? null : matches.first,
+            moveCamera: false,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _displayPins(List<DiscoverySpatialAnchor> anchors) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final generation = ++_pinGeneration;
+    final seen = <String>{};
+    final selected = <DiscoverySpatialAnchor>[];
+    for (final anchor in anchors) {
+      final identity =
+          '${anchor.latitude}:${anchor.longitude}';
+      if (seen.add(identity)) selected.add(anchor);
+    }
+    try {
+      await controller.clearPins();
+      if (!mounted ||
+          _mapController != controller ||
+          generation != _pinGeneration)
+        return;
+      final pins = await controller.addPins([
+        for (final anchor in selected)
+          DiscoveryMapPin(anchor.latitude, anchor.longitude),
+      ]);
+      if (!mounted ||
+          _mapController != controller ||
+          generation != _pinGeneration)
+        return;
+      _circleAnchors.clear();
+      for (var i = 0; i < pins.length && i < selected.length; i++) {
+        _circleAnchors[pins[i]] = selected[i];
+      }
+      final latitude = _deviceLatitude;
+      final longitude = _deviceLongitude;
+      if (latitude != null && longitude != null) {
+        await controller.showDevicePosition(latitude, longitude);
+      }
+    } on Object {
+      // Map rendering failure does not erase a real Discovery list entry.
+    }
+  }
+
+  Future<void> _recenterOnDevice() async {
+    final location = widget.location;
+    if (location == null) return;
+    final result = await location.current();
+    if (!mounted) return;
+    final fix = result.fix;
+    if (!result.available || fix == null || _mapController == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Position indisponible')),
+      );
+      return;
+    }
+    _clearSelection();
+    setState(() {
+      _deviceLatitude = fix.latitude;
+      _deviceLongitude = fix.longitude;
+    });
+    try {
+      // The marker is local-only and has no candidate identity or N2.
+      await _displayPins(
+        _selector.spatialAnchorsFromCollection(widget.selection.collection),
+      );
+      await _mapController!.moveTo(fix.latitude, fix.longitude);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de se recentrer')),
+        );
+      }
+    }
+  }
+
+  Future<void> _onStyleReady(List<DiscoverySpatialAnchor> anchors) async {
+    await _displayPins(anchors);
+    final controller = _mapController;
+    if (!mounted ||
+        controller == null ||
+        _initialCameraPositioned ||
+        anchors.isEmpty) {
+      return;
+    }
+    _initialCameraPositioned = true;
+    try {
+      final selected = anchors.where(
+        (anchor) => anchor.candidateKey == _selectedCandidateKey,
+      );
+      if (selected.isNotEmpty) {
+        await controller.moveTo(selected.first.latitude, selected.first.longitude);
+      } else {
+        await controller.fitPins([
+          for (final anchor in anchors)
+            DiscoveryMapPin(anchor.latitude, anchor.longitude),
+        ]);
+      }
+    } on Object {
+      _initialCameraPositioned = false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    if (_selectedCandidateKey != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_resolveSelected());
+      });
+    }
+  }
 
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.detailRefreshRevision != widget.detailRefreshRevision &&
+        _selectedCandidateKey != null) {
+      ++_detailGeneration;
+      _confirmedDetail = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedCandidateKey != null) {
+          unawaited(_resolveSelected());
+        }
+      });
+    }
+    if (oldWidget.initialSelectedCandidateKey !=
+        widget.initialSelectedCandidateKey) {
+      ++_detailGeneration;
+      _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _focusedAnchor = null;
+      _confirmedDetail = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedCandidateKey != null) {
+          unawaited(_resolveSelected());
+        }
+      });
+    }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
-    if (_selectedCandidateKey != null &&
-        !keys.contains(_selectedCandidateKey)) {
-      _selectedCandidateKey = null;
+    final spatialChanged =
+        widget.showMapOnCompact && widget.spatialRevision != null
+            ? oldWidget.spatialRevision != widget.spatialRevision
+            : oldWidget.selection.collection.items !=
+                widget.selection.collection.items;
+    if (spatialChanged) {
+      ++_detailGeneration;
+      _confirmedDetail = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final anchors = _selector.spatialAnchorsFromCollection(
+            widget.selection.collection,
+          );
+          if (!_initialCameraPositioned) {
+            unawaited(_onStyleReady(anchors));
+          } else {
+            unawaited(_displayPins(anchors));
+          }
+          if (_selectedCandidateKey != null && _confirmedDetail == null) {
+            unawaited(_resolveSelected());
+          }
+        }
+      });
     }
+    // Empty during network acquisition is not proof that the previously
+    // selected candidate was revoked. Reconcile once a real field arrives.
+    if (_selectedCandidateKey != null &&
+        keys.isNotEmpty &&
+        !keys.contains(_selectedCandidateKey)) {
+      ++_detailGeneration;
+      _selectedCandidateKey = null;
+      _focusedAnchor = null;
+      _confirmedDetail = null;
+      widget.onSelectionChanged?.call(null);
+    }
+  }
+
+  String? _placeForSelection(
+    DiscoveryItemPresentation item,
+    DiscoverySpatialAnchor? anchor,
+  ) {
+    final place = anchor?.fact['place'];
+    if (place is! Map) return item.place;
+    final name = place['name'];
+    final locality = place['locality'];
+    final label = name is String && name.trim().isNotEmpty
+        ? name.trim()
+        : locality is String && locality.trim().isNotEmpty
+        ? locality.trim()
+        : item.place;
+    if (label == null) return null;
+    const roles = {
+      'departure': 'Départ',
+      'arrival': 'Arrivée',
+      'stopover': 'Escale',
+      'boarding': 'Embarquement',
+      'dropoff': 'Débarquement',
+    };
+    final role = roles[anchor?.fact['role']];
+    return role == null ? label : '$role · $label';
   }
 
   DiscoveryItemPresentation? get _selectedItem {
@@ -198,27 +1012,40 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final key = _selectedCandidateKey;
     if (key != null) {
       for (final item in items) {
-        if (item.candidateKey == key) return item;
+        if (item.candidateKey == key &&
+            _selector.spatialAnchorsFromCollection(widget.selection.collection)
+                .any((anchor) => anchor.candidateKey == key)) return item;
       }
     }
-    for (final item in items) {
-      if (item.isMappable) return item;
-    }
-    return items.first;
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final points = _selector.mapPointsFromCollection(
+    final points = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
     );
     final selected = _selectedItem;
-    DiscoveryMapPoint? selectedPoint;
+    DiscoverySpatialAnchor? selectedPoint;
     if (selected != null) {
-      for (final point in points) {
-        if (point.candidateKey == selected.candidateKey) {
-          selectedPoint = point;
-          break;
+      final focused = _focusedAnchor;
+      if (focused != null && focused.candidateKey == selected.candidateKey) {
+        for (final point in points) {
+          if (point.candidateKey == focused.candidateKey &&
+              point.latitude == focused.latitude &&
+              point.longitude == focused.longitude &&
+              point.fact['role'] == focused.fact['role']) {
+            selectedPoint = point;
+            break;
+          }
+        }
+      }
+      if (selectedPoint == null) {
+        for (final point in points) {
+          if (point.candidateKey == selected.candidateKey) {
+            selectedPoint = point;
+            break;
+          }
         }
       }
     }
@@ -226,20 +1053,23 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final field = DiscoveryFieldView(
       selection: widget.selection,
       onOpen: widget.onOpen,
+      onSave: widget.onSave,
+      baseUri: widget.baseUri,
+      shareApi: widget.shareApi,
+      profileId: widget.profileId,
+      allowOwnerActions: widget.allowOwnerActions,
       onPage: widget.onPage,
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
-      onSelect: (item) => setState(() {
-        _selectedCandidateKey = item.candidateKey;
-      }),
+      onSelect: (item) => _select(item.candidateKey),
       selectionActionLabel: 'Voir sur la carte',
+      fieldKey: widget.fieldKey,
     );
 
-    if (points.isEmpty) {
+    if (points.isEmpty && !widget.showMapOnCompact) {
       return field;
     }
-
-    final anchor = selectedPoint ?? points.first;
+    final anchor = selectedPoint ?? (points.isEmpty ? null : points.first);
     final spatial = MakoloSpatialFrame(
       spatial: Stack(
         key: const Key('discover-spatial-stack'),
@@ -247,12 +1077,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           Positioned.fill(
             child: ConfiguredMakoloMapView(
               key: ValueKey(
-                'discover-map-${anchor.candidateKey ?? anchor.occurrenceId}',
+                'discover-map-${widget.fieldKey ?? (widget.showMapOnCompact ? 'spatial' : (anchor?.candidateKey ?? 'spatial'))}',
               ),
+              onMapCreated: (controller) =>
+                  _mapCreated(DiscoveryMapController(controller)),
+              onStyleReady: () => unawaited(_onStyleReady(points)),
               config: widget.mapConfig,
-              initialViewport: MapViewport(
-                center: MapCoordinate(anchor.latitude, anchor.longitude),
-                zoom: 11,
+              onViewportChanged: widget.onViewportChanged,
+              initialViewport: widget.restoredViewport ?? MapViewport(
+                center: anchor == null
+                    ? const MapCoordinate(0, 0)
+                    : MapCoordinate(anchor.latitude, anchor.longitude),
+                zoom: anchor == null ? 1 : 11,
               ),
               fallbackBuilder: (context, state, retry) {
                 final retryable = state == MakoloMapRuntimeState.error;
@@ -265,14 +1101,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                         const Icon(Icons.map_outlined),
                         const SizedBox(height: MakoloSpacing.sm),
                         const Text(
-                          'La carte n’est pas disponible. Le champ reste entièrement utilisable.',
+                          'Impossible d’afficher la carte.',
                           textAlign: TextAlign.center,
                         ),
                         if (retryable) ...[
                           const SizedBox(height: MakoloSpacing.md),
                           OutlinedButton(
                             onPressed: retry,
-                            child: const Text('Réessayer la carte'),
+                            child: const Text('Réessayer'),
                           ),
                         ],
                       ],
@@ -284,8 +1120,81 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           ),
         ],
       ),
-      compactFallback: field,
+      compactFallback: widget.showMapOnCompact ? null : field,
+      minSpatialWidth: widget.showMapOnCompact ? 0 : MakoloLayout.mapMinWidth,
     );
+
+    if (widget.showMapOnCompact) {
+      return Stack(
+              key: const Key('discover-compact-map'),
+              fit: StackFit.expand,
+              children: [
+                spatial,
+                if (points.isEmpty &&
+                    widget.selection.hasSnapshot &&
+                    widget.selection.surface.availability == MakoloAvailabilityCue.empty)
+                  Positioned(
+                    top: 72,
+                    left: MakoloSpacing.sm,
+                    right: MakoloSpacing.sm,
+                    child: Center(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(MakoloSpacing.sm),
+                          child: Text(
+                            'Aucune possibilité localisée',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (widget.location != null && widget.mapConfig.enabled)
+                  Positioned(
+                    top: 104,
+                    right: MakoloSpacing.sm,
+                    child: Material(
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(24),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: IconButton(
+                        tooltip: 'Ma position',
+                        onPressed: () => unawaited(_recenterOnDevice()),
+                        icon: const Icon(Icons.my_location_rounded),
+                      ),
+                    ),
+                  ),
+                if (selected != null)
+                  Positioned(
+                    left: MakoloSpacing.sm,
+                    right: MakoloSpacing.sm,
+                    bottom: MediaQuery.paddingOf(context).bottom +
+                        MakoloSpacing.sm,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.38,
+                      ),
+                      child: _DiscoveryMapPreview(
+                        item: selected,
+                        place: _placeForSelection(selected, selectedPoint),
+                        detail: widget.allowOwnerActions
+                            ? _confirmedDetail
+                            : null,
+                        saving: _savingSelected,
+                        onClose: _clearSelection,
+                        onOpen: () => widget.onOpen(selected),
+                        onSave: widget.onSave == null
+                            ? null
+                            : () => unawaited(_saveSelected()),
+                        shareApi: widget.shareApi,
+                        shareAuthenticated: widget.shareAuthenticated,
+                        baseUri: widget.baseUri,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+    }
 
     return MakoloAdaptiveSplit(
       splitAt: MakoloLayout.discoverSpatialMinWidth,
@@ -307,20 +1216,44 @@ class _DiscoveryScrollableField extends StatelessWidget {
   const _DiscoveryScrollableField({
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
+    this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.selectedCandidateKey,
     this.onSelect,
     this.selectionActionLabel,
     this.selectOnCardTap = false,
+    this.onMap,
+    this.onWatch,
+    this.fieldKey,
+    this.scrollController,
   });
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
+  final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
   final bool selectOnCardTap;
+  final VoidCallback? onMap;
+  final VoidCallback? onWatch;
+  final String? fieldKey;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -341,6 +1274,11 @@ class _DiscoveryScrollableField extends StatelessWidget {
               key: ValueKey('discover-unit-${item.candidateKey}'),
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
+              baseUri: baseUri,
+              shareApi: shareApi,
+              profileId: profileId,
+              allowOwnerActions: allowOwnerActions,
+              onSave: onSave == null ? null : () => onSave!(item),
               onTap: () {
                 if (selectOnCardTap && onSelect != null) {
                   onSelect!(item);
@@ -358,9 +1296,16 @@ class _DiscoveryScrollableField extends StatelessWidget {
             ),
         ];
 
-        return ListView(
+        final list = ListView(
+          controller: scrollController,
           key: PageStorageKey<String>(
-            'discover-page-${selection.collection.page}',
+            fieldKey == null
+                ? (autoLoadMore
+                      ? 'discover-continuous-field'
+                      : 'discover-page-${selection.collection.page}')
+                : (autoLoadMore
+                      ? 'discover-$fieldKey-continuous'
+                      : 'discover-$fieldKey-${selection.collection.page}'),
           ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
@@ -372,44 +1317,68 @@ class _DiscoveryScrollableField extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Découvrir',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Opportunités à découvrir',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
-                  if (wide)
-                    MakoloAdaptiveGrid(
-                      key: const Key('discover-wide-grid'),
-                      minUnitWidth: MakoloLayout.unitMinWidth,
-                      maxColumns: 3,
-                      children: units,
-                    )
-                  else
-                    Column(
-                      key: const Key('discover-compact-field'),
-                      children: [
-                        for (var index = 0; index < units.length; index++) ...[
-                          units[index],
-                          if (index < units.length - 1)
-                            const SizedBox(height: MakoloSpacing.md),
-                        ],
-                      ],
+                ],
+              ),
+            ),
+            if (wide)
+              MakoloContentFrame(
+                child: MakoloAdaptiveGrid(
+                  key: const Key('discover-wide-grid'),
+                  minUnitWidth: MakoloLayout.unitMinWidth,
+                  maxColumns: 3,
+                  children: units,
+                ),
+              )
+            else
+              Column(
+                key: const Key('discover-compact-field'),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < units.length; index++) ...[
+                    units[index],
+                    if (index < units.length - 1)
+                      const SizedBox(height: MakoloSpacing.sm),
+                  ],
+                ],
+              ),
+            MakoloContentFrame(
+              child: Column(
+                children: [
+                  if (autoLoadMore && loadingMore) ...[
+                    const SizedBox(height: MakoloSpacing.lg),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
+                  if (autoLoadMore && loadMoreFailed) ...[
+                    const SizedBox(height: MakoloSpacing.md),
+                    TextButton(
+                      onPressed: onPage == null
+                          ? null
+                          : () => onPage!(selection.collection.page + 1),
+                      child: const Text('Réessayer le chargement'),
                     ),
-                  if (selection.states.contains(
-                    DiscoveryFieldState.endOfField,
-                  )) ...[
+                  ],
+                  if (!loadingMore &&
+                      !loadMoreFailed &&
+                      selection.states.contains(
+                        DiscoveryFieldState.endOfField,
+                      )) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     const _DiscoveryEndOfField(),
                   ],
-                  if (selection.collection.page > 1 ||
-                      selection.collection.hasNext) ...[
+                  if (!autoLoadMore &&
+                      (selection.collection.page > 1 ||
+                          selection.collection.hasNext)) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     _DiscoveryPagination(
                       collection: selection.collection,
@@ -420,6 +1389,13 @@ class _DiscoveryScrollableField extends StatelessWidget {
               ),
             ),
           ],
+        );
+        if (!autoLoadMore || onPage == null) return list;
+        return LoadMoreOnScroll(
+          hasMore: selection.collection.hasNext && !loadMoreFailed,
+          loading: loadingMore,
+          loadMore: () => onPage!(selection.collection.page + 1),
+          child: list,
         );
       },
     );
@@ -432,6 +1408,11 @@ class _DiscoveryUnit extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
+    this.profileId,
+    this.allowOwnerActions = true,
     this.onSelect,
     this.selectionActionLabel,
   });
@@ -439,30 +1420,16 @@ class _DiscoveryUnit extends StatelessWidget {
   final DiscoveryItemPresentation item;
   final bool selected;
   final VoidCallback onTap;
+  final Future<void> Function()? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
+  final String? profileId;
+  final bool allowOwnerActions;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
 
-  bool get _hasContextualMedia =>
-      item.imageUrl != null || item.routeLabel != null;
-
   @override
   Widget build(BuildContext context) {
-    final metadata = <MakoloMetadataItem>[
-      if (item.owner != null)
-        MakoloMetadataItem(item.owner!, icon: Icons.business_outlined),
-      if (item.place != null)
-        MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
-      if (item.distanceKm != null)
-        MakoloMetadataItem(
-          '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
-          icon: Icons.near_me_outlined,
-        ),
-      if (item.timing != null)
-        MakoloMetadataItem(item.timing!, icon: Icons.schedule_outlined),
-      if (item.price != null)
-        MakoloMetadataItem(item.price!, icon: Icons.payments_outlined),
-    ];
-
     return DecoratedBox(
       decoration: selected
           ? BoxDecoration(
@@ -473,119 +1440,61 @@ class _DiscoveryUnit extends StatelessWidget {
               borderRadius: BorderRadius.circular(MakoloRadii.card),
             )
           : const BoxDecoration(),
-      child: MakoloCard(
-        onTap: onTap,
-        semanticLabel: 'Possibilité. ${item.title}',
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_hasContextualMedia)
-              Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.sm),
-                child: _DiscoveryMedia(item: item),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(MakoloSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (item.eyebrow != null)
-                    Text(
-                      item.eyebrow!,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  if (item.eyebrow != null)
-                    const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (item.summary.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      item.summary,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (metadata.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    MakoloMetadata(items: metadata),
-                  ],
-                  if (item.availability != null ||
-                      item.canSave ||
-                      item.canUnsave ||
-                      item.savedState == 'saved') ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    Row(
-                      children: [
-                        if (item.availability != null)
-                          MakoloStatus(label: item.availability!),
-                        const Spacer(),
-                        if (item.canSave ||
-                            item.canUnsave ||
-                            item.savedState == 'saved')
-                          Icon(
-                            item.savedState == 'saved'
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            size: 20,
-                            color: item.savedState == 'saved'
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                          ),
-                      ],
-                    ),
-                  ],
-                  if (onSelect != null) ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        key: ValueKey(
-                          'discover-map-action-${item.candidateKey}',
-                        ),
-                        onPressed: onSelect,
-                        icon: const Icon(Icons.map_outlined),
-                        label: Text(selectionActionLabel ?? 'Sélectionner'),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+      child: DiscoveryPossibilityUnit(
+        item: item,
+        onOpen: onTap,
+        onSave: onSave,
+        baseUri: baseUri,
+        shareApi: shareApi,
+        profileId: profileId,
+        allowOwnerActions: allowOwnerActions,
+        shareAuthenticated: shareApi != null,
+        onSelect: onSelect,
+        selectionActionLabel: selectionActionLabel,
       ),
     );
   }
 }
 
 class _DiscoveryMedia extends StatelessWidget {
-  const _DiscoveryMedia({required this.item});
+  const _DiscoveryMedia({required this.item, this.baseUri});
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final networkImage =
-        uri != null && (uri.scheme == 'https' || uri.scheme == 'http');
-
+    final resolved = uri == null
+        ? null
+        : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
     Widget? child;
-    if (networkImage) {
-      child = Image.network(
-        item.imageUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) =>
-            MakoloMediaPlaceholder(label: item.eyebrow ?? 'Média indisponible'),
-      );
+    if (resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http')) {
+      // Only public first-party images are retained automatically. An
+      // external URL keeps its existing non-persistent presentation.
+      final mediaBaseUri = baseUri;
+      child =
+          mediaBaseUri != null &&
+              resolved.origin == mediaBaseUri.origin &&
+              DiscoveryOfflineStore.isPublishedRecognitionUri(
+                resolved,
+                trustedOrigin: mediaBaseUri,
+              )
+          ? RetainedPublicDiscoveryImage(
+              url: resolved,
+              trustedOrigin: mediaBaseUri,
+              placeholder: MakoloMediaPlaceholder(
+                label: item.eyebrow ?? 'Média indisponible',
+              ),
+            )
+          : Image.network(
+              resolved.toString(),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => MakoloMediaPlaceholder(
+                label: item.eyebrow ?? 'Média indisponible',
+              ),
+            );
     } else if (item.routeLabel != null) {
       child = ColoredBox(
         color: context.makoloSurfaces.low,
@@ -616,9 +1525,11 @@ class _DiscoveryFocusPane extends StatelessWidget {
     required this.item,
     required this.onClose,
     required this.onOpen,
+    this.baseUri,
   });
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
   final VoidCallback onClose;
   final VoidCallback onOpen;
 
@@ -637,7 +1548,7 @@ class _DiscoveryFocusPane extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.md),
           if (item.imageUrl != null || item.routeLabel != null) ...[
-            _DiscoveryMedia(item: item),
+            _DiscoveryMedia(item: item, baseUri: baseUri),
             const SizedBox(height: MakoloSpacing.lg),
           ],
           if (item.eyebrow != null)
@@ -698,11 +1609,8 @@ class _DiscoveryFocusPane extends StatelessWidget {
                 if (item.canSave ||
                     item.canUnsave ||
                     item.savedState == 'saved')
-                  Icon(
-                    item.savedState == 'saved'
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    size: 22,
+                  DiscoveryOrbitIcon(
+                    saved: item.savedState == 'saved',
                     color: item.savedState == 'saved'
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -735,12 +1643,26 @@ class _DiscoveryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (states.contains(DiscoveryFieldState.contractError)) {
+      return _EmptyBody(
+        icon: Icons.error_outline_rounded,
+        title: 'Informations indisponibles.',
+        actionLabel: onRetry == null ? null : 'Réessayer',
+        onAction: onRetry,
+      );
+    }
+    if (states.contains(DiscoveryFieldState.continuationRejected)) {
+      return _EmptyBody(
+        icon: Icons.refresh_rounded,
+        title: 'Recherche à actualiser.',
+        actionLabel: onRetry == null ? null : 'Actualiser la recherche',
+        onAction: onRetry,
+      );
+    }
     if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
-        title:
-            'Nos serveurs sont momentanément inaccessibles. '
-            'Les possibilités publiques ne peuvent pas être actualisées pour le moment.',
+        title: 'Service momentanément indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -749,7 +1671,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
         states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
       return _EmptyBody(
         icon: Icons.info_outline_rounded,
-        title: 'Ce contenu n’est pas disponible pour le moment.',
+        title: 'Connexion indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -757,16 +1679,14 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.noMatch)) {
       return _EmptyBody(
         icon: Icons.search_off_outlined,
-        title: 'Aucune possibilité ne correspond à ces critères.',
-        body: 'Modifiez la recherche, retirez une contrainte ou élargissez volontairement la zone.',
-        actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
+        title: 'Aucun résultat.',
+        actionLabel: onResetCriteria == null ? null : 'Modifier les filtres',
         onAction: onResetCriteria,
       );
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
-      title: 'Aucune proposition pour le moment.',
-      body: 'Précisez ce que vous cherchez pour explorer autrement.',
+      title: 'Aucune possibilité pour le moment.',
     );
   }
 }
@@ -775,14 +1695,12 @@ class _EmptyBody extends StatelessWidget {
   const _EmptyBody({
     required this.icon,
     required this.title,
-    this.body,
     this.actionLabel,
     this.onAction,
   });
 
   final IconData icon;
   final String title;
-  final String? body;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -800,14 +1718,6 @@ class _EmptyBody extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        if (body != null && body!.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            body!,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
         if (actionLabel != null && onAction != null) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Center(
@@ -837,10 +1747,7 @@ class _DiscoveryEndOfField extends StatelessWidget {
         ),
         child: const Padding(
           padding: EdgeInsets.all(MakoloSpacing.md),
-          child: Text(
-            'Vous avez parcouru ce qui est disponible dans ce contexte. Makolo n’ajoute pas de contenu de remplissage.',
-            textAlign: TextAlign.center,
-          ),
+          child: Text('Vous avez tout exploré.', textAlign: TextAlign.center),
         ),
       ),
     );

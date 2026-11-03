@@ -184,5 +184,8 @@ class S4PaymentBridgeTests(TestCase):
         transition.refresh_from_db()
         self.assertEqual(obligation.status, "satisfied")
         self.assertEqual(assessment.state, RequirementAssessmentState.SATISFIED)
-        self.assertEqual(transition.status, SubscriptionTransitionStatus.READY)
+        self.assertEqual(transition.status, SubscriptionTransitionStatus.COMPLETED)
+        self.assertTrue(transition.subscription.items.filter(
+            created_via_transition=transition, status="active",
+        ).exists())
         self.assertEqual(Payment.objects.count(), before_payments)

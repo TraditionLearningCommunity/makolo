@@ -197,11 +197,10 @@ class _RequirementContent extends StatelessWidget {
         ],
         MakoloSection(
           title: 'Comment avancer',
-          description: 'Voici les moyens actuellement disponibles.',
           child: presentation.ways.isEmpty
               ? const MakoloCard(
                   child: Text(
-                    'Aucune manière de satisfaire supplémentaire n’est exposée pour le moment.',
+                    'Aucune action disponible ici pour cette condition.',
                   ),
                 )
               : Column(
@@ -225,7 +224,7 @@ class _RequirementContent extends StatelessWidget {
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,
                           subtitle: presentation.ways[index].link == null
-                              ? 'Aucune action personnelle supplémentaire n’est exposée ici.'
+                              ? 'Aucune autre action proposée pour cette condition.'
                               : presentation.ways[index].handoffLabel,
                           status:
                               MakoloHumanization.presentationLabel(
@@ -268,11 +267,11 @@ class _RequirementWay {
   final String? link;
 
   String get handoffLabel => switch (kind) {
-    'payment' => 'Continuer auprès du propriétaire du paiement.',
+    'payment' => 'Poursuivre le paiement auprès du service concerné.',
     'trusted_reuse' =>
       'Choisir un élément existant sans le déclarer automatiquement satisfait.',
-    'journey_step' => 'Cette étape reste pilotée par son propriétaire.',
-    _ => 'Continuer auprès du propriétaire de cette action.',
+    'journey_step' => 'Poursuivre cette étape dans la démarche concernée.',
+    _ => 'Poursuivre auprès du service concerné.',
   };
 }
 

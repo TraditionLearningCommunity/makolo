@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from uuid import UUID
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
@@ -11,14 +13,16 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
-from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
+from .core_models import Conversation, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
     conversation_context_label,
+    conversations_for_context,
     conversation_rows_for_profile,
     essential_points_for_profile,
     now_points_for_profile,
+    other_visible_points_for_profile,
     search_conversations_for_profile,
 )
 from .services import (
@@ -62,7 +66,13 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "opens_at": point.opens_at,
         "deadline_at": point.deadline_at,
         "valid_until": point.valid_until,
-        "can_respond": point_response_allowed(profile, point),
+        "can_respond": (
+            point.lifecycle == "open"
+            and (point.opens_at is None or point.opens_at <= timezone.now())
+            and (point.deadline_at is None or point.deadline_at > timezone.now())
+            and (point.valid_until is None or point.valid_until > timezone.now())
+            and point_response_allowed(profile, point)
+        ),
         "options": [
             {"id": str(option.pk), "label": option.label}
             for option in point.options.all()
@@ -88,6 +98,29 @@ def _serialize_conversation_row(row):
         "all_clear": row.all_clear,
         "updated_at": conversation.updated_at,
     }
+
+
+class ConversationContextLookupAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, kind, context_pk):
+        conversations = conversations_for_context(request.user, kind, context_pk)
+        return Response({
+            "count": len(conversations),
+            "results": [
+                {
+                    "id": str(item.pk),
+                    "title": item.title_override or conversation_context_label(item, request.user),
+                    "purpose": item.purpose,
+                    "context": {
+                        "kind": item.context.kind,
+                        "label": conversation_context_label(item, request.user),
+                    },
+                    "updated_at": item.updated_at,
+                }
+                for item in conversations
+            ],
+        })
 
 
 def _visible_conversation_or_404(profile, pk):
@@ -137,8 +170,12 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
         q = (request.query_params.get("q") or "").strip()[:120]
         updated_after_raw = (request.query_params.get("updated_after") or "").strip()
         updated_after = parse_datetime(updated_after_raw) if updated_after_raw else None
-        if updated_after_raw and updated_after is None:
-            raise DRFValidationError({"updated_after": "Date/heure ISO invalide."})
+        if updated_after_raw and (
+            updated_after is None or timezone.is_naive(updated_after)
+        ):
+            raise DRFValidationError({
+                "updated_after": "Date/heure ISO avec fuseau horaire attendue.",
+            })
 
         if q:
             seen = set()
@@ -177,7 +214,29 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
         conversation = _visible_conversation_or_404(request.user, pk)
         limit = _bounded_limit(request)
         rows = now_points_for_profile(request.user, conversation, limit=limit)
-        essential = essential_points_for_profile(request.user, conversation, limit=limit)
+        active_ids = {item["point"].pk for item in rows}
+        essential = [
+            point for point in essential_points_for_profile(request.user, conversation, limit=limit)
+            if point.pk not in active_ids
+        ]
+        seen = active_ids | {point.pk for point in essential}
+        elsewhere = other_visible_points_for_profile(
+            request.user, conversation, excluded_ids=seen, limit=limit,
+        )
+        seen.update(point.pk for point in elsewhere)
+        focused_point = None
+        focused_raw = (request.query_params.get("focus_point") or "").strip()
+        if focused_raw:
+            try:
+                focused_id = UUID(focused_raw)
+            except (ValueError, AttributeError):
+                raise DRFValidationError({"focus_point": "Point invalide."})
+            focused = ConversationPoint.objects.filter(
+                pk=focused_id, conversation=conversation,
+            ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options").first()
+            if focused and point_visible_to(request.user, focused):
+                if focused.pk not in seen:
+                    focused_point = _serialize_point(focused, profile=request.user, section="focus")
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
         return Response({
@@ -194,6 +253,11 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 _serialize_point(point, profile=request.user, section="essential")
                 for point in essential
             ],
+            "elsewhere": [
+                _serialize_point(point, profile=request.user, section="elsewhere")
+                for point in elsewhere
+            ],
+            "focused_point": focused_point,
             "personal_state": {
                 "muted": bool(state and state.muted_at),
                 "hidden": bool(state and state.hidden_at),

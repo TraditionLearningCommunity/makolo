@@ -70,14 +70,76 @@ void main() {
       await tester.pump();
 
       expect(find.text('Bibliothèque'), findsOneWidget);
-      expect(find.text('Proofs'), findsOneWidget);
-      expect(find.text('Credentials'), findsOneWidget);
+      expect(find.textContaining('owner Trust'), findsNothing);
+      expect(find.text('Faits vérifiés'), findsOneWidget);
+      expect(find.text('Attestations et certificats'), findsOneWidget);
       expect(find.text('Passeport RDC'), findsOneWidget);
       expect(find.text('Participation'), findsOneWidget);
       expect(find.text('Attestation de participation'), findsOneWidget);
       expect(find.text('Rechercher dans mes documents'), findsOneWidget);
+
+      // Offline queries still filter previously received PersonalAsset facts;
+      // they cannot manufacture new server search results.
+      await tester.enterText(find.byType(TextField), 'Passeport');
+      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.pump();
+      expect(find.text('Passeport RDC'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Inexistant');
+      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.pump();
+      expect(find.text('Passeport RDC'), findsNothing);
+      expect(find.text('Aucun document correspondant.'), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+
+  testWidgets(
+    'a Resource already visible in a list keeps its safe summary offline',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final repository = ResourceRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await store.putProjection(
+        kind: ResourceRepository.collectionProjectionKind,
+        resourceKey: repository.collectionResourceKey(query: '', offset: 0),
+        schemaVersion: 1,
+        payload: {
+          'documents': {
+            'items': [
+              {
+                'id': 'asset-seen',
+                'title': 'Document déjà connu',
+                'asset_kind_label': 'Attestation',
+                'sensitivity_label': 'Sensible',
+              },
+            ],
+          },
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: ResourceDetailScreen(
+            assetId: 'asset-seen',
+            repository: repository,
+            personal: PersonalRepository(store),
+            onOpenJourney: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Document déjà connu'), findsOneWidget);
+      expect(find.textContaining('Attestation · Sensible'), findsOneWidget);
+      expect(find.text('Télécharger'), findsNothing);
+      expect(find.text('Réutiliser dans une démarche'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 
@@ -141,7 +203,7 @@ void main() {
       expect(find.text('Passeport RDC'), findsOneWidget);
       expect(find.textContaining('Provenance : inconnue'), findsOneWidget);
       expect(
-        find.text('Présence dans la Bibliothèque ≠ exigence satisfaite.'),
+        find.text('Conserver un document ne suffit pas à remplir une condition d’une démarche.'),
         findsOneWidget,
       );
       expect(find.textContaining('Requirement satisfait'), findsNothing);

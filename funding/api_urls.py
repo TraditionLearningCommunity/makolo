@@ -4,6 +4,7 @@ from .api_views import (
     FundingContributionAPIView,
     FundingDetailAPIView,
     FundingListCreateAPIView,
+    PublicFundingDetailAPIView,
 )
 
 
@@ -11,6 +12,7 @@ app_name = "funding_api"
 
 urlpatterns = [
     path("", FundingListCreateAPIView.as_view(), name="list-create"),
+    path("public/<uuid:pk>/", PublicFundingDetailAPIView.as_view(), name="public-detail"),
     path("<uuid:pk>/", FundingDetailAPIView.as_view(), name="detail"),
     path("<uuid:pk>/contributions/", FundingContributionAPIView.as_view(), name="contribute"),
 ]

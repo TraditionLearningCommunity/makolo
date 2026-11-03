@@ -78,7 +78,7 @@ def build_personal_ongoing_read_model(
             .filter(occurrence__isnull=False)
             .select_related(None)
             .prefetch_related(None)
-            .select_related("activity", "occurrence")
+            .select_related("activity", "occurrence", "journey", "ticket__order__waitlist_entry")
             .prefetch_related("occurrence__place_links__place")
             .order_by("occurrence__start_date", "occurrence__start_time", "id")[
                 : budget.remaining

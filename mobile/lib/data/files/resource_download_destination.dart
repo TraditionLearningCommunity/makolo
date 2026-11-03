@@ -1,6 +1,8 @@
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'profile_paths.dart';
+
 /// Native storage boundary for non-sensitive, user-requested resources.
 Future<String> resourceDownloadDestination({
   required String profileId,
@@ -16,8 +18,8 @@ Future<String> resourceDownloadDestination({
     directory.path,
     'makolo',
     'resources',
-    profileId,
-    assetId,
+    ProfilePaths.safeProfileId(profileId),
+    ProfilePaths.safeProfileId(assetId),
     '${safeTitle.isEmpty ? 'document' : safeTitle}-v$versionNumber',
   );
 }

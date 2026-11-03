@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../data/files/resource_download_destination.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../repositories/personal_repository.dart';
@@ -31,6 +34,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _refreshing = false;
   bool _downloading = false;
   double? _downloadProgress;
+  _ResourceDetail? _cachedSummary;
+  String? _localCopyKey;
+  Future<bool>? _localCopy;
   late Stream<StoredProjection?> _detail;
   late Stream<ResourceSourceState> _source;
 
@@ -39,6 +45,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     super.initState();
     _detail = widget.repository.watchDetail(widget.assetId);
     _source = widget.repository.watchDetailSource(widget.assetId);
+    unawaited(_loadKnownSummary());
     unawaited(_refresh());
   }
 
@@ -49,7 +56,27 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         oldWidget.assetId != widget.assetId) {
       _detail = widget.repository.watchDetail(widget.assetId);
       _source = widget.repository.watchDetailSource(widget.assetId);
+      _cachedSummary = null;
+      unawaited(_loadKnownSummary());
       unawaited(_refresh());
+    }
+  }
+
+  Future<void> _loadKnownSummary() async {
+    final assetId = widget.assetId;
+    final repository = widget.repository;
+    try {
+      final pages = await repository.store.readProjections(
+        ResourceRepository.collectionProjectionKind,
+      );
+      final known = _ResourceDetail.fromKnownCollection(pages, assetId);
+      if (mounted &&
+          widget.assetId == assetId &&
+          identical(widget.repository, repository)) {
+        setState(() => _cachedSummary = known);
+      }
+    } on Object {
+      // No provisional owner authority is inferred from a list row.
     }
   }
 
@@ -65,6 +92,24 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     }
   }
 
+  Future<bool> _knownLocalCopy(_ResourceDetail detail) {
+    final version = detail.currentVersion;
+    if (version == null || detail.sensitivity != 'normal') {
+      return Future<bool>.value(false);
+    }
+    final key = '${widget.repository.profileId}:${widget.assetId}:'
+        '${detail.title}:${version.number}';
+    if (key != _localCopyKey) {
+      _localCopyKey = key;
+      _localCopy = widget.repository.localVersionExists(
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
+      );
+    }
+    return _localCopy!;
+  }
+
   Future<void> _download(_ResourceDetail detail) async {
     final path = detail.downloadPath;
     final version = detail.currentVersion;
@@ -73,8 +118,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Ce document sensible n’est pas conservé localement sans '
-            'politique de stockage protégée explicite.',
+            'Ce document sensible ne peut pas être téléchargé '
+            'sur cet appareil.',
           ),
         ),
       );
@@ -96,9 +141,28 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
           setState(() => _downloadProgress = transferred / total);
         },
       );
+      final pathOnDevice = await resourceDownloadDestination(
+        profileId: widget.repository.profileId,
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
+      );
+      // The owner-local copy and the user-requested public export are distinct.
+      // Sensitivity checks above remain in force for the export.
+      final exportedName = await const AndroidDeviceDownloads().save(
+        source: File(pathOnDevice),
+        fileName: makoloDownloadName(
+          '${detail.title}-v${version.number}',
+          'bin',
+        ),
+        mimeType: 'application/octet-stream',
+      );
       if (!mounted) return;
+      setState(() => _localCopy = Future<bool>.value(true));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fichier disponible sur cet appareil.')),
+        SnackBar(
+          content: Text('Enregistré dans Téléchargements : $exportedName'),
+        ),
       );
     } on Object {
       if (!mounted) return;
@@ -139,7 +203,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         const SnackBar(
           content: Text(
             'Document ajouté à la démarche. '
-            'La satisfaction des exigences reste décidée par son owner.',
+            'Cet ajout ne confirme pas que ses conditions sont remplies.',
           ),
         ),
       );
@@ -173,19 +237,26 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         stream: _detail,
         builder: (context, snapshot) {
           final projection = snapshot.data;
-          if (projection == null) {
+          final detail = projection != null
+              ? _ResourceDetail.fromPayload(projection.payload)
+              : _cachedSummary;
+          if (detail == null) {
             return Center(
               child: _refreshing
                   ? const CircularProgressIndicator.adaptive()
                   : const Text('Cette ressource n’est pas disponible ici.'),
             );
           }
-          final detail = _ResourceDetail.fromPayload(projection.payload);
           return StreamBuilder<ResourceSourceState>(
             stream: _source,
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
+              if (source.invalidated) {
+                return const Center(
+                  child: Text('Cette ressource n’est plus accessible.'),
+                );
+              }
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView(
@@ -211,8 +282,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         ReachabilityState.unreachable) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
-                        'Dernières métadonnées connues. '
-                        'Les actions sensibles nécessitent le owner courant.',
+                        'Dernières informations enregistrées sur cet appareil. '
+                        'Certaines actions nécessitent une vérification en ligne.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -221,6 +292,19 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                     const SizedBox(height: MakoloSpacing.lg),
                     if (detail.currentVersion != null)
                       _VersionSummary(version: detail.currentVersion!),
+                    if (detail.currentVersion != null &&
+                        detail.sensitivity == 'normal')
+                      FutureBuilder<bool>(
+                        future: _knownLocalCopy(detail),
+                        builder: (context, snapshot) => snapshot.data == true
+                            ? const Padding(
+                                padding: EdgeInsets.only(top: MakoloSpacing.sm),
+                                child: Text(
+                                  'Copie déjà reçue : réexportable sans connexion.',
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                     const SizedBox(height: MakoloSpacing.lg),
                     if (!detail.archived) ...[
                       Wrap(
@@ -248,8 +332,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                           detail.sensitivity != 'normal') ...[
                         const SizedBox(height: MakoloSpacing.sm),
                         Text(
-                          'Téléchargement local non proposé pour cette '
-                          'ressource sensible sans stockage protégé explicite.',
+                          'Le téléchargement de cette ressource sensible '
+                          'n’est pas proposé sur cet appareil.',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: Theme.of(context)
@@ -279,7 +363,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                       _VersionRow(version: version),
                     const SizedBox(height: MakoloSpacing.xl),
                     Text(
-                      'Présence dans la Bibliothèque ≠ exigence satisfaite.',
+                      'Conserver un document ne suffit pas à remplir une condition d’une démarche.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -367,15 +451,15 @@ class _JourneyChooser extends StatelessWidget {
               ),
               const SizedBox(height: MakoloSpacing.xs),
               Text(
-                'Seules les démarches déjà visibles dans En cours sont '
-                'proposées. Le serveur revalide l’accès avant la copie.',
+                'Choisissez une démarche affichée dans En cours. '
+                'Votre droit d’y ajouter ce document sera vérifié.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: MakoloSpacing.md),
               if (choices.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-                  child: Text('Aucune démarche admissible connue ici.'),
+                  child: Text('Aucune démarche disponible pour cet ajout.'),
                 )
               else
                 for (final choice in choices)
@@ -440,6 +524,36 @@ class _ResourceDetail {
   final List<_ResourceVersion> versions;
   final String? downloadPath;
   final String? reusePath;
+
+  /// Only facts from an already received Profile-scoped list. No versions,
+  /// download, reuse, readiness, or permissions are invented.
+  static _ResourceDetail? fromKnownCollection(
+    Iterable<StoredProjection> pages,
+    String assetId,
+  ) {
+    for (final page in pages) {
+      if (page.kind != ResourceRepository.collectionProjectionKind) continue;
+      final rows = _map(page.payload['documents'])['items'];
+      if (rows is! List) continue;
+      for (final raw in rows) {
+        final row = _map(raw);
+        if (_string(row['id']) != assetId) continue;
+        return _ResourceDetail(
+          title: _string(row['title']) ?? 'Ressource',
+          kindLabel: _string(row['asset_kind_label']) ?? 'Document',
+          sensitivity: 'unknown',
+          sensitivityLabel:
+              _string(row['sensitivity_label']) ?? 'Sensibilité inconnue',
+          archived: _string(row['status']) == 'archived',
+          currentVersion: null,
+          versions: const [],
+          downloadPath: null,
+          reusePath: null,
+        );
+      }
+    }
+    return null;
+  }
 
   factory _ResourceDetail.fromPayload(Map<String, dynamic> payload) {
     final currentRaw = _map(payload['current_version']);

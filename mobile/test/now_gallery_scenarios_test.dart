@@ -2,10 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/dev/scenarios/now_scenarios.dart';
 import 'package:makolo_mobile/features/now/now_screen.dart';
+import 'package:makolo_mobile/navigation/destination.dart';
+import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 import 'support/presentation_harness.dart';
 
 void main() {
+  test(
+    'S5 owner-backed composition remains dominant over incidental media',
+    () {
+      const situation = NowSituationPresentation(
+        identity: 'now:composed',
+        reference: StructuredDestination(kind: 'now', id: 'now:composed'),
+        humanContext: 'Deux rendez-vous',
+        meaning: 'Un conflit nécessite une décision.',
+        emphasis: NowPresentationEmphasis.primary,
+        whyNow: 'Les deux créneaux se recouvrent.',
+        consequence: 'Une présence simultanée est impossible.',
+        responseType: 'decide',
+        relationMembers: [
+          NowRelationMemberPresentation(id: 'a', label: 'Rendez-vous A'),
+          NowRelationMemberPresentation(id: 'b', label: 'Rendez-vous B'),
+        ],
+        relations: [
+          NowRelationPresentation(
+            kind: 'conflict',
+            memberIds: ['a', 'b'],
+            summary: 'Même créneau',
+          ),
+        ],
+        mediaBindings: [
+          NowMediaBindingPresentation(
+            resourceRef:
+                'presentation_media_use:11111111-2222-4333-8444-555555555555',
+            target: NowMediaTarget.subject,
+            purpose: NowMediaPurpose.recognize,
+            kind: NowMediaKind.image,
+            authorized: true,
+            presentationRank: 'primary',
+          ),
+        ],
+      );
+      expect(topologyFor(situation), NowTopology.composition);
+    },
+  );
+
   test('G01 fixtures select five distinct real Now architectures', () {
     const expected = <String, NowTopology>{
       'now-g01-s1-min': NowTopology.meaning,
@@ -76,10 +117,10 @@ void main() {
       child: const NowGalleryScenarioPreview(id: 'now-g01-s3-min'),
     );
     expect(
-      find.widgetWithText(FilledButton, 'Vérifier le dossier'),
+      find.widgetWithText(TextButton, 'Vérifier le dossier'),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Vérifier le dossier'));
+    await tester.tap(find.widgetWithText(TextButton, 'Vérifier le dossier'));
     await tester.pump();
     expect(
       find.text('Démonstration : aucune action métier exécutée.'),
@@ -105,7 +146,10 @@ void main() {
       tester,
       child: const NowGalleryScenarioPreview(id: 'now-media'),
     );
-    expect(find.text('Document de démonstration'), findsOneWidget);
+    // No authorized media reader is supplied to this gallery scenario.
+    // Preserve the fact without fabricating an actionable document preview.
+    expect(find.text('Ce document éclaire la situation.'), findsOneWidget);
+    expect(find.text('Lire dans Makolo'), findsNothing);
   });
 
   testWidgets('Gallery N2 opens the same real Now depth on wide', (

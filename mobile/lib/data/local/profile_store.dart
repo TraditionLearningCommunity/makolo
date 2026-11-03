@@ -90,6 +90,9 @@ class ProfileStore {
     return row == null ? null : _storedProjection(row);
   }
 
+  // Raw server pages and owner projections are kept intact. A bounded
+  // reserve of not-yet-presented Discovery items must be maintained at item
+  // level, not by evicting raw cursor pages or their dependencies.
   Future<void> putProjection({
     required String kind,
     String resourceKey = '',
@@ -134,6 +137,42 @@ class ProfileStore {
               row.resourceKey.equals(resourceKey),
         ))
         .go();
+  }
+
+  /// Remove all snapshots of one derived kind in this Profile only. A server
+  /// refusal of a Discovery owner invalidates its formerly composed windows;
+  /// it must not erase the other Profile's local data.
+  Future<int> deleteProjectionsOfKind(String kind) {
+    return (database.delete(database.projectionSnapshots)..where(
+          (row) =>
+              row.profileId.equals(profileId) & row.projectionKind.equals(kind),
+        ))
+        .go();
+  }
+
+  /// Keep bounded reconstructible projections without touching the raw owner
+  /// records of other kinds or Profiles. The active page and its first lot
+  /// can be protected by the caller during the rotation.
+  Future<void> pruneProjectionsOfKind(
+    String kind, {
+    required int retain,
+    Set<String> protectResourceKeys = const {},
+  }) async {
+    if (retain < 0) throw ArgumentError.value(retain, 'retain');
+    final rows = await readProjections(kind);
+    rows.sort((a, b) {
+      final newerFirst = b.receivedAt.compareTo(a.receivedAt);
+      return newerFirst != 0
+          ? newerFirst
+          : a.resourceKey.compareTo(b.resourceKey);
+    });
+    var kept = 0;
+    for (final projection in rows) {
+      if (protectResourceKeys.contains(projection.resourceKey)) continue;
+      if (kept++ >= retain) {
+        await deleteProjection(kind, resourceKey: projection.resourceKey);
+      }
+    }
   }
 
   StoredProjection _storedProjection(ProjectionSnapshot row) {

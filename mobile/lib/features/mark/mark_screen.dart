@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
+import '../../data/local/profile_store.dart';
 import '../../design/makolo_mark.dart';
 import '../../navigation/avatar_sheet.dart';
+import '../../navigation/destination.dart';
 import '../../navigation/shell_header.dart';
 import '../../navigation/space_context_bar.dart';
 import '../../platform/camera/system_media_picker.dart';
@@ -14,8 +17,16 @@ import '../../platform/permissions/permission_gateway.dart';
 import 'mark_repository.dart';
 
 class MarkScreen extends StatefulWidget {
-  const MarkScreen({super.key, required this.runtime, this.selectedContext});
+  const MarkScreen({
+    super.key,
+    required this.runtime,
+    this.selectedContext,
+    this.onSwitchAccount,
+    this.onLogout,
+  });
   final AppRuntime runtime;
+  final VoidCallback? onSwitchAccount;
+  final VoidCallback? onLogout;
   final Map<String, String>? selectedContext;
 
   @override
@@ -32,16 +43,26 @@ class _MarkScreenState extends State<MarkScreen> {
   List<Map<String, dynamic>> _attachments = const [];
   Map<String, String>? _selectedContext;
   NativeFileAcquisitionCoordinator? _files;
+  Stream<StoredProjection?>? _meStream;
 
   @override
   void initState() {
     super.initState();
     _input = TextEditingController();
     _repository = MarkRepository(widget.runtime);
+    _meStream = widget.runtime.personal?.watchMe();
     widget.runtime.actorContext?.addListener(_onActorChanged);
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
     _selectedContext = widget.selectedContext;
     _restoreDraft();
+  }
+
+  @override
+  void didUpdateWidget(covariant MarkScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.personal != widget.runtime.personal) {
+      _meStream = widget.runtime.personal?.watchMe();
+    }
   }
 
   @override
@@ -148,7 +169,7 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _capturePhoto() async {
     final coordinator = await _fileCoordinator();
     if (coordinator == null) {
-      _show('La capture photo locale n’est pas disponible dans cette session.');
+      _show('Impossible de prendre une photo.');
       return;
     }
     final result = await coordinator.capturePhoto(
@@ -192,7 +213,7 @@ class _MarkScreenState extends State<MarkScreen> {
     if (_busy) return;
     final input = _input.text.trim();
     if (input.isEmpty && _attachments.isEmpty) {
-      _show('Dites simplement ce que vous voulez donner à Makolo.');
+      _show('Écrivez un message ou ajoutez un fichier.');
       return;
     }
     setState(() => _busy = true);
@@ -216,13 +237,54 @@ class _MarkScreenState extends State<MarkScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _openAvatar() {
+    showMakoloAvatarSheet(
+      context,
+      runtime: widget.runtime,
+      onConnections: () => context.push(connectionsRouteForActor(_actor)),
+      onEditProfile: () => context.push('/me/profile'),
+      onBilling: () => context.push(subscriptionRouteForActor(_actor)),
+      onSettings: () => context.push('/settings'),
+      onSwitchAccount: widget.onSwitchAccount ?? () {
+        widget.runtime.recovery.markAccountSwitch();
+        context.push('/accounts');
+      },
+      onLogout: widget.onLogout,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final actor = _actor;
     return Scaffold(
-      appBar: MakoloPrimaryHeader(
-        kind: MakoloHeaderKind.mark,
-        onAvatar: () => showMakoloAvatarSheet(context, runtime: widget.runtime),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: StreamBuilder<StoredProjection?>(
+          stream: _meStream,
+          builder: (context, snapshot) {
+            final identity = snapshot.data?.payload['identity'];
+            final name = identity is Map ? identity['display_name'] : null;
+            final avatarUrl = identity is Map ? identity['avatar_url'] : null;
+            final baseUri = widget.runtime.api?.baseUri;
+            final resolved = avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
+                ? baseUri.resolve(avatarUrl)
+                : null;
+            final safeAvatar = resolved != null &&
+                (resolved.scheme == 'https' || resolved.scheme == 'http') &&
+                resolved.host == baseUri!.host;
+            return MakoloPrimaryHeader(
+              kind: MakoloHeaderKind.mark,
+              avatarLetter: name is String && name.trim().isNotEmpty
+                  ? name.trim().substring(0, 1).toUpperCase()
+                  : null,
+              avatarProfileId: widget.runtime.personal?.store.profileId,
+              avatarUrl: safeAvatar ? resolved.toString() : null,
+              avatarApi: widget.runtime.api,
+              avatarRevision: snapshot.data?.receivedAt,
+              onAvatar: _openAvatar,
+            );
+          },
+        ),
       ),
       body: SafeArea(
         top: false,
@@ -270,7 +332,7 @@ class _MarkScreenState extends State<MarkScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Contexte sélectionné : ${_selectedContext!['kind'] ?? 'réalité'}',
+                            'Élément sélectionné pour cette demande',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),

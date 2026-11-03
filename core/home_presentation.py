@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -67,7 +67,7 @@ class HomeActionMeta:
 
 @dataclass(frozen=True, slots=True)
 class HomeActionItem:
-    identity: ContextualActionIdentity
+    identity: ContextualActionIdentity = field(repr=False)
     context_label: str
     source_label: str
     action_label: str

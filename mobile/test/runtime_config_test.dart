@@ -47,6 +47,29 @@ void main() {
       );
     });
 
+    test('geocoding is independent from maps and off by default', () {
+      final config = MakoloRuntimeConfig.fromValues(const {});
+      expect(config.geocoding.enabled, isFalse);
+      expect(config.geocoding.apiKey, isNull);
+      expect(config.maps.enabled, isFalse);
+    });
+
+    test('geocoding requires an explicit key only when enabled', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENABLED': 'true',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+      final config = MakoloRuntimeConfig.fromValues(const {
+        'MAKOLO_GEOCODING_ENABLED': 'true',
+        'MAKOLO_GEOCODING_API_KEY': 'test-only',
+      });
+      expect(config.geocoding.enabled, isTrue);
+      expect(config.geocoding.apiKey, 'test-only');
+      expect(config.maps.enabled, isFalse);
+    });
+
     test('requires a DSN when Sentry is enabled', () {
       expect(
         () => MakoloRuntimeConfig.fromValues(const {

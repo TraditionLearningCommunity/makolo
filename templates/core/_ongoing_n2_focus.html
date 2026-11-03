@@ -1,0 +1,62 @@
+{# En cours N2 — composition de faits de continuité déjà autorisés. #}
+<section class="mk-ongoing-n2" aria-label="Comprendre {{ item.title }}">
+  <header>
+    <p class="mk-eyebrow">En cours</p>
+    <h2>{{ item.title }}</h2>
+    {% if item.cue %}<p class="mk-ongoing-n2-cue">{{ item.cue }}</p>{% endif %}
+    {% if item.summary %}<p class="mk-ongoing-n2-summary">{{ item.summary }}</p>{% endif %}
+  </header>
+  {% if item.media_gallery %}
+    <div class="mk-ongoing-n2-gallery" aria-label="Médias utiles">
+      {% for media in item.media_gallery %}
+        <figure class="mk-ongoing-n2-media">
+          <img src="{{ media.url }}" alt="{{ media.alt_text|default:item.title }}" loading="lazy" decoding="async">
+        </figure>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if item.when or item.place %}
+    <div class="mk-ongoing-n2-meta">
+      {% if item.when %}<span>{{ item.when }}</span>{% endif %}
+      {% if item.place %}<span>{{ item.place }}</span>{% endif %}
+    </div>
+  {% endif %}
+  {% if item.temporal_facts %}
+    <section class="mk-ongoing-n2-section">
+      <h3>Dates à retenir</h3>
+      {% for fact in item.temporal_facts %}
+        <p>{{ fact.label }} · {{ fact.display_when }}</p>
+      {% endfor %}
+    </section>
+  {% endif %}
+  {% for section, values in item.details %}
+    {% if values %}
+      <section class="mk-ongoing-n2-section">
+        <h3>{{ section }}</h3>
+        {% for value in values %}<p>{{ value }}</p>{% endfor %}
+      </section>
+    {% endif %}
+  {% endfor %}
+  {% if item.resources %}
+    <section class="mk-ongoing-n2-section">
+      <h3>Documents et ressources</h3>
+      {% for resource in item.resources %}
+        <div class="mk-ongoing-resource">
+          {% if resource.kind == "journey_artifact" and item.url %}
+            <a href="{{ item.url }}" aria-label="{{ resource.title }} · Dans la démarche">{{ resource.title }}</a>
+          {% elif resource.kind == "file" and resource.download_url %}
+            <a href="{{ resource.download_url }}">{{ resource.title }}</a>
+          {% elif resource.kind == "text" and resource.read_url %}
+            <a href="{{ resource.read_url }}">{{ resource.title }}</a>
+          {% elif resource.kind == "url" and resource.external_url %}
+            <a href="{{ resource.external_url }}" rel="noopener noreferrer">{{ resource.title }}</a>
+          {% else %}
+            <span>{{ resource.title }}</span>
+          {% endif %}
+          {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+  {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">{{ item.primary_label|default:"Ouvrir la démarche" }}</a>{% endif %}
+</section>

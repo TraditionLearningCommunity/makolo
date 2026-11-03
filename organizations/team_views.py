@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
@@ -13,6 +14,7 @@ from authorization.constants import PermissionCode, STANDARD_ACTIVITY_ROLE_CODES
 from authorization.models import AuthorityScope, Mandate, Role, RolePermission
 from authorization.selectors import current_mandates
 from authorization.services import can
+from subscriptions.ux_continuation import action_subscription_handoff, is_subscription_denial
 
 from .console_views import SpaceConsoleMixin
 from .models import Organization, Team, TeamMembership, TeamMembershipStatus
@@ -76,6 +78,7 @@ class OrganizationMemberCreateView(View):
         if not user_can_manage_organization_team(request.user, space):
             raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
         form = TeamMemberCreateForm(request.POST, actor=request.user, space=space)
+        subscription_handoff = None
         if form.is_valid():
             try:
                 user = find_user_for_team(email=form.cleaned_data["email"])
@@ -86,6 +89,14 @@ class OrganizationMemberCreateView(View):
                     role=form.cleaned_data["role"],
                 )
             except (ValidationError, PermissionDenied) as exc:
+                if is_subscription_denial(exc):
+                    subscription_handoff = action_subscription_handoff(
+                        request, space=space,
+                        action_url=reverse(
+                            "organizations:team-member-create",
+                            kwargs={"slug": space.slug},
+                        ),
+                    )
                 form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
             else:
                 messages.success(request, "Collaborateur et responsabilité ajoutés à l’Espace.")
@@ -93,7 +104,8 @@ class OrganizationMemberCreateView(View):
         return render(
             request,
             "organizations/member_form.html",
-            {"organization": space, "space": space, "form": form},
+            {"organization": space, "space": space, "form": form,
+             "subscription_handoff": subscription_handoff},
             status=400,
         )
 

@@ -3,11 +3,11 @@ import { test, expect } from '../fixtures/makolo.mjs';
 
 test('visitor discovers an event and its public organizer @firefox', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Faites avancer ce qui compte/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Ça vous intéresserait/i })).toBeVisible();
   await expect(page.getByRole('banner').getByRole('link', { name: 'Connexion', exact: true })).toBeVisible();
 
-  await page.getByLabel('Que voulez-vous faire ?').fill('Festival Makolo E2E');
-  await page.getByRole('button', { name: 'Découvrir' }).click();
+  await page.getByLabel('Rechercher des possibilités').fill('Festival Makolo E2E');
+  await page.getByRole('button', { name: 'Rechercher' }).click();
   await expect(page).toHaveURL(/\/discover\/\?q=Festival/);
   await expect(page.getByRole('heading', { name: 'Festival Makolo E2E' }).first()).toBeVisible();
 
@@ -22,6 +22,19 @@ test('visitor discovers an event and its public organizer @firefox', async ({ pa
 });
 
 
+
+test('guest home explains the action path and exposes existing Discover filters', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Makolo vous accompagne jusqu’à l’action' })).toBeVisible();
+  const journey = page.getByRole('complementary', { name: 'Makolo vous accompagne jusqu’à l’action' });
+  await expect(journey.getByRole('heading', { name: 'Découvrez' })).toBeVisible();
+  await expect(journey.getByRole('heading', { name: 'Préparez' })).toBeVisible();
+  await expect(journey.getByRole('heading', { name: 'Avancez' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Explorer les possibilités' })
+    .getByRole('link', { name: 'Participer' }).click();
+  await expect(page).toHaveURL(/\/discover\/\?vertical=event/);
+});
+
 test('private participant surface sends visitor to login with next preserved', async ({ page }) => {
   await page.goto('/tickets/');
   await expect(page).toHaveURL(/\/login\/\?next=\/tickets\//);
@@ -31,11 +44,11 @@ test('private participant surface sends visitor to login with next preserved', a
 
 test('mobile public home remains usable without horizontal overflow @mobile', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Faites avancer ce qui compte/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Ça vous intéresserait/i })).toBeVisible();
   await expect(page.getByRole('banner').getByRole('link', { name: 'Connexion', exact: true })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
-  await page.getByLabel('Que voulez-vous faire ?').fill('Atelier Makolo Visuel');
-  await page.getByRole('button', { name: 'Découvrir' }).click();
+  await page.getByLabel('Rechercher des possibilités').fill('Atelier Makolo Visuel');
+  await page.getByRole('button', { name: 'Rechercher' }).click();
   await expect(page.getByText('Atelier Makolo Visuel').first()).toBeVisible();
 });

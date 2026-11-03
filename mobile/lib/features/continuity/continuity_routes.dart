@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
+import 'conversation_context_screen.dart';
 import 'conversation_screens.dart';
 import 'history_screen.dart';
 import 'objective_repository.dart';
@@ -22,6 +23,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       return ConversationListScreen(
         repository: repository,
         onOpen: (id) => context.push('/conversations/$id'),
+        onOpenPoint: (id, pointId) => context.push(
+          '/conversations/$id?focus=${Uri.encodeQueryComponent(pointId)}',
+        ),
       );
     },
   ),
@@ -41,6 +45,25 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         id: state.pathParameters['id']!,
         repository: repository,
         representedSpaceId: actor is SpaceActorContext ? actor.space.id : null,
+        focusPointId: state.uri.queryParameters['focus'],
+      );
+    },
+  ),
+  GoRoute(
+    path: '/conversations/by-context/:kind/:id',
+    builder: (context, state) {
+      final repository = runtime.conversations;
+      if (repository == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Conversations',
+          message: 'Aucune conversation disponible sur cet appareil.',
+        );
+      }
+      return ConversationContextScreen(
+        repository: repository,
+        kind: state.pathParameters['kind']!,
+        contextId: state.pathParameters['id']!,
+        onOpen: (id) => context.pushReplacement('/conversations/$id'),
       );
     },
   ),

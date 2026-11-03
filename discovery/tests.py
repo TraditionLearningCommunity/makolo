@@ -23,6 +23,8 @@ from events.models import Event, EventCategory
 from geography.models import Place, SpacePlace, SpacePlaceRole
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, OrganizationVerificationStatus, SpaceArchetype
+from subscriptions.models import FeatureDefinition
+from subscriptions.runtime_services import create_entitlement_grant
 from transport.services import (
     configure_transport_fare,
     create_transport_departure,
@@ -62,6 +64,16 @@ class CanonicalDiscoveryTests(TestCase):
             verification_status=OrganizationVerificationStatus.VERIFIED,
             created_by=self.user,
         )
+        self.now = datetime(2026, 8, 20, 10, 0, tzinfo=LUB)
+        # Transport creation uses the canonical subscription gate; give this
+        # discovery fixture an explicit Activity capability rather than bypassing it.
+        create_entitlement_grant(
+            feature=FeatureDefinition.objects.get(code="activities.create"),
+            value=True,
+            reason="Canonical Discovery transport integration fixture",
+            space=self.space,
+            valid_from=self.now,
+        )
         self.category = EventCategory.objects.create(name="Culture Discovery")
         self.lubumbashi = Place.objects.create(
             name="Maison Makolo Lubumbashi",
@@ -87,7 +99,6 @@ class CanonicalDiscoveryTests(TestCase):
             role=SpacePlaceRole.SERVICE_POINT,
             is_public=True,
         )
-        self.now = datetime(2026, 8, 20, 10, 0, tzinfo=LUB)
         now_patcher = patch("discovery.search.timezone.now", return_value=self.now)
         now_patcher.start()
         self.addCleanup(now_patcher.stop)

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -6,15 +7,18 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from activities.models import Activity, Occurrence, OccurrenceStatus
-from authorization.constants import SystemRoleCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.platform_services import grant_platform_role
-from authorization.services import grant_activity_role, grant_space_role
-from commerce.models import Offer, OfferStatus
+from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
+from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from groups.models import Group, GroupMembership
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype, Team, TeamMembership, TeamMembershipStatus
+from organizations.space_product import (
+    SpaceOperationalFootprint, visible_operational_footprint_for_space,
+)
 from scanner.models import ScannerAssignment
-from services.models import ServiceDetails, ServiceKind
+from services.models import ServiceDetails, ServiceJourneyContext, ServiceKind
 from transport.models import TransportRoute, Vehicle
 
 
@@ -119,6 +123,23 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             selected = self.client.get(self.url, {**params, "kind": kind, "id": str(identity)})
             self.assertIsNone(selected.data["selection"])
 
+    def test_operational_footprint_does_not_reveal_other_domains(self):
+        actual = SpaceOperationalFootprint(
+            signals=("activities", "crm", "payments", "partners",
+                     "automation", "loyalty", "trust")
+        )
+        with patch(
+            "organizations.space_product.operational_footprint_for_space",
+            return_value=actual,
+        ), patch(
+            "authorization.selectors.has_direct_space_permission",
+            side_effect=lambda profile, space, code: code == PermissionCode.CRM_VIEW,
+        ):
+            projection = visible_operational_footprint_for_space(
+                self.space, self.member
+            )
+        self.assertEqual(projection.signals, ("crm", "automation"))
+
     def test_auth_and_minimal_disclosure_boundaries(self):
         self.assertEqual(self.client.get(self.url).status_code, 401)
 
@@ -190,6 +211,227 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             self.assertEqual(response.data["sections"][key]["items"], [])
             self.assertFalse(response.data["sections"][key]["has_more"])
 
+    def test_generic_world_is_empty_without_owner_work(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertEqual(world["preferred_language"], "Activités")
+        self.assertEqual(world["reading_groups"], [])
+        self.assertEqual(world["perspectives"], [])
+        self.assertIsNone(world["selected_perspective"])
+        self.assertNotIn("Initiative", str(world))
+
+    def test_generic_calm_portfolio_precedes_empty_continuity(self):
+        published = self._activity("Atelier durable")
+        published.status = "published"
+        published.save(update_fields=["status", "updated_at"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        groups = world["reading_groups"]
+        self.assertEqual([g["identity"] for g in groups], ["portfolio"])
+        self.assertEqual(groups[0]["section_keys"], ["activities"])
+        self.assertEqual(response.data["presentation"]["section_order"], ["activities"])
+        self.assertIn("travail durable", world["calm_message"])
+        self.assertEqual(world["perspectives"][0]["sections"], ["activities"])
+
+    def test_selection_is_not_mistaken_for_a_calm_global_space(self):
+        published = self._activity("Sélection partielle")
+        published.status = "published"
+        published.save(update_fields=["status", "updated_at"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self.url, {"kind": "activity", "id": str(published.pk)}
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["selection"]["source"]["id"], str(published.pk))
+        self.assertIsNone(response.data["presentation"]["calm_message"])
+
+    def test_generic_work_groups_continuity_before_portfolio(self):
+        draft = self._activity("À préparer")
+        published = self._activity("Atelier du samedi")
+        published.status = "published"
+        published.save(update_fields=["status", "updated_at"])
+        occurrence = Occurrence.objects.create(
+            activity=published,
+            label="Atelier à venir",
+            start_at=timezone.now() + timedelta(days=4),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        Occurrence.objects.create(
+            activity=published,
+            label="Atelier plus tard",
+            start_at=timezone.now() + timedelta(days=8),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertIsNone(world["calm_message"])
+        self.assertEqual(
+            [g["identity"] for g in world["reading_groups"]],
+            ["continuity", "portfolio"],
+        )
+        self.assertEqual(
+            world["reading_groups"][0]["section_keys"], ["preparation", "upcoming"]
+        )
+        self.assertEqual(
+            response.data["presentation"]["section_order"],
+            ["preparation", "upcoming", "activities"],
+        )
+        self.assertIn(str(draft.pk), str(response.data["sections"]["preparation"]))
+        self.assertIn(str(occurrence.pk), str(response.data["sections"]["upcoming"]))
+        portfolio = response.data["sections"]["activities"]["items"]
+        published_row = next(
+            row for row in portfolio if row["source"]["id"] == str(published.pk)
+        )
+        self.assertEqual(
+            published_row["context"]["next_occurrence"]["id"],
+            str(occurrence.pk),
+        )
+        self.assertEqual(
+            response.data["presentation"]["next_occurrence_label"],
+            "Prochaine date",
+        )
+
+
+    def test_community_world_reuses_activity_owner_and_ignores_membership(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Nettoyage du quartier")
+        activity.status = "published"
+        activity.save(update_fields=["status", "updated_at"])
+        occurrence = Occurrence.objects.create(
+            activity=activity,
+            label="Nettoyage samedi",
+            start_at=timezone.now() + timedelta(days=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertIn("ensemble", world["question"])
+        self.assertEqual(world["preferred_language"], "Initiatives")
+        self.assertEqual(
+            [g["identity"] for g in world["reading_groups"]],
+            ["continuity", "portfolio"],
+        )
+        self.assertEqual(world["reading_groups"][1]["representation"], "Nos initiatives")
+        source_ids = [
+            row["source"]["id"]
+            for section in response.data["sections"].values()
+            for row in section["items"]
+        ]
+        self.assertIn(str(activity.pk), source_ids)
+        self.assertIn(str(occurrence.pk), source_ids)
+        self.assertEqual(
+            response.data["presentation"]["next_occurrence_label"],
+            "Prochaine action",
+        )
+        portfolio_row = next(
+            row for row in response.data["sections"]["activities"]["items"]
+            if row["source"]["id"] == str(activity.pk)
+        )
+        self.assertEqual(
+            portfolio_row["context"]["next_occurrence"]["id"], str(occurrence.pk)
+        )
+        self.assertNotIn("group_member", str(world))
+        self.client.force_authenticate(self.member)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_business_world_scopes_to_activity_mandate_without_fake_perspectives(self):
+        allowed = self._activity("Initiative autorisée")
+        allowed.status = "published"
+        allowed.save(update_fields=["status", "updated_at"])
+        private = self._activity("Initiative étrangère")
+        private.status = "published"
+        private.save(update_fields=["status", "updated_at"])
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        actor = User.objects.create_user(
+            username="zs3-world-scoped", email="zs3-world-scoped@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=actor, activity=allowed,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(actor)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertEqual(world["authority_scope"], "activity_limited")
+        self.assertEqual(world["perspectives"][0]["coverage_state"], "partial")
+        self.assertIn(str(allowed.pk), str(response.data))
+        self.assertNotIn(private.title, str(response.data))
+        self.assertNotIn(str(private.pk), str(response.data))
+        self.assertEqual(world["perspectives"][0]["creation_actions"], [])
+
+    def test_generic_keeps_real_commerce_reality_without_changing_archetype(self):
+        activity = self._activity("Distribution solidaire")
+        activity.status = "published"
+        activity.save(update_fields=["status", "updated_at"])
+        Offer.objects.create(
+            activity=activity, name="Kit disponible", status=OfferStatus.ACTIVE,
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertEqual(response.data["archetype"], "generic")
+        self.assertEqual(
+            [g["identity"] for g in world["reading_groups"]],
+            ["portfolio", "specialized"],
+        )
+        self.assertEqual(
+            world["reading_groups"][1]["section_keys"], ["offers"]
+        )
+        self.assertIn("Kit disponible", str(response.data["sections"]["offers"]))
+
+    def test_community_group_is_not_itself_an_initiative(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        Group.objects.create(
+            name="Bénévoles", space=self.space, created_by=self.owner
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["business_world"]["reading_groups"], [])
+        self.assertNotIn("Bénévoles", str(response.data["sections"]))
+
+    def test_other_archetypes_do_not_inherit_generic_or_community_chapters(self):
+        self.space.archetype = SpaceArchetype.COMMERCE
+        self.space.save(update_fields=["archetype", "updated_at"])
+        catalogue = self._activity("Catalogue existant")
+        catalogue.status = ActivityStatus.PUBLISHED
+        catalogue.save(update_fields=["status", "updated_at"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertEqual(world["preferred_language"], "Commerce")
+        self.assertEqual(
+            [group["identity"] for group in world["reading_groups"]],
+            ["availability"],
+        )
+        self.assertNotIn(
+            "continuity",
+            [group["identity"] for group in world["reading_groups"]],
+        )
+        self.assertNotIn("creations", str(world))
+        self.assertNotIn("initiatives", str(world).lower())
+
     def test_all_archetypes_use_zs1_business_language(self):
         expected = {
             SpaceArchetype.GENERIC: "Activités",
@@ -241,6 +483,100 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(row["source"], {"kind": "occurrence", "id": str(occurrence.pk)})
         self.assertEqual(row["links"]["detail"], f"/api/v1/occurrences/{occurrence.pk}/")
         self.assertEqual(row["links"]["activity"], f"/api/v1/activities/{activity.pk}/")
+
+    def test_scanner_mandate_does_not_reveal_activity_work_or_selection(self):
+        sensitive = self._activity("Brouillon privé de l'organisateur")
+        scanner = User.objects.create_user(
+            username="zs3-scanner-mandate",
+            email="zs3-scanner-mandate@test.local",
+            password="x",
+        )
+        scanner_mandate = grant_activity_role(
+            profile=scanner,
+            activity=sensitive,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(scanner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["authority"]["scope"], "activity_limited")
+        self.assertEqual(response.data["coverage_state"], "partial")
+        self.assertNotIn(sensitive.title, str(response.data))
+        self.assertFalse(any(section["items"] for section in response.data["sections"].values()))
+        selected = self.client.get(
+            self.url, {"kind": "activity", "id": str(sensitive.pk)}
+        )
+        self.assertEqual(selected.status_code, 200, selected.data)
+        self.assertIsNone(selected.data["selection"])
+        self.assertNotIn(sensitive.title, str(selected.data))
+        revoke_mandate(mandate=scanner_mandate, actor=self.owner)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_order_detail_uses_existing_owner_api_and_current_permissions(self):
+        activity = self._activity("Commande dans l'Espace")
+        buyer = User.objects.create_user(
+            username="zs3-order-buyer",
+            email="private-order-buyer@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=buyer,
+            beneficiary=buyer,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=buyer,
+            payee_space=self.space,
+            status=CommerceOrderStatus.CONFIRMED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self.url, {"kind": "commerce_order", "id": str(order.pk)}
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        row = response.data["selection"]
+        self.assertIsNotNone(row)
+        self.assertEqual(
+            row["links"]["detail"],
+            f"/api/v1/organizations/workspaces/{self.space.slug}/commerce/orders/{order.pk}/",
+        )
+        detail = self.client.get(row["links"]["detail"])
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data["reference"], order.reference)
+        self.assertNotIn(buyer.email, str(detail.data))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(row["links"]["detail"]).status_code, 404)
+        self.assertEqual(
+            self.client.get(self.url, {"kind": "commerce_order", "id": str(order.pk)}).status_code,
+            404,
+        )
+
+    def test_operator_day_of_link_exists_during_owner_arrival_window(self):
+        activity = self._activity("Départ bientôt ouvert")
+        now = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=activity,
+            label="Départ à préparer",
+            start_at=now + timedelta(minutes=10),
+            end_at=now + timedelta(hours=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        row = next(
+            item for item in response.data["sections"]["upcoming"]["items"]
+            if item["source"]["id"] == str(occurrence.pk)
+        )
+        self.assertIn("open_day_of", row["capabilities"])
+        self.assertEqual(
+            row["links"]["day_of"],
+            f"/api/v1/operations/occurrences/{occurrence.pk}/day-of/",
+        )
 
     def test_activity_only_authority_is_bounded_and_responsibility_cannot_expand_it(self):
         allowed = self._activity("Activity autorisée")
@@ -351,6 +687,32 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["sections"]["completed"]["representation"], "Historique")
         self.assertNotIn("payment", str(offers[0]).lower())
 
+    def test_inactive_offer_remains_visible_as_owner_structure_with_selection(self):
+        activity = self._activity("Offres mixtes")
+        offer = Offer.objects.create(
+            activity=activity, name="Offre suspendue",
+            status=OfferStatus.INACTIVE,
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        row = next(
+            row for row in response.data["sections"]["offers"]["items"]
+            if row["source"]["id"] == str(offer.pk)
+        )
+        self.assertEqual(row["state"], OfferStatus.INACTIVE)
+        selection_url = row["links"]["selection"]
+        detail = self.client.get(selection_url)
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data["selection"]["source"]["id"], str(offer.pk))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(selection_url).status_code, 404)
+
     def test_programmes_presentation_routes_pending_registrations_to_human_queue(self):
         self.space.archetype = SpaceArchetype.EDUCATION
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -378,6 +740,48 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             if item["source"] == {"kind": "journey", "id": str(journey.pk)}
         )
         self.assertNotIn(beneficiary.email, str(row))
+
+    def test_mixed_space_requests_are_not_hidden_by_archetype(self):
+        # The archetype only controls labels and order, not owner-domain access.
+        activity = self._activity("Programme et service mixte")
+        beneficiary = User.objects.create_user(
+            username="zs3-mixed-beneficiary",
+            email="mixed-private@test.local",
+            password="x",
+        )
+        registration = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        service_case = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_authenticate(self.owner)
+        for archetype in (SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY):
+            self.space.archetype = archetype
+            self.space.save(update_fields=["archetype", "updated_at"])
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, 200, response.data)
+            requests = response.data["sections"]["requests"]["items"]
+            identities = {item["source"]["id"] for item in requests}
+            self.assertIn(str(registration.pk), identities)
+            self.assertIn(str(service_case.pk), identities)
+            self.assertNotIn(beneficiary.email, str(response.data))
 
     def test_education_journey_is_visible_without_beneficiary_leak(self):
         self.space.archetype = SpaceArchetype.EDUCATION
@@ -483,6 +887,55 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn("requirement", str(row).lower())
 
+    def test_service_case_link_requires_operator_scope_and_owner_context(self):
+        activity = self._activity("Prestation avec contexte")
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT
+        )
+        beneficiary = User.objects.create_user(
+            username="zs3-operator-beneficiary",
+            email="zs3-operator-beneficiary@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=activity, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.IN_PROGRESS,
+        )
+        operator = User.objects.create_user(
+            username="zs3-operator-case",
+            email="zs3-operator-case@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=operator, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(operator)
+        without_context = self.client.get(self.url)
+        row = next(
+            item for item in without_context.data["sections"]["active"]["items"]
+            if item["source"]["id"] == str(journey.pk)
+        )
+        self.assertNotIn("detail", row["links"])
+        self.assertEqual(row["continuity_facet"]["next"], [])
+
+        ServiceJourneyContext.objects.create(journey=journey)
+        with_context = self.client.get(self.url)
+        row = next(
+            item for item in with_context.data["sections"]["active"]["items"]
+            if item["source"]["id"] == str(journey.pk)
+        )
+        self.assertEqual(
+            row["links"]["detail"],
+            f"/services/operator/journeys/{journey.pk}/",
+        )
+        self.assertIn("open_service_case", row["capabilities"])
+        self.assertNotIn(beneficiary.email, str(row))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
     def test_transport_presentation_contextualizes_without_reclassifying_structure(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -498,6 +951,34 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["sections"]["activities"]["representation"], "Services")
         self.assertEqual(response.data["sections"]["routes"]["role"], "structure")
         self.assertEqual(response.data["sections"]["vehicles"]["role"], "structure")
+
+    def test_transport_owner_selections_revalidate_permissions_and_scope(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        route = TransportRoute.objects.create(space=self.space, name="Route à consulter")
+        vehicle = Vehicle.objects.create(
+            space=self.space, label="Bus à consulter", passenger_capacity=35
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        for key, owner_kind, identity in (
+            ("routes", "transport_route", route.pk),
+            ("vehicles", "vehicle", vehicle.pk),
+        ):
+            row = next(
+                row for row in response.data["sections"][key]["items"]
+                if row["source"]["id"] == str(identity)
+            )
+            selection_url = row["links"]["selection"]
+            selected = self.client.get(selection_url)
+            self.assertEqual(selected.status_code, 200, selected.data)
+            self.assertEqual(
+                selected.data["selection"]["source"],
+                {"kind": owner_kind, "id": str(identity)},
+            )
+            self.client.force_authenticate(self.outsider)
+            self.assertEqual(self.client.get(selection_url).status_code, 404)
+            self.client.force_authenticate(self.owner)
 
     def test_transport_space_projection_uses_real_route_and_vehicle_owners(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR

@@ -454,6 +454,8 @@ class OccurrenceDetailAPIView(APIView):
                 "kind": "activity",
                 "id": str(activity.pk),
                 "title": activity.title,
+                # Only canonical vocabulary; no new vertical or workflow truth.
+                "vocabulary": _vocabulary(activity),
             },
             "state": {"code": occurrence.status},
             "timing": _timing(occurrence),

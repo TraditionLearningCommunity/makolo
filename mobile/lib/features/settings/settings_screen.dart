@@ -6,10 +6,20 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 
 class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({super.key, required this.runtime, this.packageInfo});
+  const AppSettingsScreen({
+    super.key,
+    required this.runtime,
+    this.packageInfo,
+    this.onNotifications,
+    this.onSecurity,
+    this.onPrivacy,
+  });
 
   final AppRuntime runtime;
   final Future<PackageInfo>? packageInfo;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onSecurity;
+  final VoidCallback? onPrivacy;
 
   String _themeLabel(MakoloThemePreference preference) {
     return switch (preference) {
@@ -57,93 +67,117 @@ class AppSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preferences = runtime.preferences;
-    if (preferences == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Paramètres')),
-        body: const Center(
-          child: Text('Paramètres indisponibles pour le moment.'),
-        ),
-      );
-    }
-
+    if (preferences == null) return _settingsContent(context, null);
     return ListenableBuilder(
       listenable: preferences,
-      builder: (context, _) {
-        final value = preferences.value;
-        return Scaffold(
-          appBar: AppBar(title: const Text('Paramètres')),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              MakoloSpacing.inner,
-              MakoloSpacing.md,
-              MakoloSpacing.inner,
-              MakoloSpacing.xl,
+      builder: (context, _) => _settingsContent(context, preferences),
+    );
+  }
+
+  Widget _settingsContent(
+    BuildContext context,
+    AppPreferencesController? preferences,
+  ) {
+    final value = preferences?.value;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Paramètres')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.inner,
+          MakoloSpacing.md,
+          MakoloSpacing.inner,
+          MakoloSpacing.xl,
+        ),
+        children: [
+          Text('Apparence', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: MakoloSpacing.sm),
+          if (value == null || preferences == null)
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Impossible de modifier l’apparence'),
+            )
+          else
+            Semantics(
+              label: 'Apparence ${_themeLabel(value.themePreference)}',
+              child: SegmentedButton<MakoloThemePreference>(
+                segments: const [
+                  ButtonSegment(
+                    value: MakoloThemePreference.system,
+                    label: Text('Système'),
+                  ),
+                  ButtonSegment(
+                    value: MakoloThemePreference.light,
+                    label: Text('Clair'),
+                  ),
+                  ButtonSegment(
+                    value: MakoloThemePreference.dark,
+                    label: Text('Sombre'),
+                  ),
+                ],
+                showSelectedIcon: false,
+                selected: {value.themePreference},
+                onSelectionChanged: (selection) {
+                  if (selection.isEmpty) return;
+                  preferences.setThemePreference(selection.first);
+                },
+              ),
             ),
-            children: [
-              Text('Apparence', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MakoloSpacing.sm),
-              Semantics(
-                label: 'Apparence ${_themeLabel(value.themePreference)}',
-                child: SegmentedButton<MakoloThemePreference>(
-                  segments: const [
-                    ButtonSegment(
-                      value: MakoloThemePreference.system,
-                      label: Text('Système'),
-                    ),
-                    ButtonSegment(
-                      value: MakoloThemePreference.light,
-                      label: Text('Clair'),
-                    ),
-                    ButtonSegment(
-                      value: MakoloThemePreference.dark,
-                      label: Text('Sombre'),
-                    ),
-                  ],
-                  showSelectedIcon: false,
-                  selected: {value.themePreference},
-                  onSelectionChanged: (selection) {
-                    if (selection.isEmpty) return;
-                    preferences.setThemePreference(selection.first);
-                  },
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.xl),
-              Text(
-                'Accessibilité',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Réduire les animations'),
-                subtitle: const Text(
-                  'Limite les animations non essentielles. Les réglages du système restent respectés.',
-                ),
-                value: value.reduceMotion,
-                onChanged: preferences.setReduceMotion,
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
-              const Divider(),
-              const SizedBox(height: MakoloSpacing.md),
-              Text('À propos', style: Theme.of(context).textTheme.titleMedium),
-              _AppVersionTile(packageInfo: packageInfo),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.gavel_outlined),
-                title: const Text('Informations légales'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showLegalInformation(context),
-              ),
-              if (runtime.isDevelopment)
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.science_outlined),
-                  title: Text('Version de développement'),
-                  subtitle: Text('Environnement DEV'),
-                ),
-            ],
+          const SizedBox(height: MakoloSpacing.xl),
+          Text('Accessibilité', style: Theme.of(context).textTheme.titleMedium),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Réduire les animations'),
+            subtitle: const Text(
+              'Limite les animations non essentielles. Les réglages du système restent respectés.',
+            ),
+            value: value?.reduceMotion ?? false,
+            onChanged: preferences?.setReduceMotion,
           ),
-        );
-      },
+          const SizedBox(height: MakoloSpacing.lg),
+          const Divider(),
+          const SizedBox(height: MakoloSpacing.md),
+          Text('Préférences', style: Theme.of(context).textTheme.titleMedium),
+          if (onNotifications != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.notifications_outlined),
+              title: const Text('Notifications'),
+              subtitle: const Text(
+                'Canaux, types de messages et heures calmes',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onNotifications,
+            ),
+          if (onSecurity != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.shield_outlined),
+              title: const Text('Sécurité et appareils'),
+              subtitle: const Text('Mot de passe et comptes mémorisés'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: onSecurity,
+            ),
+          const SizedBox(height: MakoloSpacing.lg),
+          const Divider(),
+          const SizedBox(height: MakoloSpacing.md),
+          Text('À propos', style: Theme.of(context).textTheme.titleMedium),
+          _AppVersionTile(packageInfo: packageInfo),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('Informations légales'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showLegalInformation(context),
+          ),
+          if (runtime.isDevelopment)
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.science_outlined),
+              title: Text('Version de développement'),
+              subtitle: Text('Environnement DEV'),
+            ),
+        ],
+      ),
     );
   }
 }

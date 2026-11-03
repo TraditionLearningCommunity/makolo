@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
+import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 import '../../platform/scanner/qr_renderer.dart';
 import 'access_repository.dart';
 
@@ -17,7 +19,7 @@ class AccessCredentialScreen extends StatefulWidget {
   });
 
   final String accessId;
-  final String credentialPath;
+  final String? credentialPath;
   final AccessRepository repository;
   final String title;
 
@@ -30,6 +32,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
   AccessCredentialData? _credential;
   Object? _error;
   bool _loading = false;
+  int _generation = 0;
 
   @override
   void initState() {
@@ -44,6 +47,8 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
     if (oldWidget.accessId != widget.accessId ||
         oldWidget.credentialPath != widget.credentialPath ||
         oldWidget.repository != widget.repository) {
+      _generation++;
+      _loading = false;
       _credential = null;
       _error = null;
       unawaited(_load());
@@ -56,6 +61,9 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       unawaited(_load());
       return;
     }
+    // A pending request must not redraw a secret after the app backgrounds.
+    _generation++;
+    _loading = false;
     if (mounted && (_credential != null || _error != null)) {
       setState(() {
         _credential = null;
@@ -67,31 +75,63 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _generation++;
     _credential = null;
     super.dispose();
   }
 
   Future<void> _load() async {
     if (_loading) return;
+    final generation = ++_generation;
+    final requestedAccess = widget.accessId;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final credential = await widget.repository.fetchCredential(
-        accessId: widget.accessId,
-        path: widget.credentialPath,
+      // Read the OS-protected copy first. No re-acquisition is required to
+      // show a previously granted, not-yet-expired display permission.
+      AccessCredentialData? retained;
+      try {
+        retained = await widget.repository
+            .readRetainedCredential(requestedAccess);
+      } on Object {
+        // A missing/unavailable OS vault must not block an online-only QR.
+        // The secret is never copied to an unprotected alternative store.
+      }
+      if (!mounted || _generation != generation ||
+          widget.accessId != requestedAccess) return;
+      if (retained != null) {
+        setState(() => _credential = retained);
+      }
+      final path = widget.credentialPath ??
+          await widget.repository.readKnownCredentialPath(requestedAccess);
+      if (path == null) {
+        if (retained == null) {
+          throw StateError('No owner credential link on this device');
+        }
+        return;
+      }
+      final fresh = await widget.repository.fetchCredential(
+        accessId: requestedAccess,
+        path: path,
       );
-      if (!mounted) return;
-      setState(() => _credential = credential);
+      if (!mounted || _generation != generation ||
+          widget.accessId != requestedAccess) return;
+      setState(() => _credential = fresh);
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || _generation != generation ||
+          widget.accessId != requestedAccess) return;
+      final revoked = error is MakoloApiError &&
+          (error.statusCode == 403 || error.statusCode == 404);
       setState(() {
-        _credential = null;
+        if (revoked) _credential = null;
         _error = error;
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && _generation == generation) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -116,13 +156,16 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
             label: 'Chargement du QR…',
           ),
           (null, false, _) when _error != null => MakoloErrorState(
-            message: 'Le QR ne peut pas être affiché pour le moment.',
+            message: 'Le QR ne peut pas être chargé. '
+                'Le droit déjà reçu reste consultable dans Mes accès. '
+                'La présentation hors ligne nécessite une copie sécurisée '
+                'explicitement autorisée par Access.',
             onRetry: _load,
           ),
           (final value?, _, _) when value.credentialType != 'qr' =>
             const MakoloEmptyState(
               title: 'Représentation non prise en charge',
-              body: 'Cette représentation d’accès ne peut pas encore être affichée ici.',
+              body: 'Ce justificatif ne peut pas être affiché ici.',
               icon: Icons.lock_outline_rounded,
             ),
           (final value?, _, _) => _CredentialQr(credential: value),
@@ -159,14 +202,16 @@ class _CredentialQr extends StatelessWidget {
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Il est rechargé depuis Makolo lorsque cette surface revient au premier plan.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            if (credential.locallyRetained) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                'Copie protégée reçue précédemment. '
+                'Son affichage hors connexion ne prouve pas la validité '
+                'actuelle : le contrôle reste effectué par Access.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ),
+            ],
           ],
         ),
       ),

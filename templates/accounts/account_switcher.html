@@ -1,21 +1,96 @@
 {% extends 'base/app.html' %}
 {% block title %}Changer de compte | Makolo{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-2xl space-y-6 pb-10">
-  <section><span class="mk-kicker">Identité</span><h1 class="mk-page-title mt-2">Choisir un compte</h1><p class="mk-page-copy mt-3">Les comptes connus sur ce navigateur sont mémorisés sans mot de passe ni session réutilisable. Un autre compte doit se réauthentifier.</p></section>
-  <section class="mk-panel overflow-hidden">
-    {% for account in remembered_accounts %}
-      <div class="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-5 last:border-b-0 sm:px-6" style="border-color:var(--mk-border)">
-        <div class="min-w-0"><p class="truncate font-bold">{% if account.full_name %}{{ account.full_name }}{% else %}{{ account.username }}{% endif %}</p><p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{% if account.email %}{{ account.email }}{% else %}@{{ account.username }}{% endif %}</p>{% if account.pk == request.user.pk %}<span class="mk-badge mk-badge-success mt-2">Compte actuel</span>{% else %}<span class="mk-badge mt-2">Mot de passe requis</span>{% endif %}</div>
-        <div class="flex flex-wrap gap-2">
-          {% if account.pk != request.user.pk %}<form method="post" action="{% url 'account:switch-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Continuer</button></form>{% endif %}
-          <form method="post" action="{% url 'account:remove-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost" type="submit">Retirer de cet appareil</button></form>
-        </div>
+<style>
+  .mk-account-switcher {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: 28px;
+    background: linear-gradient(155deg, #5232DB 0%, #4123B9 58%, #2B176E 100%);
+    color: #fff;
+    padding: clamp(24px, 5vw, 48px) clamp(16px, 5vw, 44px);
+    min-height: min(620px, 78vh);
+    box-shadow: 0 16px 48px rgba(43, 23, 110, .12);
+  }
+  .mk-account-switcher::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: 390px;
+    height: 390px;
+    right: -220px;
+    top: -220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.07);
+    pointer-events: none;
+  }
+  .mk-account-switcher__inner { width: 100%; max-width: 460px; margin: 0 auto; }
+  .mk-account-switcher__top { display: flex; justify-content: flex-end; align-items: center; }
+  .mk-account-switcher__back { color: #fff; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.26); border-radius: 16px; background: rgba(255,255,255,.12); font-size: 24px; text-decoration: none; } .mk-account-switcher__back:hover { background: rgba(255,255,255,.22); }
+  .mk-account-switcher__back:focus-visible, .mk-account-switcher button:focus-visible { outline: 3px solid #FFBEAC; outline-offset: 3px; }
+  .mk-account-switcher__identity { text-align: center; padding: 26px 0 22px; }
+  .mk-account-switcher__mark { width: fit-content; min-height: 44px; padding: 0 15px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid rgba(255,255,255,.32); border-radius: 16px; font-size: 17px; font-weight: 800; letter-spacing: -.04em; }
+  .mk-account-switcher__identity h1 { color: #fff; font-size: clamp(24px, 4vw, 30px); line-height: 1.15; font-weight: 800; letter-spacing: -.025em; }
+  .mk-account-switcher__identity p { color: rgba(255,255,255,.84); font-size: 14px; margin-top: 9px; }
+  .mk-account-switcher__accounts { display: grid; gap: 12px; }
+  .mk-account-switcher__card { background: #fff; color: #0F172A; border-radius: 20px; padding: 18px; box-shadow: 0 8px 22px rgba(28,15,82,.13); }
+  .mk-account-switcher__person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .mk-account-switcher__initial { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; background: #EEE9FF; color: #5232DB; font-weight: 800; display: grid; place-items: center; }
+  .mk-account-switcher__names { min-width: 0; flex: 1; }
+  .mk-account-switcher__names strong, .mk-account-switcher__names small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .mk-account-switcher__names small { color: #64748B; margin-top: 2px; font-size: 12px; }
+  .mk-account-switcher__status { font-size: 12px; font-weight: 650; color: #5232DB; margin-top: 10px; }
+  .mk-account-switcher__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .mk-account-switcher__actions .mk-btn { min-height: 42px; }
+  .mk-account-switcher__remove { color: #475569; }
+  .mk-account-switcher__add { margin-top: 18px; }
+  .mk-account-switcher__add button { width: 100%; min-height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,.72); color: #fff; background: rgba(255,255,255,.08); font-weight: 700; transition: background .16s ease; }
+  .mk-account-switcher__add button:hover { background: rgba(255,255,255,.17); }
+  @media (max-width: 600px) {
+    .mk-account-switcher { border-radius: 20px; min-height: 0; padding: 20px 16px 28px; }
+    .mk-account-switcher__identity { padding: 18px 0 22px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mk-account-switcher__add button { transition: none; }
+  }
+</style>
+<div class="mx-auto max-w-3xl pb-10">
+  <section class="mk-account-switcher" aria-labelledby="mk-switcher-title">
+    <div class="mk-account-switcher__inner">
+      <div class="mk-account-switcher__top">
+        <a class="mk-account-switcher__back" href="{% url 'account:profile' %}" aria-label="Fermer et revenir à Makolo" title="Fermer">×</a>
       </div>
-    {% empty %}
-      <div class="px-6 py-8 text-center"><p class="font-semibold">Aucun autre compte mémorisé sur cet appareil.</p></div>
-    {% endfor %}
+      <header class="mk-account-switcher__identity">
+        <div class="mk-account-switcher__mark" aria-hidden="true">Makolo</div>
+        <h1 id="mk-switcher-title">Choisir un compte</h1>
+        <p>Sélectionnez un compte pour continuer.</p>
+      </header>
+      <div class="mk-account-switcher__accounts">
+        {% for account in remembered_accounts %}
+          <section class="mk-account-switcher__card" aria-label="Compte {% if account.full_name %}{{ account.full_name }}{% else %}{{ account.username }}{% endif %}">
+            <div class="mk-account-switcher__person">
+              <div class="mk-account-switcher__initial" aria-hidden="true">{{ account.username|first|upper }}</div>
+              <div class="mk-account-switcher__names">
+                <strong>{% if account.full_name %}{{ account.full_name }}{% else %}{{ account.username }}{% endif %}</strong>
+                <small>{% if account.email %}{{ account.email }}{% else %}@{{ account.username }}{% endif %}</small>
+              </div>
+            </div>
+            <p class="mk-account-switcher__status">{% if account.pk == request.user.pk %}Compte actuel{% else %}Mot de passe requis{% endif %}</p>
+            <div class="mk-account-switcher__actions">
+              {% if account.pk != request.user.pk %}<form method="post" action="{% url 'account:switch-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Continuer</button></form>{% endif %}
+              <form method="post" action="{% url 'account:remove-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost mk-account-switcher__remove" type="submit">Retirer de cet appareil</button></form>
+            </div>
+          </section>
+        {% empty %}
+          <div class="mk-account-switcher__card"><p class="font-semibold">Aucun autre compte mémorisé sur cet appareil.</p></div>
+        {% endfor %}
+      </div>
+      <form class="mk-account-switcher__add" method="post" action="{% url 'account:add-account' %}">
+        {% csrf_token %}
+        <button type="submit">+ Ajouter un compte</button>
+      </form>
+    </div>
   </section>
-  <form method="post" action="{% url 'account:add-account' %}">{% csrf_token %}<button class="mk-btn mk-btn-secondary" type="submit">+ Ajouter un compte</button></form>
 </div>
 {% endblock %}

@@ -244,7 +244,7 @@ class DiscoveryPresentationWebTests(TestCase):
     def test_unauthenticated_discovery_has_explicit_save_primary_share_fallback(self):
         response = self.client.get(reverse("discovery:home"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Enregistrer")
+        self.assertContains(response, "J'enregistre")
         self.assertContains(response, "Partager")
         self.assertContains(response, reverse("core:login"))
         self.assertNotContains(response, "personnes intéressées")

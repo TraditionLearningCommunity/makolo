@@ -1,0 +1,4 @@
+{# Continuation is owner-scoped and rendered without any client-side business logic. #}
+<div data-now-batch data-next-token="{{ home.continuation_token|default:'' }}" data-continuation-state="{{ home.continuation_state|default:'end' }}">
+  {% include "core/_now_stream_items.html" with items=home.page_items %}
+</div>

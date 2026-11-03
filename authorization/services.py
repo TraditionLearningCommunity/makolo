@@ -192,6 +192,51 @@ def get_system_role(code: str, *, scope_type=AuthorityScope.SPACE) -> Role:
         raise ValidationError(f"Le rôle système « {code} » n'est pas disponible.") from exc
 
 
+@transaction.atomic
+def create_custom_space_role(*, actor, space, code, name, description="", permission_codes=()):
+    """Create a Space role with both explicit authority and Subscription capacity.
+
+    There is no public role-creation endpoint today. This is the canonical
+    mutation entrypoint for future clients; raw ORM/test fixtures are not a
+    source of commercial entitlement or authority. Existing roles are kept.
+    """
+    from organizations.models import Organization
+    from subscriptions.entitlements import resolve_entitlement
+
+    space = Organization.objects.select_for_update().order_by().get(pk=space.pk)
+    if not can(actor, PermissionCode.SPACE_OWNERSHIP_MANAGE, space):
+        raise PermissionDenied("L'autorité de gouvernance de cet Espace est requise.")
+    if not resolve_entitlement(space, "custom_roles").allowed:
+        raise ValidationError({
+            "subscription": "Les rôles personnalisés ne sont pas disponibles pour cet Espace."
+        })
+
+    if Role.objects.filter(organization=space, is_system=False, code=code).exists():
+        raise ValidationError({"code": "Ce code de rôle existe déjà dans cet Espace."})
+
+    codes = tuple(dict.fromkeys(permission_codes))
+    permissions = list(Permission.objects.filter(
+        code__in=codes, scope_type=AuthorityScope.SPACE, is_active=True,
+    ))
+    if len(permissions) != len(codes):
+        raise ValidationError({"permissions": "Permission Espace inconnue ou inactive."})
+    if any(not can(actor, permission.code, space) for permission in permissions):
+        raise PermissionDenied("Une permission non détenue ne peut pas être déléguée.")
+
+    role = Role(
+        code=code, name=name, description=description,
+        scope_type=AuthorityScope.SPACE, organization=space,
+        is_system=False, is_active=True,
+    )
+    role.full_clean()
+    role.save()
+    for permission in permissions:
+        assignment = RolePermission(role=role, permission=permission)
+        assignment.full_clean()
+        assignment.save()
+    return role
+
+
 def validate_role_for_space(role: Role, space) -> None:
     if not role.is_active or role.scope_type != AuthorityScope.SPACE:
         raise ValidationError("Ce rôle ne peut pas être accordé dans un Espace.")

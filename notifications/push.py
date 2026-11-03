@@ -36,6 +36,7 @@ def register_push_endpoint(
     installation_id: str,
     token: str,
     app_version: str = "",
+    reactivate: bool = False,
 ) -> PushEndpoint:
     provider = (provider or "").strip().lower()
     platform = (platform or "").strip().lower()
@@ -60,9 +61,38 @@ def register_push_endpoint(
         .order_by("created_at", "pk")
     )
 
-    endpoint = rows[0] if rows else None
-    for duplicate in rows[1:]:
-        duplicate.delete()
+    # A token/installation belongs to one transport endpoint, not a global
+    # Profile credential. Do not let an ordinary token refresh transfer it.
+    # In particular, a client must not evict a different Profile's endpoint
+    # merely by sending an installation ID or a token matching only one side.
+    foreign = [row for row in rows if row.user_id != user.pk]
+    if foreign:
+        # A deliberate account switch is allowed only from the *device*:
+        # the user explicitly opts in and proves both the current FCM token
+        # and the original installation identifier together. Neither alone
+        # authorizes taking an endpoint away from another Profile.
+        if (
+            not reactivate
+            or len(rows) != 1
+            or foreign[0].installation_id != installation_id
+            or foreign[0].token_hash != digest
+            or foreign[0].platform != platform
+        ):
+            raise ValueError("Réactivation explicite de cet appareil requise.")
+    endpoint = next(
+        (row for row in rows if row.installation_id == installation_id),
+        rows[0] if rows else None,
+    )
+    if endpoint is not None and not endpoint.active and not reactivate:
+        # Explicitly revoked devices stay off across token rotations and
+        # automatic registration attempts.
+        return endpoint
+    for duplicate in rows:
+        if endpoint is not None and duplicate.pk != endpoint.pk:
+            # Only same-owner technical duplicates may be consolidated.
+            if duplicate.user_id != user.pk:
+                raise ValueError("Conflit d'installation push.")
+            duplicate.delete()
 
     encrypted = encrypt_runtime_secret(token)
     now = timezone.now()
@@ -111,6 +141,20 @@ def revoke_push_endpoint(*, user, installation_id: str, provider: str = PushProv
         installation_id=installation_id,
         active=True,
     ).update(active=False, updated_at=timezone.now())
+
+
+@transaction.atomic
+def revoke_push_endpoint_by_id(*, user, endpoint_id) -> bool:
+    """Revoke one owned installation without revealing its transport identity."""
+    endpoint = PushEndpoint.objects.select_for_update().filter(
+        pk=endpoint_id, user=user,
+    ).first()
+    if endpoint is None:
+        return False
+    if endpoint.active:
+        endpoint.active = False
+        endpoint.save(update_fields=["active", "updated_at"])
+    return True
 
 
 def active_push_endpoints_for(user):

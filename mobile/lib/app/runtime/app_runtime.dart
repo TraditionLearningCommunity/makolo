@@ -17,6 +17,7 @@ import '../../features/space/space_repository.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -42,10 +43,13 @@ class AppRuntime {
     this.api,
     this.database,
     this.store,
+    this.publicDatabase,
+    this.publicStore,
     this.personal,
     this.interoperability,
     this.discovery,
     this.location,
+    this.geoSearch,
     this.accesses,
     this.dayOf,
     this.live,
@@ -74,7 +78,7 @@ class AppRuntime {
   final LaunchPreferencesStore? launchPreferences;
   final AppPreferencesController? preferences;
   final MakoloRuntimeConfig? config;
-  final ResumableInteractionStore? interactions;
+  final ResumableInteractionAccess? interactions;
 
   MakoloMapsConfig get mapConfig =>
       config?.maps ?? const MakoloMapsConfig(enabled: false, style: null);
@@ -83,10 +87,13 @@ class AppRuntime {
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
+  final MakoloDatabase? publicDatabase;
+  final ProfileStore? publicStore;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final DiscoveryRepository? discovery;
   final LocationCapability? location;
+  final GeoSearchGateway? geoSearch;
   final AccessRepository? accesses;
   final DayOfRepository? dayOf;
   final LiveRepository? live;
@@ -116,5 +123,6 @@ class AppRuntime {
     preferences?.dispose();
     actorContext?.dispose();
     await database?.close();
+    await publicDatabase?.close();
   }
 }

@@ -25,6 +25,7 @@ class ShareSubjectType(models.TextChoices):
     ACTIVITY = "activity", "Activity"
     OPPORTUNITY = "opportunity", "Opportunity"
     JOURNEY = "journey", "Journey"
+    PASSPORT = "passport", "Passeport émis"
 
 
 class ShareEnvelope(models.Model):
@@ -389,6 +390,7 @@ class PassportSnapshot(models.Model):
     variant = models.CharField(max_length=24)
     payload = models.JSONField()
     payload_hash = models.CharField(max_length=64, db_index=True)
+    public_at_issue = models.BooleanField(default=False)
     generated_at = models.DateTimeField(default=timezone.now, editable=False)
     revoked_at = models.DateTimeField(null=True, blank=True)
 
@@ -420,7 +422,7 @@ class PassportSnapshot(models.Model):
         if self.pk and not self._state.adding:
             previous = PassportSnapshot.objects.filter(pk=self.pk).values(
                 "subject_kind", "profile_id", "space_id", "public_identifier",
-                "variant", "payload", "payload_hash", "generated_at"
+                "variant", "payload", "payload_hash", "public_at_issue", "generated_at"
             ).first()
             current = {
                 "subject_kind": self.subject_kind,
@@ -430,6 +432,7 @@ class PassportSnapshot(models.Model):
                 "variant": self.variant,
                 "payload": self.payload,
                 "payload_hash": self.payload_hash,
+                "public_at_issue": self.public_at_issue,
                 "generated_at": self.generated_at,
             }
             if previous and previous != current:
@@ -439,3 +442,38 @@ class PassportSnapshot(models.Model):
 
     def __str__(self):
         return self.document_id
+
+
+class PassportShareSubject(models.Model):
+    """A revocable Sharing grant for one already-issued Passport document.
+
+    The issued Passport owns its immutable content. Sharing grants only access
+    to that document and never changes Profile/Space public visibility.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    envelope = models.OneToOneField(
+        ShareEnvelope, on_delete=models.CASCADE, related_name="passport_subject",
+    )
+    snapshot = models.ForeignKey(
+        PassportSnapshot, on_delete=models.CASCADE,
+        related_name="passport_share_subjects",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        super().clean()
+        if self.envelope_id and self.envelope.subject_type != ShareSubjectType.PASSPORT:
+            raise ValidationError("L’enveloppe doit cibler un Passeport émis.")
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            original = PassportShareSubject.objects.filter(pk=self.pk).values(
+                "envelope_id", "snapshot_id",
+            ).first()
+            if original and original != {
+                "envelope_id": self.envelope_id,
+                "snapshot_id": self.snapshot_id,
+            }:
+                raise ValidationError("Un partage de Passeport reste lié au même document.")
+        self.full_clean()
+        return super().save(*args, **kwargs)

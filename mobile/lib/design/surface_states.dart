@@ -108,7 +108,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
     if (state.failure == MakoloFailureCue.blocking) {
       return MakoloErrorState(
         message:
-            blockingErrorMessage ?? 'Impossible de continuer pour le moment.',
+            blockingErrorMessage ?? 'Impossible de continuer.',
         preservedMessage: preservedMessage,
         onRetry: onRetry,
       );
@@ -129,7 +129,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
           return initialLoading ?? const MakoloSkeleton(lines: 5);
         case MakoloAvailabilityCue.empty:
           return empty ??
-              const MakoloEmptyState(title: 'Rien à afficher pour le moment');
+              const MakoloEmptyState(title: 'Rien à afficher');
         case MakoloAvailabilityCue.content:
           break;
       }
@@ -213,13 +213,12 @@ class MakoloFreshnessNotice extends StatelessWidget {
     return switch (freshness) {
       MakoloFreshnessCue.unknown => '',
       MakoloFreshnessCue.current => '',
-      MakoloFreshnessCue.oldObservation =>
-        'Données plus anciennes, encore disponibles pour consultation.',
-      MakoloFreshnessCue.refreshRecommended =>
-        'Une mise à jour est recommandée lorsque la source est joignable.',
+      MakoloFreshnessCue.oldObservation => 'Informations à actualiser.',
+      MakoloFreshnessCue.refreshRecommended => 'Actualisation disponible.',
       MakoloFreshnessCue.revalidationRequired =>
-        'Une vérification distante est nécessaire avant l’action.',
-      MakoloFreshnessCue.expired => 'Cette observation a expiré. Une revalidation distante est nécessaire avant de continuer.',
+        'Vérification nécessaire avant de continuer.',
+      MakoloFreshnessCue.expired =>
+        'Informations expirées. Vérifiez avant de continuer.',
     };
   }
 
@@ -264,12 +263,12 @@ class MakoloCommitIndicator extends StatelessWidget {
         kind: SuccessFeedbackKind.confirmed,
       ),
       MakoloCommitCue.conflict => const MakoloNotice(
-        message: 'Une modification demande votre attention.',
+        message: 'Modification à vérifier.',
         kind: MakoloNoticeKind.warning,
         behavior: MakoloNoticeBehavior.persistent,
       ),
       MakoloCommitCue.failed => const MakoloNotice(
-        message: 'Cette action n’a pas pu être confirmée.',
+        message: 'Action non confirmée.',
         kind: MakoloNoticeKind.error,
         behavior: MakoloNoticeBehavior.persistent,
       ),

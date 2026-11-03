@@ -172,7 +172,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'La suite est indisponible. Les éléments déjà consultés sont conservés.',
+                          'Impossible de charger la suite.',
                         ),
                       ),
                       TextButton(
@@ -187,11 +187,12 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                     ? loading
                           ? const Center(child: CircularProgressIndicator())
                           : MakoloErrorState(
-                              message: 'Collection indisponible.',
+                              message: 'Impossible d’afficher la liste.',
                               onRetry: loadPage,
                             )
                     : SpaceWorkSurface(
                         payload: payload!,
+                        mediaBaseUri: widget.runtime.api?.baseUri,
                         onLoadMore: (_) {
                           if (!loading) unawaited(loadPage());
                         },

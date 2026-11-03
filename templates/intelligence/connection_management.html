@@ -1,0 +1,75 @@
+{# Owner-specific keys never appear in markup. Views enforce scope before rendering/actions. #}
+{% if connection_offers %}
+<section class="mk-me-section" aria-labelledby="intelligence-offers-heading">
+  <div class="mk-section-heading">
+    <div>
+      <h2 id="intelligence-offers-heading">Relier un service externe</h2>
+      <p>Une clé API du fournisseur est nécessaire pour relier ce service.</p>
+    </div>
+  </div>
+  {% if connection_can_connect %}
+  <form method="post" autocomplete="off">
+    {% csrf_token %}
+    <input type="hidden" name="operation" value="create">
+    <label for="intelligence-provider">Fournisseur</label>
+    <select name="provider" id="intelligence-provider" required>
+    {% for offer in connection_offers %}
+      <option value="{{ offer.code }}">{{ offer.label }}{% if offer.requires_model %} · modèle requis{% endif %}</option>
+    {% endfor %}
+    </select>
+    <label for="intelligence-name">Nom de la connexion</label>
+    <input id="intelligence-name" name="name" maxlength="120" required placeholder="Mon service">
+    <label for="intelligence-model">Modèle (obligatoire pour OpenAI, vide pour Tavily/Exa)</label>
+    <input id="intelligence-model" name="model" maxlength="160" autocomplete="off">
+    <label for="intelligence-key">Clé API personnelle</label>
+    <input id="intelligence-key" type="password" name="api_key" maxlength="4096" required autocomplete="new-password">
+    <p>La clé est chiffrée côté serveur et ne sera plus affichée. Le fournisseur peut facturer les appels selon son contrat.</p>
+    <label><input type="checkbox" name="consent" value="yes" required>
+      J’autorise Makolo à utiliser cette clé auprès de ce fournisseur pour les capacités indiquées. Je peux retirer cette connexion.
+    </label>
+    <button type="submit">Relier ce service</button>
+  </form>
+  {% else %}
+  <p class="mk-empty-copy">L’ajout de connexion est indisponible pour le moment.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% if connections %}
+<section class="mk-me-section" aria-labelledby="intelligence-manage-heading">
+  <h2 id="intelligence-manage-heading">Gérer les connexions existantes</h2>
+  <p>Une connexion désactivée ne sera pas utilisée. Le retrait supprime les informations conservées par Makolo, mais ne révoque pas la clé chez le fournisseur.</p>
+  {% for connection in connections %}
+    {% if connection.manageable and connection.owner == 'intelligence' %}
+    <div>
+      <strong>{{ connection.display_name }}</strong>
+      <span>{{ connection.status_label }}</span>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ connection.id }}">
+        {% if connection.enabled %}
+          <button name="operation" value="disable" type="submit">Désactiver</button>
+        {% else %}
+          <button name="operation" value="enable" type="submit">Réactiver</button>
+        {% endif %}
+      </form>
+      {% if connection_can_connect %}
+      <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ connection.id }}">
+        <label>Remplacer la clé API
+          <input type="password" name="api_key" maxlength="4096" required autocomplete="new-password">
+        </label>
+        <button name="operation" value="rotate" type="submit">Remplacer la clé</button>
+      </form>
+      {% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="connection_id" value="{{ connection.id }}">
+        <label><input name="confirm" type="checkbox" value="yes" required> Confirmer le retrait définitif de cette connexion Makolo</label>
+        <button name="operation" value="disconnect" type="submit">Retirer de Makolo</button>
+      </form>
+    </div>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endif %}

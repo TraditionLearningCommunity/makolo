@@ -77,10 +77,10 @@ class ConversationRepository {
     applier: applyProjectionSnapshot,
   );
 
-  SyncSourceDefinition detailSource(String id) => SyncSourceDefinition(
+  SyncSourceDefinition detailSource(String id, {String? focusPointId}) => SyncSourceDefinition(
     sourceKey: 'conversation:$id',
     owner: 'Conversations',
-    path: 'api/v1/conversations/$id/',
+    path: 'api/v1/conversations/$id/${focusPointId == null ? '' : '?focus_point=${Uri.encodeQueryComponent(focusPointId)}'}',
     projectionKind: detailProjectionKind,
     resourceKey: id,
     category: SyncSourceCategory.keyedDetail,
@@ -171,12 +171,56 @@ class ConversationRepository {
     await engine.refreshSource(invitationsSource());
   }
 
-  Future<void> refreshDetail(String id) async {
+  Future<void> refreshDetail(String id, {String? focusPointId}) async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Remote Conversations owner is not configured.');
     }
-    await engine.refreshSource(detailSource(id));
+    await engine.refreshSource(detailSource(id, focusPointId: focusPointId));
+  }
+
+  Future<List<Map<String, dynamic>>> searchConversations(String query) async {
+    final term = query.trim();
+    if (term.isEmpty) return const [];
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('La recherche distante est indisponible.');
+    }
+    final response = await engine.api.get(
+      'api/v1/conversations/?limit=50&q=${Uri.encodeQueryComponent(term)}',
+    );
+    final payload = response.jsonObject();
+    if (payload['results'] is! List) {
+      throw const FormatException('Expected Conversations search results.');
+    }
+    return (payload['results'] as List)
+        .whereType<Map>()
+        .map((row) => row.map((key, value) => MapEntry(key.toString(), value)))
+        .toList(growable: false);
+  }
+
+  Future<List<Map<String, dynamic>>> conversationsForContext({
+    required String kind,
+    required String id,
+  }) async {
+    const allowed = {
+      'direct', 'space', 'group', 'activity', 'occurrence',
+      'journey', 'dossier', 'project', 'action_proposal',
+    };
+    if (!allowed.contains(kind) || id.isEmpty) return const [];
+    final engine = sync;
+    if (engine == null) return const [];
+    final response = await engine.api.get(
+      'api/v1/conversations/by-context/$kind/${Uri.encodeComponent(id)}/',
+    );
+    final payload = response.jsonObject();
+    if (payload['results'] is! List) {
+      throw const FormatException('Expected contextual Conversations.');
+    }
+    return (payload['results'] as List)
+        .whereType<Map>()
+        .map((row) => row.map((key, value) => MapEntry(key.toString(), value)))
+        .toList(growable: false);
   }
 
   Future<void> respondToPoint({

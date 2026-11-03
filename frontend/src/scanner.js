@@ -149,7 +149,7 @@
     if (data.accepted) {
       successLocked = true;
       nextButton?.classList.remove('hidden');
-      setCameraState('Accès accepté · choisissez « Scanner le suivant » pour continuer');
+      setCameraState('Accès accepté.');
     }
   }
 
@@ -198,7 +198,7 @@
         message: data.detail || data.message || 'Erreur de validation.',
       });
     } catch (error) {
-      setResult({accepted: false, message: 'Connexion au serveur impossible.'});
+      setResult({accepted: false, message: 'Impossible de vérifier l’accès.'});
     } finally {
       window.setTimeout(() => {
         busy = false;
@@ -289,12 +289,12 @@
     try {
       if (await startWithQrScanner()) return;
       if (await startWithNativeDetector()) return;
-      setCameraState('Scanner caméra indisponible. Utilisez une image QR ou la saisie manuelle.');
+      setCameraState('Caméra indisponible. Utilisez une image ou saisissez le code.');
     } catch (error) {
       const message = error && error.message ? error.message : String(error || '');
       setCameraState(/permission|denied|notallowed/i.test(message)
-        ? 'Accès caméra refusé. Autorisez la caméra dans le navigateur ou utilisez une image QR.'
-        : 'Caméra indisponible. Utilisez une image QR ou la saisie manuelle.');
+        ? 'Accès à la caméra refusé. Autorisez-la dans le navigateur ou choisissez une image.'
+        : 'Caméra indisponible. Utilisez une image ou saisissez le code.');
     } finally {
       startButton.disabled = false;
     }

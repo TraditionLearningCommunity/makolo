@@ -92,6 +92,7 @@ def build_interoperability_payload(
     action_registry: ActionRegistry | None = None,
     extension_registry: ExtensionRegistry | None = None,
     webhook_subscriptions: Iterable[WebhookSubscription] = (),
+    domain_integrations: Iterable[dict[str, Any]] = (),
     actor=None,
     authority_context=None,
 ) -> dict[str, Any]:
@@ -109,5 +110,7 @@ def build_interoperability_payload(
         ),
         "extensions": project_extensions(extension_registry),
         "webhooks": project_webhooks(webhook_subscriptions),
+        # Additional owner-led capabilities, not generic M7 Connections.
+        "domain_integrations": list(domain_integrations),
         "links": {"self": self_link},
     }

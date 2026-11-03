@@ -13,7 +13,7 @@ IMAGE_MIME_TYPES = {"image/jpeg", "image/png"}
 
 
 @transaction.atomic
-def create_presentation_asset(*, actor, uploaded_file, activity=None, owner_space=None):
+def create_presentation_asset(*, actor, uploaded_file, activity=None, owner_space=None, protected=False):
     if activity is not None and not can(actor, PermissionCode.ACTIVITY_MANAGE, activity=activity):
         raise PermissionDenied("Vous ne pouvez pas ajouter d’image à cette Activity.")
     if owner_space is not None and activity is not None and activity.space_id != owner_space.pk:
@@ -32,11 +32,12 @@ def create_presentation_asset(*, actor, uploaded_file, activity=None, owner_spac
         checksum=checksum,
     )
     extension = ".png" if mime_type == "image/png" else ".jpg"
-    asset.file.save(f"asset{extension}", ContentFile(data), save=False)
+    stored_field = asset.private_file if protected else asset.file
+    stored_field.save(f"asset{extension}", ContentFile(data), save=False)
     try:
         asset.save()
     except Exception:
-        if asset.file.name:
-            asset.file.storage.delete(asset.file.name)
+        if stored_field.name:
+            stored_field.storage.delete(stored_field.name)
         raise
     return asset

@@ -39,10 +39,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String? _selectedHistoryKey;
   List<StoredProjection> _remotePages = [];
   bool _searching = false;
-  bool _searchFailed = false;
   int _searchGeneration = 0;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
+  bool _preparingOffline = false;
+  int _preparedPages = 0;
+  String? _preparationMessage;
 
   @override
   void initState() {
@@ -92,13 +94,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  /// Reopen the exact owner search previously received on this Profile.
+  /// The unfiltered pages remain independently searchable at all times.
+  Future<void> _restoreCachedSearch() async {
+    final generation = ++_searchGeneration;
+    final query = _query;
+    final filter = _filter;
+    if (query.isEmpty && filter == 'all') return;
+    final rows = await widget.repository.readCachedSearchPages(
+      query: query,
+      type: _serverFilter(filter),
+    );
+    if (!mounted || generation != _searchGeneration ||
+        query != _query || filter != _filter) return;
+    setState(() {
+      _remotePages = rows;
+      _remoteHistory = rows.isEmpty ? null : _HistoryView.fromPages(rows);
+    });
+  }
+
+  static String _serverFilter(String filter) => switch (filter) {
+    'access' => 'accesses',
+    'journey' => 'journeys',
+    _ => 'all',
+  };
+
+  Future<void> _prepareOffline() async {
+    if (_preparingOffline) return;
+    setState(() {
+      _preparingOffline = true;
+      _preparedPages = 0;
+      _preparationMessage = null;
+    });
+    try {
+      final complete = await widget.repository.prepareHistoryOffline(
+        shouldContinue: () => mounted,
+        onProgress: (known) {
+          if (mounted) setState(() => _preparedPages = known);
+        },
+      );
+      if (!mounted) return;
+      setState(() => _preparationMessage = complete
+          ? 'Les éléments d’historique actuellement disponibles '
+              'ont été enregistrés sur cet appareil.'
+          : 'Les éléments déjà enregistrés restent accessibles hors connexion. '
+              'Reconnectez-vous pour terminer la préparation.');
+    } on Object {
+      if (mounted) {
+        setState(() => _preparationMessage =
+            'Les événements déjà reçus restent disponibles. '
+            'La préparation complète n’a pas abouti.');
+      }
+    } finally {
+      if (mounted) setState(() => _preparingOffline = false);
+    }
+  }
+
   Future<void> _remoteSearch({bool more = false}) async {
     final generation = ++_searchGeneration;
     final query = _query;
     final filter = _filter;
     setState(() {
       _searching = true;
-      _searchFailed = false;
     });
     try {
       final nextOffset = more && _remoteHistory != null
@@ -107,11 +164,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final payload = await widget.repository.searchPage(
         query: query,
         offset: nextOffset,
-        type: filter == 'access'
-            ? 'accesses'
-            : filter == 'journey'
-            ? 'journeys'
-            : 'all',
+        type: _serverFilter(filter),
       );
       if (!mounted ||
           generation != _searchGeneration ||
@@ -120,8 +173,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return;
       }
       final snapshot = StoredProjection(
-        kind: HistoryRepository.projectionKind,
-        resourceKey: 'offset:$nextOffset:limit:24',
+        kind: HistoryRepository.searchProjectionKind,
+        resourceKey: HistoryRepository.searchResourceKey(
+          query: query,
+          type: _serverFilter(filter),
+          offset: nextOffset,
+        ),
         schemaVersion: 1,
         payload: payload,
         receivedAt: DateTime.now(),
@@ -135,7 +192,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           generation == _searchGeneration &&
           _query == query &&
           _filter == filter) {
-        setState(() => _searchFailed = true);
+        // Preserve the already available local History on remote failure.
       }
     } finally {
       if (mounted &&
@@ -145,6 +202,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
         setState(() => _searching = false);
       }
     }
+  }
+
+  /// A received event stays inspectable without navigating to an owner
+  /// depth that may require the network. Opening that depth is optional.
+  Future<void> _showKnownEvent(_HistoryItem item) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.inner),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.title, style: Theme.of(sheetContext).textTheme.titleLarge),
+              const SizedBox(height: MakoloSpacing.sm),
+              if (item.occurredAt != null) Text(item.occurredAt!),
+              if (item.outcome != null) Text(item.outcome!),
+              const SizedBox(height: MakoloSpacing.md),
+              const Text(
+                'Cet événement est conservé sur votre appareil. '
+                'Son détail peut nécessiter une nouvelle vérification.',
+              ),
+              if (item.id != null) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                FilledButton.tonal(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    widget.onOpenResource(item.kind, item.id!);
+                  },
+                  child: const Text('Ouvrir le détail'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -164,8 +260,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 appBar: AppBar(title: const Text('Historique')),
                 body: const Center(
                   child: Text(
-                    'Cet historique n’est plus disponible avec '
-                    'l’autorité actuelle.',
+                    'Cet historique n’est plus accessible.',
                   ),
                 ),
               );
@@ -173,11 +268,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
             final view = source.invalidated
                 ? _HistoryView.fromPages(const [])
                 : _HistoryView.fromPages(pages);
-            final visible = (_remoteHistory ?? view).items.where((item) {
-              if (_filter != 'all' && item.kind != _filter) return false;
-              return _query.isEmpty ||
-                  item.title.toLowerCase().contains(_query.toLowerCase());
-            }).toList();
+            // Merge local title matches with previously received owner search
+            // results. A server match can come from fields other than title,
+            // so it must not be discarded by a second client text filter.
+            final visible = <_HistoryItem>[];
+            final seen = <String>{};
+            void collect(_HistoryItem item) {
+              if (_filter != 'all' && item.kind != _filter) return;
+              final key = '${item.kind}:${item.id ?? item.title}:'
+                  '${item.occurredAt ?? ''}';
+              if (seen.add(key)) visible.add(item);
+            }
+            // A specifically searched owner result wins over an older
+            // unfiltered snapshot of the same event.
+            for (final item in _remoteHistory?.items ?? const <_HistoryItem>[]) {
+              collect(item);
+            }
+            for (final item in view.items) {
+              if (_query.isEmpty ||
+                  item.title.toLowerCase().contains(_query.toLowerCase())) {
+                collect(item);
+              }
+            }
             final effectiveView = _remoteHistory ?? view;
             final first = effectiveView.firstPage ?? view.firstPage;
             final wide =
@@ -226,7 +338,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 title: const Text('Historique'),
                 actions: [
                   IconButton(
-                    tooltip: 'Recherche transverse',
+                    tooltip: 'Rechercher dans Makolo',
                     onPressed: () => context.push('/search'),
                     icon: const Icon(Icons.search),
                   ),
@@ -241,11 +353,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 state: surface,
                 empty: const MakoloEmptyState(
                   title: 'Aucun historique à afficher',
-                  body: 'Les expériences terminées apparaîtront ici.',
+                  body: 'Vous retrouverez ici vos démarches et accès passés.',
                 ),
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’historique…',
-                ),
+                initialLoading: const SizedBox.expand(),
                 onRetry: _refreshFirst,
                 content: Row(
                   children: [
@@ -258,17 +368,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           TextField(
                             decoration: const InputDecoration(
                               labelText:
-                                  'Rechercher dans l’historique synchronisé',
+                                  'Rechercher dans mon historique',
                               prefixIcon: Icon(Icons.search),
                             ),
-                            onChanged: (value) => setState(() {
-                              _searchGeneration++;
-                              _searching = false;
-                              _query = value.trim();
-                              _remoteHistory = null;
-                              _remotePages = [];
-                              _selectedHistoryKey = null;
-                            }),
+                            onChanged: (value) {
+                              setState(() {
+                                _searchGeneration++;
+                                _searching = false;
+                                _query = value.trim();
+                                _remoteHistory = null;
+                                _remotePages = [];
+                                _selectedHistoryKey = null;
+                              });
+                              unawaited(_restoreCachedSearch());
+                            },
                             onSubmitted: (_) => _remoteSearch(),
                           ),
                           const SizedBox(height: 12),
@@ -298,38 +411,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       _remotePages = [];
                                       _selectedHistoryKey = null;
                                     });
-                                    unawaited(_remoteSearch());
+                                    unawaited(_restoreCachedSearch());
                                   },
                                 ),
                             ],
                           ),
+                          const SizedBox(height: MakoloSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: _preparingOffline
+                                ? null
+                                : () => unawaited(_prepareOffline()),
+                            icon: const Icon(Icons.download_for_offline_outlined),
+                            label: const Text(
+                              'Préparer mon historique hors connexion',
+                            ),
+                          ),
+                          if (_preparingOffline) ...[
+                            const LinearProgressIndicator(),
+                            Text('Pages d’historique enregistrées : '
+                                '$_preparedPages'),
+                          ],
+                          if (_preparationMessage != null)
+                            Text(_preparationMessage!),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Historique partiel. Résultats locaux puis '
-                                  'actualisation chez les propriétaires.',
-                                ),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    'Rechercher dans tout l’historique visible',
-                                onPressed: _searching ? null : _remoteSearch,
-                                icon: const Icon(Icons.search),
-                              ),
-                            ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Rechercher dans l’historique',
+                              onPressed: _searching ? null : _remoteSearch,
+                              icon: const Icon(Icons.search),
+                            ),
                           ),
                           if (_searching) const LinearProgressIndicator(),
-                          if (_searchFailed)
+
+                          if (_query.isNotEmpty || _filter != 'all') ...[
                             const Text(
-                              'Recherche distante indisponible. '
-                              'Les pages locales restent consultables.',
+                              'La recherche porte sur les éléments enregistrés. '
+                              'D’autres résultats peuvent apparaître après une mise à jour.',
                             ),
+                            const SizedBox(height: MakoloSpacing.sm),
+                          ],
                           if (visible.isEmpty)
                             const Text(
-                              'Aucun élément correspondant parmi les '
-                              'pages synchronisées.',
+                              'Aucun résultat correspondant parmi les '
+                              'éléments disponibles.',
                             ),
                           for (
                             var index = 0;
@@ -344,7 +469,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     () => _selectedHistoryKey = '$kind:$id',
                                   );
                                 } else {
-                                  widget.onOpenResource(kind, id);
+                                  unawaited(_showKnownEvent(visible[index]));
                                 }
                               },
                             ),
@@ -393,7 +518,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     chosen.id!,
                                   ),
                                   child: const Text(
-                                    'Ouvrir chez le propriétaire',
+                                    'Voir les détails',
                                   ),
                                 ),
                             ],
@@ -521,6 +646,8 @@ class _HistoryView {
   }
 
   static int _offset(StoredProjection page) {
+    final stored = _map(page.payload['page']);
+    if (stored['offset'] is num) return (stored['offset'] as num).toInt();
     final parts = page.resourceKey.split(':');
     if (parts.length >= 2 && parts.first == 'offset') {
       return int.tryParse(parts[1]) ?? 0;

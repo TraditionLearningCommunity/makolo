@@ -47,6 +47,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   StreamSubscription<OutboxSummary>? _outbox;
   bool _online = true;
   bool _syncing = false;
+  bool _refreshQueued = false;
   bool _syncFailed = false;
   OutboxSummary _outboxSummary = OutboxSummary.empty;
   DateTime? _lastUpdatedAt;
@@ -84,8 +85,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   @override
   void didUpdateWidget(covariant SyncLifecycle oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.runtime.session?.profileId !=
-        widget.runtime.session?.profileId) {
+    if (!identical(oldWidget.runtime, widget.runtime)) {
       _bindOutbox();
       unawaited(_refresh());
     }
@@ -102,9 +102,14 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     final sync = widget.runtime.sync;
     final database = widget.runtime.database;
     final profileId = widget.runtime.session?.profileId;
-    if (sync == null || database == null || profileId == null || _syncing) {
+    if (_syncing) {
+      // Login/session replacement and connectivity callbacks can overlap the
+      // first refresh. Never drop the newer runtime's only acquisition.
+      _refreshQueued = true;
       return;
     }
+    if (sync == null || database == null || profileId == null) return;
+    final runtime = widget.runtime;
     if (mounted) {
       setState(() {
         _syncing = true;
@@ -112,25 +117,35 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       });
     }
     try {
-      await sync.refreshRoots();
+      final rootsSucceeded = await sync.refreshRoots();
+      if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
-      await widget.runtime.outboxProcessor?.run();
-      if (mounted) {
+      if (!mounted || !identical(runtime, widget.runtime)) return;
+      await runtime.outboxProcessor?.run();
+      if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
-          _syncFailed = false;
-          _lastUpdatedAt = DateTime.now();
+          _syncFailed = !rootsSucceeded;
+          if (rootsSucceeded) _lastUpdatedAt = DateTime.now();
         });
       }
     } on MakoloApiError catch (error) {
-      if (error.statusCode == 401) {
+      if (error.statusCode == 401 && identical(runtime, widget.runtime)) {
         widget.onSessionExpired();
-      } else if (mounted) {
+      } else if (mounted && identical(runtime, widget.runtime)) {
         setState(() => _syncFailed = true);
       }
     } on Object {
-      if (mounted) setState(() => _syncFailed = true);
+      if (mounted && identical(runtime, widget.runtime)) {
+        setState(() => _syncFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => _syncing = false);
+      if (mounted) {
+        setState(() => _syncing = false);
+        if (_refreshQueued || !identical(runtime, widget.runtime)) {
+          _refreshQueued = false;
+          unawaited(_refresh());
+        }
+      }
     }
   }
 

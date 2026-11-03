@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from activities.models import Activity
 from core.api.projections import projection_envelope
 from discovery.api.composition import compose_discovery, project_rows
-from organizations.models import Organization, SpaceLifecycle
+from organizations.models import Organization, SpaceArchetype, SpaceLifecycle
 
 
 def _public_spaces():
@@ -52,9 +52,20 @@ class PublicSpacesAPIView(APIView):
     def get(self, request):
         page, page_size = _page_params(request.query_params)
         query = (request.query_params.get("q") or "").strip()[:120]
+        category = (request.query_params.get("category") or "").strip()
+        city = (request.query_params.get("city") or "").strip()[:120]
+        country = (request.query_params.get("country") or "").strip()[:120]
+        if category and category not in SpaceArchetype.values:
+            raise ValidationError({"category": "Catégorie d’Espace inconnue."})
         spaces = _public_spaces()
         if query:
             spaces = spaces.filter(name__icontains=query)
+        if category:
+            spaces = spaces.filter(archetype=category)
+        if city:
+            spaces = spaces.filter(city__icontains=city)
+        if country:
+            spaces = spaces.filter(country__iexact=country)
         spaces = spaces.order_by("name", "id")
         count = spaces.count()
         start = (page - 1) * page_size
@@ -64,6 +75,10 @@ class PublicSpacesAPIView(APIView):
             scope="public",
             data={
                 "count": count,
+                "categories": [
+                    {"value": value, "label": label}
+                    for value, label in SpaceArchetype.choices
+                ],
                 "page": page,
                 "page_size": page_size,
                 "has_next": start + page_size < count,

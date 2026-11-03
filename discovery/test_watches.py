@@ -59,6 +59,44 @@ class DiscoveryWatchTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("discovery:watch-list")).status_code, 302)
 
+    def test_empty_watch_list_uses_product_language(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("discovery:watch-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune veille enregistrée.")
+        self.assertContains(response, "Découvrir")
+        self.assertNotContains(response, "rejouables")
+        self.assertNotContains(response, ">Discovery<")
+
+    def test_create_watch_explains_saved_criteria_without_internal_terms(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("discovery:watch-create"), {"q": "bourse"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Retrouvez cette recherche avec les mêmes critères dans vos veilles.",
+        )
+        self.assertNotContains(response, "Makolo rejouera")
+        self.assertNotContains(response, ">Discovery<")
+        self.assertContains(response, "Vous pouvez associer cette veille à l’un de vos dossiers.")
+
+    def test_invalid_watch_action_is_explained_without_backend_vocabulary(self):
+        watch = DiscoveryWatch.objects.create(
+            owner=self.owner, name="Canada", criteria={"q": "Canada"}
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("discovery:watch-status", args=[watch.id]),
+            {"action": "unknown"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Impossible de modifier cette veille.")
+        watch.refresh_from_db()
+        self.assertEqual(watch.status, DiscoveryWatchStatus.ACTIVE)
+
     def test_pause_reactivate_and_modify(self):
         watch = DiscoveryWatch.objects.create(owner=self.owner, name="Canada", criteria={"q": "Canada"})
         self.client.force_login(self.owner)

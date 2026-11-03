@@ -20,10 +20,12 @@ class ConversationListScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onOpen,
+    this.onOpenPoint,
   });
 
   final ConversationRepository repository;
   final void Function(String id) onOpen;
+  final void Function(String id, String pointId)? onOpenPoint;
 
   @override
   State<ConversationListScreen> createState() => _ConversationListScreenState();
@@ -33,6 +35,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  bool _attemptedRefresh = false;
 
   @override
   void initState() {
@@ -40,47 +43,83 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     unawaited(_acquireOrRefresh());
   }
 
+  @override
+  void didUpdateWidget(covariant ConversationListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _requestedInitialRefresh = false;
+      _attemptedRefresh = false;
+      _refreshing = false;
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readList();
-    final source = await widget.repository.readListSource();
-    final invitations = await widget.repository.readInvitations();
-    final invitationSource = await widget.repository.readInvitationsSource();
-    if (!mounted) return;
-    if (invitations == null ||
-        ConversationRepository.invitationsFreshness.evaluate(
-              invitations,
-              now: DateTime.now(),
-              invalidated: invitationSource.invalidated,
-            ) !=
-            FreshnessState.fresh) {
-      unawaited(widget.repository.refreshInvitations());
+    final repository = widget.repository;
+    try {
+      final local = await repository.readList();
+      final source = await repository.readListSource();
+      if (!mounted || repository != widget.repository) return;
+      unawaited(_refreshInvitationsIfNeeded());
+      if (local == null) {
+        await _refreshList();
+        return;
+      }
+      final freshness = ConversationRepository.listFreshness.evaluate(
+        local,
+        now: DateTime.now(),
+        invalidated: source.invalidated,
+      );
+      if (freshness != FreshnessState.fresh) await _refreshList();
+    } on Object {
+      // Even a failed local read must end the initial loading state.
+      if (mounted && repository == widget.repository) {
+        setState(() => _attemptedRefresh = true);
+      }
     }
-    if (local == null) {
-      await _refresh();
-      return;
+  }
+
+  Future<void> _refreshInvitationsIfNeeded({bool force = false}) async {
+    final repository = widget.repository;
+    try {
+      final invitations = await repository.readInvitations();
+      final source = await repository.readInvitationsSource();
+      if (force ||
+          invitations == null ||
+          ConversationRepository.invitationsFreshness.evaluate(
+                invitations,
+                now: DateTime.now(),
+                invalidated: source.invalidated,
+              ) != FreshnessState.fresh) {
+        await repository.refreshInvitations();
+      }
+    } on Object {
+      // Invitation errors are independent from the conversation list.
     }
-    final freshness = ConversationRepository.listFreshness.evaluate(
-      local,
-      now: DateTime.now(),
-      invalidated: source.invalidated,
-    );
-    if (freshness != FreshnessState.fresh) await _refresh();
   }
 
   Future<void> _refresh() async {
+    unawaited(_refreshInvitationsIfNeeded(force: true));
+    await _refreshList();
+  }
+
+  Future<void> _refreshList() async {
     if (_refreshing) return;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
     try {
-      await Future.wait([
-        widget.repository.refreshList(),
-        widget.repository.refreshInvitations(),
-      ]);
+      await repository.refreshList();
     } on Object {
-      // Preserve the local collection.
+      // Retain the local owner snapshot during transport failures.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && repository == widget.repository) {
+        setState(() {
+          _refreshing = false;
+          _attemptedRefresh = true;
+        });
+      }
     }
   }
 
@@ -113,16 +152,19 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 drafts: const [],
                 pendingOperations: const [],
               ),
+              // An empty list can still contain pending invitations.
               availability: available
-                  ? items.isEmpty
-                        ? MakoloAvailabilityCue.empty
-                        : MakoloAvailabilityCue.content
+                  ? MakoloAvailabilityCue.content
                   : _refreshing
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: source.lastErrorCode == 'permission_denied'
+                  ? MakoloFailureCue.permissionDenied
+                  : source.lastErrorCode == 'not_found'
+                  ? MakoloFailureCue.blocking
+                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
+                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -139,18 +181,21 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               ),
               body: MakoloSurfaceStateView(
                 state: surface,
-                empty: const MakoloEmptyState(
-                  title: 'Aucune conversation',
-                  body: 'Rien ne demande votre attention ici pour le moment.',
-                ),
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des conversations…',
                 ),
+                blockingErrorMessage: 'Impossible de charger vos conversations.',
+                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
+                preservedMessage: available
+                    ? 'Les conversations déjà disponibles restent consultables.'
+                    : null,
                 onRetry: _refresh,
                 content: _ConversationListBody(
                   repository: widget.repository,
                   items: items,
                   onOpen: widget.onOpen,
+                  onOpenPoint: widget.onOpenPoint,
+                  onRetryInvitations: () => _refreshInvitationsIfNeeded(force: true),
                 ),
               ),
             );
@@ -166,11 +211,15 @@ class _ConversationListBody extends StatefulWidget {
     required this.repository,
     required this.items,
     required this.onOpen,
+    required this.onRetryInvitations,
+    this.onOpenPoint,
   });
 
   final ConversationRepository repository;
   final List<_ConversationSummary> items;
   final void Function(String id) onOpen;
+  final void Function(String id, String pointId)? onOpenPoint;
+  final Future<void> Function() onRetryInvitations;
 
   @override
   State<_ConversationListBody> createState() => _ConversationListBodyState();
@@ -178,92 +227,240 @@ class _ConversationListBody extends StatefulWidget {
 
 class _ConversationListBodyState extends State<_ConversationListBody> {
   String _query = '';
+  Timer? _debounce;
+  int _searchGeneration = 0;
+  bool _searching = false;
+  bool _searchFailed = false;
+  List<_ConversationSummary> _remote = const [];
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ConversationListBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _debounce?.cancel();
+      _searchGeneration++;
+      _remote = const [];
+      _searching = false;
+      _searchFailed = false;
+      if (_query.trim().isNotEmpty) _scheduleSearch(_query);
+    }
+  }
+
+  void _scheduleSearch(String query) {
+    _debounce?.cancel();
+    final generation = ++_searchGeneration;
+    setState(() {
+      _query = query;
+      _remote = const [];
+      _searchFailed = false;
+      _searching = query.trim().isNotEmpty;
+    });
+    if (!_searching) return;
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final results = await widget.repository.searchConversations(query);
+        if (!mounted || generation != _searchGeneration) return;
+        setState(() {
+          _remote = results
+              .map(_ConversationSummary.fromMap)
+              .where((item) => item.id.isNotEmpty)
+              .toList(growable: false);
+          _searching = false;
+        });
+      } on Object {
+        if (!mounted || generation != _searchGeneration) return;
+        setState(() {
+          _searching = false;
+          _searchFailed = true;
+        });
+      }
+    });
+  }
+
+  List<_ConversationSummary> _matchingRows() {
+    final normalized = _query.trim().toLowerCase();
+    if (normalized.isEmpty) return widget.items;
+    final known = <String, _ConversationSummary>{};
+    for (final item in widget.items) {
+      if (item.title.toLowerCase().contains(normalized) ||
+          (item.purpose ?? '').toLowerCase().contains(normalized) ||
+          (item.contextLabel ?? '').toLowerCase().contains(normalized) ||
+          (item.latestResult ?? '').toLowerCase().contains(normalized)) {
+        known[item.id] = item;
+      }
+    }
+    // Owner results win for their focused Point, without duplicating a row.
+    for (final result in _remote) {
+      known[result.id] = result;
+    }
+    return known.values.toList(growable: false);
+  }
+
+  void _open(_ConversationSummary item) {
+    final point = item.matchedPointId;
+    if (point != null && widget.onOpenPoint != null) {
+      widget.onOpenPoint!(item.id, point);
+    } else {
+      widget.onOpen(item.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final normalized = _query.trim().toLowerCase();
-    final filtered = normalized.isEmpty
-        ? widget.items
-        : widget.items
-              .where(
-                (item) =>
-                    item.title.toLowerCase().contains(normalized) ||
-                    (item.contextLabel ?? '').toLowerCase().contains(
-                      normalized,
-                    ),
-              )
-              .toList(growable: false);
-
+    final filtered = _matchingRows();
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchInvitations(),
       builder: (context, invitationsSnapshot) {
         final invitations = _ConversationInvitation.fromProjection(
           invitationsSnapshot.data,
         );
-        return ListView(
-          key: const Key('conversation-list-content'),
-          padding: const EdgeInsets.all(MakoloSpacing.inner),
-          children: [
-            TextField(
-              key: const Key('conversation-search-field'),
-              onChanged: (value) => setState(() => _query = value),
-              decoration: const InputDecoration(
-                labelText: 'Rechercher dans mes conversations',
-                prefixIcon: Icon(Icons.search_rounded),
+        return StreamBuilder<OwnerSourceState>(
+          stream: widget.repository.watchInvitationsSource(),
+          initialData: OwnerSourceState.unknown,
+          builder: (context, invitationSourceSnapshot) {
+            final invitationFailure =
+                invitationSourceSnapshot.data?.lastErrorCode != null;
+            return ListView(
+              key: const Key('conversation-list-content'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+                vertical: MakoloSpacing.md,
               ),
-            ),
-            if (invitations.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Text(
-                'Invitations',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: MakoloSpacing.sm),
-              for (final invitation in invitations) ...[
-                _ConversationInvitationCard(
-                  invitation: invitation,
-                  repository: widget.repository,
-                  onOpen: widget.onOpen,
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-              ],
-            ],
-            const SizedBox(height: MakoloSpacing.md),
-            if (filtered.isEmpty)
-              const MakoloCard(
-                child: Text(
-                  'Aucune coordination ne correspond à cette recherche.',
-                ),
-              )
-            else
-              for (var index = 0; index < filtered.length; index++) ...[
-                MakoloCard(
-                  onTap: () => widget.onOpen(filtered[index].id),
-                  child: MakoloStatusMetadataAction(
-                    title: filtered[index].title,
-                    subtitle: filtered[index].contextLabel,
-                    status: filtered[index].lifecycle == null
-                        ? null
-                        : MakoloStatus(label: filtered[index].lifecycle!),
-                    metadata: [
-                      if (filtered[index].attentionCount > 0)
-                        MakoloMetadataItem(
-                          '${filtered[index].attentionCount} élément(s) à voir',
-                          icon: Icons.notifications_active_outlined,
-                        ),
-                      if (filtered[index].allClear)
-                        const MakoloMetadataItem(
-                          'Tout est en ordre',
-                          icon: Icons.check_circle_outline_rounded,
-                        ),
-                    ],
-                    action: const Icon(Icons.chevron_right_rounded),
+              children: [
+                TextField(
+                  key: const Key('conversation-search-field'),
+                  onChanged: _scheduleSearch,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher une conversation…',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _searching
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: Center(
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                 ),
-                if (index < filtered.length - 1)
+                if (_searchFailed)
+                  const Padding(
+                    padding: EdgeInsets.only(top: MakoloSpacing.sm),
+                    child: Text('Recherche en ligne indisponible.'),
+                  ),
+                if (invitationFailure && _query.isEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.md),
+                  const Text('Impossible d’actualiser les invitations.'),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => unawaited(widget.onRetryInvitations()),
+                      child: const Text('Réessayer'),
+                    ),
+                  ),
+                ],
+                if (invitations.isNotEmpty && _query.isEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Invitations',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: MakoloSpacing.sm),
+                  for (final invitation in invitations) ...[
+                    _ConversationInvitationCard(
+                      invitation: invitation,
+                      repository: widget.repository,
+                      onOpen: widget.onOpen,
+                    ),
+                    const SizedBox(height: MakoloSpacing.sm),
+                  ],
+                ],
+                const SizedBox(height: MakoloSpacing.lg),
+                if (filtered.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
+                    child: Text(
+                      _query.trim().isEmpty
+                          ? 'Aucune conversation à afficher.'
+                          : _searching
+                          ? 'Recherche…'
+                          : 'Aucun résultat.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  )
+                else
+                  for (final item in filtered) ...[
+                    Material(
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(MakoloRadii.medium),
+                        onTap: () => _open(item),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: MakoloSpacing.md,
+                            horizontal: MakoloSpacing.sm,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (item.contextLabel != null)
+                                      Text(
+                                        item.contextLabel!,
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                      ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item.title,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    if (item.latestResult != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 6),
+                                        child: Text('✓ ${item.latestResult!}'),
+                                      )
+                                    else if (item.purpose != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          item.purpose!,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: MakoloSpacing.sm),
+                              if (item.attentionCount > 0)
+                                Text(
+                                  '${item.attentionCount} à traiter',
+                                  style: Theme.of(context).textTheme.labelMedium,
+                                )
+                              else
+                                const Icon(Icons.chevron_right_rounded, size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                  ],
               ],
-          ],
+            );
+          },
         );
       },
     );
@@ -365,11 +562,13 @@ class ConversationDetailScreen extends StatefulWidget {
     required this.id,
     required this.repository,
     this.representedSpaceId,
+    this.focusPointId,
   });
 
   final String id;
   final ConversationRepository repository;
   final String? representedSpaceId;
+  final String? focusPointId;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -378,8 +577,11 @@ class ConversationDetailScreen extends StatefulWidget {
 
 class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
+  final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  bool _attemptedRefresh = false;
+  String? _handledFocus;
 
   @override
   void initState() {
@@ -387,33 +589,64 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     unawaited(_acquireOrRefresh());
   }
 
+  @override
+  void didUpdateWidget(covariant ConversationDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id ||
+        oldWidget.repository != widget.repository ||
+        oldWidget.focusPointId != widget.focusPointId) {
+      _handledFocus = null;
+      _requestedInitialRefresh = false;
+      _attemptedRefresh = false;
+      _refreshing = false;
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readDetail(widget.id);
-    final source = await widget.repository.readDetailSource(widget.id);
-    if (!mounted) return;
-    if (local == null) {
-      await _refresh();
-      return;
+    final repository = widget.repository;
+    final id = widget.id;
+    try {
+      final local = await repository.readDetail(id);
+      final source = await repository.readDetailSource(id);
+      if (!mounted || repository != widget.repository || id != widget.id) return;
+      if (local == null) {
+        await _refresh();
+        return;
+      }
+      final freshness = ConversationRepository.detailFreshness.evaluate(
+        local,
+        now: DateTime.now(),
+        invalidated: source.invalidated,
+      );
+      if (freshness != FreshnessState.fresh || widget.focusPointId != null) {
+        await _refresh();
+      }
+    } on Object {
+      if (mounted && repository == widget.repository && id == widget.id) {
+        setState(() => _attemptedRefresh = true);
+      }
     }
-    final freshness = ConversationRepository.detailFreshness.evaluate(
-      local,
-      now: DateTime.now(),
-      invalidated: source.invalidated,
-    );
-    if (freshness != FreshnessState.fresh) await _refresh();
   }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final repository = widget.repository;
+    final id = widget.id;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshDetail(widget.id);
+      await repository.refreshDetail(id, focusPointId: widget.focusPointId);
     } on Object {
-      // Preserve the local detail.
+      // Retain the authorized local detail during transport failures.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && repository == widget.repository && id == widget.id) {
+        setState(() {
+          _refreshing = false;
+          _attemptedRefresh = true;
+        });
+      }
     }
   }
 
@@ -459,11 +692,66 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Cet état personnel n’a pas été confirmé. L’état serveur connu est conservé.',
+            'Modification non confirmée.',
           ),
         ),
       );
     }
+  }
+
+  Widget _pointWidget(_ConversationPoint point, {bool readOnly = false}) {
+    final focused = point.id == widget.focusPointId;
+    return Padding(
+      key: focused ? _pointFocusKey : ValueKey('point-${point.id}'),
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: _PointCard(
+        point: point,
+        repository: widget.repository,
+        conversationId: widget.id,
+        representedSpaceId: widget.representedSpaceId,
+        readOnly: readOnly,
+      ),
+    );
+  }
+
+  Widget _pointSection(
+    BuildContext context,
+    String title,
+    List<_ConversationPoint> points, {
+    bool readOnly = false,
+  }) {
+    if (points.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner, MakoloSpacing.lg,
+        MakoloSpacing.inner, 0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: MakoloSpacing.md),
+          for (final point in points)
+            _pointWidget(point, readOnly: readOnly),
+        ],
+      ),
+    );
+  }
+
+  void _focusAfterLayout() {
+    final id = widget.focusPointId;
+    if (id == null || id == _handledFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || id != widget.focusPointId) return;
+      final focused = _pointFocusKey.currentContext;
+      if (focused == null) return;
+      _handledFocus = id;
+      Scrollable.ensureVisible(
+        focused,
+        duration: const Duration(milliseconds: 250),
+        alignment: 0.18,
+      );
+    });
   }
 
   @override
@@ -501,10 +789,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: !available && source.invalidated && !_refreshing
+              failure: source.lastErrorCode == 'permission_denied'
+                  ? MakoloFailureCue.permissionDenied
+                  : source.lastErrorCode == 'not_found' ||
+                        (!available && source.invalidated)
                   ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
+                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -571,76 +862,76 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la conversation…',
                 ),
-                blockingErrorMessage: 'Cette conversation n’est pas disponible dans votre contexte actuel.',
+                blockingErrorMessage: 'Cette conversation est indisponible ou n’a pas pu être chargée.',
+                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
+                preservedMessage: available
+                    ? 'La dernière version disponible reste consultable.'
+                    : null,
                 onRetry: _refresh,
-                content: ListView(
-                  key: const Key('conversation-detail-content'),
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                  children: [
-                    MakoloDetailHeader(
-                      eyebrow: detail.contextLabel,
-                      title: detail.title,
-                      subtitle: detail.purpose,
-                      status: detail.lifecycle == null
-                          ? null
-                          : MakoloStatus(label: detail.lifecycle!),
-                    ),
-                    MakoloSection(
-                      title: 'Points',
-                      description:
-                          'Ce qui demande votre attention apparaît ici.',
-                      child: detail.points.isEmpty
-                          ? const MakoloCard(
-                              child: Text('Aucun point à afficher.'),
-                            )
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < detail.points.length;
-                                  index++
-                                ) ...[
-                                  _PointCard(
-                                    point: detail.points[index],
-                                    repository: widget.repository,
-                                    conversationId: widget.id,
-                                    representedSpaceId:
-                                        widget.representedSpaceId,
-                                  ),
-                                  if (index < detail.points.length - 1)
-                                    const SizedBox(height: MakoloSpacing.sm),
-                                ],
-                              ],
-                            ),
-                    ),
-                    if (detail.essential.isNotEmpty)
-                      MakoloSection(
-                        title: 'Essentiel',
-                        description: 'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < detail.essential.length;
-                              index++
-                            ) ...[
-                              _PointCard(
-                                point: detail.essential[index],
-                                repository: widget.repository,
-                                conversationId: widget.id,
-                                representedSpaceId: widget.representedSpaceId,
-                                readOnly: true,
-                              ),
-                              if (index < detail.essential.length - 1)
-                                const SizedBox(height: MakoloSpacing.sm),
-                            ],
-                          ],
+                content: Builder(
+                  builder: (context) {
+                    final seen = <String>{};
+                    List<_ConversationPoint> unique(Iterable<_ConversationPoint> points) {
+                      return [
+                        for (final point in points)
+                          if (seen.add(point.id)) point,
+                      ];
+                    }
+
+                    final focused = detail.focusedPoint;
+                    final focusedOnly = focused != null &&
+                            !detail.points.any((p) => p.id == focused.id) &&
+                            !detail.elsewhere.any((p) => p.id == focused.id) &&
+                            !detail.essential.any((p) => p.id == focused.id)
+                        ? unique([focused])
+                        : <_ConversationPoint>[];
+                    final essential = unique(detail.essential);
+                    final mine = unique(detail.points.where(
+                      (point) => point.section == 'pour_moi' ||
+                          point.attentionReason == 'resolve',
+                    ));
+                    final elsewhere = unique(detail.elsewhere);
+                    final information = unique(detail.points.where(
+                      (point) => point.section != 'pour_moi' &&
+                          point.attentionReason != 'resolve',
+                    ));
+                    _focusAfterLayout();
+
+                    return ListView(
+                      key: const Key('conversation-detail-content'),
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            MakoloSpacing.inner, MakoloSpacing.md,
+                            MakoloSpacing.inner, 0,
+                          ),
+                          child: MakoloDetailHeader(
+                            eyebrow: detail.contextLabel,
+                            title: detail.title,
+                            subtitle: detail.purpose,
+                            status: detail.lifecycle == null
+                                ? null
+                                : MakoloStatus(label: detail.lifecycle!),
+                          ),
                         ),
-                      ),
-                  ],
+                        _pointSection(context, 'Point recherché', focusedOnly),
+                        _pointSection(context, 'L’essentiel', essential, readOnly: true),
+                        _pointSection(context, 'À vous', mine),
+                        _pointSection(context, 'En cours ailleurs', elsewhere, readOnly: true),
+                        _pointSection(context, 'À savoir et résultats', information, readOnly: true),
+                        if (focusedOnly.isEmpty && essential.isEmpty &&
+                            mine.isEmpty && elsewhere.isEmpty &&
+                            information.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(MakoloSpacing.inner),
+                            child: Text('Tout est en ordre. ✓'),
+                          ),
+                      ],
+                    );
+                  },
                 ),
-              ),
-            );
+              );
           },
         );
       },
@@ -671,8 +962,14 @@ class _PointCardState extends State<_PointCard> {
   bool _busy = false;
   String? _feedback;
   String? _clientReference;
+  Object? _lastValue;
+  final Set<String> _choices = {};
 
-  String _newClientReference() {
+  String _referenceFor(Object? value) {
+    if (_lastValue.toString() != value.toString()) {
+      _clientReference = null;
+    }
+    _lastValue = value;
     _clientReference ??=
         'mobile-${widget.point.id}-${DateTime.now().microsecondsSinceEpoch}';
     return _clientReference!;
@@ -690,22 +987,21 @@ class _PointCardState extends State<_PointCard> {
         pointId: widget.point.id,
       );
     } on Object {
-      if (!mounted) return;
-      await widget.repository.refreshDetail(widget.conversationId);
-      if (!mounted) return;
-      setState(
-        () => _feedback =
-            'Ce point a changé. Voici son état actuel après actualisation.',
-      );
+      try {
+        await widget.repository.refreshDetail(widget.conversationId);
+      } on Object {
+        // Keep the last authorized snapshot.
+      }
+      if (mounted) {
+        setState(() => _feedback = 'Lecture non confirmée. Réessayez.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _respond() async {
+  Future<void> _submitResponse(Object? value) async {
     if (_busy) return;
-    final value = await _collectResponseValue(context, widget.point);
-    if (!mounted || identical(value, _cancelledResponse)) return;
     setState(() {
       _busy = true;
       _feedback = null;
@@ -715,91 +1011,161 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         pointId: widget.point.id,
         value: value,
-        clientReference: _newClientReference(),
+        clientReference: _referenceFor(value),
         representedSpaceId: widget.representedSpaceId,
       );
       _clientReference = null;
+      if (mounted) setState(() => _choices.clear());
     } on Object {
-      if (!mounted) return;
-      await widget.repository.refreshDetail(widget.conversationId);
-      if (!mounted) return;
-      setState(
-        () => _feedback = 'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
-      );
+      try {
+        await widget.repository.refreshDetail(widget.conversationId);
+      } on Object {
+        // The response remains unconfirmed until the owner can be reached.
+      }
+      if (mounted) {
+        setState(() => _feedback = 'Envoi non confirmé. Vérifiez avant de réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<void> _respond() async {
+    if (_busy) return;
+    final value = await _collectResponseValue(context, widget.point);
+    if (!mounted || identical(value, _cancelledResponse)) return;
+    await _submitResponse(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final point = widget.point;
-    final metadata = <MakoloMetadataItem>[
-      if (point.attentionReason != null)
-        MakoloMetadataItem(
-          point.attentionReason!,
-          icon: Icons.priority_high_rounded,
-        ),
-      if (point.section != null) MakoloMetadataItem(point.section!),
-      if (point.requiresAcknowledgement)
-        const MakoloMetadataItem(
-          'Confirmation de lecture requise',
-          icon: Icons.visibility_outlined,
-        ),
-      if (point.canRespond)
-        const MakoloMetadataItem(
-          'Vous pouvez répondre',
-          icon: Icons.reply_rounded,
-        ),
-    ];
-    return MakoloCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MakoloStatusMetadataAction(
-            title: point.title,
-            subtitle: point.body,
-            status: point.lifecycle == null
-                ? null
-                : MakoloStatus(label: point.lifecycle!),
-            metadata: metadata,
+    final interactive = !widget.readOnly &&
+        (point.canRespond || point.attentionReason == 'acknowledge');
+    final kindLabel = switch (point.kind) {
+      'information' => 'Information',
+      'poll' => 'Sondage',
+      'confirmation' => 'Confirmation',
+      'question' => 'Question',
+      'request' => 'Demande',
+      'form_request' => 'Formulaire',
+      'exchange' => 'Échange',
+      _ => 'Point',
+    };
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(kindLabel, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 6),
+        Text(point.title, style: Theme.of(context).textTheme.titleMedium),
+        if (point.body != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(point.body!),
+        ],
+        if (point.deadlineAt != null && point.canRespond) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(
+            'Avant le ${MaterialLocalizations.of(context).formatShortDate(point.deadlineAt!)}',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-          if (point.resolutionSummary != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text('✓ ${point.resolutionSummary!}'),
-          ],
-          if (_feedback != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(_feedback!),
-          ],
-          if (!widget.readOnly &&
-              point.requiresAcknowledgement &&
-              point.attentionReason == 'acknowledge') ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            FilledButton(
-              onPressed: _busy ? null : _acknowledge,
-              child: Text(_busy ? 'En cours…' : 'J’ai pris connaissance'),
-            ),
-          ],
-          if (!widget.readOnly &&
-              point.canRespond &&
-              point.supportsInteractiveResponse) ...[
-            const SizedBox(height: MakoloSpacing.sm),
+        ],
+        if (point.resolutionSummary != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text('✓ ${point.resolutionSummary!}'),
+        ],
+        if (_feedback != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(_feedback!),
+        ],
+        if (point.requiresAcknowledgement &&
+            point.attentionReason == 'acknowledge' &&
+            !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          FilledButton(
+            onPressed: _busy ? null : _acknowledge,
+            child: Text(_busy ? 'En cours…' : 'Bien reçu'),
+          ),
+        ],
+        if (point.canRespond && !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          if (point.responseMode == 'boolean')
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              children: [
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _submitResponse(true),
+                  child: const Text('Oui'),
+                ),
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _submitResponse(false),
+                  child: const Text('Non'),
+                ),
+              ],
+            )
+          else if (point.responseMode == 'single_choice')
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.sm,
+              children: [
+                for (final option in point.options)
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _submitResponse(option.id),
+                    child: Text(option.label),
+                  ),
+              ],
+            )
+          else if (point.responseMode == 'multiple_choice')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: MakoloSpacing.sm,
+                  runSpacing: MakoloSpacing.sm,
+                  children: [
+                    for (final option in point.options)
+                      FilterChip(
+                        label: Text(option.label),
+                        selected: _choices.contains(option.id),
+                        onSelected: _busy
+                            ? null
+                            : (selected) => setState(() {
+                                if (selected) {
+                                  _choices.add(option.id);
+                                } else {
+                                  _choices.remove(option.id);
+                                }
+                              }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+                FilledButton(
+                  onPressed: _busy || _choices.isEmpty
+                      ? null
+                      : () => _submitResponse(_choices.toList()),
+                  child: Text(_busy ? 'Envoi…' : 'Répondre'),
+                ),
+              ],
+            )
+          else if (point.supportsInteractiveResponse)
             FilledButton(
               onPressed: _busy ? null : _respond,
               child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
             ),
-          ],
-          if (!widget.readOnly &&
-              point.canRespond &&
-              !point.supportsInteractiveResponse) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            const Text(
-              'Ce type de réponse nécessite une capacité média ou formulaire explicitement disponible.',
-            ),
-          ],
         ],
+        if (point.kind == 'exchange' && point.canRespond && !widget.readOnly)
+          const SizedBox.shrink(),
+      ],
+    );
+    if (interactive || point.kind == 'poll' || point.kind == 'request') {
+      return MakoloCard(child: body);
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.sm, MakoloSpacing.md,
+        MakoloSpacing.sm, MakoloSpacing.md,
       ),
+      child: body,
     );
   }
 }
@@ -971,6 +1337,10 @@ class _ConversationSummary {
     required this.attentionCount,
     required this.allClear,
     this.contextLabel,
+    this.purpose,
+    this.latestResult,
+    this.updatedAt,
+    this.matchedPointId,
   });
 
   final String id;
@@ -979,32 +1349,37 @@ class _ConversationSummary {
   final int attentionCount;
   final bool allClear;
   final String? contextLabel;
+  final String? purpose;
+  final String? latestResult;
+  final DateTime? updatedAt;
+  final String? matchedPointId;
+
+  factory _ConversationSummary.fromMap(Map<String, dynamic> row) {
+    final context = _map(row['context']);
+    return _ConversationSummary(
+      id: _string(row['id']) ?? '',
+      title: _string(row['title']) ?? 'Conversation',
+      lifecycle: MakoloHumanization.presentationLabel(
+        _string(row['lifecycle']),
+      ),
+      attentionCount: row['attention_count'] is num
+          ? (row['attention_count'] as num).toInt()
+          : 0,
+      allClear: row['all_clear'] == true,
+      contextLabel: _string(context['label']),
+      purpose: _string(row['purpose']),
+      latestResult: _string(row['latest_result']),
+      updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
+      matchedPointId: _string(row['matched_point_id']),
+    );
+  }
 
   static List<_ConversationSummary> fromProjection(
     StoredProjection? projection,
-  ) {
-    final raw = projection?.payload['results'];
-    if (raw is! List) return const [];
-    return raw
-        .map((item) {
-          final row = _map(item);
-          final context = _map(row['context']);
-          return _ConversationSummary(
-            id: _string(row['id']) ?? '',
-            title: _string(row['title']) ?? 'Conversation',
-            lifecycle: MakoloHumanization.presentationLabel(
-              _string(row['lifecycle']),
-            ),
-            attentionCount: row['attention_count'] is num
-                ? (row['attention_count'] as num).toInt()
-                : 0,
-            allClear: row['all_clear'] == true,
-            contextLabel: _string(context['label']),
-          );
-        })
-        .where((item) => item.id.isNotEmpty)
-        .toList(growable: false);
-  }
+  ) => _maps(projection?.payload['results'])
+      .map(_ConversationSummary.fromMap)
+      .where((item) => item.id.isNotEmpty)
+      .toList(growable: false);
 }
 
 class _ConversationDetail {
@@ -1013,6 +1388,8 @@ class _ConversationDetail {
     required this.points,
     required this.essential,
     required this.personalState,
+    this.elsewhere = const [],
+    this.focusedPoint,
     this.purpose,
     this.lifecycle,
     this.contextLabel,
@@ -1024,6 +1401,8 @@ class _ConversationDetail {
   final String? contextLabel;
   final List<_ConversationPoint> points;
   final List<_ConversationPoint> essential;
+  final List<_ConversationPoint> elsewhere;
+  final _ConversationPoint? focusedPoint;
   final _ConversationPersonalState personalState;
 
   factory _ConversationDetail.fromProjection(StoredProjection? projection) {
@@ -1050,6 +1429,12 @@ class _ConversationDetail {
       essential: _maps(payload['essential'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
+      elsewhere: _maps(payload['elsewhere'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
+      focusedPoint: _map(payload['focused_point']).isEmpty
+          ? null
+          : _ConversationPoint.fromMap(_map(payload['focused_point'])),
       personalState: _ConversationPersonalState.fromMap(
         _map(payload['personal_state']),
       ),
@@ -1108,6 +1493,14 @@ class _ConversationPoint {
     this.attentionReason,
     this.section,
     this.resolutionSummary,
+    this.kind,
+    this.importance,
+    this.conversationId,
+    this.opensAt,
+    this.deadlineAt,
+    this.validUntil,
+    this.publishedAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -1121,6 +1514,14 @@ class _ConversationPoint {
   final String? attentionReason;
   final String? section;
   final String? resolutionSummary;
+  final String? kind;
+  final String? importance;
+  final String? conversationId;
+  final DateTime? opensAt;
+  final DateTime? deadlineAt;
+  final DateTime? validUntil;
+  final DateTime? publishedAt;
+  final DateTime? updatedAt;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -1158,6 +1559,14 @@ class _ConversationPoint {
       attentionReason: _string(row['attention_reason']),
       section: _string(row['section']),
       resolutionSummary: _string(row['resolution_summary']),
+      kind: _string(row['kind']),
+      importance: _string(row['importance']),
+      conversationId: _string(row['conversation_id']),
+      opensAt: DateTime.tryParse(_string(row['opens_at']) ?? ''),
+      deadlineAt: DateTime.tryParse(_string(row['deadline_at']) ?? ''),
+      validUntil: DateTime.tryParse(_string(row['valid_until']) ?? ''),
+      publishedAt: DateTime.tryParse(_string(row['published_at']) ?? ''),
+      updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
     );
   }
 }
@@ -1168,12 +1577,14 @@ class _ConversationInvitation {
     required this.conversationId,
     required this.status,
     this.expiresAt,
+    this.createdAt,
   });
 
   final String id;
   final String conversationId;
   final String status;
   final DateTime? expiresAt;
+  final DateTime? createdAt;
 
   bool get expired {
     final value = expiresAt;
@@ -1190,6 +1601,7 @@ class _ConversationInvitation {
           conversationId: _string(row['conversation_id']) ?? '',
           status: _string(row['status']) ?? '',
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+          createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
       )
       .where((item) => item.id.isNotEmpty)

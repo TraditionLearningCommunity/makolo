@@ -3,7 +3,8 @@ from datetime import datetime
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import get_object_or_404, redirect
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
@@ -15,8 +16,10 @@ from .presentation import (
     catch_up_summary,
     conversation_context_label,
     conversation_rows_for_profile,
+    conversations_for_context,
     essential_points_for_profile,
     now_points_for_profile,
+    other_visible_points_for_profile,
     search_conversation,
     search_conversations_for_profile,
 )
@@ -39,7 +42,7 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tab = (self.request.GET.get("tab") or "for-me").strip().lower()
+        tab = (self.request.GET.get("tab") or "all").strip().lower()
         if tab not in {"for-me", "all", "archived"}:
             tab = "for-me"
         q = (self.request.GET.get("q") or "").strip()[:120]
@@ -78,12 +81,43 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         previous_state = conversation.user_states.filter(profile=self.request.user).first()
         previous_open = previous_state.last_opened_at if previous_state else None
         q = (self.request.GET.get("q") or "").strip()[:120]
+        now_rows = now_points_for_profile(self.request.user, conversation)
+        seen = {row["point"].pk for row in now_rows}
+        essential = [
+            point for point in essential_points_for_profile(self.request.user, conversation)
+            if point.pk not in seen
+        ]
+        seen.update(point.pk for point in essential)
+        elsewhere = other_visible_points_for_profile(
+            self.request.user, conversation, excluded_ids=seen,
+        )
+        seen.update(point.pk for point in elsewhere)
+        focused_point = None
+        focus = (self.request.GET.get("focus") or "").strip()
+        if focus:
+            try:
+                candidate = ConversationPoint.objects.get(pk=focus, conversation=conversation)
+            except (ConversationPoint.DoesNotExist, ValueError, ValidationError):
+                candidate = None
+            if candidate is not None:
+                from .point_services import point_visible_to
+                if point_visible_to(self.request.user, candidate) and candidate.pk not in seen:
+                    focused_point = candidate
         context.update(
             {
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
-                "now_rows": now_points_for_profile(self.request.user, conversation),
-                "essential_points": essential_points_for_profile(self.request.user, conversation),
+                "my_points": [
+                    row for row in now_rows
+                    if row["section"] == "pour_moi" or row["reason"] == "resolve"
+                ],
+                "known_points": [
+                    row for row in now_rows
+                    if row["section"] != "pour_moi" and row["reason"] != "resolve"
+                ],
+                "elsewhere_points": elsewhere,
+                "essential_points": essential,
+                "focused_point": focused_point,
                 "q": q,
                 "search_results": search_conversation(self.request.user, conversation, q) if q else [],
                 "catch_up": catch_up_summary(self.request.user, conversation, since=previous_open),
@@ -91,6 +125,31 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         )
         update_personal_conversation_state(actor=self.request.user, conversation=conversation, opened=True)
         return context
+
+
+class ConversationContextOpenView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request, kind, context_pk):
+        try:
+            candidates = conversations_for_context(request.user, kind, context_pk)
+        except Exception as exc:
+            # Invalid or unauthorized context types cannot reveal owner data.
+            from rest_framework.exceptions import NotFound
+            if not isinstance(exc, NotFound):
+                raise
+            raise Http404("Conversation introuvable.") from exc
+        if not candidates:
+            raise Http404("Aucune Conversation accessible.")
+        if len(candidates) == 1:
+            return redirect("conversations:detail", pk=candidates[0].pk)
+        return render(
+            request, "conversations/context_choices.html",
+            {"conversations": [
+                {"conversation": item, "label": conversation_context_label(item, request.user)}
+                for item in candidates
+            ]},
+        )
 
 
 class ConversationInvitationRespondView(LoginRequiredMixin, View):

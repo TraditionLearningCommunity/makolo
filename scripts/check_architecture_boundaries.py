@@ -26,6 +26,12 @@ IGNORED_PARTS = {
     "__pycache__",
 }
 
+OWNER_SELECTOR_MODULES = {
+    # This domain selector returns privacy-scoped, URL-free owner facts. It is
+    # not the high-level Presentation UX layer despite the 'presentations' app name.
+    "presentations.media_selectors",
+}
+
 LEGACY_ALLOWED_IMPORTS = {
     ("core/api/history_projection.py", "core.history_presentation"),
     ("core/api/personal_projections.py", "core.home_presentation"),
@@ -140,6 +146,7 @@ def inspect_file(path: Path) -> list[Violation]:
                     or ".views." in module
                     or (
                         ("presentation" in module or "orchestration" in module)
+                        and module not in OWNER_SELECTOR_MODULES
                         and (relative, module) not in LEGACY_ALLOWED_IMPORTS
                     )
                 ):

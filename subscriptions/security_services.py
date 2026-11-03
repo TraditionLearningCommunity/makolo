@@ -14,6 +14,7 @@ from .transition_services import (
     cancel_subscription_transition,
     complete_subscription_transition,
     request_subscription_transition,
+    finalize_ready_self_service_transition,
 )
 
 
@@ -46,7 +47,7 @@ def request_subscription_transition_for_actor(
         source_item = SubscriptionItem.objects.filter(subscription=subscription, pk=source_item_id).first()
         if source_item is None:
             raise Http404
-    return request_subscription_transition(
+    transition = request_subscription_transition(
         subscription=subscription,
         kind=kind,
         target_plan_version=target,
@@ -57,6 +58,7 @@ def request_subscription_transition_for_actor(
         expires_at=expires_at,
         reason=reason,
     )
+    return finalize_ready_self_service_transition(transition=transition)
 
 
 def cancel_subscription_transition_for_actor(*, actor, transition_id, reason=""):

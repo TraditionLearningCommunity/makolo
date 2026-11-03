@@ -19,13 +19,22 @@ class GeoSuggestion {
   final String? kind;
 }
 
+/// Cancellation contract: presentation never handles Dio directly.
+class GeoSearchCancellation {
+  final CancelToken _token = CancelToken();
+
+  bool get isCancelled => _token.isCancelled;
+
+  void cancel() => _token.cancel('outdated suggestion');
+}
+
 abstract interface class GeoSearchGateway {
   /// A caller owns typing debounce and cancellation. No GPS is sent implicitly.
   Future<List<GeoSuggestion>> suggest(
     String query, {
     String language = 'fr',
     int limit = 5,
-    CancelToken? cancelToken,
+    GeoSearchCancellation? cancelToken,
   });
 }
 
@@ -40,19 +49,21 @@ class GeoSearchException implements Exception {
 /// MapTiler forward geocoding adapter, opt-in until the account authorizes it.
 /// The token is injected from approved client runtime configuration only.
 class MapTilerGeoSearchGateway implements GeoSearchGateway {
-  MapTilerGeoSearchGateway({
-    required String apiKey,
-    Dio? dio,
-    Uri? endpoint,
-  })  : _key = apiKey,
-        _endpoint = endpoint ?? Uri.parse('https://api.maptiler.com/geocoding/'),
-        _dio = dio ??
-            Dio(BaseOptions(
+  MapTilerGeoSearchGateway({required String apiKey, Dio? dio, Uri? endpoint})
+    : _key = apiKey,
+      _endpoint = endpoint ?? Uri.parse('https://api.maptiler.com/geocoding/'),
+      _dio =
+          dio ??
+          Dio(
+            BaseOptions(
               connectTimeout: const Duration(seconds: 5),
               receiveTimeout: const Duration(seconds: 7),
-            )) {
+            ),
+          ) {
     if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
-      throw ArgumentError('MapTiler geocoding requires approved HTTPS configuration.');
+      throw ArgumentError(
+        'MapTiler geocoding requires approved HTTPS configuration.',
+      );
     }
   }
 
@@ -65,14 +76,16 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     String query, {
     String language = 'fr',
     int limit = 5,
-    CancelToken? cancelToken,
+    GeoSearchCancellation? cancelToken,
   }) async {
     final text = query.trim();
-    if (text.length < 2) return const [];
+    if (text.isEmpty) return const [];
     final effectiveLimit = limit.clamp(1, 10);
     final uri = _endpoint.replace(
-      path:
-          '${_endpoint.path.endsWith('/') ? _endpoint.path : '${_endpoint.path}/'}${Uri.encodeComponent(text)}.json',
+      pathSegments: [
+        ..._endpoint.pathSegments.where((segment) => segment.isNotEmpty),
+        '$text.json',
+      ],
       queryParameters: {
         'key': _key,
         'autocomplete': 'true',
@@ -83,7 +96,7 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     try {
       final response = await _dio.getUri<Map<String, dynamic>>(
         uri,
-        cancelToken: cancelToken,
+        cancelToken: cancelToken?._token,
       );
       final features = response.data?['features'];
       if (features is! List) throw const FormatException('Missing features');
@@ -121,7 +134,9 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
             longitude: lon,
             latitude: lat,
             source: 'maptiler',
-            kind: types is List && types.isNotEmpty ? types.first.toString() : null,
+            kind: types is List && types.isNotEmpty
+                ? types.first.toString()
+                : null,
           ),
         );
       }

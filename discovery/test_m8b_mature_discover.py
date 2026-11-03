@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -16,6 +16,7 @@ from opportunities.models import (
 from .card_contract import present_opportunity_card
 from .candidate_identity import opportunity_candidate_key
 from .unified import public_opportunity_discovery_items
+from .views import _added_date_label, _discovery_first_person_action_label, _web_discovery_card
 
 
 User = get_user_model()
@@ -126,6 +127,54 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertEqual(response.context["map_items"], [])
         self.assertEqual(response.context["mappable_result_count"], 0)
 
+    def test_discover_n1_opens_owner_admitted_n2_for_public_opportunity(self):
+        opportunity, _ = self.published_opportunity(
+            "Bourse profondeur N2",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        n2_url = reverse("discovery:possibility-detail", kwargs={
+            "family": "opportunity",
+            "item_id": str(opportunity.pk),
+        })
+        homepage = self.client.get(
+            reverse("discovery:home"), {"q": "Bourse profondeur N2"},
+        )
+        self.assertEqual(homepage.status_code, 200)
+        self.assertContains(homepage, "Approfondir cette possibilité")
+        self.assertContains(homepage, n2_url)
+
+        detail = self.client.get(n2_url, {
+            "from": reverse("discovery:home") + "?q=Bourse",
+        })
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.context["n2_item"]["identity"]["family"], "opportunity")
+        self.assertContains(detail, "Bourse profondeur N2")
+        self.assertContains(detail, "Informations pratiques")
+        self.assertNotContains(detail, "Comparer les variantes connues")
+        self.assertEqual(
+            detail.context["return_url"], reverse("discovery:home") + "?q=Bourse",
+        )
+
+    def test_n2_rejects_unsupported_family_and_external_return_url(self):
+        invalid = self.client.get(
+            reverse("discovery:possibility-detail", kwargs={
+                "family": "invented", "item_id": "not-real",
+            }),
+        )
+        self.assertEqual(invalid.status_code, 404)
+        opportunity, _ = self.published_opportunity(
+            "Bourse anti redirection",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        n2_url = reverse("discovery:possibility-detail", kwargs={
+            "family": "opportunity", "item_id": str(opportunity.pk),
+        })
+        response = self.client.get(n2_url, {"from": "//evil.example/path"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["return_url"], reverse("discovery:home"))
+
     def test_authenticated_opportunity_save_state_uses_canonical_opportunity_save(self):
         opportunity, _ = self.published_opportunity(
             "Bourse enregistrée M8-B",
@@ -142,6 +191,68 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertContains(response, reverse("sharing:create-opportunity", args=[opportunity.pk]))
         self.assertContains(response, 'aria-pressed="true"')
         self.assertContains(response, "Enregistré")
+
+    def test_n1_action_row_uses_three_positions_and_existing_share_options(self):
+        opportunity, _ = self.published_opportunity(
+            "Bourse N1 complète",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("discovery:home"), {"q": "Bourse N1 complète"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["discovery_cards"]), 1)
+        self.assertContains(response, 'aria-label="Interactions avec cette possibilité"')
+        self.assertContains(response, "J’enregistre")
+        self.assertContains(response, reverse("opportunities:save-toggle", args=[opportunity.pk]))
+        self.assertContains(response, "data-share-internal")
+        self.assertContains(response, "data-share-person-search")
+        self.assertContains(response, "data-share-native")
+        self.assertContains(response, "data-share-copy")
+        self.assertContains(response, "data-share-qr-button")
+        self.assertNotContains(response, "mk-discovery-preview-action")
+
+    def test_n1_web_actions_preserve_distinct_web_and_api_authority(self):
+        projection = {
+            "identity": {
+                "family": "service_activity",
+                "candidate_key": "service_activity:example",
+                "resource": {"kind": "activity", "id": "example"},
+                "occurrence": None,
+            },
+            "representation": {
+                "title": "Atelier de formation",
+                "summary": "Atelier",
+                "kind": "service",
+            },
+            "owner": {"display_name": "Organisateur"},
+            "saved": {"state": "not_saved"},
+            "capabilities": ["save"],
+            "links": {"web": "/atelier/", "detail": "/api/detail/"},
+            "engagement": {
+                "presentation": {
+                    "label": "S'inscrire",
+                    "capability": "start",
+                    "enabled": False,
+                    "web_enabled": True,
+                    "web": "/inscription/",
+                },
+            },
+        }
+
+        card = _web_discovery_card(projection)
+        self.assertIsNone(card.actions.save)
+        self.assertIsNotNone(card.actions.primary)
+        self.assertTrue(card.actions.primary.enabled)
+        self.assertEqual(card.actions.primary.label, "Je m'inscris")
+        self.assertEqual(card.actions.primary.url, "/inscription/")
+        self.assertEqual(_discovery_first_person_action_label("Payer"), "Je paye")
+        self.assertEqual(_discovery_first_person_action_label("Voir mon billet"), "Voir mon billet")
+
+        projection["engagement"]["presentation"]["web_enabled"] = False
+        self.assertFalse(_web_discovery_card(projection).actions.primary.enabled)
 
     def test_discovery_cards_follow_the_common_paginated_candidate_sequence(self):
         first, _ = self.published_opportunity(
@@ -177,3 +288,68 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["discovery_cards"], [])
         self.assertContains(response, "Aucune possibilité ne correspond à cette recherche.")
+
+    def test_n1_human_added_at_is_distinct_from_owner_event_timing(self):
+        local_zone = timezone.get_current_timezone()
+        now = timezone.make_aware(datetime(2026, 10, 31, 14, 0), local_zone)
+        self.assertEqual(
+            _added_date_label((now - timedelta(hours=2)).isoformat(), now=now),
+            "il y a 2 h",
+        )
+        self.assertEqual(
+            _added_date_label((now - timedelta(days=1)).isoformat(), now=now),
+            "Hier",
+        )
+        self.assertEqual(
+            _added_date_label((now - timedelta(days=14)).isoformat(), now=now),
+            "il y a 2 sem.",
+        )
+        self.assertEqual(_added_date_label("not-a-date", now=now), "")
+        self.assertEqual(
+            _added_date_label((now + timedelta(days=1)).isoformat(), now=now),
+            "01/11/2026",
+        )
+
+    def test_n1_web_practical_roles_classification_and_known_unavailability(self):
+        projection = {
+            "identity": {
+                "family": "activity",
+                "candidate_key": "activity:transport",
+                "resource": {"kind": "activity", "id": "transport"},
+                "occurrence": None,
+            },
+            "representation": {
+                "title": "Transport Lubumbashi – Kolwezi",
+                "summary": "Un départ connu.",
+                "kind": "route",
+                "vertical_label": "Transport",
+                "eyebrow": "Transport",
+            },
+            "presentation_facts": [
+                {"code": "type", "label": "Type", "value": "Transport"},
+            ],
+            "availability": {"state": "sold_out"},
+            "spatial_facts": [
+                {"role": "departure", "place": {"name": "Lubumbashi"}},
+                {"role": "stopover", "place": {"name": "Likasi"}},
+                {"role": "stopover", "place": {"name": "Fungurume"}},
+                {"role": "arrival", "place": {"name": "Kolwezi"}},
+            ],
+            "temporal_facts": [
+                {"kind": "deadline_at", "value": "2026-11-01T12:00:00+02:00"},
+            ],
+            "date": {"kind": "added_at", "value": "2026-10-30T12:00:00+02:00"},
+            "links": {"web": "/transport/"},
+        }
+        card = _web_discovery_card(projection)
+        self.assertEqual(card.type_labels, ("Transport",))
+        self.assertFalse(any(fact.label == "Type" for fact in card.facts))
+        by_label = {fact.label: fact.value for fact in card.facts}
+        self.assertEqual(by_label["Disponibilité"], "Complet")
+        self.assertEqual(by_label["Départ"], "Lubumbashi")
+        self.assertEqual(by_label["Escale 1"], "Likasi")
+        self.assertEqual(by_label["Escale 2"], "Fungurume")
+        self.assertEqual(by_label["Arrivée"], "Kolwezi")
+        self.assertIn("Date limite", by_label)
+        self.assertTrue(card.added_label)
+        self.assertNotEqual(card.added_label, by_label["Date limite"])

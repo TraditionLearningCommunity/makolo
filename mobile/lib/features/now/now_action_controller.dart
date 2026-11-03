@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import 'now_proposal_decision.dart';
+import 'now_display_labels.dart';
 
 /// Only the existing owner service may authorize and confirm a mutation.
 /// Presentation never turns a capability or a URL into a generic HTTP action.
@@ -109,11 +110,13 @@ class NowActionGroup extends StatefulWidget {
     required this.situation,
     required this.api,
     this.onOpenOwner,
+    this.compact = false,
   });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final VoidCallback? onOpenOwner;
+  final bool compact;
 
   @override
   State<NowActionGroup> createState() => _NowActionGroupState();
@@ -239,7 +242,10 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   !_sending && !_confirmedByOwner && (direct || canHandoff);
               if (!direct && !canHandoff) {
                 return Text(
-                  action.label,
+                  nowDisplayActionLabel(
+                    action.label,
+                    widget.situation.humanContext,
+                  ),
                   style: Theme.of(context).textTheme.titleMedium,
                 );
               }
@@ -248,17 +254,32 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   : direct
                   ? () => unawaited(_execute(action))
                   : widget.onOpenOwner;
+              final label = widget.compact && !direct
+                  ? nowDisplayHandoffLabel(
+                      action.label,
+                      widget.situation.meaning,
+                      widget.situation.humanContext,
+                    )
+                  : nowDisplayActionLabel(
+                      action.label,
+                      widget.situation.humanContext,
+                    );
               if (index == 0) {
-                return FilledButton.icon(
-                  onPressed: callback,
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  label: Text(action.label),
-                );
+                return widget.compact
+                    ? TextButton.icon(
+                        onPressed: callback,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: Text(label),
+                      )
+                    : FilledButton.icon(
+                        onPressed: callback,
+                        icon: const Icon(Icons.arrow_forward_rounded),
+                        label: Text(label),
+                      );
               }
-              return OutlinedButton(
-                onPressed: callback,
-                child: Text(action.label),
-              );
+              return widget.compact
+                  ? TextButton(onPressed: callback, child: Text(label))
+                  : OutlinedButton(onPressed: callback, child: Text(label));
             },
           ),
         ],

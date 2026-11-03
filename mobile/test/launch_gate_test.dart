@@ -197,15 +197,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1250));
     await tester.pumpAndSettle();
 
-    expect(find.text('Découvrez ce qui compte pour vous.'), findsOneWidget);
+    expect(find.text('Makolo marche pour vous.'), findsOneWidget);
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.byKey(const Key('onboarding-location-skip')));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Découvrir Makolo'));
+    await tester.tap(find.byKey(const Key('onboarding-primary')));
     await tester.pumpAndSettle();
 
     expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
@@ -274,10 +274,7 @@ void main() {
 
     expect(find.byType(BrandMoment), findsNothing);
 
-    expect(
-      find.text('Now n’est pas disponible pour le moment.'),
-      findsOneWidget,
-    );
+    expect(find.text('Now indisponible.'), findsOneWidget);
 
     expect(requests, 1);
 
@@ -292,10 +289,7 @@ void main() {
 
     expect(requests, greaterThanOrEqualTo(1));
 
-    expect(
-      find.text('Now n’est pas disponible pour le moment.'),
-      findsOneWidget,
-    );
+    expect(find.text('Now indisponible.'), findsOneWidget);
 
     // Unmount live Drift subscriptions before disposal.
     await tester.pumpWidget(const SizedBox.shrink());

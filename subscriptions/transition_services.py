@@ -469,7 +469,8 @@ def sync_transition_payment_assessment(*, obligation, actor=None):
         _sync_payment_assessment_locked(link.assessment, actor=actor)
         transitions[link.assessment.transition_id] = link.assessment.transition
     for transition in transitions.values():
-        evaluate_transition_readiness(transition=transition)
+        evaluated = evaluate_transition_readiness(transition=transition)
+        finalize_ready_self_service_transition(transition=evaluated)
     return tuple(link.assessment for link in links)
 
 
@@ -695,6 +696,22 @@ def complete_subscription_transition(*, transition):
     )
 
 
+def finalize_ready_self_service_transition(*, transition):
+    """Apply a ready self-service choice without an artificial approval step.
+
+    Readiness still owns mandatory requirements and the billing guard; a pending
+    or failed payment cannot activate the target. Staff/system flows are left
+    under their explicit orchestration.
+    """
+    transition.refresh_from_db(fields=["status", "request_origin"])
+    if (
+        transition.request_origin == SubscriptionTransitionRequestOrigin.SELF_SERVICE
+        and transition.status == SubscriptionTransitionStatus.READY
+    ):
+        return complete_subscription_transition(transition=transition)
+    return transition
+
+
 @transaction.atomic
 def cancel_subscription_transition(*, transition, actor=None, reason=""):
     transition = SubscriptionTransition.objects.select_for_update(of=("self",)).get(pk=transition.pk)
@@ -703,6 +720,25 @@ def cancel_subscription_transition(*, transition, actor=None, reason=""):
     if transition.status not in OPEN_TRANSITION_STATUSES:
         raise SubscriptionTransitionError(
             "Cette Transition ne peut plus être annulée."
+        )
+    # Cancelling only the Subscription row would leave an independently payable
+    # obligation owned by Payments. Never orphan a platform-payee claim.
+    from .billing_models import SubscriptionBillingObligation
+
+    terminally_released = {
+        PaymentObligationStatus.CANCELLED,
+        PaymentObligationStatus.EXPIRED,
+        PaymentObligationStatus.REFUNDED,
+    }
+    if (
+        SubscriptionBillingObligation.objects.filter(transition=transition)
+        .exclude(obligation__status__in=terminally_released).exists()
+        or SubscriptionTransitionPaymentObligation.objects.filter(transition=transition)
+        .exclude(obligation__status__in=terminally_released).exists()
+    ):
+        raise SubscriptionTransitionError(
+            "Ce changement possède une obligation financière active. "
+            "Son annulation doit d'abord être régularisée dans Payments."
         )
     return _set_transition_status(
         transition,

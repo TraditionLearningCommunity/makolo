@@ -5,7 +5,9 @@ import 'package:video_player/video_player.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../data/files/profile_paths.dart';
+import '../../data/files/profile_recognition_image_store.dart';
 import '../../platform/media/private_media_views.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/contracts/now_presentation.dart';
 
@@ -28,12 +30,30 @@ String? nowAuthorizedMediaPath(NowMediaBindingPresentation binding) {
     r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
     r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/$',
   );
-  if (!permitted.hasMatch(uri.path) ||
+  final publicUseId = binding.resourceRef.startsWith('presentation_media_use:')
+      ? binding.resourceRef.substring('presentation_media_use:'.length)
+      : null;
+  final published = RegExp(
+    r'^/presentation/media/uses/'
+    r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/file/$',
+  );
+  final publicRecognition =
+      publicUseId != null &&
+      uri.path == '/presentation/media/uses/$publicUseId/file/' &&
+      binding.kind == NowMediaKind.image &&
+      binding.purpose == NowMediaPurpose.recognize &&
+      published.hasMatch(uri.path) &&
+      !uri.hasQuery &&
+      !uri.hasFragment;
+  final privateArtifact =
+      binding.resourceRef.startsWith('journey_artifact:') &&
+      permitted.hasMatch(uri.path) &&
+      !uri.hasFragment &&
       (binding.kind == NowMediaKind.document
-          ? uri.query != 'view=text'
-          : uri.hasQuery)) {
-    return null;
-  }
+          ? uri.query == 'view=text'
+          : !uri.hasQuery);
+  if (!publicRecognition && !privateArtifact) return null;
   return uri.toString().substring(1);
 }
 
@@ -84,6 +104,7 @@ class NowMediaViewer extends StatefulWidget {
     required this.media,
     required this.api,
     this.sharing = const SystemShareGateway(),
+    this.downloads = const AndroidDeviceDownloads(),
     this.temporaryDirectory,
     this.profileId,
   });
@@ -91,6 +112,7 @@ class NowMediaViewer extends StatefulWidget {
   final NowMediaBindingPresentation media;
   final MakoloApiClient api;
   final ShareGateway sharing;
+  final DeviceDownloads downloads;
   final Directory? temporaryDirectory;
   final String? profileId;
 
@@ -140,11 +162,35 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       file = File(
         '${dir.path}/now-${DateTime.now().microsecondsSinceEpoch}.${nowMediaExtension(widget.media)}',
       );
-      await widget.api.download(
-        path,
-        destinationPath: file.path,
-        cancel: _cancel,
-      );
+      // Published recognition photos already seen in Now remain readable
+      // without a server. Private Journey files never enter this store.
+      final published =
+          widget.media.kind == NowMediaKind.image &&
+          widget.media.purpose == NowMediaPurpose.recognize &&
+          widget.media.resourceRef.startsWith('presentation_media_use:') &&
+          profile != null;
+      final recognition = published
+          ? ProfileRecognitionImageStore(profileId: profile)
+          : null;
+      final mediaKey = '/$path';
+      final local = await recognition?.read(mediaKey);
+      if (local != null) {
+        await file.writeAsBytes(local, flush: true);
+      } else {
+        await widget.api.download(
+          path,
+          destinationPath: file.path,
+          cancel: _cancel,
+        );
+        if (recognition != null &&
+            await file.length() <= ProfileRecognitionImageStore.maxImageBytes) {
+          try {
+            await recognition.save(mediaKey, await file.readAsBytes());
+          } on Object {
+            // Filesystem quota failures never suppress an acquired photo.
+          }
+        }
+      }
       if (!mounted) {
         await file.delete();
         return;
@@ -199,14 +245,36 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           cancel: _cancel,
         );
       }
-      // Native share sheet lets the person choose Save to Files;
-      // Makolo never silently exports private media.
-      await widget.sharing.shareFiles(paths: [original?.path ?? file.path]);
+      // Only an explicit download tap exports the authorized bytes.
+      final source = original ?? file;
+      final extension = original != null
+          ? nowOriginalDocumentExtension(widget.media)
+          : nowMediaExtension(widget.media);
+      final mime = original != null
+          ? (widget.media.mimeType ?? 'application/octet-stream')
+          : widget.media.kind == NowMediaKind.document
+          ? 'text/plain'
+          : (widget.media.mimeType ?? 'application/octet-stream');
+      final name = await widget.downloads.save(
+        source: source,
+        fileName: makoloDownloadName(
+          widget.media.label ?? 'Média Makolo',
+          extension,
+        ),
+        mimeType: mime,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Enregistré dans Téléchargements : $name')),
+        );
+      }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Impossible de proposer l’enregistrement.'),
+            content: Text(
+              'Téléchargement impossible. Vérifiez les droits et l’appareil.',
+            ),
           ),
         );
       }
@@ -254,7 +322,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
         actions: [
           if (_file != null)
             IconButton(
-              tooltip: 'Enregistrer sur l’appareil',
+              tooltip: 'Télécharger dans Téléchargements',
               icon: const Icon(Icons.download_outlined),
               onPressed: _sharing ? null : _save,
             ),

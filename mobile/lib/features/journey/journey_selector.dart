@@ -71,6 +71,7 @@ class JourneyDetailPresentation {
     required this.capabilities,
     required this.freshness,
     required this.sourceInvalidated,
+    this.canRespondInvitation = false,
     this.summary,
     this.nextActionLabel,
     this.nextActionLink,
@@ -105,6 +106,7 @@ class JourneyDetailPresentation {
   final Set<String> capabilities;
   final FreshnessState? freshness;
   final bool sourceInvalidated;
+  final bool canRespondInvitation;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
 }
@@ -199,6 +201,10 @@ class JourneyDetailSelector {
           ? _string(links['live'])
           : null,
       capabilities: capabilities,
+      canRespondInvitation:
+          capabilities.contains('accept_invitation') &&
+          capabilities.contains('decline_invitation') &&
+          _string(links['invitation']) != null,
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );

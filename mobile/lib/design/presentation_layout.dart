@@ -62,11 +62,15 @@ class MakoloContentFrame extends StatelessWidget {
     super.key,
     required this.child,
     this.maxContentWidth,
+    this.horizontalPadding,
     this.alignment = Alignment.topCenter,
   });
 
   final Widget child;
   final double? maxContentWidth;
+
+  /// Optional screen-specific outer inset; defaults to the adaptive frame.
+  final double? horizontalPadding;
   final AlignmentGeometry alignment;
 
   @override
@@ -76,7 +80,8 @@ class MakoloContentFrame extends StatelessWidget {
         final availableWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
-        final edge = MakoloLayout.edgePaddingFor(availableWidth);
+        final edge =
+            horizontalPadding ?? MakoloLayout.edgePaddingFor(availableWidth);
         final inside = math.max(0.0, availableWidth - (edge * 2));
         final width = maxContentWidth == null
             ? inside

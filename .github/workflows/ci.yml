@@ -244,8 +244,11 @@ jobs:
         run: >-
           python manage.py test
           opportunities.tests
+          opportunities.test_public_source_knowledge
           services.test_task32_opportunities
           services.test_task32_concurrency
+          services.test_owner_relations
+          services.test_native_start_api
       - name: Run Payments and Services T33 PostgreSQL tests
         if: ${{ matrix.shard == 'commerce' }}
         run: >-
@@ -262,6 +265,7 @@ jobs:
           capacity.test_access_bridge
           capacity.test_concurrency
           commerce.tests
+          commerce.test_offer_price_facts
           commerce.test_order_edge_cases
           transport.tests
           transport.test_task25_booking

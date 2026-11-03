@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from activities.models import ActivityStatus, ActivityVisibility
@@ -9,9 +11,9 @@ class FundingCreateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     space_id = serializers.UUIDField(required=False, allow_null=True)
     currency = serializers.CharField(max_length=3, default="USD")
-    target_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0.01)
-    minimum_contribution = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0.01)
-    maximum_contribution = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0.01)
+    target_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=Decimal("0.01"))
+    minimum_contribution = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=Decimal("0.01"))
+    maximum_contribution = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=Decimal("0.01"))
     opens_at = serializers.DateTimeField(required=False, allow_null=True)
     closes_at = serializers.DateTimeField(required=False, allow_null=True)
     status = serializers.ChoiceField(choices=ActivityStatus.choices, default=ActivityStatus.DRAFT)
@@ -48,5 +50,5 @@ class FundingUpdateSerializer(FundingCreateSerializer):
 
 
 class FundingContributionSerializer(serializers.Serializer):
-    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     client_reference = serializers.CharField(max_length=120, required=False, allow_blank=True)

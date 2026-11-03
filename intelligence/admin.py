@@ -4,12 +4,13 @@ from django import forms
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.template.response import TemplateResponse
+from django.utils import timezone
 
 from operations.services import audit_action
 
 from .credentials import set_provider_secret
 from .health import test_provider_connection
-from .models import IntelligenceRoute, ProviderConnection
+from .models import IntelligenceRoute, ProviderConnection, ProviderHealth
 
 
 class ProviderHealthCheckForm(forms.Form):
@@ -79,6 +80,19 @@ class ProviderConnectionAdmin(TechnicalConnectionAdminMixin, admin.ModelAdmin):
         secret = form.cleaned_data.get("api_key", "").strip()
         if secret:
             set_provider_secret(connection=obj, secret=secret)
+            # Admin rotation is the same credential lifecycle as owner API:
+            # old proof of provider health is invalid for the new secret.
+            checked_at = timezone.now()
+            ProviderConnection.objects.filter(pk=obj.pk).update(
+                health_status=ProviderHealth.UNKNOWN,
+                last_checked_at=None,
+                last_latency_ms=None,
+                updated_at=checked_at,
+            )
+            obj.health_status = ProviderHealth.UNKNOWN
+            obj.last_checked_at = None
+            obj.last_latency_ms = None
+            obj.updated_at = checked_at
 
     @admin.action(description="Tester une connexion (justification obligatoire)")
     def check_connections(self, request, queryset):
@@ -94,6 +108,14 @@ class ProviderConnectionAdmin(TechnicalConnectionAdminMixin, admin.ModelAdmin):
             if form.is_valid():
                 previous = connection.health_status
                 status = test_provider_connection(connection)
+                if status == ProviderHealth.UNKNOWN:
+                    self.message_user(
+                        request,
+                        "Ce contrôle a été dépassé par un changement de connexion ; "
+                        "aucune ancienne santé n'a été enregistrée.",
+                        level=messages.WARNING,
+                    )
+                    return
                 audit_action(
                     actor=request.user, action="intelligence.provider_checked",
                     target_type="provider_connection", target_id=connection.pk,

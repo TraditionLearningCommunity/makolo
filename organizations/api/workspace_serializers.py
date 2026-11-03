@@ -12,7 +12,7 @@ class SpaceWorkspaceCreateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     contact_email = serializers.EmailField(required=False, allow_blank=True)
-    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=40)
     public_profile = serializers.BooleanField(required=False, default=True)
 
 
@@ -22,8 +22,11 @@ class SpaceWorkspaceUpdateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     website = serializers.URLField(required=False, allow_blank=True)
     contact_email = serializers.EmailField(required=False, allow_blank=True)
-    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=50)
+    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=40)
+    country = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    city = serializers.CharField(required=False, allow_blank=True, max_length=120)
     public_profile = serializers.BooleanField(required=False)
+    searchable = serializers.BooleanField(required=False)
 
 
 class SpaceOwnershipTransferSerializer(serializers.Serializer):

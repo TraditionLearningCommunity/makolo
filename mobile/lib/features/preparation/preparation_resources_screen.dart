@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -95,12 +97,28 @@ class _PreparationResourcesScreenState
         title: resource.title,
         mimeType: resource.mimeType,
       );
+      // The profile-local cached copy supports the existing Open action;
+      // Download explicitly exports to Android's public Downloads.
+      final mime = resource.mimeType ?? 'application/octet-stream';
+      final extension = switch (mime.toLowerCase()) {
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'text/csv' => 'csv',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+          'docx',
+        _ => 'bin',
+      };
+      final saved = await const AndroidDeviceDownloads().save(
+        source: File(file.path),
+        fileName: makoloDownloadName(resource.title, extension),
+        mimeType: mime,
+      );
       if (!mounted) return;
       setState(() => _downloaded[resource.id] = file.path);
-      await widget.onOpenDownloadedFile?.call(
-        file.path,
-        resource.mimeType,
-        resource.title,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Enregistré dans Téléchargements : $saved')),
       );
     } on Object {
       if (!mounted) return;

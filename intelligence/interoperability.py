@@ -105,7 +105,11 @@ def project_provider_connection(connection: ProviderConnection, *, manageable: b
         and connection.health_status
         not in {ProviderHealth.UNAVAILABLE, ProviderHealth.INVALID_CREDENTIALS}
     )
+    demo = connection.name.startswith("[DEMO Connexion] ")
     return {
+        "demo": demo,
+        "simulation_only": demo,
+        "external_execution": False if demo else usable,
         "id": str(connection.pk),
         "scope": connection.scope,
         "owner": "intelligence",

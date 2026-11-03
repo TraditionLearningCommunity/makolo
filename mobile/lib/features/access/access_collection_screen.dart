@@ -70,10 +70,14 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
+      final relationship = _relationship;
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: 0,
       );
+      if (mounted && relationship == _relationship) {
+        unawaited(_warmPage(relationship: relationship, offset: 0));
+      }
     } on Object {
       // Keep any cached owner projection readable.
     } finally {
@@ -85,15 +89,49 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     if (_loadingMore || !view.hasMore) return;
     setState(() => _loadingMore = true);
     try {
+      final relationship = _relationship;
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: view.nextOffset,
       );
+      if (mounted && relationship == _relationship) {
+        unawaited(_warmPage(
+          relationship: relationship,
+          offset: view.nextOffset,
+        ));
+      }
     } on Object {
       // Keep the pages already available locally.
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  Future<void> _warmPage({
+    required String relationship,
+    required int offset,
+  }) async {
+    final source = await widget.repository.readCollectionSource(
+      relationship: relationship,
+      offset: offset,
+    );
+    if (source.invalidated ||
+        source.lastErrorCode != null ||
+        source.lastSuccessAt == null) return;
+    final page = await widget.repository.readCollectionPage(
+      relationship: relationship,
+      offset: offset,
+    );
+    final rows = page?.payload['items'];
+    if (rows is! List) return;
+    final ids = <String>[];
+    for (final raw in rows) {
+      final entry = _map(raw);
+      final identity = _map(entry['identity']);
+      final id = _string(identity['id']);
+      if (id != null) ids.add(id);
+    }
+    await widget.repository.warmKnownDetails(ids);
   }
 
   void _selectRelationship(String relationship) {
@@ -124,15 +162,36 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         stream: _pages,
         initialData: const [],
         builder: (context, pagesSnapshot) {
+          final pages = pagesSnapshot.data ?? const <StoredProjection>[];
           final view = _AccessCollectionView.fromPages(
-            pagesSnapshot.data ?? const [],
+            pages,
             relationship: _relationship,
+          );
+          final hasKnownFirstPage = pages.any(
+            (page) =>
+                page.kind == AccessRepository.collectionProjectionKind &&
+                page.resourceKey ==
+                    widget.repository.collectionResourceKey(
+                      relationship: _relationship,
+                      offset: 0,
+                    ),
           );
           return StreamBuilder<AccessSourceState>(
             stream: _source,
             initialData: AccessSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? AccessSourceState.unknown;
+              if (source.invalidated) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(MakoloSpacing.inner),
+                    child: Text(
+                      'Ces accès ne sont plus disponibles avec '
+                      'l’autorité actuelle. Actualisez après reconnexion.',
+                    ),
+                  ),
+                );
+              }
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
                 child: ListView(
@@ -166,7 +225,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                       ],
                     ),
                     if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty) ...[
+                        hasKnownFirstPage) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
                         'Dernier état connu sur cet appareil. '
@@ -186,11 +245,26 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                             ? const Center(
                                 child: CircularProgressIndicator.adaptive(),
                               )
-                            : Text(
-                                _relationship == _mine
-                                    ? 'Aucun accès disponible pour le moment.'
-                                    : 'Aucun accès obtenu pour une autre personne.',
-                                textAlign: TextAlign.center,
+                            : Column(
+                                children: [
+                                  Text(
+                                    !hasKnownFirstPage
+                                        ? 'Vos accès ne sont pas encore '
+                                              'disponibles sur cet appareil.'
+                                        : _relationship == _mine
+                                        ? 'Aucun accès disponible pour le moment.'
+                                        : 'Aucun accès obtenu pour une autre personne.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (!hasKnownFirstPage) ...[
+                                    const SizedBox(height: MakoloSpacing.sm),
+                                    TextButton.icon(
+                                      onPressed: _refreshFirst,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('Réessayer'),
+                                    ),
+                                  ],
+                                ],
                               ),
                       )
                     else

@@ -142,7 +142,7 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement…',
                   ),
-                  blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
+                  blockingErrorMessage: 'Impossible d’afficher ce dossier.',
                   onRetry: _refresh,
                   content: widget.kind == ObjectiveDepth.dossier
                       ? _DossierContent(
@@ -255,7 +255,7 @@ class _DossierContent extends StatelessWidget {
                     child: MakoloStatusMetadataAction(
                       title: _string(items[index]['label']) ?? 'Démarche',
                       subtitle: items[index]['hidden_dependency'] == true
-                          ? 'Une dépendance non divulguée influence cet état.'
+                          ? 'Certaines conditions de cette démarche ne sont pas visibles ici.'
                           : null,
                       status: _humanState(items[index]['state']) == null
                           ? null
@@ -340,11 +340,9 @@ class _ProjectContent extends StatelessWidget {
         ),
         MakoloSection(
           title: 'Dossiers',
-          description:
-              'Seuls les dossiers que vous êtes autorisé à voir sont affichés.',
           child: dossiers.isEmpty
               ? const MakoloCard(
-                  child: Text('Aucun dossier visible pour le moment.'),
+                  child: Text('Aucun dossier à afficher.'),
                 )
               : Column(
                   children: [

@@ -13,7 +13,9 @@ import '../../features/resources/resource_repository.dart';
 import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
+import '../../navigation/destination.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -45,10 +47,17 @@ Future<AppRuntime> buildAppRuntime({
   );
   final interactions = await ResumableInteractionStore.open();
   final session = await tokens.readSession();
+  // Public snapshots live outside every personal Profile database.
+  const publicScope = '__makolo_public_v1__';
+  final publicDatabase = await MakoloDatabase.openForProfile(publicScope);
+  final publicStore = ProfileStore(publicDatabase, publicScope);
   final baseUri = config.api.baseUri;
   final api = baseUri == null
       ? null
       : MakoloApiClient(baseUri: baseUri, tokenStore: tokens);
+  final geoSearch = config.geocoding.enabled
+      ? MapTilerGeoSearchGateway(apiKey: config.geocoding.apiKey!)
+      : null;
 
   final profileId = session?.profileId;
   if (profileId == null) {
@@ -60,16 +69,26 @@ Future<AppRuntime> buildAppRuntime({
       preferences: preferences,
       config: config,
       interactions: interactions,
+      publicDatabase: publicDatabase,
+      publicStore: publicStore,
       api: api,
+      location: locationFactory(config),
+      geoSearch: geoSearch,
     );
   }
 
-  recovery.restoreLaunchLocation(
-    await launchPreferences.readShellLocation(profileId),
-  );
+  // The persisted actor is a local preference, not server authority.
+  // Restore it before selecting the first door; never force a Space user
+  // through the personal shell after an ordinary app restart.
   final actorContext = await ActorContextController.restore(
     profileId: profileId,
     store: launchPreferences,
+  );
+  recovery.restoreLaunchLocation(
+    restoredShellPath(
+      actorContext.value,
+      await launchPreferences.readShellLocation(profileId),
+    ),
   );
   final database = await MakoloDatabase.openForProfile(profileId);
   final store = ProfileStore(database, profileId);
@@ -129,6 +148,8 @@ Future<AppRuntime> buildAppRuntime({
     preferences: preferences,
     config: config,
     interactions: interactions,
+    publicDatabase: publicDatabase,
+    publicStore: publicStore,
     api: api,
     database: database,
     store: store,
@@ -142,6 +163,7 @@ Future<AppRuntime> buildAppRuntime({
       sync: sync,
     ),
     location: locationFactory(config),
+    geoSearch: geoSearch,
     accesses: buildAccessRepository(
       database: database,
       store: store,

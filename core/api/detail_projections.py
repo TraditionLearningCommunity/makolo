@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 
-from journeys.models import RequestStatus
+from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 from payments.models import PaymentObligationProcessingMode, PaymentObligationStatus
 from readiness import ReadinessCheckState
 from services.requirement_services import derive_requirement_consequence
@@ -319,6 +319,9 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         )
     if actionable_form_ids:
         capabilities.append("complete_form")
+    if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
+        capabilities.extend(["accept_invitation", "decline_invitation"])
+        links["invitation"] = f"/api/v1/me/journeys/{journey.pk}/invitation/"
 
     return {
         "identity": {
@@ -460,9 +463,12 @@ def build_access_detail(*, access, profile):
 
     occurrence = None
     if access.occurrence_id:
+        # Reuse Access' owner projection of planned time/place, not the
+        # volatile Day-of position or live capacity.
+        from .access_projection import _occurrence_payload
+
         occurrence = {
-            "kind": "occurrence",
-            "id": str(access.occurrence_id),
+            **(_occurrence_payload(access.occurrence) or {}),
             "link": f"/api/v1/occurrences/{access.occurrence_id}/",
         }
 

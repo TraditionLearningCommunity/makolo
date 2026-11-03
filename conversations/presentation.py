@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from django.core.exceptions import ValidationError
 from django.db.models import Prefetch, Q
+from rest_framework.exceptions import NotFound
 from django.utils import timezone
 
 from .attention import point_attention_reason
@@ -33,6 +35,38 @@ class ConversationSearchRow:
     context_label: str
     point: ConversationPoint | None
     rank: int
+
+
+def conversations_for_context(profile, kind, context_pk):
+    """Read-only contextual entry; never creates a Conversation or grants entry."""
+    if kind == ConversationContextKind.DIRECT:
+        filters = Q(context__direct_profile_a=profile, context__direct_profile_b_id=context_pk) | Q(
+            context__direct_profile_b=profile, context__direct_profile_a_id=context_pk
+        )
+    else:
+        field = {
+            ConversationContextKind.SPACE: "space",
+            ConversationContextKind.GROUP: "group",
+            ConversationContextKind.ACTIVITY: "activity",
+            ConversationContextKind.OCCURRENCE: "occurrence",
+            ConversationContextKind.DOSSIER: "dossier",
+            ConversationContextKind.PROJECT: "project",
+            ConversationContextKind.JOURNEY: "journey",
+            ConversationContextKind.ACTION_PROPOSAL: "action_proposal",
+        }.get(kind)
+        if field is None:
+            raise NotFound("Contexte introuvable.")
+        filters = Q(**{f"context__{field}_id": context_pk})
+    try:
+        candidates = list(
+            Conversation.objects.select_related("context").filter(
+                filters, context__kind=kind,
+            ).order_by("-updated_at", "pk")[:50]
+        )
+    except (ValidationError, ValueError, TypeError):
+        return []
+    return [conversation for conversation in candidates if can_view_conversation(profile, conversation)]
+
 
 
 def conversation_context_label(conversation, profile=None):
@@ -190,6 +224,27 @@ def now_points_for_profile(profile, conversation, *, limit=100):
         if len(rows) >= limit:
             break
     return rows
+
+
+def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), limit=50):
+    """Visible open Points outside the owner's attention/essential selection."""
+    if not can_view_conversation(profile, conversation):
+        return []
+    excluded = set(excluded_ids)
+    candidates = conversation.points.filter(
+        lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED},
+    ).select_related(
+        "visibility_audience", "response_audience", "expected_action_audience",
+        "resolution_audience",
+    ).prefetch_related("options").order_by("published_at", "pk")[: max(limit * 4, 100)]
+    result = []
+    for point in candidates:
+        if point.pk in excluded or not point_visible_to(profile, point):
+            continue
+        result.append(point)
+        if len(result) >= limit:
+            break
+    return result
 
 
 def essential_points_for_profile(profile, conversation, *, limit=50):

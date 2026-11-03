@@ -67,6 +67,16 @@ class SpaceConsoleAuthorityTests(TestCase):
         for expected in {"activities", "requests", "access", "offers", "orders", "payments", "groups", "crm", "audiences", "promotions", "places", "control", "operations", "analytics", "automation", "team", "settings"}:
             self.assertIn(expected, keys)
 
+    def test_operations_page_avoids_internal_platform_commentary(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("organizations:console-operations", kwargs={"slug": self.space_a.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Opérations")
+        self.assertNotContains(response, "cockpit plateforme Makolo")
+        self.assertNotContains(response, "sans exposer les opérations de la plateforme")
+
     def test_finance_isolated_from_activity_crm_and_scanner(self):
         keys = self._navigation_keys(self.finance)
         self.assertTrue({"orders", "payments", "analytics"}.issubset(keys))

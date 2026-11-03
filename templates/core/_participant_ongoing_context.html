@@ -1,14 +1,15 @@
 {% if ongoing_items %}
-<aside id="ongoing-detail" class="mk-workspace__detail mk-workspace-panel mk-personal-detail" aria-label="Détail de l’engagement sélectionné">
+<aside id="ongoing-detail" class="mk-workspace__detail mk-workspace-panel mk-personal-detail" aria-label="Comprendre la démarche" hidden>
   <div class="mk-workspace-panel__header">
     <div>
-      <p class="mk-eyebrow">Aperçu</p>
-      <strong>Sélectionnez un engagement</strong>
+      <p class="mk-eyebrow">En cours</p>
+      <strong>Comprendre la démarche</strong>
     </div>
-    <i data-lucide="chevron-right" aria-hidden="true"></i>
+    <button type="button" id="ongoing-n2-close" class="mk-ongoing-n2-close">‹ Retour à En cours</button>
   </div>
-  <div id="ongoing-detail-body" class="mk-workspace-panel__body" aria-live="polite">
-    <p class="mk-empty-copy">Son contexte utile s’affichera ici sans vous faire perdre la liste.</p>
-  </div>
+  <div id="ongoing-detail-body" class="mk-workspace-panel__body" tabindex="-1"></div>
 </aside>
+{% load static %}
+<script src="{% static 'js/ongoing-n2-focus.js' %}"></script>
+<script src="{% static 'js/ongoing-continuation.js' %}"></script>
 {% endif %}

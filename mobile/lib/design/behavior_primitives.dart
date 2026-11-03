@@ -262,7 +262,7 @@ class NetworkStateIndicator extends StatelessWidget {
       status.pendingCount > 1
           ? '${status.pendingCount} actions en attente de confirmation'
           : 'Confirmation en attente',
-    SyncVisualState.offline => 'Informations disponibles',
+    SyncVisualState.offline => 'Hors connexion',
     SyncVisualState.conflict => 'Une modification demande votre attention.',
     SyncVisualState.failed => 'Vérification indisponible.',
     SyncVisualState.stale => 'Vérification nécessaire.',
@@ -467,7 +467,7 @@ class PermissionExplainer extends StatelessWidget {
           if (denied) ...[
             const SizedBox(height: MakoloSpacing.md),
             Text(
-              deniedMessage ?? 'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
+              deniedMessage ?? 'Autorisation refusée. Vérifiez les réglages si vous souhaitez l’activer.',
             ),
           ],
           const SizedBox(height: MakoloSpacing.lg),

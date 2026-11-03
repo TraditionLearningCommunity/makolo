@@ -65,11 +65,11 @@ def obligations_visible_to(user):
     if not getattr(user, "is_authenticated", False):
         return queryset.none()
     space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_VIEW)
-    filters = Q(journey__beneficiary=user) | Q(created_by=user)
+    filters = Q(journey__beneficiary=user) | Q(created_by=user) | Q(payer_profile=user)
     if space_ids is None:
         return queryset
     if space_ids:
-        filters |= Q(journey__activity__space_id__in=space_ids)
+        filters |= Q(journey__activity__space_id__in=space_ids) | Q(payer_space_id__in=space_ids)
     return queryset.filter(filters).distinct()
 
 

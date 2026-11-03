@@ -151,8 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (api == null) {
       setState(() {
         _error =
-            'La connexion est indisponible sur cette installation '
-            'pour le moment.';
+            'Impossible de se connecter.';
       });
       return;
     }

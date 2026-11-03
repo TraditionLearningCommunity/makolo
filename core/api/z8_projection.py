@@ -332,6 +332,10 @@ def build_personal_passport_depth_data(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_proof_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
 ):
     data = build_personal_passport_data(
         profile,
@@ -341,6 +345,10 @@ def build_personal_passport_depth_data(
         selected_proof_ids=selected_proof_ids,
         selected_credential_ids=selected_credential_ids,
         selected_sections=selected_sections,
+        excluded_activity_ids=excluded_activity_ids,
+        excluded_proof_ids=excluded_proof_ids,
+        excluded_credential_ids=excluded_credential_ids,
+        excluded_sections=excluded_sections,
     )
     public_enabled = profile_has_public_passport(profile)
     variant_visibility = {
@@ -354,10 +362,18 @@ def build_personal_passport_depth_data(
         "presentation_web": reverse("sharing:passport-me"),
     }
     if public_enabled:
-        links["public_web"] = reverse(
-            "sharing:passport-profile",
-            kwargs={"profile_id": profile.pk},
+        from sharing.models import PublicIdentifier
+
+        identifier = (
+            PublicIdentifier.objects.filter(profile=profile)
+            .values_list("identifier", flat=True)
+            .first()
         )
+        if identifier:
+            links["public_web"] = reverse(
+                "public-passport",
+                kwargs={"identifier": identifier},
+            )
     data["projection"] = {
         "variant": data["variant"],
         "available_variants": list(PASSPORT_VARIANTS),
@@ -376,6 +392,33 @@ def build_personal_passport_depth_data(
         "select_projection",
         "present",
     ]
+    from sharing.passport import profile_passport_topic_options
+    data["topic_options"] = [
+        {"code": row.code, "label": row.label}
+        for row in profile_passport_topic_options(profile)
+    ]
+    # Owner-only personal detail. Do not put this into the canonical Passport
+    # identity: public/thematic/custom variants and shareable documents must
+    # never inherit private account coordinates by composition.
+    if variant == PASSPORT_COMPLETE:
+        data["private_details"] = data["identity"].pop("owner_details", {})
+    if variant == PASSPORT_COMPLETE:
+        # The owner receives one read-model, including disclosure decisions
+        # evaluated by the server. Flutter can remove facts locally without
+        # requesting each variant. This metadata is never sent to a visitor.
+        public = build_personal_passport_data(profile, variant=PASSPORT_PUBLIC)
+        data["composition"] = {
+            "schema_version": 1,
+            "public_identity": public["identity"],
+            "public_ids": {
+                "interests": [row["id"] for row in public["declared"]["interests"]],
+                "open_to": [row["id"] for row in public["declared"]["open_to"]],
+                "activities": [row["id"] for row in public["activities"]],
+                "experiences": [row["id"] for row in public["experiences"]],
+                "proofs": [row["id"] for row in public["established"]["proofs"]],
+                "credentials": [row["id"] for row in public["issued"]["credentials"]],
+            },
+        }
     data["links"] = links
     return data
 

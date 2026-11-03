@@ -33,6 +33,7 @@ class MakoloMapView extends StatelessWidget {
     this.onTap,
     this.onStyleReady,
     this.onMapCreated,
+    this.onViewportChanged,
     super.key,
   });
 
@@ -41,6 +42,7 @@ class MakoloMapView extends StatelessWidget {
   final ValueChanged<MapCoordinate>? onTap;
   final VoidCallback? onStyleReady;
   final ValueChanged<MapLibreMapController>? onMapCreated;
+  final ValueChanged<MapViewport>? onViewportChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +64,34 @@ class MakoloMapView extends StatelessWidget {
             ),
       onStyleLoadedCallback: onStyleReady,
       onMapCreated: onMapCreated,
+      onCameraMove: onViewportChanged == null
+          ? null
+          : (camera) {
+              final target = camera.target;
+              if (!target.latitude.isFinite ||
+                  !target.longitude.isFinite ||
+                  !camera.zoom.isFinite ||
+                  !camera.bearing.isFinite ||
+                  !camera.tilt.isFinite ||
+                  camera.zoom < 0 ||
+                  target.latitude < -90 ||
+                  target.latitude > 90 ||
+                  target.longitude < -180 ||
+                  target.longitude > 180) {
+                return;
+              }
+              onViewportChanged!(
+                MapViewport(
+                  center: MapCoordinate(
+                    target.latitude,
+                    target.longitude,
+                  ),
+                  zoom: camera.zoom,
+                  bearing: camera.bearing,
+                  tilt: camera.tilt,
+                ),
+              );
+            },
     );
   }
 }
@@ -82,6 +112,7 @@ class ConfiguredMakoloMapView extends StatefulWidget {
     this.onTap,
     this.onStyleReady,
     this.onMapCreated,
+    this.onViewportChanged,
     this.styleLoadTimeout = const Duration(seconds: 20),
     super.key,
   });
@@ -92,6 +123,7 @@ class ConfiguredMakoloMapView extends StatefulWidget {
   final ValueChanged<MapCoordinate>? onTap;
   final VoidCallback? onStyleReady;
   final ValueChanged<MapLibreMapController>? onMapCreated;
+  final ValueChanged<MapViewport>? onViewportChanged;
   final Duration styleLoadTimeout;
 
   @override
@@ -183,6 +215,7 @@ class _ConfiguredMakoloMapViewState extends State<ConfiguredMakoloMapView> {
       onTap: widget.onTap,
       onStyleReady: _handleStyleReady,
       onMapCreated: widget.onMapCreated,
+      onViewportChanged: widget.onViewportChanged,
     );
   }
 }

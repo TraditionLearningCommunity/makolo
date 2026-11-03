@@ -22,16 +22,25 @@ def _space_context(*, profile, space, responsibility_key=None):
         return None
 
     responsibility = responsibility_key or "all"
+    selected_mandate = None
     if responsibility != "all":
         prefix = "mandate:"
         if not responsibility.startswith(prefix):
             return None
         mandate_id = responsibility[len(prefix) :]
-        if not any(str(mandate.pk) == mandate_id for mandate in mandates):
+        selected_mandate = next(
+            (mandate for mandate in mandates if str(mandate.pk) == mandate_id),
+            None,
+        )
+        if selected_mandate is None:
             return None
 
-    direct_space_authority = any(
-        mandate.scope_type == AuthorityScope.SPACE for mandate in mandates
+    # The selected perspective narrows display. It does not elevate authority,
+    # even if the viewer has another, broader Space Mandate.
+    direct_space_authority = (
+        selected_mandate.scope_type == AuthorityScope.SPACE
+        if selected_mandate is not None
+        else any(mandate.scope_type == AuthorityScope.SPACE for mandate in mandates)
     )
     preset = operating_preset_for_space(space)
     return {
@@ -72,14 +81,19 @@ def build_space_now_projection(*, profile, space, responsibility_key=None):
     )
     if context is None:
         return None
+    from .space_now_selection import select_space_now
+
+    selection = select_space_now(
+        profile=profile, space=space, responsibility_key=responsibility_key,
+    )
+    if selection is None:
+        return None
     return {
         **context,
-        "selection": {
-            "state": "unavailable",
-            "reason": "no_safe_selection_contract",
-        },
-        "items": [],
-        "has_more": False,
+        "surface": "now_space",
+        "actor": {"type": "space", "id": str(space.pk)},
+        "viewer": {"type": "profile", "id": str(profile.pk)},
+        **selection,
         "links": _links(space),
         "capabilities": {},
     }
