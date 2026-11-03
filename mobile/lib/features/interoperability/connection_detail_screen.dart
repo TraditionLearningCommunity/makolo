@@ -10,6 +10,7 @@ class ConnectionDetailScreen extends StatefulWidget {
     super.key,
     required Map<String, dynamic> offer,
     required this.onConnect,
+    this.mutationsEnabled = true,
   }) : offer = offer,
        connection = null,
        onManage = null;
@@ -18,10 +19,12 @@ class ConnectionDetailScreen extends StatefulWidget {
     super.key,
     required InteroperabilityConnectionProjection connection,
     required this.onManage,
+    this.mutationsEnabled = true,
   }) : connection = connection,
        offer = null,
        onConnect = null;
 
+  final bool mutationsEnabled;
   final Map<String, dynamic>? offer;
   final InteroperabilityConnectionProjection? connection;
   final Future<bool> Function(Map<String, dynamic>)? onConnect;
@@ -42,10 +45,12 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
   String? _error;
 
   bool get _isOffer => widget.offer != null;
-  bool get _canConnect => widget.offer?['can_connect'] == true;
+  bool get _canConnect =>
+      widget.offer?['can_connect'] == true && widget.mutationsEnabled;
   bool get _canManage =>
       widget.connection?.manageable == true &&
-      widget.connection?.owner == 'intelligence';
+      widget.connection?.owner == 'intelligence' &&
+      widget.mutationsEnabled;
   String get _title => _isOffer
       ? (widget.offer?['label'] as String? ?? 'Service')
       : (widget.connection?.displayName ?? 'Connexion');
@@ -211,8 +216,8 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
       return Padding(
         padding: const EdgeInsets.only(top: 24),
         child: Text(
-          'Connexion indisponible actuellement. '
-          'Ce service reste consultable, sans pouvoir être relié.',
+          'Ce service reste consultable. Pour le relier, '
+          'une connexion au serveur et une configuration autorisée sont nécessaires.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       );
