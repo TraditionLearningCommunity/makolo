@@ -235,15 +235,15 @@ class WS4SpaceWebTests(TestCase):
         )
 
         self.client.force_login(self.owner)
-        response = self.client.get(
-            self.url("organizations:space-interoperability")
-        )
+        url = self.url("organizations:space-interoperability")
+        response = self.client.get(f"{url}?tab=mine")
+        detail = self.client.get(f"{url}?connection={connection.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertEqual(response.context["interoperability"]["context"], "space")
         self.assertContains(response, "Service institutionnel")
         self.assertContains(response, "Connecté et disponible")
-        self.assertContains(response, "Génération de texte")
+        self.assertContains(detail, "Génération de texte")
         self.assertNotContains(response, "Connexion Profile privée")
         self.assertNotContains(response, "Connexion Platform privée")
         html = response.content.decode("utf-8")
@@ -286,7 +286,10 @@ class WS4SpaceWebTests(TestCase):
             self.url("organizations:space-interoperability")
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aucune connexion configurée pour ce Space.")
+        mine = self.client.get(
+            f'{self.url("organizations:space-interoperability")}?tab=mine'
+        )
+        self.assertContains(mine, "Aucune connexion établie.")
 
     def test_relationships_preserve_kinds_and_same_profile_is_not_merged(self):
         Group.objects.create(
