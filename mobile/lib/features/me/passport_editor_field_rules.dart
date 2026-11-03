@@ -63,6 +63,11 @@ class PassportEditorFieldRules {
       final withoutScheme = input.replaceFirst(
         RegExp(r'^(?:(?:https?):\/\/)+', caseSensitive: false), '',
       );
+      // A half-entered host is not yet something we can confidently fix.
+      if (!withoutScheme.contains('.') ||
+          RegExp(r'\s').hasMatch(withoutScheme)) {
+        return input;
+      }
       return 'https://$withoutScheme';
     }
     if (key == 'bio' || key == 'address') return input;
