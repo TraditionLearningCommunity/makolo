@@ -22,6 +22,7 @@ class AccessDetailScreen extends StatefulWidget {
     required this.onOpenDayOf,
     this.onOpenJourney,
     this.onOpenPresentation,
+    this.onOpenCredential,
   });
 
   final String accessId;
@@ -29,6 +30,7 @@ class AccessDetailScreen extends StatefulWidget {
   final void Function(DayOfHandoff handoff) onOpenDayOf;
   final void Function(String journeyId)? onOpenJourney;
   final VoidCallback? onOpenPresentation;
+  final ValueChanged<String>? onOpenCredential;
 
   @override
   State<AccessDetailScreen> createState() => _AccessDetailScreenState();
@@ -101,6 +103,14 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
                     now: DateTime.now(),
                   );
             final presentation = detail.available ? detail : (known ?? detail);
+            final revoked = revokedSnapshot.data ?? const <String>{};
+            final credentialPath = source.invalidated ||
+                    revoked.contains('beneficiary')
+                ? null
+                : AccessRepository.credentialPathFromKnownPages(
+                    knownPagesSnapshot.data ?? const <StoredProjection>[],
+                    widget.accessId,
+                  );
             final available = presentation.available;
             final unavailableWithoutContent =
                 !available && source.invalidated && !_refreshing;
@@ -151,6 +161,10 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
                     onOpenDayOf: widget.onOpenDayOf,
                     onOpenJourney: widget.onOpenJourney,
                     onOpenPresentation: widget.onOpenPresentation,
+                    onOpenCredential: credentialPath == null ||
+                            widget.onOpenCredential == null
+                        ? null
+                        : () => widget.onOpenCredential!(credentialPath),
                   ),
                 ),
               ),
@@ -170,12 +184,14 @@ class _AccessContent extends StatelessWidget {
     required this.onOpenDayOf,
     this.onOpenJourney,
     this.onOpenPresentation,
+    this.onOpenCredential,
   });
 
   final AccessDetailPresentation presentation;
   final void Function(DayOfHandoff handoff) onOpenDayOf;
   final void Function(String journeyId)? onOpenJourney;
   final VoidCallback? onOpenPresentation;
+  final VoidCallback? onOpenCredential;
 
   @override
   Widget build(BuildContext context) {
@@ -267,6 +283,19 @@ class _AccessContent extends StatelessWidget {
               ),
               child: Text('Bénéficiaire : ${presentation.holderName}'),
             ),
+        ],
+        if (onOpenCredential != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+              vertical: MakoloSpacing.sm,
+            ),
+            child: FilledButton.tonalIcon(
+              onPressed: onOpenCredential,
+              icon: const Icon(Icons.qr_code_rounded),
+              label: const Text('Préparer ou afficher mon QR'),
+            ),
+          ),
         ],
         if (onOpenPresentation != null && !presentation.knownOnly) ...[
           Padding(
