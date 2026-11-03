@@ -339,20 +339,22 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                     entry.key,
                     _map(entry.value),
                   ),
-              ExpansionTile(
-                title: const Text('Informations à renseigner'),
-                subtitle: const Text('Réglages conservés pour plus tard'),
-                children: [
-                  for (final entry in _map(_data!['fields']).entries)
-                    if (_map(entry.value)['has_value'] == false)
-                      _entry(
-                        _label(entry.key),
-                        'field',
-                        entry.key,
-                        _map(entry.value),
-                      ),
-                ],
-              ),
+              if (_map(_data!['fields']).entries.any(
+                (entry) => _map(entry.value)['has_value'] == false,
+              ))
+                ExpansionTile(
+                  title: const Text('Autres réglages'),
+                  children: [
+                    for (final entry in _map(_data!['fields']).entries)
+                      if (_map(entry.value)['has_value'] == false)
+                        _entry(
+                          _label(entry.key),
+                          'field',
+                          entry.key,
+                          _map(entry.value),
+                        ),
+                  ],
+                ),
               const Divider(),
               _entry(
                 'Centres d’intérêt',
