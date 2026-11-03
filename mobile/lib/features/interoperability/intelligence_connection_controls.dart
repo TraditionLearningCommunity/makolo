@@ -45,6 +45,9 @@ class _IntelligenceConnectionControlsState
   @override
   void initState() {
     super.initState();
+    if (widget.runtime.api == null && widget.connections.isNotEmpty) {
+      _view = 'manage';
+    }
     unawaited(_loadCatalog());
   }
 
@@ -312,12 +315,6 @@ class _IntelligenceConnectionControlsState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.runtime.api == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Text('Catalogue indisponible dans ce contexte.'),
-      );
-    }
     final connections = widget.connections;
     final availableCapabilities = <String>{
       for (final offer in _offers)
