@@ -334,6 +334,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   final Map<Object, String> _circleKeys = {};
   int _pinGeneration = 0;
   bool _initialCameraPositioned = false;
+  double? _deviceLatitude;
+  double? _deviceLongitude;
 
   @override
   void dispose() {
@@ -455,6 +457,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       for (var i = 0; i < pins.length && i < selected.length; i++) {
         _circleKeys[pins[i]] = selected[i].candidateKey;
       }
+      final latitude = _deviceLatitude;
+      final longitude = _deviceLongitude;
+      if (latitude != null && longitude != null) {
+        await controller.showDevicePosition(latitude, longitude);
+      }
     } on Object {
       // Map rendering failure does not erase a real Discovery list entry.
     }
@@ -472,9 +479,17 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       );
       return;
     }
-    setState(() => _selectedCandidateKey = null);
+    setState(() {
+      _selectedCandidateKey = null;
+      _deviceLatitude = fix.latitude;
+      _deviceLongitude = fix.longitude;
+    });
     widget.onSelectionChanged?.call(null);
     try {
+      // The marker is local-only and has no candidate identity or N2.
+      await _displayPins(
+        _selector.spatialAnchorsFromCollection(widget.selection.collection),
+      );
       await _mapController!.moveTo(fix.latitude, fix.longitude);
     } on Object {
       if (mounted) {
