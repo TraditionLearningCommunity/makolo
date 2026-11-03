@@ -14,6 +14,7 @@ class HistoryRepository {
   });
 
   static const projectionKind = 'personal.history';
+  static const searchProjectionKind = 'personal.history.search';
   static const defaultLimit = 24;
   static const freshnessPolicy = FreshnessPolicy(
     id: 'history-stable',
@@ -70,6 +71,65 @@ class HistoryRepository {
     sourceKey: sourceKey(offset: 0, limit: defaultLimit),
   );
 
+  /// Owner search pages are different from the unfiltered history. Their
+  /// query keys are Profile-scoped, so one search never replaces another.
+  static String searchResourceKey({
+    required String query,
+    required String type,
+    required int offset,
+    int limit = defaultLimit,
+  }) => Uri(
+    queryParameters: {
+      'q': query.trim().toLowerCase(),
+      'type': type,
+      'offset': '$offset',
+      'limit': '$limit',
+    },
+  ).query;
+
+  Future<List<StoredProjection>> readCachedSearchPages({
+    required String query,
+    required String type,
+  }) async {
+    final source = await readFirstPageSource();
+    if (source.invalidated) return const [];
+    final normalized = query.trim().toLowerCase();
+    final stored = await store.readProjections(searchProjectionKind);
+    final matches = stored.where((row) =>
+      row.schemaVersion == 1 &&
+      (row.payload['query']?.toString().trim().toLowerCase() ?? '') ==
+          normalized &&
+      row.payload['filter'] == type &&
+      row.payload['items'] is List).toList();
+    matches.sort((a, b) {
+      final aa = _pageOffset(a.payload);
+      final bb = _pageOffset(b.payload);
+      return aa.compareTo(bb);
+    });
+    return matches;
+  }
+
+  Future<void> forgetCachedSearch({
+    required String query,
+    required String type,
+  }) async {
+    final pages = await readCachedSearchPages(query: query, type: type);
+    for (final page in pages) {
+      await store.deleteProjection(
+        searchProjectionKind,
+        resourceKey: page.resourceKey,
+      );
+    }
+  }
+
+  static int _pageOffset(Map<String, dynamic> payload) {
+    final page = payload['page'];
+    if (page is Map && page['offset'] is num) {
+      return (page['offset'] as num).toInt();
+    }
+    return 0;
+  }
+
   Future<Map<String, dynamic>> searchPage({
     required String query,
     String type = 'all',
@@ -96,7 +156,27 @@ class HistoryRepository {
         envelope['data'] is! Map) {
       throw const FormatException('Invalid personal History projection.');
     }
-    return Map<String, dynamic>.from(envelope['data'] as Map);
+    final data = Map<String, dynamic>.from(envelope['data'] as Map);
+    final expectedQuery = query.trim().toLowerCase();
+    final receivedQuery = data['query']?.toString().trim().toLowerCase() ?? '';
+    if (data['filter'] != type ||
+        receivedQuery != expectedQuery ||
+        data['items'] is! List ||
+        _pageOffset(data) != offset) {
+      throw const FormatException('History search owner response mismatched');
+    }
+    await store.putProjection(
+      kind: searchProjectionKind,
+      resourceKey: searchResourceKey(
+        query: query,
+        type: type,
+        offset: offset,
+        limit: limit,
+      ),
+      schemaVersion: 1,
+      payload: data,
+    );
+    return data;
   }
 
   Future<void> refreshPage({
