@@ -35,6 +35,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.onSave,
     this.baseUri,
     this.shareApi,
+    this.shareAuthenticated = false,
     this.profileId,
     this.allowOwnerActions = true,
     this.onPage,
@@ -56,6 +57,7 @@ class DiscoveryExplorationView extends StatefulWidget {
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
   final String? profileId;
   final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
@@ -416,6 +418,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
     required this.onOpen,
     required this.onSave,
     this.shareApi,
+    this.shareAuthenticated = false,
     this.baseUri,
   });
 
@@ -427,6 +430,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback? onSave;
   final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
   final Uri? baseUri;
 
   @override
@@ -438,8 +442,10 @@ class _DiscoveryMapPreview extends StatelessWidget {
             ? resolved.canUnsave
             : resolved.canSave);
     final canShare = resolved != null &&
-        (resolved.links['web'] != null ||
-            resolved.links['web_share'] != null);
+        (shareAuthenticated
+            ? resolved.links['web'] != null ||
+                resolved.links['web_share'] != null
+            : resolved.links['web'] != null);
     return Card(
       key: const Key('discover-map-selected-preview'),
       child: SingleChildScrollView(
@@ -520,7 +526,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                       ),
                       item: resolved!,
                       api: shareApi,
-                      authenticated: shareApi != null,
+                      authenticated: shareAuthenticated,
                       baseUri: baseUri,
                       iconOnly: true,
                     ),
@@ -1145,6 +1151,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                             ? null
                             : () => unawaited(_saveSelected()),
                         shareApi: widget.shareApi,
+                        shareAuthenticated: widget.shareAuthenticated,
                         baseUri: widget.baseUri,
                       ),
                     ),
