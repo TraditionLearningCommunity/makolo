@@ -1,5 +1,6 @@
 {% extends 'organizations/space/ws4_base.html' %}
 {% block space_content %}
+{% load conversation_tags %}
 <section class="mk-ws4-stack" aria-labelledby="space-us-heading">
   {% if us_projection_error %}
   <div class="mk-ws4-state mk-ws4-state--wide" role="alert"><i data-lucide="triangle-alert" aria-hidden="true"></i><div><strong>Impossible d’actualiser Nous.</strong><p>Réessayez pour obtenir les dernières informations.</p></div></div>
@@ -28,6 +29,10 @@
   <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="info" aria-hidden="true"></i><div><strong>{% if projection.identity.lifecycle == "archived" %}Cet Espace est archivé.{% else %}Cet Espace est suspendu.{% endif %}</strong></div></div>
   {% endif %}
 
+  {% conversation_context_entry request.user 'space' projection.identity.id as space_conversation %}
+  {% if space_conversation %}
+    <a href="{% url 'conversations:by-context' 'space' projection.identity.id %}" class="mk-ws4-deep-link">Échanger avec cet Espace</a>
+  {% endif %}
   {% if us_owner_links.passport %}
   <section class="mk-ws4-card mk-ws4-card--passport" aria-labelledby="space-us-passport">
     <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Passeport Makolo</span><h3 id="space-us-passport">Passeport de cet Espace</h3></div><i data-lucide="badge-check" aria-hidden="true"></i></div>
