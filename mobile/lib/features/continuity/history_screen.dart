@@ -223,8 +223,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               if (item.outcome != null) Text(item.outcome!),
               const SizedBox(height: MakoloSpacing.md),
               const Text(
-                'Événement déjà reçu sur cet appareil. '
-                'Le détail propriétaire peut nécessiter une nouvelle vérification.',
+                'Cet événement est conservé sur votre appareil. '
+                'Son détail peut nécessiter une nouvelle vérification.',
               ),
               if (item.id != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
