@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/providers.dart';
 import '../../repositories/interoperability_repository.dart';
+import 'connection_detail_screen.dart';
+import 'interoperability_presentation.dart';
 
 /// Owner-specific credential controls. Secrets are never written to ProfileStore
 /// and provider endpoints are never supplied by the client.
@@ -38,6 +40,7 @@ class _IntelligenceConnectionControlsState
   String? _catalogError;
   String _view = 'discover';
   String _query = '';
+  String _capabilityFilter = '';
 
   @override
   void initState() {
@@ -57,6 +60,9 @@ class _IntelligenceConnectionControlsState
       _offers = const [];
       _catalogLoading = true;
       _catalogError = null;
+      _view = 'discover';
+      _query = '';
+      _capabilityFilter = '';
       unawaited(_loadCatalog());
     }
   }
@@ -113,12 +119,12 @@ class _IntelligenceConnectionControlsState
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _submit({
+  Future<bool> _submit({
     String? id,
     required String method,
     required Map<String, dynamic> body,
   }) async {
-    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
+    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return false;
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
     final mutationVersion = ++_mutationGeneration;
@@ -149,7 +155,7 @@ class _IntelligenceConnectionControlsState
       // Server commit and local projection refresh are separate outcomes.
     }
     if (!_scopeUnchanged(ownerPath, ownerRuntime) ||
-        mutationVersion != _mutationGeneration) return;
+        mutationVersion != _mutationGeneration) return false;
     if (!committed) {
       _notice(
         'Opération non confirmée par le serveur. Vérifiez votre autorité.',
@@ -169,233 +175,192 @@ class _IntelligenceConnectionControlsState
     if (mounted && mutationVersion == _mutationGeneration) {
       setState(() => _busy = false);
     }
+    return committed;
   }
 
-  Future<void> _create(Map<String, dynamic> offer) async {
+  Future<void> _openOffer(Map<String, dynamic> offer) async {
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
-    final name = TextEditingController(text: offer['label'] as String? ?? '');
-    final model = TextEditingController();
-    final secret = TextEditingController();
-    final accepted = ValueNotifier<bool>(false);
-    try {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text('Relier ${offer['label']}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(offer['description'] as String? ?? ''),
-                const SizedBox(height: 12),
-                const Text(
-                  'Votre clé reste chiffrée sur le serveur Makolo. '
-                  'Les appels peuvent être facturés par le fournisseur.',
-                ),
-                ValueListenableBuilder<bool>(
-                  valueListenable: accepted,
-                  builder: (context, value, _) => CheckboxListTile(
-                    value: value,
-                    onChanged: (next) => accepted.value = next == true,
-                    title: const Text(
-                      'J’autorise Makolo à utiliser cette clé '
-                      'pour les capacités indiquées.',
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom de la connexion',
-                  ),
-                  maxLength: 120,
-                ),
-                if (offer['requires_model'] == true)
-                  TextField(
-                    controller: model,
-                    decoration: const InputDecoration(
-                      labelText: 'Identifiant du modèle',
-                    ),
-                    maxLength: 160,
-                  ),
-                TextField(
-                  controller: secret,
-                  obscureText: true,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: const InputDecoration(labelText: 'Clé API'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(accepted.value),
-              child: const Text('Relier'),
-            ),
-          ],
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ConnectionDetailScreen.offer(
+          offer: offer,
+          onConnect: (fields) async {
+            if (!_sameOwner(ownerPath, ownerRuntime)) return false;
+            return _submit(
+              method: 'POST',
+              body: {
+                'provider': offer['code'],
+                'name': fields['name'],
+                'model': fields['model'],
+                'api_key': fields['api_key'],
+                'consent': true,
+              },
+            );
+          },
         ),
-      );
-      if (proceed != true || !_sameOwner(ownerPath, ownerRuntime)) return;
-      if (name.text.trim().isEmpty ||
-          secret.text.trim().isEmpty ||
-          (offer['requires_model'] == true && model.text.trim().isEmpty)) {
-        _notice('Renseignez le nom, la clé et le modèle si nécessaire.');
-        return;
-      }
-      await _submit(
-        method: 'POST',
-        body: {
-          'provider': offer['code'],
-          'name': name.text.trim(),
-          'model': model.text.trim(),
-          'api_key': secret.text.trim(),
-          'consent': true,
-        },
-      );
-    } finally {
-      name.dispose();
-      model.dispose();
-      secret.dispose();
-      accepted.dispose();
-    }
+      ),
+    );
   }
 
-  Future<void> _manage(
+  Future<void> _openConnection(
     InteroperabilityConnectionProjection connection,
-    String action,
   ) async {
-    if (_busy || !widget.mutationsEnabled) return;
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
-    if (action == 'rotate') {
-      final controller = TextEditingController();
-      try {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Remplacer la clé API'),
-            content: TextField(
-              controller: controller,
-              obscureText: true,
-              enableSuggestions: false,
-              autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Nouvelle clé API'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Annuler'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Remplacer'),
-              ),
-            ],
-          ),
-        );
-        if (confirmed == true && controller.text.trim().isNotEmpty &&
-            _sameOwner(ownerPath, ownerRuntime)) {
-          await _submit(
-            id: connection.id,
-            method: 'PATCH',
-            body: {'api_key': controller.text.trim()},
-          );
-        }
-      } finally {
-        controller.dispose();
-      }
-      return;
-    }
-    if (action == 'disconnect') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Retirer cette connexion ?'),
-          content: const Text(
-            'Les credentials conservés par Makolo seront '
-            'supprimés. Votre clé externe reste sous le contrôle du fournisseur.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Retirer'),
-            ),
-          ],
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ConnectionDetailScreen.connected(
+          connection: connection,
+          onManage: (action, secret) async {
+            if (!_sameOwner(ownerPath, ownerRuntime)) return false;
+            if (action == 'rotate') {
+              if (secret == null || secret.trim().isEmpty) return false;
+              return _submit(
+                id: connection.id,
+                method: 'PATCH',
+                body: {'api_key': secret.trim()},
+              );
+            }
+            if (action == 'disconnect') {
+              return _submit(
+                id: connection.id,
+                method: 'DELETE',
+                body: const {},
+              );
+            }
+            return _submit(
+              id: connection.id,
+              method: 'PATCH',
+              body: {'enabled': action == 'enable'},
+            );
+          },
         ),
-      );
-      if (confirmed == true && _sameOwner(ownerPath, ownerRuntime)) {
-        await _submit(id: connection.id, method: 'DELETE', body: const {});
-      }
-      return;
-    }
-    if (!_sameOwner(ownerPath, ownerRuntime)) return;
-    await _submit(
-      id: connection.id,
-      method: 'PATCH',
-      body: {'enabled': action == 'enable'},
+      ),
+    );
+  }
+
+  Widget _serviceIcon(BuildContext context, {required bool connected}) {
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(
+        connected ? Icons.link_outlined : Icons.extension_outlined,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  Widget _offerRow(BuildContext context, Map<String, dynamic> offer) {
+    final title = offer['label'] as String? ?? 'Service';
+    final description = offer['description'] as String? ?? '';
+    final enabled = offer['can_connect'] == true;
+    return ListTile(
+      key: Key('connection-offer-${offer['code']}'),
+      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      minVerticalPadding: 10,
+      leading: _serviceIcon(context, connected: false),
+      title: Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      subtitle: Text(
+        description.isEmpty
+            ? (enabled ? 'Service connectable' : 'Non connectable actuellement')
+            : description,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => unawaited(_openOffer(offer)),
+    );
+  }
+
+  Widget _connectionRow(
+    BuildContext context,
+    InteroperabilityConnectionProjection connection,
+  ) {
+    return ListTile(
+      key: Key('manage-connection-${connection.id}'),
+      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      minVerticalPadding: 10,
+      leading: _serviceIcon(context, connected: true),
+      title: Text(
+        connection.displayName,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+      subtitle: Text(
+        connectionStatusLabel(connection),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => unawaited(_openConnection(connection)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.runtime.api == null) return const SizedBox.shrink();
-    final manageable = widget.connections
-        .where((row) => row.manageable && row.owner == 'intelligence')
+    final connections = widget.connections
+        .where((row) => row.owner == 'intelligence')
         .toList(growable: false);
-    final query = _query.trim().toLowerCase();
-    final visibleOffers = _offers.where((offer) {
-      final searchable = [
-        offer['label'] as String? ?? '',
-        offer['description'] as String? ?? '',
+    final availableCapabilities = <String>{
+      for (final offer in _offers)
         ...((offer['capabilities'] as List?)?.whereType<String>() ??
             <String>[]),
-      ].join(' ').toLowerCase();
-      return searchable.contains(query);
+    }.toList()..sort();
+    final query = _query.trim().toLowerCase();
+    final visibleOffers = _offers.where((offer) {
+      final capabilities =
+          (offer['capabilities'] as List?)?.whereType<String>() ??
+          <String>[];
+      if (_capabilityFilter.isNotEmpty &&
+          !capabilities.contains(_capabilityFilter)) return false;
+      return [
+        offer['label'] as String? ?? '',
+        offer['description'] as String? ?? '',
+        ...capabilities,
+      ].join(' ').toLowerCase().contains(query);
     }).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 16),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
-              value: 'discover',
-              icon: Icon(Icons.explore_outlined),
-              label: Text('Découvrir'),
-            ),
-            ButtonSegment(
-              value: 'manage',
-              icon: Icon(Icons.link_outlined),
-              label: Text('Mes connexions'),
-            ),
-          ],
-          selected: {_view},
-          onSelectionChanged: (selection) =>
-              setState(() => _view = selection.first),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(
+                value: 'discover',
+                label: Text('Découvrir'),
+              ),
+              ButtonSegment(
+                value: 'manage',
+                label: Text('Mes connexions'),
+              ),
+            ],
+            selected: {_view},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                setState(() => _view = selection.first),
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
         if (_view == 'discover') ...[
           Text(
-            'Services à connecter',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Explorez les services réellement proposés par Makolo. '
-            'Leur présence ne signifie pas qu’ils sont déjà connectés.',
+            'Services à découvrir',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -403,12 +368,40 @@ class _IntelligenceConnectionControlsState
             onChanged: (value) => setState(() => _query = value),
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
-              labelText: 'Rechercher un service',
+              hintText: 'Rechercher un service',
               border: OutlineInputBorder(),
             ),
           ),
+          if (availableCapabilities.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('Tous'),
+                    selected: _capabilityFilter.isEmpty,
+                    onSelected: (_) =>
+                        setState(() => _capabilityFilter = ''),
+                  ),
+                  for (final capability in availableCapabilities) ...[
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: Text(connectionCapabilityLabel(capability)),
+                      selected: _capabilityFilter == capability,
+                      onSelected: (_) =>
+                          setState(() => _capabilityFilter = capability),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           if (_catalogLoading)
-            const LinearProgressIndicator(minHeight: 2),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
           if (_catalogError != null)
             TextButton.icon(
               onPressed: () => unawaited(_loadCatalog()),
@@ -418,99 +411,49 @@ class _IntelligenceConnectionControlsState
           if (!_catalogLoading &&
               _catalogError == null &&
               visibleOffers.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Text(
-                _offers.isEmpty
-                    ? 'Aucun service connectable n’est proposé actuellement.'
-                    : 'Aucun service ne correspond à cette recherche.',
-              ),
-            ),
-          for (final offer in visibleOffers)
-            Card(
-              child: ListTile(
-                key: Key('connection-offer-${offer['code']}'),
-                leading: const Icon(Icons.extension_outlined),
-                title: Text(offer['label'] as String? ?? 'Service'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(offer['description'] as String? ?? ''),
-                    if (offer['can_connect'] != true)
-                      const Text(
-                        'Connexion indisponible sur ce serveur.',
-                      ),
-                  ],
-                ),
-                trailing: TextButton(
-                  onPressed: _busy || !widget.mutationsEnabled ||
-                          offer['can_connect'] != true
-                      ? null
-                      : () => unawaited(_create(offer)),
-                  child: const Text('Connecter'),
-                ),
-              ),
-            ),
-          if (!widget.mutationsEnabled)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Aucun service ne correspond à votre recherche.'),
+            ),
+          for (var index = 0; index < visibleOffers.length; index++) ...[
+            _offerRow(context, visibleOffers[index]),
+            if (index < visibleOffers.length - 1)
+              const Divider(height: 1),
+          ],
+          if (_offers.isNotEmpty && !widget.mutationsEnabled)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
               child: Text(
-                'La connexion nécessite une vérification récente du serveur. '
-                'Vous pouvez continuer à explorer les services.',
+                'Vous pouvez explorer les services. '
+                'Toute connexion nécessite une vérification du serveur.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
         ] else ...[
           Text(
             'Mes services connectés',
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Contrôlez les connexions établies pour ce contexte. '
-            'Les permissions et la disponibilité restent vérifiées par le serveur.',
-          ),
-          if (manageable.isEmpty)
+          const SizedBox(height: 8),
+          if (connections.isEmpty)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Text('Aucune connexion Intelligence établie.'),
-            ),
-          for (final connection in manageable)
-            Card(
-              child: ListTile(
-                key: Key('manage-connection-${connection.id}'),
-                leading: const Icon(Icons.link_outlined),
-                title: Text(connection.displayName),
-                subtitle: Text(
-                  connection.enabled ? 'Activée' : 'Désactivée',
-                ),
-                trailing: PopupMenuButton<String>(
-                  enabled: !_busy && widget.mutationsEnabled,
-                  tooltip: 'Gérer la connexion',
-                  onSelected: (action) =>
-                      unawaited(_manage(connection, action)),
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: connection.enabled ? 'disable' : 'enable',
-                      child: Text(
-                        connection.enabled ? 'Désactiver' : 'Réactiver',
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'rotate',
-                      child: Text('Remplacer la clé'),
-                    ),
-                    const PopupMenuItem(
-                      value: 'disconnect',
-                      child: Text('Retirer de Makolo'),
-                    ),
-                  ],
-                ),
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Aucune connexion établie. Découvrez un service pour commencer.',
               ),
             ),
-          if (!widget.mutationsEnabled && manageable.isNotEmpty)
-            const Text(
-              'Gestion suspendue : une confirmation récente du serveur '
-              'est nécessaire.',
+          for (var index = 0; index < connections.length; index++) ...[
+            _connectionRow(context, connections[index]),
+            if (index < connections.length - 1)
+              const Divider(height: 1),
+          ],
+          if (connections.isNotEmpty && !widget.mutationsEnabled)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(
+                'Dernier état connu. La gestion sera disponible après vérification.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
         ],
       ],
