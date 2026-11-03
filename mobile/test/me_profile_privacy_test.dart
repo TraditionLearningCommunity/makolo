@@ -144,8 +144,9 @@ void main() {
     expect(attempts, 1);
     expect(find.text('Présentation à vérifier.'), findsOneWidget);
     expect(find.text('Ma présentation'), findsOneWidget);
-    await tester.ensureVisible(find.text('Réessayer l’enregistrement'));
-    await tester.tap(find.text('Réessayer l’enregistrement'));
+    expect(find.text('Réessayer l’enregistrement'), findsNothing);
+    await tester.ensureVisible(find.text('Enregistrer'));
+    await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
     expect(attempts, 2);
     expect(find.text('Modifications enregistrées.'), findsOneWidget);
@@ -229,6 +230,7 @@ void main() {
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
     expect(patches, 0);
+    expect(find.text('Réessayer l’enregistrement'), findsNothing);
     await tester.scrollUntilVisible(
       find.widgetWithText(TextField, 'Téléphone'), -250,
       scrollable: find.byType(Scrollable).first,
