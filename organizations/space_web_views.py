@@ -26,6 +26,7 @@ from .api.space_attention_projection import (
 from .api.space_pilot_projection import build_space_pilot_projection
 from .api.space_relationships_projection import build_space_relationships_projection
 from .api.space_us_projection import build_space_us_projection
+from .api.space_us_resources_projection import build_space_us_resources_projection
 from .api.space_us_authority import build_space_us_authority
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
@@ -213,10 +214,35 @@ class SpaceUsView(SpaceWebMixin):
     def get_template_names(self):
         if self.request.GET.get("detail") == "authority":
             return ["organizations/space/us_authority.html"]
+        if self.request.GET.get("detail") == "resources":
+            return ["organizations/space/us_resources.html"]
         return [self.template_name]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get("detail") == "resources":
+            kind = self.request.GET.get("kind") or "passport"
+            try:
+                offset = int(self.request.GET.get("offset", "0"))
+                resources = build_space_us_resources_projection(
+                    profile=self.request.user, space=self.space,
+                    kind=kind, offset=offset,
+                )
+            except (ValueError, TypeError) as exc:
+                raise Http404 from exc
+            if resources is None:
+                raise Http404
+            root_url = self._space_url("organizations:space-us")
+            context["resources_depth"] = resources
+            context["resources_back_url"] = root_url
+            context["resources_base_url"] = f"{root_url}?detail=resources"
+            context["resources_passport_url"] = self._space_url(
+                "sharing:passport-space-history"
+            )
+            context["resources_presentation_url"] = self._space_url(
+                "presentations:space-library"
+            )
+            return context
         if self.request.GET.get("detail") == "authority":
             authority = build_space_us_authority(
                 profile=self.request.user, space=self.space
@@ -258,6 +284,10 @@ class SpaceUsView(SpaceWebMixin):
             owner_links["ownership"] = self._space_url("organizations:console-team")
         if projection.get("links", {}).get("trust"):
             owner_links["trust"] = self._space_url("organizations:console-trust")
+        if projection.get("resources", {}).get("visibility") == "visible":
+            owner_links["resources"] = (
+                f'{self._space_url("organizations:space-us")}?detail=resources'
+            )
         if capabilities.get("update_space"):
             owner_links["settings"] = self._space_url("organizations:console-settings")
             owner_links["passport"] = self._space_url("sharing:passport-space")
