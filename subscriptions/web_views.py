@@ -21,6 +21,11 @@ from .product_preview import build_subscription_change_preview
 from .product_read import build_subscription_product_view
 from .personal_history import personal_transition_history
 from .runtime_models import Subscription
+from .coverage_models import SubscriptionCoverageAllocation, SubscriptionCoverage
+from .coverage_services import (
+    accept_coverage_allocation, decide_coverage_allocation,
+    select_coverage_base, use_personal_base,
+)
 from .security_services import (
     cancel_subscription_transition_for_actor,
     complete_subscription_transition_for_actor,
@@ -55,6 +60,16 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
         context["product"] = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
         context["personal_billing"] = personal_billing_obligations(subscription)
         context["personal_history"] = personal_transition_history(subscription)
+        context["coverage_received"] = (
+            SubscriptionCoverageAllocation.objects.filter(profile=self.request.user)
+            .select_related("coverage__plan_version__plan")
+            .order_by("-created_at")[:30]
+        )
+        context["coverage_financed"] = (
+            SubscriptionCoverage.objects.filter(payer_profile=self.request.user)
+            .select_related("plan_version")
+            .order_by("-created_at")[:30]
+        )
         context["subscription_return_url"] = safe_action_return(self.request)
         product = context["product"]
         if product.transition and product.transition["open"]:
@@ -242,3 +257,36 @@ class ProfileTransitionCompleteView(LoginRequiredMixin, View):
         else:
             messages.success(request, "Le changement de formule est terminé.")
         return redirect(subscription_return_home(request))
+
+
+class ProfileCoverageDecisionView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, allocation_id):
+        allocation = get_object_or_404(
+            SubscriptionCoverageAllocation.objects.select_related("coverage__plan_version__plan"),
+            pk=allocation_id, profile=request.user,
+        )
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "accept":
+                accept_coverage_allocation(
+                    actor=request.user, allocation=allocation,
+                    select_base=allocation.coverage.plan_version.plan.plan_type == "base",
+                )
+            elif action == "decline":
+                decide_coverage_allocation(
+                    actor=request.user, allocation=allocation,
+                    reason="Refus par le bénéficiaire.",
+                )
+            elif action == "select_base":
+                select_coverage_base(actor=request.user, allocation=allocation)
+            elif action == "use_personal_base":
+                use_personal_base(actor=request.user, profile=request.user)
+            else:
+                raise ValidationError("Action de couverture inconnue.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, "Votre choix de couverture a été enregistré.")
+        return redirect("subscriptions:home")
