@@ -2049,7 +2049,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                           ),
                           if (activity.occurrences.isNotEmpty)
                             MakoloSection(
-                              title: 'Dates et réalisations',
+                              title: switch (activity.occurrenceNoun) {
+                                'Départ' => 'Départs',
+                                'Date' => 'Dates',
+                                'Créneau' => 'Créneaux',
+                                'Session' => 'Sessions',
+                                _ => 'Dates et réalisations',
+                              },
                               child: Column(
                                 children: [
                                   for (
