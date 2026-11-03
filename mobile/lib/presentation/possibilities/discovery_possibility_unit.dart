@@ -1149,7 +1149,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       tooltip: _saving
                           ? 'Enregistrement…'
                           : saved
-                          ? 'Enregistré'
+                          ? (widget.detailMode
+                                ? 'Retirer des enregistrements'
+                                : 'Enregistré')
                           : 'Enregistrer',
                       icon: DiscoveryOrbitIcon(
                         saved: saved,
