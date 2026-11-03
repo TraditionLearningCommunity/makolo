@@ -407,32 +407,93 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Future<void> _changeIdentifier() async {
     if (_saving || !_loaded) return;
     final editor = TextEditingController(text: _accountIdentifier ?? '');
+    String? localError;
+    bool checked = false;
     try {
       final proposed = await showDialog<String>(
         context: context,
-        builder: (dialog) => AlertDialog(
-          title: const Text('Identifiant Makolo'),
-          content: TextField(
-            controller: editor,
-            autofocus: true,
-            maxLength: 30,
-            autocorrect: false,
-            textCapitalization: TextCapitalization.none,
-            decoration: const InputDecoration(
-              labelText: 'Nouvel identifiant',
-              prefixText: '@',
+        builder: (route) => StatefulBuilder(
+          builder: (dialog, update) => AlertDialog(
+            title: const Text('Identifiant Makolo'),
+            content: Focus(
+              onFocusChange: (focused) {
+                if (focused) return;
+                final normalized = PassportEditorFieldRules.normalize(
+                  'username', editor.text,
+                );
+                if (normalized != editor.text) {
+                  editor.value = TextEditingValue(
+                    text: normalized,
+                    selection: TextSelection.collapsed(
+                      offset: normalized.length,
+                    ),
+                  );
+                }
+                update(() {
+                  checked = true;
+                  localError = PassportEditorFieldRules.error(
+                    'username', normalized,
+                  );
+                });
+              },
+              child: TextField(
+                controller: editor,
+                autofocus: true,
+                maxLength: 30,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.none,
+                decoration: InputDecoration(
+                  labelText: 'Nouvel identifiant',
+                  prefixText: '@',
+                  counterText: '',
+                  errorText: localError,
+                  suffixIcon: checked && localError == null &&
+                          editor.text.trim().isNotEmpty
+                      ? const Icon(
+                          Icons.check_circle_outline, color: Colors.green,
+                        )
+                      : null,
+                ),
+                onChanged: (value) {
+                  final result = PassportEditorFieldRules.error(
+                    'username', value,
+                  );
+                  if (checked || result == null) {
+                    update(() {
+                      checked = true;
+                      localError = result;
+                    });
+                  }
+                },
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialog),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final normalized = PassportEditorFieldRules.normalize(
+                    'username', editor.text,
+                  );
+                  final result = PassportEditorFieldRules.error(
+                    'username', normalized,
+                  );
+                  if (result != null) {
+                    update(() {
+                      checked = true;
+                      localError = result;
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialog, normalized);
+                },
+                child: const Text('Modifier'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialog, editor.text.trim()),
-              child: const Text('Modifier'),
-            ),
-          ],
         ),
       );
       if (proposed == null || proposed.isEmpty || !mounted ||
