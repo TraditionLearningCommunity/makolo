@@ -55,6 +55,19 @@ class DiscoveryMapController {
     );
   }
 
+  /// Device fix is rendered locally; it is never sent with Discovery markers.
+  Future<void> showDevicePosition(double latitude, double longitude) async {
+    await _controller.addCircle(
+      CircleOptions(
+        geometry: LatLng(latitude, longitude),
+        circleRadius: 10,
+        circleColor: '#2563EB',
+        circleStrokeWidth: 3,
+        circleStrokeColor: '#FFFFFF',
+      ),
+    );
+  }
+
   void onPinTapped(void Function(Object) callback) {
     _controller.onCircleTapped.add(callback);
   }
