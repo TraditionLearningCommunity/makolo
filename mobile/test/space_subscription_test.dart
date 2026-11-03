@@ -206,8 +206,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
-    await tester.tap(find.text('Examiner le changement'));
+    await tester.scrollUntilVisible(find.text('Changer de formule'), 180);
+    await tester.tap(find.text('Changer de formule'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Voir les détails'), 180);
+    await tester.tap(find.text('Voir les détails'));
     await tester.pumpAndSettle();
     expect(find.text('Appliquer le changement'), findsOneWidget);
 
@@ -313,8 +316,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
-    await tester.tap(find.text('Examiner le changement'));
+    await tester.scrollUntilVisible(find.text('Changer de formule'), 180);
+    await tester.tap(find.text('Changer de formule'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Voir les détails'), 180);
+    await tester.tap(find.text('Voir les détails'));
     await tester.pumpAndSettle();
     expect(find.text('Consultation uniquement'), findsOneWidget);
     expect(posts, 0);
