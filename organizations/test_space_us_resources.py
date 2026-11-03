@@ -1,4 +1,6 @@
 """Targeted contract coverage for Space Resources composed in Nous."""
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -177,6 +179,21 @@ class SpaceUsResourcesTests(TestCase):
         }), 23)
         for query in ("?kind=private", "?offset=-1", "?offset=oops"):
             self.assertEqual(self.client.get(self.url + query).status_code, 400)
+
+    def test_owner_source_failure_is_local_to_resources(self):
+        self.client.force_authenticate(self.owner)
+        with patch(
+            "organizations.api.space_us_projection."
+            "build_space_us_resources_projection",
+            side_effect=RuntimeError("owner unavailable"),
+        ):
+            root = self.client.get(
+                f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+            )
+        self.assertEqual(root.status_code, 200, root.data)
+        self.assertEqual(root.data["identity"]["name"], self.space.name)
+        self.assertEqual(root.data["resources"]["visibility"], "unavailable")
+        self.assertNotIn("resources", root.data["handoffs"])
 
     def test_empty_institutional_library_is_not_unknown_or_personal(self):
         self.client.force_authenticate(self.owner)
