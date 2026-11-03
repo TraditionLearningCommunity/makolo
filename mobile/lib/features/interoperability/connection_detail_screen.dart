@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../repositories/interoperability_repository.dart';
 import 'interoperability_presentation.dart';
@@ -304,6 +305,21 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (widget.connection!.owner == 'intelligence' &&
+            widget.connection!.enabled &&
+            widget.connection!.usable &&
+            widget.connection!.capabilities.any(
+              (cap) => cap == 'web_research' ||
+                  cap == 'structured_generate',
+            )) ...[
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            key: Key('discover-from-connection-${widget.connection!.id}'),
+            onPressed: () => context.push('/discover'),
+            icon: const Icon(Icons.explore_outlined),
+            label: const Text('Explorer dans Découvrir'),
+          ),
+        ],
         const SizedBox(height: 28),
         Text('Gérer la connexion',
             style: Theme.of(context).textTheme.titleMedium),
