@@ -174,7 +174,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Rechercher dans Makolo'), findsOneWidget);
     expect(find.text('Accès retrouvé du serveur'), findsOneWidget);
-    expect(find.textContaining('Recherche parmi les événements déjà reçus'),
+    expect(find.textContaining('La recherche porte sur les éléments enregistrés'),
         findsOneWidget);
     await tester.tap(find.text('Accès retrouvé du serveur'));
     await tester.pumpAndSettle();
