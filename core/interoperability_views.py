@@ -15,6 +15,7 @@ from notifications.push import active_push_endpoints_for, revoke_push_endpoint_b
 
 from interoperability.presentation import (
     present_action,
+    capability_label,
     present_connection,
     present_extension,
     present_provider,
@@ -31,9 +32,65 @@ class PersonalConnectionsView(LoginRequiredMixin, TemplateView):
         payload = build_profile_interoperability_payload(self.request.user)
 
         context.update(connection_form_context())
+        offers = [
+            {
+                **offer,
+                "capability_labels": [
+                    capability_label(code)
+                    for code in offer.get("capabilities", ())
+                ],
+            }
+            for offer in context["connection_offers"]
+        ]
+        query = self.request.GET.get("q", "").strip()[:80]
+        category = self.request.GET.get("cap", "").strip()[:80]
+        capability_options = sorted(
+            {
+                capability
+                for offer in offers
+                for capability in offer.get("capabilities", ())
+            }
+        )
+        if category not in capability_options:
+            category = ""
+        visible_offers = [
+            offer for offer in offers
+            if (
+                not query
+                or query.casefold() in " ".join(
+                    [
+                        offer.get("label", ""),
+                        offer.get("description", ""),
+                        *offer.get("capability_labels", ()),
+                    ]
+                ).casefold()
+            )
+            and (
+                not category or category in offer.get("capabilities", ())
+            )
+        ]
+        active_tab = (
+            "mine" if self.request.GET.get("tab") == "mine" else "discover"
+        )
+        selected_offer = next(
+            (
+                offer for offer in offers
+                if offer.get("code") == self.request.GET.get("offer")
+            ),
+            None,
+        )
         context.update(
             {
                 "interoperability": payload,
+                "visible_connection_offers": visible_offers,
+                "capability_options": [
+                    {"code": code, "label": capability_label(code)}
+                    for code in capability_options
+                ],
+                "catalog_query": query,
+                "catalog_category": category,
+                "connections_tab": active_tab,
+                "selected_connection_offer": selected_offer,
                 "providers": [
                     present_provider(provider)
                     for provider in payload.get("providers", [])
@@ -53,6 +110,14 @@ class PersonalConnectionsView(LoginRequiredMixin, TemplateView):
                     for extension in payload.get("extensions", [])
                     if extension.get("available") and extension.get("enabled")
                 ],
+                "selected_personal_connection": next(
+                    (
+                        present_connection(row)
+                        for row in payload.get("connections", [])
+                        if str(row.get("id")) == self.request.GET.get("connection")
+                    ),
+                    None,
+                ),
                 "domain_integrations": payload.get("domain_integrations", []),
                 "push_devices": [
                     {
