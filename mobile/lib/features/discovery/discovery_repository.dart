@@ -1158,14 +1158,8 @@ class DiscoveryRepository {
   }
 
   Future<void> refreshSpatial(DiscoveryQuery query) async {
-    await _refresh(spatialSource(query));
-    if ((await readSource(spatialSource(query))).lastErrorCode == null) {
-      await store.pruneProjectionsOfKind(
-        mapProjectionKind,
-        retain: 12,
-        protectResourceKeys: {'spatial:${query.mapFingerprint}'},
-      );
-    }
+    final root = query.copyWith(page: 1, clearContinuation: true);
+    await ensureItems(root, requireSpatial: true);
   }
 
   Future<void> refreshItem(String family, String id) async {
@@ -1503,6 +1497,26 @@ class DiscoveryRepository {
       final family = _text(identity?['family']);
       final resourceId = _text(resource?['id']);
       if (family == null || resourceId == null) continue;
+
+      // The collection already carries the authorized detailed item wire.
+      // Reuse it in N2 rather than fetching that same representation again.
+      // Never revive a keyed owner detail after an explicit owner refusal.
+      final ownerSource = itemSource(family, resourceId);
+      final denied = (await readSource(ownerSource)).ownerUnavailable;
+      final existing = await store.readProjection(
+        itemProjectionKind,
+        resourceKey: '$family:$resourceId',
+      );
+      if (!denied &&
+          (existing == null ||
+              existing.receivedAt.isBefore(projection.receivedAt))) {
+        await _putPreview(
+          kind: itemProjectionKind,
+          resourceKey: '$family:$resourceId',
+          payload: {'item': item},
+          source: projection,
+        );
+      }
 
       if (_isActivityFamily(family)) {
         await _putPreview(
