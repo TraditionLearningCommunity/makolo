@@ -97,6 +97,12 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertTrue(response.data["handoffs"].get("relationships"))
         self.assertTrue(response.data["capabilities"]["manage_team"])
         self.assertTrue(response.data["capabilities"]["manage_ownership"])
+        self.assertEqual(
+            response.data["handoffs"]["passport"],
+            f"/space/{self.space.slug}/us/passport",
+        )
+        # Resources must remain owner-backed: no fabricated Space inventory.
+        self.assertNotIn("resources", response.data["handoffs"])
         self.assertEqual(len(response.data["ownership"]["items"]), 1)
         self.assertNotIn("permissions", response.data)
         self.assertNotIn("subscription_id", response.data)
@@ -240,6 +246,8 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(us.data["team"]["role_options"], [])
         self.assertEqual(us.data["relationships"]["sections"], {})
         self.assertNotIn("relationships", us.data["handoffs"])
+        self.assertNotIn("passport", us.data["handoffs"])
+        self.assertNotIn("resources", us.data["handoffs"])
         self.assertEqual(us.data["ownership"]["items"], [])
         self.assertNotIn("contact_email", us.data["identity"])
 
