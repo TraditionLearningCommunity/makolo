@@ -8,7 +8,6 @@ import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
-import 'interoperability_presentation.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
   const ProfileConnectionsScreen({super.key, required this.runtime});
@@ -117,67 +116,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     }
   }
 
-  String _humanize(String value) {
-    if (value.trim().isEmpty) return 'Service';
-    final text = value
-        .replaceAll('.', ' ')
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .trim();
-    if (text.isEmpty) return 'Service';
-    return text[0].toUpperCase() + text.substring(1);
-  }
-
-  String _capabilityLabel(String value) => connectionCapabilityLabel(value);
-
-  Widget _providerCard(InteroperabilityProviderProjection provider) {
-    final capabilities = provider.capabilities
-        .map(_capabilityLabel)
-        .join(' · ');
-    return Card(
-      child: ListTile(
-        key: Key('provider-${provider.code}'),
-        leading: const Icon(Icons.extension_outlined),
-        title: const Text('Service disponible'),
-        subtitle: Text(
-          capabilities.isEmpty ? 'Disponible' : 'Disponible · $capabilities',
-        ),
-      ),
-    );
-  }
-
-  Widget _extensionCard(InteroperabilityExtensionProjection extension) {
-    return Card(
-      child: ListTile(
-        key: Key('extension-${extension.code}'),
-        leading: const Icon(Icons.widgets_outlined),
-        title: Text(_humanize(extension.code)),
-        subtitle: const Text(
-          'Extension répertoriée',
-        ),
-      ),
-    );
-  }
-
-  Widget _actionCard(InteroperabilityActionProjection action) {
-    return Card(
-      child: ListTile(
-        key: Key('action-${action.code}'),
-        leading: const Icon(Icons.bolt_outlined),
-        title: Text(_humanize(action.code)),
-        subtitle: Text(
-          !action.authorized
-              ? 'Accès non autorisé.'
-              : !action.available && action.requiresConnection
-                  ? 'Connexion requise.'
-                  : !action.available
-                      ? 'Indisponible actuellement.'
-                      : 'Disponible dans Makolo',
-        ),
-      ),
-    );
-  }
-
   Widget _freshnessNotice(BuildContext context, SyncStatus? syncStatus) {
     if (_refreshing || syncStatus?.state == SyncVisualState.syncing) {
       return const LinearProgressIndicator(
@@ -230,10 +168,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       ),
       children: [
         _freshnessNotice(context, syncStatus),
-        Text(
-          'Consultez vos connexions et les services associés.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
         IntelligenceConnectionControls(
           runtime: widget.runtime,
           path: 'api/v1/me/intelligence/connections/',
@@ -241,31 +175,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           onChanged: _refreshAndConfirm,
           mutationsEnabled: _mutationsAllowed(syncStatus),
         ),
-        if (projection.providers.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Text(
-            'Services disponibles',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          for (final provider in projection.providers) _providerCard(provider),
-        ],
-        if (projection.actions.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Text(
-            'Actions disponibles',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          for (final action in projection.actions) _actionCard(action),
-        ],
-        if (projection.extensions.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Text('Extensions', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: MakoloSpacing.sm),
-          for (final extension in projection.extensions)
-            _extensionCard(extension),
-        ],
       ],
     );
   }
