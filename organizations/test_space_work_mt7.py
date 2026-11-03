@@ -156,29 +156,30 @@ class SpaceMetierMT7Tests(TestCase):
         self.assertNotEqual(self.client.get(self.collection_url).status_code, 200)
 
     def test_only_real_web_handoff_is_exposed_as_secondary_action(self):
+        journey_id = "11111111-1111-4111-8111-111111111111"
         item = {
-            "key": "journey:1",
-            "source": {"kind": "journey", "id": "1"},
+            "key": f"journey:{journey_id}",
+            "source": {"kind": "journey", "id": journey_id},
             "kind": "service_case",
             "title": "Dossier",
             "summary": None,
-            "context": {"activity": {"id": "1"}},
+            "context": {"activity": {"id": journey_id}},
             "links": {"detail": "/services/operator/cases/1/"},
             "capabilities": ["view", "open_service_case"],
             "owner_handoffs": [
                 {"intent": "inspect", "channel": "space_work",
                  "label": "Consulter", "url": "/api/work/",
-                 "owner": {"kind": "journey", "id": "1"}},
+                 "owner": {"kind": "journey", "id": journey_id}},
                 {"intent": "open_service_case", "channel": "web",
                  "label": "Travailler sur le dossier",
                  "url": "/services/operator/cases/1/",
-                 "owner": {"kind": "journey", "id": "1"}},
+                 "owner": {"kind": "journey", "id": journey_id}},
                 {"intent": "open_service_case", "channel": "web",
                  "label": "Interdit", "url": "/services/operator/cases/999/",
                  "owner": {"kind": "journey", "id": "999"}},
                 {"intent": "open_day_of", "channel": "api",
                  "label": "Faux Jour J", "url": "/api/v1/test/",
-                 "owner": {"kind": "journey", "id": "1"}},
+                 "owner": {"kind": "journey", "id": journey_id}},
             ],
         }
         sections = {"requests": {
