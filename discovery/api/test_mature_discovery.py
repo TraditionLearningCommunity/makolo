@@ -177,6 +177,47 @@ class MatureDiscoveryAPITests(TestCase):
         )
         self.assertIsNone(opportunity["identity"]["occurrence"])
 
+    def test_one_discovery_acquisition_carries_map_and_reusable_n2(self):
+        place = Place.objects.create(
+            name="Z3 carte unifiée",
+            locality="Lubumbashi",
+            latitude="-11.664700",
+            longitude="27.479400",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        self.client.force_login(self.participant)
+        first = self._items(
+            q="Z3", page_size=1, include_spatial_index="1"
+        )["data"]
+        self.assertEqual(len(first["results"]), 1)
+        index = first["spatial_index"]
+        self.assertTrue(index["detail_available"])
+        self.assertEqual(index["total_results"], first["count"])
+        self.assertEqual(index["viewer"]["id"], str(self.participant.pk))
+        event = next(
+            row for row in index["results"]
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertEqual(event["place"]["latitude"], -11.6647)
+        self.assertEqual(event["place"]["longitude"], 27.4794)
+        detail = self.client.get(event["links"]["detail"]).json()["data"]["item"]
+        self.assertEqual(event["identity"], detail["identity"])
+        self.assertEqual(event["detail"], detail["detail"])
+
+        # Presentation options do not affect signed server-owned navigation.
+        second = self._items(
+            q="Z3",
+            page=2,
+            page_size=1,
+            continuation=first["continuation"]["token"],
+        )["data"]
+        self.assertEqual(second["page"], 2)
+        self.assertNotIn("spatial_index", second)
+
     def test_collection_includes_existing_detail_description(self):
         for profile in (None, self.participant):
             if profile is None:
