@@ -323,9 +323,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Future<void> _flushLatestDraft() async {
     final drafts = widget.drafts;
     final profileId = widget.personal.store.profileId;
+    Map<String, dynamic>? attempted;
     try {
       while (_nextDraftSnapshot != null && drafts != null) {
         final snapshot = _nextDraftSnapshot!;
+        attempted = snapshot;
         _nextDraftSnapshot = null;
         await drafts.saveLocal(
           draftId: 'accounts-profile-editor-$profileId',
@@ -337,7 +339,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       }
     } on Object {
       // Keep the last unsaved snapshot available to a later edit/flush.
-      _nextDraftSnapshot ??= Map<String, dynamic>.from(_currentEditor());
+      _nextDraftSnapshot ??= attempted;
       if (mounted) {
         setState(() => _error =
             'Le brouillon local n’a pas pu être conservé sur cet appareil.');
@@ -843,7 +845,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     }
     try {
       await _draftWrites;
-      if (submittedRevision == _editRevision) {
+      if (submittedRevision == _editRevision &&
+          _nextDraftSnapshot == null &&
+          !_draftWorkerActive) {
         await widget.drafts?.delete(
           owner: _draftOwner,
           resourceKind: _draftKind,
