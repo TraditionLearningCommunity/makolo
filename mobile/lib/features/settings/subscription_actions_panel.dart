@@ -323,6 +323,44 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                     }
                                     return;
                                   }
+                                  final approved = await showDialog<bool>(
+                                    context: sheetContext,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: Text(
+                                        preview['kind'] == 'addon_remove'
+                                            ? 'Retirer cette option ?'
+                                            : 'Confirmer le changement ?',
+                                      ),
+                                      content: Text(
+                                        _value(preview['target_name'], title) +
+                                            (paidChoice
+                                                ? '\n' +
+                                                    subscriptionPriceLabel(
+                                                      preview['billing_terms'],
+                                                    )
+                                                : '') +
+                                            '\nLa formule actuelle reste applicable '
+                                                'tant que les conditions ne sont pas remplies.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dialogContext, false),
+                                          child: const Text('Retour'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dialogContext, true),
+                                          child: const Text('Confirmer'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (approved != true || !sheetContext.mounted ||
+                                      !_sameSubject(sourceRuntime, profileId) ||
+                                      widget.runtime.api != api) {
+                                    return;
+                                  }
                                   setSheet(() {
                                     confirming = true;
                                     failed = null;
