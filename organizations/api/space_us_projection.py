@@ -34,8 +34,9 @@ def build_space_us_projection(*, profile, space):
         profile, space, PermissionCode.SPACE_OWNERSHIP_MANAGE
     )
 
+    # Team counts are private unless the viewer can manage the team.
     team = {
-        "active_members": None,  # Restricted: never disclose team size without Team capability.
+        "active_members": None,
         "visibility": "restricted",
         "role_options": [],
         "items": [],
