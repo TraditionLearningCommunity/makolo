@@ -160,6 +160,7 @@ def profile_public_snapshot_still_disclosable(snapshot):
     # legitimate dated versions after a harmless rename.
     for family, identifier in (
         ("activities", "id"),
+        ("activity_involvements", "id"),
         ("proofs", "public_id"),
         ("credentials", "public_id"),
     ):
