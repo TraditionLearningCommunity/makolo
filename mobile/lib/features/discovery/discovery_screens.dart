@@ -1531,7 +1531,20 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     final current = _query;
     final startedAt = DateTime.now().toUtc();
     try {
-      // N2 already owns this source and its authorization checks.
+      // A fully projected item from N1 or another Carte view is already
+      // available. Merely selecting it is not a fresh authority operation.
+      if (await widget.repository.hasReusableItem(
+        candidate.family, candidate.id,
+      )) {
+        final cached = await widget.repository.readItem(
+          candidate.family, candidate.id,
+        );
+        final local = _selector.detail(cached);
+        if (mounted && identical(current, _query) &&
+            local?.candidateKey == candidate.candidateKey) {
+          return local;
+        }
+      }
       await widget.repository.refreshItem(candidate.family, candidate.id);
       final source = await widget.repository.readSource(
         widget.repository.itemSource(candidate.family, candidate.id),
