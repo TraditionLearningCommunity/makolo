@@ -33,7 +33,7 @@ class MakoloActorSelectorTile extends StatelessWidget {
       return const ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(Icons.person_pin_circle_outlined),
-        title: Text('Agir comme'),
+        title: Text('Agir en tant que'),
         subtitle: Text('Moi'),
       );
     }
@@ -50,7 +50,7 @@ class MakoloActorSelectorTile extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             minVerticalPadding: MakoloSpacing.xs,
             leading: const Icon(Icons.person_pin_circle_outlined),
-            title: const Text('Agir comme'),
+            title: const Text('Agir en tant que'),
             subtitle: Text(
               actor is SpaceActorContext ? label : 'Moi',
               maxLines: 2,
@@ -242,12 +242,12 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
               ),
               child: Semantics(
                 container: true,
-                label: 'Choisir pour qui Makolo travaille',
+                label: 'Choisir pour qui agir',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'Agir comme',
+                      'Agir en tant que',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: MakoloSpacing.md),
@@ -292,7 +292,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         padding: EdgeInsets.symmetric(
                           vertical: MakoloSpacing.md,
                         ),
-                        child: Text('Vous n’avez aucun Espace autorisé.'),
+                        child: Text('Aucun Espace accessible.'),
                       ),
                     if (spaces.isEmpty &&
                         !_inventoryConfirmed &&
@@ -302,7 +302,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           vertical: MakoloSpacing.md,
                         ),
                         child: Text(
-                          'Aucun inventaire vérifié. '
+                          'Impossible de vérifier vos Espaces. '
                           'Cela ne signifie pas que vous n’avez aucun Espace.',
                         ),
                       ),
@@ -312,7 +312,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           vertical: MakoloSpacing.sm,
                         ),
                         child: Text(
-                          'Espaces connus sur cet appareil. '
+                          'Espaces déjà consultés. '
                           'L’accès sera vérifié avant de basculer.',
                         ),
                       ),
@@ -345,7 +345,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                             ? null
                             : _openCreateSpace,
                         icon: const Icon(Icons.add),
-                        label: const Text('Créer un Espace'),
+                        label: const Text('Créer un nouvel Espace'),
                       ),
                   ],
                 ),
