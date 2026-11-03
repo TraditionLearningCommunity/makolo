@@ -420,7 +420,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
         '${two(date.hour)}:${two(date.minute)}';
   }
 
-  Future<void> _openDatedVersion(String snapshotId) async {
+  Future<void> _openDatedVersion(
+    String snapshotId, {List<Map<String, dynamic>> activeShares = const [],
+  }) async {
     try {
       final response = await widget.api.get(
         'api/v1/me/passport/history/$snapshotId/',
@@ -525,6 +527,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
                       'Version révoquée · archive personnelle uniquement',
                     ),
                   ),
+                if (activeShares.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  for (final grant in activeShares)
+                    if (grant['id'] != null)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.link_off_outlined),
+                        title: const Text('Révoquer un lien de partage'),
+                        subtitle: Text(_historicalDate(grant['expires_at'])),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _revokeDatedShare(grant['id'].toString());
+                        },
+                      ),
+                ],
                 const SizedBox(height: 16),
                 _PassportBody(data: readOnly, baseUri: widget.api.baseUri),
               ],
@@ -816,7 +833,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
                                     : () {
                                         final id = row['id'].toString();
                                         Navigator.pop(sheetContext);
-                                        _openDatedVersion(id);
+                                        _openDatedVersion(
+                                          id,
+                                          activeShares: _rows(row['active_shares']),
+                                        );
                                       },
                                 trailing: row['id'] != null && intact
                                     ? Row(
