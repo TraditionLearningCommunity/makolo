@@ -124,7 +124,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   }
 
   List<Map<String, dynamic>> visibleActivities(
-    Map<String, dynamic> full, {bool showExcluded = false},
+    Map<String, dynamic> full, {bool showExcluded = false}
   ) {
     final list = rows(full['activities']);
     if (variant == 'complete') return list;
