@@ -213,9 +213,14 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              action == 'delete'
-                  ? 'Veille supprimée.'
-                  : 'État de la veille confirmé.',
+              switch (action) {
+                'delete' => 'Veille supprimée.',
+                'rename' => 'Veille renommée.',
+                'criteria' => 'Critères de la veille mis à jour.',
+                'pause' => 'Veille mise en pause.',
+                'activate' => 'Veille réactivée.',
+                _ => 'Veille mise à jour.',
+              },
             ),
           ),
         );
@@ -225,8 +230,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'La modification de la veille '
-              'n’a pas été confirmée par le serveur.',
+              'Impossible de modifier cette veille. Réessayez.',
             ),
           ),
         );
