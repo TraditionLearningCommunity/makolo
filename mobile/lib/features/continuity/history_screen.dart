@@ -170,6 +170,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  /// A received event stays inspectable without navigating to an owner
+  /// depth that may require the network. Opening that depth is optional.
+  Future<void> _showKnownEvent(_HistoryItem item) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.inner),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.title, style: Theme.of(sheetContext).textTheme.titleLarge),
+              const SizedBox(height: MakoloSpacing.sm),
+              if (item.occurredAt != null) Text(item.occurredAt!),
+              if (item.outcome != null) Text(item.outcome!),
+              const SizedBox(height: MakoloSpacing.md),
+              const Text(
+                'Événement déjà reçu sur cet appareil. '
+                'Le détail propriétaire peut nécessiter une nouvelle vérification.',
+              ),
+              if (item.id != null) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                FilledButton.tonal(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    widget.onOpenResource(item.kind, item.id!);
+                  },
+                  child: const Text('Ouvrir le détail'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<StoredProjection>>(
@@ -353,6 +392,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           if (_searching) const LinearProgressIndicator(),
 
+                          if (_query.isNotEmpty || _filter != 'all') ...[
+                            const Text(
+                              'Recherche parmi les événements déjà reçus. '
+                              'Le serveur peut en connaître d’autres.',
+                            ),
+                            const SizedBox(height: MakoloSpacing.sm),
+                          ],
                           if (visible.isEmpty)
                             const Text(
                               'Aucun résultat correspondant parmi les '
@@ -371,7 +417,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     () => _selectedHistoryKey = '$kind:$id',
                                   );
                                 } else {
-                                  widget.onOpenResource(kind, id);
+                                  unawaited(_showKnownEvent(visible[index]));
                                 }
                               },
                             ),
