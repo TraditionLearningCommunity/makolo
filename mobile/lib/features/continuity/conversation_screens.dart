@@ -1074,6 +1074,7 @@ class _ConversationSummary {
     this.purpose,
     this.latestResult,
     this.updatedAt,
+    this.matchedPointId,
   });
 
   final String id;
@@ -1085,35 +1086,34 @@ class _ConversationSummary {
   final String? purpose;
   final String? latestResult;
   final DateTime? updatedAt;
+  final String? matchedPointId;
+
+  factory _ConversationSummary.fromMap(Map<String, dynamic> row) {
+    final context = _map(row['context']);
+    return _ConversationSummary(
+      id: _string(row['id']) ?? '',
+      title: _string(row['title']) ?? 'Conversation',
+      lifecycle: MakoloHumanization.presentationLabel(
+        _string(row['lifecycle']),
+      ),
+      attentionCount: row['attention_count'] is num
+          ? (row['attention_count'] as num).toInt()
+          : 0,
+      allClear: row['all_clear'] == true,
+      contextLabel: _string(context['label']),
+      purpose: _string(row['purpose']),
+      latestResult: _string(row['latest_result']),
+      updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
+      matchedPointId: _string(row['matched_point_id']),
+    );
+  }
 
   static List<_ConversationSummary> fromProjection(
     StoredProjection? projection,
-  ) {
-    final raw = projection?.payload['results'];
-    if (raw is! List) return const [];
-    return raw
-        .map((item) {
-          final row = _map(item);
-          final context = _map(row['context']);
-          return _ConversationSummary(
-            id: _string(row['id']) ?? '',
-            title: _string(row['title']) ?? 'Conversation',
-            lifecycle: MakoloHumanization.presentationLabel(
-              _string(row['lifecycle']),
-            ),
-            attentionCount: row['attention_count'] is num
-                ? (row['attention_count'] as num).toInt()
-                : 0,
-            allClear: row['all_clear'] == true,
-            contextLabel: _string(context['label']),
-            purpose: _string(row['purpose']),
-            latestResult: _string(row['latest_result']),
-            updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
-          );
-        })
-        .where((item) => item.id.isNotEmpty)
-        .toList(growable: false);
-  }
+  ) => _maps(projection?.payload['results'])
+      .map(_ConversationSummary.fromMap)
+      .where((item) => item.id.isNotEmpty)
+      .toList(growable: false);
 }
 
 class _ConversationDetail {
