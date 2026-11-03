@@ -647,12 +647,20 @@ def build_space_passport(
     selected_activity_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
     include_private_teams=False,
 ):
+    """One Space fact source, with public-by-default filtered variants.
+
+    Custom selections only subtract admitted public facts. Legacy Web include
+    lists are retained for older clients, never to elevate disclosure.
+    """
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
 
-    public_only = variant == PASSPORT_PUBLIC
+    public_only = variant != PASSPORT_COMPLETE
     thematic = variant == PASSPORT_THEMATIC
     custom = variant == PASSPORT_CUSTOM
     topics = _topics_from_codes(topic_codes) if thematic else ()
@@ -662,49 +670,68 @@ def build_space_passport(
         activity__status__in=PASSPORT_ACTIVITY_STATUSES,
     )
     if public_only:
-        credentials_qs = credentials_qs.filter(activity__visibility=ActivityVisibility.PUBLIC)
+        credentials_qs = credentials_qs.filter(
+            activity__visibility=ActivityVisibility.PUBLIC,
+        )
 
     if thematic:
         if topics:
             activities_qs = _filter_activity_topics(activities_qs, topics, thematic=True)
-            credentials_qs = credentials_qs.filter(activity__topic_links__topic__in=topics).distinct()
+            credentials_qs = credentials_qs.filter(
+                activity__topic_links__topic__in=topics,
+            ).distinct()
         else:
             activities_qs = activities_qs.none()
             credentials_qs = credentials_qs.none()
 
+    sections = {"identity", "bio", "links", "location", "trust", "credentials"}
     if custom:
-        activities_qs = _validate_selection(
-            activities_qs,
-            selected_activity_ids or (),
-            label="Activities",
-        )
-        if selected_credential_ids:
-            credentials_qs = _validate_selection(
-                credentials_qs,
-                selected_credential_ids,
-                label="Credentials",
-            )
-        sections = set(selected_sections or ())
-    else:
-        sections = {"identity", "bio", "links", "location", "trust", "credentials"}
+        if excluded_sections or excluded_activity_ids or excluded_credential_ids:
+            forbidden = set(excluded_sections) - (sections - {"identity"})
+            if forbidden:
+                raise PassportSelectionError("Rubrique de Passeport inconnue.")
+            if excluded_activity_ids:
+                _validate_selection(
+                    activities_qs, excluded_activity_ids, label="Activities",
+                )
+                activities_qs = activities_qs.exclude(
+                    pk__in=excluded_activity_ids,
+                )
+            if excluded_credential_ids:
+                _validate_selection(
+                    credentials_qs, excluded_credential_ids, label="Credentials",
+                )
+                credentials_qs = credentials_qs.exclude(
+                    pk__in=excluded_credential_ids,
+                )
+            sections -= set(excluded_sections)
+        elif (selected_sections or selected_activity_ids is not None
+              or selected_credential_ids is not None):
+            # Compatibility only: the previous Web form used inclusions.
+            if selected_activity_ids is not None:
+                activities_qs = _validate_selection(
+                    activities_qs, selected_activity_ids, label="Activities",
+                )
+            if selected_credential_ids is not None:
+                credentials_qs = _validate_selection(
+                    credentials_qs, selected_credential_ids, label="Credentials",
+                )
+            sections = set(selected_sections or ()) & sections
 
     identity = _space_identity(space)
     if custom:
-        if "bio" not in sections:
-            identity["bio"] = ""
-        if "links" not in sections:
-            identity["links"] = ()
-        if "location" not in sections:
-            identity["location"] = ""
+        for key in ("bio", "links", "location"):
+            if key not in sections:
+                identity[key] = () if key == "links" else ""
 
-    trust_verifications = ()
-    if not custom or "trust" in sections:
-        trust_verifications = tuple(active_public_verifications_for_space(space))
-
-    credential_summary = ()
-    if not custom or "credentials" in sections or selected_credential_ids:
-        credential_summary = _space_credential_summary(credentials_qs)
-
+    trust_verifications = (
+        tuple(active_public_verifications_for_space(space))
+        if "trust" in sections else ()
+    )
+    credential_summary = (
+        _space_credential_summary(credentials_qs)
+        if "credentials" in sections else ()
+    )
     return PassportProjection(
         subject_kind="space",
         subject=space,
@@ -714,8 +741,13 @@ def build_space_passport(
         activities=tuple(activities_qs),
         trust_verifications=trust_verifications,
         credential_summary=credential_summary,
-        space_teams=(tuple(space.teams.filter(is_active=True).order_by("name").values_list("name", flat=True))
-                     if variant == PASSPORT_COMPLETE and include_private_teams else ()),
+        space_teams=(
+            tuple(
+                space.teams.filter(is_active=True)
+                .order_by("name").values_list("name", flat=True)
+            )
+            if variant == PASSPORT_COMPLETE and include_private_teams else ()
+        ),
         topics=topics,
     )
 
