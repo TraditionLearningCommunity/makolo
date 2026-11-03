@@ -297,9 +297,14 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
 
   Widget _manageActions(BuildContext context) {
     if (!_canManage) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 24),
-        child: Text('Aucune gestion directe disponible dans ce contexte.'),
+      return Padding(
+        padding: const EdgeInsets.only(top: 24),
+        child: Text(
+          widget.connection?.manageable == true &&
+                  widget.connection?.owner == 'intelligence'
+              ? 'Gestion suspendue : vérifiez la connexion au serveur.'
+              : 'Aucune gestion directe disponible dans ce contexte.',
+        ),
       );
     }
     return Column(
@@ -398,8 +403,8 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_title, maxLines: 1,
-          overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(title: Text(_isOffer ? 'Service' : 'Connexion')),
+      key: const Key('connection-n3'),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         children: [
