@@ -167,7 +167,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   static int _initialReveal(int count) =>
-      count <= 1 ? count : ((count * 2) ~/ 3).clamp(1, count);
+      count <= 1 ? count : ((count * 2) ~/ 3).clamp(1, count).toInt();
 
   Future<void> _ensureUnseenReserve(DiscoveryQuery query) async {
     if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
@@ -180,6 +180,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     _unseenLoad = request;
     try {
       await request;
+    } on Object {
+      // A damaged or unavailable local ledger must not block the owner
+      // field. It will be reconstructed from received server items.
     } finally {
       if (identical(_unseenLoad, request)) _unseenLoad = null;
     }
