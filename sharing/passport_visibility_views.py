@@ -19,7 +19,7 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        data = build_profile_visibility_settings(self.request.user)
+        data = build_profile_visibility_settings(self.request.user, compact=True)
         labels = {
             "name": "Nom", "avatar": "Photo", "bio": "À propos",
             "profession": "Profession", "city": "Ville", "country": "Pays",
@@ -32,11 +32,14 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
             {"kind": Target.FIELD, "id": key, "label": labels.get(key, key), **settings}
             for key, settings in data["fields"].items()
         ]
-        interests = [
-            {"kind": Target.INTEREST, **item} for item in data["interests"]
-        ]
-        open_to = [
-            {"kind": Target.OPEN_TO, **item} for item in data["open_to"]
+        collections = [
+            {
+                "kind": Target.FIELD, "id": key, "label": label, **data["collections"][key],
+            }
+            for key, label in (
+                ("interests", "Centres d’intérêt"),
+                ("open_to", "Ouvert à"),
+            )
         ]
         all_options = [
             {"kind": "public", "label": "Tout le monde"},
@@ -44,7 +47,7 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
         ]
         for family in ("spaces", "teams", "groups"):
             all_options.extend(data["collectives"][family])
-        for item in fields + interests + open_to:
+        for item in fields + collections:
             selected = {
                 (rule["kind"], rule.get("id", ""))
                 for rule in item["audiences"]
@@ -66,7 +69,7 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
                 for rule in item["audiences"]
                 if rule["kind"] == "selected_profile"
             ]
-        context.update({"fields": fields, "interests": interests, "open_to": open_to})
+        context.update({"fields": fields, "collections": collections})
         return context
 
     def post(self, request, *args, **kwargs):
