@@ -31,7 +31,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
 
   Future<void> _refresh() async {
     try {
-      final response = await widget.api.get('api/v1/me/passport/visibility/');
+      final response = await widget.api.get('api/v1/me/passport/visibility/?compact=1');
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'personal.me.passport.visibility',
