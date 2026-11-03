@@ -43,6 +43,53 @@ class PassportVariantIdentityTests(TestCase):
         self.assertNotIn("owner_details", public.identity)
         self.assertFalse(public.team_affiliations)
 
+    def test_public_personal_details_survive_all_variants_with_field_permissions(self):
+        from accounts.profile_visibility import replace_profile_visibility
+
+        row = self.owner.profile
+        row.city = "Lubumbashi"
+        row.country = "CD"
+        row.save(update_fields=["city", "country", "updated_at"])
+        full = build_profile_passport(self.owner, variant="complete")
+        self.assertEqual(full.identity["owner_details"]["phone"], "+243810000000")
+
+        for variant in ("public", "thematic", "custom"):
+            with self.subTest(variant=variant):
+                details = build_profile_passport(
+                    self.owner, variant=variant,
+                ).identity["presentation_details"]
+                self.assertEqual(details["first_name"], "Maya")
+                self.assertEqual(details["last_name"], "Exemple")
+                self.assertEqual(details["username"], "variant-identity")
+                self.assertEqual(details["city"], "Lubumbashi")
+                self.assertEqual(details["country"], "CD")
+                self.assertNotIn("phone", details)
+                self.assertNotIn("birth_date", details)
+
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field",
+            field_key="name", audiences=[],
+        )
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field",
+            field_key="city", audiences=[],
+        )
+        details = build_profile_passport(
+            self.owner, variant="public",
+        ).identity["presentation_details"]
+        self.assertEqual(details, {
+            "username": "variant-identity", "country": "CD",
+        })
+
+        # Custom excludes location without changing the canonical facts.
+        custom = build_profile_passport(
+            self.owner, variant="custom",
+            excluded_sections=["location"],
+        )
+        self.assertEqual(custom.identity["presentation_details"], {
+            "username": "variant-identity",
+        })
+
     def test_custom_location_baseline_excludes_a_private_city(self):
         from accounts.models import ProfileVisibilityTargetKind
         from accounts.profile_visibility import replace_profile_visibility
