@@ -265,7 +265,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
             if (invitationFailure) ...[
               const SizedBox(height: MakoloSpacing.sm),
               const InlineMessage(
-                message: 'Invitations non actualisées. Les données déjà disponibles restent consultables.',
+                message: 'Impossible d’actualiser les invitations.',
               ),
               TextButton(
                 onPressed: () => unawaited(widget.onRetryInvitations()),
@@ -824,7 +824,7 @@ class _PointCardState extends State<_PointCard> {
       await widget.repository.refreshDetail(widget.conversationId);
       if (!mounted) return;
       setState(
-        () => _feedback = 'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
+        () => _feedback = 'Impossible de confirmer l’envoi. Ce point a peut-être changé ; vérifiez-le avant de réessayer.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);
