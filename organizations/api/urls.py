@@ -22,6 +22,13 @@ from .space_work_g3_transport_create import SpaceG3TransportCreateAPIView
 from .space_work_g3_transport_operations import SpaceG3TransportDepartureOperationsAPIView
 from .space_activity_create import SpaceG1ActivityCreateAPIView
 from .space_zs4_views import SpacePilotAPIView, SpaceRelationshipsAPIView, SpaceUsAPIView
+from .space_passport_views import (
+    SpacePassportAPIView, SpacePassportPdfAPIView, SpacePassportIssueAPIView,
+    SpacePassportHistoryAPIView, SpacePassportVersionAPIView,
+    SpacePassportVersionPdfAPIView, SpacePassportShareAPIView,
+    SpacePassportDirectShareAPIView, SpacePassportVersionRevokeAPIView,
+    SpacePassportShareRevokeAPIView,
+)
 from .views import FollowDetailAPIView, FollowListCreateAPIView
 from .workspace_views import (
     SpaceArchiveAPIView,
@@ -57,6 +64,16 @@ urlpatterns = [
     path("workspaces/<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationAPIView.as_view(), name="workspace-payment-obligation-detail"),
     path("workspaces/<slug:slug>/search/", SpaceSearchAPIView.as_view(), name="workspace-search"),
     path("workspaces/<slug:slug>/us/", SpaceUsAPIView.as_view(), name="workspace-us"),
+    path("workspaces/<slug:slug>/passport/", SpacePassportAPIView.as_view(), name="workspace-passport"),
+    path("workspaces/<slug:slug>/passport/pdf/", SpacePassportPdfAPIView.as_view(), name="workspace-passport-pdf"),
+    path("workspaces/<slug:slug>/passport/issue/", SpacePassportIssueAPIView.as_view(), name="workspace-passport-issue"),
+    path("workspaces/<slug:slug>/passport/history/", SpacePassportHistoryAPIView.as_view(), name="workspace-passport-history"),
+    path("workspaces/<slug:slug>/passport/history/<uuid:snapshot_id>/", SpacePassportVersionAPIView.as_view(), name="workspace-passport-version"),
+    path("workspaces/<slug:slug>/passport/history/<uuid:snapshot_id>/pdf/", SpacePassportVersionPdfAPIView.as_view(), name="workspace-passport-version-pdf"),
+    path("workspaces/<slug:slug>/passport/history/<uuid:snapshot_id>/share/", SpacePassportShareAPIView.as_view(), name="workspace-passport-share"),
+    path("workspaces/<slug:slug>/passport/history/<uuid:snapshot_id>/deliver/", SpacePassportDirectShareAPIView.as_view(), name="workspace-passport-direct"),
+    path("workspaces/<slug:slug>/passport/history/<uuid:snapshot_id>/revoke/", SpacePassportVersionRevokeAPIView.as_view(), name="workspace-passport-version-revoke"),
+    path("workspaces/<slug:slug>/passport/shares/<uuid:share_id>/revoke/", SpacePassportShareRevokeAPIView.as_view(), name="workspace-passport-share-revoke"),
     path("workspaces/<slug:slug>/relationships/", SpaceRelationshipsAPIView.as_view(), name="workspace-relationships"),
     path("workspaces/<slug:slug>/pilot/", SpacePilotAPIView.as_view(), name="workspace-pilot"),
     path("workspaces/<slug:slug>/archive/", SpaceArchiveAPIView.as_view(), name="workspace-archive"),
