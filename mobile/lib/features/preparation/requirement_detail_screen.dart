@@ -197,11 +197,10 @@ class _RequirementContent extends StatelessWidget {
         ],
         MakoloSection(
           title: 'Comment avancer',
-          description: 'Voici les moyens actuellement disponibles.',
           child: presentation.ways.isEmpty
               ? const MakoloCard(
                   child: Text(
-                    'Aucune manière de satisfaire supplémentaire n’est exposée pour le moment.',
+                    'Aucune action disponible ici pour cette condition.',
                   ),
                 )
               : Column(

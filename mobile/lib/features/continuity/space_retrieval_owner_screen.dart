@@ -315,8 +315,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text(
-                          'Le propriétaire ne rend plus ce détail accessible '
-                          'dans le contexte courant.',
+                          'Ce détail n’est pas accessible. '
+                          'Vérifiez vos droits ou actualisez.',
                         ),
                         TextButton(
                           onPressed: () =>

@@ -695,24 +695,21 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                       if (_failed)
                         const Text(
-                          'Actualisation indisponible. Les résultats locaux, '
-                          's’ils existent, peuvent être incomplets.',
+                          'Impossible d’actualiser la recherche. '
+                          'Les résultats affichés peuvent être incomplets.',
                         ),
                       if (_loading) const LinearProgressIndicator(),
                       if (_unavailableSources.isNotEmpty)
                         const Text(
-                          'Certaines sources ne peuvent pas être actualisées. '
-                          'Les autres résultats restent visibles.',
+                          'Certaines informations n’ont pas été actualisées.',
                         ),
                       if (_limitedSources.isNotEmpty)
                         const Text(
-                          'Certaines sources disposent de résultats supplémentaires '
-                          'dans leur recherche spécialisée.',
+                          'D’autres résultats peuvent être disponibles dans les recherches détaillées.',
                         ),
                       if (_isSpace)
                         Text(
-                          'Contexte : ${widget.spaceActor!.space.slug}. '
-                          'Seules les sources autorisées et couvertes sont consultées.',
+                          'Espace : ${widget.spaceActor!.space.slug}',
                         ),
                       if (widget.history && _isSpace) ...[
                         const SizedBox(height: 12),
@@ -720,7 +717,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           initialValue: _historyKind,
                           isExpanded: true,
                           decoration: const InputDecoration(
-                            labelText: 'Type de passé',
+                            labelText: 'Type de résultat',
                           ),
                           items: const [
                             DropdownMenuItem(value: 'all', child: Text('Tout')),

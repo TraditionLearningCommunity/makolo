@@ -146,8 +146,8 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                     label: 'Chargement de l’action en cours…',
                   ),
                   blockingErrorMessage: source.invalidated
-                      ? 'Cette Occurrence est terminée ou n’est plus disponible dans votre contexte. Retrouvez ses conséquences dans Historique.'
-                      : 'Cette action n’est pas disponible dans votre contexte actuel.',
+                      ? 'Impossible de vérifier cette action. Consultez l’historique si elle est terminée.'
+                      : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
                   content: _DayOfContent(
                     presentation: presentation,
