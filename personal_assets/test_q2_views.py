@@ -69,6 +69,20 @@ class Q2LibraryViewTests(TestCase):
         self.assertEqual(self.journey.artifacts.count(), 1)
         self.assertEqual(self.journey.artifacts.get().content_hash, self.version.content_hash)
 
+    def test_reuse_confirmation_does_not_claim_requirement_satisfaction(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal_assets:reuse", args=[self.asset.pk]),
+            {"journey_id": str(self.journey.pk)},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Cet ajout ne confirme pas que ses conditions sont remplies.",
+        )
+        self.assertNotContains(response, "son owner")
+
     def test_save_artifact_endpoint_creates_library_version_with_provenance(self):
         artifact = create_artifact(
             journey=self.journey,
