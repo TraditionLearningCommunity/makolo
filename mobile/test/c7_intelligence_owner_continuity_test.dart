@@ -154,15 +154,16 @@ void main() {
       await tester.tap(find.text('Ancien propriétaire'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Relier Ancien propriétaire'), findsOneWidget);
+      expect(find.text('Relier ce service'), findsOneWidget);
       currentPath.value =
           'api/v1/organizations/workspaces/new/intelligence/connections/';
       await tester.pump();
       final fields = find.byType(TextField);
       await tester.enterText(fields.at(1), 'SECRET-OLD-OWNER');
+      await tester.ensureVisible(find.byType(Checkbox));
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Relier'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(posted, false);
