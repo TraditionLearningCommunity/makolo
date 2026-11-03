@@ -62,6 +62,7 @@ void main() {
               ],
               'transition': {
                 'target_name': 'Option attendue',
+                'open': true,
                 'status_label': 'En cours',
                 'status_explanation': 'Vérification',
                 'total_conditions': 1,
@@ -104,8 +105,14 @@ void main() {
       expect(find.text('Formule canonique'), findsOneWidget);
       expect(find.text('USD 12.00 / mois'), findsOneWidget);
       expect(find.text('Avantage canonique'), findsOneWidget);
+      await tester.ensureVisible(find.text('Capacités et limites'));
+      await tester.tap(find.text('Capacités et limites'));
+      await tester.pumpAndSettle();
       expect(find.text('Capacité mesurée'), findsOneWidget);
       expect(find.textContaining('Limite dépassée'), findsOneWidget);
+      await tester.ensureVisible(find.text('Conditions du changement'));
+      await tester.tap(find.text('Conditions du changement'));
+      await tester.pumpAndSettle();
       expect(find.text('Justificatif attendu'), findsOneWidget);
       await tester.ensureVisible(find.text('Historique'));
       await tester.tap(find.text('Historique'));
