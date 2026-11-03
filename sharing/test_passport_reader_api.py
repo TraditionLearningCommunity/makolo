@@ -120,6 +120,23 @@ class PassportReaderAPIContracts(TestCase):
         verified = self.client.get(self._verification_url(snapshot))
         self.assertFalse(verified.json()["data"]["can_view_content"])
 
+    def test_recipient_remains_logged_into_own_profile_on_issued_links(self):
+        snapshot = self._issue("custom")
+        _, shared_url = self._share(snapshot)
+        self.client.force_login(self.visitor)
+        before = self.client.session.get("_auth_user_id")
+        shared = self.client.get(shared_url)
+        self.assertEqual(shared.status_code, 200)
+        self.assertTrue(shared.json()["data"]["can_view_content"])
+        self.assertEqual(self.client.session.get("_auth_user_id"), before)
+        self.assertEqual(
+            str(self.visitor.pk), self.client.session.get("_auth_user_id"),
+        )
+        verified = self.client.get(self._verification_url(snapshot))
+        self.assertEqual(verified.status_code, 200)
+        self.assertFalse(verified.json()["data"]["can_view_content"])
+        self.assertEqual(self.client.session.get("_auth_user_id"), before)
+
     def test_expired_grant_is_unreadable_without_revoking_issuance(self):
         snapshot = self._issue("custom")
         envelope, url = self._share(snapshot)
