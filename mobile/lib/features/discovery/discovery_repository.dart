@@ -536,6 +536,29 @@ class DiscoveryRepository {
     );
   }
 
+  /// Map presentation of the same canonical Discovery candidates, not a
+  /// separate search or detail owner. Cached by viewer-scoped exploration.
+  SyncSourceDefinition spatialSource(DiscoveryQuery query) {
+    final path = query.mapPath;
+    return SyncSourceDefinition(
+      sourceKey: 'discovery-map-spatial:${query.mapFingerprint}',
+      owner: 'Discovery',
+      path: '$path${path.contains('?') ? '&' : '?'}spatial=1',
+      projectionKind: mapProjectionKind,
+      resourceKey: 'spatial:${query.mapFingerprint}',
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: discoveryFreshness,
+      parser: (response) {
+        final payload = response.jsonObject();
+        if (payload['results'] is! List || payload['count'] is! int) {
+          throw const FormatException('Invalid Discovery spatial presentation');
+        }
+        return AcquiredProjection(schemaVersion: 1, payload: payload);
+      },
+      applier: applyProjectionSnapshot,
+    );
+  }
+
   SyncSourceDefinition itemSource(String family, String id) {
     return SyncSourceDefinition(
       sourceKey: 'discovery-item:$family:$id',
@@ -905,6 +928,22 @@ class DiscoveryRepository {
         ),
       );
 
+  Stream<StoredProjection?> watchSpatial(DiscoveryQuery query) => store
+      .watchProjection(
+        mapProjectionKind,
+        resourceKey: 'spatial:${query.mapFingerprint}',
+      )
+      .asyncMap((row) => _readAvailable(spatialSource(query), row));
+
+  Future<StoredProjection?> readSpatial(DiscoveryQuery query) async =>
+      _readAvailable(
+        spatialSource(query),
+        await store.readProjection(
+          mapProjectionKind,
+          resourceKey: 'spatial:${query.mapFingerprint}',
+        ),
+      );
+
   Stream<StoredProjection?> watchItem(String family, String id) => store
       .watchProjection(itemProjectionKind, resourceKey: '$family:$id')
       .asyncMap((row) => _readAvailable(itemSource(family, id), row));
@@ -1048,6 +1087,17 @@ class DiscoveryRepository {
         mapProjectionKind,
         retain: 12,
         protectResourceKeys: {query.mapFingerprint},
+      );
+    }
+  }
+
+  Future<void> refreshSpatial(DiscoveryQuery query) async {
+    await _refresh(spatialSource(query));
+    if ((await readSource(spatialSource(query))).lastErrorCode == null) {
+      await store.pruneProjectionsOfKind(
+        mapProjectionKind,
+        retain: 12,
+        protectResourceKeys: {'spatial:${query.mapFingerprint}'},
       );
     }
   }
