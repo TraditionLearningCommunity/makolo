@@ -405,6 +405,127 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
   }
 }
 
+/// Short-lived context for a map selection. Never a second Discovery N2.
+class _DiscoveryMapPreview extends StatelessWidget {
+  const _DiscoveryMapPreview({
+    required this.item,
+    required this.place,
+    required this.detail,
+    required this.saving,
+    required this.onClose,
+    required this.onOpen,
+    required this.onSave,
+    this.shareApi,
+    this.baseUri,
+  });
+
+  final DiscoveryItemPresentation item;
+  final String? place;
+  final DiscoveryItemPresentation? detail;
+  final bool saving;
+  final VoidCallback onClose;
+  final VoidCallback onOpen;
+  final VoidCallback onSave;
+  final MakoloApiClient? shareApi;
+  final Uri? baseUri;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = detail;
+    final canChangeSaved = resolved != null &&
+        (resolved.savedState == 'saved'
+            ? resolved.canUnsave
+            : resolved.canSave);
+    final canShare = resolved != null &&
+        (resolved.links['web'] != null ||
+            resolved.links['web_share'] != null);
+    return Card(
+      key: const Key('discover-map-selected-preview'),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fermer l’aperçu',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            if (place != null && place!.trim().isNotEmpty)
+              Text(
+                place!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            if (resolved?.owner != null)
+              Text(
+                resolved!.owner!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            if (resolved?.timing != null)
+              Text(
+                resolved!.timing!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (canChangeSaved)
+                  IconButton(
+                    key: const Key('discover-map-save'),
+                    tooltip: resolved!.savedState == 'saved'
+                        ? 'Retirer des enregistrements'
+                        : 'Enregistrer',
+                    onPressed: saving ? null : onSave,
+                    icon: Icon(
+                      resolved.savedState == 'saved'
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_outline_rounded,
+                    ),
+                  ),
+                if (canShare)
+                  DiscoveryShareControl(
+                    key: ValueKey(
+                      'discover-map-share-${resolved!.candidateKey}',
+                    ),
+                    item: resolved,
+                    api: shareApi,
+                    authenticated: shareApi != null,
+                    baseUri: baseUri,
+                    iconOnly: true,
+                  ),
+                TextButton(
+                  key: const Key('discover-map-open-n2'),
+                  onPressed: onOpen,
+                  child: const Text('Voir le détail'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class DiscoverySpatialView extends StatefulWidget {
   const DiscoverySpatialView({
     super.key,
@@ -917,50 +1038,22 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                   Positioned(
                     left: MakoloSpacing.sm,
                     right: MakoloSpacing.sm,
-                    bottom: MakoloSpacing.sm,
+                    bottom: MediaQuery.paddingOf(context).bottom +
+                        MakoloSpacing.sm,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.38,
                       ),
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(MakoloSpacing.md),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      selected.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Fermer l’aperçu',
-                                    onPressed: () {
-                                      setState(() => _selectedCandidateKey = null);
-                                      widget.onSelectionChanged?.call(null);
-                                    },
-                                    icon: const Icon(Icons.close),
-                                  ),
-                                ],
-                              ),
-                              if (selected.place != null)
-                                Text(selected.place!, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () => widget.onOpen(selected),
-                                  child: const Text('Voir le détail'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      child: _DiscoveryMapPreview(
+                        item: selected,
+                        place: selected.place,
+                        detail: _confirmedDetail,
+                        saving: _savingSelected,
+                        onClose: _clearSelection,
+                        onOpen: () => widget.onOpen(selected),
+                        onSave: () => unawaited(_saveSelected()),
+                        shareApi: widget.shareApi,
+                        baseUri: widget.baseUri,
                       ),
                     ),
                   ),
