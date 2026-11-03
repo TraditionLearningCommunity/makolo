@@ -182,8 +182,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                         view.hasAnyContent) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
-                        'Métadonnées connues sur cet appareil. '
-                        'La disponibilité des fichiers n’est pas supposée.',
+                        'Informations enregistrées sur cet appareil. '
+                        'L’ouverture des fichiers peut nécessiter une connexion.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -193,7 +193,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     _SectionTitle(
                       title: 'Bibliothèque',
                       subtitle: _query.isEmpty
-                          ? 'Documents personnels contrôlés'
+                          ? 'Documents personnels'
                           : 'Résultats dans les titres',
                     ),
                     if (view.documents.isEmpty)
@@ -203,7 +203,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                         ),
                         child: Text(
                           _query.isEmpty
-                              ? 'Aucune ressource enregistrée pour le moment.'
+                              ? 'Aucun document enregistré.'
                               : 'Aucun document correspondant.',
                         ),
                       )
@@ -233,11 +233,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     if (_query.isEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
                       const _SectionTitle(
-                        title: 'Proofs',
-                        subtitle: 'Faits établis, distincts des fichiers',
+                        title: 'Faits vérifiés',
+                        subtitle: 'Informations vérifiées',
                       ),
                       if (view.proofs.isEmpty)
-                        const Text('Aucune Proof disponible.')
+                        const Text('Aucun fait vérifié à afficher.')
                       else
                         for (final proof in view.proofs)
                           _ResourceRow(
@@ -247,8 +247,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                           ),
                       const SizedBox(height: MakoloSpacing.xl),
                       const _SectionTitle(
-                        title: 'Credentials',
-                        subtitle: 'Titres émis par un owner Trust',
+                        title: 'Attestations et certificats',
+                        subtitle: 'Titres délivrés et vérifiables',
                       ),
                       if (view.credentials.isEmpty)
                         const Text('Aucun titre délivré pour le moment.')

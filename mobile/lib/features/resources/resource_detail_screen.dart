@@ -98,8 +98,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Ce document sensible n’est pas conservé localement sans '
-            'politique de stockage protégée explicite.',
+            'Ce document sensible ne peut pas être téléchargé '
+            'sur cet appareil.',
           ),
         ),
       );

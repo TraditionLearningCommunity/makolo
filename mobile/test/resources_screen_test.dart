@@ -70,8 +70,9 @@ void main() {
       await tester.pump();
 
       expect(find.text('Bibliothèque'), findsOneWidget);
-      expect(find.text('Proofs'), findsOneWidget);
-      expect(find.text('Credentials'), findsOneWidget);
+      expect(find.textContaining('owner Trust'), findsNothing);
+      expect(find.text('Faits vérifiés'), findsOneWidget);
+      expect(find.text('Attestations et certificats'), findsOneWidget);
       expect(find.text('Passeport RDC'), findsOneWidget);
       expect(find.text('Participation'), findsOneWidget);
       expect(find.text('Attestation de participation'), findsOneWidget);

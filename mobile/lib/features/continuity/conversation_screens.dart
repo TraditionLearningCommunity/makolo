@@ -791,7 +791,7 @@ class _PointCardState extends State<_PointCard> {
               !point.supportsInteractiveResponse) ...[
             const SizedBox(height: MakoloSpacing.sm),
             const Text(
-              'Ce type de réponse nécessite une capacité média ou formulaire explicitement disponible.',
+              'Cette réponse ne peut pas être envoyée ici.',
             ),
           ],
         ],
