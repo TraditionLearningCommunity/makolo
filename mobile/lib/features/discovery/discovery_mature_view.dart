@@ -674,33 +674,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                       ),
                     ),
                   ),
-                Positioned(
-                  top: 104,
-                  right: MakoloSpacing.sm,
-                  child: Material(
-                    elevation: 2,
-                    borderRadius: BorderRadius.circular(24),
-                    color: Theme.of(context).colorScheme.surface,
-                    child: IconButton(
-                      tooltip: 'Voir la liste',
-                      icon: const Icon(Icons.list_rounded),
-                      onPressed: () => showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (sheetContext) => SafeArea(
-                          child: SizedBox(
-                            height:
-                                MediaQuery.sizeOf(sheetContext).height * 0.75,
-                            child: field,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
                 if (widget.location != null && widget.mapConfig.enabled)
                   Positioned(
-                    top: 164,
+                    top: 104,
                     right: MakoloSpacing.sm,
                     child: Material(
                       elevation: 2,
