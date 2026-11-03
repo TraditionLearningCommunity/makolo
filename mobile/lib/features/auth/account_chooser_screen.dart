@@ -5,6 +5,7 @@ import '../../app/providers.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../auth/token_store.dart';
 import '../../design/makolo_theme.dart';
+import '../access/access_credential_vault.dart';
 import 'auth_entry_frame.dart';
 
 class DeviceAccountsScreen extends ConsumerStatefulWidget {
@@ -78,6 +79,10 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
     );
     if (remove != true) return;
     final wasActive = widget.runtime.session?.profileId == account.profileId;
+    // Removing a device account must also revoke its locally retained
+    // presentation secrets. Removing a session alone need not erase the
+    // Profile's durable nonsecret local-first history.
+    await SecureAccessCredentialVault().clearProfile(account.profileId);
     await widget.runtime.tokens.removeAccount(account.profileId);
     final actorContextStore = widget.runtime.launchPreferences;
     if (actorContextStore is ActorContextStore) {
