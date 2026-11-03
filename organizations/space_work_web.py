@@ -10,7 +10,7 @@ from organizations.models import SpaceArchetype
 
 from .api.space_work_projection import PREVIEW_LIMIT, build_space_work_projection
 from .space_work_navigation import (
-    WORK_SECTIONS, work_back_url, work_page_number,
+    MAX_WORK_PAGE, WORK_SECTIONS, work_back_url, work_page_number,
 )
 from .space_web_views import SpaceWebMixin
 
@@ -297,7 +297,10 @@ def _compose_sections(space, projection, *, profile=None, origin_page=None):
                         "responsibility": projection.get("responsibility", "all"),
                         "page": (origin_page + 1) if origin_page is not None else 2,
                     })
-                ) if section.get("has_more") else None,
+                ) if (
+                    section.get("has_more")
+                    and (origin_page is None or origin_page < MAX_WORK_PAGE)
+                ) else None,
             }
         )
     return tuple(composed)
@@ -465,6 +468,6 @@ class SpaceWorkCollectionView(SpaceWebMixin):
             ),
             "work_previous_url": page_url(page - 1) if page > 1 else None,
             "work_next_url": page_url(page + 1)
-            if section.get("has_more") and page < 834 else None,
+            if section.get("has_more") and page < MAX_WORK_PAGE else None,
         })
         return context
