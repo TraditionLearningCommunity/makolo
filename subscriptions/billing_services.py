@@ -212,7 +212,7 @@ def create_coverage_billing_obligation(*, coverage, billing_key, actor=None, due
     if not key or len(key) > 128:
         raise SubscriptionBillingError("Une clé de facturation explicite (128 caractères maximum) est obligatoire.")
     coverage = (
-        SubscriptionCoverage.objects.select_for_update()
+        SubscriptionCoverage.objects.select_for_update(of=("self",))
         .select_related("billing_terms", "plan_version__plan", "payer_profile", "payer_space")
         .get(pk=coverage.pk)
     )
