@@ -167,16 +167,17 @@ class _SpaceTransportDepartureOperationsScreenState
     final title = switch (action) {
       'assign_vehicle' => 'Affecter ce véhicule ?',
       'reschedule' => 'Reprogrammer ce départ ?',
-      _ => 'Annuler réellement ce départ ?',
+      _ => 'Annuler ce départ ?',
     };
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
-        content: const Text(
-          'Le propriétaire Transport vérifiera votre droit et '
-          'l’état actuel de ce départ avant toute modification.',
-        ),
+        content: Text(switch (action) {
+          'assign_vehicle' => 'Le véhicule choisi sera affecté à ce départ.',
+          'reschedule' => 'Les horaires de ce départ seront modifiés.',
+          _ => 'Ce départ sera annulé.',
+        }),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -224,8 +225,8 @@ class _SpaceTransportDepartureOperationsScreenState
       if (mounted && _actorValid && epoch == _epoch) {
         setState(() {
           _owner = null;
-          _error = 'Résultat incertain. Actualisez ce départ avant '
-              'toute nouvelle action. Aucun second envoi automatique.';
+          _error = 'Impossible de confirmer le résultat. Actualisez ce départ avant '
+              'de réessayer pour éviter une opération en double.';
         });
       }
     } finally {
@@ -288,12 +289,13 @@ class _SpaceTransportDepartureOperationsScreenState
                     ),
                     if (capacity != null)
                       ListTile(
-                        title: const Text('Capacité vendable propriétaire'),
+                        title: const Text('Places disponibles à la vente'),
                         subtitle: Text(
                           capacity['unlimited'] == true
-                              ? 'Non limitée selon le pool'
-                              : '${capacity['available'] ?? 'Non établie'} '
-                                    'disponible(s) selon Capacity',
+                              ? 'Aucune limite renseignée'
+                              : capacity['available'] == null
+                                  ? 'Disponibilité à vérifier'
+                                  : '${capacity['available']} place(s) disponible(s)',
                         ),
                       ),
                     if (flags?['can_assign_vehicle'] == true) ...[

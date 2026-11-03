@@ -279,7 +279,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         // Keep a fully received Accounts editor on-screen, rather than
         // replacing it with only the Profile's name and biography.
         if (!_loaded) {
-          _error = 'Modification indisponible sans confirmation du serveur.';
+          _error = 'Impossible de charger les informations nécessaires à la modification.';
         }
       });
     }
@@ -716,10 +716,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       children: [
         Text(
           identity == null
-              ? 'Les informations du profil ne sont pas encore '
-                    'disponibles sur cet appareil.'
-              : 'Dernières informations du profil connues sur cet appareil. '
-                    'La modification nécessite une connexion.',
+              ? 'Informations du profil indisponibles hors ligne.'
+              : 'Dernières informations enregistrées. Connexion requise pour modifier.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         if (name != null && name.trim().isNotEmpty) ...[

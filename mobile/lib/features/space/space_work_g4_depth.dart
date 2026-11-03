@@ -118,13 +118,11 @@ class SpaceWorkG4Depth extends StatelessWidget {
           if (rows.isEmpty && offset == 0)
             Text(
               _creative
-                  ? 'Aucune présentation datée pour le moment. '
-                        'La création reste disponible.'
-                  : 'Aucune édition datée pour le moment. '
-                        'La production reste disponible.',
+                  ? 'Aucune présentation prévue.'
+                  : 'Aucune édition prévue.',
             ),
           if (rows.isEmpty && offset > 0)
-            const Text('Aucun autre élément sur cette page.'),
+            const Text('Fin des résultats.'),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
               _G4OccurrenceRow(slug: slug, row: row),

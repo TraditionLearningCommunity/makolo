@@ -118,8 +118,8 @@ class _SpaceWorkCreateActivityScreenState
       if (mounted && _actorValid) {
         setState(() {
           _error = _confirmed
-              ? 'Brouillon créé. La vue Métier ne peut pas encore être '
-                    'actualisée. Vérifiez-la sans recréer.'
+              ? 'Brouillon créé. Impossible d’actualiser Métier. '
+                    'Vérifiez la liste avant de créer à nouveau.'
               : 'La création n’a pas été confirmée. Vérifiez le travail '
                     'de cet Espace avant toute nouvelle tentative, '
                     'pour éviter un doublon.';
@@ -150,8 +150,8 @@ class _SpaceWorkCreateActivityScreenState
       if (mounted && _actorValid) {
         setState(() {
           _error =
-              'Le travail de cet Espace reste indisponible. '
-              'Aucune nouvelle création n’a été envoyée.';
+              'Impossible d’actualiser Métier. '
+              'Aucun nouveau brouillon n’a été créé.';
         });
       }
     } finally {

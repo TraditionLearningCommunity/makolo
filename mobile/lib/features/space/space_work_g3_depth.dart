@@ -57,7 +57,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
       widgets.add(_fact('Prix unitaire', _money(
         facts['unit_price'], facts['currency'],
       )));
-      widgets.add(_fact('Paiement configuré',
+      widgets.add(_fact('Mode de paiement',
           spaceText(facts['payment_mode']) ?? 'Non établi'));
       widgets.add(_fact(
         'Quantité par demande',
@@ -67,8 +67,8 @@ class SpaceWorkG3Depth extends StatelessWidget {
       widgets.add(_fact(
         'Disponibilité maintenant',
         facts['currently_available'] == true
-            ? 'Disponible selon le propriétaire'
-            : 'Non disponible selon le propriétaire',
+            ? 'Disponible'
+            : 'Non disponible',
       ));
       if (facts['available_from'] != null) {
         widgets.add(_fact('À partir du', facts['available_from'].toString()));
@@ -78,8 +78,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
       }
       if (facts['capacity_pool_bound'] == true) {
         widgets.add(const Text(
-          'La quantité réellement disponible dépend du pool de capacité '
-          'propriétaire. Elle ne peut pas être déduite du seul statut de l’offre.',
+          'La quantité disponible dépend des réservations et engagements en cours.',
         ));
       }
     } else if (kind == 'commerce_order') {
@@ -93,7 +92,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
       widgets.add(_fact('Paiement prévu',
           spaceText(facts['payment_mode']) ?? 'Non établi'));
       widgets.add(const Text(
-        'Commande confirmée ne signifie ni paiement vérifié ni remise accomplie.',
+        'Une commande confirmée ne confirme ni le paiement ni la remise.',
       ));
     } else if (kind == 'transport_route') {
       widgets.add(_heading(context, 'Route de transport'));
@@ -101,9 +100,6 @@ class SpaceWorkG3Depth extends StatelessWidget {
         widgets.add(_fact('Code', code));
       }
       widgets.add(_fact('État', facts['active'] == true ? 'Active' : 'Inactive'));
-      widgets.add(const Text(
-        'Une carte n’est affichée que si sa géométrie est réellement établie.',
-      ));
     } else if (kind == 'vehicle') {
       widgets.add(_heading(context, 'Véhicule'));
       widgets.add(_fact(
@@ -117,7 +113,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
         widgets.add(_fact('Immatriculation', registration));
       }
       widgets.add(const Text(
-        'Les places physiques ne sont ni une réservation ni des places vendables.',
+        'La capacité du véhicule ne correspond pas forcément aux places à vendre.',
       ));
     } else if (kind == 'transport_service') {
       widgets.add(_heading(context, 'Service de transport'));
@@ -164,8 +160,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
         widgets.add(_fact('Embarquement', instructions));
       }
       widgets.add(const Text(
-        'Les places vendables et les droits d’accès appartiennent à leurs '
-        'propriétaires ; aucune présence n’est déduite de la capacité.',
+        'Le nombre de places disponibles ne confirme pas la présence des voyageurs.',
       ));
     }
     for (final key in ['offers', 'lines', 'services', 'departures']) {

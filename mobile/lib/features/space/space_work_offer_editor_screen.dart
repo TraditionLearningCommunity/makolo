@@ -219,7 +219,7 @@ class _SpaceWorkOfferEditorScreenState
           setState(() {
             _attempted = false;
             _error =
-                'Le propriétaire a refusé ces valeurs. Vérifiez le prix, '
+                'Impossible d’enregistrer l’offre. Vérifiez le prix, '
                 'le mode de paiement et les quantités.';
           });
         }
@@ -286,11 +286,6 @@ class _SpaceWorkOfferEditorScreenState
                         Text(
                           title,
                           style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const Text(
-                          'Le propriétaire Commerce valide le prix, '
-                          'les modes et les quantités. Une offre ne constitue '
-                          'pas une commande ou un paiement.',
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
