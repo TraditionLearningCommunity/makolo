@@ -1,7 +1,9 @@
 <section class="mk-panel px-4 py-4 sm:px-6" aria-labelledby="space-subscription-history-title">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="space-subscription-history-title" class="text-lg font-bold">Historique des changements</h2>
+    {% if compact %}
     <a class="inline-flex min-h-11 items-center text-sm font-semibold" style="color:var(--mk-brand)" href="{% url 'organizations:console-subscription-history' space.slug %}">Tout voir</a>
+    {% endif %}
   </div>
   {% if space_history.items %}
   <ul class="mt-2 divide-y">
