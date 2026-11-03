@@ -131,6 +131,62 @@ class HistoryRepository {
     return 0;
   }
 
+  /// Explicitly prepare the next not-yet-received pages. Every existing
+  /// snapshot stays durable and can be reused on the next call. The finite
+  /// acquisition budget limits network work, never the retained History.
+  /// Returns true only after the owner has actually reported its final page.
+  Future<bool> prepareHistoryOffline({
+    int maxNewPages = 24,
+    bool Function()? shouldContinue,
+    void Function(int pagesKnown)? onProgress,
+  }) async {
+    if (maxNewPages < 1) throw ArgumentError.value(maxNewPages);
+    var offset = 0;
+    var acquired = 0;
+    var known = 0;
+    final seen = <int>{};
+    while (shouldContinue?.call() ?? true) {
+      if (!seen.add(offset)) return false;
+      final status = await readOwnerSourceState(
+        database: database,
+        profileId: profileId,
+        sourceKey: sourceKey(offset: 0, limit: defaultLimit),
+      );
+      if (status.invalidated) return false;
+
+      var page = await readPage(offset: offset);
+      if (page == null) {
+        if (acquired >= maxNewPages) return false;
+        acquired++;
+        try {
+          await refreshPage(offset: offset);
+        } on Object {
+          return false;
+        }
+        final owner = await readOwnerSourceState(
+          database: database,
+          profileId: profileId,
+          sourceKey: sourceKey(offset: offset, limit: defaultLimit),
+        );
+        if (owner.invalidated || owner.lastErrorCode != null) return false;
+        page = await readPage(offset: offset);
+        if (page == null) return false;
+      }
+      if (page.schemaVersion != 1) return false;
+      known++;
+      onProgress?.call(known);
+      final metadata = page.payload['page'];
+      if (metadata is! Map ||
+          metadata['offset'] != offset ||
+          metadata['limit'] is! int ||
+          (metadata['limit'] as int) < 1 ||
+          metadata['has_more'] is! bool) return false;
+      if (metadata['has_more'] == false) return true;
+      offset += metadata['limit'] as int;
+    }
+    return false;
+  }
+
   Future<Map<String, dynamic>> searchPage({
     required String query,
     String type = 'all',
