@@ -205,6 +205,35 @@ void main() {
     expect(find.text('Ouvrir l’équipe'), findsNothing);
   });
 
+  testWidgets('sparse relations avoid empty preview rows', (tester) async {
+    final projection = _projection();
+    (projection['relationships'] as Map<String, dynamic>)['sections'] = {
+      'team': {
+        'items': [
+          {'name': 'Amina'},
+        ],
+        'has_more': false,
+      },
+      'partners': {'items': [], 'has_more': false},
+    };
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
+    expect(find.text('Partenaires'), findsNothing);
+    expect(find.text('Explorer les relations'), findsOneWidget);
+  });
+
   testWidgets('forged cross-Space link is not presented', (tester) async {
     final projection = _projection();
     (projection['handoffs'] as Map<String, dynamic>)['relationships'] =
