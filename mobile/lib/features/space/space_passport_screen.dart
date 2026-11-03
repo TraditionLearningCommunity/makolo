@@ -83,6 +83,16 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   static String? value(Object? item) =>
       item is String && item.trim().isNotEmpty ? item.trim() : null;
 
+  static String datedAt(Object? raw) {
+    final parsed = DateTime.tryParse(raw?.toString() ?? '');
+    if (parsed == null) return raw?.toString() ?? '';
+    final date = parsed.toLocal();
+    String two(int item) => item.toString().padLeft(2, '0');
+    return two(date.day) + '/' + two(date.month) + '/' +
+        date.year.toString() + ' ' + two(date.hour) + ':' +
+        two(date.minute);
+  }
+
   void message(String text) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text)),
@@ -418,8 +428,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                         leading: const Icon(Icons.history_outlined),
                         title: Text(value(item['document_id']) ?? 'Passeport'),
                         subtitle: Text(
-                          (value(item['generated_at']) ?? '') + ' · ' +
-                          (variants[item['variant']] ?? '')),
+                          datedAt(item['generated_at']) + ' · ' +
+                          (variants[item['variant']] ?? '') +
+                          (item['revoked'] == true ? ' · Révoquée' : '') +
+                          (item['integrity_ok'] != true ? ' · Non intègre' : '')),
                         onTap: item['integrity_ok'] == true ? () {
                           Navigator.pop(sheet);
                           final route = value(item['verification_path']);
