@@ -22,6 +22,7 @@ class ActivityDetailPresentation {
     required this.state,
     required this.availability,
     required this.occurrences,
+    this.occurrencesHasMore = false,
     this.owner,
     this.vertical,
   });
@@ -33,6 +34,8 @@ class ActivityDetailPresentation {
   final String? owner;
   final String? vertical;
   final List<ActivityOccurrenceSummary> occurrences;
+  /// The Activity owner may intentionally bound its occurrence projection.
+  final bool occurrencesHasMore;
 }
 
 class OccurrenceDetailPresentation {
@@ -100,6 +103,7 @@ class DiscoveryDetailSelector {
       owner: _text(owner?['display_name']),
       vertical: _text(identity?['vertical']),
       occurrences: List.unmodifiable(items),
+      occurrencesHasMore: _map(payload['occurrences_page'])?['has_more'] == true,
     );
   }
 
