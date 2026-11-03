@@ -90,16 +90,14 @@ class W8PersonalConnectionsWebTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
-        self.assertContains(response, "Aucune connexion pour le moment.")
-        self.assertContains(
-            response,
-            "Aucun service n’est encore disponible pour votre Profil.",
-        )
+        self.assertContains(response, "Services à découvrir")
+        self.assertContains(response, "Mes connexions")
+        self.assertContains(response, "Tavily")
         self.assertNotContains(response, "Marketplace")
         self.assertNotContains(response, "Connecter")
         self.assertNotContains(response, "Gmail")
         self.assertNotContains(response, "Google Calendar")
-        self.assertNotContains(response, "OpenAI")
+        self.assertContains(response, "OpenAI API")
 
     def test_profile_connections_are_humanized_and_secret_free(self):
         own = self._connection(
@@ -137,12 +135,14 @@ class W8PersonalConnectionsWebTests(TestCase):
         )
 
         self.client.force_login(self.user)
-        response = self.client.get(reverse("core:participant-connections"))
-        html = response.content.decode("utf-8")
+        url = reverse("core:participant-connections")
+        response = self.client.get(f"{url}?tab=mine")
+        detail = self.client.get(f"{url}?connection={own.pk}")
+        html = detail.content.decode("utf-8")
 
         self.assertContains(response, "Service personnel")
         self.assertContains(response, "Connecté et disponible")
-        self.assertContains(response, "Génération de texte")
+        self.assertContains(detail, "Génération de texte")
         self.assertContains(response, "Service désactivé")
         self.assertContains(response, "Désactivé")
         self.assertContains(response, "Service dégradé")
@@ -185,13 +185,59 @@ class W8PersonalConnectionsWebTests(TestCase):
         )
         foreign.routes.update(capability=IntelligenceCapability.WEB_RESEARCH.value)
         self.client.force_login(self.user)
-        response = self.client.get(reverse("core:participant-connections"))
+        url = reverse("core:participant-connections")
+        response = self.client.get(f"{url}?tab=mine")
+        detail = self.client.get(f"{url}?connection={own.pk}")
+        disabled = self.client.get(f"{url}?connection={other.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Recherche utilisable")
         self.assertContains(response, "Recherche désactivée")
         self.assertNotContains(response, "Recherche autre Profil")
-        self.assertContains(response, "Explorer dans Découvrir", count=1)
-        self.assertContains(response, reverse("discovery:home"))
+        self.assertContains(detail, "Explorer dans Découvrir", count=1)
+        self.assertContains(detail, reverse("discovery:home"))
+        self.assertNotContains(disabled, "Explorer dans Découvrir")
+
+    def test_catalogue_filters_and_n3_use_owner_offers_only(self):
+        from unittest.mock import patch
+
+        self.client.force_login(self.user)
+        url = reverse("core:participant-connections")
+        response = self.client.get(f"{url}?tab=discover&cap=web_research&q=Tavily")
+        self.assertContains(response, "Tavily")
+        self.assertNotContains(response, "Exa")
+        self.assertNotContains(response, "OpenAI API")
+
+        with patch.dict(
+            "os.environ",
+            {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "test-key-for-display-only"},
+        ):
+            detail = self.client.get(f"{url}?offer=tavily")
+            self.assertContains(detail, 'name="provider" value="tavily"')
+            self.assertContains(detail, 'name="api_key"')
+            self.assertContains(detail, 'name="consent"')
+            self.assertNotContains(detail, 'name="model"')
+
+        unknown = self.client.get(f"{url}?offer=unregistered-provider")
+        self.assertNotContains(unknown, 'name="provider" value="unregistered-provider"')
+
+    def test_foreign_connection_cannot_be_opened_via_n3_query(self):
+        own = self._connection(
+            name="Ma connexion contrôlée",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+        )
+        foreign = self._connection(
+            name="Connexion d'un autre profil",
+            scope=ProviderScope.PROFILE,
+            profile=self.other_profile,
+        )
+        self.client.force_login(self.user)
+        url = reverse("core:participant-connections")
+        detail = self.client.get(f"{url}?connection={own.pk}")
+        self.assertContains(detail, "Ma connexion contrôlée")
+        foreign_detail = self.client.get(f"{url}?connection={foreign.pk}")
+        self.assertNotContains(foreign_detail, "Connexion d'un autre profil")
+        self.assertNotContains(foreign_detail, str(foreign.pk))
 
     def test_space_and_platform_connections_never_leak_into_personal_page(self):
         space = Organization.objects.create(
