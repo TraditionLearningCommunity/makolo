@@ -338,6 +338,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
+                      if (text.runes.length > 254) {
+                        return '254 caractères maximum.';
+                      }
                       return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
                           .hasMatch(text)
                           ? null
@@ -356,8 +359,12 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
+                      if (text.runes.length > 40) {
+                        return '40 caractères maximum.';
+                      }
                       final digits = RegExp(r'[0-9]').allMatches(text).length;
-                      return RegExp(r'^\+?[0-9().\s-]+$').hasMatch(text) &&
+                      return RegExp(r'^(?:\+?[0-9][0-9().\s-]*|\(\+[0-9]{1,4}\)[0-9().\s-]*)$')
+                          .hasMatch(text) &&
                               digits >= 7 &&
                               digits <= 15
                           ? null
