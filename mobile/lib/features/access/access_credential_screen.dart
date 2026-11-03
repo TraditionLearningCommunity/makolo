@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 import '../../platform/scanner/qr_renderer.dart';
 import 'access_repository.dart';
 
