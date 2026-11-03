@@ -126,8 +126,8 @@ class SpaceWorkSurface extends StatelessWidget {
           Text(
             payload['coverage_state'] == 'partial' ||
                     payload['composition_state'] == 'partial'
-                ? 'Cette lecture est limitée à votre responsabilité. '
-                      'Aucun élément connu dans cette sélection.'
+                ? 'Cette sélection ne couvre pas tout le travail de cet Espace. '
+                      'Aucun élément connu ici.'
                 : emptyMessage,
           ),
         if (visible.isNotEmpty)
