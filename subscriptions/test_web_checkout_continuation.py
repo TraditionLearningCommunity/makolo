@@ -48,6 +48,10 @@ class WebSubscriptionCheckoutTests(TestCase):
             reverse("payments:obligation-start", kwargs={"obligation_pk": linked.obligation_id}),
         )
         self.assertFalse(self.subscription.items.filter(plan_version=version, status="active").exists())
+        overview = self.client.get(reverse("subscriptions:home"))
+        self.assertEqual(overview.status_code, 200)
+        self.assertContains(overview, "Reprendre le paiement")
+        self.assertNotContains(overview, "Annuler la demande")
 
         satisfy_payment_obligation(obligation=linked.obligation, source="web-checkout-test")
         transition.refresh_from_db()
