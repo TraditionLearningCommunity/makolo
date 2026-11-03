@@ -527,6 +527,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                       item: resolved!,
                       api: shareApi,
                       authenticated: shareAuthenticated,
+                      enabled: !saving,
                       baseUri: baseUri,
                       iconOnly: true,
                     ),
@@ -697,6 +698,16 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     try {
       await save(item);
       if (mounted && _selectedCandidateKey == item.candidateKey) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              item.savedState == 'saved'
+                  ? 'Retiré des enregistrements.'
+                  : 'Possibilité enregistrée.',
+            ),
+          ),
+        );
+        // This is a new owner-confirmed saved state, not an optimistic one.
         await _resolveSelected();
       }
     } on Object {
