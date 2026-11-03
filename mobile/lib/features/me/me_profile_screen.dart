@@ -291,6 +291,85 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     }
   }
 
+  Future<void> _changeIdentifier() async {
+    if (_saving || !_loaded) return;
+    final editor = TextEditingController(text: _accountIdentifier ?? '');
+    try {
+      final proposed = await showDialog<String>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Identifiant Makolo'),
+          content: TextField(
+            controller: editor,
+            autofocus: true,
+            maxLength: 30,
+            autocorrect: false,
+            textCapitalization: TextCapitalization.none,
+            decoration: const InputDecoration(
+              labelText: 'Nouvel identifiant',
+              prefixText: '@',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, editor.text.trim()),
+              child: const Text('Modifier'),
+            ),
+          ],
+        ),
+      );
+      if (proposed == null || proposed.isEmpty || !mounted ||
+          proposed == _accountIdentifier) return;
+      try {
+        final response = await widget.api.patch(
+          'api/v1/accounts/auth/identifier/',
+          body: {'username': proposed},
+        );
+        final user = response.jsonObject()['user'];
+        final updated = user is Map
+            ? user['username']?.toString()
+            : null;
+        if (!mounted) return;
+        setState(() {
+          _accountIdentifier = updated ?? proposed;
+          _error = null;
+          _confirmation = 'Identifiant Makolo mis à jour.';
+        });
+        try {
+          await widget.personal.store.deleteProjection(
+            'personal.me.passport',
+            resourceKey: 'variant=complete',
+          );
+        } on Object {
+          // Source owner projection will be fetched again on the next visit.
+        }
+        await _refreshPersonal();
+      } on MakoloApiError catch (error) {
+        if (!mounted) return;
+        final errors = error.fields['username'];
+        final reason = errors is List && errors.isNotEmpty
+            ? errors.first.toString()
+            : errors is String && errors.isNotEmpty
+                ? errors
+                : 'Impossible de modifier cet identifiant.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(reason)),
+        );
+      } on Object {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Modification de l’identifiant indisponible.')),
+        );
+      }
+    } finally {
+      editor.dispose();
+    }
+  }
+
   Future<void> _changeAvatar() async {
     if (_saving || !_loaded) return;
     final source = await showModalBottomSheet<bool>(
@@ -625,6 +704,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   'Identifiant Makolo',
                   _accountIdentifier ??
                       _cachedIdentity?['username']?.toString(),
+                  onChange: _saving ? null : _changeIdentifier,
                 ),
                 _birthDatePicker(),
                 _genderSelector(),
@@ -753,7 +833,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     );
   }
 
-  Widget _readOnlyAccountDetail(String label, String? value) => Padding(
+  Widget _readOnlyAccountDetail(
+    String label,
+    String? value, {
+    VoidCallback? onChange,
+  }) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: InputDecorator(
       decoration: InputDecoration(
@@ -761,14 +845,26 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         border: const OutlineInputBorder(),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 14,
+          horizontal: 14, vertical: 8,
         ),
       ),
-      child: Text(
-        value == null || value.trim().isEmpty
-            ? 'Non disponible'
-            : value.trim(),
-        style: Theme.of(context).textTheme.bodyMedium,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              value == null || value.trim().isEmpty
+                  ? 'Non disponible'
+                  : value.trim(),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          if (onChange != null)
+            IconButton(
+              tooltip: 'Modifier $label',
+              onPressed: onChange,
+              icon: const Icon(Icons.edit_outlined),
+            ),
+        ],
       ),
     ),
   );
