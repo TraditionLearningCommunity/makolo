@@ -137,7 +137,9 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   personal: runtime.personal,
                   onEdit: runtime.personal == null
                       ? null
-                      : () => context.push('/me/profile'),
+                      : () async {
+                          await context.push('/me/profile');
+                        },
                 ),
         ),
         GoRoute(
