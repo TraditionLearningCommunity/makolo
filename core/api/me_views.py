@@ -1,6 +1,9 @@
 from django.utils import timezone
 from core.web_throttling import allow_web_request, value_rate_identity
-from django.http import Http404
+from django.http import Http404, HttpResponse
+from datetime import timezone as dt_timezone
+from core.branding import render_makolo_qr_png
+from sharing.passport_pdf_layout import render_passport_layout
 from django.core.exceptions import ValidationError as DjangoValidationError, PermissionDenied as DjangoPermissionDenied
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -440,6 +443,42 @@ class PersonalPassportVersionAPIView(PersonalProjectionAPIView):
             },
             observed_at=timezone.now(),
         )
+
+
+class PersonalPassportVersionPdfAPIView(PersonalProjectionAPIView):
+    """Export an existing immutable snapshot; never issue a second version."""
+    projection_code = "personal.me.passport.version"
+
+    def get(self, request, snapshot_id):
+        self._guard_personal_scope(request)
+        snapshot = get_object_or_404(
+            PassportSnapshot, pk=snapshot_id, profile=request.user,
+        )
+        if not snapshot_payload_is_intact(snapshot):
+            raise Http404("Document non intègre.")
+        verify_url = request.build_absolute_uri(reverse(
+            "sharing:passport-verify",
+            kwargs={"token": passport_verification_token(snapshot)},
+        ))
+        issued = snapshot.generated_at.astimezone(dt_timezone.utc)
+        content = render_passport_layout(
+            snapshot.payload,
+            {
+                "document_id": snapshot.document_id,
+                "issued_at": issued.strftime("%d/%m/%Y · %H:%M UTC"),
+                "variant": snapshot.get_variant_display(),
+                "identifier": snapshot.public_identifier,
+            },
+            verify_url,
+            qr_png=render_makolo_qr_png(verify_url, branded=True, box_size=5),
+        )
+        response = HttpResponse(content, content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="passeport-makolo-{snapshot.document_id}.pdf"'
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class PersonalPassportShareAPIView(PersonalProjectionAPIView):
