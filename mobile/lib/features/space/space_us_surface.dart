@@ -520,9 +520,10 @@ class SpaceUsSurface extends StatelessWidget {
       return 'Aucune relation visible';
     }
     final count = items.length;
+    final label = count == 1 ? 'relation visible' : 'relations visibles';
     return section?['has_more'] == true
-        ? '$count éléments visibles dans cet aperçu · d’autres sont disponibles'
-        : '$count relation${count == 1 ? '' : 's'} visible${count == 1 ? '' : 's'}';
+        ? '$count $label dans cet aperçu · d’autres sont disponibles'
+        : '$count $label';
   }
 
   static Widget _sectionTitle(
