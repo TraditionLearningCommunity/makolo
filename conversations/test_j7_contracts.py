@@ -149,6 +149,17 @@ class ConversationJ7ContractsTests(TestCase):
             404,
         )
 
+    def test_c1_updated_after_requires_explicit_timezone(self):
+        self.client.force_login(self.member)
+        url = reverse("conversations-api:list")
+        naive = self.client.get(url, {"updated_after": "2026-11-04T09:00:00"})
+        self.assertEqual(naive.status_code, 400)
+        self.assertIn("updated_after", naive.json())
+
+        aware = self.client.get(url, {"updated_after": "2026-11-04T09:00:00Z"})
+        self.assertEqual(aware.status_code, 200)
+        self.assertIn("results", aware.json())
+
     def test_api_response_is_idempotent_by_client_reference(self):
         point = self._question(client_reference="j7-api-question")
         self.client.force_login(self.member)
