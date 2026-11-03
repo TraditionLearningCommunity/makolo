@@ -61,11 +61,11 @@ def conversations_for_context(profile, kind, context_pk):
         candidates = list(
             Conversation.objects.select_related("context").filter(
                 filters, context__kind=kind,
-            ).order_by("-updated_at", "pk")[:50]
+            ).order_by("-updated_at", "pk")[:200]
         )
     except (ValidationError, ValueError, TypeError):
         return []
-    return [conversation for conversation in candidates if can_view_conversation(profile, conversation)]
+    return [conversation for conversation in candidates if can_view_conversation(profile, conversation)][:50]
 
 
 
