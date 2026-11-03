@@ -53,3 +53,23 @@ urlpatterns += [
     path("spaces/<slug:slug>/allocations/<uuid:allocation_id>/<str:operation>/", AllocationBeneficiaryAPIView.as_view(), name="space-benefit-decision"),
     path("spaces/<slug:slug>/base/personal/", UsePersonalBaseAPIView.as_view(), name="space-own-base"),
 ]
+
+from .coverage_native_api_views import (
+    PersonalCoverageAPIView,
+    SpaceCoverageAPIView,
+    CoverageManageAPIView,
+    CoverageAllocationAPIView,
+    CoverageStatusAPIView,
+    PersonalCoverageDecisionAPIView,
+    SpaceCoverageDecisionAPIView,
+)
+
+urlpatterns += [
+    path("me/coverages/", PersonalCoverageAPIView.as_view(), name="me-coverages"),
+    path("me/coverages/allocations/<uuid:allocation_id>/", PersonalCoverageDecisionAPIView.as_view(), name="me-coverage-decision"),
+    path("spaces/<slug:slug>/coverages/", SpaceCoverageAPIView.as_view(), name="space-coverages"),
+    path("spaces/<slug:slug>/coverages/allocations/<uuid:allocation_id>/", SpaceCoverageDecisionAPIView.as_view(), name="space-coverage-decision"),
+    path("coverages/<uuid:coverage_id>/", CoverageManageAPIView.as_view(), name="funded-coverage"),
+    path("coverages/<uuid:coverage_id>/allocations/", CoverageAllocationAPIView.as_view(), name="funded-coverage-allocations"),
+    path("coverages/<uuid:coverage_id>/status/", CoverageStatusAPIView.as_view(), name="funded-coverage-status"),
+]
