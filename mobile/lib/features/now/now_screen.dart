@@ -137,7 +137,10 @@ class _NowScreenState extends State<NowScreen> {
         if (raw is Map<String, dynamic>) restored.add(raw);
       }
       if (restored.isEmpty) return;
-      if (_paging) return;
+      // A newer root may have arrived while local storage was being read.
+      if (_paging ||
+          (_pagedBaseReceivedAt != null &&
+              _pagedBaseReceivedAt != root.receivedAt)) return;
       setState(() {
         _pagedBaseReceivedAt = root.receivedAt;
         _pagedActorId = actorId;
