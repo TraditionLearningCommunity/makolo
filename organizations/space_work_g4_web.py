@@ -11,6 +11,7 @@ from organizations.models import SpaceArchetype
 
 from .api.space_work_projection import build_space_work_projection
 from .space_web_views import SpaceWebMixin
+from .space_work_navigation import restore_work_origin
 
 
 _ARCHETYPES = {SpaceArchetype.CREATIVE, SpaceArchetype.MEDIA}
@@ -190,4 +191,9 @@ class SpaceWorkG4DepthView(SpaceWebMixin):
             "back_label": back_label,
             "parent_url": parent_url,
         }
+        restore_work_origin(
+            request=self.request, context=context, context_key="work_g4",
+            space=self.space, responsibility=responsibility,
+            section=section,
+        )
         return context
