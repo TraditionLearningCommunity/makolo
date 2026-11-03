@@ -1021,7 +1021,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
         path: 'api/v1/me/passport/pdf/',
         queryParameters: _passportParams(),
       ).toString();
-      await widget.api.download(url, destinationPath: file);
+      final response = await widget.api.download(url, destinationPath: file);
+      final disposition = response.headers.entries
+          .where((entry) => entry.key.toLowerCase() == 'content-disposition')
+          .map((entry) => entry.value)
+          .firstOrNull ?? '';
+      final suggestedName = RegExp(
+        r'filename="?([A-Za-z0-9._-]+\\.pdf)"?',
+      ).firstMatch(disposition)?.group(1);
+      if (suggestedName != null &&
+          suggestedName.startsWith('passeport-makolo-')) {
+        final datedFile = '${directory.path}/$suggestedName';
+        if (datedFile != file) {
+          await File(file).rename(datedFile);
+          return datedFile;
+        }
+      }
       return file;
     } on Object {
       if (mounted) {
@@ -1053,7 +1068,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     try {
       final saved = await savePassportPdf(
         file,
-        'passeport-makolo-$_variant.pdf',
+        file.split(Platform.pathSeparator).last,
       );
       if (mounted && saved != null) {
         ScaffoldMessenger.of(context).showSnackBar(
