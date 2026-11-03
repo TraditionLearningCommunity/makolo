@@ -15,6 +15,7 @@ class _DatedPassportApi implements MakoloApiClient {
   bool revoked = false;
   bool shareRevoked = false;
   String? lastPostPath;
+  final List<String> postedPaths = [];
   @override
   Uri get baseUri => Uri.parse('https://example.test/');
 
@@ -108,12 +109,20 @@ class _DatedPassportApi implements MakoloApiClient {
     MakoloCancelHandle? cancel,
   }) async {
     lastPostPath = path;
+    postedPaths.add(path);
     if (path.contains('passport/issue/')) {
       return _envelope('personal.me.passport.issuance', {
         'id': _versionId,
         'document_id': 'PM-P-20261030-11111111',
         'variant': Uri.parse(path).queryParameters['variant'] ?? 'complete',
         'generated_at': '2026-10-30T10:00:00Z',
+      });
+    }
+    if (path.contains('passport/history/$_versionId/share/')) {
+      return _envelope('personal.me.passport.share', {
+        'share_id': _shareId,
+        'share_url': 'https://example.test/passport/shared/issued',
+        'document_id': 'PM-P-20261030-11111111',
       });
     }
     if (path.contains('passport/history/$_versionId/revoke/')) {
@@ -297,10 +306,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Partager le Passeport'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Émettre et partager cette sélection'));
+    await tester.tap(find.text('Copier le lien du Passeport'));
     await tester.pumpAndSettle();
-    expect(api.lastPostPath, contains('api/v1/me/passport/issue/'));
-    expect(api.lastPostPath, contains('variant=public'));
+    expect(
+      api.postedPaths.any((p) =>
+        p.contains('api/v1/me/passport/issue/') &&
+        p.contains('variant=public'),
+      ), isTrue,
+    );
+    expect(
+      api.postedPaths.any((p) =>
+        p.contains('api/v1/me/passport/history/$_versionId/share/'),
+      ), isTrue,
+    );
   });
 
   testWidgets('public and empty thematic variants retain the identity baseline', (tester) async {
@@ -310,13 +328,12 @@ void main() {
     await tester.tap(find.text('Public'));
     await tester.pumpAndSettle();
     expect(find.text('Profil exemple'), findsOneWidget);
-    expect(find.textContaining('uniquement les informations renseignées'), findsOneWidget);
+    expect(find.textContaining('uniquement les informations renseignées'), findsNothing);
 
     await tester.tap(find.text('Thématique'));
     await tester.pumpAndSettle();
     expect(find.text('Profil exemple'), findsOneWidget);
-    expect(find.textContaining('Aucun thème disponible'), findsOneWidget);
-    expect(find.text('Choisir mes centres d’intérêt'), findsOneWidget);
+    expect(find.textContaining('Aucun thème sélectionnable'), findsOneWidget);
   });
 
 }
