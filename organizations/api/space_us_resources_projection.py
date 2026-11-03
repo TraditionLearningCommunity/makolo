@@ -13,7 +13,7 @@ from presentations.models import PresentationTemplateVersion, PresentationThemeV
 from sharing.models import PassportSnapshot
 
 PAGE_SIZE = 20
-PREVIEW_LIMIT = 4
+PREVIEW_LIMIT = 3
 RESOURCE_KINDS = ("passport", "template", "theme")
 
 
@@ -81,14 +81,13 @@ def build_space_us_resources_projection(
     counts = {name: qs.count() for name, qs in families.items()}
     total = sum(counts.values())
     if preview:
+        # One preview per actual owner family prevents many Passport
+        # revisions from drowning out reusable institutional resources.
         items = []
-        for name in RESOURCE_KINDS:
-            if len(items) >= PREVIEW_LIMIT:
-                break
-            available = PREVIEW_LIMIT - len(items)
+        for name in ("template", "theme", "passport"):
             items.extend(
                 _item(name, row, slug=space.slug)
-                for row in families[name][:available]
+                for row in families[name][:1]
             )
         return {
             "space_id": str(space.pk),
