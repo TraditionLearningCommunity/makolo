@@ -37,6 +37,16 @@ class SpaceWorkOwnerActions extends StatelessWidget {
       final kind = spaceText(owner?['kind']);
       final url = spaceText(item?['url']);
       if (intent == null || id == null || url == null) continue;
+      final ownerUrl = Uri.tryParse(url);
+      // An opaque Web/external URL or an unrelated API owner is not a
+      // native permission. The server must have supplied a first-party
+      // owner-specific API handoff in this selected Work item.
+      if (ownerUrl == null ||
+          ownerUrl.hasAuthority ||
+          !ownerUrl.path.startsWith('/api/v1/') ||
+          !ownerUrl.path.contains(id)) {
+        continue;
+      }
       String? route;
       String? title;
       IconData? icon;
