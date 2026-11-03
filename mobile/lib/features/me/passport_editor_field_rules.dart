@@ -98,7 +98,7 @@ class PassportEditorFieldRules {
     }
 
     if (key == 'phone') {
-      if (!RegExp(r'^\+?[0-9() .-]+$').hasMatch(value)) {
+      if (!RegExp(r'^(?:\+?[0-9][0-9() .-]*|\(\+[0-9]{1,4}\)[0-9() .-]*)$').hasMatch(value)) {
         return 'Numéro invalide.';
       }
       final digits = RegExp(r'[0-9]').allMatches(value).length;
