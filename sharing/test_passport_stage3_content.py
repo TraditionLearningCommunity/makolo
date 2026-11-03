@@ -39,7 +39,8 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         projection = build_profile_passport(
             self.amina, variant="thematic", topic_codes=[topic.code],
         )
-        self.assertEqual(list(projection.open_to), [opening])
+        self.assertEqual(list(projection.open_to), [])
+        self.assertIn(opening, build_profile_passport(self.amina, variant='complete').open_to)
         self.assertEqual(list(projection.interests), [])
         self.assertEqual(list(projection.activities), [])
 
@@ -50,10 +51,7 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
             {"code": topic.code, "label": topic.label},
             native["topic_options"],
         )
-        self.assertEqual(
-            [row["id"] for row in native["declared"]["open_to"]],
-            [str(opening.pk)],
-        )
+        self.assertEqual(native["declared"]["open_to"], [])
         self.client.force_login(self.amina)
         web = self.client.get(
             reverse("sharing:passport-me"),
@@ -137,6 +135,68 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         self.assertNotIn(archived.name, group_names)
         public = build_profile_passport(self.amina, variant="public")
         self.assertEqual(public.group_affiliations, ())
+
+    def test_one_owner_depth_has_public_allowlists_for_native_composition(self):
+        full = build_personal_passport_depth_data(self.amina, variant="complete")
+        self.assertEqual(full["variant"], "complete")
+        composition = full["composition"]
+        public = build_personal_passport_depth_data(self.amina, variant="public")
+        self.assertEqual(
+            composition["public_identity"], public["identity"],
+        )
+        self.assertEqual(
+            set(composition["public_ids"]["activities"]),
+            {row["id"] for row in public["activities"]},
+        )
+        self.assertEqual(
+            set(composition["public_ids"]["interests"]),
+            {row["id"] for row in public["declared"]["interests"]},
+        )
+        self.assertNotIn("private_details", composition["public_identity"])
+
+    def test_confirmed_activity_role_is_a_fact_not_an_inferred_participation(self):
+        from activities.involvement_models import (
+            ActivityInvolvement, ActivityInvolvementFunction,
+            ActivityInvolvementStatus, ActivityInvolvementVisibility,
+            ActivityInvolvementConfirmationBasis,
+            ActivityInvolvementFunctionKind,
+        )
+        from sharing.passport_documents import (
+            serialize_passport_projection,
+        )
+        involvement = ActivityInvolvement.objects.create(
+            activity=self.space_public_activity,
+            profile=self.amina,
+            recorded_by=self.amina,
+            confirmed_by=self.amina,
+            confirmed_at=timezone.now(),
+            status=ActivityInvolvementStatus.ACTIVE,
+            visibility=ActivityInvolvementVisibility.PUBLIC,
+            confirmation_basis=ActivityInvolvementConfirmationBasis.PROFILE_CONFIRMED,
+        )
+        ActivityInvolvementFunction.objects.create(
+            involvement=involvement,
+            kind=ActivityInvolvementFunctionKind.SPEAKER,
+        )
+        complete = build_profile_passport(self.amina, variant="complete")
+        public = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(len(public.activity_involvements), 1)
+        self.assertEqual(
+            public.activity_involvements[0]["role"], "Intervenant",
+        )
+        self.assertEqual(
+            serialize_passport_projection(public)["activity_involvements"][0]["id"],
+            str(involvement.pk),
+        )
+        self.assertEqual(
+            len(complete.activity_involvements), 1,
+        )
+        involvement.visibility = ActivityInvolvementVisibility.CONTEXT
+        involvement.save(update_fields=["visibility", "updated_at"])
+        self.assertEqual(
+            build_profile_passport(self.amina, variant="public").activity_involvements,
+            (),
+        )
 
     def test_compact_privacy_settings_return_only_collection_controls(self):
         from accounts.profile_visibility_projection import build_profile_visibility_settings
