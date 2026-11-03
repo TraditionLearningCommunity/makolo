@@ -87,8 +87,14 @@ class WS4SpaceWebTests(TestCase):
         )
         self.assertContains(response, self.space.name)
         self.assertContains(response, "Équipe")
-        self.assertContains(response, "Responsabilités")
+        self.assertContains(response, "Ma place dans cet Espace")
+        self.assertContains(response, "Voir mes autorisations")
         self.assertContains(response, "Gouvernance")
+        self.assertContains(response, "Passeport de cet Espace")
+        self.assertContains(
+            response,
+            reverse("sharing:passport-space", kwargs={"slug": self.space.slug}),
+        )
         self.assertIn("team", response.context["projection"]["relationships"]["sections"])
         self.assertContains(response, "Explorer ces relations")
         self.assertEqual(response["Cache-Control"], "private, no-store")
@@ -104,6 +110,7 @@ class WS4SpaceWebTests(TestCase):
         )
         self.assertContains(response, "Faits de vérification")
         self.assertContains(response, "Personnes & relations")
+        self.assertNotContains(response, "Au moins 4 relations dans cet aperçu")
         self.assertContains(response, "Paramètres de l’Espace")
         self.assertContains(response, "Connexions")
         self.assertEqual(
