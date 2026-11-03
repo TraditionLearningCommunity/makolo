@@ -1,6 +1,7 @@
 {% extends 'base/app.html' %}
 {% block title %}{{ profile_user.full_name|default:profile_user.username }} | Makolo{% endblock %}
 {% block content %}
+{% load conversation_tags %}
 <div class="mx-auto max-w-4xl space-y-6">
   <section class="mk-panel p-6 sm:p-8">
     <div class="flex items-start gap-5">
@@ -9,6 +10,8 @@
       {% if profile_user.profile.profession %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.profession }}</p>{% endif %}
       {% if profile_user.profile.city or profile_user.profile.country %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ profile_user.profile.city }}{% if profile_user.profile.city and profile_user.profile.country %}, {% endif %}{{ profile_user.profile.country }}</p>{% endif %}</div>
     </div>
+    {% conversation_context_entry request.user 'direct' profile_user.pk as direct_conversation %}
+    {% if direct_conversation %}<a class="mk-btn mk-btn-secondary mt-5" href="{% url 'conversations:by-context' 'direct' profile_user.pk %}">Échanger</a>{% endif %}
     {% if profile_user.bio %}<p class="mt-6 max-w-3xl leading-7">{{ profile_user.bio }}</p>{% endif %}
   </section>
 
