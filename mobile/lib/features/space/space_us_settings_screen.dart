@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -264,6 +265,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   TextFormField(
                     controller: name,
                     maxLength: 180,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
                       labelText: 'Nom de l’Espace',
                     ),
@@ -295,6 +297,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                       textCapitalization: TextCapitalization.none,
                       autocorrect: false,
                       maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.none,
                       decoration: const InputDecoration(
                         labelText: 'Site web', counterText: '',
                       ),
@@ -308,6 +311,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     keyboardType: TextInputType.emailAddress,
                     textCapitalization: TextCapitalization.none,
                     maxLength: 254,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
                       labelText: 'Adresse e-mail', counterText: '',
                     ),
@@ -319,6 +323,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     controller: phone,
                     keyboardType: TextInputType.phone,
                     maxLength: 50,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
                       labelText: 'Téléphone', counterText: '',
                     ),
