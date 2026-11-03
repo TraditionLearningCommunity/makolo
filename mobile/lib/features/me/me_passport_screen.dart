@@ -214,7 +214,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ...complete,
       'variant': requested,
       'identity': identity,
-      'private_details': <String, dynamic>{},
+      'private_details': _map(identity['presentation_details']),
       'collectives': <String, dynamic>{},
       'declared': {
         ...declared,
@@ -519,7 +519,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         },
         'private_details': version['variant'] == 'complete'
             ? _map(identity['owner_details'])
-            : <String, dynamic>{},
+            : _map(identity['presentation_details']),
         'declared': {
           'interests': [
             for (final item
@@ -1370,9 +1370,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         ),
         if (_variant == 'thematic') ...[
           const SizedBox(height: 10),
-          if (topics.isEmpty)
-            const Text('Aucun thème sélectionnable.')
-          else
+          if (topics.isNotEmpty)
             DropdownButtonFormField<String>(
               initialValue: _topic,
               isExpanded: true,
@@ -1412,7 +1410,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
             spacing: 6,
             children: [
               for (final option in const [
-                ('avatar', 'Photo privée (si choisie)'),
+                ('avatar', 'Photo'),
                 ('bio', 'À propos'),
                 ('profession', 'Profession'),
                 ('company_name', 'Entreprise renseignée'),
@@ -1895,12 +1893,6 @@ class _PassportBody extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Visible uniquement dans mon passeport complet',
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           for (final field in visible)
