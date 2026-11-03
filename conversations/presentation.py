@@ -226,6 +226,27 @@ def now_points_for_profile(profile, conversation, *, limit=100):
     return rows
 
 
+def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), limit=50):
+    """Visible open Points outside the owner's attention/essential selection."""
+    if not can_view_conversation(profile, conversation):
+        return []
+    excluded = set(excluded_ids)
+    candidates = conversation.points.filter(
+        lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED},
+    ).select_related(
+        "visibility_audience", "response_audience", "expected_action_audience",
+        "resolution_audience",
+    ).prefetch_related("options").order_by("published_at", "pk")[: max(limit * 4, 100)]
+    result = []
+    for point in candidates:
+        if point.pk in excluded or not point_visible_to(profile, point):
+            continue
+        result.append(point)
+        if len(result) >= limit:
+            break
+    return result
+
+
 def essential_points_for_profile(profile, conversation, *, limit=50):
     if not can_view_conversation(profile, conversation):
         return []
