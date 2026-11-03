@@ -250,6 +250,7 @@ def invite_coverage_beneficiary(
     if group_parent is not None:
         parent = SubscriptionCoverageAllocation.objects.select_for_update().get(pk=group_parent.pk)
         _require_group_manager(actor, parent.group)
+        _require_group_manager(actor, parent.group)
         if not profile or parent.coverage_id != coverage.pk or not _group_member_allowed(parent, profile):
             raise CoverageError("Ce Profil ne remplit pas le périmètre du Groupe.")
     key = _identity_key("allocation", coverage.pk, request_key)
