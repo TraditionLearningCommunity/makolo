@@ -135,10 +135,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
       if (!mounted) return;
       setState(() => _preparationMessage = complete
-          ? 'Les pages d’historique disponibles auprès du serveur '
-              'ont été conservées sur cet appareil.'
-          : 'Les pages déjà reçues restent disponibles hors connexion. '
-              'Reprenez la préparation avec Internet pour compléter.');
+          ? 'Les éléments d’historique actuellement disponibles '
+              'ont été enregistrés sur cet appareil.'
+          : 'Les éléments déjà enregistrés restent accessibles hors connexion. '
+              'Reconnectez-vous pour terminer la préparation.');
     } on Object {
       if (mounted) {
         setState(() => _preparationMessage =
@@ -260,8 +260,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 appBar: AppBar(title: const Text('Historique')),
                 body: const Center(
                   child: Text(
-                    'Cet historique n’est plus disponible avec '
-                    'l’autorité actuelle.',
+                    'Cet historique n’est plus accessible.',
                   ),
                 ),
               );
@@ -354,7 +353,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 state: surface,
                 empty: const MakoloEmptyState(
                   title: 'Aucun historique à afficher',
-                  body: 'Les expériences terminées apparaîtront ici.',
+                  body: 'Vous retrouverez ici vos démarches et accès passés.',
                 ),
                 initialLoading: const SizedBox.expand(),
                 onRetry: _refreshFirst,
@@ -429,7 +428,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           if (_preparingOffline) ...[
                             const LinearProgressIndicator(),
-                            Text('Pages d’historique reconnues : '
+                            Text('Pages d’historique enregistrées : '
                                 '$_preparedPages'),
                           ],
                           if (_preparationMessage != null)
@@ -447,8 +446,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                           if (_query.isNotEmpty || _filter != 'all') ...[
                             const Text(
-                              'Recherche parmi les événements déjà reçus. '
-                              'Le serveur peut en connaître d’autres.',
+                              'La recherche porte sur les éléments enregistrés. '
+                              'D’autres résultats peuvent apparaître après une mise à jour.',
                             ),
                             const SizedBox(height: MakoloSpacing.sm),
                           ],
