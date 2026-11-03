@@ -553,6 +553,9 @@ class DiscoveryRepository {
         if (payload['results'] is! List || payload['count'] is! int) {
           throw const FormatException('Invalid Discovery spatial presentation');
         }
+        // A legacy map response contains coordinates but no canonical
+        // identities. Reject it rather than silently rendering an empty map.
+        DiscoveryWire.validateData(payload);
         return AcquiredProjection(schemaVersion: 1, payload: payload);
       },
       applier: applyProjectionSnapshot,
