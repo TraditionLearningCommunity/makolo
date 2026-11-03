@@ -1,5 +1,6 @@
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/api_error.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_engine.dart';
@@ -149,8 +150,19 @@ class HistoryRepository {
         'offset': '$offset',
       },
     ).toString();
-    final response = await api.get(path);
-    final envelope = response.jsonObject();
+    late final Map<String, dynamic> envelope;
+    try {
+      final response = await api.get(path);
+      envelope = response.jsonObject();
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        // Explicit owner withdrawal is not a transport outage. It must also
+        // hide cached searches, not merely the unfiltered first page.
+        await forgetCachedSearch(query: query, type: type);
+        await sync?.invalidate(sourceFor(offset: 0));
+      }
+      rethrow;
+    }
     if (envelope['meta'] is! Map ||
         (envelope['meta'] as Map)['projection'] != projectionKind ||
         envelope['data'] is! Map) {
