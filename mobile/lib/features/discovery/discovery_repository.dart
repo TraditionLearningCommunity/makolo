@@ -966,7 +966,7 @@ class DiscoveryRepository {
     bool requireSpatial = false,
   }) async {
     final snapshot = await readItems(query);
-    if (!_freshEnough(snapshot, discoveryFreshness.refreshRecommendedAfter)) {
+    if (!_freshEnough(snapshot, discoveryFreshness.refreshRecommendedAfter!)) {
       return false;
     }
     final state = await readSource(itemsSource(query));
