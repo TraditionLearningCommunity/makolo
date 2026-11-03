@@ -113,8 +113,35 @@ d'aperçu personnalisé minimal et de recalcul serveur de chaque variante.
 - Les relations internes Membership/Mandate/Access restent owner-only sans
   autorisation explicite de divulgation propre à leur domaine. Une projection
   ne fait pas naître un droit collectif.
-- L'édition du Profil n'appartient pas à ce chantier.
+- L'édition du Profil relevait d'un chantier distinct lors de cet addendum.
+  Elle a ensuite été intégrée à #522 via le même propriétaire Accounts,
+  sans modèle `PassportEditor` parallèle.
 
 **Qualité non attestée :** les modifications ont été poussées sur #522, mais
 la suite Django, le formatage et les tests Flutter/Android sont à exécuter avant
 une éventuelle fusion. La PR reste non fusionnée.
+
+
+## Rectification de composition et de l'éditeur — 3 novembre 2026
+
+- La propriété privée `private_details` est réservée au propriétaire de
+  Complet. Les autres variantes transportent `presentation_details`,
+  liste bornée par la visibilité de chaque fait ; Flutter expose cette
+  présentation comme `personal_details`, sans réutiliser le conteneur privé.
+- L'audience de `name` contrôle le prénom et le nom, sans cacher
+  l'identifiant public. `city` et `country` sont indépendants.
+  Les coordonnées sensibles (téléphone, adresse, naissance) ne sont pas
+  rendues publiques implicitement.
+- Une émission conserve dans le snapshot la même sélection autorisée ;
+  la consultation publique historique réévalue les retraits d'audience.
+- Les variantes restent des suppressions sur un seul socle local.
+  Aucun chargement serveur supplémentaire n'est introduit par le changement
+  d'onglet en lui-même.
+- L'édition du Profil est réorganisée en groupes naturels, affiche
+  l'e-mail sans le modifier, et utilise `auth/identifier/` pour un
+  éventuel changement d'identifiant, soumis aux règles Accounts.
+- Le menu de partage courant contient quatre options. L'ancien document
+  relève exclusivement de la page Versions.
+
+Les tests ajoutés décrivent ces contrats. Leur exécution et la vérification
+sur appareil restent nécessaires avant une éventuelle fusion.
