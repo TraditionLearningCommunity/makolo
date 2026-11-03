@@ -135,6 +135,10 @@ void main() {
     final tile = tester.widget<ListTile>(
       find.ancestor(of: find.text('Tavily'), matching: find.byType(ListTile)),
     );
-    expect(tile.onTap, isNull);
+    expect(tile.onTap, isNotNull);
+    await tester.tap(find.text('Tavily'));
+    await tester.pump();
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.textContaining('Ce service reste consultable'), findsOneWidget);
   });
 }
