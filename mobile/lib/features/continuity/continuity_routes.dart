@@ -104,6 +104,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         kind: ObjectiveDepth.dossier,
         id: state.pathParameters['id']!,
         repository: repository,
+        conversations: runtime.conversations,
+        onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenDossier: (id) => context.push('/dossiers/$id'),
         onOpenJourney: (id) => context.push('/journeys/$id'),
       );
@@ -124,6 +126,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         kind: ObjectiveDepth.project,
         id: state.pathParameters['id']!,
         repository: repository,
+        conversations: runtime.conversations,
+        onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenDossier: (id) => context.push('/dossiers/$id'),
         onOpenJourney: (id) => context.push('/journeys/$id'),
       );
