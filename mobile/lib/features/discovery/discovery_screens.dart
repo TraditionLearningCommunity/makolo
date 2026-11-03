@@ -1957,15 +1957,27 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchActivityPreview(widget.activityId),
+    return StreamBuilder<DiscoverySourceState>(
+      stream: widget.repository.watchSource(
+        widget.repository.activitySource(widget.activityId),
+      ),
+      initialData: DiscoverySourceState.unknown,
+      builder: (context, ownerSnapshot) {
+        final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
+        return StreamBuilder<StoredProjection?>(
+          stream: widget.repository.watchActivityPreview(widget.activityId),
       builder: (context, previewSnapshot) {
         return StreamBuilder<StoredProjection?>(
           stream: widget.repository.watchActivity(widget.activityId),
           builder: (context, snapshot) {
-            final activity =
-                _selector.activity(snapshot.data) ??
-                _selector.activityPreview(previewSnapshot.data);
+            final id = snapshot.data?.payload['identity'];
+            final valid = id is Map &&
+                id['kind'] == 'activity' &&
+                id['id'] == widget.activityId;
+            final activity = owner.ownerUnavailable
+                ? null
+                : (valid ? _selector.activity(snapshot.data) : null) ??
+                    _selector.activityPreview(previewSnapshot.data);
             return Scaffold(
               appBar: AppBar(
                 title: const Text('Activité'),
@@ -1978,14 +1990,24 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 ],
               ),
               body: MakoloNetworkContextFrame(
-                child: activity == null
-                    ? _knownSavedTitle == null
-                          ? const SizedBox.expand()
-                          : ListView(
-                              children: [
-                                MakoloDetailHeader(title: _knownSavedTitle!),
-                              ],
-                            )
+                child: owner.ownerUnavailable
+                    ? MakoloErrorState(
+                        message: 'Cette activité n’est plus accessible.',
+                        onRetry: _refresh,
+                      )
+                    : activity == null
+                    ? _knownSavedTitle != null
+                        ? ListView(
+                            children: [
+                              MakoloDetailHeader(title: _knownSavedTitle!),
+                            ],
+                          )
+                        : _refreshing
+                        ? const MakoloLoadingState(label: 'Mise à jour…')
+                        : MakoloErrorState(
+                            message: 'Cette activité n’est pas disponible.',
+                            onRetry: _refresh,
+                          )
                     : ListView(
                         padding: const EdgeInsets.only(
                           bottom: MakoloSpacing.xl,
@@ -2059,6 +2081,17 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                     if (index < activity.occurrences.length - 1)
                                       const SizedBox(height: MakoloSpacing.sm),
                                   ],
+                                  if (activity.occurrencesHasMore)
+                                    Padding(
+                                      key: const Key('discover-n3-occurrences-limited'),
+                                      padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                                      child: Text(
+                                        'D’autres réalisations existent. Cette page '
+                                        'présente uniquement celles communiquées '
+                                        'dans le détail actuel.',
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -2066,6 +2099,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       ),
               ),
             );
+          },
+        );
           },
         );
       },
