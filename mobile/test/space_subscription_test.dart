@@ -105,7 +105,9 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Formule de l’Espace A'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Équipe de l’Espace'), 180);
+      await tester.ensureVisible(find.text('Capacités de cet Espace'));
+      await tester.tap(find.text('Capacités de cet Espace'));
+      await tester.pumpAndSettle();
       expect(find.text('Équipe de l’Espace'), findsOneWidget);
       expect(find.text('Mon abonnement'), findsNothing);
 
