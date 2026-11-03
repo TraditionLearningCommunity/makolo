@@ -34,7 +34,7 @@ class C4WebConnectionTests(TestCase):
     def test_profile_form_creates_and_removes_encrypted_connection(self):
         self.client.force_login(self.actor)
         url = reverse("core:participant-connections")
-        page = self.client.get(url)
+        page = self.client.get(f"{url}?offer=tavily")
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Relier ce service")
         self.assertContains(page, 'name="api_key"')
@@ -48,7 +48,7 @@ class C4WebConnectionTests(TestCase):
             scope=ProviderScope.PROFILE, profile__user=self.actor,
         )
         self.assertEqual(row.name, "Recherche personnelle")
-        displayed = self.client.get(url)
+        displayed = self.client.get(f"{url}?tab=mine")
         self.assertContains(displayed, "Recherche personnelle")
         self.assertNotContains(displayed, "C4-WEB-SECRET")
         self.assertNotContains(displayed, "api.tavily.com")
