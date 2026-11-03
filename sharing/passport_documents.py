@@ -125,6 +125,18 @@ def profile_public_snapshot_still_disclosable(snapshot):
     ):
         if identity.get(key) and not visibility.field(key):
             return False
+    published_personal = identity.get("presentation_details") or {}
+    permitted_keys = {"first_name", "last_name", "username", "city", "country"}
+    if not isinstance(published_personal, dict) or (
+        set(published_personal) - permitted_keys
+    ):
+        return False
+    for key, visibility_key in (
+        ("first_name", "name"), ("last_name", "name"),
+        ("city", "city"), ("country", "country"),
+    ):
+        if published_personal.get(key) and not visibility.field(visibility_key):
+            return False
     if identity.get("location") and not (
         visibility.field("city") and visibility.field("country")
     ):
