@@ -393,13 +393,20 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Modifier Identifiant Makolo'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextField),
-      ),
-      'amina-nouvelle',
+    final usernameField = find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byType(TextField),
     );
+    await tester.enterText(usernameField, 'admin');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Modifier').last);
+    await tester.pumpAndSettle();
+    expect(identifierPatches, 0);
+    expect(find.text('Identifiant réservé.'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Vérifier'), findsNothing);
+    await tester.enterText(usernameField, '@Amina-Nouvelle');
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Modifier').last);
     await tester.pumpAndSettle();
     expect(identifierPatches, 1);
