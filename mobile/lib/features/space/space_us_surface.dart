@@ -529,21 +529,60 @@ class SpaceUsSurface extends StatelessWidget {
     BuildContext context,
     String title,
     String subtitle,
-  ) => Padding(
-    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    ),
-  );
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final icon = switch (title) {
+      'Passeport Makolo' => Icons.badge_outlined,
+      'Ma place dans cet Espace' => Icons.assignment_ind_outlined,
+      'L’équipe' => Icons.groups_outlined,
+      'Personnes & relations' => Icons.hub_outlined,
+      'Nos ressources' => Icons.folder_outlined,
+      'Gouvernance' => Icons.admin_panel_settings_outlined,
+      'Confiance' => Icons.verified_user_outlined,
+      'Informations et gestion' => Icons.settings_outlined,
+      _ => Icons.diversity_3_outlined,
+    };
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: MakoloSpacing.compact),
+      padding: const EdgeInsets.symmetric(
+        horizontal: MakoloSpacing.md,
+        vertical: MakoloSpacing.compact,
+      ),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: scheme.primary, size: 23),
+              const SizedBox(width: MakoloSpacing.compact),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   static Widget _panel(
     BuildContext context, {
@@ -617,12 +656,35 @@ class SpaceUsSurface extends StatelessWidget {
     String label,
     String target,
     ValueChanged<String> open,
-  ) => Align(
-    alignment: Alignment.centerLeft,
-    child: TextButton.icon(
-      onPressed: () => open(target),
-      icon: const Icon(Icons.arrow_forward_rounded),
-      label: Text(label),
+  ) => Semantics(
+    button: true,
+    child: InkWell(
+      onTap: () => open(target),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MakoloSpacing.md,
+          vertical: MakoloSpacing.compact,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ],
+        ),
+      ),
     ),
   );
+
 }
