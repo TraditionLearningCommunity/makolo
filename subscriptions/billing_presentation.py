@@ -17,6 +17,17 @@ from payments.models import PaymentObligation
 from .billing_models import PlanVersionBillingTerms
 
 
+_OBLIGATION_STATUS_LABELS = {
+    "pending": "À régler",
+    "processing": "En cours de traitement",
+    "satisfied": "Réglée",
+    "waived": "Dispensée",
+    "expired": "Expirée",
+    "cancelled": "Annulée",
+    "refunded": "Remboursée",
+}
+
+
 def terms_as_dict(terms):
     if terms is None:
         return None
@@ -87,6 +98,7 @@ def subscription_billing_obligations(subscription, *, offset=0, limit=20):
             "amount": str(obligation.amount),
             "currency": obligation.currency,
             "status": obligation.status,
+            "status_label": _OBLIGATION_STATUS_LABELS.get(obligation.status, "État à vérifier"),
             "processing_mode": obligation.processing_mode,
             "due_at": obligation.due_at,
             "created_at": obligation.created_at,
