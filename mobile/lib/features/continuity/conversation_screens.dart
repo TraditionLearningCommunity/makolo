@@ -962,8 +962,14 @@ class _PointCardState extends State<_PointCard> {
   bool _busy = false;
   String? _feedback;
   String? _clientReference;
+  Object? _lastValue;
+  final Set<String> _choices = {};
 
-  String _newClientReference() {
+  String _referenceFor(Object? value) {
+    if (_lastValue.toString() != value.toString()) {
+      _clientReference = null;
+    }
+    _lastValue = value;
     _clientReference ??=
         'mobile-${widget.point.id}-${DateTime.now().microsecondsSinceEpoch}';
     return _clientReference!;
@@ -981,22 +987,21 @@ class _PointCardState extends State<_PointCard> {
         pointId: widget.point.id,
       );
     } on Object {
-      if (!mounted) return;
-      await widget.repository.refreshDetail(widget.conversationId);
-      if (!mounted) return;
-      setState(
-        () => _feedback =
-            'Ce point a changé. Voici son état actuel après actualisation.',
-      );
+      try {
+        await widget.repository.refreshDetail(widget.conversationId);
+      } on Object {
+        // Keep the last authorized snapshot.
+      }
+      if (mounted) {
+        setState(() => _feedback = 'Lecture non confirmée. Réessayez.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _respond() async {
+  Future<void> _submitResponse(Object? value) async {
     if (_busy) return;
-    final value = await _collectResponseValue(context, widget.point);
-    if (!mounted || identical(value, _cancelledResponse)) return;
     setState(() {
       _busy = true;
       _feedback = null;
@@ -1006,91 +1011,161 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         pointId: widget.point.id,
         value: value,
-        clientReference: _newClientReference(),
+        clientReference: _referenceFor(value),
         representedSpaceId: widget.representedSpaceId,
       );
       _clientReference = null;
+      if (mounted) setState(() => _choices.clear());
     } on Object {
-      if (!mounted) return;
-      await widget.repository.refreshDetail(widget.conversationId);
-      if (!mounted) return;
-      setState(
-        () => _feedback = 'Impossible de confirmer l’envoi. Ce point a peut-être changé ; vérifiez-le avant de réessayer.',
-      );
+      try {
+        await widget.repository.refreshDetail(widget.conversationId);
+      } on Object {
+        // The response remains unconfirmed until the owner can be reached.
+      }
+      if (mounted) {
+        setState(() => _feedback = 'Envoi non confirmé. Vérifiez avant de réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<void> _respond() async {
+    if (_busy) return;
+    final value = await _collectResponseValue(context, widget.point);
+    if (!mounted || identical(value, _cancelledResponse)) return;
+    await _submitResponse(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final point = widget.point;
-    final metadata = <MakoloMetadataItem>[
-      if (point.attentionReason != null)
-        MakoloMetadataItem(
-          point.attentionReason!,
-          icon: Icons.priority_high_rounded,
-        ),
-      if (point.section != null) MakoloMetadataItem(point.section!),
-      if (point.requiresAcknowledgement)
-        const MakoloMetadataItem(
-          'Confirmation de lecture requise',
-          icon: Icons.visibility_outlined,
-        ),
-      if (point.canRespond)
-        const MakoloMetadataItem(
-          'Vous pouvez répondre',
-          icon: Icons.reply_rounded,
-        ),
-    ];
-    return MakoloCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MakoloStatusMetadataAction(
-            title: point.title,
-            subtitle: point.body,
-            status: point.lifecycle == null
-                ? null
-                : MakoloStatus(label: point.lifecycle!),
-            metadata: metadata,
+    final interactive = !widget.readOnly &&
+        (point.canRespond || point.attentionReason == 'acknowledge');
+    final kindLabel = switch (point.kind) {
+      'information' => 'Information',
+      'poll' => 'Sondage',
+      'confirmation' => 'Confirmation',
+      'question' => 'Question',
+      'request' => 'Demande',
+      'form_request' => 'Formulaire',
+      'exchange' => 'Échange',
+      _ => 'Point',
+    };
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(kindLabel, style: Theme.of(context).textTheme.labelMedium),
+        const SizedBox(height: 6),
+        Text(point.title, style: Theme.of(context).textTheme.titleMedium),
+        if (point.body != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(point.body!),
+        ],
+        if (point.deadlineAt != null && point.canRespond) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(
+            'Avant le ${MaterialLocalizations.of(context).formatShortDate(point.deadlineAt!)}',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-          if (point.resolutionSummary != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text('✓ ${point.resolutionSummary!}'),
-          ],
-          if (_feedback != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(_feedback!),
-          ],
-          if (!widget.readOnly &&
-              point.requiresAcknowledgement &&
-              point.attentionReason == 'acknowledge') ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            FilledButton(
-              onPressed: _busy ? null : _acknowledge,
-              child: Text(_busy ? 'En cours…' : 'J’ai pris connaissance'),
-            ),
-          ],
-          if (!widget.readOnly &&
-              point.canRespond &&
-              point.supportsInteractiveResponse) ...[
-            const SizedBox(height: MakoloSpacing.sm),
+        ],
+        if (point.resolutionSummary != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text('✓ ${point.resolutionSummary!}'),
+        ],
+        if (_feedback != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(_feedback!),
+        ],
+        if (point.requiresAcknowledgement &&
+            point.attentionReason == 'acknowledge' &&
+            !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          FilledButton(
+            onPressed: _busy ? null : _acknowledge,
+            child: Text(_busy ? 'En cours…' : 'Bien reçu'),
+          ),
+        ],
+        if (point.canRespond && !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          if (point.responseMode == 'boolean')
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              children: [
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _submitResponse(true),
+                  child: const Text('Oui'),
+                ),
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _submitResponse(false),
+                  child: const Text('Non'),
+                ),
+              ],
+            )
+          else if (point.responseMode == 'single_choice')
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.sm,
+              children: [
+                for (final option in point.options)
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _submitResponse(option.id),
+                    child: Text(option.label),
+                  ),
+              ],
+            )
+          else if (point.responseMode == 'multiple_choice')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: MakoloSpacing.sm,
+                  runSpacing: MakoloSpacing.sm,
+                  children: [
+                    for (final option in point.options)
+                      FilterChip(
+                        label: Text(option.label),
+                        selected: _choices.contains(option.id),
+                        onSelected: _busy
+                            ? null
+                            : (selected) => setState(() {
+                                if (selected) {
+                                  _choices.add(option.id);
+                                } else {
+                                  _choices.remove(option.id);
+                                }
+                              }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+                FilledButton(
+                  onPressed: _busy || _choices.isEmpty
+                      ? null
+                      : () => _submitResponse(_choices.toList()),
+                  child: Text(_busy ? 'Envoi…' : 'Répondre'),
+                ),
+              ],
+            )
+          else if (point.supportsInteractiveResponse)
             FilledButton(
               onPressed: _busy ? null : _respond,
               child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
             ),
-          ],
-          if (!widget.readOnly &&
-              point.canRespond &&
-              !point.supportsInteractiveResponse) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            const Text(
-              'Cette réponse ne peut pas être envoyée ici.',
-            ),
-          ],
         ],
+        if (point.kind == 'exchange' && point.canRespond && !widget.readOnly)
+          const SizedBox.shrink(),
+      ],
+    );
+    if (interactive || point.kind == 'poll' || point.kind == 'request') {
+      return MakoloCard(child: body);
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.sm, MakoloSpacing.md,
+        MakoloSpacing.sm, MakoloSpacing.md,
       ),
+      child: body,
     );
   }
 }
