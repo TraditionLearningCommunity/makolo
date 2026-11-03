@@ -570,6 +570,8 @@ class DiscoverySpatialView extends StatefulWidget {
     this.onSelectionChanged,
     this.detailRefreshRevision = 0,
     this.spatialRevision,
+    this.restoredViewport,
+    this.onViewportChanged,
   });
 
   final DiscoveryFieldSelection selection;
@@ -595,6 +597,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final int detailRefreshRevision;
   /// Stable owner snapshot revision, independent from widget rebuilds.
   final DateTime? spatialRevision;
+  final MapViewport? restoredViewport;
+  final ValueChanged<MapViewport>? onViewportChanged;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -736,7 +740,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
 
   void _mapCreated(DiscoveryMapController controller) {
     _mapController = controller;
-    _initialCameraPositioned = false;
+    _initialCameraPositioned = widget.restoredViewport != null;
     _circleAnchors.clear();
     controller.onPinTapped((circle) {
       final point = _circleAnchors[circle];
@@ -1079,7 +1083,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                   _mapCreated(DiscoveryMapController(controller)),
               onStyleReady: () => unawaited(_onStyleReady(points)),
               config: widget.mapConfig,
-              initialViewport: MapViewport(
+              onViewportChanged: widget.onViewportChanged,
+              initialViewport: widget.restoredViewport ?? MapViewport(
                 center: anchor == null
                     ? const MapCoordinate(0, 0)
                     : MapCoordinate(anchor.latitude, anchor.longitude),
