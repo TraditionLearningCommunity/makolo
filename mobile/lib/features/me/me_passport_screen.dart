@@ -1027,7 +1027,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
           .map((entry) => entry.value)
           .firstOrNull ?? '';
       final suggestedName = RegExp(
-        r'filename="?([A-Za-z0-9._-]+\\.pdf)"?',
+        r'filename="?([A-Za-z0-9._-]+\.pdf)"?',
       ).firstMatch(disposition)?.group(1);
       if (suggestedName != null &&
           suggestedName.startsWith('passeport-makolo-')) {
