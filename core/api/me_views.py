@@ -1,4 +1,5 @@
 from django.utils import timezone
+from uuid import UUID
 from core.web_throttling import allow_web_request, value_rate_identity
 from django.http import Http404, HttpResponse
 from datetime import timezone as dt_timezone
@@ -18,7 +19,8 @@ from sharing.passport_documents import (
     passport_verification_token, snapshot_payload_is_intact,
     revoke_passport_snapshot, issue_passport_snapshot,
 )
-from sharing.passport_sharing import create_passport_share, revoke_passport_share
+from sharing.passport_sharing import create_passport_share, revoke_passport_share, create_direct_passport_share
+from accounts.models import UserProfile
 from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
 
 from core.api.me_projection import (
@@ -523,6 +525,59 @@ class PersonalPassportShareAPIView(PersonalProjectionAPIView):
             "share_id": str(envelope.pk),
             "share_url": url,
             "expires_at": envelope.expires_at.isoformat(),
+            "document_id": snapshot.document_id,
+        }, observed_at=timezone.now())
+
+
+class PersonalPassportDirectShareAPIView(PersonalProjectionAPIView):
+    """Deliver an existing dated Passport to one recipient-bound Makolo account."""
+    projection_code = "personal.me.passport.delivery"
+
+    def post(self, request, snapshot_id):
+        self._guard_personal_scope(request, include_body=True)
+        recipient_id = request.data.get("recipient_id")
+        if not isinstance(recipient_id, str):
+            raise ValidationError({"recipient_id": "Destinataire requis."})
+        try:
+            recipient_uuid = UUID(recipient_id)
+        except ValueError as exc:
+            raise ValidationError({"recipient_id": "Identifiant incorrect."}) from exc
+        recipient = get_object_or_404(
+            UserProfile.objects.select_related("user").filter(
+                user__is_active=True, searchable=True,
+            ),
+            pk=recipient_uuid,
+        )
+        actor_id = str(request.user.pk)
+        if not (
+            allow_web_request(
+                request, scope="passport-direct-minute", limit=12,
+                window_seconds=60,
+                identities=[value_rate_identity("sender", actor_id)],
+            )
+            and allow_web_request(
+                request, scope="passport-direct-pair", limit=8,
+                window_seconds=3600,
+                identities=[value_rate_identity(
+                    "pair", f"{actor_id}:{recipient.pk}",
+                )],
+            )
+        ):
+            from rest_framework.exceptions import Throttled
+            raise Throttled(detail="Trop de partages.")
+        snapshot = get_object_or_404(
+            PassportSnapshot, pk=snapshot_id, profile=request.user,
+        )
+        try:
+            delivery = create_direct_passport_share(
+                snapshot=snapshot, actor=request.user, recipient=recipient,
+            )
+        except (DjangoValidationError, DjangoPermissionDenied, ValueError) as exc:
+            raise ValidationError({"passport": "Partage indisponible."}) from exc
+        return self._response({
+            "state": "delivered",
+            "delivery_id": str(delivery.pk),
+            "recipient_id": str(recipient.pk),
             "document_id": snapshot.document_id,
         }, observed_at=timezone.now())
 
