@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:pdfrx/pdfrx.dart';
-
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
@@ -1073,16 +1071,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
-  Future<void> _previewPdf(String path) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: const Text('Aperçu du Passeport PDF')),
-          body: PdfViewer.file(path),
-        ),
-      ),
-    );
-  }
 
   Future<void> _exportPdf() async {
     if (_exporting || !_onlineReady) return;
