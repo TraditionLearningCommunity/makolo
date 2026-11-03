@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
+import '../../network/makolo_api_client.dart';
 import '../../platform/files/passport_pdf_saver.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../sync/projection_contract.dart';
@@ -270,6 +271,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   });
 
   Future<void> sharePublicLink() => guarded(() async {
+    if (source?['public_profile_enabled'] != true) {
+      message('Passeport public indisponible.');
+      return;
+    }
     final api = widget.runtime.api!;
     final link = api.baseUri.resolve('/' + widget.slug + '/').toString();
     await Clipboard.setData(ClipboardData(text: link));
@@ -313,6 +318,8 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
             ListTile(
               leading: Icon(item.$3),
               title: Text(item.$2),
+              enabled: item.$1 != 'public' ||
+                  source?['public_profile_enabled'] == true,
               onTap: () => Navigator.pop(dialog, item.$1),
             ),
         ]),
@@ -365,7 +372,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       final data = ProjectionEnvelope.parse(
         response.jsonObject(), expectedProjection: 'space.passport.history',
       ).data;
-      if (!mounted) return;
+      if (!mounted || !authorized) return;
       final items = rows(data['items']);
       await showModalBottomSheet<void>(
         context: context,
@@ -453,7 +460,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final full = source;
     final current = full == null ? <String, dynamic>{} : presented(full);
     final identity = map(current['identity']);
-    final interests = rows(current['activities']);
+    final interests = variant == 'custom' && full != null
+        ? visibleActivities({...full, 'variant': 'public'})
+        : rows(current['activities']);
     final topics = rows(full?['topic_options']);
     final trust = rows(map(current['established'])['trust_verifications']);
     final credentials = rows(map(current['issued'])['credential_summary']);
@@ -668,7 +677,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
 
 class _RecipientPicker extends StatefulWidget {
   const _RecipientPicker({required this.api, required this.onSelected});
-  final dynamic api;
+  final MakoloApiClient api;
   final ValueChanged<Map<String, dynamic>> onSelected;
 
   @override
