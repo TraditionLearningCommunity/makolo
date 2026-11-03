@@ -168,14 +168,142 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  static const _sourceKey = 'variant=complete';
+
+  bool get _hasLocalComposition =>
+      _full != null && _map(_full!['composition'])['schema_version'] == 1;
+
+  Map<String, dynamic> _composePassport(
+    Map<String, dynamic> complete, {
+    String? variant,
+  }) {
+    final requested = variant ?? _variant;
+    final composition = _map(complete['composition']);
+    if (requested == 'complete' || composition['schema_version'] != 1) {
+      return complete;
+    }
+    final allowed = _map(composition['public_ids']);
+    List<Map<String, dynamic>> publicRows(Object? value, String family) {
+      final ids = (allowed[family] is List ? allowed[family] as List : const [])
+          .map((id) => id.toString()).toSet();
+      return _rows(value).where((row) => ids.contains(row['id']?.toString())).toList();
+    }
+
+    bool inTopic(Map<String, dynamic> row, {bool declaration = false}) {
+      if (requested != 'thematic') return true;
+      if (_topic == null) return false;
+      if (declaration) {
+        return _map(row['topic'])['code'] == _topic;
+      }
+      final codes = row['topic_codes'];
+      return codes is List && codes.any((code) => code == _topic);
+    }
+
+    List<Map<String, dynamic>> filtered(
+      Object? rows,
+      String family, {
+      bool declaration = false,
+      Set<String>? excluded,
+    }) {
+      return publicRows(rows, family).where((row) {
+        if (!inTopic(row, declaration: declaration)) return false;
+        if (requested == 'custom' &&
+            excluded != null &&
+            excluded.contains(row['id']?.toString())) {
+          return false;
+        }
+        return true;
+      }).toList();
+    }
+
+    final declared = _map(complete['declared']);
+    final established = _map(complete['established']);
+    final issued = _map(complete['issued']);
+    final identity = Map<String, dynamic>.from(_map(composition['public_identity']));
+    if (requested == 'custom') {
+      for (final entry in <String, String>{
+        'avatar': 'avatar_url',
+        'bio': 'bio',
+        'profession': 'profession',
+        'company_name': 'company_name',
+        'organization_name': 'organization_name',
+        'location': 'location',
+      }.entries) {
+        if (_sections.contains(entry.key)) identity[entry.value] = '';
+      }
+      if (_sections.contains('links')) identity['links'] = const [];
+    }
+    return {
+      ...complete,
+      'variant': requested,
+      'identity': identity,
+      'private_details': <String, dynamic>{},
+      'collectives': <String, dynamic>{},
+      'declared': {
+        ...declared,
+        'interests': requested == 'custom' && _sections.contains('interests')
+            ? <Map<String, dynamic>>[]
+            : filtered(declared['interests'], 'interests', declaration: true),
+        'open_to': requested == 'custom' && _sections.contains('open_to')
+            ? <Map<String, dynamic>>[]
+            : filtered(declared['open_to'], 'open_to', declaration: true),
+      },
+      'activities': filtered(
+        complete['activities'], 'activities', excluded: _activities,
+      ),
+      'experiences': filtered(complete['experiences'], 'experiences'),
+      'established': {
+        ...established,
+        'proofs': filtered(
+          established['proofs'], 'proofs', excluded: _proofs,
+        ),
+      },
+      'issued': {
+        ...issued,
+        'credentials': filtered(
+          issued['credentials'], 'credentials', excluded: _credentials,
+        ),
+      },
+      'projection': {
+        ..._map(complete['projection']),
+        'variant': requested,
+      },
+    };
+  }
+
   Map<String, dynamic> _passportParams() {
     final params = <String, dynamic>{'variant': _variant};
     if (_variant == 'thematic' && _topic != null) params['topic'] = _topic;
     if (_variant == 'custom') {
-      params['include'] = _sections.toList();
-      params['activity'] = _activities.toList();
-      params['proof'] = _proofs.toList();
-      params['credential'] = _credentials.toList();
+      if (_hasLocalComposition) {
+        const choices = [
+          'avatar', 'bio', 'profession', 'company_name',
+          'organization_name', 'location', 'links', 'interests', 'open_to',
+          'activity_involvements',
+        ];
+        params['include'] = choices.where((key) => !_sections.contains(key)).toList();
+        final public = _composePassport(_full!, variant: 'public');
+        for (final family in ['activities', 'proofs', 'credentials']) {
+          final rows = family == 'activities'
+              ? _rows(public['activities'])
+              : family == 'proofs'
+                  ? _rows(_map(public['established'])['proofs'])
+                  : _rows(_map(public['issued'])['credentials']);
+          final excluded = family == 'activities'
+              ? _activities : family == 'proofs' ? _proofs : _credentials;
+          params[family == 'activities' ? 'activity' :
+              family == 'proofs' ? 'proof' : 'credential'] = [
+            for (final row in rows)
+              if (row['id'] != null && !excluded.contains(row['id'].toString()))
+                row['id'].toString(),
+          ];
+        }
+      } else {
+        params['include'] = _sections.toList();
+        params['activity'] = _activities.toList();
+        params['proof'] = _proofs.toList();
+        params['credential'] = _credentials.toList();
+      }
     }
     return params;
   }
