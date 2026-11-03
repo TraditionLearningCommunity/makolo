@@ -43,6 +43,9 @@ def _primary_place(occurrence):
     return {
         "name": link.place.name or None,
         "locality": link.place.locality or None,
+        "address_line": link.place.address_line or None,
+        "access_instructions": link.place.access_instructions or None,
+        "timezone": link.place.timezone or None,
     }
 
 
