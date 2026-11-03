@@ -16,7 +16,7 @@
   {% endif %}
   {% if reason == 'form' %}
     {% conversation_point_form_request point request.user as form_request %}
-    {% if form_request %}<a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">Remplir le formulaire</a>{% endif %}
+    {% if form_request %}<a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">Compléter le formulaire</a>{% endif %}
   {% endif %}
   {% if reason == 'respond' %}
     <form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">{% csrf_token %}
