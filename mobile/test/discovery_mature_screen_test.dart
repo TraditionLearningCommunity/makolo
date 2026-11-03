@@ -1578,7 +1578,9 @@ void main() {
         showMapOnCompact: true,
         initialSelectedCandidateKey: 'activity:route',
         resolveItem: (_) => verified.future,
-        onSave: (_) async => saves++,
+        onSave: (_) async {
+          saves++;
+        },
         baseUri: Uri.parse('https://makolo.invalid/'),
         onOpen: (_) {},
       ),
