@@ -535,6 +535,22 @@ def build_profile_passport(
                 ("YouTube", profile.youtube_url, "youtube_url"),
             ) if url and thematic_visibility.field(field)
         )
+    if public_only:
+        # These are the *publicly admitted* personal facts from the same
+        # Accounts fields as the owner's complete Passport. Never derive a
+        # public value by hiding a widget or by copying all owner_details.
+        details = {"username": identity["identifier"]}
+        if visibility.field("name"):
+            details.update({
+                "first_name": profile.first_name or "",
+                "last_name": profile.last_name or "",
+            })
+        profile_row = UserProfile.objects.filter(user=profile).first()
+        if profile_row:
+            for field in ("city", "country"):
+                if visibility.field(field):
+                    details[field] = getattr(profile_row, field) or ""
+        identity["presentation_details"] = details
     if variant == PASSPORT_COMPLETE:
         # Full owner variant only. All other variants remain disclosure-bounded.
         profile_row = UserProfile.objects.filter(user=profile).first()
@@ -569,6 +585,8 @@ def build_profile_passport(
             identity["links"] = ()
         if "location" not in sections:
             identity["location"] = ""
+            for key in ("city", "country"):
+                identity["presentation_details"].pop(key, None)
 
     observed_at = timezone.now()
     return PassportProjection(
