@@ -1426,19 +1426,14 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   String? _verifiedFieldKey;
   late DiscoveryQuery _query;
   bool _refreshing = false;
-  bool _loadMoreFailed = false;
   String? _selectedCandidateKey;
-  final Map<int, String> _pageTokens = {};
 
   @override
   void initState() {
     super.initState();
-    _query = widget.query;
+    _query = widget.query.copyWith(page: 1, clearContinuation: true);
     widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
-    if (_query.page > 1 && _query.continuation != null) {
-      _pageTokens[_query.page] = _query.continuation!;
-    }
     unawaited(_acquire());
   }
 
@@ -1446,14 +1441,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   void didUpdateWidget(covariant DiscoveryMapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.fingerprint != widget.query.fingerprint) {
-      _query = widget.query;
+      _query = widget.query.copyWith(page: 1, clearContinuation: true);
       widget.repository.rememberExploration(_query);
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
-      _pageTokens.clear();
-      if (_query.page > 1 && _query.continuation != null) {
-        _pageTokens[_query.page] = _query.continuation!;
-      }
-      _loadMoreFailed = false;
       unawaited(_acquire());
     }
   }
@@ -1461,10 +1451,12 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   Future<void> _acquire() async {
     final current = _query;
     try {
-      final local = await widget.repository.readItems(current);
+      final local = await widget.repository.readSpatial(current);
       // Cached map/list points render while owner validity is rechecked.
       // This also protects a fresh-looking snapshot after a cold start.
-      if (local != null) DiscoveryWire.validateData(local.payload);
+      if (local != null && local.payload['results'] is! List) {
+        throw const FormatException('Invalid cached spatial presentation');
+      }
       if (mounted && identical(current, _query)) await _refresh();
     } on Object {
       // A missing field is a recoverable source failure, not an empty map.
@@ -1476,13 +1468,11 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     if (_refreshing || !mounted) return;
     final current = _query;
     setState(() => _refreshing = true);
-    var rejected = false;
     try {
-      await widget.repository.refreshItems(current);
+      await widget.repository.refreshSpatial(current);
       final source = await widget.repository.readSource(
-        widget.repository.itemsSource(current),
+        widget.repository.spatialSource(current),
       );
-      rejected = source.lastErrorCode == 'continuation_rejected';
       if (mounted &&
           identical(current, _query) &&
           source.lastErrorCode == null &&
@@ -1495,88 +1485,6 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
-    if (rejected && current.page > 1 && mounted && identical(current, _query)) {
-      final first = current.copyWith(page: 1, clearContinuation: true);
-      setState(() {
-        _query = first;
-        widget.repository.rememberExploration(first);
-        _pageTokens.clear();
-        _loadMoreFailed = false;
-      });
-      await _refresh();
-    }
-  }
-
-  Future<void> _navigateToPage(int target) async {
-    if (_refreshing || !mounted || target < 1) return;
-    final current = _query;
-    if (target == current.page) return;
-    try {
-      String? token;
-      if (target == 1) {
-        token = null;
-      } else if (target == current.page + 1) {
-        final stored = await widget.repository.readItems(current);
-        if (stored == null) return;
-        final collection = _selector.collection(stored);
-        if (!collection.hasNext) return;
-        token = collection.continuationToken;
-        if (token == null || token.isEmpty) return;
-      } else {
-        token = _pageTokens[target];
-        if (token == null) {
-          // No invented signed token for a page not previously visited.
-          await _navigateToPage(1);
-          return;
-        }
-      }
-      if (!mounted || !identical(current, _query)) return;
-      final next = current.copyWith(
-        page: target,
-        continuation: token,
-        clearContinuation: target == 1,
-      );
-      if (token != null) _pageTokens[target] = token;
-      var acquired = await widget.repository.readItems(next);
-      if (acquired == null) {
-        await widget.repository.refreshItems(next);
-        final source = await widget.repository.readSource(
-          widget.repository.itemsSource(next),
-        );
-        if (source.lastErrorCode != null) {
-          if (source.lastErrorCode == 'continuation_rejected') {
-            final first = current.copyWith(page: 1, clearContinuation: true);
-            if (mounted && identical(current, _query)) {
-              setState(() {
-                _query = first;
-                widget.repository.rememberExploration(first);
-                _pageTokens.clear();
-              });
-              unawaited(_refresh());
-            }
-            return;
-          }
-          throw StateError('Continuation de carte indisponible');
-        }
-        acquired = await widget.repository.readItems(next);
-      }
-      if (!mounted || !identical(current, _query)) return;
-      if (acquired == null ||
-          _selector.collection(acquired).page != next.page) {
-        throw const FormatException('Page de carte incompatible');
-      }
-      if (next.page > 1) await widget.repository.retainPresentedWindow(next);
-      if (!mounted || !identical(current, _query)) return;
-      setState(() {
-        _query = next;
-        widget.repository.rememberExploration(next);
-        _loadMoreFailed = false;
-      });
-    } on Object {
-      if (mounted && identical(current, _query)) {
-        setState(() => _loadMoreFailed = true);
-      }
-    }
   }
 
   @override
@@ -1586,19 +1494,18 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         fit: StackFit.expand,
         children: [
           StreamBuilder<StoredProjection?>(
-        stream: widget.repository.watchItems(_query),
+        stream: widget.repository.watchSpatial(_query),
         builder: (context, snapshot) {
           return StreamBuilder<DiscoverySourceState>(
             stream: widget.repository.watchSource(
-              widget.repository.itemsSource(_query),
+              widget.repository.spatialSource(_query),
             ),
             initialData: DiscoverySourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source =
                   sourceSnapshot.data ?? DiscoverySourceState.unknown;
-              final selection = _selector.select(
+              final selection = _selector.spatialSelection(
                 projection: snapshot.data,
-                hasCriteria: _query.hasCriteria,
                 refreshing: _refreshing,
                 reachability:
                     source.reachability == ReachabilityState.unreachable
@@ -1607,7 +1514,6 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                     ? MakoloReachabilityCue.reachable
                     : MakoloReachabilityCue.unknown,
                 failure:
-                    _loadMoreFailed ||
                         source.lastErrorCode != null ||
                         snapshot.hasError ||
                         sourceSnapshot.hasError
@@ -1624,8 +1530,6 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
-                onPage: (page) => unawaited(_navigateToPage(page)),
-                loadMoreFailed: _loadMoreFailed,
                 onSave: (item) =>
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
