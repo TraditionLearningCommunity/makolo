@@ -281,6 +281,126 @@ class DiscoveryFieldView extends StatelessWidget {
   }
 }
 
+/// A bounded choice of distinct possibilities sharing a rendered coordinate.
+/// It does not treat coordinate equality as proof of one canonical Place.
+class DiscoveryCoLocatedPicker extends StatefulWidget {
+  const DiscoveryCoLocatedPicker({
+    super.key,
+    required this.items,
+    required this.onChoose,
+  });
+
+  final List<DiscoveryItemPresentation> items;
+  final ValueChanged<DiscoveryItemPresentation> onChoose;
+
+  @override
+  State<DiscoveryCoLocatedPicker> createState() =>
+      _DiscoveryCoLocatedPickerState();
+}
+
+class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
+  bool _expanded = false;
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
+  }
+
+  void _showAll() {
+    setState(() => _expanded = true);
+    if (_sheetController.isAttached) {
+      unawaited(
+        _sheetController.animateTo(
+          0.76,
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    final place = items.isEmpty ? null : items.first.place;
+    final commonPlace = place != null &&
+        place.trim().isNotEmpty &&
+        items.every((item) => item.place == place);
+    final visible = _expanded || items.length <= 2 ? items.length : 2;
+    return DraggableScrollableSheet(
+      key: const Key('discover-map-colocated-sheet'),
+      controller: _sheetController,
+      expand: false,
+      initialChildSize: 0.40,
+      minChildSize: 0.26,
+      maxChildSize: 0.78,
+      builder: (context, scrollController) => ListView.builder(
+        controller: scrollController,
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.md,
+          MakoloSpacing.sm,
+          MakoloSpacing.md,
+          MakoloSpacing.xl,
+        ),
+        itemCount: visible + (_expanded || visible == items.length ? 1 : 2),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${items.length} possibilités à cet emplacement',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (commonPlace)
+                    Text(
+                      place,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                ],
+              ),
+            );
+          }
+          if (index == visible + 1) {
+            return TextButton.icon(
+              key: const Key('discover-map-colocated-more'),
+              onPressed: _showAll,
+              icon: const Icon(Icons.expand_more_rounded),
+              label: Text('Voir les ${items.length} possibilités'),
+            );
+          }
+          final item = items[index - 1];
+          return ListTile(
+            key: ValueKey('discover-map-place-choice-${item.candidateKey}'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: item.place == null
+                ? null
+                : Text(
+                    item.place!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => widget.onChoose(item),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class DiscoverySpatialView extends StatefulWidget {
   const DiscoverySpatialView({
     super.key,
@@ -409,21 +529,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     if (items.isEmpty) return;
     await showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            for (final item in items)
-              ListTile(
-                title: Text(item.title),
-                subtitle: item.place == null ? null : Text(item.place!),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  if (mounted) _select(item.candidateKey, moveCamera: false);
-                },
-              ),
-          ],
-        ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => DiscoveryCoLocatedPicker(
+        items: items,
+        onChoose: (item) {
+          Navigator.of(sheetContext).pop();
+          if (mounted) _select(item.candidateKey, moveCamera: false);
+        },
       ),
     );
   }
