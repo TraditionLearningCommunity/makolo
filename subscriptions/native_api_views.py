@@ -17,6 +17,7 @@ from .billing_presentation import (
     transition_payment_action_for_actor,
 )
 from .contracts import AcquisitionMode, SubscriptionTransitionKind
+from .coverage_presentation import beneficiary_coverages, payer_coverages
 from .models import PlanVersion
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
@@ -159,6 +160,13 @@ def _snapshot(subscription, *, actor, can_manage=True, billing=None):
         "catalog": catalog,
         "transition": product.transition,
         "ongoing_conditions": product.ongoing_conditions,
+        "coverages": {
+            "received": beneficiary_coverages(subject=subscription.subject),
+            "financed": (
+                payer_coverages(profile=subscription.profile, space=subscription.space)
+                if can_manage else []
+            ),
+        },
         "billing": billing if billing is not None else subscription_billing_obligations(subscription),
         "history": subscription_transition_history(subscription),
         "space": (
