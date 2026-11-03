@@ -17,9 +17,13 @@ import '../../presentation/media/retained_public_discovery_image.dart';
 import '../../presentation/possibilities/discovery_offline_store.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
+import 'discovery_share_sheet.dart';
 
 typedef DiscoveryOpenItem = void Function(DiscoveryItemPresentation item);
 typedef DiscoverySaveItem = Future<void> Function(
+  DiscoveryItemPresentation item,
+);
+typedef DiscoveryResolveItem = Future<DiscoveryItemPresentation?> Function(
   DiscoveryItemPresentation item,
 );
 
@@ -409,6 +413,7 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.onOpen,
     this.location,
     this.onSave,
+    this.resolveItem,
     this.baseUri,
     this.shareApi,
     this.profileId,
@@ -429,6 +434,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryOpenItem onOpen;
   final LocationCapability? location;
   final DiscoverySaveItem? onSave;
+  final DiscoveryResolveItem? resolveItem;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
@@ -456,18 +462,27 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   bool _initialCameraPositioned = false;
   double? _deviceLatitude;
   double? _deviceLongitude;
+  DiscoveryItemPresentation? _confirmedDetail;
+  int _detailGeneration = 0;
+  bool _savingSelected = false;
 
   @override
   void dispose() {
     ++_pinGeneration;
+    ++_detailGeneration;
     _circleKeys.clear();
     _mapController = null;
     super.dispose();
   }
 
   void _select(String key, {bool moveCamera = true}) {
-    setState(() => _selectedCandidateKey = key);
+    final changed = _selectedCandidateKey != key;
+    setState(() {
+      _selectedCandidateKey = key;
+      if (changed) _confirmedDetail = null;
+    });
     widget.onSelectionChanged?.call(key);
+    if (changed) unawaited(_resolveSelected());
     if (!moveCamera) return;
     final anchors = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
@@ -479,6 +494,68 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         unawaited(_moveCamera(controller, anchor));
       }
       break;
+    }
+  }
+
+  void _clearSelection() {
+    ++_detailGeneration;
+    setState(() {
+      _selectedCandidateKey = null;
+      _confirmedDetail = null;
+    });
+    widget.onSelectionChanged?.call(null);
+  }
+
+  Future<void> _resolveSelected() async {
+    final resolver = widget.resolveItem;
+    final key = _selectedCandidateKey;
+    if (resolver == null || key == null) return;
+    final candidates = widget.selection.collection.items
+        .where((item) => item.candidateKey == key);
+    if (candidates.isEmpty) return;
+    final generation = ++_detailGeneration;
+    try {
+      final detail = await resolver(candidates.first);
+      if (!mounted ||
+          generation != _detailGeneration ||
+          _selectedCandidateKey != key) {
+        return;
+      }
+      setState(() {
+        _confirmedDetail = detail?.candidateKey == key ? detail : null;
+      });
+    } on Object {
+      // Unverified detail never unlocks a mutation. The canonical N2
+      // remains available and rechecks its own authorization.
+      if (mounted && generation == _detailGeneration) {
+        setState(() => _confirmedDetail = null);
+      }
+    }
+  }
+
+  Future<void> _saveSelected() async {
+    final item = _confirmedDetail;
+    final save = widget.onSave;
+    if (_savingSelected || item == null || save == null) return;
+    if (item.savedState == 'saved' ? !item.canUnsave : !item.canSave) {
+      return;
+    }
+    setState(() => _savingSelected = true);
+    try {
+      await save(item);
+      if (mounted && _selectedCandidateKey == item.candidateKey) {
+        await _resolveSelected();
+      }
+    } on Object {
+      if (mounted && _selectedCandidateKey == item.candidateKey) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('L’enregistrement n’a pas pu être confirmé.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingSelected = false);
     }
   }
 
@@ -593,12 +670,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       );
       return;
     }
+    _clearSelection();
     setState(() {
-      _selectedCandidateKey = null;
       _deviceLatitude = fix.latitude;
       _deviceLongitude = fix.longitude;
     });
-    widget.onSelectionChanged?.call(null);
     try {
       // The marker is local-only and has no candidate identity or N2.
       await _displayPins(
@@ -645,6 +721,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   void initState() {
     super.initState();
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    if (_selectedCandidateKey != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_resolveSelected());
+      });
+    }
   }
 
   @override
@@ -652,7 +733,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialSelectedCandidateKey !=
         widget.initialSelectedCandidateKey) {
+      ++_detailGeneration;
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _confirmedDetail = null;
     }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
@@ -669,6 +752,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           } else {
             unawaited(_displayPins(anchors));
           }
+          if (_selectedCandidateKey != null && _confirmedDetail == null) {
+            unawaited(_resolveSelected());
+          }
         }
       });
     }
@@ -677,7 +763,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     if (_selectedCandidateKey != null &&
         keys.isNotEmpty &&
         !keys.contains(_selectedCandidateKey)) {
+      ++_detailGeneration;
       _selectedCandidateKey = null;
+      _confirmedDetail = null;
+      widget.onSelectionChanged?.call(null);
     }
   }
 
