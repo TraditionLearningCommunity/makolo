@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
@@ -137,8 +138,12 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
         q = (request.query_params.get("q") or "").strip()[:120]
         updated_after_raw = (request.query_params.get("updated_after") or "").strip()
         updated_after = parse_datetime(updated_after_raw) if updated_after_raw else None
-        if updated_after_raw and updated_after is None:
-            raise DRFValidationError({"updated_after": "Date/heure ISO invalide."})
+        if updated_after_raw and (
+            updated_after is None or timezone.is_naive(updated_after)
+        ):
+            raise DRFValidationError({
+                "updated_after": "Date/heure ISO avec fuseau horaire attendue.",
+            })
 
         if q:
             seen = set()
