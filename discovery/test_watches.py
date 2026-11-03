@@ -68,6 +68,19 @@ class DiscoveryWatchTests(TestCase):
         self.assertNotContains(response, "rejouables")
         self.assertNotContains(response, ">Discovery<")
 
+    def test_create_watch_explains_saved_criteria_without_internal_terms(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("discovery:watch-create"), {"q": "bourse"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Retrouvez cette recherche avec les mêmes critères dans vos veilles.",
+        )
+        self.assertNotContains(response, "Makolo rejouera")
+        self.assertNotContains(response, ">Discovery<")
+
     def test_pause_reactivate_and_modify(self):
         watch = DiscoveryWatch.objects.create(owner=self.owner, name="Canada", criteria={"q": "Canada"})
         self.client.force_login(self.owner)
