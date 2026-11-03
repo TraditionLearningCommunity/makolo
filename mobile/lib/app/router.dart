@@ -52,6 +52,7 @@ import '../features/space/space_create_screen.dart';
 import '../features/space/space_work_create_activity_screen.dart';
 import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_passport_screen.dart';
+import '../features/space/space_passport_visibility_screen.dart';
 import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
@@ -853,6 +854,13 @@ GoRouter createMakoloRouter(
             fromTeam: state.uri.queryParameters['from'] == 'team',
           );
         },
+      ),
+      GoRoute(
+        path: '/space/:slug/us/passport/privacy',
+        builder: (context, state) => SpacePassportVisibilityScreen(
+          runtime: runtime,
+          slug: state.pathParameters['slug']!,
+        ),
       ),
       GoRoute(
         path: '/space/:slug/us/passport',
