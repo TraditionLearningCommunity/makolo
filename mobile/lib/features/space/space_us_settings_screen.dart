@@ -338,7 +338,244 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
-                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                      if (text.runes.length > 254) {
+                        return '254 caractères maximum.';
+                      }
+                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+
+                          .hasMatch(text)
+                          ? null
+                          : 'E-mail invalide.';
+                    },
+                  ),
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 40,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone',
+                      counterText: '',
+                    ),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return null;
+                      if (text.runes.length > 40) {
+                        return '40 caractères maximum.';
+                      }
+                      final digits = RegExp(r'[0-9]').allMatches(text).length;
+                      return RegExp(r'^(?:\+?[0-9][0-9().\s-]*|\(\+[0-9]{1,4}\)[0-9().\s-]*)
+                              digits >= 7 &&
+                              digits <= 15
+                          ? null
+                          : 'Téléphone invalide.';
+                    },
+                  ),
+
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Liens',
+                    style: Theme.of(context).textTheme.titleMedium),
+                  Focus(
+                    onFocusChange: (focused) {
+                      if (!focused && !saving) {
+                        final normalized = PassportEditorFieldRules.normalize(
+                          'website', website.text,
+                        );
+                        if (website.text != normalized) {
+                          setState(() => website.text = normalized);
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: website,
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web', counterText: '',
+                      ),
+                      validator: (value) => PassportEditorFieldRules.error(
+                        'website', value ?? '',
+                      ),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+)
+                          .hasMatch(text)
+                          ? null
+                          : 'E-mail invalide.';
+                    },
+                  ),
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 40,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone',
+                      counterText: '',
+                    ),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return null;
+                      final digits = RegExp(r'[0-9]').allMatches(text).length;
+                      return RegExp(r'^\+?[0-9().\s-]+$').hasMatch(text) &&
+                              digits >= 7 &&
+                              digits <= 15
+                          ? null
+                          : 'Téléphone invalide.';
+                    },
+                  ),
+
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Liens',
+                    style: Theme.of(context).textTheme.titleMedium),
+                  Focus(
+                    onFocusChange: (focused) {
+                      if (!focused && !saving) {
+                        final normalized = PassportEditorFieldRules.normalize(
+                          'website', website.text,
+                        );
+                        if (website.text != normalized) {
+                          setState(() => website.text = normalized);
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: website,
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web', counterText: '',
+                      ),
+                      validator: (value) => PassportEditorFieldRules.error(
+                        'website', value ?? '',
+                      ),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+)
+                          .hasMatch(text) &&
+                              digits >= 7 &&
+                              digits <= 15
+                          ? null
+                          : 'Téléphone invalide.';
+                    },
+                  ),
+
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Liens',
+                    style: Theme.of(context).textTheme.titleMedium),
+                  Focus(
+                    onFocusChange: (focused) {
+                      if (!focused && !saving) {
+                        final normalized = PassportEditorFieldRules.normalize(
+                          'website', website.text,
+                        );
+                        if (website.text != normalized) {
+                          setState(() => website.text = normalized);
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: website,
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web', counterText: '',
+                      ),
+                      validator: (value) => PassportEditorFieldRules.error(
+                        'website', value ?? '',
+                      ),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+)
                           .hasMatch(text)
                           ? null
                           : 'E-mail invalide.';
