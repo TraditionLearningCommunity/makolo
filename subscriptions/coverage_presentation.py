@@ -72,6 +72,7 @@ def beneficiary_coverages(*, subject):
         .select_related("coverage__plan_version__plan")
         .order_by("-created_at", "id")[:100]
     )
+    effective_ids = {row.pk for row in resolved_funded_allocations(subject)}
     return [
         {
             "id": str(a.pk),
@@ -81,7 +82,7 @@ def beneficiary_coverages(*, subject):
             "plan_type": a.coverage.plan_version.plan.plan_type,
             "starts_at": a.starts_at.isoformat(),
             "ends_at": a.ends_at.isoformat(),
-            "effective": a.pk in {row.pk for row in resolved_funded_allocations(subject)},
+            "effective": a.pk in effective_ids,
         }
         for a in assignments
     ]
