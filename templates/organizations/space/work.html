@@ -158,6 +158,12 @@
 
       {% if section.continuation_url and not work_is_collection %}
       <a class="mk-btn mk-btn-secondary mt-4" href="{{ section.continuation_url }}">Afficher la suite de {{ section.label|lower }}</a>
+      {% elif section.has_more and work_is_collection and not work_next_url %}
+      <p class="mt-4 text-sm" style="color:var(--mk-muted)">
+        La navigation paginée atteint sa limite. Utilisez
+        <a class="underline" href="{{ work_search_url }}">la recherche de l’Espace</a>
+        pour retrouver un élément précis.
+      </p>
       {% endif %}
     </section>
     {% endfor %}
