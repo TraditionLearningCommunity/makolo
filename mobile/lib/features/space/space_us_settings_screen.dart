@@ -283,9 +283,12 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Nom de l’Espace',
                     ),
-                    validator: (v) => (v?.trim().isEmpty ?? true)
-                        ? 'Le nom est nécessaire.'
-                        : null,
+                    validator: (v) {
+                      final text = (v ?? '').trim();
+                      if (text.isEmpty) return 'Nom requis.';
+                      return text.runes.length > 180
+                          ? '180 caractères maximum.' : null;
+                    },
                   ),
                   TextFormField(
                     controller: description,
@@ -344,7 +347,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   TextFormField(
                     controller: phone,
                     keyboardType: TextInputType.phone,
-                    maxLength: 50,
+                    maxLength: 40,
                     maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
                       labelText: 'Téléphone',
