@@ -168,6 +168,56 @@ void main() {
     );
   });
 
+  test('Carte reads mapped candidates beyond the first Discovery page', () {
+    final projection = StoredProjection(
+      kind: DiscoveryRepository.mapProjectionKind,
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 3),
+      payload: {
+        'count': 1,
+        'total_results': 794,
+        'results': [
+          {
+            'identity': {
+              'family': 'activity',
+              'candidate_key': 'activity:far-page',
+              'resource': {'kind': 'activity', 'id': 'far-page'},
+              'occurrence': {
+                'kind': 'occurrence',
+                'id': 'occ-far-page',
+              },
+            },
+            'representation': {'title': 'Atelier localisé'},
+            'place': {
+              'name': 'Lubumbashi',
+              'latitude': -11.66,
+              'longitude': 27.48,
+            },
+            'spatial_facts': [
+              {
+                'role': 'primary',
+                'place': {'latitude': -11.66, 'longitude': 27.48},
+              },
+            ],
+            'capabilities': ['view'],
+            'links': {
+              'detail': '/api/v1/discovery/items/activity/far-page/',
+            },
+          },
+        ],
+      },
+    );
+    final selected = selector.spatialSelection(projection: projection);
+    expect(selected.collection.items, hasLength(1));
+    expect(selected.collection.items.single.candidateKey, 'activity:far-page');
+    expect(
+      selected.collection.items.single.links['detail'],
+      '/api/v1/discovery/items/activity/far-page/',
+    );
+    expect(selector.spatialAnchorsFromCollection(selected.collection), hasLength(1));
+    expect(selected.collection.hasNext, isFalse);
+  });
+
   test('spatial points derive from the same collection field', () {
     final collection = selector.collection(
       fieldProjection(
