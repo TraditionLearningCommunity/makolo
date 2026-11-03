@@ -63,6 +63,7 @@ class SpaceUsSurface extends StatelessWidget {
     }
 
     final passportTarget = limited ? null : route('passport');
+    final resourcesTarget = limited ? null : route('resources');
     final settingsTarget = limited ? null : route('settings');
     final connectionsTarget =
         !limited &&
@@ -203,11 +204,16 @@ class SpaceUsSurface extends StatelessWidget {
                         'Les données institutionnelles privées ne sont pas exposées.',
                       ),
                     ],
+                    if (passportTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      _sectionTitle(context, 'Passeport Makolo', ''),
+                      _passportCard(context, passportTarget, open),
+                    ],
                     const SizedBox(height: MakoloSpacing.xl),
                     _sectionTitle(
                       context,
-                      'Notre organisation',
-                      'Les responsabilités connues dans ce contexte.',
+                      'Ma place dans cet Espace',
+                      'Les perspectives et autorisations liées à votre rôle.',
                     ),
                     if (responsibilities.isEmpty)
                       _quiet(
@@ -224,7 +230,7 @@ class SpaceUsSurface extends StatelessWidget {
                               Icons.assignment_ind_outlined,
                               _value(item['label']) ?? 'Responsabilité',
                               _value(_map(item['activity'])?['title']) ??
-                                  'Périmètre collectif',
+                                  'Autorité ou périmètre lié à ce rôle',
                             ),
                         ],
                       ),
@@ -250,7 +256,7 @@ class SpaceUsSurface extends StatelessWidget {
                             if (teamRows.isEmpty)
                               _quiet(context, 'Aucun membre actif visible.')
                             else
-                              for (final person in teamRows)
+                              for (final person in teamRows.take(3))
                                 _fact(
                                   context,
                                   Icons.person_outline_rounded,
@@ -258,8 +264,8 @@ class SpaceUsSurface extends StatelessWidget {
                                       'Membre',
                                   'Équipe principale',
                                 ),
-                            if (team?['has_more'] == true)
-                              _quiet(context, 'Aperçu partiel de l’équipe.'),
+                            if (team?['has_more'] == true || teamRows.length > 3)
+                              _quiet(context, 'D’autres personnes sont à retrouver dans l’équipe.'),
                           ],
                         ),
                         if (route('team') case final target?)
@@ -282,7 +288,9 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         children: [
                           for (final entry in relationSections.entries)
-                            _fact(
+                            if (entry.key != 'team' &&
+                                _rows(_map(entry.value)?['items']).isNotEmpty)
+                              _fact(
                               context,
                               _relationIcon(entry.key),
                               _relationLabel(entry.key),
@@ -303,7 +311,7 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         'Gouvernance',
-                        'Mandates institutionnels, distincts des membres de l’équipe.',
+'Les personnes qui représentent et gouvernent cet Espace.',
                       ),
                       _panel(
                         context,
@@ -333,13 +341,32 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         _map(payload['trust'])?['verified'] == true
                             ? 'Des faits publics de vérification sont établis.'
-                            : 'Aucun fait public de vérification actif n’est projeté.',
+                            : 'Aucune vérification publique active à afficher.',
                       ),
                       _action(
                         context,
                         'Consulter les faits de confiance',
                         target,
                         open,
+                      ),
+                    ],
+                    if (resourcesTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.xl),
+                      _sectionTitle(
+                        context,
+                        'Nos ressources',
+                        'Les ressources institutionnelles accessibles dans cet Espace.',
+                      ),
+                      _action(context, 'Consulter les ressources', resourcesTarget, open),
+                    ],
+                    if (subscriptionTarget != null ||
+                        connectionsTarget != null ||
+                        settingsTarget != null ||
+                        pilotTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.xl),
+                      _sectionTitle(
+                        context, 'Informations et gestion',
+                        'Les autres fonctions de cet Espace.',
                       ),
                     ],
                     if (subscriptionTarget != null) ...[
@@ -357,15 +384,6 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         'Gérer les connexions de cet Espace',
                         connectionsTarget,
-                        open,
-                      ),
-                    ],
-                    if (passportTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
-                      _action(
-                        context,
-                        'Passeport de cet Espace',
-                        passportTarget,
                         open,
                       ),
                     ],
@@ -395,6 +413,53 @@ class SpaceUsSurface extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  static Widget _passportCard(
+    BuildContext context,
+    String target,
+    ValueChanged<String> open,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.primary,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => open(target),
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.lg),
+          child: Row(
+            children: [
+              Icon(Icons.badge_outlined, color: colors.onPrimary, size: 32),
+              const SizedBox(width: MakoloSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Passeport de cet Espace',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: colors.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Présenter notre collectif avec les faits disponibles',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_rounded, color: colors.onPrimary),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
