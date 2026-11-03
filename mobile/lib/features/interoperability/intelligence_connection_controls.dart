@@ -359,9 +359,22 @@ class _IntelligenceConnectionControlsState
         ),
         const SizedBox(height: 24),
         if (_view == 'discover') ...[
-          Text(
-            'Services à découvrir',
-            style: Theme.of(context).textTheme.titleLarge,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Services à découvrir',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Actualiser les services',
+                onPressed: _catalogLoading
+                    ? null
+                    : () => unawaited(_loadCatalog()),
+                icon: const Icon(Icons.refresh_outlined),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           TextField(
