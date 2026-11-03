@@ -619,6 +619,7 @@ def build_personal_passport_data(
             "active_space_mandates": list(projection.active_space_mandates),
         },
         "activities": [_passport_activity(row) for row in projection.activities],
+        "experiences": list(projection.activity_involvements),
         "established": {
             "proofs": [_passport_proof(row) for row in projection.proofs],
         },
