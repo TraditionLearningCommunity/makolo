@@ -67,7 +67,17 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     if (authorized) {
       reload();
     } else {
-      setState(() { error = 'Contexte Espace indisponible.'; loading = false; });
+      // The currently open dated/history/share sheet must not remain
+      // visible when the active owner is no longer this Space.
+      setState(() {
+        error = 'Contexte Espace indisponible.';
+        loading = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !authorized && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+      });
     }
   }
 
