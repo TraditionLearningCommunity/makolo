@@ -149,7 +149,7 @@ jobs:
         run: python manage.py test subscriptions.test_s5_security_events subscriptions.test_s5_authorized_facade notifications automation domain_events authorization
       - name: Run Subscription S6 product UX analytics hardening regressions
         if: ${{ matrix.shard == 'ux-concurrency' }}
-        run: python manage.py test subscriptions.test_s6_product_ux subscriptions.test_s6_performance subscriptions.test_space_native_api subscriptions.test_native_api subscriptions.test_native_payment_continuation subscriptions.test_lot4_continuation analytics_app.test_subscription_analytics
+        run: python manage.py test subscriptions.test_s6_product_ux subscriptions.test_s6_performance subscriptions.test_space_native_api subscriptions.test_native_api subscriptions.test_native_payment_continuation subscriptions.test_web_checkout_continuation subscriptions.test_lot4_continuation analytics_app.test_subscription_analytics
       - name: Run Subscription PostgreSQL concurrency regressions
         if: ${{ matrix.shard == 'ux-concurrency' }}
         run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency subscriptions.test_lot5_team_concurrency
