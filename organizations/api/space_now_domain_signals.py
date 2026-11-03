@@ -78,13 +78,13 @@ def select_additional_space_now(
                 human_context=incident.activity.title,
                 subject="Incident opérationnel",
                 state="Incident prioritaire non résolu",
-                why_now="Operations signale un incident important toujours ouvert.",
+                why_now="Un incident important reste ouvert.",
                 reason="operations_incident_unresolved",
                 turn="collective", response_type="act",
                 destination=native_target, native_id=native_id,
                 native_link=native_link,
                 web_url=_web(space, "console-operations"),
-                observed_at=observed_at, action_label="Examiner dans Operations",
+                observed_at=observed_at, action_label="Examiner l’incident",
             ))
 
         # A recent, rejected passage is a documented AccessUse observation,
@@ -132,7 +132,7 @@ def select_additional_space_now(
                     human_context=use.access.activity.title,
                     subject="Contrôle d'accès",
                     state="Passage refusé pendant le déroulement",
-                    why_now="Access a enregistré un refus de passage récent, sans passage accepté ultérieur.",
+                    why_now="Un passage a été refusé et aucun passage accepté plus récent n’a été enregistré.",
                     reason="access_use_rejected",
                     turn="collective", response_type="understand",
                     destination="space_occurrence_day_of",
@@ -183,8 +183,8 @@ def select_additional_space_now(
                 subject=pool.label or "Capacité",
                 state="Capacité engagée au-delà du total",
                 why_now=(
-                    f"Capacity établit {fact.held + fact.committed} unités retenues "
-                    f"ou engagées pour {fact.total} disponibles au total."
+                    f"{fact.held + fact.committed} unités sont retenues "
+                    f"ou engagées sur {fact.total} disponibles."
                 ),
                 reason="capacity_overallocated",
                 turn="collective", response_type="act",
@@ -241,7 +241,7 @@ def select_additional_space_now(
                     human_context=f"Commande {order.reference}",
                     subject="Paiement de la commande",
                     state="Dernière tentative de paiement échouée",
-                    why_now="Payments constate un échec récent tandis que Commerce garde la commande en attente.",
+                    why_now="La dernière tentative de paiement a échoué et la commande reste en attente.",
                     reason="payment_failed_order_pending",
                     turn="external", response_type="monitor",
                     destination="space_commerce_order", native_id=order.pk,
@@ -278,9 +278,9 @@ def select_additional_space_now(
                 subject="Échéance de confirmation",
                 state="Commande payante non confirmée avant échéance",
                 why_now=(
-                    "Commerce établit une commande payante encore en attente "
-                    "et une échéance dans les prochaines 24 heures. "
-                    "Aucune décision Space n'est déduite."
+                    "Une commande payante reste en attente "
+                    "et arrive à échéance dans les prochaines 24 heures."
+                    ""
                 ),
                 reason="commerce_order_expiring",
                 turn="none", response_type="wait",
@@ -324,8 +324,8 @@ def select_additional_space_now(
                 subject="Obligation financière",
                 state="Échéance dépassée, règlement non confirmé",
                 why_now=(
-                    "Payments établit une obligation échue à la charge "
-                    "de cet Espace, sans règlement encore confirmé."
+                    "Une échéance de paiement est dépassée pour "
+                    "cet Espace, sans règlement confirmé."
                 ),
                 reason="space_payment_obligation_overdue",
                 turn="none",
@@ -376,7 +376,7 @@ def select_additional_space_now(
                 human_context=activity.title,
                 subject="Automatisation",
                 state="Exécution automatisée échouée",
-                why_now="Automation établit un échec récent sur une règle de cette activité.",
+                why_now="Une automatisation liée à cette activité a échoué récemment.",
                 reason="automation_execution_failed",
                 turn="collective", response_type="understand",
                 destination="space_work_activity", native_id=activity.pk,

@@ -273,7 +273,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 activity_id=journey.activity_id, human_context=journey.activity.title,
                 subject="Dossier de prestation",
                 state="Suivi opérateur nécessaire",
-                why_now="Une situation nécessitant un suivi est établie par Services.",
+                why_now="Ce dossier nécessite un suivi.",
                 reason="service_operator_attention",
                 turn="collective", response_type="understand",
                 destination="space_work_journey", web_url=url,

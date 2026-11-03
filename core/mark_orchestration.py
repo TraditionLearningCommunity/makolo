@@ -933,8 +933,8 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             situation=situation,
             intent="personal_scope",
             message=(
-                "Le Makolo Mark personnel agit uniquement pour le Profile connecté. "
-                "Le contexte ne peut pas accorder une autorité supplémentaire."
+                "Cette demande concerne uniquement votre profil. "
+                "Elle ne permet pas d’obtenir de nouvelles autorisations."
             ),
             result={
                 "state": "forbidden",
@@ -948,8 +948,8 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             intent="ingest_input",
             code="input_modality_not_exposed",
             message=(
-                "Le runtime Mark actuel ne possède pas encore un intake générique "
-                f"pour la modalité « {input_kind} »."
+                "Ce type de contenu ne peut pas être traité ici : "
+                f"« {input_kind} »."
             ),
         )
 
@@ -986,9 +986,9 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             intent="conserve_personal_asset",
             code="file_ingestion_not_exposed",
             message=(
-                "Makolo sait gérer les ressources personnelles existantes, "
-                "mais le Mark n'expose pas encore un intake de fichier canonique. "
-                "Aucun PersonalAsset vide n'a été créé."
+                "Ajoutez le document depuis vos ressources. "
+                ""
+                "Aucun fichier n’a été enregistré."
             ),
             links={"resources": reverse("personal-projections:resources")},
             handoff=_handoff("personal_assets", "resources"),
@@ -1253,8 +1253,8 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             if journey["state"] == "resolved" and journey["result"].get("kind") == "journey":
                 journey["state"] = "unsupported"
                 journey["message"] = (
-                    "Le Mark ne possède pas de capability Payment propriétaire "
-                    "confirmée pour cette démarche. Il n'a initié aucun paiement."
+                    "Le paiement ne peut pas être effectué depuis cette demande. "
+                    "Aucun paiement n’a été initié."
                 )
                 journey["result"] = {
                     "state": "unsupported",
@@ -1288,8 +1288,8 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             intent="set_interest",
             code="interest_mutation_not_exposed",
             message=(
-                "Le Mark ne transforme pas une phrase en Interest sans contrat "
-                "de mutation explicite. Aucun Interest n'a été créé."
+                "Ajoutez cet intérêt depuis votre profil. "
+                "Aucun centre d’intérêt n’a été enregistré."
             ),
             links={"considerations": reverse("personal-projections:considerations")},
             handoff=_handoff("profile", "considerations"),
@@ -1309,9 +1309,9 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             intent="create_reality",
             code="creation_or_publication_not_exposed",
             message=(
-                "Le Mark comprend l'intention de faire exister quelque chose, "
-                "mais aucun owner-domain creation contract stable n'est exposé "
-                "ici. Rien n'a été créé ni publié."
+                "La création ou la publication n’est pas disponible ici. "
+                ""
+                "Rien n’a été créé ni publié."
             ),
         )
 
@@ -1326,7 +1326,7 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             situation=situation,
             intent="unsupported_action",
             code="capability_not_available",
-            message="Makolo ne possède pas actuellement cette capacité.",
+            message="Cette action n’est pas disponible.",
         )
 
     if _contains(
@@ -1377,8 +1377,8 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
             intent="clarify_intent",
             code="what_consequence",
             summary=(
-                "Makolo a besoin d'une seule précision pour savoir quelle "
-                "conséquence utile produire à partir de cela."
+                "Précisez "
+                "ce que vous souhaitez faire."
             ),
         )
 
@@ -1387,7 +1387,7 @@ def orchestrate_mark(*, profile, input_kind, value, context=None):
         intent="unknown",
         code="what_do_you_mean",
         summary=(
-            "Makolo ne peut pas encore relier cette demande à une capacité "
-            "réellement disponible. Précisez ce que vous voulez obtenir."
+            "Impossible de déterminer l’action souhaitée. "
+            "Précisez votre demande."
         ),
     )
