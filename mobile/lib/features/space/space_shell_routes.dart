@@ -19,6 +19,7 @@ import '../../sync/freshness.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
 import 'space_us_surface.dart';
+import 'space_us_resources_screen.dart';
 import 'space_us_authority_facts.dart';
 import '../now/now_screen.dart';
 import '../now/now_selector.dart';
@@ -425,8 +426,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   @override
   void initState() {
     super.initState();
-    widget.runtime.actorContext?.addListener(_onActorChanged);
-    _resolveSpace();
+    if (widget.depth != 'resources') {
+      widget.runtime.actorContext?.addListener(_onActorChanged);
+      _resolveSpace();
+    }
   }
 
   void _onActorChanged() {
@@ -1026,6 +1029,12 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.depth == 'resources') {
+      return SpaceUsResourcesScreen(
+        runtime: widget.runtime,
+        slug: widget.slug,
+      );
+    }
     if (_loading) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
@@ -1454,6 +1463,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     'authority' => 'Mes autorisations',
     'relationships' => 'Personnes & relations',
     'ownership' => 'Gouvernance',
+    'resources' => 'Nos ressources',
     'trust' => 'Confiance',
     'pilot' => 'Piloter',
     'settings' => 'Paramètres institutionnels',
