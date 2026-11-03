@@ -138,6 +138,36 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         public = build_profile_passport(self.amina, variant="public")
         self.assertEqual(public.group_affiliations, ())
 
+    def test_collection_privacy_is_one_gate_without_disclosing_private_atoms(self):
+        from accounts.profile_visibility import replace_profile_visibility
+
+        before = build_profile_passport(self.amina, variant="public")
+        self.assertTrue(before.interests)
+        replace_profile_visibility(
+            owner=self.amina, target_kind="field",
+            field_key="interests", audiences=[],
+        )
+        after = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(after.interests, ())
+        self.assertGreater(
+            len(build_profile_passport(self.amina, variant="complete").interests),
+            len(after.interests),
+        )
+        replace_profile_visibility(
+            owner=self.amina, target_kind="field",
+            field_key="interests", audiences=[{"kind": "public"}],
+        )
+        restored = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(
+            [row.pk for row in restored.interests],
+            [row.pk for row in before.interests],
+        )
+        # An already private declaration is never silently published.
+        self.assertLess(
+            len(restored.interests),
+            len(build_profile_passport(self.amina, variant="complete").interests),
+        )
+
     def test_public_variant_keeps_every_publicly_admissible_fact_family(self):
         public = build_profile_passport(self.amina, variant="public")
         complete = build_profile_passport(self.amina, variant="complete")
