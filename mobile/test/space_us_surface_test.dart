@@ -60,6 +60,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
       'ownership': '/space/atelier/us/ownership',
     },
     'settings': '/space/atelier/us/settings',
+    if (!limited) 'passport': '/space/atelier/us/passport',
     'pilot': '/space/atelier/us/pilot',
     'trust': '/space/atelier/us/trust',
   },
@@ -115,6 +116,12 @@ void main() {
       await tester.tap(find.text('Modifier les informations collectives'));
       expect(routes.last, '/space/atelier/us/settings');
       await tester.scrollUntilVisible(
+        find.text('Passeport de cet Espace'), 250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Passeport de cet Espace'));
+      expect(routes.last, '/space/atelier/us/passport');
+      await tester.scrollUntilVisible(
         find.text('Comprendre notre activité'),
         250,
         scrollable: find.byType(Scrollable).first,
@@ -148,6 +155,7 @@ void main() {
     expect(find.text('Ouvrir l’équipe'), findsNothing);
     expect(find.text('Explorer les relations'), findsNothing);
     expect(find.text('Modifier les informations collectives'), findsNothing);
+    expect(find.text('Passeport de cet Espace'), findsNothing);
     expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
