@@ -373,10 +373,10 @@ class _FormContent extends StatelessWidget {
             icon: const Icon(Icons.check_rounded),
             label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
           ),
-          if (!canSubmit && !detail.isSubmitted) ...[
+          if (!canSubmit && !detail.isSubmitted && commit == MakoloCommitCue.none) ...[
             const SizedBox(height: MakoloSpacing.sm),
             Text(
-              'La soumission reste sous l’autorité du serveur et sera confirmée à distance.',
+              'L’envoi de ce formulaire n’est pas disponible pour le moment.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
