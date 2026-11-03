@@ -66,6 +66,11 @@
       </div>
     </div>
     <p>{{ selected_personal_connection.experience_message }}</p>
+    {% if selected_personal_connection.owner == 'intelligence' and selected_personal_connection.enabled and selected_personal_connection.usable %}
+      {% if 'web_research' in selected_personal_connection.capabilities or 'structured_generate' in selected_personal_connection.capabilities %}
+        <a class="mk-cx-secondary mk-cx-use" href="{% url 'discovery:home' %}">Explorer dans Découvrir</a>
+      {% endif %}
+    {% endif %}
     {% if selected_personal_connection.capability_labels %}
     <section aria-labelledby="mk-cx-connected-capabilities">
       <h3 id="mk-cx-connected-capabilities">Capacités</h3>
@@ -219,7 +224,7 @@
 .mk-cx-secondary { background: #ECE8FF; color: #2B176E; }
 .mk-cx-danger { background: #FFF0EB; color: #A52B1C; }
 .mk-cx-separated { border-top: 1px solid #E1E3E8; padding-top: 18px; margin-top: 18px; }
-.mk-cx-notice { padding: 14px; border-radius: 13px; background: #F2F0F7; color: var(--cx-muted); }
+.mk-cx-use { display: inline-flex; text-decoration: none; margin: 8px 0 4px; align-items: center; }\n.mk-cx-notice { padding: 14px; border-radius: 13px; background: #F2F0F7; color: var(--cx-muted); }
 .mk-cx-return { margin: 36px 0 8px; }
 .mk-cx-return a { color: var(--cx-primary); font-weight: 650; }
 .mk-cx a:focus-visible, .mk-cx button:focus-visible, .mk-cx input:focus-visible { outline: 3px solid #FF704D; outline-offset: 3px; }
