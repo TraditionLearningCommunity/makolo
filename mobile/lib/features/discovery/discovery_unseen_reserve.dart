@@ -16,6 +16,9 @@ class DiscoveryUnseenReserve {
 
   final DateTime? rootReceivedAt;
   static const int maxUnseen = 50;
+  // Transport is at most 48 pages of 100 rows plus the signed root.
+  // Older metadata is redundant once those raw pages are pruned.
+  static const int maxRememberedKeys = 5200;
   final Set<String> _shown;
   final Set<String> _evicted;
   final Map<String, Map<String, dynamic>> _unseen = {};
@@ -44,7 +47,14 @@ class DiscoveryUnseenReserve {
         final oldest = _unseen.keys.first;
         _unseen.remove(oldest);
         _evicted.add(oldest);
+        _trimHistory(_evicted);
       }
+    }
+  }
+
+  static void _trimHistory(Set<String> keys) {
+    while (keys.length > maxRememberedKeys) {
+      keys.remove(keys.first);
     }
   }
 
@@ -61,6 +71,7 @@ class DiscoveryUnseenReserve {
     for (final key in batch) {
       _unseen.remove(key);
       _shown.add(key);
+      _trimHistory(_shown);
     }
     return List.unmodifiable(batch);
   }
