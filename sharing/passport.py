@@ -789,4 +789,5 @@ def space_passport_topic_options(space):
         is_active=True,
         activity_links__activity__space=space,
         activity_links__activity__status__in=PASSPORT_ACTIVITY_STATUSES,
+        activity_links__activity__visibility=ActivityVisibility.PUBLIC,
     ).distinct().order_by("label", "code")
