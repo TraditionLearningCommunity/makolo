@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../continuity/conversation_context_screen.dart';
 
 import '../../app/runtime/app_runtime.dart';
 
@@ -113,6 +116,13 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
             ),
             const SizedBox(height: 16),
             Text(name, style: Theme.of(context).textTheme.headlineMedium),
+            if (widget.runtime.conversations != null)
+              ConversationContextAction(
+                repository: widget.runtime.conversations!,
+                kind: 'direct',
+                contextId: widget.profileId,
+                onOpen: (id) => context.push('/conversations/$id'),
+              ),
             for (final key in ['headline', 'location', 'bio'])
               if ((profile[key]?.toString().trim() ?? '').isNotEmpty) ...[
                 const SizedBox(height: 12),
