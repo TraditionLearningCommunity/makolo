@@ -1423,7 +1423,6 @@ class DiscoveryMapScreen extends StatefulWidget {
 
 class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
-  String? _verifiedFieldKey;
   late DiscoveryQuery _query;
   bool _refreshing = false;
   String? _selectedCandidateKey;
@@ -1452,7 +1451,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     final current = _query;
     try {
       final local = await widget.repository.readSpatial(current);
-      // Cached map/list points render while owner validity is rechecked.
+      // Cached map points render while owner validity is rechecked.
       // This also protects a fresh-looking snapshot after a cold start.
       if (local != null && local.payload['results'] is! List) {
         throw const FormatException('Invalid cached spatial presentation');
@@ -1478,7 +1477,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           source.lastErrorCode == null &&
           !source.invalidated &&
           source.lastSuccessAt != null) {
-        setState(() => _verifiedFieldKey = current.mapFingerprint);
+        // A verified spatial snapshot remains in the shared local-first store.
       }
     } on Object {
       // The same field and any acquired items remain visible on failure.
@@ -1519,7 +1518,6 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                         sourceSnapshot.hasError
                     ? MakoloFailureCue.recoverable
                     : MakoloFailureCue.none,
-                sourceErrorCode: source.lastErrorCode,
               );
               return DiscoverySpatialView(
                 key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
@@ -1530,16 +1528,6 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
-                onSave: (item) =>
-                    _saveDiscoveryPossibility(widget.repository, item, _query),
-                baseUri: widget.repository.api.baseUri,
-                shareApi: widget.repository.api,
-                profileId: widget.repository.profileId,
-                allowOwnerActions:
-                    !_refreshing &&
-                    _verifiedFieldKey == _query.mapFingerprint &&
-                    source.lastErrorCode == null &&
-                    !source.invalidated,
                 onRetry: () => unawaited(_refresh()),
                 onOpen: (item) {
                   if (widget.onOpenItem != null) {
