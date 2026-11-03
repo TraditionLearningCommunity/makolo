@@ -228,7 +228,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
       'activities': filtered(
         complete['activities'], 'activities', excluded: _activities,
       ),
-      'experiences': filtered(complete['experiences'], 'experiences'),
+      'experiences': requested == 'custom' &&
+              _sections.contains('activity_involvements')
+          ? <Map<String, dynamic>>[]
+          : filtered(complete['experiences'], 'experiences'),
       'established': {
         ...established,
         'proofs': filtered(
@@ -1419,6 +1422,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
                 ('links', 'Liens'),
                 ('interests', 'Intérêts'),
                 ('open_to', 'Ouvert à'),
+                ('activity_involvements', 'Expériences'),
               ])
                 FilterChip(
                   label: Text(option.$2),
@@ -1610,6 +1614,18 @@ class _PassportBody extends StatelessWidget {
     final location = _text(identity['location']);
     final links = _rows(identity['links']);
     final privateDetails = _map(data['private_details']);
+    final missing = <String>[
+      if (bio == null) 'À propos',
+      if (profession == null) 'Profession',
+      if (location == null) 'Localisation',
+      if (links.isEmpty) 'Liens',
+      if (_rows(declared['interests']).isEmpty) 'Centres d’intérêt',
+      if (_rows(declared['open_to']).isEmpty) 'Ouvert à',
+      if (_rows(data['experiences']).isEmpty) 'Expériences',
+      if (_rows(data['activities']).isEmpty) 'Activités portées',
+      if (_rows(established['proofs']).isEmpty) 'Faits établis',
+      if (_rows(issued['credentials']).isEmpty) 'Attestations reçues',
+    ];
     final avatar = _text(identity['avatar_url']);
     final avatarUri = avatar == null
         ? null
@@ -1826,6 +1842,19 @@ class _PassportBody extends StatelessWidget {
                 : [role, if (space != null) space].join(' · ');
           },
         ),
+        if (data['variant'] == 'complete' && missing.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('À enrichir'),
+              subtitle: Text('${missing.length} rubriques'),
+              children: [
+                for (final label in missing)
+                  ListTile(dense: true, title: Text(label)),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -1912,18 +1941,7 @@ class _PassportBody extends StatelessWidget {
     String? Function(Map<String, dynamic>) label,
   ) {
     final titles = rows.map(label).whereType<String>().toSet().toList();
-    if (titles.isEmpty) {
-      if (data['variant'] != 'complete') return const SizedBox.shrink();
-      return Padding(
-        padding: const EdgeInsets.only(top: 18),
-        child: ListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: Text(title),
-          subtitle: const Text('Aucun élément à présenter'),
-        ),
-      );
-    }
+    if (titles.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
     final isInterest = title == 'Centres d’intérêt';
     final isOpening = title == 'Ouvert à';
