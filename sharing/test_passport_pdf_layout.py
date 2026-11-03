@@ -59,7 +59,7 @@ class PassportPdfLayoutTests(TestCase):
         content = page.extract_text()
         self.assertIn("PASSEPORT MAKOLO", content)
         # Language is a document-rendering preference, never a personal fact.
-        self.assertNotIn("INFORMATIONS PERSONNELLES", content)
+        self.assertIn("INFORMATIONS PERSONNELLES", content)
         self.assertNotIn("Français", content)
         self.assertIn("Profil Exemple", content)
         self.assertIn("@example", content)
@@ -107,6 +107,29 @@ class PassportPdfLayoutTests(TestCase):
         self.assertNotIn("INFORMATIONS COMPLÉMENTAIRES", text)
         self.assertNotIn("Français", text)
         self.assertIn("Centres d’intérêt".upper(), text)
+
+    def test_public_and_thematic_documents_keep_only_admitted_personal_facts(self):
+        for variant in ("public", "thematic", "custom"):
+            with self.subTest(variant=variant):
+                payload = _payload(variant)
+                payload["identity"]["presentation_details"] = {
+                    "first_name": "Profil",
+                    "last_name": "Exemple",
+                    "username": "example",
+                    "country": "CD",
+                    # Even a malformed public document cannot render these.
+                    "phone": "PRIVATE-PHONE-NOT-FOR-PUBLIC",
+                    "birth_date": "1990-01-01",
+                }
+                text = "\\n".join(
+                    page.extract_text() for page in self._reader(payload).pages
+                )
+                self.assertIn("INFORMATIONS PERSONNELLES", text)
+                self.assertIn("Prénom", text)
+                self.assertIn("Identifiant Makolo", text)
+                self.assertIn("République démocratique du Congo", text)
+                self.assertNotIn("PRIVATE-PHONE-NOT-FOR-PUBLIC", text)
+                self.assertNotIn("1990-01-01", text)
 
     def test_hero_shows_optional_gender_only_for_complete_variant(self):
         complete = _payload("complete")
