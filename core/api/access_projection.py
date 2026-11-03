@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db.models import Prefetch
 from django.urls import reverse
+from django.utils import timezone
 
 from access.models import AccessCredential, AccessStatus, CredentialStatus
 from access.selectors import access_credential_is_presentable_to
@@ -250,6 +251,7 @@ def build_personal_accesses_data(
 
 
 def build_personal_access_credential_data(*, profile, access, observed_at=None):
+    observed_at = observed_at or timezone.now()
     if not access_credential_is_presentable_to(profile, access, at=observed_at):
         return None
 
