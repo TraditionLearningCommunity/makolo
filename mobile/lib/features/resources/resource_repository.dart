@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
 
 import '../../data/files/resource_download_destination.dart';
@@ -248,6 +250,23 @@ class ResourceRepository {
     );
   }
 
+  /// Only files explicitly downloaded by this Profile are usable offline.
+  /// This says nothing about current Requirement or owner validation.
+  Future<bool> localVersionExists({
+    required String assetId,
+    required String title,
+    required int versionNumber,
+  }) async {
+    final path = await resourceDownloadDestination(
+      profileId: profileId,
+      assetId: assetId,
+      title: title,
+      versionNumber: versionNumber,
+    );
+    final file = File(path);
+    return await file.exists() && await file.length() > 0;
+  }
+
   Future<void> downloadVersionToLocal({
     required String path,
     required String assetId,
@@ -261,6 +280,11 @@ class ResourceRepository {
       title: title,
       versionNumber: versionNumber,
     );
+    final retained = File(destination);
+    if (await retained.exists() && await retained.length() > 0) {
+      // Re-export a file consciously downloaded before: no network needed.
+      return;
+    }
     await downloadVersion(
       path: path,
       destinationPath: destination,
