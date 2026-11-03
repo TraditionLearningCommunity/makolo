@@ -35,7 +35,7 @@ def build_space_us_projection(*, profile, space):
     )
 
     team = {
-        "active_members": workspace.get("team_summary", {}).get("active_members"),
+        "active_members": None,  # Restricted: never disclose team size without Team capability.
         "visibility": "restricted",
         "role_options": [],
         "items": [],
