@@ -158,7 +158,7 @@ Cette consolidation poursuit la branche unique **#522**, sans rouvrir #528. Réf
 
 ### Modifications poussées sur #522 à cette étape
 
-- `mobile/lib/features/space/space_us_surface.dart` : Passeport élevé au début du portrait, bandeaux N1 alignés sur les principes de Moi, actions avec chevrons, aperçu Team borné, relations non vides sans répétition de Team, langage humain, gestion secondaire. Le handoff `resources` n'est rendu que s'il provient réellement du serveur pour le Space actif.
+- `mobile/lib/features/space/space_us_surface.dart` : Passeport élevé au début du portrait, bandeaux N1 alignés sur les principes de Moi, actions avec chevrons, aperçu Team borné, relations non vides sans répétition de Team, langage humain, gestion secondaire. Aucun handoff `resources` n'est activé tant qu'aucune route propriétaire Space n'est enregistrée et autorisée.
 - `mobile/lib/navigation/space_context_bar.dart` : sur Compact, les deux sélecteurs ont une largeur permettant de lire les perspectives sans ellipse artificielle.
 - `organizations/space_web_views.py` et `templates/organizations/space/us.html` : Passeport Space owner-backed via `sharing:passport-space`, portrait/sections N1 réordonnés, aperçu Team borné, messages humains et préfiguration conditionnelle des Ressources.
 - `organizations/test_zs4_space_projections.py`, `organizations/test_ws4_space_web.py`, `mobile/test/space_us_surface_test.dart` : assertions Passport, autorité et non-divulgation ; adaptation des attentes de présentation.
