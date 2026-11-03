@@ -3,7 +3,7 @@
 No permission is conveyed by a page, section or URL. Every destination must
 re-read its own owner under the viewer's current Space responsibility.
 """
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from django.http import Http404
 from django.urls import reverse
@@ -49,3 +49,62 @@ def work_back_url(*, space, responsibility, section, origin_page=None):
         + "?" + urlencode({"responsibility": responsibility})
         + f"#work-{section}"
     )
+
+
+_LINK_FIELDS = frozenset({
+    "url", "parent_url", "back_url", "next_page_url",
+    "previous_page_url", "next", "previous", "next_occurrences",
+    "previous_occurrences", "next_work", "previous_work",
+})
+
+
+def _origin_url(url, origin_page):
+    """Append an origin only to our own Work N2 URLs."""
+    if not isinstance(url, str) or not url.startswith("/"):
+        return url
+    parsed = urlsplit(url)
+    if parsed.scheme or parsed.netloc or "/work/" not in parsed.path:
+        return url
+    if "work_origin_page=" in parsed.query:
+        return url
+    query = parsed.query
+    query += ("&" if query else "") + urlencode({"work_origin_page": origin_page})
+    return urlunsplit(("", "", parsed.path, query, parsed.fragment))
+
+
+def restore_work_origin(*, request, context, context_key, space,
+                        responsibility, section):
+    """Preserve N1 collection across N2 relations, children and pagination.
+
+    A user-controlled page is a navigation hint only. The selected domain owner
+    and every action continue to be authorized independently.
+    """
+    origin_page = work_page_number(request.GET.get("work_origin_page"))
+    if origin_page is None:
+        return
+
+    def rewrite(value):
+        if isinstance(value, list):
+            return [rewrite(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                key: (
+                    _origin_url(item, origin_page)
+                    if key in _LINK_FIELDS else rewrite(item)
+                )
+                for key, item in value.items()
+            }
+        return value
+
+    data = context.get(context_key)
+    if not isinstance(data, dict):
+        return
+    original_back = data.get("back_url") or ""
+    updated = rewrite(data)
+    root_path = reverse("organizations:space-work", kwargs={"slug": space.slug})
+    if urlsplit(original_back).path == root_path:
+        updated["back_url"] = work_back_url(
+            space=space, responsibility=responsibility, section=section,
+            origin_page=origin_page,
+        )
+    context[context_key] = updated
