@@ -1222,11 +1222,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
               onTap: () => Navigator.pop(sheet, 'makolo'),
             ),
             ListTile(
-              leading: const Icon(Icons.history_outlined),
-              title: const Text('Partager une ancienne version'),
-              onTap: () => Navigator.pop(sheet, 'history'),
-            ),
-            ListTile(
               leading: const Icon(Icons.link_outlined),
               title: const Text('Partager le lien public'),
               enabled: canShareLink,
@@ -1255,10 +1250,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
     if (action == 'makolo') {
       await _shareInMakolo();
-      return;
-    }
-    if (action == 'history') {
-      await _showDatedHistory();
       return;
     }
     if (action == 'copy_dated') {
