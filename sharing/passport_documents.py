@@ -47,6 +47,7 @@ def serialize_passport_projection(projection):
             }
             for row in projection.open_to
         ],
+        "activity_involvements": list(projection.activity_involvements),
         "activities": [
             {
                 "id": str(row.pk),
