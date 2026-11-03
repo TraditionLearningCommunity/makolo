@@ -203,51 +203,9 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   Text(
-                    'Connexions et services de cet Espace.',
+                    'Services reliés à cet Espace.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  if (connections.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Aucune connexion de cet Espace.'),
-                    ),
-                  for (final row in connections)
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.link_outlined),
-                        title: Text(row.displayName),
-                        subtitle: Text(
-                          '${spaceConnectionStatus(row)}\n'
-                          '${connectionExperienceMessage(row)}',
-                        ),
-                        isThreeLine: true,
-                      ),
-                    ),
-                  if (domainIntegrations.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      'Capacités financières de cet Espace',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const Text(
-                      'Traitement des paiements dans Makolo. '
-                      'Aucun compte bancaire externe connecté.',
-                    ),
-                    for (final item in domainIntegrations)
-                      Card(
-                        child: ListTile(
-                          title: Text(item.displayName),
-                          subtitle: Text(item.description),
-                        ),
-                      ),
-                  ],
-                  if (!canMutate)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'Informations à actualiser avant toute modification.',
-                      ),
-                    ),
                   IntelligenceConnectionControls(
                     key: ValueKey('space-connections-${current.space.id}'),
                     runtime: widget.runtime,
