@@ -12,6 +12,7 @@ import '../space/space_work_g1_realizations.dart';
 import '../space/space_work_g2_depth.dart';
 import '../space/space_work_g3_depth.dart';
 import '../space/space_work_g4_depth.dart';
+import '../space/space_work_owner_actions.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -22,12 +23,16 @@ class SpaceRetrievalOwnerScreen extends StatefulWidget {
     required this.spaceActor,
     required this.kind,
     required this.id,
+    this.workSection,
+    this.fromWorkCollection = false,
   });
 
   final AppRuntime runtime;
   final SpaceActorContext spaceActor;
   final String kind;
   final String id;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   @override
   State<SpaceRetrievalOwnerScreen> createState() =>
@@ -43,6 +48,26 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
 
   bool get _actorValid =>
       widget.runtime.actorContext?.value == widget.spaceActor;
+
+  String? get _workSection =>
+      spaceWorkSectionKeys.contains(widget.workSection)
+          ? widget.workSection
+          : null;
+
+  void _returnToWork() {
+    if (!_actorValid) return;
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(
+        spaceWorkReturnRoute(
+          slug: widget.spaceActor.space.slug,
+          section: _workSection,
+          fromCollection: widget.fromWorkCollection,
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -81,7 +106,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     if (oldWidget.runtime != widget.runtime ||
         oldWidget.spaceActor != widget.spaceActor ||
         oldWidget.kind != widget.kind ||
-        oldWidget.id != widget.id) {
+        oldWidget.id != widget.id ||
+        oldWidget.workSection != widget.workSection ||
+        oldWidget.fromWorkCollection != widget.fromWorkCollection) {
       _relatedOffset = 0;
       _relatedWorkOffset = 0;
       _g3Offset = 0;
@@ -298,7 +325,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Détail de mon Espace')),
+      appBar: AppBar(
+        title: Text(_workSection == null ? 'Détail de mon Espace' : 'Métier'),
+      ),
       body: !_actorValid
           ? const Center(
               child: Text('Revenez à l’Espace autorisé pour ce détail.'),
@@ -323,6 +352,12 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                               setState(() => _result = _readOwner()),
                           child: const Text('Actualiser'),
                         ),
+                        if (_workSection != null)
+                          TextButton.icon(
+                            onPressed: _returnToWork,
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Retour à Métier'),
+                          ),
                       ],
                     ),
                   );
@@ -330,10 +365,12 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                 final data = snapshot.data!;
                 final itemContext = spaceMap(data['context']);
                 final activity = spaceMap(itemContext?['activity']);
-                final activityRoute = spaceOwnerRoute(
+                final activityRoute = spaceWorkOwnerRoute(
                   slug: widget.spaceActor.space.slug,
                   kind: 'activity',
                   id: spaceText(activity?['id']),
+                  section: _workSection,
+                  fromCollection: widget.fromWorkCollection,
                 );
                 final blockers = spaceMap(
                   data['continuity_facet'],
@@ -341,6 +378,15 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
+                    if (_workSection != null)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _returnToWork,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Retour à Métier'),
+                        ),
+                      ),
                     MakoloDetailHeader(
                       title: spaceText(data['title']) ?? 'Détail',
                       eyebrow: spaceText(data['type']),
@@ -418,6 +464,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                             _result = _readOwner();
                           });
                         },
+                        workSection: _workSection,
+                        fromWorkCollection: widget.fromWorkCollection,
                         onSecondaryPageChange: (nextOffset) {
                           if (!_actorValid) return;
                           setState(() {
@@ -445,6 +493,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         nextOccurrence:
                             spaceMap(itemContext?['next_occurrence']),
                         mediaBaseUri: widget.runtime.api?.baseUri,
+                        workSection: _workSection,
+                        fromWorkCollection: widget.fromWorkCollection,
                         onPageChange: (nextOffset) {
                           if (!_actorValid) return;
                           setState(() {
@@ -463,6 +513,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         archetype: data['space_archetype'] as String,
                         occurrences: spaceMap(data['related_occurrences'])!,
                         work: spaceMap(data['related_work'])!,
+                        workSection: _workSection,
+                        fromWorkCollection: widget.fromWorkCollection,
                         onOccurrencesPageChange: (nextOffset) {
                           if (!_actorValid) return;
                           setState(() {
@@ -486,6 +538,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         payload: spaceMap(data['related_occurrences'])!,
                         slug: widget.spaceActor.space.slug,
                         isCommunity: data['space_archetype'] == 'community',
+                        workSection: _workSection,
+                        fromWorkCollection: widget.fromWorkCollection,
                         onPageChange: (nextOffset) {
                           if (!_actorValid) return;
                           setState(() {
@@ -494,50 +548,15 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                           });
                         },
                       ),
-                    if (widget.kind == 'journey' &&
-                        data['owner_handoffs'] is List)
-                      for (final handoff in data['owner_handoffs'] as List)
-                        if (spaceText(
-                              spaceMap(spaceMap(handoff)?['owner'])?['id'],
-                            )
-                            case final String requestId)
-                          if (spaceText(spaceMap(handoff)?['intent']) ==
-                                  'open_request' &&
-                              spaceText(
-                                    spaceMap(
-                                      spaceMap(handoff)?['owner'],
-                                    )?['kind'],
-                                  ) ==
-                                  'journey_request')
-                            ListTile(
-                              leading: const Icon(Icons.fact_check_outlined),
-                              title: const Text('Examiner la demande'),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => context.push(
-                                '/space/requests/${Uri.encodeComponent(requestId)}',
-                              ),
-                            ),
-                    if (widget.kind == 'journey' &&
-                        data['space_archetype'] == 'service_provider' &&
-                        data['owner_handoffs'] is List)
-                      for (final handoff in data['owner_handoffs'] as List)
-                        if (spaceText(spaceMap(handoff)?['intent']) ==
-                                'open_service_case_native' &&
-                            spaceText(
-                                  spaceMap(spaceMap(handoff)?['owner'])?['id'],
-                                ) ==
-                                widget.id)
-                          ListTile(
-                            leading: const Icon(Icons.work_outline),
-                            title: const Text(
-                              'Suivre le dossier de prestation',
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.push(
-                              '/space/${Uri.encodeComponent(widget.spaceActor.space.slug)}'
-                              '/services/cases/${Uri.encodeComponent(widget.id)}',
-                            ),
-                          ),
+                    if (data['owner_handoffs'] is List)
+                      SpaceWorkOwnerActions(
+                        slug: widget.spaceActor.space.slug,
+                        sourceKind: widget.kind,
+                        sourceId: widget.id,
+                        archetype: spaceText(data['space_archetype']),
+                        handoffs: data['owner_handoffs'] as List,
+                        canOpenDayOf: data['day_of'] == true,
+                      ),
                     if (activityRoute != null)
                       ListTile(
                         title: Text(
@@ -545,14 +564,6 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => context.push(activityRoute),
-                      ),
-                    if (data['day_of'] == true && widget.kind == 'occurrence')
-                      FilledButton.icon(
-                        onPressed: () => context.push(
-                          '/space/occurrences/${Uri.encodeComponent(widget.id)}/day-of',
-                        ),
-                        icon: const Icon(Icons.play_circle_outline),
-                        label: const Text('Jour J'),
                       ),
                     if (data['presentation']
                         case final MpsPresentationPackage package)
