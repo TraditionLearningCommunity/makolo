@@ -1782,6 +1782,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
             }
             final verified =
                 !_refreshing &&
+                !_saving &&
                 _verifiedItemKey == _itemKey &&
                 owner.lastSuccessAt != null &&
                 owner.lastErrorCode == null &&
