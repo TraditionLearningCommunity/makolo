@@ -699,6 +699,61 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
   }
 
+  Widget _pointWidget(_ConversationPoint point, {bool readOnly = false}) {
+    final focused = point.id == widget.focusPointId;
+    return Padding(
+      key: focused ? _pointFocusKey : ValueKey('point-${point.id}'),
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: _PointCard(
+        point: point,
+        repository: widget.repository,
+        conversationId: widget.id,
+        representedSpaceId: widget.representedSpaceId,
+        readOnly: readOnly,
+      ),
+    );
+  }
+
+  Widget _pointSection(
+    BuildContext context,
+    String title,
+    List<_ConversationPoint> points, {
+    bool readOnly = false,
+  }) {
+    if (points.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner, MakoloSpacing.lg,
+        MakoloSpacing.inner, 0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: MakoloSpacing.md),
+          for (final point in points)
+            _pointWidget(point, readOnly: readOnly),
+        ],
+      ),
+    );
+  }
+
+  void _focusAfterLayout() {
+    final id = widget.focusPointId;
+    if (id == null || id == _handledFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || id != widget.focusPointId) return;
+      final focused = _pointFocusKey.currentContext;
+      if (focused == null) return;
+      _handledFocus = id;
+      Scrollable.ensureVisible(
+        focused,
+        duration: const Duration(milliseconds: 250),
+        alignment: 0.18,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
@@ -813,73 +868,69 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     ? 'La dernière version disponible reste consultable.'
                     : null,
                 onRetry: _refresh,
-                content: ListView(
-                  key: const Key('conversation-detail-content'),
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                  children: [
-                    MakoloDetailHeader(
-                      eyebrow: detail.contextLabel,
-                      title: detail.title,
-                      subtitle: detail.purpose,
-                      status: detail.lifecycle == null
-                          ? null
-                          : MakoloStatus(label: detail.lifecycle!),
-                    ),
-                    MakoloSection(
-                      title: 'Points',
-                      description:
-                          'Ce qui demande votre attention apparaît ici.',
-                      child: detail.points.isEmpty
-                          ? const MakoloCard(
-                              child: Text('Aucun point à afficher.'),
-                            )
-                          : Column(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < detail.points.length;
-                                  index++
-                                ) ...[
-                                  _PointCard(
-                                    point: detail.points[index],
-                                    repository: widget.repository,
-                                    conversationId: widget.id,
-                                    representedSpaceId:
-                                        widget.representedSpaceId,
-                                  ),
-                                  if (index < detail.points.length - 1)
-                                    const SizedBox(height: MakoloSpacing.sm),
-                                ],
-                              ],
-                            ),
-                    ),
-                    if (detail.essential.isNotEmpty)
-                      MakoloSection(
-                        title: 'Essentiel',
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < detail.essential.length;
-                              index++
-                            ) ...[
-                              _PointCard(
-                                point: detail.essential[index],
-                                repository: widget.repository,
-                                conversationId: widget.id,
-                                representedSpaceId: widget.representedSpaceId,
-                                readOnly: true,
-                              ),
-                              if (index < detail.essential.length - 1)
-                                const SizedBox(height: MakoloSpacing.sm),
-                            ],
-                          ],
+                content: Builder(
+                  builder: (context) {
+                    final seen = <String>{};
+                    List<_ConversationPoint> unique(Iterable<_ConversationPoint> points) {
+                      return [
+                        for (final point in points)
+                          if (seen.add(point.id)) point,
+                      ];
+                    }
+
+                    final focused = detail.focusedPoint;
+                    final focusedOnly = focused != null &&
+                            !detail.points.any((p) => p.id == focused.id) &&
+                            !detail.elsewhere.any((p) => p.id == focused.id) &&
+                            !detail.essential.any((p) => p.id == focused.id)
+                        ? unique([focused])
+                        : <_ConversationPoint>[];
+                    final essential = unique(detail.essential);
+                    final mine = unique(detail.points.where(
+                      (point) => point.section == 'pour_moi' ||
+                          point.attentionReason == 'resolve',
+                    ));
+                    final elsewhere = unique(detail.elsewhere);
+                    final information = unique(detail.points.where(
+                      (point) => point.section != 'pour_moi' &&
+                          point.attentionReason != 'resolve',
+                    ));
+                    _focusAfterLayout();
+
+                    return ListView(
+                      key: const Key('conversation-detail-content'),
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            MakoloSpacing.inner, MakoloSpacing.md,
+                            MakoloSpacing.inner, 0,
+                          ),
+                          child: MakoloDetailHeader(
+                            eyebrow: detail.contextLabel,
+                            title: detail.title,
+                            subtitle: detail.purpose,
+                            status: detail.lifecycle == null
+                                ? null
+                                : MakoloStatus(label: detail.lifecycle!),
+                          ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-            );
+                        _pointSection(context, 'Point recherché', focusedOnly),
+                        _pointSection(context, 'L’essentiel', essential, readOnly: true),
+                        _pointSection(context, 'À vous', mine),
+                        _pointSection(context, 'En cours ailleurs', elsewhere, readOnly: true),
+                        _pointSection(context, 'À savoir et résultats', information, readOnly: true),
+                        if (focusedOnly.isEmpty && essential.isEmpty &&
+                            mine.isEmpty && elsewhere.isEmpty &&
+                            information.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(MakoloSpacing.inner),
+                            child: Text('Tout est en ordre. ✓'),
+                          ),
+                      ],
+                    );
+                  },
+                ),            );
           },
         );
       },
