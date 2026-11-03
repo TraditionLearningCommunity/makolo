@@ -170,9 +170,13 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Impossible de charger la suite.',
+                          payload == null
+                              ? 'Impossible de vérifier cette collection.'
+                              : 'Actualisation impossible. Les éléments affichés '
+                                  'proviennent de la dernière lecture réussie ; '
+                                  'chaque ouverture sera revérifiée.',
                         ),
                       ),
                       TextButton(
