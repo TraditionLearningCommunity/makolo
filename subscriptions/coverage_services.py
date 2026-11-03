@@ -166,12 +166,18 @@ def create_coverage(
 def reconcile_coverage_payment(*, coverage):
     """Idempotently activate a pool after all linked obligations are settled."""
     coverage = SubscriptionCoverage.objects.select_for_update().get(pk=coverage.pk)
-    if coverage.status != CoverageStatus.PENDING_PAYMENT:
+    if coverage.status == CoverageStatus.ENDED:
         return coverage
     links = list(coverage.billing_obligation_links.select_related("obligation"))
     if not links:
         return coverage
-    if all(link.obligation.status in SETTLED for link in links):
+    all_settled = all(link.obligation.status in SETTLED for link in links)
+    if not all_settled and coverage.status == CoverageStatus.ACTIVE:
+        coverage.status = CoverageStatus.SUSPENDED
+        coverage.state_changed_at = timezone.now()
+        coverage.state_reason = "Financement non réglé ; les droits financés sont suspendus."
+        coverage.save(update_fields=["status", "state_changed_at", "state_reason", "updated_at"])
+    elif all_settled and coverage.status == CoverageStatus.PENDING_PAYMENT:
         coverage.status = CoverageStatus.ACTIVE
         coverage.state_changed_at = timezone.now()
         coverage.state_reason = "Les obligations financières liées sont réglées."
