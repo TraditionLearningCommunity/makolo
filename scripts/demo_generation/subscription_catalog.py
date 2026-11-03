@@ -17,6 +17,19 @@ DEMO_OFFERS = (
 )
 
 
+# These are exercise labels, not commercial promises or additional rights.
+# The three existing canonical features cannot justify inventing a separate
+# Profile entitlement for Plus vs Max. Actual differences remain server-owned.
+DEMO_BENEFIT_LABELS = {
+    "demo.profile.plus": "Scénario de formule personnelle payante",
+    "demo.profile.max": "Scénario de changement vers un tarif supérieur",
+    "demo.profile.option": "Scénario d’option personnelle cumulable",
+    "demo.space.equipe": "Jusqu’à 5 membres d’équipe actifs",
+    "demo.space.organisation": "Jusqu’à 25 membres et rôles personnalisés",
+    "demo.space.option": "3 membres d’équipe supplémentaires",
+}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--apply", action="store_true")
@@ -64,7 +77,7 @@ def main(argv=None):
                 PlanEntitlement.objects.create(plan_version=version, feature=feature, value=value)
             PlanBenefit.objects.create(
                 plan_version=version,
-                title="Scénarios de démonstration et facturation sandbox",
+                title=DEMO_BENEFIT_LABELS[code],
                 position=0,
             )
             PlanVersionBillingTerms.objects.create(
