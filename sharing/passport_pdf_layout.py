@@ -588,21 +588,23 @@ def render_passport_layout(payload, metadata, verify_url, *,
             _heading("Contexte professionnel"), Spacer(1, 9),
             _details_grid(professional),
         ]), Spacer(1, 16)])
+    is_complete = payload.get("variant") == "complete"
     owner = (
         identity.get("owner_details") or {}
-        if payload.get("variant") == "complete"
-        else identity.get("presentation_details") or {}
+        if is_complete else identity.get("presentation_details") or {}
     )
-    # The identity header already contains the person's name, location,
-    # language and declared gender. Repeat only meaningful additional facts.
-    labels = (
+    # Even a corrupted non-complete payload must never print owner-only
+    # coordinates. A public document has a strict personal-fact allowlist.
+    public_labels = (
         ("first_name", "Prénom"), ("last_name", "Nom"),
         ("username", "Identifiant Makolo"),
-        ("company", "Entreprise"), ("organization", "Organisation"),
         ("city", "Ville"), ("country", "Pays"),
+    )
+    labels = public_labels + (
+        ("company", "Entreprise"), ("organization", "Organisation"),
         ("phone", "Téléphone"), ("address", "Adresse"),
         ("birth_date", "Date de naissance"),
-    )
+    ) if is_complete else public_labels
     details = []
     for field, label in labels:
         # Already rendered above in the canonical presentation section.
