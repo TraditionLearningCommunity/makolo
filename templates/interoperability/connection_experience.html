@@ -6,7 +6,7 @@
 
   {% if selected_connection_offer %}
   <div class="mk-cx-detail">
-    <a class="mk-cx-back" href="?tab=discover">← Tous les services</a>
+    <a class="mk-cx-back" href="?tab=discover{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">← Tous les services</a>
     <div class="mk-cx-hero">
       <span class="mk-cx-symbol" aria-hidden="true">{{ selected_connection_offer.label|slice:":1" }}</span>
       <div>
@@ -54,7 +54,7 @@
 
   {% elif selected_personal_connection %}
   <div class="mk-cx-detail">
-    <a class="mk-cx-back" href="?tab=mine">← Mes connexions</a>
+    <a class="mk-cx-back" href="?tab=mine{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">← Mes connexions</a>
     <div class="mk-cx-hero">
       <span class="mk-cx-symbol" aria-hidden="true">{{ selected_personal_connection.display_name|slice:":1" }}</span>
       <div>
@@ -112,8 +112,8 @@
 
   {% else %}
   <nav class="mk-cx-tabs" aria-label="Explorer ou gérer ses connexions">
-    <a href="?tab=discover" class="{% if connections_tab == 'discover' %}is-active{% endif %}" {% if connections_tab == 'discover' %}aria-current="page"{% endif %}>Découvrir</a>
-    <a href="?tab=mine" class="{% if connections_tab == 'mine' %}is-active{% endif %}" {% if connections_tab == 'mine' %}aria-current="page"{% endif %}>Mes connexions</a>
+    <a href="?tab=discover{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if connections_tab == 'discover' %}is-active{% endif %}" {% if connections_tab == 'discover' %}aria-current="page"{% endif %}>Découvrir</a>
+    <a href="?tab=mine{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if connections_tab == 'mine' %}is-active{% endif %}" {% if connections_tab == 'mine' %}aria-current="page"{% endif %}>Mes connexions</a>
   </nav>
 
   {% if connections_tab == 'discover' %}
@@ -121,6 +121,7 @@
       <h2 id="mk-cx-discover-heading">Services à découvrir</h2>
       <form method="get" class="mk-cx-search" role="search">
         <input type="hidden" name="tab" value="discover">
+        {% if selected_responsibility.key and selected_responsibility.key != 'all' %}<input type="hidden" name="responsibility" value="{{ selected_responsibility.key }}">{% endif %}
         {% if catalog_category %}<input type="hidden" name="cap" value="{{ catalog_category }}">{% endif %}
         <label class="sr-only" for="mk-cx-search-input">Rechercher un service</label>
         <input id="mk-cx-search-input" name="q" value="{{ catalog_query }}" maxlength="80" placeholder="Rechercher un service">
@@ -128,16 +129,16 @@
       </form>
       {% if capability_options %}
       <div class="mk-cx-filters" aria-label="Filtrer par capacité">
-        <a href="?tab=discover{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}" class="{% if not catalog_category %}is-active{% endif %}">Tous</a>
+        <a href="?tab=discover{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if not catalog_category %}is-active{% endif %}">Tous</a>
         {% for option in capability_options %}
-          <a href="?tab=discover&amp;cap={{ option.code|urlencode }}{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}" class="{% if catalog_category == option.code %}is-active{% endif %}">{{ option.label }}</a>
+          <a href="?tab=discover&amp;cap={{ option.code|urlencode }}{% if catalog_query %}&amp;q={{ catalog_query|urlencode }}{% endif %}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}" class="{% if catalog_category == option.code %}is-active{% endif %}">{{ option.label }}</a>
         {% endfor %}
       </div>
       {% endif %}
       {% if visible_connection_offers %}
         <div class="mk-cx-list">
           {% for offer in visible_connection_offers %}
-          <a class="mk-cx-row" href="?offer={{ offer.code|urlencode }}">
+          <a class="mk-cx-row" href="?offer={{ offer.code|urlencode }}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">
             <span class="mk-cx-symbol" aria-hidden="true">{{ offer.label|slice:":1" }}</span>
             <span class="mk-cx-row-text">
               <strong>{{ offer.label }}</strong>
@@ -157,7 +158,7 @@
       {% if connections %}
         <div class="mk-cx-list">
           {% for connection in connections %}
-          <a class="mk-cx-row" href="?connection={{ connection.id|urlencode }}">
+          <a class="mk-cx-row" href="?connection={{ connection.id|urlencode }}{% if selected_responsibility.key and selected_responsibility.key != 'all' %}&amp;responsibility={{ selected_responsibility.key|urlencode }}{% endif %}">
             <span class="mk-cx-symbol" aria-hidden="true">{{ connection.display_name|slice:":1" }}</span>
             <span class="mk-cx-row-text">
               <strong>{{ connection.display_name }}</strong>
