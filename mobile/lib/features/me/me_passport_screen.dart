@@ -94,34 +94,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
   }
 
   Future<void> _restorePassport() async {
-    final personal = widget.personal;
-    // Public previews must not revive a stale copy after audience changes.
-    if (personal == null || _variant == 'public') return;
-    final key = _passportStorageKey();
-    try {
-      final snapshot = await personal.store.readProjection(
-        'personal.me.passport',
-        resourceKey: key,
-      );
-      if (snapshot != null &&
-          snapshot.payload['variant'] == _variant &&
-          mounted &&
-          key == _passportStorageKey()) {
-        setState(() {
-          _cachedPassport = snapshot.payload;
-          _cachedVariantKey = key;
-        });
-      }
-    } on Object {
-      // A missing or invalid stored projection must not become a fake Passport.
-    }
     try {
       final avatar = await _avatarFile();
       if (avatar != null && await avatar.exists() && mounted) {
         setState(() => _cachedAvatar = avatar.readAsBytesSync());
       }
     } on Object {
-      // A missing local image cannot block identity or the whole Passport.
+      // The photo cannot block the owner's Passport projection.
     }
   }
 
@@ -354,135 +333,112 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final epoch = ++_loadEpoch;
     final requestedVariant = _variant;
     final resourceKey = _passportStorageKey();
-    if (preferLocal && requestedVariant != 'public') {
+
+    void keep(Map<String, dynamic> data, {bool online = false}) {
+      if (!mounted || epoch != _loadEpoch ||
+          resourceKey != _passportStorageKey()) return;
+      setState(() {
+        _cachedPassport = data;
+        _cachedVariantKey = resourceKey;
+        if (online) _onlineReady = true;
+      });
+    }
+
+    if (preferLocal && _hasLocalComposition) {
+      final result = _composePassport(_full!, variant: requestedVariant);
+      keep(result);
+      return result;
+    }
+
+    if (preferLocal && widget.personal != null) {
       try {
-        final stored = await widget.personal?.store.readProjection(
-          'personal.me.passport',
-          resourceKey: resourceKey,
+        final stored = await widget.personal!.store.readProjection(
+          'personal.me.passport', resourceKey: _sourceKey,
         );
-        if (stored != null &&
-            stored.payload['variant'] == requestedVariant &&
-            epoch == _loadEpoch &&
-            resourceKey == _passportStorageKey()) {
-          if (mounted) {
-            setState(() {
-              _cachedPassport = stored.payload;
-              _cachedVariantKey = resourceKey;
-              _onlineReady = false;
-            });
-          }
-          // Return the local owner projection immediately; remote work is
-          // background reconciliation and never blocks the visible Passport.
-          unawaited(
-            _load(preferLocal: false)
-                .then((data) {
-                  if (!mounted ||
-                      _variant != requestedVariant ||
-                      resourceKey != _passportStorageKey()) {
-                    return;
-                  }
-                  setState(() => _future = Future.value(data));
-                })
-                .catchError((Object _) {
-                  // The existing local Passport remains the presentation.
-                }),
-          );
-          return stored.payload;
-        }
-      } on Object {
-        // Local read failure must not block the server owner.
-      }
-      try {
-        final preview = await _rootPassportPreview();
-        if (preview != null &&
-            epoch == _loadEpoch &&
-            resourceKey == _passportStorageKey()) {
-          if (mounted) {
-            setState(() {
-              _cachedPassport = preview;
-              _cachedVariantKey = resourceKey;
-              _onlineReady = false;
-            });
-          }
-          unawaited(
-            _load(preferLocal: false)
-                .then((fresh) {
-                  if (!mounted ||
-                      requestedVariant != _variant ||
-                      resourceKey != _passportStorageKey()) {
-                    return;
-                  }
+        final source = stored?.payload;
+        if (source != null && source['variant'] == 'complete' &&
+            _map(source['composition'])['schema_version'] == 1 &&
+            epoch == _loadEpoch && resourceKey == _passportStorageKey()) {
+          _full = source;
+          _onlineReady = false;
+          final result = _composePassport(source, variant: requestedVariant);
+          keep(result);
+          unawaited(_load(preferLocal: false)
+              .then((fresh) {
+                if (mounted && requestedVariant == _variant &&
+                    resourceKey == _passportStorageKey()) {
                   setState(() => _future = Future.value(fresh));
-                })
-                .catchError((Object _) {}),
-          );
-          return preview;
+                }
+              })
+              .catchError((Object _) {}));
+          return result;
         }
       } on Object {
-        // The root may not have been received on this device yet.
+        // The owner cache is replaceable; a missing copy never grants access.
       }
     }
-    final url = Uri(
-      path: 'api/v1/me/passport/',
-      queryParameters: _passportParams(),
-    ).toString();
+
     try {
-      final response = await widget.api.get(url);
-      final data = ProjectionEnvelope.parse(
-        response.jsonObject(),
-        expectedProjection: 'personal.me.passport',
+      final response = await widget.api.get(
+        'api/v1/me/passport/?variant=complete',
+      );
+      final complete = ProjectionEnvelope.parse(
+        response.jsonObject(), expectedProjection: 'personal.me.passport',
       ).data;
-      if (epoch != _loadEpoch ||
-          requestedVariant != _variant ||
-          resourceKey != _passportStorageKey() ||
-          data['variant'] != requestedVariant) {
-        throw const FormatException('Outdated or invalid Passport variant');
+      if (complete['variant'] != 'complete') {
+        throw const FormatException('Incomplete Passport source');
       }
-      if (widget.personal != null) {
+      if (epoch != _loadEpoch || requestedVariant != _variant ||
+          resourceKey != _passportStorageKey()) {
+        throw const FormatException('Obsolete Passport response');
+      }
+      final modern = _map(complete['composition'])['schema_version'] == 1;
+      Map<String, dynamic> result = complete;
+      if (modern) {
+        result = _composePassport(complete, variant: requestedVariant);
+      } else if (requestedVariant != 'complete') {
+        // Tolerate a backend not yet exposing the owner composition contract.
+        final legacyResponse = await widget.api.get(Uri(
+          path: 'api/v1/me/passport/',
+          queryParameters: _passportParams(),
+        ).toString());
+        result = ProjectionEnvelope.parse(
+          legacyResponse.jsonObject(), expectedProjection: 'personal.me.passport',
+        ).data;
+      }
+      if (epoch != _loadEpoch || requestedVariant != _variant ||
+          resourceKey != _passportStorageKey()) {
+        throw const FormatException('Obsolete Passport selection');
+      }
+      _full = complete;
+      if (widget.personal != null && modern) {
         try {
           await widget.personal!.store.putProjection(
             kind: 'personal.me.passport',
-            resourceKey: resourceKey,
+            resourceKey: _sourceKey,
             schemaVersion: 1,
-            payload: data,
+            payload: complete,
           );
         } on Object {
-          // Local persistence failure must not hide a valid online Passport.
+          // A local persistence error must not discard authoritative facts.
         }
       }
-      if (mounted) {
-        setState(() {
-          _onlineReady = true;
-          _cachedPassport = data;
-          _cachedVariantKey = resourceKey;
-        });
-      }
-      if (requestedVariant == 'complete') {
-        _full = data;
-        // The complete Passport supplies the selection catalog, but never
-        // silently selects private facts for a personalized export.
-      }
-      // Media belongs to the profile and is stored separately from projections.
-      _persistAvatar(data);
-      return data;
+      keep(result, online: true);
+      unawaited(_persistAvatar(complete));
+      return result;
     } on Object catch (error) {
-      if (epoch != _loadEpoch ||
-          requestedVariant != _variant ||
-          resourceKey != _passportStorageKey()) {
-        rethrow;
-      }
-      // Owner policy failures differ from connectivity loss. Do not retain
-      // an explicitly revoked document as an apparently valid local depth.
+      if (epoch != _loadEpoch || requestedVariant != _variant ||
+          resourceKey != _passportStorageKey()) rethrow;
       if (error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404)) {
+        _full = null;
         if (widget.personal != null) {
           try {
             await widget.personal!.store.deleteProjection(
-              'personal.me.passport',
-              resourceKey: resourceKey,
+              'personal.me.passport', resourceKey: _sourceKey,
             );
           } on Object {
-            // The revoked document is still removed from the active view.
+            // Refusal always clears the active projection despite local I/O.
           }
         }
         if (mounted) {
@@ -490,24 +446,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
             _cachedPassport = null;
             _cachedVariantKey = null;
             _onlineReady = false;
-            _future = Future.value({'variant': 'unavailable'});
           });
         }
         rethrow;
       }
-      final local = widget.personal == null || requestedVariant == 'public'
-          ? null
-          : await widget.personal!.store.readProjection(
-              'personal.me.passport',
-              resourceKey: resourceKey,
-            );
-      final fallback = requestedVariant == 'public'
-          ? null
-          : (local?.payload ??
-                (_cachedVariantKey == resourceKey ? _cachedPassport : null));
-      if (fallback != null && fallback['variant'] == requestedVariant) {
-        if (mounted) setState(() => _onlineReady = false);
-        return fallback;
+      if (_hasLocalComposition) {
+        _onlineReady = false;
+        return _composePassport(_full!, variant: requestedVariant);
+      }
+      if (requestedVariant == 'complete') {
+        final preview = await _rootPassportPreview();
+        if (preview != null) {
+          _onlineReady = false;
+          keep(preview);
+          return preview;
+        }
       }
       rethrow;
     }
