@@ -232,7 +232,7 @@ def invite_coverage_beneficiary(
     group_policy=GroupCoveragePolicy.CURRENT_MEMBERS,
 ):
     """Create an auditable target; personal rights never arise from an invitation alone."""
-    coverage = SubscriptionCoverage.objects.select_for_update().select_related(
+    coverage = SubscriptionCoverage.objects.select_for_update(of=("self",)).select_related(
         "payer_profile", "payer_space", "plan_version__plan",
     ).get(pk=coverage.pk)
     _require_coverage_manager(actor, coverage)
@@ -292,10 +292,10 @@ def accept_coverage_allocation(*, actor, allocation, select_base=False, at=None)
     _require_beneficiary(actor, allocation)
     # Lock in a stable order: beneficiary Subscription before coverage, then allocation.
     target_subscription = _lock_beneficiary(allocation)
-    coverage = SubscriptionCoverage.objects.select_for_update().select_related(
+    coverage = SubscriptionCoverage.objects.select_for_update(of=("self",)).select_related(
         "plan_version__plan", "billing_terms",
     ).get(pk=allocation.coverage_id)
-    allocation = SubscriptionCoverageAllocation.objects.select_for_update().select_related(
+    allocation = SubscriptionCoverageAllocation.objects.select_for_update(of=("self",)).select_related(
         "profile", "space", "group_parent__group", "group_parent__group_snapshot",
     ).get(pk=allocation.pk)
     _require_beneficiary(actor, allocation)
