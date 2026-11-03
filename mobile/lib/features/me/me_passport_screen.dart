@@ -1039,9 +1039,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       if (mounted) setState(() => _exporting = false);
       return null;
-    } finally {
-      // The caller owns the downloaded file until it is saved or shared.
-      // Keep the busy guard active; it prevents duplicate dated emissions.
     }
   }
 
