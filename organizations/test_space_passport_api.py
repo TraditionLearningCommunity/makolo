@@ -171,6 +171,52 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
         self.assertEqual(reader.status_code, 200)
         self.assertTrue(reader.json()["data"]["can_view_content"])
 
+    def test_public_dated_space_reader_hides_withdrawn_activity(self):
+        from activities.models import ActivityVisibility
+        from sharing.passport_documents import passport_verification_token
+
+        issued = self.client.post(self.base + "issue/?variant=public")
+        self.assertEqual(issued.status_code, 200)
+        snapshot = PassportSnapshot.objects.get(
+            pk=issued.json()["data"]["id"],
+        )
+        url = reverse(
+            "sharing_api:passport-verify-reader",
+            kwargs={"token": passport_verification_token(snapshot)},
+        )
+        self.client.logout()
+        before = self.client.get(url)
+        self.assertEqual(before.status_code, 200)
+        self.assertTrue(before.json()["data"]["can_view_content"])
+        self.space_public_activity.visibility = ActivityVisibility.PRIVATE
+        self.space_public_activity.save(update_fields=["visibility"])
+        after = self.client.get(url)
+        self.assertEqual(after.status_code, 200)
+        self.assertFalse(after.json()["data"]["can_view_content"])
+        self.assertIsNone(after.json()["data"]["payload"])
+        snapshot.refresh_from_db()
+        self.assertFalse(snapshot.is_revoked)
+        self.assertTrue(snapshot.payload["activities"])
+
+    def test_public_dated_space_reader_hides_after_publication_withdrawal(self):
+        from sharing.passport_documents import passport_verification_token
+
+        issued = self.client.post(self.base + "issue/?variant=public")
+        self.assertEqual(issued.status_code, 200)
+        snapshot = PassportSnapshot.objects.get(
+            pk=issued.json()["data"]["id"],
+        )
+        url = reverse(
+            "sharing_api:passport-verify-reader",
+            kwargs={"token": passport_verification_token(snapshot)},
+        )
+        self.client.logout()
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile"])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["data"]["can_view_content"])
+
     def test_complete_issued_version_is_not_shareable_by_link(self):
         issued = self.client.post(self.base + "issue/?variant=complete")
         self.assertEqual(issued.status_code, 200)
