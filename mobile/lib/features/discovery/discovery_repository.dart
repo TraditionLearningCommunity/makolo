@@ -1057,8 +1057,9 @@ class DiscoveryRepository {
   /// or N2 is not another admission request. Source revocations and TTLs win.
   Future<StoredProjection?> _itemFromAcquiredField(
     String family,
-    String id,
-  ) async {
+    String id, {
+    DateTime? newerThan,
+  }) async {
     final owner = itemSource(family, id);
     if ((await readSource(owner)).ownerUnavailable) return null;
     final pages = await store.readProjections(itemsProjectionKind);
@@ -1066,6 +1067,11 @@ class DiscoveryRepository {
     final now = DateTime.now().toUtc();
 
     for (final page in pages) {
+      // A previous owner-confirmed detail or saved mutation always beats an
+      // older collection. Never replace newer item facts with an old page.
+      if (newerThan != null && !page.receivedAt.isAfter(newerThan)) {
+        continue;
+      }
       if (page.schemaVersion != 1 ||
           (page.expiresAt != null &&
               !now.isBefore(page.expiresAt!.toUtc()))) {
@@ -1146,7 +1152,16 @@ class DiscoveryRepository {
         resourceKey: '$family:$id',
       ),
     );
-    return local ?? _itemFromAcquiredField(family, id);
+    if (local != null &&
+        _freshEnough(local, detailFreshness.refreshRecommendedAfter!)) {
+      return local;
+    }
+    final acquired = await _itemFromAcquiredField(
+      family,
+      id,
+      newerThan: local?.receivedAt,
+    );
+    return acquired ?? local;
   }
 
   /// Query the owner only for absent/stale information. A server-projected
