@@ -16,8 +16,65 @@ class PersonalRepository {
     sourceKey: 'personal.now',
   );
 
+  static const ongoingContinuationKind = 'personal.ongoing.continuation';
+
   Stream<StoredProjection?> watchOngoing() =>
-      store.watchProjection('personal.ongoing');
+      store.watchProjection('personal.ongoing').asyncMap(
+        (root) async => root == null ? null : _withOngoingContinuation(root),
+      );
+
+  static List<String> _ongoingKeys(Object? rows) {
+    if (rows is! List) return const [];
+    return rows.whereType<Map>()
+        .map((row) => row['id']?.toString() ?? '')
+        .toList(growable: false);
+  }
+
+  Future<StoredProjection> _withOngoingContinuation(
+    StoredProjection root,
+  ) async {
+    final overlay = await store.readProjection(ongoingContinuationKind);
+    final actor = root.payload['actor'];
+    final cursor = root.payload['continuation'];
+    if (overlay == null || overlay.schemaVersion != 1 ||
+        actor is! Map || actor['id']?.toString() != store.profileId ||
+        cursor is! Map ||
+        overlay.payload['actor_id'] != store.profileId ||
+        overlay.payload['root_token'] != cursor['token'] ||
+        overlay.payload['first_keys'] is! List ||
+        overlay.payload['rows'] is! List) return root;
+    final first = overlay.payload['first_keys'] as List;
+    final rootRows = root.payload['items'];
+    final keys = _ongoingKeys(rootRows);
+    if (keys.length != first.length ||
+        !List.generate(keys.length, (i) => keys[i] == first[i])
+            .every((same) => same)) return root;
+    final seen = <String>{};
+    final merged = <Map<String, dynamic>>[];
+    for (final raw in [...(rootRows as List), ...(overlay.payload['rows'] as List)]) {
+      if (raw is! Map) continue;
+      final id = raw['id']?.toString();
+      if (id == null || id.isEmpty || !seen.add(id)) continue;
+      merged.add(Map<String, dynamic>.from(raw));
+    }
+    return StoredProjection(
+      kind: root.kind,
+      resourceKey: root.resourceKey,
+      schemaVersion: root.schemaVersion,
+      payload: {
+        ...root.payload,
+        'items': merged,
+        'continuation': overlay.payload['continuation'],
+      },
+      receivedAt: root.receivedAt,
+      sourceGeneratedAt: root.sourceGeneratedAt,
+      sourceUpdatedAt: root.sourceUpdatedAt,
+      lastVerifiedOnlineAt: root.lastVerifiedOnlineAt,
+      freshUntil: root.freshUntil,
+      expiresAt: root.expiresAt,
+      freshnessPolicyId: root.freshnessPolicyId,
+    );
+  }
 
   Stream<OwnerSourceState> watchOngoingSource() => watchOwnerSourceState(
     database: store.database,
@@ -424,6 +481,30 @@ class PersonalRepository {
         latest.sourceGeneratedAt != current.sourceGeneratedAt) {
       return;
     }
+    final existing = await store.readProjection(ongoingContinuationKind);
+    final originalCursor = current.payload['continuation'];
+    final existingFromRoot = existing != null &&
+        existing.payload['actor_id'] == store.profileId &&
+        existing.payload['continuation'] is Map &&
+        (existing.payload['continuation'] as Map)['token'] ==
+            (originalCursor is Map ? originalCursor['token'] : null);
+    final firstKeys = existingFromRoot
+        ? (existing.payload['first_keys'] as List).cast<String>()
+        : _ongoingKeys(knownRows);
+    final rootToken = existingFromRoot
+        ? existing.payload['root_token']
+        : (originalCursor is Map ? originalCursor['token'] : null);
+    await store.putProjection(
+      kind: ongoingContinuationKind,
+      schemaVersion: 1,
+      payload: {
+        'actor_id': store.profileId,
+        'root_token': rootToken,
+        'first_keys': firstKeys,
+        'rows': items,
+        'continuation': data['continuation'],
+      },
+    );
     final merged = Map<String, dynamic>.from(current.payload)
       ..['items'] = items
       ..['continuation'] = data['continuation']
