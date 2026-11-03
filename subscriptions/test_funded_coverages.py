@@ -21,7 +21,7 @@ from .contracts import (
     EntitlementAggregationStrategy, FeatureEnforcementPolicy, FeatureValueType,
     SubscriptionPlanType, SubscriptionSubjectType,
 )
-from .coverage_models import AllocationStatus, CoverageStatus, GroupCoveragePolicy
+from .coverage_models import AllocationStatus, CoverageStatus, GroupCoveragePolicy, coverage_period_end
 from .coverage_services import (
     accept_coverage_allocation, change_coverage_status, create_coverage,
     decide_coverage_allocation, invite_coverage_beneficiary, use_personal_base,
@@ -45,7 +45,7 @@ class FinancedCoverageTests(TestCase):
         self.outsider = User.objects.create_user(username="fund-outsider", password="x")
         self.now = timezone.now()
         self.start = self.now - timedelta(minutes=1)
-        self.end = self.now + timedelta(days=30)
+        self.end = coverage_period_end(self.start, "month", 1)
 
     def offer(self, code="case", *, plan_type=SubscriptionPlanType.ADDON,
               subject_type=SubscriptionSubjectType.PROFILE,
