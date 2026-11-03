@@ -562,10 +562,10 @@ def _passport_open_to(row):
 def _passport_topic_codes(activity):
     if activity is None:
         return []
-    return list(
-        activity.topic_links.filter(topic__is_active=True)
-        .values_list("topic__code", flat=True)
-    )
+    return [
+        link.topic.code for link in activity.topic_links.all()
+        if link.topic.is_active
+    ]
 
 
 def _passport_activity(activity):
