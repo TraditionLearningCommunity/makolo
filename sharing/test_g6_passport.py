@@ -367,7 +367,7 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertEqual(payload["credentials"], [])
         self.assertEqual(payload["identity"]["owner_details"], {})
 
-    def test_personalized_empty_choice_exports_identity_without_extra_facts(self):
+    def test_personalized_default_preserves_public_facts(self):
         self.client.force_login(self.amina)
         response = self.client.get(
             reverse("sharing:passport-me"),
@@ -375,12 +375,27 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         )
         self.assertEqual(response.status_code, 200)
         payload = response.context["passport_snapshot"].payload
+        public = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(payload["identity"]["bio"], public.identity["bio"])
+        self.assertEqual(payload["identity"]["links"], list(public.identity["links"]))
+        self.assertEqual(
+            {row["id"] for row in payload["activities"]},
+            {str(row.pk) for row in public.activities},
+        )
+        self.assertNotIn("phone", payload["identity"])
+
+    def test_personalized_explicit_empty_selection_removes_optional_facts(self):
+        self.client.force_login(self.amina)
+        response = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "custom", "include": "identity", "document": "1"},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.context["passport_snapshot"].payload
         self.assertEqual(payload["identity"]["bio"], "")
-        self.assertEqual(payload["identity"]["profession"], "")
         self.assertEqual(payload["identity"]["links"], [])
         self.assertEqual(payload["activities"], [])
-        self.assertEqual(payload["proofs"], [])
-        self.assertEqual(payload["credentials"], [])
+
 
     def test_custom_keeps_public_identity_but_explicit_private_photo_requires_opt_in(self):
         self.amina.metadata = {"avatar_url": "/media/passport-selected-portrait.png"}
@@ -393,8 +408,7 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         )
         self.assertEqual(minimal.status_code, 200)
         self.assertEqual(
-            minimal.context["projection"].identity["avatar_url"],
-            "/media/passport-selected-portrait.png",
+            minimal.context["projection"].identity["avatar_url"], "",
         )
         self.assertEqual(minimal.context["projection"].identity["bio"], self.amina.bio)
 
