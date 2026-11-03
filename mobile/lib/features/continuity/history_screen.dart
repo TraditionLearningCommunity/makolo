@@ -246,14 +246,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   '${item.occurredAt ?? ''}';
               if (seen.add(key)) visible.add(item);
             }
+            // A specifically searched owner result wins over an older
+            // unfiltered snapshot of the same event.
+            for (final item in _remoteHistory?.items ?? const <_HistoryItem>[]) {
+              collect(item);
+            }
             for (final item in view.items) {
               if (_query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase())) {
                 collect(item);
               }
-            }
-            for (final item in _remoteHistory?.items ?? const <_HistoryItem>[]) {
-              collect(item);
             }
             final effectiveView = _remoteHistory ?? view;
             final first = effectiveView.firstPage ?? view.firstPage;
