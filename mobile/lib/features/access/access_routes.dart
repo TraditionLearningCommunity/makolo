@@ -80,10 +80,10 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
       final credentialPath = state.extra is String
           ? state.extra! as String
           : null;
-      if (repository == null || credentialPath == null) {
+      if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'QR d’accès',
-          message: 'Rouvrez ce QR depuis le Jour J afin de revalider son lien propriétaire.',
+          message: 'Cet accès n’est pas disponible sur cet appareil.',
         );
       }
       return AccessCredentialScreen(
