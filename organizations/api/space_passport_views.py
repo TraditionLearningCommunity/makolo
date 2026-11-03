@@ -29,7 +29,7 @@ from organizations.permissions import (
     user_can_manage_organization,
     user_can_manage_organization_team,
 )
-from sharing.models import PassportSnapshot, PassportShareSubject
+from sharing.models import PassportSnapshot, PassportShareSubject, PublicIdentifier
 from sharing.passport import (
     PASSPORT_COMPLETE, PASSPORT_PUBLIC, PASSPORT_VARIANTS,
     build_space_passport, space_passport_topic_options,
@@ -195,7 +195,15 @@ class SpacePassportAPIView(_SpacePassportAPIView):
         public = build_space_passport(space, variant=PASSPORT_PUBLIC)
         topic_options = space_passport_topic_options(space)
         public_ids = {str(row.pk) for row in public.activities}
+        public_identifier = PublicIdentifier.objects.filter(
+            space=space,
+        ).values_list("identifier", flat=True).first()
         payload = {
+            "public_path": (
+                reverse("public-passport", kwargs={"identifier": public_identifier})
+                if public_identifier and space_has_public_passport(space)
+                else None
+            ),
             "subject_kind": "space",
             "subject_id": str(space.pk),
             "slug": space.slug,
