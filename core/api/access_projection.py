@@ -256,6 +256,24 @@ def build_personal_access_credential_data(*, profile, access, observed_at=None):
 
     from access.services import render_access_credential
 
+    # Explicit, finite owner permission for device-protected *presentation*.
+    # The QR still has no offline validation authority: every scan resolves
+    # Access/AccessCredential/AccessUse against the server's current state.
+    expiry_candidates = [
+        value for value in (
+            access.valid_until,
+            getattr(access.occurrence, "end_at", None)
+            if access.occurrence_id else None,
+        )
+        if value is not None
+    ]
+    offline_until = min(expiry_candidates) if expiry_candidates else None
+    offline_allowed = (
+        credential.credential_type == "qr"
+        and offline_until is not None
+        and offline_until > observed_at
+    )
+
     return {
         "access": {"kind": "access", "id": str(access.pk)},
         "relationship": ACCESS_RELATION_BENEFICIARY,
@@ -264,5 +282,11 @@ def build_personal_access_credential_data(*, profile, access, observed_at=None):
             "credential_type": credential.credential_type,
             "payload": render_access_credential(credential),
             "issued_at": _iso(credential.issued_at),
+        },
+        "offline_presentation": {
+            "allowed": offline_allowed,
+            "expires_at": _iso(offline_until) if offline_allowed else None,
+            "observed_at": _iso(observed_at),
+            "scope": "display_only",
         },
     }
