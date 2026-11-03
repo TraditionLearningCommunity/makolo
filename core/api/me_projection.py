@@ -603,6 +603,10 @@ def build_personal_passport_data(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_proof_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -615,6 +619,10 @@ def build_personal_passport_data(
         selected_proof_ids=selected_proof_ids,
         selected_credential_ids=selected_credential_ids,
         selected_sections=selected_sections,
+        excluded_activity_ids=excluded_activity_ids,
+        excluded_proof_ids=excluded_proof_ids,
+        excluded_credential_ids=excluded_credential_ids,
+        excluded_sections=excluded_sections,
     )
     identity = dict(projection.identity)
     identity["links"] = [
