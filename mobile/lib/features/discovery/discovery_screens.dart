@@ -401,6 +401,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         throw const FormatException('Missing Discovery field');
       }
       final collection = _selector.collection(projection);
+      await _ensureUnseenReserve(current);
+      final reserve = _unseenReserve;
+      if (reserve != null && _unseenField == current.mapFingerprint) {
+        final eligible = collection.items.map((item) => item.candidateKey);
+        final pending = reserve.pendingFrom(eligible);
+        if (pending.isNotEmpty) {
+          reserve.reveal(eligible, count: pending.length);
+          await widget.repository.saveUnseenReserve(current, reserve);
+          if (mounted && identical(current, _query)) setState(() {});
+          return;
+        }
+      }
       if (!collection.hasNext) return;
       final token = collection.continuationToken;
       if (token == null || token.isEmpty) {
@@ -430,6 +442,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         throw const FormatException('Incompatible local continuation');
       }
       if (!mounted || !identical(current, _query)) return;
+      if (reserve != null && _unseenField == current.mapFingerprint) {
+        reserve.observe(received.items.map((item) => item.wire));
+        final incomingKeys = received.items.map((item) => item.candidateKey);
+        final pending = reserve.pendingFrom(incomingKeys);
+        reserve.reveal(incomingKeys, count: _initialReveal(pending.length));
+        await widget.repository.saveUnseenReserve(next, reserve);
+      }
       // Materialize only on actual user advancement, never during invisible
       // prefetch. This trims older seen rows without losing the next cursor.
       await widget.repository.retainPresentedWindow(next);
@@ -513,6 +532,40 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               serverUnavailable: serverUnavailable,
               sourceErrorCode: sourceState.lastErrorCode,
             );
+            final full = selection.collection;
+            final reserve = _unseenField == _query.mapFingerprint
+                ? _unseenReserve
+                : null;
+            final visible = reserve == null
+                ? full.items.take(_initialReveal(full.items.length)).toList()
+                : full.items.where((item) =>
+                    reserve.isShown(item.candidateKey)).toList();
+            final hiddenOnCurrent = reserve == null
+                ? visible.length < full.items.length
+                : reserve.pendingFrom(
+                    full.items.map((item) => item.candidateKey),
+                  ).isNotEmpty;
+            final visibleWire = visible.map((item) => item.wire).toList();
+            final displaySelection = DiscoveryFieldSelection(
+              collection: DiscoveryCollectionPresentation(
+                items: List.unmodifiable(visible),
+                count: full.count,
+                page: full.page,
+                pageSize: full.pageSize,
+                hasNext: full.hasNext || hiddenOnCurrent,
+                wire: Map.unmodifiable({
+                  ...full.wire,
+                  'results': visibleWire,
+                  'items': visibleWire,
+                }),
+              ),
+              surface: selection.surface,
+              states: hiddenOnCurrent
+                  ? Set.unmodifiable(selection.states.where(
+                      (state) => state != DiscoveryFieldState.endOfField,
+                    ).toSet())
+                  : selection.states,
+            );
             if (_pendingScrollRestore != null && projection != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted ||
@@ -529,7 +582,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             return RefreshIndicator(
               onRefresh: _refreshItems,
               child: DiscoveryExplorationView(
-                selection: selection,
+                selection: displaySelection,
                 onOpen: _open,
                 onSave: (item) =>
                     _saveDiscoveryPossibility(widget.repository, item, _query),
