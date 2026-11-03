@@ -30,8 +30,22 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
         self.assertIn(str(self.space_public_activity.pk), all_ids)
         self.assertIn(str(self.space_private_activity.pk), all_ids)
         self.assertEqual(admitted, {str(self.space_public_activity.pk)})
-        self.assertNotIn(self.space.contact_email, str(data))
-        self.assertNotIn(self.space.contact_phone, str(data))
+        self.assertEqual(
+            data["identity"]["owner_details"]["email"],
+            self.space.contact_email,
+        )
+        self.assertEqual(
+            data["identity"]["owner_details"]["phone"],
+            self.space.contact_phone,
+        )
+        self.assertNotIn(
+            self.space.contact_email,
+            str(data["composition"]["public_identity"]),
+        )
+        self.assertNotIn(
+            self.space.contact_phone,
+            str(data["composition"]["public_identity"]),
+        )
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_thematic_and_personalized_never_reinclude_private_activity(self):
@@ -45,8 +59,6 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
             if variant == "custom":
                 self.assertIn(str(self.space_public_activity.pk), ids)
 
-        self.client.post(self.base + "issue/?variant=custom&exclude_activity=" +
-                         str(self.space_private_activity.pk))
         # A forbidden ID is always rejected; it cannot be used to infer
         # private Activities or bypass public admission.
         bad = self.client.post(
@@ -121,6 +133,15 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
             self.client.get(self.base + "history/").status_code, 404,
         )
         self.assertEqual(self.client.get(self.base + "pdf/").status_code, 404)
+
+    def test_public_issued_document_does_not_include_collective_contacts(self):
+        self.client.post(self.base + "issue/?variant=public")
+        snapshot = PassportSnapshot.objects.filter(
+            space=self.space, variant="public",
+        ).latest("generated_at")
+        self.assertEqual(snapshot.payload["identity"]["owner_details"], {})
+        self.assertNotIn(self.space.contact_email, str(snapshot.payload))
+        self.assertNotIn(self.space.contact_phone, str(snapshot.payload))
 
     def test_complete_issued_version_is_not_shareable_by_link(self):
         issued = self.client.post(self.base + "issue/?variant=complete")
