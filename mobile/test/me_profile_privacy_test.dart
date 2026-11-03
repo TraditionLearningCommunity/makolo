@@ -152,6 +152,63 @@ void main() {
     expect(find.text('Ma présentation'), findsOneWidget);
   });
 
+  testWidgets('editor groups all Accounts fields and keeps email read-only', (tester) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-editor-groups');
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-editor-groups',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/accounts/auth/me/') {
+          return MockResponse(jsonEncode({
+            'first_name': 'Amina',
+            'last_name': 'Exemple',
+            'username': 'amina-exemple',
+            'email': 'amina@example.test',
+            'phone': '+243800000000',
+            'profession': 'Analyste',
+            'profile': {
+              'profession': 'Analyste',
+              'public_profile': true,
+              'searchable': true,
+            },
+          }), 200);
+        }
+        throw StateError('Unexpected request: ${request.url}');
+      }).dio,
+    );
+    addTearDown(api.close);
+
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(api: api, personal: PersonalRepository(store)),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Modifier le Passeport'), findsOneWidget);
+    expect(find.text('Identifiant Makolo'), findsOneWidget);
+    expect(find.text('amina-exemple'), findsOneWidget);
+    expect(find.text('Contact'), findsOneWidget);
+    expect(find.text('Adresse e-mail'), findsOneWidget);
+    expect(find.text('amina@example.test'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Adresse e-mail'), findsNothing);
+    expect(find.text('Activité professionnelle'), findsOneWidget);
+    expect(find.text('Activité et liens'), findsNothing);
+    expect(find.text('Réseaux sociaux'), findsNothing);
+    await tester.ensureVisible(find.text('Liens et réseaux sociaux'));
+    await tester.tap(find.text('Liens et réseaux sociaux'));
+    await tester.pumpAndSettle();
+    expect(find.text('Site web'), findsOneWidget);
+    expect(find.text('LinkedIn'), findsOneWidget);
+    expect(find.text('YouTube'), findsOneWidget);
+  });
+
   testWidgets('Accounts gender and birth date are editable from Passport', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
