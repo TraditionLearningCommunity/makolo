@@ -45,6 +45,7 @@ class PersonalRepository {
         overlay.payload['rows'] is! List) return root;
     final first = overlay.payload['first_keys'] as List;
     final rootRows = root.payload['items'];
+    if (rootRows is! List) return root;
     final keys = _ongoingKeys(rootRows);
     if (keys.length != first.length ||
         !List.generate(keys.length, (i) => keys[i] == first[i])
@@ -486,6 +487,7 @@ class PersonalRepository {
     final existingFromRoot = existing != null &&
         existing.payload['actor_id'] == store.profileId &&
         existing.payload['continuation'] is Map &&
+        existing.payload['first_keys'] is List &&
         (existing.payload['continuation'] as Map)['token'] ==
             (originalCursor is Map ? originalCursor['token'] : null);
     final firstKeys = existingFromRoot
