@@ -57,6 +57,29 @@ class PassportVisibilityIntegrationTests(TestCase):
         self.assertNotIn("Amina", str(identity))
         self.assertNotIn(self.owner.email, str(identity))
 
+    def test_web_public_reader_preserves_only_authorized_personal_fields(self):
+        self.client.force_login(self.owner)
+        url = reverse("sharing:passport-me")
+        current = self.client.get(url, {"variant": "public"})
+        self.assertEqual(current.status_code, 200)
+        self.assertIn(("Prénom", "Amina"), current.context["personal_details"])
+        self.assertIn(("Identifiant Makolo", "privacy-owner-a"),
+                      current.context["personal_details"])
+        self.assertNotIn(self.owner.email, str(current.context["personal_details"]))
+
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="name", audiences=[],
+        )
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="city", audiences=[],
+        )
+        hidden = self.client.get(url, {"variant": "thematic"})
+        self.assertEqual(hidden.status_code, 200)
+        details = hidden.context["personal_details"]
+        self.assertNotIn(("Prénom", "Amina"), details)
+        self.assertNotIn(("Ville", "Lubumbashi"), details)
+        self.assertIn(("Identifiant Makolo", "privacy-owner-a"), details)
+
     def test_restricted_profession_is_visible_to_chosen_profile_not_strangers(self):
         replace_profile_visibility(
             owner=self.owner, target_kind="field", field_key="profession",
