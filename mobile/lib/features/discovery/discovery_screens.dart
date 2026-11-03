@@ -1469,16 +1469,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     setState(() => _refreshing = true);
     try {
       await widget.repository.refreshSpatial(current);
-      final source = await widget.repository.readSource(
-        widget.repository.spatialSource(current),
-      );
-      if (mounted &&
-          identical(current, _query) &&
-          source.lastErrorCode == null &&
-          !source.invalidated &&
-          source.lastSuccessAt != null) {
-        // A verified spatial snapshot remains in the shared local-first store.
-      }
+      // Acquisition state and authorization are tracked by the owner source.
     } on Object {
       // The same field and any acquired items remain visible on failure.
     } finally {
