@@ -101,19 +101,19 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     final generation = _ownerGeneration;
     final repository = widget.runtime.interoperability;
     if (repository == null) {
-      throw StateError('Aucune lecture propriétaire disponible.');
+      throw StateError('Impossible de vérifier les connexions.');
     }
     final before = await repository.read();
     await _refresh();
     if (generation != _ownerGeneration || _refreshFailed || _refreshing) {
-      throw StateError('Le serveur n’a pas confirmé cette projection.');
+      throw StateError('Impossible de confirmer les connexions.');
     }
     // A discarded/out-of-order SyncEngine pull resolves without throwing.
     // A real server-applied projection must have a newer observation timestamp.
     final after = await repository.read();
     if (after == null ||
         (before != null && !after.receivedAt.isAfter(before.receivedAt))) {
-      throw StateError('Aucune nouvelle observation serveur confirmée.');
+      throw StateError('Actualisation non confirmée.');
     }
   }
 
@@ -153,7 +153,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         leading: const Icon(Icons.widgets_outlined),
         title: Text(_humanize(extension.code)),
         subtitle: const Text(
-          'Extension déclarée · aucun lancement direct depuis Connexions.',
+          'Extension répertoriée',
         ),
       ),
     );
@@ -167,13 +167,12 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         title: Text(_humanize(action.code)),
         subtitle: Text(
           !action.authorized
-              ? 'Action non autorisée dans ce contexte.'
+              ? 'Accès non autorisé.'
               : !action.available && action.requiresConnection
-                  ? 'Connexion adaptée requise.'
+                  ? 'Connexion requise.'
                   : !action.available
-                      ? 'Indisponible dans ce contexte.'
-                      : 'Capacité déclarée · poursuivre dans son domaine '
-                          'propriétaire. Aucun lancement direct ici.',
+                      ? 'Indisponible actuellement.'
+                      : 'Disponible dans Makolo',
         ),
       ),
     );
@@ -196,7 +195,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
         child: Text(
           _refreshFailed
-              ? 'Actualisation impossible. Le dernier état connu est conservé.'
+              ? 'Actualisation impossible. Les informations affichées peuvent être anciennes.'
               : 'Dernier état connu. La disponibilité actuelle peut avoir changé.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -232,8 +231,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       children: [
         _freshnessNotice(context, syncStatus),
         Text(
-          'Découvrez les services que Makolo peut relier et gérez '
-          'les connexions réellement établies.',
+          'Consultez vos connexions et les services associés.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         IntelligenceConnectionControls(

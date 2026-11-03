@@ -156,8 +156,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         loadedId = null;
         loading = false;
         error =
-            'Connexion au Space impossible ou autorité non confirmée. '
-            'Les données ne sont pas conservées sur cet écran.';
+            'Impossible d’afficher les connexions de cet Espace.';
       });
     }
   }
@@ -180,7 +179,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         syncState != SyncVisualState.conflict &&
         syncState != SyncVisualState.syncing;
     return Scaffold(
-      appBar: AppBar(title: const Text('Connexions du Space')),
+      appBar: AppBar(title: const Text('Connexions de l’Espace')),
       body: current == null
           ? const Center(child: Text('Choisissez un Espace autorisé.'))
           : loading
@@ -204,8 +203,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   Text(
-                    'Ces relations appartiennent à cet Espace. '
-                    'Le serveur vérifie space.manage pour chaque opération.',
+                    'Connexions et services de cet Espace.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   if (connections.isEmpty)
@@ -232,7 +230,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const Text(
-                      'Modes de traitement autorisés par Payments. '
+                      'Traitement des paiements dans Makolo. '
                       'Aucun compte bancaire externe connecté.',
                     ),
                     for (final item in domainIntegrations)
@@ -247,8 +245,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
-                        'Dernière observation uniquement. Les modifications '
-                        'sont suspendues jusqu’à une nouvelle vérification.',
+                        'Informations à actualiser avant toute modification.',
                       ),
                     ),
                   IntelligenceConnectionControls(

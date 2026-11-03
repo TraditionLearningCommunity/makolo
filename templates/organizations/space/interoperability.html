@@ -11,7 +11,7 @@
   <section class="mk-ws4-card" aria-labelledby="space-connections-list">
     <div class="mk-ws4-card-head">
       <div>
-        <span class="mk-ws4-eyebrow">Interopérabilité</span>
+        <span class="mk-ws4-eyebrow">Services reliés</span>
         <h3 id="space-connections-list">Connexions</h3>
       </div>
     </div>
@@ -42,9 +42,9 @@
   {% if domain_integrations %}
   <section class="mk-ws4-card" aria-labelledby="space-owner-integrations">
     <div class="mk-ws4-card-head">
-      <h3 id="space-owner-integrations">Capacités métier autorisées</h3>
+      <h3 id="space-owner-integrations">Traitement disponible</h3>
     </div>
-    <p>Ce ne sont pas des comptes bancaires connectés : Payments conserve les obligations, les permissions et l'exécution.</p>
+    <p>Ces services ne correspondent pas à des comptes bancaires connectés.</p>
     <ul class="mk-ws4-list">
       {% for integration in domain_integrations %}
       <li><div><strong>{{ integration.display_name }}</strong><small>{{ integration.description }}</small></div></li>

@@ -333,13 +333,15 @@ void main() {
     expect(find.text('Service disponible'), findsOneWidget);
     expect(find.textContaining('provider_internal_code'), findsNothing);
     expect(find.text('Calendar create'), findsOneWidget);
-    expect(find.text('Connexion adaptée requise.'), findsOneWidget);
+    expect(find.text('Connexion requise.'), findsOneWidget);
     expect(find.text('Private denied'), findsNothing);
     expect(find.text('Profile helper'), findsOneWidget);
     expect(
-      find.text('Extension déclarée · aucun lancement direct depuis Connexions.'),
+      find.text('Extension répertoriée'),
       findsOneWidget,
     );
+    expect(find.textContaining('domaine propriétaire'), findsNothing);
+    expect(find.textContaining('Connexion adaptée'), findsNothing);
     // The registry metadata must not act as an executable owner action.
     final actionTile = tester.widget<ListTile>(
       find.ancestor(of: find.text('Calendar create'), matching: find.byType(ListTile)),

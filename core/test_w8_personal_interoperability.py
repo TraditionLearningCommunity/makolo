@@ -161,6 +161,8 @@ class W8PersonalConnectionsWebTests(TestCase):
         self.assertNotIn("test-model", html)
         self.assertNotIn("openai_compatible", html)
         self.assertNotIn("text_generate", html)
+        self.assertNotContains(response, "Extension déclarée")
+        self.assertNotContains(response, "Mode démonstration uniquement")
 
     def test_real_discovery_handoff_only_for_usable_personal_research_connection(self):
         own = self._connection(

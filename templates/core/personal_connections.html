@@ -109,7 +109,7 @@
         {% for extension in extensions %}
         <div>
           <strong>{{ extension.display_name }}</strong>
-          <span>Extension déclarée</span>
+          <span>Extension répertoriée</span>
         </div>
         {% endfor %}
       </div>
@@ -131,7 +131,7 @@
             <span>{{ integration.active_count }} appareil{{ integration.active_count|pluralize }} enregistré{{ integration.active_count|pluralize }}</span>
             {% if not integration.available %}<p>Notifications sur appareil indisponibles.</p>{% endif %}
           {% elif integration.status == 'sandbox_only' %}
-            <p>Mode démonstration uniquement — aucun paiement réel confirmé.</p>
+            <p>Paiements de test uniquement. Aucun paiement réel.</p>
           {% endif %}
         </article>
       {% endfor %}
