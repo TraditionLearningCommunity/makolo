@@ -1477,6 +1477,35 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     }
   }
 
+  Future<DiscoveryItemPresentation?> _verifiedMapDetail(
+    DiscoveryItemPresentation candidate,
+  ) async {
+    final current = _query;
+    try {
+      // N2 already owns this source and its authorization checks.
+      await widget.repository.refreshItem(candidate.family, candidate.id);
+      final source = await widget.repository.readSource(
+        widget.repository.itemSource(candidate.family, candidate.id),
+      );
+      if (source.lastErrorCode != null ||
+          source.lastSuccessAt == null ||
+          source.invalidated ||
+          !mounted ||
+          !identical(current, _query)) {
+        return null;
+      }
+      final snapshot = await widget.repository.readItem(
+        candidate.family,
+        candidate.id,
+      );
+      final detail = _selector.detail(snapshot);
+      return detail?.candidateKey == candidate.candidateKey ? detail : null;
+    } on Object {
+      // No owner-confirmed action is exposed from a stale map projection.
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1519,6 +1548,14 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
+                resolveItem: _verifiedMapDetail,
+                onSave: (item) => widget.repository.setSaved(
+                  family: item.family,
+                  id: item.id,
+                  saved: item.savedState != 'saved',
+                ),
+                baseUri: widget.repository.api.baseUri,
+                shareApi: widget.repository.api,
                 onRetry: () => unawaited(_refresh()),
                 onOpen: (item) {
                   if (widget.onOpenItem != null) {
