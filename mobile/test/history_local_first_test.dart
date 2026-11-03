@@ -13,13 +13,15 @@ Map<String, dynamic> _page({
   required String query,
   required String type,
   String title = 'Accès retrouvé du serveur',
+  int offset = 0,
+  bool hasMore = false,
 }) => {
   'filter': type,
   'query': query.isEmpty ? null : query,
   'items': [
     {
       'kind': 'access',
-      'source': {'kind': 'access', 'id': 'access-1'},
+      'source': {'kind': 'access', 'id': 'access-$offset'},
       'title': title,
       'occurred_at': '2026-10-10T13:00:00Z',
       'time_quality': 'owner_event',
@@ -27,12 +29,14 @@ Map<String, dynamic> _page({
       'capabilities': ['view_detail'],
     },
   ],
-  'page': {'offset': 0, 'limit': 24, 'has_more': false},
+  'page': {'offset': offset, 'limit': 24, 'has_more': hasMore},
   'coverage': {'state': 'partial', 'owners': ['access', 'journey']},
 };
 
 class _OwnerApi implements MakoloApiClient {
   bool offline = false;
+  int totalPages = 1;
+  int calls = 0;
   @override
   Uri get baseUri => Uri.parse('https://makolo.test/');
 
@@ -42,10 +46,12 @@ class _OwnerApi implements MakoloApiClient {
     Map<String, String>? headers,
     MakoloCancelHandle? cancel,
   }) async {
+    calls++;
     if (offline) throw StateError('offline');
     final uri = Uri.parse(path);
     final query = uri.queryParameters['q'] ?? '';
     final type = uri.queryParameters['type'] ?? 'all';
+    final offset = int.tryParse(uri.queryParameters['offset'] ?? '0') ?? 0;
     return ApiResponse(200, jsonEncode({
       'meta': {
         'projection': HistoryRepository.projectionKind,
@@ -53,7 +59,10 @@ class _OwnerApi implements MakoloApiClient {
         'scope': 'personal',
         'generated_at': DateTime.now().toUtc().toIso8601String(),
       },
-      'data': _page(query: query, type: type),
+      'data': _page(
+        query: query, type: type, offset: offset,
+        hasMore: offset ~/ 24 < totalPages - 1,
+      ),
     }), const {'cache-control': 'private, no-store'});
   }
 
@@ -100,6 +109,34 @@ void main() {
     ), isEmpty);
     expect(await store.readProjection(HistoryRepository.projectionKind,
       resourceKey: offline.resourceKey(offset: 0, limit: 24)), isNull);
+  });
+
+  test('full History can be prepared incrementally and resumed from SQLite',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final api = _OwnerApi()..totalPages = 2;
+    final repo = HistoryRepository(
+      database: db, store: store, profileId: 'profile-a',
+      sync: SyncEngine(
+        api: api, store: store, database: db, profileId: 'profile-a',
+      ),
+    );
+    expect(await repo.prepareHistoryOffline(maxNewPages: 1), isFalse);
+    expect(await repo.readPage(offset: 0), isNotNull);
+    expect(await repo.readPage(offset: 24), isNull);
+    expect(await repo.prepareHistoryOffline(maxNewPages: 1), isTrue);
+    expect(await repo.readPage(offset: 24), isNotNull);
+    final acquiredRequests = api.calls;
+    api.offline = true;
+    expect(await repo.prepareHistoryOffline(), isTrue);
+    expect(api.calls, acquiredRequests);
+    final otherProfile = HistoryRepository(
+      database: db, store: ProfileStore(db, 'profile-b'),
+      profileId: 'profile-b',
+    );
+    expect(await otherProfile.readPage(offset: 0), isNull);
   });
 
   testWidgets('known search result and event details remain readable offline',
