@@ -42,6 +42,7 @@ void main() {
     'Avatar exposes global app actions without Compte et paramètres',
     (tester) async {
       var settingsOpened = false;
+      var profileEditorOpened = false;
       final runtime = await _runtimeWithIdentity();
       addTearDown(runtime.close);
 
@@ -55,6 +56,7 @@ void main() {
                   context,
                   runtime: runtime,
                   onConnections: () {},
+                  onEditProfile: () => profileEditorOpened = true,
                   onBilling: () {},
                   onSettings: () => settingsOpened = true,
                   onSwitchAccount: () {},
@@ -72,6 +74,7 @@ void main() {
 
       expect(find.text('Amina'), findsOneWidget);
       expect(find.text('33 % renseigné'), findsOneWidget);
+      expect(find.text('Compléter les informations'), findsOneWidget);
       expect(find.text('@amina'), findsOneWidget);
       expect(find.text('Agir comme'), findsOneWidget);
       expect(find.text('Connexions'), findsOneWidget);
@@ -82,6 +85,13 @@ void main() {
       expect(find.text('Se déconnecter'), findsOneWidget);
       expect(find.text('Compte et paramètres'), findsNothing);
 
+      await tester.tap(find.text('Compléter les informations'));
+      await tester.pumpAndSettle();
+      expect(profileEditorOpened, isTrue);
+      expect(find.byType(MakoloAvatarSheet), findsNothing);
+
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Paramètres'));
       await tester.pumpAndSettle();
       expect(settingsOpened, isTrue);
@@ -113,6 +123,7 @@ void main() {
 
       expect(find.text('Amina'), findsOneWidget);
       expect(find.textContaining('renseigné'), findsNothing);
+      expect(find.text('Compléter les informations'), findsNothing);
 
       Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
       await tester.pump();
