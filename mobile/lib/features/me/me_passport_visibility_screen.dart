@@ -147,9 +147,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                 child: Column(
                   children: [
                     Text(label, style: Theme.of(sheet).textTheme.titleLarge),
-                    const Text(
-                      'Choisissez les personnes qui peuvent voir cette information.',
-                    ),
+
                     Expanded(
                       child: ListView(
                         children: [
@@ -332,22 +330,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
           )
         : ListView(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Ces choix concernent le Passeport vivant. '
-                  'Les versions datées consultées publiquement sont filtrées '
-                  'si leurs informations ne sont plus publiables. '
-                  'Un PDF déjà téléchargé ne peut pas être rappelé. '
-                  'Révoquez séparément les liens de partage explicites.',
-                ),
-              ),
-              const ListTile(
-                title: Text('Informations renseignées'),
-                subtitle: Text(
-                  'Public signifie autorisé, pas nécessairement renseigné.',
-                ),
-              ),
+              const ListTile(title: Text('Informations du Profil')),
               for (final entry in _map(_data!['fields']).entries)
                 if (_map(entry.value)['has_value'] != false)
                   _entry(
@@ -371,23 +354,18 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                 ],
               ),
               const Divider(),
-              const ListTile(title: Text('Centres d’intérêt')),
-              for (final row in _rows(_data!['interests']))
-                _entry(
-                  row['label']?.toString() ?? 'Intérêt',
-                  'interest',
-                  row['id'].toString(),
-                  row,
-                ),
-              const Divider(),
-              const ListTile(title: Text('Ouvert à')),
-              for (final row in _rows(_data!['open_to']))
-                _entry(
-                  row['label']?.toString() ?? 'Ouvert à',
-                  'open_to',
-                  row['id'].toString(),
-                  row,
-                ),
+              _entry(
+                'Centres d’intérêt',
+                'field',
+                'interests',
+                _map(_map(_data!['collections'])['interests']),
+              ),
+              _entry(
+                'Ouvert à',
+                'field',
+                'open_to',
+                _map(_map(_data!['collections'])['open_to']),
+              ),
             ],
           ),
   );
