@@ -289,6 +289,9 @@ class SyncEngine {
     if (source.projectionKind == 'personal.now') {
       await store.deleteProjection('personal.now.continuation');
     }
+    if (source.projectionKind == 'personal.ongoing') {
+      await store.deleteProjection('personal.ongoing.continuation');
+    }
     // Unlike a timeout, explicit owner denial withdraws recognition media.
     if (source.projectionKind == 'personal.me' ||
         source.projectionKind == 'personal.ongoing' ||
