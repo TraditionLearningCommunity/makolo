@@ -19,8 +19,8 @@
     </div></div>
     {% if mandate.role.description %}<p>{{ mandate.role.description }}</p>{% endif %}
     <p class="mk-ws4-note">
-      {% if mandate.valid_from %}Valable depuis le {{ mandate.valid_from|date:"d/m/Y" }}.{% endif %}
-      {% if mandate.valid_until %}Fin de validité : {{ mandate.valid_until|date:"d/m/Y" }}.{% else %}Aucune date de fin définie.{% endif %}
+      {% if mandate.valid_from %}Valable depuis le {{ mandate.valid_from|date:"d/m/Y H:i" }}.{% endif %}
+      {% if mandate.valid_until %}Fin de validité : {{ mandate.valid_until|date:"d/m/Y H:i" }}.{% else %}Aucune date de fin définie.{% endif %}
     </p>
     <h4 class="font-semibold mt-3">Droits associés à ce rôle</h4>
     {% if mandate.permissions %}
