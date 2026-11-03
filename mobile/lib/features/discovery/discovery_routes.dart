@@ -175,9 +175,12 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         );
       }
       return ActivityDetailScreen(
+        key: ValueKey('discover-activity-${state.pathParameters['id']}'),
         activityId: state.pathParameters['id']!,
         repository: discovery,
-        onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+        onOpenOccurrence: (id) => context.push(
+          '/occurrences/${Uri.encodeComponent(id)}',
+        ),
       );
     },
   ),
@@ -194,10 +197,15 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
       }
       final occurrenceId = state.pathParameters['id']!;
       return OccurrenceDetailScreen(
+        key: ValueKey('discover-occurrence-$occurrenceId'),
         occurrenceId: occurrenceId,
         repository: discovery,
-        onOpenActivity: (id) => context.push('/activities/$id'),
-        onOpenDayOf: () => context.push('/occurrences/$occurrenceId/day-of'),
+        onOpenActivity: (id) => context.push(
+          '/activities/${Uri.encodeComponent(id)}',
+        ),
+        onOpenDayOf: () => context.push(
+          '/occurrences/${Uri.encodeComponent(occurrenceId)}/day-of',
+        ),
       );
     },
   ),
