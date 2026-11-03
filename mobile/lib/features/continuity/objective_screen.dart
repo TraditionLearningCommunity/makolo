@@ -14,6 +14,8 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
+import 'conversation_context_screen.dart';
+import 'conversation_repository.dart';
 import 'objective_repository.dart';
 
 class ObjectiveDetailScreen extends StatefulWidget {
@@ -24,8 +26,12 @@ class ObjectiveDetailScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenDossier,
     required this.onOpenJourney,
+    this.conversations,
+    this.onOpenConversation,
   });
 
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
   final ObjectiveDepth kind;
   final String id;
   final ObjectiveRepository repository;
@@ -148,10 +154,28 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                       ? _DossierContent(
                           payload: projection?.payload ?? const {},
                           onOpenJourney: widget.onOpenJourney,
+                          conversationEntry: widget.conversations != null &&
+                                  widget.onOpenConversation != null
+                              ? ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'dossier',
+                                  contextId: widget.id,
+                                  onOpen: widget.onOpenConversation!,
+                                )
+                              : null,
                         )
                       : _ProjectContent(
                           payload: projection?.payload ?? const {},
                           onOpenDossier: widget.onOpenDossier,
+                          conversationEntry: widget.conversations != null &&
+                                  widget.onOpenConversation != null
+                              ? ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'project',
+                                  contextId: widget.id,
+                                  onOpen: widget.onOpenConversation!,
+                                )
+                              : null,
                         ),
                 ),
               ),
@@ -164,10 +188,15 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
 }
 
 class _DossierContent extends StatelessWidget {
-  const _DossierContent({required this.payload, required this.onOpenJourney});
+  const _DossierContent({
+    required this.payload,
+    required this.onOpenJourney,
+    this.conversationEntry,
+  });
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenJourney;
+  final Widget? conversationEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +228,7 @@ class _DossierContent extends StatelessWidget {
               ),
           ],
         ),
+        if (conversationEntry != null) conversationEntry!,
         MakoloSection(
           title: 'État collectif',
           description: readiness['partial'] == true
@@ -306,10 +336,15 @@ class _DossierContent extends StatelessWidget {
 }
 
 class _ProjectContent extends StatelessWidget {
-  const _ProjectContent({required this.payload, required this.onOpenDossier});
+  const _ProjectContent({
+    required this.payload,
+    required this.onOpenDossier,
+    this.conversationEntry,
+  });
 
   final Map<String, dynamic> payload;
   final void Function(String id) onOpenDossier;
+  final Widget? conversationEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -338,6 +373,7 @@ class _ProjectContent extends StatelessWidget {
                 ),
           metadata: metadata,
         ),
+        if (conversationEntry != null) conversationEntry!,
         MakoloSection(
           title: 'Dossiers',
           child: dossiers.isEmpty
