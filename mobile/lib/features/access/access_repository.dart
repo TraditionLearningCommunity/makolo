@@ -154,6 +154,33 @@ class AccessRepository {
     );
   }
 
+  /// Any denied Access collection must withdraw its known beneficiary
+  /// context, even if an older list page is still present in SQLite.
+  Stream<Set<String>> watchRevokedCollectionRelationships() {
+    final query = database.select(database.syncSources)
+      ..where((row) =>
+          row.profileId.equals(profileId) &
+          row.sourceKey.like('accesses:%'));
+    return query.watch().map((rows) {
+      final revoked = <String>{};
+      for (final row in rows) {
+        if (!row.invalidated) continue;
+        final parts = row.sourceKey.split(':');
+        if (parts.length >= 2) revoked.add(parts[1]);
+      }
+      return revoked;
+    });
+  }
+
+  Future<bool> _hasRevokedBeneficiaryCollection() async {
+    final rows = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.like('accesses:beneficiary:%')))
+        .get();
+    return rows.any((row) => row.invalidated);
+  }
+
   Future<AccessSourceState> readCollectionSource({
     required String relationship,
     int offset = 0,
@@ -327,8 +354,7 @@ class AccessRepository {
   Future<AccessCredentialData?> readRetainedCredential(
       String accessId) async {
     final detail = await readSource(accessId);
-    final collection = await readCollectionSource(relationship: 'beneficiary');
-    if (detail.invalidated || collection.invalidated) {
+    if (detail.invalidated || await _hasRevokedBeneficiaryCollection()) {
       await credentialVault.delete(profileId, accessId);
       return null;
     }
