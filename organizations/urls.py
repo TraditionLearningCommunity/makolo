@@ -14,6 +14,7 @@ from .console_access import SpaceConsoleAccessView, SpaceConsoleGrantAccessView
 from .console_scanner import SpaceActivityScannerAPIView, SpaceActivityScannerView
 from .console_services import SpaceConsoleServicesView
 from .console_subscription import (
+    SpaceCoverageDecisionView,
     SpaceAddonRemovePreviewView,
     SpaceAddonRemoveView,
     SpaceConsoleSubscriptionView,
@@ -236,6 +237,7 @@ urlpatterns = [
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
     path("<slug:slug>/subscription/", SpaceConsoleSubscriptionView.as_view(), name="console-subscription"),
     path("<slug:slug>/subscription/billing/", SpaceSubscriptionBillingView.as_view(), name="console-subscription-billing"),
+    path("<slug:slug>/subscription/coverages/allocations/<uuid:allocation_id>/", SpaceCoverageDecisionView.as_view(), name="console-coverage-decision"),
     path("<slug:slug>/subscription/history/", SpaceSubscriptionHistoryView.as_view(), name="console-subscription-history"),
     path("<slug:slug>/subscription/preview/<uuid:plan_version_id>/", SpaceSubscriptionPreviewView.as_view(), name="console-subscription-preview"),
     path("<slug:slug>/subscription/change/<uuid:plan_version_id>/", SpaceSubscriptionChangeView.as_view(), name="console-subscription-change"),
