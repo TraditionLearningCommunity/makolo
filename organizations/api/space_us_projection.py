@@ -6,6 +6,10 @@ from authorization.selectors import current_mandates, has_direct_space_permissio
 from organizations.models import TeamMembershipStatus
 
 from .space_relationships_projection import build_space_relationships_projection
+from .space_us_resources_projection import (
+    build_space_us_resources_projection,
+    can_view_space_resources,
+)
 from .workspace_projection import build_space_workspace
 
 
@@ -179,6 +183,12 @@ def build_space_us_projection(*, profile, space):
         handoffs["settings"] = f"/space/{space.slug}/us/settings"
         # Only an actual SPACE_MANAGE authorization opens collective issuance.
         handoffs["passport"] = f"/space/{space.slug}/us/passport"
+    resources = {"visibility": "restricted", "items": [], "count": None, "counts": {}}
+    if can_view_space_resources(profile=profile, space=space):
+        resources = build_space_us_resources_projection(
+            profile=profile, space=space, preview=True,
+        )
+        handoffs["resources"] = f"/space/{space.slug}/us/resources"
     if has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE):
         handoffs["connections"] = f"/space/{space.slug}/connections"
     can_view_subscription = direct_space and (
@@ -197,6 +207,7 @@ def build_space_us_projection(*, profile, space):
         },
         "ownership": owners,
         "relationships": relationships,
+        "resources": resources,
         "trust": workspace.get("verification", {"verified": False, "claims": []}),
         "organization": {
             "operating_preset": workspace.get("operating_preset", {}),
