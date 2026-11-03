@@ -336,7 +336,7 @@ class _BillingScreenState extends State<BillingScreen> {
         if (_spaceMode && widget.fromTeam && _currentSpace != null)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Vous veniez de la gestion de l’équipe'),
+            title: const Text('Revenir à l’équipe'),
             subtitle: const Text(
               'Changer de formule ne confirme pas l’ajout d’un collaborateur.',
             ),
