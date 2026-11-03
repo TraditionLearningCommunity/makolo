@@ -987,6 +987,44 @@ class DiscoveryRepository {
     await refreshItems(query);
   }
 
+  /// Reuse complete owner-projected facts from a fetched collection or N2.
+  /// This is only a presentation guarantee. Actions must still be accepted
+  /// by their server owner at the moment the user invokes them.
+  Future<bool> hasReusableItem(String family, String id) async {
+    final projection = await readItem(family, id);
+    if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
+      return false;
+    }
+    final source = await readSource(itemSource(family, id));
+    if (source.invalidated || source.lastErrorCode != null) return false;
+    return projection?.payload['item'] is Map;
+  }
+
+  Future<bool> hasReusableActivity(String id) async {
+    final projection = await readActivity(id);
+    if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
+      return false;
+    }
+    final state = await readSource(activitySource(id));
+    return !state.invalidated && state.lastErrorCode == null &&
+        projection?.payload['identity'] is Map &&
+        (projection!.payload['identity'] as Map)['id'] == id;
+  }
+
+  Future<bool> hasReusableOccurrenceForReading(String id) async {
+    final projection = await readOccurrence(id);
+    if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
+      return false;
+    }
+    final state = await readSource(occurrenceSource(id));
+    if (state.invalidated || state.lastErrorCode != null) return false;
+    final identity = projection?.payload['identity'];
+    final caps = projection?.payload['capabilities'];
+    // Live Day-of privileges must be checked by the owner on entry.
+    return identity is Map && identity['id'] == id &&
+        !(caps is List && caps.contains('open_day_of'));
+  }
+
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
       .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint)
       .asyncMap((row) => _readAvailable(mapSource(query), row));
