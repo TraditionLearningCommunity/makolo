@@ -96,9 +96,14 @@ void main() {
       expect(find.text('Partenaires'), findsOneWidget);
       expect(find.text('Paramètres institutionnels'), findsNothing);
       expect(tester.takeException(), isNull);
+      expect(find.text('Passeport Makolo'), findsOneWidget);
+      await tester.ensureVisible(find.text('Passeport de cet Espace'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Passeport de cet Espace'));
+      expect(routes, ['/space/atelier/us/passport']);
       await tester.ensureVisible(find.text('Explorer les relations'));
       await tester.tap(find.text('Explorer les relations'));
-      expect(routes, ['/space/atelier/us/relationships']);
+      expect(routes.last, '/space/atelier/us/relationships');
       await tester.scrollUntilVisible(
         find.text('Consulter les faits de confiance'),
         250,
@@ -115,12 +120,6 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Modifier les informations collectives'));
       expect(routes.last, '/space/atelier/us/settings');
-      await tester.scrollUntilVisible(
-        find.text('Passeport de cet Espace'), 250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Passeport de cet Espace'));
-      expect(routes.last, '/space/atelier/us/passport');
       await tester.scrollUntilVisible(
         find.text('Comprendre notre activité'),
         250,
