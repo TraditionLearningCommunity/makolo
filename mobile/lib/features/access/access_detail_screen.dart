@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -70,7 +71,10 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder(
       stream: widget.repository.watchCollectionPages(),
-      builder: (context, knownPagesSnapshot) => StreamBuilder(
+      builder: (context, knownPagesSnapshot) => StreamBuilder<Set<String>>(
+        stream: widget.repository.watchRevokedCollectionRelationships(),
+        initialData: const <String>{},
+        builder: (context, revokedSnapshot) => StreamBuilder(
       stream: widget.repository.watchDetail(widget.accessId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<AccessSourceState>(
@@ -80,14 +84,19 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
             final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? AccessSourceState.unknown;
             final detail = _selector.select(
-              projection: projection,
+              projection: source.invalidated ? null : projection,
               source: source,
               now: DateTime.now(),
             );
             final known = source.invalidated
                 ? null
                 : _selector.knownFromCollection(
-                    pages: knownPagesSnapshot.data ?? const [],
+                    pages: (knownPagesSnapshot.data ?? const <StoredProjection>[])
+                        .where((page) {
+                          final relation = page.resourceKey.split(':').first;
+                          return !(revokedSnapshot.data ?? const <String>{})
+                              .contains(relation);
+                        }),
                     accessId: widget.accessId,
                     now: DateTime.now(),
                   );
@@ -98,7 +107,7 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
-                payload: projection?.payload,
+                payload: source.invalidated ? null : projection?.payload,
                 freshness: presentation.freshness,
                 resources: const [],
                 drafts: const [],
@@ -149,6 +158,7 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
           },
         );
       },
+    ),
     ),
     );
   }
