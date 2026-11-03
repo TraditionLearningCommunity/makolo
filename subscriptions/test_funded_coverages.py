@@ -266,3 +266,28 @@ class FinancedCoverageTests(TestCase):
         self.assertEqual(accepted.status, AllocationStatus.ACTIVE)
         self.assertTrue(resolve_entitlement(beneficiary_space, feature.code).allowed)
         self.assertIsNone(resolve_entitlement(self.bob, feature.code).effective_value)
+
+    def test_space_finances_personal_benefit_without_inheriting_personal_rights(self):
+        feature, version = self.offer("spacepayer", quantity=1, amount="5.00")
+        payer_space = Organization.objects.create(
+            name="Espace financeur", created_by=self.payer,
+        )
+        from .coverage_services import create_coverage
+        coverage = create_coverage(
+            actor=self.payer, payer_space=payer_space, plan_version=version,
+            purchased_quantity=1, starts_at=self.start, ends_at=self.end,
+            request_key="space-finances-profile",
+        )
+        obligation = coverage.billing_obligation_links.get().obligation
+        self.assertEqual(obligation.payer_space_id, payer_space.pk)
+        self.assertIsNone(obligation.payer_profile_id)
+        satisfy_payment_obligation(obligation=obligation, source="space-financing-test")
+        coverage.refresh_from_db()
+        self.assertEqual(coverage.status, CoverageStatus.ACTIVE)
+        invitation = invite_coverage_beneficiary(
+            actor=self.payer, coverage=coverage, profile=self.alice, request_key="space-to-alice",
+        )
+        accept_coverage_allocation(actor=self.alice, allocation=invitation)
+        self.assertTrue(resolve_entitlement(self.alice, feature.code).allowed)
+        self.assertIsNone(resolve_entitlement(payer_space, feature.code).effective_value)
+        self.assertIsNone(resolve_entitlement(self.payer, feature.code).effective_value)
