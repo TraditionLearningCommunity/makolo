@@ -707,6 +707,51 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  static String _variantLabel(Object? variant) => switch (variant) {
+    'complete' => 'Complet',
+    'public' => 'Public',
+    'thematic' => 'Thématique',
+    'custom' => 'Personnalisé',
+    _ => 'Passeport',
+  };
+
+  Future<void> _saveDatedVersionPdf(
+    String snapshotId,
+    String documentId,
+  ) async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    String? stagingPath;
+    try {
+      final profileId = widget.personal?.store.profileId;
+      if (profileId == null) throw StateError('Profil requis.');
+      final directory = await ProfilePaths.reconstructibleCache(profileId);
+      stagingPath = '${directory.path}/passeport-makolo-$snapshotId.pdf';
+      await widget.api.download(
+        'api/v1/me/passport/history/$snapshotId/pdf/',
+        destinationPath: stagingPath,
+      );
+      final saved = await savePassportPdf(
+        stagingPath,
+        'passeport-makolo-$documentId.pdf',
+      );
+      if (saved != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF enregistré.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Téléchargement indisponible.')),
+        );
+      }
+    } finally {
+      if (stagingPath != null) await _discardTemporaryPdf(stagingPath);
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Future<void> _showDatedHistory() async {
     try {
       final response = await widget.api.get('api/v1/me/passport/history/');
@@ -773,39 +818,43 @@ class _MePassportScreenState extends State<MePassportScreen> {
                                         Navigator.pop(sheetContext);
                                         _openDatedVersion(id);
                                       },
-                                trailing: row['id'] != null && intact && !revoked
-                                    ? PopupMenuButton<String>(
-                                        tooltip: 'Gérer cette version',
-                                        onSelected: (action) async {
-                                          final id = row['id'].toString();
-                                          Navigator.pop(sheetContext);
-                                          if (action == 'share') {
-                                            await _shareDatedVersion(id);
-                                          } else if (action == 'revoke_version') {
-                                            await _revokeDatedVersion(id);
-                                          } else if (action.startsWith('revoke_share:')) {
-                                            await _revokeDatedShare(
-                                              action.substring('revoke_share:'.length),
-                                            );
-                                          }
-                                        },
-                                        itemBuilder: (_) => [
-                                          if (row['variant'] != 'complete')
-                                            const PopupMenuItem(
-                                              value: 'share',
-                                              child: Text('Partager cette version'),
-                                            ),
-                                          for (final grant in _rows(row['active_shares']))
-                                            if (grant['id'] != null)
-                                              PopupMenuItem(
-                                                value: 'revoke_share:${grant['id']}',
-                                                child: Text(
-                                                  'Révoquer le lien · ${_historicalDate(grant['expires_at'])}',
-                                                ),
-                                              ),
-                                          const PopupMenuItem(
-                                            value: 'revoke_version',
-                                            child: Text('Révoquer cette version'),
+                                trailing: row['id'] != null && intact
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: 'Télécharger cette version',
+                                            icon: const Icon(Icons.picture_as_pdf_outlined),
+                                            onPressed: () {
+                                              final id = row['id'].toString();
+                                              Navigator.pop(sheetContext);
+                                              _saveDatedVersionPdf(
+                                                id,
+                                                row['document_id']?.toString() ?? id,
+                                              );
+                                            },
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Partager cette version',
+                                            icon: const Icon(Icons.share_outlined),
+                                            onPressed: revoked || row['variant'] == 'complete'
+                                                ? null
+                                                : () {
+                                                    final id = row['id'].toString();
+                                                    Navigator.pop(sheetContext);
+                                                    _shareDatedVersion(id);
+                                                  },
+                                          ),
+                                          IconButton(
+                                            tooltip: 'Révoquer cette version',
+                                            icon: const Icon(Icons.block_outlined),
+                                            onPressed: revoked
+                                                ? null
+                                                : () {
+                                                    final id = row['id'].toString();
+                                                    Navigator.pop(sheetContext);
+                                                    _revokeDatedVersion(id);
+                                                  },
                                           ),
                                         ],
                                       )
