@@ -118,10 +118,15 @@ class CoverageCollectionAPIView(APIView):
 
     def get(self, request, slug=None):
         filters, subject = _get_context(request, slug)
+        financed = payer_coverages(
+            profile=filters.get("payer_profile"), space=filters.get("payer_space"),
+        )
         return _private({
-            "financed": payer_coverages(
-                profile=filters.get("payer_profile"), space=filters.get("payer_space"),
-            ),
+            "financed": financed,
+            # Keep the existing native funded-coverage contract for clients
+            # already consuming this endpoint. Both keys contain exactly the
+            # same payer-scoped rows; neither includes recipient-private work.
+            "funded": financed,
             "received": beneficiary_coverages(subject=subject),
         })
 
