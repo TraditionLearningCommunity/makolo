@@ -207,7 +207,13 @@ class _OneShotPassportApi extends _DatedPassportApi {
           'bio': 'Présentation privée',
           'links': const [],
         },
-        'private_details': {'phone': 'Numéro réservé'},
+        'private_details': {
+          'first_name': 'Profil',
+          'last_name': 'Composé',
+          'username': 'profil-compose',
+          'country': 'CD',
+          'phone': 'Numéro réservé',
+        },
         'declared': {
           'interests': [
             {
@@ -235,6 +241,12 @@ class _OneShotPassportApi extends _DatedPassportApi {
             'name': 'Profil composé',
             'bio': 'Présentation publique',
             'links': const [],
+            'presentation_details': {
+              'first_name': 'Profil',
+              'last_name': 'Composé',
+              'username': 'profil-compose',
+              'country': 'CD',
+            },
           },
           'public_ids': {
             'interests': ['public-interest'],
@@ -347,14 +359,20 @@ void main() {
     expect(find.text('Présentation publique'), findsOneWidget);
     expect(find.text('Présentation privée'), findsNothing);
     expect(find.text('Numéro réservé'), findsNothing);
+    expect(find.text('Informations personnelles'), findsOneWidget);
+    expect(find.text('Profil'), findsOneWidget);
+    expect(find.text('Composé'), findsOneWidget);
+    expect(find.text('CD'), findsOneWidget);
     expect(find.text('Recherche'), findsWidgets);
     expect(find.text('Santé privée'), findsNothing);
     await tester.tap(find.text('Thématique'));
     await tester.pumpAndSettle();
     expect(find.text('Présentation publique'), findsOneWidget);
+    expect(find.text('Informations personnelles'), findsOneWidget);
     await tester.tap(find.text('Personnalisé'));
     await tester.pumpAndSettle();
     expect(find.text('Présentation publique'), findsOneWidget);
+    expect(find.text('Informations personnelles'), findsOneWidget);
     expect(api.ownerFetches, 1);
   });
 
@@ -404,6 +422,27 @@ void main() {
     );
   });
 
+  testWidgets('main share sheet keeps exactly four actions, history is separate', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MePassportScreen(api: _VariantPassportApi())),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Partager le Passeport'));
+    await tester.pumpAndSettle();
+    expect(find.text('Partager le PDF'), findsOneWidget);
+    expect(find.text('Partager dans Makolo'), findsOneWidget);
+    expect(find.text('Partager le lien public'), findsOneWidget);
+    expect(find.text('Copier le lien du Passeport'), findsOneWidget);
+    expect(find.text('Partager une ancienne version'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Versions datées'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Partager cette version'), findsOneWidget);
+    expect(find.byTooltip('Télécharger cette version'), findsOneWidget);
+    expect(find.byTooltip('Révoquer cette version'), findsOneWidget);
+  });
+
   testWidgets('public and empty thematic variants retain the identity baseline', (tester) async {
     final api = _VariantPassportApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
@@ -416,7 +455,7 @@ void main() {
     await tester.tap(find.text('Thématique'));
     await tester.pumpAndSettle();
     expect(find.text('Profil exemple'), findsOneWidget);
-    expect(find.textContaining('Aucun thème sélectionnable'), findsOneWidget);
+    expect(find.textContaining('Aucun thème sélectionnable'), findsNothing);
   });
 
 }
