@@ -47,7 +47,8 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
         oldWidget.item.id != widget.item.id ||
         oldWidget.api != widget.api ||
         oldWidget.baseUri != widget.baseUri ||
-        oldWidget.authenticated != widget.authenticated) {
+        oldWidget.authenticated != widget.authenticated ||
+        oldWidget.enabled != widget.enabled) {
       // Opaque share tokens are bound to one owner identity and sender.
       ++_itemGeneration;
       _created = null;
@@ -100,7 +101,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   }
 
   Future<void> _action(Future<void> Function() task) async {
-    if (_busy) return;
+    if (_busy || !widget.enabled) return;
     final generation = _itemGeneration;
     setState(() => _busy = true);
     try {
@@ -115,6 +116,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   }
 
   Future<Uri> _link() async {
+    if (!widget.enabled) throw StateError('Sharing not verified');
     if (_shareUrl != null) return _shareUrl!;
     final api = widget.api;
     if (!widget.authenticated) {
@@ -178,7 +180,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   });
 
   Future<void> _internal() async {
-    if (_busy) return;
+    if (_busy || !widget.enabled) return;
     final api = widget.api;
     if (api == null || !widget.authenticated) return;
     await showModalBottomSheet<void>(
