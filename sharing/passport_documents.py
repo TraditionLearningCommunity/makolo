@@ -38,6 +38,10 @@ def serialize_passport_projection(projection):
             "links": list(projection.identity.get("links", ())),
             "owner_details": (projection.identity.get("owner_details", {})
                               if projection.variant == "complete" else {}),
+            "presentation_details": (
+                projection.identity.get("presentation_details", {})
+                if projection.variant != "complete" else {}
+            ),
         },
         "interests": [row.topic.label for row in projection.interests],
         "open_to": [
