@@ -268,6 +268,32 @@ class SpaceUsResourcesTests(TestCase):
         self.assertEqual(empty.data["items"], [])
         self.assertEqual(empty.data["total_count"], 0)
 
+    def test_web_resource_depth_preserves_active_viewer_perspective(self):
+        from urllib.parse import urlencode
+
+        self.client.force_login(self.owner)
+        role_key = f"mandate:{self.owner_mandate.pk}"
+        url = reverse("organizations:space-us", kwargs={"slug": self.space.slug})
+        url += "?" + urlencode({"responsibility": role_key})
+        root = self.client.get(url)
+        self.assertEqual(root.status_code, 200)
+        handoff = root.context["us_owner_links"]["resources"]
+        self.assertIn("detail=resources", handoff)
+        self.assertIn(urlencode({"responsibility": role_key}), handoff)
+        depth = self.client.get(handoff)
+        self.assertEqual(depth.status_code, 200)
+        self.assertEqual(
+            depth.context["selected_responsibility"]["key"], role_key,
+        )
+        self.assertIn(
+            urlencode({"responsibility": role_key}),
+            depth.context["resources_back_url"],
+        )
+        self.assertIn(
+            urlencode({"responsibility": role_key}),
+            depth.context["resources_base_url"],
+        )
+
     def test_web_n2_resource_categories_and_authority(self):
         self._snapshot(self.space)
         self._template(self.space)
