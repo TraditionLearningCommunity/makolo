@@ -502,15 +502,21 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     ),
                   ),
                 if (canShare)
-                  DiscoveryShareControl(
-                    key: ValueKey(
-                      'discover-map-share-${resolved!.candidateKey}',
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Center(
+                      child: DiscoveryShareControl(
+                        key: ValueKey(
+                          'discover-map-share-${resolved!.candidateKey}',
+                        ),
+                        item: resolved!,
+                        api: shareApi,
+                        authenticated: shareApi != null,
+                        baseUri: baseUri,
+                        iconOnly: true,
+                      ),
                     ),
-                    item: resolved!,
-                    api: shareApi,
-                    authenticated: shareApi != null,
-                    baseUri: baseUri,
-                    iconOnly: true,
                   ),
                 TextButton(
                   key: const Key('discover-map-open-n2'),
@@ -891,6 +897,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         .toSet();
     if (oldWidget.selection.collection.items !=
         widget.selection.collection.items) {
+      ++_detailGeneration;
+      _confirmedDetail = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           final anchors = _selector.spatialAnchorsFromCollection(
@@ -1113,7 +1121,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                       child: _DiscoveryMapPreview(
                         item: selected,
                         place: _placeForSelection(selected, selectedPoint),
-                        detail: _confirmedDetail,
+                        detail: widget.allowOwnerActions
+                            ? _confirmedDetail
+                            : null,
                         saving: _savingSelected,
                         onClose: _clearSelection,
                         onOpen: () => widget.onOpen(selected),
