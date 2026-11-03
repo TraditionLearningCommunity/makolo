@@ -30,6 +30,7 @@ from .composition import (
     parse_page_params,
     project_rows,
     spatial_index_from_rows,
+    spatial_discovery_projection,
     _public_occurrence_facts_for_rows,
     set_saved_state,
     detail_projection,
@@ -224,7 +225,11 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
         # Spatial presentation of the *same admitted candidates* as Discovery.
         # Opt-in keeps the legacy 100-point API stable for existing consumers.
         if request.query_params.get("spatial") == "1":
-            # Compatibility path: same helper as the enriched Discovery field.
+            if request.query_params.get("details") == "1":
+                return Response(spatial_discovery_projection(
+                    composition.rows, profile=request.user
+                ))
+            # Compatibility path for existing Map consumers.
             return Response(spatial_index_from_rows(composition.rows))
 
         points = []
