@@ -120,13 +120,22 @@ class CoverageCollectionAPIView(APIView):
         filters, _ = _get_context(request, slug, manage=True)
         data = request.data
         version = get_object_or_404(PlanVersion, pk=data.get("plan_version_id"))
+        previous = None
+        if data.get("renewal_of"):
+            previous = get_object_or_404(
+                SubscriptionCoverage, pk=data["renewal_of"], **filters,
+            )
+        start = _valid_date(data["starts_at"], "starts_at") if data.get("starts_at") is not None else None
+        end = _valid_date(data["ends_at"], "ends_at") if data.get("ends_at") is not None else None
+        if previous is not None and start is None:
+            start = previous.ends_at
         try:
             coverage = create_coverage(
                 actor=request.user, plan_version=version,
                 purchased_quantity=_positive_quantity(data.get("quantity")),
-                starts_at=_valid_date(data.get("starts_at"), "starts_at"),
-                ends_at=_valid_date(data.get("ends_at"), "ends_at"),
-                request_key=_idempotency_key(data), **filters,
+                starts_at=start, ends_at=end,
+                request_key=_idempotency_key(data),
+                renewal_of=previous, **filters,
             )
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
             _raise_native(exc)
