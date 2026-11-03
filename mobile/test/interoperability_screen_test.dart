@@ -93,11 +93,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Connexions'), findsOneWidget);
-    expect(find.text('Aucune connexion pour le moment'), findsOneWidget);
-    expect(
-      find.text('Aucun service n’est encore disponible pour votre Profil.'),
-      findsOneWidget,
-    );
+    expect(find.text('Découvrir'), findsOneWidget);
+    expect(find.text('Mes connexions'), findsOneWidget);
+    expect(find.textContaining('Service Connexions indisponible'),
+        findsOneWidget);
     expect(find.textContaining('Marketplace'), findsNothing);
     expect(find.textContaining('Connecter'), findsNothing);
 
@@ -160,6 +159,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Mon service'), findsOneWidget);
+      await tester.tap(find.text('Mon service'));
+      await tester.pump();
       expect(
         find.text('Cette connexion possède une capacité active.'),
         findsOneWidget,
@@ -263,12 +264,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Désactivé'), findsOneWidget);
-    expect(find.text('Cette connexion est désactivée.'), findsOneWidget);
-    expect(find.text('Le service ne répond pas actuellement.'), findsOneWidget);
-    expect(find.text('La disponibilité doit être vérifiée.'), findsOneWidget);
     expect(find.text('Connecté · disponibilité réduite'), findsOneWidget);
     expect(find.text('Momentanément indisponible'), findsOneWidget);
     expect(find.text('Connecté · état à vérifier'), findsOneWidget);
+    await tester.tap(find.text('Service désactivé'));
+    await tester.pump();
+    expect(find.text('Cette connexion est désactivée.'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pump();
+    await tester.tap(find.text('Service indisponible'));
+    await tester.pump();
+    expect(find.text('Le service ne répond pas actuellement.'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pump();
+    await tester.tap(find.text('Service à vérifier'));
+    await tester.pump();
+    expect(find.text('La disponibilité doit être vérifiée.'), findsOneWidget);
 
     await _unmount(tester);
   });
@@ -330,23 +341,14 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Service disponible'), findsOneWidget);
-    expect(find.textContaining('provider_internal_code'), findsNothing);
-    expect(find.text('Calendar create'), findsOneWidget);
-    expect(find.text('Connexion requise.'), findsOneWidget);
+    // Registry metadata is not a connectable owner offer. Never display
+    // executable-looking cards for it in the personal connection catalogue.
+    expect(find.text('Service disponible'), findsNothing);
+    expect(find.text('Calendar create'), findsNothing);
     expect(find.text('Private denied'), findsNothing);
-    expect(find.text('Profile helper'), findsOneWidget);
-    expect(
-      find.text('Extension répertoriée'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('domaine propriétaire'), findsNothing);
-    expect(find.textContaining('Connexion adaptée'), findsNothing);
-    // The registry metadata must not act as an executable owner action.
-    final actionTile = tester.widget<ListTile>(
-      find.ancestor(of: find.text('Calendar create'), matching: find.byType(ListTile)),
-    );
-    expect(actionTile.onTap, isNull);
+    expect(find.text('Profile helper'), findsNothing);
+    expect(find.textContaining('provider_internal_code'), findsNothing);
+    expect(find.byType(FilledButton), findsNothing);
 
     await _unmount(tester);
   });
@@ -397,9 +399,14 @@ void main() {
     ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(find.byKey(const Key('discover-from-connection-research')), findsOneWidget);
-    expect(find.byKey(const Key('discover-from-connection-space')), findsNothing);
+    expect(find.text('Recherche externe'), findsOneWidget);
     expect(find.text('Service autre contexte'), findsNothing);
+    await tester.tap(find.text('Recherche externe'));
+    await tester.pump();
+    expect(find.byKey(const Key('discover-from-connection-research')),
+        findsOneWidget);
+    expect(find.byKey(const Key('discover-from-connection-space')),
+        findsNothing);
     await _unmount(tester);
   });
 
@@ -559,6 +566,8 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
+    await tester.tap(find.text('Mes connexions'));
+    await tester.pump();
     expect(find.text('Service initial'), findsOneWidget);
 
     serviceName = 'Service actualisé';
