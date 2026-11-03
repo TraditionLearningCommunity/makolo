@@ -70,10 +70,14 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
+      final relationship = _relationship;
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: 0,
       );
+      if (mounted && relationship == _relationship) {
+        unawaited(_warmPage(relationship: relationship, offset: 0));
+      }
     } on Object {
       // Keep any cached owner projection readable.
     } finally {
@@ -85,15 +89,49 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     if (_loadingMore || !view.hasMore) return;
     setState(() => _loadingMore = true);
     try {
+      final relationship = _relationship;
       await widget.repository.refreshCollectionPage(
-        relationship: _relationship,
+        relationship: relationship,
         offset: view.nextOffset,
       );
+      if (mounted && relationship == _relationship) {
+        unawaited(_warmPage(
+          relationship: relationship,
+          offset: view.nextOffset,
+        ));
+      }
     } on Object {
       // Keep the pages already available locally.
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  Future<void> _warmPage({
+    required String relationship,
+    required int offset,
+  }) async {
+    final source = await widget.repository.readCollectionSource(
+      relationship: relationship,
+      offset: offset,
+    );
+    if (source.invalidated ||
+        source.lastErrorCode != null ||
+        source.lastSuccessAt == null) return;
+    final page = await widget.repository.readCollectionPage(
+      relationship: relationship,
+      offset: offset,
+    );
+    final rows = page?.payload['items'];
+    if (rows is! List) return;
+    final ids = <String>[];
+    for (final raw in rows) {
+      final entry = _map(raw);
+      final identity = _map(entry['identity']);
+      final id = _string(identity['id']);
+      if (id != null) ids.add(id);
+    }
+    await widget.repository.warmKnownDetails(ids);
   }
 
   void _selectRelationship(String relationship) {
@@ -143,6 +181,17 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
             initialData: AccessSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? AccessSourceState.unknown;
+              if (source.invalidated) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(MakoloSpacing.inner),
+                    child: Text(
+                      'Ces accès ne sont plus disponibles avec '
+                      'l’autorité actuelle. Actualisez après reconnexion.',
+                    ),
+                  ),
+                );
+              }
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
                 child: ListView(
