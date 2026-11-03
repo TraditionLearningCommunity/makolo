@@ -1743,7 +1743,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   void initState() {
     super.initState();
     _bindSources();
-    unawaited(_refresh());
+    unawaited(_acquire());
   }
 
   @override
@@ -1758,7 +1758,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       _verifiedItemKey = null;
       _refreshingItemKey = null;
       _bindSources();
-      unawaited(_refresh());
+      unawaited(_acquire());
     }
   }
 
@@ -1766,6 +1766,19 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   void dispose() {
     ++_generation;
     super.dispose();
+  }
+
+  Future<void> _acquire() async {
+    final key = _itemKey;
+    final repository = widget.repository;
+    final reusable = await repository.hasReusableItem(widget.family, widget.id);
+    if (!mounted || key != _itemKey ||
+        !identical(repository, widget.repository)) return;
+    if (reusable) {
+      setState(() => _verifiedItemKey = key);
+      return;
+    }
+    await _refresh();
   }
 
   Future<void> _refresh() async {
@@ -1877,7 +1890,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                 !_refreshing &&
                 !_saving &&
                 _verifiedItemKey == _itemKey &&
-                owner.lastSuccessAt != null &&
+                item != null &&
                 owner.lastErrorCode == null &&
                 !owner.invalidated;
             final vertical = item?.representation?['vertical_label'];
