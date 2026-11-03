@@ -210,7 +210,7 @@ def _profile_activity_queryset(profile, *, public_only):
     )
     if public_only:
         queryset = queryset.filter(visibility=ActivityVisibility.PUBLIC)
-    return queryset.order_by("title", "id")
+    return queryset.prefetch_related("topic_links__topic").order_by("title", "id")
 
 
 def _profile_proof_queryset(profile, *, public_only):
@@ -221,7 +221,9 @@ def _profile_proof_queryset(profile, *, public_only):
             journey__activity__visibility=ActivityVisibility.PUBLIC,
             journey__activity__status__in=PASSPORT_ACTIVITY_STATUSES,
         )
-    return queryset
+    return queryset.select_related("journey__activity").prefetch_related(
+        "journey__activity__topic_links__topic",
+    )
 
 
 def _profile_credential_queryset(profile, *, public_only):
@@ -231,7 +233,9 @@ def _profile_credential_queryset(profile, *, public_only):
             activity__visibility=ActivityVisibility.PUBLIC,
             activity__status__in=PASSPORT_ACTIVITY_STATUSES,
         )
-    return queryset
+    return queryset.select_related("activity").prefetch_related(
+        "activity__topic_links__topic",
+    )
 
 
 
