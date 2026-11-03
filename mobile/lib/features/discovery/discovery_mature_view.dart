@@ -465,6 +465,14 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 ),
               ],
             ),
+            if (resolved?.eyebrow != null &&
+                resolved!.eyebrow!.trim().isNotEmpty)
+              Text(
+                resolved.eyebrow!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
             if (place != null && place!.trim().isNotEmpty)
               Text(
                 place!,
@@ -506,17 +514,15 @@ class _DiscoveryMapPreview extends StatelessWidget {
                   SizedBox(
                     width: 48,
                     height: 48,
-                    child: Center(
-                      child: DiscoveryShareControl(
-                        key: ValueKey(
-                          'discover-map-share-${resolved!.candidateKey}',
-                        ),
-                        item: resolved!,
-                        api: shareApi,
-                        authenticated: shareApi != null,
-                        baseUri: baseUri,
-                        iconOnly: true,
+                    child: DiscoveryShareControl(
+                      key: ValueKey(
+                        'discover-map-share-${resolved!.candidateKey}',
                       ),
+                      item: resolved!,
+                      api: shareApi,
+                      authenticated: shareApi != null,
+                      baseUri: baseUri,
+                      iconOnly: true,
                     ),
                   ),
                 TextButton(
