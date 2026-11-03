@@ -420,7 +420,7 @@ def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
         return False
     if snapshot.subject_kind == PublicSubjectKind.PROFILE:
         return snapshot.profile_id == viewer.pk
-    if not snapshot.space_id or not user_can_access_organization_workspace(viewer, snapshot.space):
+    if not snapshot.space_id or not user_can_manage_organization(viewer, snapshot.space):
         return False
     # History is owner-readable, even after revocation. Internal Space teams
     # still require their separate authority at reading time.
@@ -573,5 +573,5 @@ class SpacePassportHistoryView(PassportHistoryBase):
     def can_view(self, viewer, subject):
         return bool(
             viewer.is_authenticated
-            and user_can_access_organization_workspace(viewer, subject)
+            and user_can_manage_organization(viewer, subject)
         )
