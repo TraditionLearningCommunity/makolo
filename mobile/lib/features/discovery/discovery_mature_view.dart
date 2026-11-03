@@ -433,7 +433,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolved = detail;
     final canChangeSaved = resolved != null &&
-        (resolved.savedState == 'saved'
+        (resolved!.savedState == 'saved'
             ? resolved.canUnsave
             : resolved.canSave);
     final canShare = resolved != null &&
@@ -506,7 +506,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     key: ValueKey(
                       'discover-map-share-${resolved!.candidateKey}',
                     ),
-                    item: resolved,
+                    item: resolved!,
                     api: shareApi,
                     authenticated: shareApi != null,
                     baseUri: baseUri,
