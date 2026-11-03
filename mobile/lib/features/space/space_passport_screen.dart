@@ -530,6 +530,17 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final trust = rows(map(current['established'])['trust_verifications']);
     final credentials = rows(map(current['issued'])['credential_summary']);
     final name = value(identity['name']) ?? widget.slug;
+    final owner = map(identity['owner_details']);
+    final missing = <String>[
+      if (value(identity['bio']) == null) 'Présentation',
+      if (value(identity['location']) == null) 'Localisation',
+      if (rows(identity['links']).isEmpty) 'Site web',
+      if (value(owner['email']) == null) 'Adresse e-mail',
+      if (value(owner['phone']) == null) 'Téléphone',
+      if (interests.isEmpty) 'Activités',
+      if (trust.isEmpty) 'Confiance',
+      if (credentials.isEmpty) 'Attestations délivrées',
+    ];
     return Scaffold(
       appBar: AppBar(
         title: const Text('Passeport'),
@@ -577,6 +588,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                               label: Text(entry.value),
                               onSelected: (_) => setState(() {
                                 variant = entry.key;
+                                if (entry.key == 'thematic' && topic == null &&
+                                    topics.isNotEmpty) {
+                                  topic = value(topics.first['code']);
+                                }
                               }),
                             ),
                           ),
@@ -738,6 +753,23 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                             title: Text(team.toString()),
                           ),
                       ]),
+                    if (variant == 'complete' && missing.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          title: const Text('À enrichir'),
+                          subtitle: Text(missing.length.toString() +
+                              ' rubriques'),
+                          children: [
+                            for (final label in missing)
+                              ListTile(
+                                dense: true,
+                                title: Text(label),
+                              ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     OutlinedButton.icon(
                       onPressed: edit,
