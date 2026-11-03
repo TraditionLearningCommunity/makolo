@@ -14,6 +14,8 @@ class SpaceWorkG2Depth extends StatelessWidget {
     required this.work,
     required this.onOccurrencesPageChange,
     required this.onWorkPageChange,
+    this.workSection,
+    this.fromWorkCollection = false,
   });
 
   final String slug;
@@ -22,6 +24,8 @@ class SpaceWorkG2Depth extends StatelessWidget {
   final Map<String, dynamic> work;
   final ValueChanged<int> onOccurrencesPageChange;
   final ValueChanged<int> onWorkPageChange;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   bool get isEducation => archetype == 'education';
 
@@ -111,10 +115,12 @@ class SpaceWorkG2Depth extends StatelessWidget {
     final source = spaceMap(row['source']);
     final timing = spaceMap(row['timing']);
     final route = (!isOccurrence || row['openable'] == true)
-        ? spaceOwnerRoute(
+        ? spaceWorkOwnerRoute(
             slug: slug,
             kind: spaceText(source?['kind']),
             id: spaceText(source?['id']),
+            section: workSection,
+            fromCollection: fromWorkCollection,
           )
         : null;
     final title =
