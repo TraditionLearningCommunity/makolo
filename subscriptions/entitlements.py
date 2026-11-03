@@ -268,10 +268,10 @@ def _resolve(subject, *, feature_code=None, at=None):
             contributions[code],
             key=lambda entry: (entry["priority"], entry["at"], entry["source"].source_id),
         )
+        # Only independently financed coverage changes the historical Subscription
+        # suspension gate; administrative Grants keep their existing semantics.
         has_independent = any(
-            entry["source"].source_type in {
-                EntitlementSourceType.GRANT, "funded_base", "funded_addon",
-            }
+            entry["source"].source_type in {"funded_base", "funded_addon"}
             for entry in entries
         )
         if has_independent and subscription and subscription.status == SubscriptionStatus.SUSPENDED:
