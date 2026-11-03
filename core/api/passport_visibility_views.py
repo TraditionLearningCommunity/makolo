@@ -21,7 +21,9 @@ class PersonalPassportVisibilityAPIView(PersonalProjectionAPIView):
 
     def get(self, request):
         self._guard_personal_scope(request)
-        return self._response(build_profile_visibility_settings(request.user), observed_at=timezone.now())
+        return self._response(build_profile_visibility_settings(
+            request.user, compact=request.query_params.get('compact') == '1',
+        ), observed_at=timezone.now())
 
     def put(self, request):
         self._guard_personal_scope(request, include_body=True)
