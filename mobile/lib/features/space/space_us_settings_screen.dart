@@ -6,6 +6,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/api_error.dart';
+import '../me/passport_editor_field_rules.dart';
 
 /// Institutional details remain an authorized server mutation, never an
 /// offline permission inferred from a cached TeamMembership or identity.
@@ -36,6 +37,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   bool authorized = false;
   String? error;
   String? loadedSpaceId;
+  Map<String, dynamic>? confirmed;
   int loadVersion = 0;
 
   @override
@@ -116,6 +118,14 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       phone.text = identity['contact_phone']?.toString() ?? '';
       setState(() {
         publicProfile = identity['public_profile'] == true;
+        confirmed = {
+          'name': name.text.trim(),
+          'description': description.text.trim(),
+          'website': website.text.trim(),
+          'contact_email': email.text.trim(),
+          'contact_phone': phone.text.trim(),
+          'public_profile': publicProfile,
+        };
         authorized = true;
         loading = false;
         loadedSpaceId = expectedId;
@@ -141,10 +151,28 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
         saving ||
         current == null ||
         api == null ||
-        current.space.id != loadedSpaceId ||
-        form.currentState?.validate() != true) {
+        current.space.id != loadedSpaceId) {
       return;
     }
+    final normalizedWebsite = PassportEditorFieldRules.normalize(
+      'website', website.text,
+    );
+    website.text = normalizedWebsite;
+    if (form.currentState?.validate() != true) return;
+    final fields = <String, dynamic>{
+      'name': name.text.trim(),
+      'description': description.text.trim(),
+      'website': website.text.trim(),
+      'contact_email': email.text.trim(),
+      'contact_phone': phone.text.trim(),
+      'public_profile': publicProfile,
+    };
+    final changes = <String, dynamic>{
+      for (final entry in fields.entries)
+        if (confirmed == null || confirmed![entry.key] != entry.value)
+          entry.key: entry.value,
+    };
+    if (changes.isEmpty) return;
     final expectedId = current.space.id;
     setState(() {
       saving = true;
@@ -154,14 +182,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       // No local mutation: the server checks SPACE_MANAGE at PATCH time.
       await api.patch(
         'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/',
-        body: {
-          'name': name.text.trim(),
-          'description': description.text.trim(),
-          'website': website.text.trim(),
-          'contact_email': email.text.trim(),
-          'contact_phone': phone.text.trim(),
-          'public_profile': publicProfile,
-        },
+        body: changes,
       );
       if (!mounted || actor?.space.id != expectedId) return;
       final repository = widget.runtime.space;
@@ -239,11 +260,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
-                  const Text(
-                    'Ces changements concernent cet Espace. '
-                    'Votre autorisation est vérifiée à chaque enregistrement.',
-                  ),
-                  const SizedBox(height: MakoloSpacing.lg),
+                  const SizedBox(height: MakoloSpacing.md),
                   TextFormField(
                     controller: name,
                     maxLength: 180,
@@ -261,17 +278,93 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                       labelText: 'Présentation',
                     ),
                   ),
-                  TextFormField(
-                    controller: website,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(labelText: 'Site web'),
+                  Focus(
+                    onFocusChange: (focused) {
+                      if (!focused && !saving) {
+                        final normalized = PassportEditorFieldRules.normalize(
+                          'website', website.text,
+                        );
+                        if (website.text != normalized) {
+                          setState(() => website.text = normalized);
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: website,
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      maxLength: 200,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web', counterText: '',
+                      ),
+                      validator: (value) => PassportEditorFieldRules.error(
+                        'website', value ?? '',
+                      ),
+                    ),
                   ),
                   TextFormField(
                     controller: email,
                     keyboardType: TextInputType.emailAddress,
+                    textCapitalization: TextCapitalization.none,
+                    maxLength: 254,
                     decoration: const InputDecoration(
-                      labelText: 'Contact général',
+                      labelText: 'Adresse e-mail', counterText: '',
                     ),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return null;
+                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 50,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone', counterText: '',
+                    ),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return null;
+                      final digits = RegExp(r'[0-9]').allMatches(text).length;
+                      return RegExp(r'^\+?[0-9().\s-]+
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Profil public'),
+                    value: publicProfile,
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() => publicProfile = value),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+)
+                          .hasMatch(text) ? null : 'E-mail invalide.';
+                    },
                   ),
                   TextFormField(
                     controller: phone,
@@ -283,10 +376,92 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Profil public'),
-                    subtitle: const Text(
-                      'Autoriser la visibilité publique de cet Espace. '
-                      'Les règles de découverte restent distinctes.',
+                    value: publicProfile,
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() => publicProfile = value),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+).hasMatch(text) &&
+                              digits >= 7 && digits <= 15
+                          ? null : 'Téléphone invalide.';
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Profil public'),
+                    value: publicProfile,
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() => publicProfile = value),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+)
+                          .hasMatch(text) ? null : 'E-mail invalide.';
+                    },
+                  ),
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone général',
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Profil public'),
                     value: publicProfile,
                     onChanged: saving
                         ? null
