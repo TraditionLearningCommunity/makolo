@@ -325,23 +325,40 @@ class AccessRepository {
     await engine.invalidate(sourceFor(accessId));
   }
 
-  /// A link comes from the owner collection, not an invented local route.
-  Future<String?> readKnownCredentialPath(String accessId) async {
-    final source = await readCollectionSource(relationship: 'beneficiary');
-    if (source.invalidated) return null;
-    final pages = await store.readProjections(collectionProjectionKind);
+  /// Only a beneficiary capability issued by the owner unlocks the QR
+  /// navigation. Merely knowing an Access ID or a link grants no authority.
+  static String? credentialPathFromKnownPages(
+    Iterable<StoredProjection> pages,
+    String accessId,
+  ) {
     for (final page in pages) {
-      if (!page.resourceKey.startsWith('beneficiary:')) continue;
+      if (page.kind != collectionProjectionKind ||
+          page.schemaVersion != 1 ||
+          !page.resourceKey.startsWith('beneficiary:')) {
+        continue;
+      }
       final rows = page.payload['items'];
       if (rows is! List) continue;
       for (final raw in rows) {
         final item = _map(raw);
-        if (_string(_map(item['identity'])['id']) != accessId) continue;
+        if (_string(_map(item['identity'])['id']) != accessId ||
+            _string(item['relationship']) != 'beneficiary') continue;
+        final capabilities = item['capabilities'];
+        if (capabilities is! List ||
+            !capabilities.contains('present_credential')) continue;
         final link = _string(_map(item['links'])['credential']);
         if (link != null && _isCredentialPath(link, accessId)) return link;
       }
     }
     return null;
+  }
+
+  Future<String?> readKnownCredentialPath(String accessId) async {
+    if (await _hasRevokedBeneficiaryCollection()) return null;
+    return credentialPathFromKnownPages(
+      await store.readProjections(collectionProjectionKind),
+      accessId,
+    );
   }
 
   static bool _isCredentialPath(String path, String accessId) {
