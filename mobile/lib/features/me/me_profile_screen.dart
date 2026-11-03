@@ -90,8 +90,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       for (final key in const [
         'first_name',
         'last_name',
-        'birth_date',
-        'gender',
         'bio',
         'phone',
         'website',
