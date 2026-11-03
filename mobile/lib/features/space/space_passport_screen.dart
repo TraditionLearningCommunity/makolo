@@ -55,6 +55,22 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant SpacePassportScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.slug != widget.slug) {
+      oldWidget.runtime.actorContext?.removeListener(actorChanged);
+      widget.runtime.actorContext?.addListener(actorChanged);
+      ++epoch;
+      source = null;
+      error = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) reload();
+      });
+    }
+  }
+
+  @override
   void dispose() {
     widget.runtime.actorContext?.removeListener(actorChanged);
     super.dispose();
@@ -252,13 +268,20 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     required Future<void> Function(String path) action,
   }) async {
     final api = widget.runtime.api;
-    if (api == null || !authorized) return;
+    final startActor = widget.runtime.actorContext?.value;
+    if (api == null || !authorized ||
+        startActor is! SpaceActorContext) return;
+    final spaceId = startActor.space.id;
     final dir = await Directory.systemTemp.createTemp('makolo-space-passport-');
     final path = dir.path + '/passeport-makolo.pdf';
     try {
       final route = datedId == null ? url('pdf/') :
           root + 'history/' + datedId + '/pdf/';
       final reply = await api.download(route, destinationPath: path);
+      final actorNow = widget.runtime.actorContext?.value;
+      if (!mounted || !authorized ||
+          actorNow is! SpaceActorContext ||
+          actorNow.space.id != spaceId) return;
       final disposition = reply.headers.entries
           .where((item) => item.key.toLowerCase() == 'content-disposition')
           .map((item) => item.value).firstOrNull ?? '';
