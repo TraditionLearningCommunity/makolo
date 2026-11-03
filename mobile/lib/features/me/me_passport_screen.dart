@@ -480,14 +480,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
       final options = _rows(_full?['topic_options']);
       if (options.isNotEmpty) _topic = options.first['code']?.toString();
     }
+    if (_hasLocalComposition) ++_loadEpoch;
     setState(() {
       _variant = variant;
-      _onlineReady = false;
-      _cachedPassport = null;
-      _cachedVariantKey = null;
-      _future = _load();
+      if (_hasLocalComposition) {
+        final result = _composePassport(_full!);
+        _cachedPassport = result;
+        _cachedVariantKey = _passportStorageKey();
+        _future = Future.value(result);
+      } else {
+        _onlineReady = false;
+        _cachedPassport = null;
+        _cachedVariantKey = null;
+        _future = _load();
+      }
     });
-    _restorePassport();
   }
 
   static String _historicalDate(Object? raw) {
@@ -1266,20 +1273,30 @@ class _MePassportScreenState extends State<MePassportScreen> {
     });
   }
 
-  void _toggle(Set<String> values, String id, bool enabled) {
+  void _toggle(Set<String> values, String id, bool excluded) {
+    if (_hasLocalComposition) ++_loadEpoch;
     setState(() {
-      if (enabled) {
+      if (excluded) {
         values.add(id);
       } else {
         values.remove(id);
       }
-      _onlineReady = false;
-      _future = _load();
+      if (_hasLocalComposition) {
+        final result = _composePassport(_full!);
+        _cachedPassport = result;
+        _cachedVariantKey = _passportStorageKey();
+        _future = Future.value(result);
+      } else {
+        _onlineReady = false;
+        _future = _load();
+      }
     });
   }
 
   Widget _options(Map<String, dynamic> data) {
-    final source = _full ?? data;
+    final source = _variant == 'custom' && _hasLocalComposition
+        ? _composePassport(_full!, variant: 'public')
+        : _full ?? data;
     final topics = _rows(source['topic_options']);
     final theme = Theme.of(context);
     return Column(
@@ -1309,34 +1326,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         if (_variant == 'thematic') ...[
           const SizedBox(height: 10),
           if (topics.isEmpty)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Aucun thème disponible pour le moment. '
-                  'Votre identité reste présente ; les faits thématiques '
-                  'apparaîtront lorsque vous aurez choisi des sujets '
-                  'ou réalisé des activités qui leur sont liées.',
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () async {
-                    await context.push('/me/considerations');
-                    if (!mounted) return;
-                    setState(() {
-                      _full = null;
-                      _topic = null;
-                      _onlineReady = false;
-                      _cachedPassport = null;
-                      _cachedVariantKey = null;
-                      _future = _load(preferLocal: false);
-                    });
-                  },
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Choisir mes centres d’intérêt'),
-                ),
-              ],
-            )
+            const Text('Aucun thème sélectionnable.')
           else
             DropdownButtonFormField<String>(
               initialValue: _topic,
@@ -1353,30 +1343,24 @@ class _MePassportScreenState extends State<MePassportScreen> {
                       child: Text(topic['label']?.toString() ?? ''),
                     ),
               ],
-              onChanged: (code) => setState(() {
-                _topic = code;
-                _onlineReady = false;
-                _future = _load();
-              }),
+              onChanged: (code) {
+                if (_hasLocalComposition) ++_loadEpoch;
+                setState(() {
+                  _topic = code;
+                  if (_hasLocalComposition) {
+                    final result = _composePassport(_full!);
+                    _cachedPassport = result;
+                    _cachedVariantKey = _passportStorageKey();
+                    _future = Future.value(result);
+                  } else {
+                    _onlineReady = false;
+                    _future = _load();
+                  }
+                });
+              },
             ),
         ],
-        if (_variant == 'public')
-          const Padding(
-            padding: EdgeInsets.only(top: 12),
-            child: Text(
-              'Cette version montre uniquement les informations renseignées '
-              'et publiquement autorisées. Téléphone, adresse privée et '
-              'date de naissance restent réservés à votre Passeport complet.',
-            ),
-          ),
         if (_variant == 'custom') ...[
-          const Padding(
-            padding: EdgeInsets.only(top: 8, bottom: 8),
-            child: Text(
-              'Votre identité de base reste présente. '
-              'Choisissez les informations complémentaires à présenter.',
-            ),
-          ),
           const SizedBox(height: 14),
           Text('À présenter', style: theme.textTheme.titleMedium),
           Wrap(
@@ -1395,8 +1379,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
               ])
                 FilterChip(
                   label: Text(option.$2),
-                  selected: _sections.contains(option.$1),
-                  onSelected: (v) => _toggle(_sections, option.$1, v),
+                  selected: !_sections.contains(option.$1),
+                  onSelected: (v) => _toggle(_sections, option.$1, !v),
                 ),
             ],
           ),
@@ -1441,9 +1425,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(label(row)!),
-              value: selected.contains(row['id'].toString()),
+              value: !selected.contains(row['id'].toString()),
               onChanged: (enabled) =>
-                  _toggle(selected, row['id'].toString(), enabled == true),
+                  _toggle(selected, row['id'].toString(), enabled != true),
             ),
       ],
     );
@@ -1720,6 +1704,17 @@ class _PassportBody extends StatelessWidget {
               ? null
               : [label, if (topic != null) topic].join(' · ');
         }),
+        _section(context, 'Expériences et rôles', _rows(data['experiences']), (
+          row,
+        ) {
+          final title = _text(row['title']);
+          if (title == null) return null;
+          return [
+            title,
+            if (_text(row['role']) != null) _text(row['role'])!,
+            if (_text(row['date']) != null) _text(row['date'])!,
+          ].join(' · ');
+        }),
         _section(context, 'Activités portées', _rows(data['activities']), (
           row,
         ) {
@@ -1799,7 +1794,6 @@ class _PassportBody extends StatelessWidget {
       ('username', 'Identifiant Makolo'),
       ('city', 'Ville'),
       ('country', 'Pays'),
-      ('language', 'Langue'),
       ('phone', 'Téléphone'),
       ('address', 'Adresse'),
       ('birth_date', 'Date de naissance'),
@@ -1875,7 +1869,18 @@ class _PassportBody extends StatelessWidget {
     String? Function(Map<String, dynamic>) label,
   ) {
     final titles = rows.map(label).whereType<String>().toSet().toList();
-    if (titles.isEmpty) return const SizedBox.shrink();
+    if (titles.isEmpty) {
+      if (data['variant'] != 'complete') return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 18),
+        child: ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(title),
+          subtitle: const Text('Aucun élément à présenter'),
+        ),
+      );
+    }
     final colors = Theme.of(context).colorScheme;
     final isInterest = title == 'Centres d’intérêt';
     final isOpening = title == 'Ouvert à';
