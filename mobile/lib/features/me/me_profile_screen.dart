@@ -544,6 +544,40 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     }
   }
 
+  /// Cheap photo checks before upload. Accounts validates the full image.
+  Future<String?> _checkPickedPhoto(String path, String filename) async {
+    const maxBytes = 5 * 1024 * 1024;
+    final lower = filename.toLowerCase();
+    final jpeg = lower.endsWith('.jpg') || lower.endsWith('.jpeg');
+    final png = lower.endsWith('.png');
+    final webp = lower.endsWith('.webp');
+    if (!jpeg && !png && !webp) return 'Format de photo invalide.';
+    try {
+      final file = File(path);
+      if (await file.length() > maxBytes) return 'Photo trop volumineuse (5 Mo).';
+      final handle = await file.open();
+      List<int> header;
+      try {
+        header = await handle.read(12);
+      } finally {
+        await handle.close();
+      }
+      bool at(int index, List<int> bytes) =>
+          header.length >= index + bytes.length &&
+          List.generate(bytes.length, (i) => header[index + i])
+              .toString() == bytes.toString();
+      if (jpeg && !at(0, [0xFF, 0xD8, 0xFF]) ||
+          png && !at(0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) ||
+          webp && !(at(0, [0x52, 0x49, 0x46, 0x46]) &&
+              at(8, [0x57, 0x45, 0x42, 0x50]))) {
+        return 'Photo invalide.';
+      }
+    } on Object {
+      return 'Photo inaccessible.';
+    }
+    return null;
+  }
+
   Future<void> _changeAvatar() async {
     if (_saving || !_loaded) return;
     final source = await showModalBottomSheet<bool>(
@@ -573,6 +607,19 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         capture: source,
       );
       if (image == null || !mounted) return;
+      final photoError = await _checkPickedPhoto(image.path, image.name);
+      if (!mounted) return;
+      if (photoError != null) {
+        final errors = Map<String, String>.from(_fieldErrors);
+        errors['avatar'] = photoError;
+        setState(() => _fieldErrors = errors);
+        return;
+      }
+      setState(() {
+        final errors = Map<String, String>.from(_fieldErrors);
+        errors.remove('avatar');
+        _fieldErrors = errors;
+      });
       final approved = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -630,6 +677,13 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       } on Object {
         // A later authenticated read can rehydrate the authorized portrait.
       }
+      try {
+        await widget.personal.store.deleteProjection(
+          'personal.me.passport', resourceKey: 'variant=complete',
+        );
+      } on Object {
+        // A later server read refreshes the owner projection.
+      }
       final fresh = await _refreshPersonal();
       if (!mounted) return;
       setState(() {
@@ -638,11 +692,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             ? 'Photo mise à jour.'
             : 'Photo enregistrée. Actualisation en attente.';
       });
-    } on Object {
+    } on Object catch (error) {
       if (mounted) {
+        final errors = Map<String, String>.from(_fieldErrors);
+        errors['avatar'] = error is MakoloApiError && error.statusCode == 400
+            ? 'Photo invalide.'
+            : 'Photo non enregistrée.';
         setState(() {
           _saving = false;
-          _error = 'Impossible de modifier la photo.';
+          _fieldErrors = errors;
         });
       }
     }
@@ -893,6 +951,16 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   icon: const Icon(Icons.photo_camera_outlined),
                   label: const Text('Modifier la photo'),
                 ),
+                if (_fieldErrors['avatar'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      _fieldErrors['avatar']!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
