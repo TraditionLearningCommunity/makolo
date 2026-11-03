@@ -166,10 +166,7 @@ class PassportHero(Flowable):
             ))
         # Other personal coordinates are not publicly inferred or shown.
         if profile and private:
-            descriptors = [
-                _value(private.get("gender")),
-                _value(private.get("language")),
-            ]
+            descriptors = [_value(private.get("gender"))]
             descriptors = [item for item in descriptors if item]
             if descriptors:
                 self.lines.append((" · ".join(descriptors), 9.0,
@@ -660,6 +657,14 @@ def render_passport_layout(payload, metadata, verify_url, *,
             story.extend([line, Spacer(1, 5)])
         story.append(Spacer(1, 10))
     groups = [
+        ("Expériences et rôles", [
+            (_value(row.get("title")),
+             " · ".join(x for x in (
+                 _value(row.get("role")),
+                 _value(row.get("date")),
+             ) if x))
+            for row in payload.get("activity_involvements") or []
+        ]),
         ("Activités portées", [
             (_value(row.get("title")), _value(row.get("status")))
             for row in payload.get("activities") or []
