@@ -172,7 +172,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       count <= 1 ? count : ((count * 2) ~/ 3).clamp(1, count).toInt();
 
   Future<void> _ensureUnseenReserve(DiscoveryQuery query) async {
-    if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
+    if (_unseenReserve != null && _unseenField == query.mapFingerprint) {
+      final root = await widget.repository.readItems(
+        query.copyWith(page: 1, clearContinuation: true),
+      );
+      if (root != null &&
+          root.receivedAt == _unseenReserve!.rootReceivedAt) return;
+      _unseenReserve = null;
+      _unseenField = null;
+    }
     final running = _unseenLoad;
     if (running != null) {
       try {
@@ -547,9 +555,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               sourceErrorCode: sourceState.lastErrorCode,
             );
             final full = selection.collection;
-            final reserve = _unseenField == _query.mapFingerprint
+            final currentReserve = _unseenField == _query.mapFingerprint
                 ? _unseenReserve
                 : null;
+            final rootChanged = currentReserve != null &&
+                _query.page == 1 &&
+                projection != null &&
+                currentReserve.rootReceivedAt != projection.receivedAt;
+            final reserve = rootChanged ? null : currentReserve;
+            if (rootChanged) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) unawaited(_ensureUnseenReserve(_query));
+              });
+            }
             final visible = reserve == null
                 ? full.items.take(_initialReveal(full.items.length)).toList()
                 : full.items.where((item) =>
