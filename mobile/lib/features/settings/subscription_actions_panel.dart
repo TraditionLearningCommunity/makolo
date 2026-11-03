@@ -631,37 +631,47 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             ),
         ],
         if (widget.section == 'history') ...[
-        const SizedBox(height: 8),
-        if (history.isEmpty)
-          const Text('Aucune demande de changement enregistrée.'),
-        for (final event in history)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.history_rounded),
-            title: Text(
-              _value(event['source_name']).isEmpty
-                  ? _value(event['target_name'], 'Changement')
-                  : _value(event['source_name']) +
-                      ' → ' + _value(event['target_name'], 'Changement'),
+          if (history.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Aucun changement enregistré.'),
             ),
-            subtitle: Text(
-              (event['kind'] == 'base_switch'
-                  ? 'Changement de formule'
-                  : _value(event['kind_label'])) +
-                  ' · ' +
-                  _value(event['status_label'], 'À vérifier') +
-                  (subscriptionDateLabel(event['completed_at'] ?? event['requested_at']).isEmpty
-                      ? ''
-                      : ' · ' + subscriptionDateLabel(event['completed_at'] ?? event['requested_at'])),
+          for (final event in history) ...[
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                _value(event['source_name']).isEmpty
+                    ? _value(event['target_name'], 'Changement')
+                    : _value(event['source_name']) +
+                        ' → ' +
+                        _value(event['target_name'], 'Changement'),
+              ),
+              subtitle: Text(
+                (event['kind'] == 'base_switch'
+                        ? 'Changement de formule'
+                        : _value(event['kind_label'])) +
+                    ' · ' +
+                    _value(event['status_label'], 'À vérifier') +
+                    (subscriptionDateLabel(
+                      event['completed_at'] ?? event['requested_at'],
+                    ).isEmpty
+                        ? ''
+                        : ' · ' +
+                            subscriptionDateLabel(
+                              event['completed_at'] ?? event['requested_at'],
+                            )),
+              ),
             ),
-          ),
-        if (_historyOffset != null)
-          TextButton(
-            onPressed: _loadingHistory ? null : _moreHistory,
-            child: Text(
-              _loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes',
+            const Divider(height: 1),
+          ],
+          if (_historyOffset != null)
+            TextButton(
+              onPressed: _loadingHistory ? null : _moreHistory,
+              child: Text(
+                _loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes',
+              ),
             ),
-          ),
         ],
         if (widget.section == 'plans' || widget.section == 'options') ...[
           if (widget.section == 'plans' &&
@@ -780,26 +790,35 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               ),
         ],
         if (widget.section == 'billing') ...[
-        const SizedBox(height: 8),
-        if (billingRestricted)
-          const Text(
-            'Les obligations financières sont réservées aux personnes '
-            'autorisées à consulter les finances de cet Espace.',
-          )
-        else if (bills.isEmpty)
-          const Text('Aucune obligation financière liée à cet abonnement.'),
-        for (final obligation in bills)
-          Card(
-            child: ListTile(
+          if (billingRestricted)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Les montants de cet Espace sont réservés aux personnes '
+                'autorisées à consulter ses finances.',
+              ),
+            )
+          else if (bills.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Aucun montant enregistré pour cet abonnement. '
+                'Vos paiements et échéances apparaîtront ici.',
+              ),
+            ),
+          for (final obligation in bills) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
               title: Text(
-                _value(obligation['amount']) + ' ' + _value(obligation['currency']),
-                style: Theme.of(context).textTheme.titleMedium,
+                _value(obligation['amount']) +
+                    ' ' +
+                    _value(obligation['currency']),
+                style: Theme.of(context).textTheme.titleSmall,
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_value(obligation['label'], 'Facturation')),
-                  const SizedBox(height: 4),
+                  Text(_value(obligation['label'], 'Abonnement')),
                   Text(
                     subscriptionObligationStatusLabel(obligation['status']) +
                         (subscriptionDateLabel(obligation['due_at']).isEmpty
@@ -808,46 +827,28 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                 subscriptionDateLabel(obligation['due_at'])),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  if (obligation['can_start_payment'] == true &&
-                      (widget.spaceSlug == null ||
-                          obligation['can_open_detail'] == true))
-                    const Text('Ouvrir pour payer'),
                 ],
               ),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap:
-                  _value(obligation['id']).isEmpty ||
+              trailing: _value(obligation['id']).isNotEmpty &&
+                      (widget.spaceSlug == null ||
+                          obligation['can_open_detail'] == true)
+                  ? const Icon(Icons.chevron_right_rounded)
+                  : null,
+              onTap: _value(obligation['id']).isEmpty ||
                       (widget.spaceSlug != null &&
                           obligation['can_open_detail'] != true)
                   ? null
-                  : () async {
-                      final sourceRuntime = widget.runtime;
-                      final profileId = sourceRuntime.session?.profileId;
-                      await context.push(
-                        '/payments/obligations/' +
-                            Uri.encodeComponent(_value(obligation['id'])),
-                      );
-                      if (_sameSubject(sourceRuntime, profileId)) {
-                        await widget.onUpdated();
-                      }
-                    },
+                  : () => _openPayment(_value(obligation['id'])),
             ),
-          ),
-        if (_offset != null)
-          TextButton(
-            onPressed: _loadingMore ? null : _more,
-            child: Text(
-              _loadingMore
-                  ? 'Chargement…'
-                  : 'Voir les autres éléments de facturation',
+            const Divider(height: 1),
+          ],
+          if (_offset != null)
+            TextButton(
+              onPressed: _loadingMore ? null : _more,
+              child: Text(
+                _loadingMore ? 'Chargement…' : 'Voir les autres paiements',
+              ),
             ),
-          ),
-        const SizedBox(height: 8),
-        Text(
-          'Les montants et les droits restent ceux du serveur. '
-          'Aucun paiement ou changement ne peut être confirmé hors ligne.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
         ],
       ],
     );
