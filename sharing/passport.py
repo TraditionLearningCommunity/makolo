@@ -519,42 +519,23 @@ def build_profile_passport(
             "gender": profile.get_gender_display() if profile.gender else "",
         }
     if custom:
-        # A custom Passport may omit public facts only by explicit selection.
-        # An absent selection is not a privacy instruction. Preserve the
-        # public baseline (identity and each authorized social link) while
-        # excluding unselected private facts, without altering source policy.
-        public_fields = ProfileVisibilityResolver(owner=profile, viewer=None)
-        if "avatar" not in sections and not public_fields.field("avatar"):
-            identity["avatar_url"] = ""
-        if "bio" not in sections and not public_fields.field("bio"):
-            identity["bio"] = ""
-        if "links" not in sections:
-            identity["links"] = tuple(
-                (label, url) for label, url, field in (
-                    ("Site web", profile.website, "website"),
-                    ("LinkedIn", profile.linkedin_url, "linkedin_url"),
-                    ("Facebook", profile.facebook_url, "facebook_url"),
-                    ("Instagram", profile.instagram_url, "instagram_url"),
-                    ("TikTok", profile.tiktok_url, "tiktok_url"),
-                    ("X / Twitter", profile.x_url, "x_url"),
-                    ("YouTube", profile.youtube_url, "youtube_url"),
-                ) if url and public_fields.field(field)
-            )
-        if "location" not in sections:
-            location_row = UserProfile.objects.filter(user=profile).first()
-            identity["location"] = ", ".join(
-                part for part, field in (
-                    (location_row.city if location_row else "", "city"),
-                    (location_row.country if location_row else "", "country"),
-                ) if part and public_fields.field(field)
-            )
-        if "profession" not in sections and not public_fields.field("profession"):
-            identity["profession"] = ""
+        # Custom begins with the admissible public baseline. Include choices
+        # only REMOVE parts of that baseline; they never elevate disclosure.
+        for section, key in (
+            ("avatar", "avatar_url"),
+            ("bio", "bio"),
+            ("profession", "profession"),
+            ("company_name", "company_name"),
+            ("organization_name", "organization_name"),
+        ):
+            if section not in sections:
+                identity[key] = ""
+        if "profession" not in sections:
             identity["headline"] = ""
-        if "company_name" not in sections and not public_fields.field("company_name"):
-            identity["company_name"] = ""
-        if "organization_name" not in sections and not public_fields.field("organization_name"):
-            identity["organization_name"] = ""
+        if "links" not in sections:
+            identity["links"] = ()
+        if "location" not in sections:
+            identity["location"] = ""
 
     observed_at = timezone.now()
     return PassportProjection(
