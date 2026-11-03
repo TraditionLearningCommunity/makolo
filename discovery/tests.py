@@ -64,6 +64,7 @@ class CanonicalDiscoveryTests(TestCase):
             verification_status=OrganizationVerificationStatus.VERIFIED,
             created_by=self.user,
         )
+        self.now = datetime(2026, 8, 20, 10, 0, tzinfo=LUB)
         # Transport creation uses the canonical subscription gate; give this
         # discovery fixture an explicit Activity capability rather than bypassing it.
         create_entitlement_grant(
@@ -71,6 +72,7 @@ class CanonicalDiscoveryTests(TestCase):
             value=True,
             reason="Canonical Discovery transport integration fixture",
             space=self.space,
+            valid_from=self.now,
         )
         self.category = EventCategory.objects.create(name="Culture Discovery")
         self.lubumbashi = Place.objects.create(
@@ -97,7 +99,6 @@ class CanonicalDiscoveryTests(TestCase):
             role=SpacePlaceRole.SERVICE_POINT,
             is_public=True,
         )
-        self.now = datetime(2026, 8, 20, 10, 0, tzinfo=LUB)
         now_patcher = patch("discovery.search.timezone.now", return_value=self.now)
         now_patcher.start()
         self.addCleanup(now_patcher.stop)
