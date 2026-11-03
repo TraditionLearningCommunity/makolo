@@ -80,6 +80,22 @@ class DiscoveryWatchTests(TestCase):
         )
         self.assertNotContains(response, "Makolo rejouera")
         self.assertNotContains(response, ">Discovery<")
+        self.assertContains(response, "Vous pouvez associer cette veille à l’un de vos dossiers.")
+
+    def test_invalid_watch_action_is_explained_without_backend_vocabulary(self):
+        watch = DiscoveryWatch.objects.create(
+            owner=self.owner, name="Canada", criteria={"q": "Canada"}
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("discovery:watch-status", args=[watch.id]),
+            {"action": "unknown"},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Impossible de modifier cette veille.")
+        watch.refresh_from_db()
+        self.assertEqual(watch.status, DiscoveryWatchStatus.ACTIVE)
 
     def test_pause_reactivate_and_modify(self):
         watch = DiscoveryWatch.objects.create(owner=self.owner, name="Canada", criteria={"q": "Canada"})
