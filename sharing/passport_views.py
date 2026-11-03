@@ -318,7 +318,7 @@ class SpacePassportView(PassportViewMixin):
     def is_private_authorized(self):
         return bool(
             self.request.user.is_authenticated
-            and user_can_access_organization_workspace(self.request.user, self.subject)
+            and user_can_manage_organization(self.request.user, self.subject)
         )
 
     def subject_is_public(self):
@@ -368,7 +368,7 @@ class PublicPassportIdentifierView(PassportViewMixin):
             return False
         if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
             return viewer.pk == self.subject.pk
-        return user_can_access_organization_workspace(viewer, self.subject)
+        return user_can_manage_organization(viewer, self.subject)
 
     def subject_is_public(self):
         if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
