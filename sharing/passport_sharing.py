@@ -13,12 +13,13 @@ from .analytics import emit_share_event
 
 from .models import (
     PassportShareSubject, PublicSubjectKind, ShareIntent,
-    ShareSubjectType,
+    ShareSubjectType, ShareDelivery, ShareStatus,
 )
 from .passport_documents import snapshot_payload_is_intact
 from .services import (
     ShareUnavailable, _attach_link, _create_envelope, resolve_share_link,
-    revoke_share_link,
+    revoke_share_link, _validate_direct_participants, _create_delivery,
+    _emit_created, DIRECT_DUPLICATE_WINDOW,
 )
 
 
@@ -67,6 +68,36 @@ def create_passport_share(*, snapshot, actor, days=7):
         f"{settings.MAKOLO_PUBLIC_BASE_URL.rstrip('/')}"
         f"{reverse('sharing:passport-shared', kwargs={'token': raw_token})}"
     )
+
+
+@transaction.atomic
+def create_direct_passport_share(*, snapshot, actor, recipient, days=7):
+    """Share one issued non-complete version with one Makolo recipient."""
+    _assert_can_share(snapshot, actor)
+    _validate_direct_participants(created_by=actor, recipient=recipient)
+    if isinstance(days, bool) or days not in (1, 7, 30):
+        raise ValidationError("Durée de partage invalide.")
+    cutoff = timezone.now() - DIRECT_DUPLICATE_WINDOW
+    existing = ShareDelivery.objects.filter(
+        envelope__created_by=actor,
+        envelope__subject_type=ShareSubjectType.PASSPORT,
+        envelope__status=ShareStatus.ACTIVE,
+        envelope__passport_subject__snapshot=snapshot,
+        recipient=recipient,
+        delivered_at__gte=cutoff,
+    ).order_by("-delivered_at").first()
+    if existing is not None and existing.envelope.is_active_at():
+        return existing
+    envelope = _create_envelope(
+        created_by=actor,
+        subject_type=ShareSubjectType.PASSPORT,
+        intent=ShareIntent.VIEW,
+        expires_at=timezone.now() + timedelta(days=days),
+    )
+    PassportShareSubject.objects.create(envelope=envelope, snapshot=snapshot)
+    _emit_created(envelope, channel="direct_makolo")
+    return _create_delivery(envelope=envelope, recipient=recipient)
+
 
 
 def resolve_passport_share(token):
