@@ -401,7 +401,7 @@ class AccessRepository {
         checked != null &&
         !expiry.isBefore(checked) &&
         expiry.isAfter(DateTime.now().toUtc());
-    if (canRetain) {
+    if (canRetain && expiry != null && checked != null) {
       try {
         await credentialVault.save(
           profileId,
@@ -429,11 +429,6 @@ class AccessRepository {
       checkedAt: checked,
       offlineUntil: canRetain ? expiry : null,
     );
-  }
-
-  static DateTime? _dateTime(Object? raw) {
-    final text = _string(raw);
-    return text == null ? null : DateTime.tryParse(text);
   }
 
   static Map<String, dynamic> _map(Object? value) {
