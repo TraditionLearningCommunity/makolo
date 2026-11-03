@@ -405,20 +405,23 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                         onTap: item['integrity_ok'] == true ? () {
                           Navigator.pop(sheet);
                           final route = value(item['verification_path']);
-                          if (route != null) context.push(route);
+                          if (route != null && mounted) {
+                            this.context.push(route);
+                          }
                         } : null,
                         trailing: Wrap(spacing: 0, children: [
                           IconButton(
                             tooltip: 'Télécharger cette version',
                             icon: const Icon(Icons.picture_as_pdf_outlined),
-                            onPressed: () {
+                            onPressed: item['integrity_ok'] == true ? () {
                               Navigator.pop(sheet); pdf(datedId: id);
-                            },
+                            } : null,
                           ),
                           IconButton(
                             tooltip: 'Partager cette version',
                             icon: const Icon(Icons.share_outlined),
-                            onPressed: item['revoked'] == true ||
+                            onPressed: item['integrity_ok'] != true ||
+                                item['revoked'] == true ||
                                 item['variant'] == 'complete' ? null : () {
                               Navigator.pop(sheet); shareVersion(id);
                             },
