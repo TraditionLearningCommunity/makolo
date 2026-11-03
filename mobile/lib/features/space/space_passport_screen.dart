@@ -279,7 +279,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       return;
     }
     final api = widget.runtime.api!;
-    final link = api.baseUri.resolve('/' + widget.slug + '/').toString();
+    final path = value(source?['public_path']);
+    if (path == null || !path.startsWith('/') ||
+        path.startsWith('//')) return;
+    final link = api.baseUri.resolve(path).toString();
     await Clipboard.setData(ClipboardData(text: link));
     await const SystemShareGateway().shareText(link);
   });
