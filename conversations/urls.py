@@ -3,6 +3,7 @@ from django.urls import path
 from .media_views import serve_attachment
 from .views import (
     ConversationDetailView,
+    ConversationContextOpenView,
     ConversationInvitationRespondView,
     ConversationListView,
     PointAcknowledgeView,
@@ -15,6 +16,7 @@ app_name = "conversations"
 
 urlpatterns = [
     path("", ConversationListView.as_view(), name="list"),
+    path("by-context/<str:kind>/<str:context_pk>/", ConversationContextOpenView.as_view(), name="by-context"),
     path("<uuid:pk>/", ConversationDetailView.as_view(), name="detail"),
     path("invitations/<uuid:invitation_pk>/respond/", ConversationInvitationRespondView.as_view(), name="invitation-respond"),
     path("points/<uuid:point_pk>/respond/", PointRespondView.as_view(), name="point-respond"),
