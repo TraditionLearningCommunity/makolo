@@ -244,6 +244,18 @@ class PassportViewMixin(TemplateView):
                     (label, details[key])
                     for label, key in labels if details.get(key)
                 ]
+        if projection.subject_kind == "space" and self.variant == PASSPORT_COMPLETE and self.private_authorized and not is_document:
+            details = projection.identity.get("owner_details", {})
+            context["space_contact_details"] = [
+                (label, details[key])
+                for label, key in (
+                    ("Adresse e-mail", "email"),
+                    ("Téléphone", "phone"),
+                    ("Ville", "city"),
+                    ("Pays", "country"),
+                )
+                if details.get(key)
+            ]
         return context
 
     def render_to_response(self, context, **response_kwargs):
