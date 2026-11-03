@@ -1481,6 +1481,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     DiscoveryItemPresentation candidate,
   ) async {
     final current = _query;
+    final startedAt = DateTime.now().toUtc();
     try {
       // N2 already owns this source and its authorization checks.
       await widget.repository.refreshItem(candidate.family, candidate.id);
@@ -1489,6 +1490,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       );
       if (source.lastErrorCode != null ||
           source.lastSuccessAt == null ||
+          source.lastSuccessAt!.isBefore(startedAt) ||
           source.invalidated ||
           !mounted ||
           !identical(current, _query)) {
