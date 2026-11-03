@@ -1649,12 +1649,22 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   String? _verifiedItemKey;
   String? _refreshingItemKey;
   int _generation = 0;
+  late Stream<DiscoverySourceState> _ownerStream;
+  late Stream<StoredProjection?> _itemStream;
+
+  void _bindSources() {
+    _ownerStream = widget.repository.watchSource(
+      widget.repository.itemSource(widget.family, widget.id),
+    );
+    _itemStream = widget.repository.watchItem(widget.family, widget.id);
+  }
 
   String get _itemKey => '${widget.family}:${widget.id}';
 
   @override
   void initState() {
     super.initState();
+    _bindSources();
     unawaited(_refresh());
   }
 
@@ -1669,6 +1679,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       _saving = false;
       _verifiedItemKey = null;
       _refreshingItemKey = null;
+      _bindSources();
       unawaited(_refresh());
     }
   }
@@ -1753,15 +1764,14 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final source = widget.repository.itemSource(widget.family, widget.id);
     return StreamBuilder<DiscoverySourceState>(
       key: ValueKey('discover-n2-owner-$_itemKey'),
-      stream: widget.repository.watchSource(source),
+      stream: _ownerStream,
       initialData: DiscoverySourceState.unknown,
       builder: (context, ownerSnapshot) {
         final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
         return StreamBuilder<StoredProjection?>(
-          stream: widget.repository.watchItem(widget.family, widget.id),
+          stream: _itemStream,
           builder: (context, snapshot) {
             DiscoveryItemPresentation? item;
             var incompatible = false;
