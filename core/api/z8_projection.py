@@ -394,6 +394,23 @@ def build_personal_passport_depth_data(
     # never inherit private account coordinates by composition.
     if variant == PASSPORT_COMPLETE:
         data["private_details"] = data["identity"].pop("owner_details", {})
+    if variant == PASSPORT_COMPLETE:
+        # The owner receives one read-model, including disclosure decisions
+        # evaluated by the server. Flutter can remove facts locally without
+        # requesting each variant. This metadata is never sent to a visitor.
+        public = build_personal_passport_data(profile, variant=PASSPORT_PUBLIC)
+        data["composition"] = {
+            "schema_version": 1,
+            "public_identity": public["identity"],
+            "public_ids": {
+                "interests": [row["id"] for row in public["declared"]["interests"]],
+                "open_to": [row["id"] for row in public["declared"]["open_to"]],
+                "activities": [row["id"] for row in public["activities"]],
+                "experiences": [row["id"] for row in public["experiences"]],
+                "proofs": [row["id"] for row in public["established"]["proofs"]],
+                "credentials": [row["id"] for row in public["issued"]["credentials"]],
+            },
+        }
     data["links"] = links
     return data
 
