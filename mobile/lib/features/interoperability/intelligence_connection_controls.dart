@@ -185,6 +185,7 @@ class _IntelligenceConnectionControlsState
       MaterialPageRoute(
         builder: (_) => ConnectionDetailScreen.offer(
           offer: offer,
+          mutationsEnabled: widget.mutationsEnabled,
           onConnect: (fields) async {
             if (!_sameOwner(ownerPath, ownerRuntime)) return false;
             return _submit(
@@ -212,6 +213,7 @@ class _IntelligenceConnectionControlsState
       MaterialPageRoute(
         builder: (_) => ConnectionDetailScreen.connected(
           connection: connection,
+          mutationsEnabled: widget.mutationsEnabled,
           onManage: (action, secret) async {
             if (!_sameOwner(ownerPath, ownerRuntime)) return false;
             if (action == 'rotate') {
@@ -310,10 +312,13 @@ class _IntelligenceConnectionControlsState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.runtime.api == null) return const SizedBox.shrink();
-    final connections = widget.connections
-        .where((row) => row.owner == 'intelligence')
-        .toList(growable: false);
+    if (widget.runtime.api == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Text('Catalogue indisponible dans ce contexte.'),
+      );
+    }
+    final connections = widget.connections;
     final availableCapabilities = <String>{
       for (final offer in _offers)
         ...((offer['capabilities'] as List?)?.whereType<String>() ??
