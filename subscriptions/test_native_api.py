@@ -144,14 +144,14 @@ class NativePersonalSubscriptionTests(TestCase):
         transition = SubscriptionTransition.objects.get(
             subscription=self.subscription, idempotency_key=key["idempotency_key"]
         )
-        self.assertEqual(transition.status, "ready")
-        completed = self.client.post(
-            reverse("subscriptions_native:transition", args=[transition.pk, "complete"])
-        )
-        self.assertEqual(completed.status_code, 200)
+        # A free self-service removal completes without a second confirmation.
+        self.assertEqual(transition.status, "completed")
         item.refresh_from_db()
         self.assertEqual(item.status, "ended")
-        self.assertEqual(self.client.post(url, key).status_code, 200)
+        replay = self.client.post(url, key)
+        self.assertEqual(replay.status_code, 200)
+        transition.refresh_from_db()
+        self.assertEqual(transition.status, "completed")
         self.assertEqual(
             SubscriptionTransition.objects.filter(
                 subscription=self.subscription, idempotency_key=key["idempotency_key"]
