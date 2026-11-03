@@ -102,6 +102,53 @@ class ConversationJ7ContractsTests(TestCase):
         response = self.client.get(reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk}))
         self.assertEqual(response.status_code, 404)
 
+    def test_c1_list_and_detail_keep_authorized_owner_projection_fields(self):
+        point = self._question(client_reference="j7-c1-owner-projection")
+        self.client.force_login(self.member)
+
+        listing = self.client.get(reverse("conversations-api:list"))
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing["Cache-Control"], "private, no-store")
+        item = next(
+            item for item in listing.json()["results"]
+            if item["id"] == str(self.conversation.pk)
+        )
+        for field in (
+            "title", "purpose", "context", "attention_count",
+            "latest_result", "all_clear", "updated_at",
+        ):
+            self.assertIn(field, item)
+
+        detail = self.client.get(
+            reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail["Cache-Control"], "private, no-store")
+        payload = detail.json()
+        for field in ("purpose", "context", "points", "essential", "personal_state", "updated_at"):
+            self.assertIn(field, payload)
+        matching = [row for row in payload["points"] if row["id"] == str(point.pk)]
+        self.assertEqual(len(matching), 1)
+        for field in (
+            "kind", "importance", "response_mode", "lifecycle", "title",
+            "body", "options", "section", "attention_reason", "can_respond",
+            "resolution_summary", "opens_at", "deadline_at", "valid_until",
+            "published_at", "updated_at",
+        ):
+            self.assertIn(field, matching[0])
+
+        self.client.force_login(self.outsider)
+        self.assertNotIn(
+            str(self.conversation.pk),
+            [row["id"] for row in self.client.get(reverse("conversations-api:list")).json()["results"]],
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+            ).status_code,
+            404,
+        )
+
     def test_api_response_is_idempotent_by_client_reference(self):
         point = self._question(client_reference="j7-api-question")
         self.client.force_login(self.member)
