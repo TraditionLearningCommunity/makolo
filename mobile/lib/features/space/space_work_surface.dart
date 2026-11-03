@@ -250,8 +250,57 @@ class SpaceWorkSurface extends StatelessWidget {
     if (passengerCapacity is num) {
       metadataItems.add(
         MakoloMetadataItem(
-          '${passengerCapacity.toInt()} places',
+          '${passengerCapacity.toInt()} places physiques',
           icon: Icons.airline_seat_recline_normal_outlined,
+        ),
+      );
+    }
+    // Display only facts already disclosed by each real owner. A vehicle's
+    // physical capacity is not availability, and satisfied requirements do
+    // not constitute a generic readiness verdict.
+    final transport = _map(itemContext?['transport']);
+    final routeName = _string(_map(transport?['route'])?['name']);
+    if (routeName != null) {
+      metadataItems.add(
+        MakoloMetadataItem('Route : $routeName', icon: Icons.route_outlined),
+      );
+    }
+    final vehicleName = _string(_map(transport?['vehicle'])?['label']);
+    if (vehicleName != null) {
+      metadataItems.add(
+        MakoloMetadataItem(
+          'Véhicule affecté : $vehicleName',
+          icon: Icons.directions_bus_outlined,
+        ),
+      );
+    }
+    final capacity = _map(itemContext?['capacity']);
+    if (capacity?['basis'] == 'capacity_pool') {
+      final availability = capacity?['pool_active'] == false
+          ? 'Capacité désactivée'
+          : capacity?['unlimited'] == true
+          ? 'Capacité sans limite définie'
+          : capacity?['available'] is num && capacity?['total'] is num
+          ? 'Disponibilité : ${capacity!['available']} sur ${capacity['total']}'
+          : null;
+      if (availability != null) {
+        metadataItems.add(
+          MakoloMetadataItem(
+            availability,
+            icon: Icons.event_available_outlined,
+          ),
+        );
+      }
+    }
+    final assessments = _map(itemContext?['conditions']);
+    if (assessments?['basis'] == 'service_requirement_assessment' &&
+        assessments?['total'] is int &&
+        assessments?['satisfied'] is int) {
+      metadataItems.add(
+        MakoloMetadataItem(
+          'Conditions évaluées : ${assessments!['satisfied']} / '
+          '${assessments['total']} satisfaites',
+          icon: Icons.fact_check_outlined,
         ),
       );
     }
