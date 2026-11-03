@@ -182,7 +182,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         const SnackBar(
           content: Text(
             'Document ajouté à la démarche. '
-            'La satisfaction des exigences reste décidée par son owner.',
+            'Cet ajout ne confirme pas que ses conditions sont remplies.',
           ),
         ),
       );
@@ -268,8 +268,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         ReachabilityState.unreachable) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
-                        'Dernières métadonnées connues. '
-                        'Les actions sensibles nécessitent le owner courant.',
+                        'Dernières informations enregistrées sur cet appareil. '
+                        'Certaines actions nécessitent une vérification en ligne.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -305,8 +305,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                           detail.sensitivity != 'normal') ...[
                         const SizedBox(height: MakoloSpacing.sm),
                         Text(
-                          'Téléchargement local non proposé pour cette '
-                          'ressource sensible sans stockage protégé explicite.',
+                          'Le téléchargement de cette ressource sensible '
+                          'n’est pas proposé sur cet appareil.',
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
                                 color: Theme.of(context)
@@ -336,7 +336,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                       _VersionRow(version: version),
                     const SizedBox(height: MakoloSpacing.xl),
                     Text(
-                      'Présence dans la Bibliothèque ≠ exigence satisfaite.',
+                      'Conserver un document ne suffit pas à remplir une condition d’une démarche.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -424,15 +424,15 @@ class _JourneyChooser extends StatelessWidget {
               ),
               const SizedBox(height: MakoloSpacing.xs),
               Text(
-                'Seules les démarches déjà visibles dans En cours sont '
-                'proposées. Le serveur revalide l’accès avant la copie.',
+                'Choisissez une démarche affichée dans En cours. '
+                'Votre droit d’y ajouter ce document sera vérifié.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: MakoloSpacing.md),
               if (choices.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-                  child: Text('Aucune démarche admissible connue ici.'),
+                  child: Text('Aucune démarche disponible pour cet ajout.'),
                 )
               else
                 for (final choice in choices)
