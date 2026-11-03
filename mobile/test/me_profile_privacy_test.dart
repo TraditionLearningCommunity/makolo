@@ -178,8 +178,7 @@ void main() {
             'profile': {'public_profile': false, 'searchable': false},
           }), 200);
         }
-        if (request.url.path == '/api/v1/accounts/auth/profile/update/' &&
-            request.method == 'PATCH') {
+        if (request.url.path == '/api/v1/accounts/auth/profile/update/') {
           submitted = jsonDecode(request.data as String) as Map<String, dynamic>;
           return MockResponse(jsonEncode({
             'message': 'Profil mis à jour.',
@@ -214,7 +213,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(submitted, isNotNull);
     expect(submitted!['gender'], 'female');
-    expect(submitted!['birth_date'], isNull);
+    expect(submitted!.containsKey('birth_date'), isFalse);
   });
 
 }
