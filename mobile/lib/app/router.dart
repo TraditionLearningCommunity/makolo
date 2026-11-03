@@ -492,7 +492,10 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      ...markRoutes(runtime),
+      ...markRoutes(
+        runtime,
+        onLogout: logout,
+      ),
       ...continuityRoutes(runtime),
       ...notificationRoutes(runtime),
       GoRoute(
