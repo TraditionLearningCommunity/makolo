@@ -11,7 +11,7 @@ from core.web_throttling import allow_web_request, value_rate_identity
 from .models import PassportSnapshot, PassportShareSubject, ShareEnvelope, ShareSubjectType
 from .passport_views import PassportVerificationView
 from .passport_documents import revoke_passport_snapshot
-from .services import ShareUnavailable
+from .services import ShareUnavailable, resolve_delivery_for_recipient
 from .passport_sharing import create_passport_share, revoke_passport_share, resolve_passport_share
 
 
@@ -123,6 +123,36 @@ class PassportSharedView(PassportVerificationView):
         context.update({
             "is_explicit_share": True,
             "share_expires_at": self.share_envelope.expires_at,
+            "can_view_dated_passport": True,
+            "dated_payload": snapshot.payload,
+            "snapshot_name": snapshot.payload.get(
+                "identity", {},
+            ).get("name", snapshot.public_identifier),
+        })
+        return context
+
+
+class PassportDeliveryView(LoginRequiredMixin, PassportVerificationView):
+    """B reads A's issued Passport without ever becoming A or receiving A's rights."""
+    login_url = "core:login"
+
+    def get_snapshot(self):
+        try:
+            self.direct_delivery = resolve_delivery_for_recipient(
+                delivery_id=self.kwargs["delivery_id"],
+                user=self.request.user,
+                mark_opened=True,
+            )
+        except (PermissionDenied, ShareUnavailable) as exc:
+            raise Http404("Partage indisponible.") from exc
+        return self.direct_delivery.envelope.passport_subject.snapshot
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        snapshot = context["snapshot"]
+        context.update({
+            "is_explicit_share": True,
+            "share_expires_at": self.direct_delivery.envelope.expires_at,
             "can_view_dated_passport": True,
             "dated_payload": snapshot.payload,
             "snapshot_name": snapshot.payload.get(
