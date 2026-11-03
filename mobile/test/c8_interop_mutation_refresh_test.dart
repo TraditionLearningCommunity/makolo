@@ -85,9 +85,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     await tester.enterText(find.byType(TextField).last, privateKey);
+    await tester.ensureVisible(find.byType(CheckboxListTile));
     await tester.tap(find.byType(CheckboxListTile));
     await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Relier'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Connecter'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
     expect(posted, isTrue);
