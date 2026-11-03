@@ -296,7 +296,7 @@ class C2InteroperabilityPresentationContractTests(SimpleTestCase):
                     "capabilities": [],
                 }
             ),
-            "Relié · aucune capacité active",
+            "Connecté · aucun usage disponible",
         )
 
     def test_c3_explanations_do_not_grant_authority(self):
@@ -315,7 +315,7 @@ class C2InteroperabilityPresentationContractTests(SimpleTestCase):
         self.assertEqual(no_capability["experience_state"], "no_capability")
         self.assertEqual(
             no_capability["experience_message"],
-            "Aucune capacité active n'est exposée.",
+            "Aucun usage disponible pour cette connexion.",
         )
         self.assertNotIn("execute_url", no_capability)
         self.assertNotIn("connect_url", no_capability)
