@@ -339,24 +339,23 @@ class _IntelligenceConnectionControlsState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'discover',
-                label: Text('Découvrir'),
-              ),
-              ButtonSegment(
-                value: 'manage',
-                label: Text('Mes connexions'),
-              ),
-            ],
-            selected: {_view},
-            showSelectedIcon: false,
-            onSelectionChanged: (selection) =>
-                setState(() => _view = selection.first),
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Découvrir'),
+              selected: _view == 'discover',
+              showCheckmark: false,
+              onSelected: (_) => setState(() => _view = 'discover'),
+            ),
+            ChoiceChip(
+              label: const Text('Mes connexions'),
+              selected: _view == 'manage',
+              showCheckmark: false,
+              onSelected: (_) => setState(() => _view = 'manage'),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
         if (_view == 'discover') ...[
