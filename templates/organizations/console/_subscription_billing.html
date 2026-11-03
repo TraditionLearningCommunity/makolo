@@ -1,7 +1,9 @@
 <section class="mk-panel px-4 py-4 sm:px-6" aria-labelledby="space-subscription-billing-title">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="space-subscription-billing-title" class="text-lg font-bold">Facturation de l’Espace</h2>
+    {% if compact %}
     <a class="inline-flex min-h-11 items-center text-sm font-semibold" style="color:var(--mk-brand)" href="{% url 'organizations:console-subscription-billing' space.slug %}">Tout voir</a>
+    {% endif %}
   </div>
   {% if space_billing.visibility == 'restricted' %}
     <p class="mt-3 text-sm" style="color:var(--mk-muted)">Les montants de cet Espace sont réservés aux personnes autorisées à consulter ses finances.</p>
