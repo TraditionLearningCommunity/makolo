@@ -1683,6 +1683,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     final generation = ++_generation;
     final family = widget.family;
     final id = widget.id;
+    final startedAt = DateTime.now().toUtc();
     setState(() {
       _refreshing = true;
       _refreshingItemKey = key;
@@ -1696,6 +1697,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       if (!mounted || generation != _generation || key != _itemKey) return;
       if (state.lastErrorCode == null &&
           state.lastSuccessAt != null &&
+          !state.lastSuccessAt!.isBefore(startedAt) &&
           !state.invalidated) {
         // The owner confirmed the current item, not merely a success stamp.
         final projection = await widget.repository.readItem(family, id);
