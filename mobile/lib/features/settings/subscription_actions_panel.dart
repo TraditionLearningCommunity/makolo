@@ -790,7 +790,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
-                          if (option['eligibility_status'] != 'available' &&
+                          if (option['eligibility'] != 'available' &&
                               _value(option['eligibility_label']).isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 5),
