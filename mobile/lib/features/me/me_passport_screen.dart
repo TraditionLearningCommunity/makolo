@@ -1109,13 +1109,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
-  Future<String?> _issueCurrentVersion() async {
+  Future<String?> _issueCurrentVersion({bool shareable = false}) async {
     if (!_onlineReady || _exporting) return null;
     setState(() => _exporting = true);
     try {
+      final params = shareable && _variant == 'complete'
+          ? <String, dynamic>{'variant': 'public'}
+          : _passportParams();
       final url = Uri(
         path: 'api/v1/me/passport/issue/',
-        queryParameters: _passportParams(),
+        queryParameters: params,
       ).toString();
       final response = await widget.api.post(url, body: const {});
       final issued = ProjectionEnvelope.parse(
@@ -1124,14 +1127,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ).data;
       final id = _text(issued['id']);
       if (id == null) throw const FormatException('Issued document missing id');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(
-            'Version ${issued['document_id'] ?? 'datée'} émise. '
-            'Retrouvez-la dans l’historique.',
-          )),
-        );
-      }
       return id;
     } on Object {
       if (mounted) {
@@ -1147,10 +1142,81 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
-  Future<void> _issueAndShareCurrent() async {
-    if (_variant == 'complete') return;
-    final id = await _issueCurrentVersion();
-    if (id != null && mounted) await _shareDatedVersion(id);
+  Future<String?> _createShareUrl(String snapshotId) async {
+    final response = await widget.api.post(
+      'api/v1/me/passport/history/$snapshotId/share/',
+      body: const {'days': 7},
+    );
+    final data = ProjectionEnvelope.parse(
+      response.jsonObject(),
+      expectedProjection: 'personal.me.passport.share',
+    ).data;
+    return _text(data['share_url']);
+  }
+
+  Future<void> _copyCurrentPassportLink() async {
+    final snapshotId = await _issueCurrentVersion(shareable: true);
+    if (snapshotId == null || !mounted) return;
+    try {
+      final link = await _createShareUrl(snapshotId);
+      if (link == null) throw const FormatException('No dated share URL');
+      await Clipboard.setData(ClipboardData(text: link));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lien du Passeport copié.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lien indisponible.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareInMakolo() async {
+    final query = TextEditingController();
+    final recipient = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheet) => _PassportRecipientPicker(
+        api: widget.api,
+        query: query,
+        onSelected: (row) => Navigator.pop(sheet, row),
+      ),
+    );
+    query.dispose();
+    if (recipient == null || !mounted) return;
+    final id = _text(recipient['id']);
+    if (id == null) return;
+    final snapshotId = await _issueCurrentVersion(shareable: true);
+    if (snapshotId == null || !mounted) return;
+    try {
+      final response = await widget.api.post(
+        'api/v1/me/passport/history/$snapshotId/deliver/',
+        body: {'recipient_id': id},
+      );
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.delivery',
+      ).data;
+      if (data['state'] != 'delivered') {
+        throw const FormatException('Delivery not confirmed');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Passeport partagé dans Makolo.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Partage Makolo indisponible.')),
+        );
+      }
+    }
   }
 
   Future<void> _sharePassport(Map<String, dynamic> data) async {
@@ -1163,46 +1229,36 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
-      builder: (context) => SafeArea(
+      builder: (sheet) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_variant != 'complete')
-              ListTile(
-                leading: const Icon(Icons.verified_outlined),
-                title: const Text('Émettre et partager cette sélection'),
-                subtitle: const Text(
-                  'Créez une version datée sans télécharger de PDF, '
-                  'puis choisissez la durée du lien.',
-                ),
-                onTap: () => Navigator.pop(context, 'issue_share'),
-              ),
             ListTile(
               leading: const Icon(Icons.picture_as_pdf_outlined),
-              title: const Text('Partager le PDF dans une application'),
-              subtitle: const Text('Transmettre le document via WhatsApp, SMS ou une autre application.'),
-              onTap: () => Navigator.pop(context, 'pdf'),
+              title: const Text('Partager le PDF'),
+              onTap: () => Navigator.pop(sheet, 'pdf'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outline),
+              title: const Text('Partager dans Makolo'),
+              onTap: () => Navigator.pop(sheet, 'makolo'),
             ),
             ListTile(
               leading: const Icon(Icons.history_outlined),
-              title: const Text('Partager une version déjà émise'),
-              subtitle: const Text(
-                'Retrouvez vos documents et gérez leurs liens expirants.',
-              ),
-              onTap: () => Navigator.pop(context, 'history'),
+              title: const Text('Partager une ancienne version'),
+              onTap: () => Navigator.pop(sheet, 'history'),
             ),
-            if (canShareLink) ...[
-              ListTile(
-                leading: const Icon(Icons.link_rounded),
-                title: const Text('Partager le lien public'),
-                onTap: () => Navigator.pop(context, 'link'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.copy_rounded),
-                title: const Text('Copier le lien public'),
-                onTap: () => Navigator.pop(context, 'copy'),
-              ),
-            ],
+            ListTile(
+              leading: const Icon(Icons.link_outlined),
+              title: const Text('Partager le lien public'),
+              enabled: canShareLink,
+              onTap: () => Navigator.pop(sheet, 'public'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('Copier le lien du Passeport'),
+              onTap: () => Navigator.pop(sheet, 'copy_dated'),
+            ),
           ],
         ),
       ),
@@ -1218,27 +1274,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       return;
     }
+    if (action == 'makolo') {
+      await _shareInMakolo();
+      return;
+    }
     if (action == 'history') {
       await _showDatedHistory();
       return;
     }
-    if (action == 'issue_share') {
-      await _issueAndShareCurrent();
+    if (action == 'copy_dated') {
+      await _copyCurrentPassportLink();
       return;
     }
-    if (action == 'copy' || action == 'link') {
-      final url = widget.api.baseUri.resolve(publicPath!).toString();
-      if (action == 'copy') {
-        await Clipboard.setData(ClipboardData(text: url));
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Lien public copié.')));
-        }
-      } else {
-        await const SystemShareGateway().shareText(url);
-      }
-      return;
+    if (action == 'public' && canShareLink) {
+      final url = widget.api.baseUri.resolve(publicPath).toString();
+      await Clipboard.setData(ClipboardData(text: url));
+      await const SystemShareGateway().shareText(url);
     }
   }
 
