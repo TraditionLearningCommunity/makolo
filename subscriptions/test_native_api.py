@@ -116,6 +116,7 @@ class NativePersonalSubscriptionTests(TestCase):
         self.client.force_login(self.owner)
         data = self.client.get(reverse("subscriptions_native:me")).json()
         self.assertIn(str(obligation.pk), [row["id"] for row in data["billing"]["items"]])
+        self.assertEqual(data["billing"]["items"][0]["status_label"], "À régler")
         self.assertTrue(obligations_visible_to(self.owner).filter(pk=obligation.pk).exists())
         self.assertFalse(obligations_visible_to(self.other).filter(pk=obligation.pk).exists())
         self.assertEqual(
