@@ -425,15 +425,16 @@ class _DiscoveryMapPreview extends StatelessWidget {
   final bool saving;
   final VoidCallback onClose;
   final VoidCallback onOpen;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final MakoloApiClient? shareApi;
   final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) {
     final resolved = detail;
-    final canChangeSaved = resolved != null &&
-        (resolved!.savedState == 'saved'
+    final canChangeSaved = onSave != null &&
+        resolved != null &&
+        (resolved.savedState == 'saved'
             ? resolved.canUnsave
             : resolved.canSave);
     final canShare = resolved != null &&
@@ -1127,7 +1128,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                         saving: _savingSelected,
                         onClose: _clearSelection,
                         onOpen: () => widget.onOpen(selected),
-                        onSave: () => unawaited(_saveSelected()),
+                        onSave: widget.onSave == null
+                            ? null
+                            : () => unawaited(_saveSelected()),
                         shareApi: widget.shareApi,
                         baseUri: widget.baseUri,
                       ),
