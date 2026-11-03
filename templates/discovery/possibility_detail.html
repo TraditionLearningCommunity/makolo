@@ -43,7 +43,7 @@
     {% endif %}
 
     {% if n2.variants %}
-    <section aria-label="Variantes propriétaire" class="space-y-3">
+    <section aria-label="Variantes de cette possibilité" class="space-y-3">
       <h2 class="text-lg font-bold">Réalisations proposées</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         {% for variant in n2.variants %}
@@ -53,7 +53,7 @@
           {% if variant.end %}<p class="text-sm">Fin : {{ variant.end }}</p>{% endif %}
           {% for place in variant.places %}<p class="text-sm">Lieu : {{ place }}</p>{% endfor %}
           {% if not variant.start and not variant.end and not variant.places %}
-          <p class="text-sm" style="color:var(--mk-muted)">Date et lieu non renseignés dans cette variante.</p>
+          <p class="text-sm" style="color:var(--mk-muted)">Date et lieu non précisés.</p>
           {% endif %}
         </div>
         {% endfor %}
@@ -64,7 +64,6 @@
     {% if n2.comparison %}
     <section aria-label="Comparaison conditionnelle des variantes" class="space-y-3">
       <h2 class="text-lg font-bold">Comparer les variantes connues</h2>
-      <p class="text-sm" style="color:var(--mk-muted)">Seules les dimensions établies pour toutes les variantes sont affichées. Aucun classement automatique.</p>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[400px] text-left text-sm">
           <thead><tr><th scope="col" class="p-3">Fait</th>{% for variant in n2.variants %}<th scope="col" class="p-3">Variante {{ forloop.counter }}</th>{% endfor %}</tr></thead>
@@ -85,7 +84,6 @@
     <section class="space-y-2" aria-label="Relations publiées">
       <h2 class="text-lg font-bold">Relations indiquées</h2>
       <ul class="list-disc pl-5">{% for relation in n2.relations %}<li>{{ relation }}</li>{% endfor %}</ul>
-      <p class="text-xs" style="color:var(--mk-muted)">Une relation n’est pas nécessairement une alternative.</p>
     </section>
     {% endif %}
 
@@ -109,7 +107,7 @@
     {% if n2.freshness %}<p class="text-xs" style="color:var(--mk-muted)">Vérification : {{ n2.freshness }}</p>{% endif %}
     {% if n2_item.links.web and n2_item.links.web != "#" %}
     <div class="border-t pt-4" style="border-color:var(--mk-border)">
-      <a href="{{ n2_item.links.web }}" class="mk-btn mk-btn-secondary">Voir la profondeur du propriétaire</a>
+      <a href="{{ n2_item.links.web }}" class="mk-btn mk-btn-secondary">Voir le détail</a>
     </div>
     {% endif %}
   </article>
