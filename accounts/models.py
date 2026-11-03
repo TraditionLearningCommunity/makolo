@@ -291,6 +291,8 @@ PROFILE_VISIBILITY_FIELDS = (
     "tiktok_url",
     "x_url",
     "youtube_url",
+    "interests",
+    "open_to",
 )
 
 
