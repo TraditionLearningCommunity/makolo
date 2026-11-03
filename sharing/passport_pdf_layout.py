@@ -166,7 +166,12 @@ class PassportHero(Flowable):
             ))
         # Other personal coordinates are not publicly inferred or shown.
         if profile and private:
-            descriptors = [_value(private.get("gender"))]
+            declared_gender = _value(private.get("gender"))
+            if declared_gender.strip().lower() in {
+                "non renseigné", "non renseignée", "unspecified",
+            }:
+                declared_gender = ""
+            descriptors = [declared_gender]
             descriptors = [item for item in descriptors if item]
             if descriptors:
                 self.lines.append((" · ".join(descriptors), 9.0,
