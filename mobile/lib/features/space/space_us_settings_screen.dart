@@ -344,14 +344,6 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                           : 'Téléphone invalide.';
                     },
                   ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Profil public'),
-                    value: publicProfile,
-                    onChanged: saving
-                        ? null
-                        : (value) => setState(() => publicProfile = value),
-                  ),
                   if (error != null) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
