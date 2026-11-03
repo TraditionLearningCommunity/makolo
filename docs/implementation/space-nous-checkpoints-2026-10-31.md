@@ -137,3 +137,46 @@ Le poste local confirme **27/27 tests Django** réussis et `flutter analyze` san
 - La profondeur Équipe expose légitimement le titre dans l'AppBar et le corps ; le test vérifie maintenant précisément le titre de l'AppBar au lieu d'imposer une occurrence globale unique.
 
 Corrections enregistrées dans la PR #522 ; **aucune nouvelle exécution Flutter dans cet environnement**, verdict vert non revendiqué.
+
+
+## N1 — harmonisation avec Moi et contrat enrichi (3 novembre 2026)
+
+Cette consolidation poursuit la branche unique **#522**, sans rouvrir #528. Références :
+- `Makolo_Contrat_Moi_et_Nous_Gele_2026-10-06.md`
+- `Makolo_Moi_Nous_Contrats_Donnees_Serveur_Client_Presentation_Consolidation_2026-10-10.md`
+- `docs/ux/Makolo_UX_Nous_Identite_Organisation_Collective_Contrat_Consolide_2026-10-08.md`
+- `Makolo_Nous_Space_Contrat_Enrichi_N1_N3_2026-11-03.md` (addendum de conception joint au chantier, à conserver comme référence)
+- Captures Android Moi et Nous du 3 novembre 2026.
+
+### Décisions de fond
+
+- **Passeport Makolo : même langage** pour Profile (personne physique) et Space (acteur collectif) ; **propriétaire Sharing** déjà existant avec `build_profile_passport` et `build_space_passport`. Le Passeport ne devient pas Credential Trust, preuve absolue ni forme juridique. Il est un territoire distinct et important de Moi/Nous.
+- **Nos ressources : territoire attendu de Nous**, distinct des `PersonalAsset` personnels, des `ActivityResource` de Preparation et des médias `PresentationAsset`. Aucune extension de propriété n'est inférée d'une Membership, d'une Activity, d'un upload ou d'un Passport.
+- **Moi/Nous : même grammaire Presentation**, contrats et droits différents. Identité en ancre, territoires N1, aperçus bornés, lignes d'approfondissement, N2/N3 chez les owners, fraîcheur et retour contextuel.
+- **Autorité et responsabilité** : les perspectives `mandate:...` décrivent la relation du viewer et ne doivent pas être présentées comme Assignment collectif. L'ownership reste Mandate, pas `created_by`.
+- **Divulgation minimale** : pas d'effectif Team privé, d'owner sensible, de ressource ou de permission brute hors autorisation.
+
+### Modifications poussées sur #522 à cette étape
+
+- `mobile/lib/features/space/space_us_surface.dart` : Passeport élevé au début du portrait, bandeaux N1 alignés sur les principes de Moi, actions avec chevrons, aperçu Team borné, relations non vides sans répétition de Team, langage humain, gestion secondaire. Le handoff `resources` n'est rendu que s'il provient réellement du serveur pour le Space actif.
+- `mobile/lib/navigation/space_context_bar.dart` : sur Compact, les deux sélecteurs ont une largeur permettant de lire les perspectives sans ellipse artificielle.
+- `organizations/space_web_views.py` et `templates/organizations/space/us.html` : Passeport Space owner-backed via `sharing:passport-space`, portrait/sections N1 réordonnés, aperçu Team borné, messages humains et préfiguration conditionnelle des Ressources.
+- `organizations/test_zs4_space_projections.py`, `organizations/test_ws4_space_web.py`, `mobile/test/space_us_surface_test.dart` : assertions Passport, autorité et non-divulgation ; adaptation des attentes de présentation.
+
+### Limite métier explicitement ouverte — Ressources de cet Espace
+
+Le runtime inspecté distingue :
+- `personal_assets.PersonalAsset` : `controller` humain et sujet Profile / bénéficiaire externe, **pas** inventaire institutionnel ;
+- `preparation.ActivityResource` : propriétaire Activity / Occurrence, **pas** ressource institutionnelle globale ;
+- `presentations.PresentationAsset` : média possédé par Space possible, mais possession d'un média **ne qualifie pas** un document ou Proof comme Ressource institutionnelle N1 ;
+- `Trust` et `Sharing/Passport` : faits et représentation, **pas** bibliothèque collective générique.
+
+**Le domaine propriétaire et le droit de lecture/gestion d'une ressource effectivement institutionnelle restent à établir.** Aucun backend inventé, aucune migration, aucun faux décompte et aucun handoff N2 fictif ne sont livrés dans ce checkpoint. La composition est prête à consommer une source autorisée quand cette frontière sera résolue. Cela interdit de déclarer la fermeture **complète** de « Nos ressources » à ce stade.
+
+### Contrôles requis pour une fermeture réelle
+
+1. Tests Django ciblés `organizations.test_zs4_space_projections`, `organizations.test_ws4_space_web`, et tests Sharing/Passport Space concernés.
+2. Formatage canonique Dart, analyse et `mobile/test/space_us_surface_test.dart`; contrôle de contraste, Compact/Medium/Wide, textScale 1.6, scroll/retour, deep links.
+3. Fixtures propriétaire Space, viewer Activity-only, membre sans Mandate, mandat sans Team manage, accès révoqué, hors réseau et changement de Space/Profile.
+4. Résolution de la propriété des Ressources institutionnelles avant ajout d'une API/modèle, puis N2/N3 owner-backed.
+5. Les CI ne bloquent pas le développement demandé, mais **aucune fusion sur CI rouge** ; aucun résultat vert n'est revendiqué sans exécution réelle.
