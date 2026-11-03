@@ -1,5 +1,6 @@
 """Native Passport reader: same disclosure boundary as Web, no extra authority."""
 from datetime import timedelta
+import json
 from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
@@ -136,6 +137,69 @@ class PassportReaderAPIContracts(TestCase):
         self.assertEqual(verified.status_code, 200)
         self.assertFalse(verified.json()["data"]["can_view_content"])
         self.assertEqual(self.client.session.get("_auth_user_id"), before)
+
+    def test_direct_makolo_recipient_stays_in_own_account_and_can_only_read_granted_snapshot(self):
+        from sharing.models import ShareDelivery
+        from sharing.passport_sharing import revoke_passport_share
+
+        recipient = self.visitor.profile
+        recipient.searchable = True
+        recipient.save(update_fields=["searchable", "updated_at"])
+        snapshot = self._issue("custom")
+        self.client.force_login(self.owner)
+        url = reverse("personal-projections:passport-direct-delivery", kwargs={
+            "snapshot_id": snapshot.pk,
+        })
+        payload = json.dumps({"recipient_id": str(recipient.pk)})
+        created = self.client.post(
+            url, data=payload, content_type="application/json",
+        )
+        self.assertEqual(created.status_code, 200)
+        delivery_id = created.json()["data"]["delivery_id"]
+        self.assertEqual(
+            self.client.post(
+                url, data=payload, content_type="application/json",
+            ).json()["data"]["delivery_id"],
+            delivery_id,
+        )
+        self.assertEqual(ShareDelivery.objects.count(), 1)
+        direct = reverse("sharing_api:passport-direct-reader", kwargs={
+            "delivery_id": delivery_id,
+        })
+        self.client.force_login(self.visitor)
+        before = self.client.session.get("_auth_user_id")
+        opened = self.client.get(direct)
+        self.assertEqual(opened.status_code, 200)
+        data = opened.json()["data"]
+        self.assertTrue(data["can_view_content"])
+        self.assertEqual(data["payload"]["identity"]["bio"], "Description datée privée.")
+        self.assertEqual(self.client.session.get("_auth_user_id"), before)
+        self.assertEqual(
+            self.client.get(reverse(
+                "sharing:passport-delivery", kwargs={"delivery_id": delivery_id},
+            )).status_code, 200,
+        )
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(direct).status_code, 403)
+        delivery = ShareDelivery.objects.get(pk=delivery_id)
+        revoke_passport_share(envelope=delivery.envelope, actor=self.owner)
+        self.client.force_login(self.visitor)
+        self.assertEqual(self.client.get(direct).status_code, 404)
+
+    def test_complete_document_cannot_be_directly_delivered(self):
+        recipient = self.visitor.profile
+        recipient.searchable = True
+        recipient.save(update_fields=["searchable", "updated_at"])
+        snapshot = self._issue("complete")
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal-projections:passport-direct-delivery", kwargs={
+                "snapshot_id": snapshot.pk,
+            }),
+            data=json.dumps({"recipient_id": str(recipient.pk)}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_expired_grant_is_unreadable_without_revoking_issuance(self):
         snapshot = self._issue("custom")
