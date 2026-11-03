@@ -50,6 +50,15 @@ def _idempotency_key(data):
     return key.strip()
 
 
+def _lookup(model, value, *, field="id", **filters):
+    if value is None or value == "":
+        raise ValidationError({field: "Identifiant requis."})
+    try:
+        return get_object_or_404(model, pk=value, **filters)
+    except (ValueError, DjangoValidationError, TypeError) as exc:
+        raise ValidationError({field: "Identifiant invalide."}) from exc
+
+
 def _valid_date(value, name):
     if not isinstance(value, str):
         raise ValidationError({name: "Date ISO 8601 requise."})
@@ -119,11 +128,11 @@ class CoverageCollectionAPIView(APIView):
     def post(self, request, slug=None):
         filters, _ = _get_context(request, slug, manage=True)
         data = request.data
-        version = get_object_or_404(PlanVersion, pk=data.get("plan_version_id"))
+        version = _lookup(PlanVersion, data.get("plan_version_id"), field="plan_version_id")
         previous = None
         if data.get("renewal_of"):
-            previous = get_object_or_404(
-                SubscriptionCoverage, pk=data["renewal_of"], **filters,
+            previous = _lookup(
+                SubscriptionCoverage, data["renewal_of"], field="renewal_of", **filters,
             )
         start = _valid_date(data["starts_at"], "starts_at") if data.get("starts_at") is not None else None
         end = _valid_date(data["ends_at"], "ends_at") if data.get("ends_at") is not None else None
@@ -153,17 +162,17 @@ class CoverageAllocationCreateAPIView(APIView):
         if typed not in {"profile", "space", "group"}:
             raise ValidationError({"target_type": "Choisir profile, space ou group."})
         if typed == "profile":
-            destination = {"profile": get_object_or_404(get_user_model(), pk=target_id)}
+            destination = {"profile": _lookup(get_user_model(), target_id, field="target_id")}
         elif typed == "space":
-            destination = {"space": get_object_or_404(Organization, pk=target_id)}
+            destination = {"space": _lookup(Organization, target_id, field="target_id")}
         else:
-            destination = {"group": get_object_or_404(Group, pk=target_id)}
+            destination = {"group": _lookup(Group, target_id, field="target_id")}
         parent = (
-            get_object_or_404(SubscriptionCoverageAllocation, pk=data["group_parent_id"])
+            _lookup(SubscriptionCoverageAllocation, data["group_parent_id"], field="group_parent_id", coverage=coverage)
             if data.get("group_parent_id") else None
         )
         snapshot = (
-            get_object_or_404(GroupSnapshot, pk=data["group_snapshot_id"])
+            _lookup(GroupSnapshot, data["group_snapshot_id"], field="group_snapshot_id")
             if data.get("group_snapshot_id") else None
         )
         try:
@@ -183,11 +192,14 @@ class CoverageStateAPIView(APIView):
 
     def post(self, request, coverage_id, slug=None):
         coverage = _coverage_for_context(request, coverage_id, slug)
+        reason = request.data.get("reason", "")
+        if not isinstance(reason, str):
+            raise ValidationError({"reason": "Une justification textuelle est requise."})
         try:
             updated = change_coverage_status(
                 actor=request.user, coverage=coverage,
                 status=request.data.get("status"),
-                reason=request.data.get("reason", ""),
+                reason=reason,
             )
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
             _raise_native(exc)
