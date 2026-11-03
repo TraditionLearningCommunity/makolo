@@ -2142,6 +2142,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   static const _selector = DiscoveryDetailSelector();
   bool _refreshing = false;
   bool _verifiedOwner = false;
+  bool _dayOfAuthorized = false;
   int _generation = 0;
   late Stream<DiscoverySourceState> _ownerStream;
   late Stream<StoredProjection?> _previewStream;
@@ -2168,6 +2169,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     if (oldWidget.occurrenceId != widget.occurrenceId ||
         oldWidget.repository != widget.repository) {
       _verifiedOwner = false;
+      _dayOfAuthorized = false;
       _refreshing = false;
       ++_generation;
       _bindStreams();
@@ -2191,6 +2193,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     setState(() {
       _refreshing = true;
       _verifiedOwner = false;
+      _dayOfAuthorized = false;
     });
     try {
       await widget.repository.refreshOccurrence(requestedId);
@@ -2210,7 +2213,12 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
             identity is Map &&
             identity['kind'] == 'occurrence' &&
             identity['id'] == requestedId) {
-          setState(() => _verifiedOwner = true);
+          final capabilities = snapshot?.payload['capabilities'];
+          setState(() {
+            _verifiedOwner = true;
+            _dayOfAuthorized =
+                capabilities is List && capabilities.contains('open_day_of');
+          });
         }
       }
     } on Object {
@@ -2250,6 +2258,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                   _selector.occurrencePreview(previewSnapshot.data);
             final dayOfVerified =
                 _verifiedOwner &&
+                _dayOfAuthorized &&
                 !_refreshing &&
                 owner.lastErrorCode == null &&
                 !owner.invalidated;
