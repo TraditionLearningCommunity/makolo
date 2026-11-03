@@ -6,6 +6,7 @@ and sharing.services; tokens remain opaque to Flutter.
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils.cache import patch_vary_headers
 from rest_framework.exceptions import NotFound, Throttled, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -221,6 +222,18 @@ class ShareDeliveryResolveAPIView(SharingNoStoreBoundary, APIView):
                 user=request.user,
                 mark_opened=True,
             )
+            if delivery.envelope.subject_type == ShareSubjectType.PASSPORT:
+                snapshot = delivery.envelope.passport_subject.snapshot
+                response = Response({
+                    "family": "passport",
+                    "id": str(snapshot.pk),
+                    "route": reverse(
+                        "sharing:passport-delivery",
+                        kwargs={"delivery_id": delivery.pk},
+                    ),
+                })
+                response["Cache-Control"] = "private, no-store"
+                return response
             return _destination_response(delivery.envelope)
         except PermissionDenied:
             from rest_framework.exceptions import PermissionDenied as APIForbidden
