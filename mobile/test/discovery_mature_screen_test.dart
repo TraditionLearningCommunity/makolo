@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
@@ -1494,6 +1496,121 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key('discover-focus-depth')), findsNothing);
     expect(find.text('Formation Data Science'), findsOneWidget);
+  });
+
+  testWidgets('one map coordinate previews two choices before expanding', (
+    tester,
+  ) async {
+    final possibilities = [
+      for (var i = 0; i < 8; i++)
+        item('colocated-$i', 'Possibilité locale $i', mappable: true),
+    ];
+    String? chosen;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryCoLocatedPicker(
+        items: possibilities,
+        onChoose: (selected) => chosen = selected.candidateKey,
+      ),
+    );
+
+    expect(find.text('8 possibilités à cet emplacement'), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-colocated-sheet')), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsNothing);
+    expect(find.byKey(const Key('discover-map-colocated-more')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('discover-map-colocated-more')));
+    await tester.pumpAndSettle();
+    final third = find.byKey(
+      const Key('discover-map-place-choice-activity:colocated-2'),
+    );
+    await tester.scrollUntilVisible(
+      third,
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pump();
+    await tester.tap(third);
+    expect(chosen, 'activity:colocated-2');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map preview grants no owner action from location alone', (
+    tester,
+  ) async {
+    DiscoveryItemPresentation? opened;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        initialSelectedCandidateKey: 'activity:route',
+        resolveItem: (_) async => null,
+        onSave: (_) async {},
+        onOpen: (item) => opened = item,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-save')), findsNothing);
+    expect(find.byTooltip('Partager cette possibilité'), findsNothing);
+    await tester.tap(find.byKey(const Key('discover-map-open-n2')));
+    await tester.pump();
+    expect(opened?.candidateKey, 'activity:route');
+  });
+
+  testWidgets('map preview reuses verified detail capabilities', (
+    tester,
+  ) async {
+    final verified = Completer<DiscoveryItemPresentation?>();
+    final possibility = item('route', 'Voyage vers Kolwezi', mappable: true);
+    var saves = 0;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(items: [possibility]),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        initialSelectedCandidateKey: 'activity:route',
+        resolveItem: (_) => verified.future,
+        onSave: (_) async => saves++,
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-map-save')), findsNothing);
+    expect(find.byTooltip('Partager cette possibilité'), findsNothing);
+
+    verified.complete(
+      DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'route',
+        candidateKey: 'activity:route',
+        title: 'Voyage vers Kolwezi',
+        summary: 'Détail vérifié',
+        owner: 'Transport vérifié',
+        savedState: 'not_saved',
+        capabilities: const {'view', 'save'},
+        links: const {
+          'web': '/discover/items/activity/route/',
+          'web_share': '/discovery/share/activity/route/',
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
+    expect(find.byTooltip('Partager cette possibilité'), findsOneWidget);
+    expect(find.text('Transport vérifié'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('discover-map-save')));
+    await tester.pumpAndSettle();
+    expect(saves, 1);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Carte stays immersive and opens the same possibility detail', (
