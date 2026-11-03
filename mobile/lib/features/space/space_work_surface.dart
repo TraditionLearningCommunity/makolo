@@ -28,6 +28,8 @@ class SpaceWorkSurface extends StatelessWidget {
     final sections = _map(payload['sections']);
     final archetype = _string(payload['archetype']);
     final spaceSlug = _string(_map(payload['space'])?['slug']);
+    final limitedToActivities =
+        _map(payload['authority'])?['limited_to_activities'] == true;
     final canCreateG1 =
         (archetype == 'generic' ||
             archetype == 'community' ||
@@ -66,6 +68,14 @@ class SpaceWorkSurface extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
             child: Text(question),
+          ),
+        if (limitedToActivities)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(
+              'Vue limitée aux activités autorisées dans votre responsabilité.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         Wrap(
           spacing: MakoloSpacing.sm,
