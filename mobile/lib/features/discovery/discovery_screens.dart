@@ -1575,6 +1575,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
                 detailRefreshRevision: _detailReturnRevision,
+                spatialRevision: snapshot.data?.receivedAt,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
                 resolveItem: _verifiedMapDetail,
                 onSave: widget.authenticated
