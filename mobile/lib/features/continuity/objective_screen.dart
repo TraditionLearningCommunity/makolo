@@ -255,7 +255,7 @@ class _DossierContent extends StatelessWidget {
                     child: MakoloStatusMetadataAction(
                       title: _string(items[index]['label']) ?? 'Démarche',
                       subtitle: items[index]['hidden_dependency'] == true
-                          ? 'Une dépendance non divulguée influence cet état.'
+                          ? 'Certaines conditions de cette démarche ne sont pas visibles ici.'
                           : null,
                       status: _humanState(items[index]['state']) == null
                           ? null
