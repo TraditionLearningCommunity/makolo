@@ -682,6 +682,9 @@ def profile_passport_topic_options(profile):
         _profile_activity_queryset(profile, public_only=False).values_list("pk", flat=True)
     )
     activity_ids.update(
+        row["activity_id"] for row in _profile_confirmed_involvements(profile)
+    )
+    activity_ids.update(
         credentials_for_profile(profile).values_list("activity_id", flat=True)
     )
     activity_ids.update(
