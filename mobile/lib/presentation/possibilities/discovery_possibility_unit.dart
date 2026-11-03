@@ -831,12 +831,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return null;
   }
 
-  /// Expose an existing owner detail only from a canonical Activity identity.
-  /// Owner routes re-check access on entry; this is never a substitute CTA.
+  /// Owner details are read-only links and remain distinct from primary
+  /// actions (pay, obtain, contribute, start). The owner authorizes on entry.
   String? get _readOnlyOwnerPath {
     if (!widget.detailMode ||
         widget.onOwnerDepth == null ||
-        _primaryNativePath != null ||
         !const {
           'activity',
           'service_activity',
@@ -852,6 +851,27 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       return null;
     }
     return '/activities/${Uri.encodeComponent(item.id)}';
+  }
+
+  /// A Discovery activity may select one specific Occurrence rather than
+  /// merely the parent Activity. Keep this N3 identity, including transport
+  /// departures, without fabricating a Journey or booking entitlement.
+  String? get _readOnlyOccurrencePath {
+    if (!widget.detailMode ||
+        widget.onOwnerDepth == null ||
+        item.family != 'activity') {
+      return null;
+    }
+    final occurrence = item.identity?['occurrence'];
+    final id = item.occurrenceId;
+    if (occurrence is! Map ||
+        occurrence['kind'] != 'occurrence' ||
+        occurrence['id'] != id ||
+        id == null ||
+        id.trim().isEmpty) {
+      return null;
+    }
+    return '/occurrences/${Uri.encodeComponent(id)}';
   }
 
   String get _centralActionLabel {
@@ -1330,14 +1350,35 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 label: Text(_centralActionLabel),
               ),
             ),
-          if (_readOnlyOwnerPath != null)
+          if (_readOnlyOwnerPath != null ||
+              _readOnlyOccurrencePath != null)
             Padding(
+              key: const Key('discover-n2-owner-depths'),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: OutlinedButton.icon(
-                key: const Key('discover-owner-n3'),
-                onPressed: () => widget.onOwnerDepth!(_readOnlyOwnerPath!),
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Voir l’activité'),
+              child: Wrap(
+                spacing: MakoloSpacing.sm,
+                runSpacing: MakoloSpacing.xs,
+                children: [
+                  if (_readOnlyOccurrencePath != null)
+                    OutlinedButton.icon(
+                      key: const Key('discover-owner-occurrence-n3'),
+                      onPressed: () =>
+                          widget.onOwnerDepth!(_readOnlyOccurrencePath!),
+                      icon: const Icon(Icons.event_available_outlined),
+                      label: Text(
+                        item.routeLabel == null
+                            ? 'Voir cette réalisation'
+                            : 'Voir ce départ',
+                      ),
+                    ),
+                  if (_readOnlyOwnerPath != null)
+                    OutlinedButton.icon(
+                      key: const Key('discover-owner-n3'),
+                      onPressed: () => widget.onOwnerDepth!(_readOnlyOwnerPath!),
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Voir l’activité'),
+                    ),
+                ],
               ),
             ),
           if (widget.detailMode) ...actionBar,
