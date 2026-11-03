@@ -1006,9 +1006,13 @@ def build_space_work_projection(
         not direct_portfolio or lens_ids is not None
         or bool(source_kind or source_id or section_key or offset)
     )
+    # A capped preview is not a complete view of the owner collection.
+    # 'established' means the visible projection has no missing continuation.
+    preview_partial = any(section["has_more"] for section in sections.values())
     for section in sections.values():
         section["coverage_state"] = (
-            "partial" if limited_coverage else "established"
+            "partial" if limited_coverage or section["has_more"]
+            else "established"
         )
         section.pop("_enabled", None)
         section.pop("_offset", None)
@@ -1197,8 +1201,12 @@ def build_space_work_projection(
         },
         "responsibility": responsibility_key or "all",
         "operational_footprint": {"signals": footprint},
-        "composition_state": "partial" if limited_coverage else "established",
-        "coverage_state": "partial" if limited_coverage else "established",
+        "composition_state": (
+            "partial" if limited_coverage or preview_partial else "established"
+        ),
+        "coverage_state": (
+            "partial" if limited_coverage or preview_partial else "established"
+        ),
         "sections": sections,
         "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
         "selection": selection,
