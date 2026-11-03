@@ -153,6 +153,7 @@ def build_space_us_projection(*, profile, space):
                 "website": space.website or None,
                 "contact_email": space.contact_email or None,
                 "contact_phone": space.contact_phone or None,
+                "searchable": bool(space.searchable),
                 "location": {
                     "country": space.country or None,
                     "city": space.city or None,
