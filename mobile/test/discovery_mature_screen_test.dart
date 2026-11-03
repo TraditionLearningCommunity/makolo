@@ -1529,21 +1529,10 @@ void main() {
     await tester.pump();
     expect(opened?.candidateKey, 'activity:route');
 
-    await tester.tap(find.byTooltip('Voir la liste'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
-    final mapAction = find.byKey(
-      const ValueKey('discover-map-action-activity:media'),
-    );
-    await tester.scrollUntilVisible(
-      mapAction,
-      160,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.pump();
-    await tester.tap(mapAction);
-    await tester.pump();
-    expect(selected, 'activity:media');
+    expect(find.byTooltip('Voir la liste'), findsNothing);
+    expect(find.text('Opportunités à découvrir'), findsNothing);
+    expect(find.byKey(const Key('discover-compact-field')), findsNothing);
+    expect(selected, isNull);
     expect(tester.takeException(), isNull);
   });
 
