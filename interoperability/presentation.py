@@ -49,7 +49,7 @@ def connection_status_label(connection: dict[str, Any]) -> str:
     if connected and connection.get("usable"):
         return "Connecté et disponible"
     if connected and not connection.get("capabilities"):
-        return "Relié · aucune capacité active"
+        return "Connecté · aucun usage disponible"
     if connected:
         return "Connecté"
     if connection.get("available"):
@@ -77,11 +77,11 @@ def connection_experience(connection: dict[str, Any]) -> dict[str, Any]:
     elif health == "unknown":
         key, message = "unverified", "La disponibilité doit être vérifiée."
     elif connected and not has_capability:
-        key, message = "no_capability", "Aucune capacité active n'est exposée."
+        key, message = "no_capability", "Aucun usage disponible pour cette connexion."
     elif usable:
-        key, message = "usable", "Cette connexion possède une capacité active."
+        key, message = "usable", "Ce service est prêt à être utilisé."
     else:
-        key, message = "not_usable", "Aucune action n'est disponible depuis cette connexion."
+        key, message = "not_usable", "Cette connexion ne peut pas être utilisée actuellement."
 
     return {"experience_state": key, "experience_message": message}
 
