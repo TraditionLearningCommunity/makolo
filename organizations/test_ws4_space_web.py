@@ -88,7 +88,7 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, self.space.name)
         self.assertContains(response, "Équipe")
         self.assertContains(response, "Ma place dans cet Espace")
-        self.assertContains(response, "Voir mes autorisations")
+        self.assertContains(response, "Comprendre mes autorisations")
         self.assertContains(response, "Gouvernance")
         self.assertContains(response, "Passeport de cet Espace")
         self.assertContains(
@@ -125,7 +125,7 @@ class WS4SpaceWebTests(TestCase):
     def test_n3_authority_web_revalidates_selection_without_disclosing_n1(self):
         self.client.force_login(self.owner)
         root = self.client.get(self.url("organizations:space-us"))
-        self.assertContains(root, "Voir mes autorisations")
+        self.assertContains(root, "Comprendre mes autorisations")
         self.assertNotContains(root, "Droits associés à ce rôle")
         depth = self.client.get(self.url("organizations:space-us", detail="authority"))
         self.assertEqual(depth.status_code, 200)
