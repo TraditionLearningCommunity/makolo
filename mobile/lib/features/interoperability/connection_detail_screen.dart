@@ -57,9 +57,12 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
       : (widget.connection?.displayName ?? 'Connexion');
 
   List<String> get _capabilities {
-    final raw = _isOffer
-        ? widget.offer?['capabilities']
-        : widget.connection?.capabilities;
+    final Object? raw;
+    if (_isOffer) {
+      raw = widget.offer?['capabilities'];
+    } else {
+      raw = widget.connection?.capabilities;
+    }
     if (raw is! List) return const [];
     return raw.whereType<String>().map(connectionCapabilityLabel).toList();
   }
