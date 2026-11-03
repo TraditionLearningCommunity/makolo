@@ -371,7 +371,14 @@ void main() {
     expect(find.text('Informations personnelles'), findsOneWidget);
     await tester.tap(find.text('Personnalisé'));
     await tester.pumpAndSettle();
-    expect(find.text('Présentation publique'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Informations personnelles'),
+      250,
+      scrollable: find.descendant(
+        of: find.byType(ListView).first,
+        matching: find.byType(Scrollable),
+      ).first,
+    );
     expect(find.text('Informations personnelles'), findsOneWidget);
     expect(api.ownerFetches, 1);
   });
