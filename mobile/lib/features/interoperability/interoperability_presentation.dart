@@ -15,7 +15,7 @@ String connectionStatusLabel(InteroperabilityConnectionProjection row) {
   }
   if (row.connected && row.usable) return 'Connecté et disponible';
   if (row.connected && row.capabilities.isEmpty) {
-    return 'Relié · aucune capacité active';
+    return 'Connecté · aucun usage disponible';
   }
   if (row.connected) return 'Connecté';
   return row.available ? 'Disponible' : 'État à vérifier';
@@ -35,10 +35,10 @@ String connectionExperienceMessage(InteroperabilityConnectionProjection row) {
     return 'La disponibilité doit être vérifiée.';
   }
   if (row.connected && row.capabilities.isEmpty) {
-    return 'Aucune capacité active n’est exposée.';
+    return 'Aucun usage disponible pour cette connexion.';
   }
-  if (row.usable) return 'Cette connexion possède une capacité active.';
-  return 'Aucune action n’est disponible depuis cette connexion.';
+  if (row.usable) return 'Ce service est prêt à être utilisé.';
+  return 'Cette connexion ne peut pas être utilisée actuellement.';
 }
 
 String connectionCapabilityLabel(String value) => switch (value) {
