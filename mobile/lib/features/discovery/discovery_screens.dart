@@ -21,6 +21,8 @@ import '../../presentation/search/progressive_search_coordinator.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
+import '../continuity/conversation_context_screen.dart';
+import '../continuity/conversation_repository.dart';
 import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
@@ -2165,11 +2167,15 @@ class ActivityDetailScreen extends StatefulWidget {
     required this.activityId,
     required this.repository,
     required this.onOpenOccurrence,
+    this.conversations,
+    this.onOpenConversation,
   });
 
   final String activityId;
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenOccurrence;
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
 
   @override
   State<ActivityDetailScreen> createState() => _ActivityDetailScreenState();
@@ -2370,6 +2376,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                 ),
                             ],
                           ),
+                          if (widget.conversations != null &&
+                              widget.onOpenConversation != null)
+                            ConversationContextAction(
+                              repository: widget.conversations!,
+                              kind: 'activity',
+                              contextId: widget.activityId,
+                              onOpen: widget.onOpenConversation!,
+                            ),
                           if (activity.occurrences.isNotEmpty)
                             MakoloSection(
                               title: switch (activity.occurrenceNoun) {
@@ -2456,12 +2470,16 @@ class OccurrenceDetailScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenActivity,
     this.onOpenDayOf,
+    this.conversations,
+    this.onOpenConversation,
   });
 
   final String occurrenceId;
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenActivity;
   final VoidCallback? onOpenDayOf;
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
 
   @override
   State<OccurrenceDetailScreen> createState() => _OccurrenceDetailScreenState();
@@ -2658,6 +2676,14 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                                 ),
                             ],
                           ),
+                          if (widget.conversations != null &&
+                              widget.onOpenConversation != null)
+                            ConversationContextAction(
+                              repository: widget.conversations!,
+                              kind: 'occurrence',
+                              contextId: widget.occurrenceId,
+                              onOpen: widget.onOpenConversation!,
+                            ),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: MakoloSpacing.inner,
