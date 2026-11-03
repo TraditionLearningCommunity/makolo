@@ -20,7 +20,9 @@ from .coverage_models import (
     SubscriptionCoverage,
     SubscriptionCoverageAllocation,
 )
-from .eligibility import resolve_plan_eligibility
+from .eligibility import _evaluate_requirement
+from .eligibility_models import PlanRequirement
+from requirements.contracts import RequirementAssessmentState
 from .models import PlanVersion
 from .runtime_models import Subscription
 
@@ -106,6 +108,32 @@ def _lock_subject(*, profile=None, space=None):
     if profile:
         return Subscription.objects.select_for_update().filter(profile=profile).first()
     return Subscription.objects.select_for_update().filter(space=space).first()
+
+
+def _require_coverage_plan_eligibility(subject, version, *, at=None):
+    """A purchased hidden/staff offer still enforces its acquisition Requirements."""
+    from django.contrib.auth import get_user_model
+    from organizations.models import Organization
+    if isinstance(subject, get_user_model()):
+        target_type = SubscriptionSubjectType.PROFILE
+    elif isinstance(subject, Organization):
+        target_type = SubscriptionSubjectType.SPACE
+    else:
+        raise CoverageError("Le bénéficiaire n'est pas un sujet Subscription.")
+    if version.plan.subject_type != target_type:
+        raise CoverageError("La formule est incompatible avec le bénéficiaire.")
+    for requirement in PlanRequirement.objects.filter(
+        plan_version=version, phase=RequirementPhase.ACQUISITION, is_mandatory=True,
+    ):
+        try:
+            result = _evaluate_requirement(requirement, subject)
+        except Exception as exc:
+            raise CoverageError("Évaluation d'éligibilité indisponible.") from exc
+        if result.state not in {
+            RequirementAssessmentState.SATISFIED,
+            RequirementAssessmentState.NOT_APPLICABLE,
+        }:
+            raise CoverageError("Les Requirements de cette formule ne sont pas satisfaits.")
 
 
 @transaction.atomic
@@ -215,6 +243,7 @@ def invite_coverage_beneficiary(
             raise CoverageError("Un snapshot est réservé à la politique figée.")
     if group_parent is not None:
         parent = SubscriptionCoverageAllocation.objects.select_for_update().get(pk=group_parent.pk)
+        _require_group_manager(actor, parent.group)
         if not profile or parent.coverage_id != coverage.pk or not _group_member_allowed(parent, profile):
             raise CoverageError("Ce Profil ne remplit pas le périmètre du Groupe.")
     key = _identity_key("allocation", coverage.pk, request_key)
@@ -280,11 +309,7 @@ def accept_coverage_allocation(*, actor, allocation, select_base=False, at=None)
     ):
         raise CoverageError("Le bénéficiaire n'est plus éligible via le Groupe.")
     subject = allocation.profile or allocation.space
-    eligibility = resolve_plan_eligibility(
-        subject, coverage.plan_version, self_service=False, at=at,
-    )
-    if eligibility.status != PlanEligibilityStatus.AVAILABLE:
-        raise CoverageError("Les Requirements de cette formule ne sont pas satisfaits.")
+    _require_coverage_plan_eligibility(subject, coverage.plan_version, at=at)
     if coverage.plan_version.plan.plan_type == SubscriptionPlanType.BASE and not select_base:
         raise CoverageError("Le remplacement de BASE demande un choix explicite du bénéficiaire.")
     occupied = coverage.allocations.filter(
@@ -330,11 +355,9 @@ def select_coverage_base(*, actor, allocation, at=None):
         raise CoverageError("Ce bénéfice n'est pas une BASE.")
     if allocation.group_parent_id and not _group_member_allowed(allocation.group_parent, allocation.profile):
         raise CoverageError("L'appartenance au Groupe ne permet plus cette BASE.")
-    if resolve_plan_eligibility(
-        allocation.profile or allocation.space, coverage.plan_version,
-        self_service=False, at=at,
-    ).status != PlanEligibilityStatus.AVAILABLE:
-        raise CoverageError("Les exigences de la BASE ne sont plus satisfaites.")
+    _require_coverage_plan_eligibility(
+        allocation.profile or allocation.space, coverage.plan_version, at=at,
+    )
     if allocation.selected_base:
         return allocation
     others = SubscriptionCoverageAllocation.objects.select_for_update().filter(
