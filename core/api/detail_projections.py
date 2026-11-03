@@ -463,9 +463,12 @@ def build_access_detail(*, access, profile):
 
     occurrence = None
     if access.occurrence_id:
+        # Reuse Access' owner projection of planned time/place, not the
+        # volatile Day-of position or live capacity.
+        from .access_projection import _occurrence_payload
+
         occurrence = {
-            "kind": "occurrence",
-            "id": str(access.occurrence_id),
+            **(_occurrence_payload(access.occurrence) or {}),
             "link": f"/api/v1/occurrences/{access.occurrence_id}/",
         }
 
