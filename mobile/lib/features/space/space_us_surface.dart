@@ -66,6 +66,13 @@ class SpaceUsSurface extends StatelessWidget {
     }
 
     final passportTarget = limited ? null : route('passport');
+    final resourcesTarget = limited ? null : route('resources');
+    final resources = _map(payload['resources']);
+    final resourcesVisible = resourcesTarget != null &&
+        resources?['visibility'] == 'visible';
+    final resourceRows = resourcesVisible
+        ? _rows(resources?['items'])
+        : const <Map<String, dynamic>>[];
 
     final settingsTarget = limited ? null : route('settings');
     final connectionsTarget =
@@ -314,6 +321,45 @@ class SpaceUsSurface extends StatelessWidget {
                           target,
                           open,
                         ),
+                    ],
+                    if (resourcesVisible) ...[
+                      const SizedBox(height: MakoloSpacing.xl),
+                      _sectionTitle(
+                        context,
+                        'Nos ressources',
+                        'Documents et outils appartenant à cet Espace.',
+                      ),
+                      if (resourceRows.isEmpty)
+                        _quiet(
+                          context,
+                          'Aucun document ou modèle institutionnel disponible.',
+                        )
+                      else
+                        _panel(
+                          context,
+                          children: [
+                            for (final resource in resourceRows.take(3))
+                              _fact(
+                                context,
+                                Icons.folder_outlined,
+                                _value(resource['title']) ?? 'Ressource',
+                                _value(resource['detail']) ??
+                                    'Ressource institutionnelle',
+                              ),
+                            if (resources?['has_more'] == true ||
+                                resourceRows.length > 3)
+                              _quiet(
+                                context,
+                                'D’autres ressources sont disponibles.',
+                              ),
+                          ],
+                        ),
+                      _action(
+                        context,
+                        'Consulter les ressources',
+                        resourcesTarget,
+                        open,
+                      ),
                     ],
                     if (ownershipRows.isNotEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
