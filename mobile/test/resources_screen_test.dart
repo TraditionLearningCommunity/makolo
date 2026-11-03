@@ -203,7 +203,7 @@ void main() {
       expect(find.text('Passeport RDC'), findsOneWidget);
       expect(find.textContaining('Provenance : inconnue'), findsOneWidget);
       expect(
-        find.text('Présence dans la Bibliothèque ≠ exigence satisfaite.'),
+        find.text('Conserver un document ne suffit pas à remplir une condition d’une démarche.'),
         findsOneWidget,
       );
       expect(find.textContaining('Requirement satisfait'), findsNothing);
