@@ -380,10 +380,15 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       ).data;
       if (!mounted || !authorized) return;
       final items = rows(data['items']);
+      var hasMore = data['has_more'] == true;
+      var nextOffset = data['next_offset'] is int
+          ? data['next_offset'] as int : items.length;
+      var pageLoading = false;
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true, showDragHandle: true,
-        builder: (sheet) => SafeArea(
+        builder: (sheet) => StatefulBuilder(
+          builder: (sheet, update) => SafeArea(
           child: SizedBox(
             height: MediaQuery.sizeOf(sheet).height * 0.65,
             child: Column(children: [
@@ -435,10 +440,41 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                           ),
                         ]),
                       ),
+                  if (hasMore)
+                    ListTile(
+                      title: Text(pageLoading
+                          ? 'Chargement…' : 'Voir plus de versions'),
+                      onTap: pageLoading ? null : () async {
+                        update(() => pageLoading = true);
+                        try {
+                          final next = await widget.runtime.api!.get(
+                            root + 'history/?offset=' + nextOffset.toString(),
+                          );
+                          final page = ProjectionEnvelope.parse(
+                            next.jsonObject(),
+                            expectedProjection: 'space.passport.history',
+                          ).data;
+                          if (!sheet.mounted || !authorized) return;
+                          update(() {
+                            items.addAll(rows(page['items']));
+                            hasMore = page['has_more'] == true;
+                            nextOffset = page['next_offset'] is int
+                                ? page['next_offset'] as int : items.length;
+                          });
+                        } on Object {
+                          message('Chargement indisponible.');
+                        } finally {
+                          if (sheet.mounted) {
+                            update(() => pageLoading = false);
+                          }
+                        }
+                      },
+                    ),
                 ],
               )),
             ]),
           ),
+        ),
         ),
       );
     } on Object { message('Historique indisponible.'); }
