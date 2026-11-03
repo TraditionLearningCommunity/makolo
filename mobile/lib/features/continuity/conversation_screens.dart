@@ -801,7 +801,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             );
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Conversation'),
+                title: Text(
+                  available ? detail.title : 'Conversation',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 actions: [
                   PopupMenuButton<String>(
                     tooltip: 'État personnel',
