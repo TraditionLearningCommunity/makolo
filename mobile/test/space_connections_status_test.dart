@@ -40,7 +40,7 @@ void main() {
       );
       expect(
         connectionExperienceMessage(connection(health: 'healthy')),
-        'Cette connexion possède une capacité active.',
+        'Ce service est prêt à être utilisé.',
       );
       expect(
         connectionExperienceMessage(connection(enabled: false)),
@@ -66,7 +66,7 @@ void main() {
     expect(spaceConnectionStatus(connection(enabled: false)), 'Désactivé');
     expect(
       spaceConnectionStatus(connection(health: 'healthy', capabilities: [])),
-      'Reliée · aucune capacité active',
+      'Connecté · aucun usage disponible',
     );
     expect(
       spaceConnectionStatus(connection(health: 'healthy', usable: false)),
