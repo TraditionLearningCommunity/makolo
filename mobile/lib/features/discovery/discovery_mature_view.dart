@@ -488,7 +488,12 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   Future<void> _onStyleReady(List<DiscoverySpatialAnchor> anchors) async {
     await _displayPins(anchors);
     final controller = _mapController;
-    if (!mounted || controller == null || _initialCameraPositioned) return;
+    if (!mounted ||
+        controller == null ||
+        _initialCameraPositioned ||
+        anchors.isEmpty) {
+      return;
+    }
     _initialCameraPositioned = true;
     try {
       final selected = anchors.where(
@@ -527,13 +532,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         widget.selection.collection.items) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          unawaited(
-            _displayPins(
-              _selector.spatialAnchorsFromCollection(
-                widget.selection.collection,
-              ),
-            ),
+          final anchors = _selector.spatialAnchorsFromCollection(
+            widget.selection.collection,
           );
+          if (!_initialCameraPositioned) {
+            unawaited(_onStyleReady(anchors));
+          } else {
+            unawaited(_displayPins(anchors));
+          }
         }
       });
     }
