@@ -42,13 +42,13 @@ class SpacePilotSurface extends StatelessWidget {
           subtitle: 'Que faut-il examiner ?',
         ),
         Text(
-          'Source : Analytics',
+          'Mesures de cet Espace',
           style: Theme.of(context).textTheme.labelLarge,
         ),
         if (coverage?['kind'] == 'latest_visible_events' &&
             coverage?['limit'] is num)
           Text(
-            'Couverture : les ${coverage!['limit']} derniers événements visibles au maximum.',
+            'Jusqu’à ${coverage!['limit']} événements accessibles pris en compte.',
           ),
         if (generated != null) Text('Observation : $generated'),
         Text(
