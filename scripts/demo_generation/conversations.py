@@ -45,7 +45,7 @@ def point_blueprints(phase, label):
             ("question", "Besoin immédiat",
              "Quel obstacle concret faut-il résoudre maintenant ?", "free_text", ()),
             ("exchange", "Coordination du moment",
-             "Échanges relatifs au déroulement en cours et aux actions à réaliser.", "none", ()),
+             "Échanges relatifs au déroulement en cours et aux actions à réaliser.", "free_text", ()),
         )
     if phase == "future":
         return (
@@ -67,7 +67,7 @@ def point_blueprints(phase, label):
         ("confirmation", "Besoin d'accompagnement",
          "Souhaitez-vous une précision pour la prochaine étape ?", "boolean", ()),
         ("exchange", "Échange autour de l'action",
-         "Coordonnons les suites utiles à ce contexte.", "none", ()),
+         "Coordonnons les suites utiles à ce contexte.", "free_text", ()),
     )
 
 
@@ -332,7 +332,16 @@ def main(argv=None):
                     ), None)
                     try:
                         with transaction.atomic():
-                            if respondent and response_mode != ConversationPointResponseMode.NONE:
+                            if respondent and point_kind == ConversationPointKind.EXCHANGE:
+                                first_entry = create_exchange_entry(actor=respondent, point=point,
+                                    body="Pouvons-nous clarifier l'organisation de cette étape ?",
+                                    client_reference=ref + "-entry")
+                                counts["exchanges_created"] += 1
+                                create_exchange_entry(actor=actor, point=point,
+                                    body="Oui. Reprenons le point prioritaire et la prochaine action.",
+                                    reply_to=first_entry, client_reference=ref + "-reply-entry")
+                                counts["exchange_replies_created"] += 1
+                            elif respondent and response_mode != ConversationPointResponseMode.NONE:
                                 if response_mode == ConversationPointResponseMode.BOOLEAN:
                                     value = (index % 2 == 0)
                                 elif response_mode == ConversationPointResponseMode.SINGLE_CHOICE:
@@ -342,15 +351,6 @@ def main(argv=None):
                                 submit_point_response(actor=respondent, point=point, value=value,
                                     client_reference=ref + "-reply")
                                 counts["responses_created"] += 1
-                            elif respondent and point_kind == ConversationPointKind.EXCHANGE:
-                                first_entry = create_exchange_entry(actor=respondent, point=point,
-                                    body="Pouvons-nous clarifier l'organisation de cette étape ?",
-                                    client_reference=ref + "-entry")
-                                counts["exchanges_created"] += 1
-                                create_exchange_entry(actor=actor, point=point,
-                                    body="Oui. Reprenons le point prioritaire et la prochaine action.",
-                                    reply_to=first_entry, client_reference=ref + "-reply-entry")
-                                counts["exchange_replies_created"] += 1
                             if respondent and point.requires_acknowledgement:
                                 acknowledge_point(actor=respondent, point=point)
                                 counts["acknowledgements_created"] += 1
