@@ -207,6 +207,9 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
 
     def get(self, request):
         limit = _bounded_limit(request)
+        tab = (request.query_params.get("tab") or "all").strip().lower()
+        if tab not in {"all", "for-me", "archived"}:
+            raise DRFValidationError({"tab": "Filtre inconnu."})
         q = (request.query_params.get("q") or "").strip()[:120]
         updated_after_raw = (request.query_params.get("updated_after") or "").strip()
         updated_after = parse_datetime(updated_after_raw) if updated_after_raw else None
@@ -220,7 +223,9 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
         if q:
             seen = set()
             payload = []
-            for result in search_conversations_for_profile(request.user, q, limit=limit * 2):
+            for result in search_conversations_for_profile(
+                request.user, q, limit=limit * 2, include_archived=tab == "archived",
+            ):
                 conversation = result.conversation
                 if conversation.pk in seen:
                     continue
@@ -240,7 +245,12 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
                     break
             return Response({"results": payload, "count": len(payload)})
 
-        rows = conversation_rows_for_profile(request.user, only_attention=False, limit=limit * 2)
+        rows = conversation_rows_for_profile(
+            request.user,
+            archived=tab == "archived",
+            only_attention=tab == "for-me",
+            limit=limit * 2,
+        )
         if updated_after:
             rows = [row for row in rows if row.conversation.updated_at > updated_after]
         rows = rows[:limit]
