@@ -324,3 +324,14 @@ python manage.py shell -c "from conversations.models import Conversation,Convers
 ```
 
 La génération ne garantit ni la couverture de toutes les sous-tables avancées (audiences détaillées, demandes d'invitation, bridges média/formulaires), ni la création de 500 Conversations si moins de 500 contextes propriétaires sont admissibles. Ces sous-parcours ne doivent pas être inventés pour remplir artificiellement toutes les tables.
+
+### Acteurs diversifiés et Conversations vivantes
+
+Avec `--conversation-include-test-users`, la sélection inclut aussi les comptes synthétiques existants `beta_*` et `mobile_mature_*`, en plus de `world_*`. Aucun nouveau compte n'est créé. Cette option est utile quand l'environnement bêta ne contient que deux `world_*` mais plusieurs organisateurs/opérateurs de test.
+
+```bash
+python -m scripts.demo_generation generate --domains conversations --count 500 --profiles 30 --conversation-include-test-users --seed 2026 --conversation-points 4
+python -m scripts.demo_generation generate --domains conversations --count 500 --profile-username mobile_mature_owner --seed 2027
+```
+
+Les gestionnaires ne peuvent ajouter une participation explicite que pour un autre compte de démonstration ayant déjà le droit de voir le contexte. Les Points d'information peuvent générer une confirmation de lecture; les Points Exchange, une intervention suivie d'une réponse chaînée. Certaines Conversations dont l'Occurrence est terminée sont closes par `transition_conversation` après génération; elles ne sont jamais antidatées. Les refus d'autorité sont comptabilisés et n'entraînent pas la création d'un Mandate implicite.
