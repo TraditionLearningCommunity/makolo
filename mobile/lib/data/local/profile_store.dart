@@ -150,6 +150,17 @@ class ProfileStore {
         .go();
   }
 
+  /// Expired owner snapshots cannot be revived merely by a transport failure.
+  /// Cleanup is scoped to this Profile and never touches user-owned drafts.
+  Future<int> purgeExpiredProjections() {
+    final cutoff = DateTime.now().toUtc();
+    return (database.delete(database.projectionSnapshots)..where(
+          (row) => row.profileId.equals(profileId) &
+              row.expiresAt.isSmallerOrEqualValue(cutoff),
+        ))
+        .go();
+  }
+
   /// Keep bounded reconstructible projections without touching the raw owner
   /// records of other kinds or Profiles. The active page and its first lot
   /// can be protected by the caller during the rotation.
