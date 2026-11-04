@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from journeys.models import Journey
+from journeys.models import Journey, TERMINAL_JOURNEY_STATUSES
 from journeys.collaboration_services import ensure_case_access
 from organizations.api.workspace_projection import workspace_spaces
 
@@ -307,7 +307,7 @@ class SpaceDocumentEligibleJourneysAPIView(SpaceDocumentBase):
         items = []
         for journey in Journey.objects.select_related("activity").filter(
             activity__space=space,
-        ).order_by("-updated_at", "id")[:120]:
+        ).exclude(status__in=TERMINAL_JOURNEY_STATUSES).order_by("-updated_at", "id")[:120]:
             try:
                 ensure_case_access(request.user, journey, write=True)
             except DjangoPermissionDenied:
