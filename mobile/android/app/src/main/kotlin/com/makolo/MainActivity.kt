@@ -20,6 +20,7 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val SHARE_CHANNEL = "makolo/native_share"
         private const val DOWNLOAD_CHANNEL = "makolo/downloads"
+        private const val DEVICE_CHANNEL = "makolo/device"
         private const val ALERT_CHANNEL = "makolo_alerts"
     }
 
@@ -78,6 +79,19 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method == "name") {
+                    // Only the public manufacturer/model, never a hardware ID or user-assigned name.
+                    val maker = Build.MANUFACTURER.orEmpty().trim()
+                    val model = Build.MODEL.orEmpty().trim()
+                    val name = if (model.startsWith(maker, ignoreCase = true)) model
+                               else listOf(maker, model).filter { it.isNotBlank() }.joinToString(" ")
+                    result.success(name.take(80))
+                } else {
+                    result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DOWNLOAD_CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method == "saveFile") {
