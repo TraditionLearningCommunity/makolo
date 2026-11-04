@@ -218,6 +218,73 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(second["page"], 2)
         self.assertNotIn("spatial_index", second)
 
+    def test_compact_spatial_keeps_every_location_and_requests_details_on_demand(self):
+        place = Place.objects.create(
+            name="Z3 carte compacte",
+            locality="Lubumbashi",
+            latitude="-11.664700",
+            longitude="27.479400",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        self.client.force_login(self.participant)
+        compact = self._items(
+            q="Z3", page_size=1, include_spatial_index="compact",
+        )["data"]
+        full = self._items(
+            q="Z3", page_size=1, include_spatial_index="1",
+        )["data"]
+        index = compact["spatial_index"]
+        reference = full["spatial_index"]
+        self.assertFalse(index["detail_available"])
+        self.assertTrue(reference["detail_available"])
+        self.assertEqual(index["viewer"], reference["viewer"])
+        self.assertEqual(index["count"], reference["count"])
+        self.assertEqual(index["total_results"], compact["count"])
+        self.assertEqual(compact["results"], full["results"])
+        self.assertEqual(
+            [item["identity"] for item in index["results"]],
+            [item["identity"] for item in reference["results"]],
+        )
+        for compact_item, full_item in zip(
+            index["results"], reference["results"],
+        ):
+            self.assertEqual(compact_item["place"], full_item["place"])
+            self.assertEqual(
+                compact_item["spatial_facts"], full_item["spatial_facts"],
+            )
+            self.assertEqual(
+                compact_item["representation"]["title"],
+                full_item["representation"]["title"],
+            )
+            self.assertEqual(
+                compact_item["links"]["detail"],
+                full_item["links"]["detail"],
+            )
+            # The pin is NOT a cached authorized detail; it must be enriched
+            # by the canonical detail owner endpoint when it is selected.
+            self.assertNotIn("detail", compact_item)
+            self.assertNotIn("resources", compact_item)
+            self.assertNotIn("engagement", compact_item)
+        event = next(
+            item for item in index["results"]
+            if item["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        owner_detail = self.client.get(event["links"]["detail"])
+        self.assertEqual(owner_detail.status_code, 200)
+        self.assertEqual(
+            owner_detail.json()["data"]["item"]["identity"],
+            event["identity"],
+        )
+        second = self._items(
+            q="Z3", page_size=1, page=2,
+            continuation=compact["continuation"]["token"],
+        )["data"]
+        self.assertNotIn("spatial_index", second)
+
     def test_collection_includes_existing_detail_description(self):
         for profile in (None, self.participant):
             if profile is None:
