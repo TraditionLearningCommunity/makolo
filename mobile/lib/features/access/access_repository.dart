@@ -464,6 +464,18 @@ class AccessRepository {
     if (!isCurrent()) {
       throw StateError('Superseded AccessCredential response');
     }
+    // An explicit Access owner denial may have arrived via another
+    // concurrent SyncEngine while this credential GET was in flight.
+    if ((await readSource(accessId)).invalidated ||
+        await _hasRevokedBeneficiaryCollection()) {
+      await _markCredentialRetention(accessId, denied: true);
+      try {
+        await credentialVault.delete(profileId, accessId);
+      } on Object {
+        // Durable tombstone prevents any local presentation.
+      }
+      throw StateError('Access authority withdrawn before credential receipt');
+    }
 
     final access = _map(data['access']);
     final relationship = _string(data['relationship']);
@@ -518,7 +530,9 @@ class AccessRepository {
         }
       }
     }
-    if (isCurrent() && canRetain) {
+    if (isCurrent() && canRetain &&
+        !(await readSource(accessId)).invalidated &&
+        !await _hasRevokedBeneficiaryCollection()) {
       await _markCredentialRetention(accessId, denied: false);
     }
 
