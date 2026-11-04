@@ -254,9 +254,19 @@ class FlutterSecureTokenStore implements TokenStore {
   @override
   Future<AuthSession> activateAccount(String profileId) =>
       _serialAccounts(() async {
-    final session = await readAccountSession(profileId);
-    if (session == null || session.profileId != profileId) {
+    final record = (await _readAccountRecords())[profileId];
+    final raw = record?['session'];
+    if (raw is! Map) {
       throw StateError('quick access unavailable for this Profile');
+    }
+    final AuthSession session;
+    try {
+      session = AuthSession.fromJson(Map<String, dynamic>.from(raw));
+    } on Object {
+      throw StateError('quick access unavailable for this Profile');
+    }
+    if (session.profileId != profileId) {
+      throw StateError('quick access belongs to a different Profile');
     }
     await _writeSessionDirect(session);
     return session;
