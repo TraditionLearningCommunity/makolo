@@ -311,7 +311,7 @@ class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
         point = get_object_or_404(
             ConversationPoint.objects.select_related("conversation__context"), pk=self.kwargs["point_pk"],
         )
-        from .point_services import point_visible_to
+        from .point_services import point_visible_to, point_response_allowed
         if not point_visible_to(self.request.user, point) or point.kind != "exchange":
             raise Http404("Échange inaccessible.")
         try:
@@ -323,7 +323,8 @@ class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
         context.update({
             "conversation": point.conversation, "point": point,
             "entries": entries, "next_cursor": cursor,
-            "can_contribute": bool(point.lifecycle == "open" and
+            "can_contribute": bool(point_response_allowed(self.request.user, point) and
+                point.lifecycle == "open" and
                 (point.opens_at is None or point.opens_at <= timezone.now()) and
                 (point.deadline_at is None or point.deadline_at > timezone.now()) and
                 (point.valid_until is None or point.valid_until > timezone.now())),
@@ -429,4 +430,4 @@ class PointExchangeView(LoginRequiredMixin, View):
             )
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, str(exc))
-        return redirect("conversations:detail", pk=point.conversation_id)
+        return redirect("conversations:exchange-detail", point_pk=point.pk)
