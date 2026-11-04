@@ -444,8 +444,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 _remoteHistory = null;
                                 _remotePages = [];
                                 _selectedHistoryKey = null;
-                                        _lastRequested = null;
-                                        _loadFailed = false;
+                                  _lastRequested = null;
+                                  _loadFailed = false;
                               });
                               unawaited(_restoreCachedSearch());
                             },
@@ -477,8 +477,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       _remoteHistory = null;
                                       _remotePages = [];
                                       _selectedHistoryKey = null;
-                                        _lastRequested = null;
-                                        _loadFailed = false;
+                                  _lastRequested = null;
+                                  _loadFailed = false;
                                     });
                                     unawaited(_restoreCachedSearch());
                                   },
@@ -497,8 +497,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           if (_preparingOffline) ...[
                             const LinearProgressIndicator(),
-                            Text('Pages d’historique enregistrées : '
-                                '$_preparedPages'),
+                            const Text('Préparation en cours…'),
                           ],
                           if (_preparationMessage != null)
                             Text(_preparationMessage!),
