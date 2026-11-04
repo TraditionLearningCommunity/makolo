@@ -491,37 +491,9 @@ class _NotificationRow {
           final path = router.resolveNavigation(row['navigation']);
           final rawTitle = row['title']?.toString().trim() ?? '';
           final rawMessage = row['message']?.toString().trim() ?? '';
-          // Legacy owner messages already contain a useful specific subject.
+          // Present the subject already established by legacy Journey events.
           final confirmed = rawTitle == 'Confirmation Makolo'
-              ? RegExp(r'^Votre démarche pour «(.+)» est confirmée[.!]?
-            createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
-            destinationPath: path,
-          );
-        })
-        .where((row) => row.id.isNotEmpty)
-        .toList(growable: false);
-  }
-}
-
-String _timeLabel(DateTime value) {
-  final date = value.toLocal();
-  final now = DateTime.now();
-  final elapsed = now.difference(date);
-  if (elapsed.isNegative || elapsed.inMinutes < 1) return 'À l’instant';
-  if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-  if (elapsed.inHours < 24 && date.day == now.day) {
-    return 'Il y a ${elapsed.inHours} h';
-  }
-  final day = DateTime(date.year, date.month, date.day);
-  final today = DateTime(now.year, now.month, now.day);
-  final days = today.difference(day).inDays;
-  if (days == 1) return 'Hier';
-  if (days < 7) return 'Il y a ${days} jours';
-  if (days < 30) return 'Il y a ${(days / 7).floor()} semaines';
-  if (days < 365) return 'Il y a ${(days / 30).floor()} mois';
-  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-}
-)
+              ? RegExp(r'^Votre démarche pour «(.+)» est confirmée[.!]?$')
                   .firstMatch(rawMessage)
               : null;
           return _NotificationRow(
