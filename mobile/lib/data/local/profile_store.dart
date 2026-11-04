@@ -50,7 +50,7 @@ class ProfileStore {
             row.resourceKey.equals(resourceKey),
       );
     return query.watchSingleOrNull().map(
-      (row) => row == null ? null : _storedProjection(row),
+      (row) => row == null ? null : _usableProjection(row),
     );
   }
 
@@ -61,7 +61,7 @@ class ProfileStore {
             row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     return query.watch().map(
-      (rows) => rows.map(_storedProjection).toList(growable: false),
+      (rows) => rows.map(_usableProjection).whereType<StoredProjection>().toList(growable: false),
     );
   }
 
@@ -72,7 +72,7 @@ class ProfileStore {
             row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     final rows = await query.get();
-    return rows.map(_storedProjection).toList(growable: false);
+    return rows.map(_usableProjection).whereType<StoredProjection>().toList(growable: false);
   }
 
   Future<StoredProjection?> readProjection(
@@ -87,7 +87,7 @@ class ProfileStore {
             row.resourceKey.equals(resourceKey),
       );
     final row = await query.getSingleOrNull();
-    return row == null ? null : _storedProjection(row);
+    return row == null ? null : _usableProjection(row);
   }
 
   // Raw server pages and owner projections are kept intact. A bounded
@@ -173,6 +173,16 @@ class ProfileStore {
         await deleteProjection(kind, resourceKey: projection.resourceKey);
       }
     }
+  }
+
+  /// Hard expiry is different from refresh freshness. Offline readers may
+  /// show an older observation after a timeout, but never a time-expired
+  /// permission or capability-bearing projection.
+  StoredProjection? _usableProjection(ProjectionSnapshot row) {
+    final expires = row.expiresAt;
+    if (expires != null &&
+        !DateTime.now().toUtc().isBefore(expires.toUtc())) return null;
+    return _storedProjection(row);
   }
 
   StoredProjection _storedProjection(ProjectionSnapshot row) {
