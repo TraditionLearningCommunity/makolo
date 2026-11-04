@@ -192,8 +192,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   );
             final available = projection != null;
             final hasMore = projection?.payload['next'] is String;
-            final pendingUnread = projection?.payload['unread_count'];
-            final noneUnread = _onlyUnread && pendingUnread is num && pendingUnread == 0;
             final state = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -204,9 +202,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 pendingOperations: const [],
               ),
               availability: available
-                  ? (visible.isEmpty && (!hasMore || noneUnread))
-                        ? MakoloAvailabilityCue.empty
-                        : MakoloAvailabilityCue.content
+                  ? MakoloAvailabilityCue.content
                   : _refreshing
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
@@ -331,6 +327,19 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                           itemCount: visible.length + 1,
                           itemBuilder: (context, index) {
                             if (index == visible.length) {
+                              if (visible.isEmpty && !hasMore && !_loadingMore) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(28),
+                                  child: Center(
+                                    child: Text(
+                                      _onlyUnread
+                                          ? 'Aucune notification non lue.'
+                                          : 'Aucune notification.',
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                );
+                              }
                               if (_pageFailed) {
                                 return Center(
                                   child: TextButton(
