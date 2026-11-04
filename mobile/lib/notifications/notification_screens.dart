@@ -9,6 +9,7 @@ import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
 import '../features/settings/notification_preferences_screen.dart' as settings;
 import '../presentation/projection_surface_adapter.dart';
+import '../selectors/projection_selector.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
 import 'notification_repository.dart';
