@@ -3,6 +3,7 @@ from django.urls import path
 from .api_views import (
     ConversationAttentionPresenceAPIView,
     ConversationDetailAPIView,
+    ConversationPointsDepthAPIView,
     ConversationComposeAPIView,
     ConversationFormOptionsAPIView,
     ConversationPointMediaResponseAPIView,
@@ -29,6 +30,7 @@ urlpatterns = [
     path("by-context/<str:kind>/<str:context_pk>/", ConversationContextLookupAPIView.as_view(), name="by-context"),
     path("by-context/<str:kind>/<str:context_pk>/ensure/", ConversationContextEnsureAPIView.as_view(), name="context-ensure"),
     path("<uuid:pk>/", ConversationDetailAPIView.as_view(), name="detail"),
+    path("<uuid:pk>/points/", ConversationPointsDepthAPIView.as_view(), name="point-depth"),
     path("<uuid:pk>/compose/", ConversationComposeAPIView.as_view(), name="compose"),
     path("<uuid:pk>/forms/options/", ConversationFormOptionsAPIView.as_view(), name="form-options"),
     path("<uuid:pk>/forms/", ConversationFormComposeAPIView.as_view(), name="form-compose"),
