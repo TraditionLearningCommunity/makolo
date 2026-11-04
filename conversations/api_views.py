@@ -491,6 +491,21 @@ class ConversationAttachmentDownloadAPIView(PrivateNoStoreMixin, views.APIView):
 class ConversationExchangeEntriesAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        try:
+            _, entry, target_id = contribute_text(
+                actor=request.user, conversation=point.conversation,
+                body=request.data.get("body"), point_id=str(point.pk),
+                represented_space=_represented_space_from_request(request),
+                client_reference=request.data.get("client_reference"),
+            )
+            return Response({"kind": "exchange", "id": str(entry.pk), "point_id": str(target_id)})
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+
     def get(self, request, point_pk):
         point = _visible_point_or_404(request.user, point_pk)
         limit = _bounded_limit(request, default=25)
