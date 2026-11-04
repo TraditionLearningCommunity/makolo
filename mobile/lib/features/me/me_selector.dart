@@ -129,13 +129,13 @@ class MeSelector {
     final links = _map(projection.payload['links']);
     final territories = <MeTerritorySelection>[
       _passport(projection.payload['passport'], freshness, reachability),
+      if (_string(links?['accesses']) != null)
+        _accesses(freshness, reachability),
       _considerations(
         projection.payload['considerations'],
         freshness,
         reachability,
       ),
-      if (_string(links?['accesses']) != null)
-        _accesses(freshness, reachability),
       _collectives(projection.payload['collectives'], freshness, reachability),
       _resources(
         projection.payload['resources'],
