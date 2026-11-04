@@ -49,7 +49,15 @@
     meta.append(time);
     copy.append(meta, el('h2', row.title || 'Notification'), el('p', row.message || ''));
     const actions = el('div', null, 'mk-notification-actions');
-    if (row.action_url || row.navigation) {
+    const url = typeof row.action_url === 'string' ? row.action_url : '';
+    const localAction = url.startsWith('/') && !url.startsWith('//') && !url.includes('\\');
+    const navigation = row.navigation;
+    const ownerHandoff = navigation && (
+      ['conversation', 'access', 'journey', 'occurrence'].includes(navigation.target)
+      || typeof navigation.access_id === 'string'
+      || typeof navigation.journey_id === 'string'
+    );
+    if (localAction || ownerHandoff) {
       const open = el('a', 'Ouvrir');
       open.href = '/notifications/' + encodeURIComponent(id) + '/open/';
       actions.append(open);
