@@ -26,12 +26,13 @@ class SpaceUsResourcesScreen extends StatefulWidget {
 
 class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
   static const _families = <String, String>{
+    'document': 'Documents',
     'passport': 'Passeports émis',
     'template': 'Modèles',
     'theme': 'Thèmes',
   };
 
-  String _family = 'passport';
+  String _family = 'document';
   List<Map<String, dynamic>> _items = [];
   Map<String, dynamic> _counts = {};
   bool _loading = true;
@@ -176,6 +177,116 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     // this Space; item kind or an old local URL never grants navigation.
     if (item['kind'] == 'passport' && item['handoff'] == expected) {
       return expected;
+    }
+    if (item['kind'] == 'document') {
+      final id = item['id']?.toString();
+      if (id == null || !RegExp(r'^[0-9a-fA-F-]{36}
+  }
+
+  void _select(String family) {
+    if (family == _family) return;
+    setState(() {
+      _family = family;
+      _error = null;
+    });
+    _load(reset: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Nos ressources')),
+      body: ListView(
+        padding: const EdgeInsets.all(MakoloSpacing.lg),
+        children: [
+          Text('Ressources de cet Espace',
+              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: MakoloSpacing.sm),
+          const Text(
+            'Documents émis et outils de présentation appartenant à cet '
+            'Espace. Les fichiers personnels et les ressources des '
+            'activités ne sont pas transférés ici.',
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
+          if (_authorized && !_denied)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/space/${widget.slug}/us/documents'),
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('Documents de l’Espace'),
+              ),
+            ),
+          Wrap(
+            spacing: MakoloSpacing.sm,
+            runSpacing: MakoloSpacing.sm,
+            children: [
+              for (final entry in _families.entries)
+                ChoiceChip(
+                  label: Text(
+                    '${entry.value} (${_counts[entry.key] ?? 0})',
+                  ),
+                  selected: _family == entry.key,
+                  onSelected: _denied || !_authorized
+                      ? null : (_) => _select(entry.key),
+                ),
+            ],
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
+          if (_denied)
+            const Text('Ce contexte ou ces ressources ne sont pas autorisés.')
+          else if (_error != null) ...[
+            Text(_error!),
+            TextButton.icon(
+              onPressed: () => _load(reset: true),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Réessayer'),
+            ),
+          ] else if (_loading && _items.isEmpty)
+            const Center(child: CircularProgressIndicator())
+          else if (_items.isEmpty)
+            const Text('Aucune ressource disponible dans cette catégorie.')
+          else
+            for (final item in _items)
+              Card(
+                child: ListTile(
+                  leading: Icon(
+                    item['kind'] == 'document'
+                        ? Icons.description_outlined
+                        : item['kind'] == 'passport'
+                            ? Icons.badge_outlined
+                            : Icons.layers_outlined,
+                    color: colors.primary,
+                  ),
+                  title: Text(item['title']?.toString() ?? 'Ressource'),
+                  subtitle: Text(item['detail']?.toString() ?? ''),
+                  trailing: _resourceTarget(item) != null
+                      ? const Icon(Icons.chevron_right_rounded) : null,
+                  onTap: _resourceTarget(item) != null
+                      ? () => context.push(_resourceTarget(item)!)
+                      : null,
+                ),
+              ),
+          if (_loading && _items.isNotEmpty)
+            const Center(child: CircularProgressIndicator()),
+          if (_more && !_loading)
+            TextButton.icon(
+              onPressed: () => _load(reset: false),
+              icon: const Icon(Icons.expand_more_rounded),
+              label: const Text('Voir les ressources suivantes'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+).hasMatch(id)) {
+        return null;
+      }
+      final documentRoute = '/space/${widget.slug}/us/documents/$id';
+      return item['handoff'] == documentRoute ? documentRoute : null;
     }
     return null;
   }
