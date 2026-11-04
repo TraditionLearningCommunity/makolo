@@ -5,7 +5,7 @@
       data-media-focus="{% url 'conversations:detail' point.conversation_id %}">
   {% csrf_token %}
   <input type="hidden" name="kind" data-media-kind value="{% if point.response_mode == 'voice' %}voice{% else %}file{% endif %}">
-  <input type="hidden" name="client_reference" value="{{ compose_refs.file }}" data-media-ref>
+  <input type="hidden" name="client_reference" value="{{ compose_refs.file }}-{{ point.pk }}" data-media-ref>
   {% if point.response_mode == 'voice' %}
     <div class="flex flex-wrap items-center gap-2">
       <button class="mk-btn mk-btn-primary" type="button" data-voice-start>Enregistrer un vocal</button>
