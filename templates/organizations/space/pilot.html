@@ -24,13 +24,13 @@
             {% if signal.evidence %}<p>Base observée : {{ signal.evidence.value }} · {{ signal.evidence.unit }}</p>{% endif %}
             {% if signal.uncertainty %}<p>Limite : {{ signal.uncertainty }}</p>{% endif %}
             <small>Source : {{ signal.owner }} · Analyse limitée aux {{ analytics.coverage.limit }} derniers événements accessibles.</small>
-            {% if pilot_owner_links.analytics %}<p><a href="{{ pilot_owner_links.analytics }}">Approfondir dans Analytics</a></p>{% endif %}
+            {% if pilot_owner_links.analytics %}<p><a href="{{ pilot_owner_links.analytics }}">Voir les analyses détaillées</a></p>{% endif %}
           </article>{% endfor %}</div>
       </section>
       {% endif %}
 
       <details class="mk-ws4-card" aria-labelledby="pilot-operation">
-        <summary class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Faits de soutien</span><h3 id="pilot-operation">Comprendre les mesures</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></summary>
+        <summary class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Faits de soutien</span><h3 id="pilot-operation">Comprendre les mesures</h3></div><span class="mk-ws4-coverage">Jusqu’à {{ analytics.coverage.limit }} événements consultables.</span></summary>
         <dl class="mk-ws4-metric-grid">
           {% for metric in analytics.metrics %}
           <div class="mk-ws4-metric">
@@ -74,12 +74,12 @@
       </section>
       {% endif %}
 
-      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Approfondir dans Analytics</strong><small>Consulter les mesures détaillées.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
+      {% if pilot_owner_links.analytics %}<div class="mk-ws4-actions"><a class="mk-ws4-action" href="{{ pilot_owner_links.analytics }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Voir les analyses détaillées</strong><small>Consulter les mesures détaillées.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a></div>{% endif %}
     {% endwith %}
   {% elif projection.authority.scope == 'activity_limited' %}
-    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global indisponible pour cette responsabilité</strong><p>Vous n’avez pas accès aux données globales de cet espace.</p></div></div>
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Pilotage global non accessible avec ce rôle</strong><p>Vous n’avez pas accès aux données globales de cet espace.</p></div></div>
   {% else %}
-    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pilotage indisponible avec votre autorité actuelle</strong><p>Les données de pilotage ne sont pas accessibles avec vos droits actuels.</p></div></div>
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><div><strong>Pilotage non accessible avec vos droits actuels</strong><p>Les données de pilotage ne sont pas accessibles avec vos droits actuels.</p></div></div>
   {% endif %}
 </section>
 {% endblock %}
