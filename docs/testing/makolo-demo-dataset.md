@@ -335,3 +335,21 @@ python -m scripts.demo_generation generate --domains conversations --count 500 -
 ```
 
 Les gestionnaires ne peuvent ajouter une participation explicite que pour un autre compte de démonstration ayant déjà le droit de voir le contexte. Les Points d'information peuvent générer une confirmation de lecture; les Points Exchange, une intervention suivie d'une réponse chaînée. Certaines Conversations dont l'Occurrence est terminée sont closes par `transition_conversation` après génération; elles ne sont jamais antidatées. Les refus d'autorité sont comptabilisés et n'entraînent pas la création d'un Mandate implicite.
+
+## Règle éditoriale des générateurs — novembre 2026
+
+À partir de cette révision, les créations de `foundations`, `verticals`, `transport`, `scale`, `community`, `engagement`, `live`, `personal`, `ecosystem`, `media`, `subscription-catalog`, `connections` et `conversations` produisent des **titres, libellés et descriptions de présentation naturels**. Les noms issus du vocabulaire partagé (`scripts/demo_generation/editorial.py`) sont déterministes et évitent les usernames techniques ou les numérotations artificielles dans les titres.
+
+Les références internes, slugs, codes, clés d'idempotence et métadonnées peuvent continuer à contenir `demo` : ce sont des identifiants techniques utilisés pour limiter la génération et empêcher les doublons. **Ne pas retirer ces marqueurs techniques** par remplacement global. Pour les `ProviderConnection` simulées, le marqueur interne `default_model=demo-disabled` protège contre l'activation externe ; le nom visible est naturel. Une connexion simulée attachée à un Profil possède `connected=true` au sens relationnel, mais `usable=false`, `enabled=false` et `external_execution=false` : elle n'autorise aucun appel fournisseur.
+
+Les recherches de compatibilité acceptent les anciens libellés `[DEMO]` afin de réutiliser les objets déjà créés. **Les données déjà stockées ne sont pas renommées en masse par `generate`** : le nettoyage éditorial de la copie SQLite est une opération distincte avec sauvegarde préalable. Les offres d'abonnement publiées conservent leurs règles d'immutabilité ; aucune mise à jour silencieuse de leurs versions.
+
+Pour examiner uniquement ces deux domaines avant de générer, ou pour viser un compte de test déjà présent :
+
+```bash
+python -m scripts.demo_generation plan --domains connections,conversations --count 500 --profiles 30
+python -m scripts.demo_generation generate --domains connections --count 50 --profile-username world_011_divine
+python -m scripts.demo_generation generate --domains conversations --count 500 --profile-username mobile_mature_owner --seed 2026 --conversation-points 4
+```
+
+Les comptes, les liens Activity/Occurrence/Journey et les Mandates restent ceux qui existent dans la base. Les appels sortants, les credentials, les justificatifs et les confirmations de paiement ne sont jamais inventés pour augmenter les compteurs. Le test ciblé des textes et des services est exécuté via le workflow de validation de génération et ses dépendances Django, pas via une modification directe de `main`.
