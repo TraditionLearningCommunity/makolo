@@ -8,7 +8,14 @@
     <a class="mk-ws4-deep-link" href="{{ resources_back_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i> Retour à Nous</a>
   </header>
 
+  <a class="mk-ws4-action" href="{{ resources_documents_url }}">
+    <i data-lucide="folder-open" aria-hidden="true"></i>
+    <span><strong>Documents de l’Espace</strong><small>Consulter et gérer les documents autorisés</small></span>
+    <i data-lucide="chevron-right" aria-hidden="true"></i>
+  </a>
+
   <nav class="mk-ws4-actions" aria-label="Catégories de ressources">
+    <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=document"><i data-lucide="files" aria-hidden="true"></i><span><strong>Documents</strong><small>{{ resources_depth.counts.document }} disponibles</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
     <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=passport"><i data-lucide="badge-check" aria-hidden="true"></i><span><strong>Passeports émis</strong><small>{{ resources_depth.counts.passport }} disponibles</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
     <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=template"><i data-lucide="layout-template" aria-hidden="true"></i><span><strong>Modèles de présentation</strong><small>{{ resources_depth.counts.template }} publiés</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
     <a class="mk-ws4-action" href="{{ resources_base_url }}&amp;kind=theme"><i data-lucide="palette" aria-hidden="true"></i><span><strong>Thèmes de présentation</strong><small>{{ resources_depth.counts.theme }} publiés</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
@@ -17,7 +24,7 @@
   <section class="mk-ws4-card" aria-labelledby="space-us-resources-items">
     <div class="mk-ws4-card-head">
       <div><span class="mk-ws4-eyebrow">Ressources existantes</span><h3 id="space-us-resources-items">
-      {% if resources_depth.kind == 'passport' %}Passeports émis{% elif resources_depth.kind == 'template' %}Modèles de présentation{% else %}Thèmes de présentation{% endif %}
+      {% if resources_depth.kind == 'document' %}Documents de l'Espace{% elif resources_depth.kind == 'passport' %}Passeports émis{% elif resources_depth.kind == 'template' %}Modèles de présentation{% else %}Thèmes de présentation{% endif %}
       </h3></div>
     </div>
     {% if resources_depth.items %}
@@ -38,8 +45,10 @@
     {% if resources_depth.has_more %}
       <a class="mk-ws4-deep-link" href="{{ resources_base_url }}&amp;kind={{ resources_depth.kind|urlencode }}&amp;offset={{ resources_depth.next_offset }}">Voir les suivantes <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% endif %}
-    {% if resources_depth.kind == 'passport' %}
-      <a class="mk-ws4-deep-link" href="{{ resources_passport_url }}">Gérer les documents dans Passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+    {% if resources_depth.kind == 'document' %}
+      <a class="mk-ws4-deep-link" href="{{ resources_documents_url }}">Ouvrir les documents <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+    {% elif resources_depth.kind == 'passport' %}
+      <a class="mk-ws4-deep-link" href="{{ resources_passport_url }}">Ouvrir le Passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% else %}
       <a class="mk-ws4-deep-link" href="{{ resources_presentation_url }}">Ouvrir la bibliothèque de présentation <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% endif %}
