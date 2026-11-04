@@ -243,6 +243,9 @@ class SpaceUsView(SpaceWebMixin):
             context["resources_presentation_url"] = self._space_url(
                 "presentations:space-library"
             )
+            context["resources_documents_url"] = self._space_url(
+                "organizations:space-documents"
+            )
             return context
         if self.request.GET.get("detail") == "authority":
             authority = build_space_us_authority(
