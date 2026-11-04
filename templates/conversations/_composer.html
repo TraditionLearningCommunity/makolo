@@ -35,6 +35,10 @@
     </form>
   {% endif %}
 
+  {% if composer.can_form or composer.media_kinds %}
+    {% include 'conversations/_rich_composer.html' %}
+  {% endif %}
+
   {% if composer.can_create %}
     <div class="mt-4 flex flex-wrap gap-3" aria-label="Créer un Point">
       {% if 'poll' in composer.allowed_kinds %}
