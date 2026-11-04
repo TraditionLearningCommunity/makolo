@@ -1,4 +1,5 @@
 from django.urls import path
+from .space_document_views import SpaceDocumentShareDownloadView
 
 from .document_views import (
     InboundCaptureAbsorbView,
@@ -65,6 +66,7 @@ urlpatterns = [
         name="journey-reuse",
     ),
     path("shares/<uuid:delivery_id>/", ShareDeliveryLandingView.as_view(), name="delivery"),
+    path("shares/<uuid:delivery_id>/document/", SpaceDocumentShareDownloadView.as_view(), name="space-document-delivery"),
     path("shares/<uuid:delivery_id>/go/", ShareDeliveryGoView.as_view(), name="delivery-go"),
     path("shares/<uuid:delivery_id>/accept/", ShareDeliveryAcceptView.as_view(), name="delivery-accept"),
     path("shares/<uuid:delivery_id>/decline/", ShareDeliveryDeclineView.as_view(), name="delivery-decline"),
