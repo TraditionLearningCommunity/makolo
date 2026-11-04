@@ -36,6 +36,7 @@ def register_push_endpoint(
     installation_id: str,
     token: str,
     app_version: str = "",
+    device_name: str = "",
     reactivate: bool = False,
 ) -> PushEndpoint:
     provider = (provider or "").strip().lower()
@@ -43,6 +44,7 @@ def register_push_endpoint(
     installation_id = (installation_id or "").strip()
     token = (token or "").strip()
     app_version = (app_version or "").strip()
+    device_name = "".join(c for c in (device_name or "") if c.isprintable()).strip()[:80]
 
     if provider not in PushProvider.values:
         raise ValueError("Provider push non supporté.")
@@ -105,6 +107,7 @@ def register_push_endpoint(
         "encrypted_token": encrypted,
         "token_hint": _token_hint(token),
         "app_version": app_version[:64],
+        "device_name": device_name or (endpoint.device_name if endpoint else ""),
         "active": True,
         "last_seen_at": now,
     }
@@ -123,6 +126,7 @@ def register_push_endpoint(
                 "encrypted_token",
                 "token_hint",
                 "app_version",
+                "device_name",
                 "active",
                 "last_seen_at",
                 "updated_at",
