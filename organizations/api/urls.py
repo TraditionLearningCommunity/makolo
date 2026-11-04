@@ -5,7 +5,8 @@ from space_assets.api_views import (
     SpaceDocumentDetailAPIView,
     SpaceDocumentVersionCreateAPIView,
     SpaceDocumentDownloadAPIView,
-    SpaceDocumentReuseAPIView,
+    SpaceDocumentReuseAPIView, SpaceDocumentShareAPIView,
+    SpaceDocumentShareRevokeAPIView,
 )
 
 from interoperability.api_views import SpaceInteroperabilityAPIView
@@ -82,6 +83,8 @@ urlpatterns = [
     path("workspaces/<slug:slug>/documents/<uuid:document_id>/versions/", SpaceDocumentVersionCreateAPIView.as_view(), name="workspace-document-version-create"),
     path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadAPIView.as_view(), name="workspace-document-download"),
     path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/reuse/", SpaceDocumentReuseAPIView.as_view(), name="workspace-document-reuse"),
+    path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/share/", SpaceDocumentShareAPIView.as_view(), name="workspace-document-share"),
+    path("workspaces/<slug:slug>/documents/shares/<uuid:delivery_id>/revoke/", SpaceDocumentShareRevokeAPIView.as_view(), name="workspace-document-share-revoke"),
     path("workspaces/<slug:slug>/passport/", SpacePassportAPIView.as_view(), name="workspace-passport"),
     path("workspaces/<slug:slug>/passport/pdf/", SpacePassportPdfAPIView.as_view(), name="workspace-passport-pdf"),
     path("workspaces/<slug:slug>/passport/issue/", SpacePassportIssueAPIView.as_view(), name="workspace-passport-issue"),
