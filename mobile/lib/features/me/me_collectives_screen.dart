@@ -106,7 +106,15 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   Future<void> _loadNext() async {
     if (_loading || _failed || _offline || !_hasMore) return;
     final personal = widget.personal;
-    final current = await personal.store.readProjection('personal.me');
+    StoredProjection? current;
+    try {
+      current = await personal.store.readProjection('personal.me');
+    } on Object {
+      if (mounted && personal == widget.personal) {
+        setState(() => _failed = true);
+      }
+      return;
+    }
     if (!mounted || current == null || personal != widget.personal) return;
     final progress = _progress(current);
     if (_lastRequested == progress) return;
