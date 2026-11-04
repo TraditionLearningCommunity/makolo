@@ -806,16 +806,16 @@ def _seed_opportunities(ctx, specs, *, curator, primary):
             f"mobile-mature-opportunity-source-{spec['id']}",
             defaults={
                 "opportunity": opportunity,
-                "source_type": OpportunitySourceType.OFFICIAL if public_url else OpportunitySourceType.AGGREGATOR,
-                "source_name": PUBLIC_SOURCE_LABELS.get(spec["provenance"], directory_name),
+                "source_type": OpportunitySourceType.USER_SUPPLIED,
+                "source_name": f"Référence indicative · {PUBLIC_SOURCE_LABELS.get(spec['provenance'], directory_name)}",
                 "url": public_url or directory_url,
                 "external_reference": f"mobile-mature:{spec['id']}",
                 "is_primary": True,
                 "status": OpportunitySourceStatus.ACTIVE,
                 "discovered_at": ctx.as_of - timedelta(days=30),
                 "last_checked_at": ctx.as_of - timedelta(days=1),
-                "verified_at": ctx.as_of - timedelta(days=1) if public_url else None,
-                "verified_by": curator if public_url else None,
+                "verified_at": None,
+                "verified_by": None,
             },
         )
         if revision.published_at is None:
