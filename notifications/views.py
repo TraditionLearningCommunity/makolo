@@ -10,27 +10,42 @@ from core.participant_selectors import participant_accesses, participant_journey
 from core.web_navigation import safe_post_next
 
 from .forms import NotificationPreferenceForm
+from .navigation import build_notification_navigation
 from .selectors import get_notifications_for_user
 
 
 class NotificationListView(LoginRequiredMixin, ListView):
     template_name = "notifications/notification_list.html"
     context_object_name = "notifications"
-    paginate_by = 30
+    paginate_by = None
     login_url = "core:login"
 
     def get_queryset(self):
         queryset = get_notifications_for_user(self.request.user)
         if self.request.GET.get("filter") == "unread":
             queryset = queryset.filter(read_at__isnull=True)
-        return queryset
+        return queryset.order_by('-created_at', '-id')[:15]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["active_filter"] = self.request.GET.get("filter", "all")
-        context["unread_count"] = get_notifications_for_user(self.request.user).filter(
-            read_at__isnull=True
-        ).count()
+        owner_queryset = get_notifications_for_user(self.request.user)
+        context["total_count"] = owner_queryset.count()
+        context["unread_count"] = owner_queryset.filter(read_at__isnull=True).count()
+        notifications = list(context["notifications"])
+        for notification in notifications:
+            navigation = build_notification_navigation(notification)
+            notification.can_open = bool(
+                notification.action_url
+                or notification.access_id
+                or notification.journey_id
+                or notification.activity_id
+                or notification.commerce_order_id
+                or (navigation and navigation["target"] in {
+                    "conversation", "journey", "access", "activity", "occurrence",
+                })
+            )
+        context["notifications"] = notifications
         return context
 
 
@@ -77,6 +92,37 @@ class NotificationOpenView(LoginRequiredMixin, View):
             if access:
                 return redirect("core:participant-access-detail", pk=access.pk)
             return redirect("notifications:list")
+
+        # Structured notifications can carry a real owner even without an action_url.
+        # The owner endpoint still enforces current access and visibility.
+        navigation = build_notification_navigation(notification)
+        if navigation:
+            target = navigation["target"]
+            resource_id = navigation["resource"]["id"]
+            try:
+                from uuid import UUID
+
+                UUID(resource_id)
+            except (ValueError, TypeError, AttributeError):
+                resource_id = None
+            if resource_id and target == "conversation":
+                return redirect("conversations:detail", pk=resource_id)
+            if resource_id and target == "access":
+                access = participant_accesses(request.user).filter(pk=resource_id).first()
+                if access:
+                    return redirect("core:participant-access-detail", pk=access.pk)
+            if resource_id and target == "journey":
+                journey = participant_journeys(request.user).filter(pk=resource_id).first()
+                if journey:
+                    return redirect("core:participant-journey-detail", pk=journey.pk)
+            if resource_id and target == "occurrence":
+                journey = (
+                    participant_journeys(request.user)
+                    .filter(occurrence_id=resource_id)
+                    .order_by("-created_at").first()
+                )
+                if journey:
+                    return redirect("core:participant-journey-detail", pk=journey.pk)
 
         if notification.action_url.startswith("/") and not notification.action_url.startswith("//"):
             return redirect(notification.action_url)

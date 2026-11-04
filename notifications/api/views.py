@@ -9,6 +9,7 @@ from notifications.models import Notification
 from notifications.push import register_push_endpoint, revoke_push_endpoint, revoke_push_endpoint_by_id
 from notifications.selectors import get_notifications_for_user, has_unread_notifications
 
+from .pagination import NotificationCursorPagination
 from .serializers import (
     NotificationSerializer,
     PushEndpointRegistrationSerializer,
@@ -20,6 +21,7 @@ from .serializers import (
 
 class NotificationListAPIView(PrivateNoStoreMixin, generics.ListAPIView):
     serializer_class = NotificationSerializer
+    pagination_class = NotificationCursorPagination
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
