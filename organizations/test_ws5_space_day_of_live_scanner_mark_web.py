@@ -293,6 +293,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         )
         self.assertEqual(second.context["mark_result"]["state"], "needs_confirmation")
         self.assertContains(second, "Confirmation nécessaire")
+        self.assertContains(second, "avec le rôle « finance ».")
         self.assertContains(second, "Confirmer cette action")
 
     def test_ended_occurrence_closes_day_of_naturally_without_archive_route(self):
