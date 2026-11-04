@@ -31,6 +31,7 @@ class SpaceDocumentDetailScreen extends StatefulWidget {
 
 class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   Map<String, dynamic>? _document;
+  List<Map<String, dynamic>> _shares = [];
   bool _canManage = false;
   bool _loading = true;
   bool _working = false;
@@ -67,6 +68,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     if (!mounted) return;
     setState(() {
       _document = null;
+      _shares = [];
       _canManage = false;
       _error = _actor == null ? 'Cet Espace n’est plus actif.' : null;
       _loading = _actor != null;
@@ -102,12 +104,19 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       setState(() {
         _document = doc;
         _canManage = payload['can_manage'] == true;
+        _shares = _canManage
+            ? [
+                for (final share in payload['shares'] as List? ?? [])
+                  if (share is Map<String, dynamic>) share,
+              ]
+            : [];
         _loading = false;
       });
     } on Object {
       if (!mounted || ticket != _request || _actor?.space.id != id) return;
       setState(() {
         _document = null;
+        _shares = [];
         _canManage = false;
         _error = 'Document indisponible.';
         _loading = false;
@@ -251,9 +260,33 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
           'days': days,
         },
       );
-      if (mounted && _actor?.space.id == id) _toast('Document partagé.');
+      if (mounted && _actor?.space.id == id) {
+        _toast('Document partagé.');
+        await _load();
+      }
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Partage impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _revoke(String deliveryId) async {
+    if (_working || !_canManage || _actor == null) return;
+    final id = _actor!.space.id;
+    final api = widget.runtime.api;
+    if (api == null) return;
+    setState(() => _working = true);
+    try {
+      await api.post(
+        '${_base}shares/${Uri.encodeComponent(deliveryId)}/revoke/',
+      );
+      if (mounted && _actor?.space.id == id) {
+        _toast('Partage révoqué.');
+        await _load();
+      }
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Révocation impossible.');
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -440,6 +473,27 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                       ),
                     ),
                   ),
+                if (_canManage && _shares.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.xl),
+                  Text('Partages',
+                      style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  for (final share in _shares)
+                    ListTile(
+                      leading: const Icon(Icons.person_outline_rounded),
+                      title: Text('@${share['recipient'] ?? ''}'),
+                      subtitle: Text(
+                        share['active'] == true ? 'Actif' : 'Terminé',
+                      ),
+                      trailing: share['active'] == true
+                          ? IconButton(
+                              tooltip: 'Révoquer',
+                              onPressed: _working ? null :
+                                  () => _revoke(share['id'].toString()),
+                              icon: const Icon(Icons.close_rounded),
+                            )
+                          : null,
+                    ),
+                ],
                 const SizedBox(height: 70),
               ],
             ),
