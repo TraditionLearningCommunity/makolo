@@ -135,17 +135,19 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     }
   }
 
-  Future<void> _open(_NotificationRow row) async {
-    if (!row.isRead) {
-      try {
-        await widget.repository.markRead(row.id);
-      } on Object {
-        // Navigation does not claim a read that the server has not confirmed.
-      }
+  Future<void> _confirmRead(String id) async {
+    try {
+      await widget.repository.markRead(id);
+    } on Object {
+      // Keep the existing unread state if the server cannot confirm reading.
     }
-    if (!mounted) return;
+  }
+
+  Future<void> _open(_NotificationRow row) async {
+    // Reading must never delay opening the destination on a slow connection.
+    if (!row.isRead) unawaited(_confirmRead(row.id));
     final path = row.destinationPath;
-    if (path == null) return;
+    if (!mounted || path == null) return;
     await widget.onOpenDestination(path);
   }
 
