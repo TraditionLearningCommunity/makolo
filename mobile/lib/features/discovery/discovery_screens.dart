@@ -447,22 +447,30 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   Future<void> _loadNextPage() async {
     if (_loadingMore || _refreshing || !mounted) return;
     final current = _query;
+    final repository = widget.repository;
+    final generation = _ownerGeneration;
+    bool active() => mounted &&
+        generation == _ownerGeneration &&
+        identical(repository, widget.repository) &&
+        identical(current, _query);
     setState(() => _loadMoreFailed = false);
     try {
-      final projection = await widget.repository.readItems(current);
+      final projection = await repository.readItems(current);
       if (projection == null) {
         throw const FormatException('Missing Discovery field');
       }
+      if (!active()) return;
       final collection = _selector.collection(projection);
       await _ensureUnseenReserve(current);
+      if (!active()) return;
       final reserve = _unseenReserve;
       if (reserve != null && _unseenField == current.mapFingerprint) {
         final eligible = collection.items.map((item) => item.candidateKey);
         final pending = reserve.pendingFrom(eligible);
         if (pending.isNotEmpty) {
           reserve.reveal(eligible, count: pending.length);
-          await widget.repository.saveUnseenReserve(current, reserve);
-          if (mounted && identical(current, _query)) setState(() {});
+          await repository.saveUnseenReserve(current, reserve);
+          if (active()) setState(() {});
           return;
         }
       }
@@ -471,7 +479,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       if (token == null || token.isEmpty) {
         throw const FormatException('Missing Discovery continuation');
       }
-      if (!mounted || !identical(current, _query)) return;
+      if (!active()) return;
       setState(() => _loadingMore = true);
       final next = current.copyWith(
         page: current.page + 1,
@@ -479,42 +487,49 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
       // An already acquired invisible page is usable without any request.
       // Only missing pages require the server; offline is not a new screen.
-      var retained = await widget.repository.readItems(next);
+      var retained = await repository.readItems(next);
       if (retained == null) {
+        if (!active()) return;
         await _acquirePage(next);
-        final source = await widget.repository.readSource(
-          widget.repository.itemsSource(next),
+        if (!active()) return;
+        final source = await repository.readSource(
+          repository.itemsSource(next),
         );
-        retained = await widget.repository.readItems(next);
+        retained = await repository.readItems(next);
         if (source.lastErrorCode != null || retained == null) {
           throw StateError('Discovery continuation unavailable');
         }
       }
+      if (!active()) return;
       final received = _selector.collection(retained);
       if (received.page != next.page) {
         throw const FormatException('Incompatible local continuation');
       }
-      if (!mounted || !identical(current, _query)) return;
+      if (!active()) return;
       if (reserve != null && _unseenField == current.mapFingerprint) {
         reserve.observe(received.items.map((item) => item.wire));
         final incomingKeys = received.items.map((item) => item.candidateKey);
         final pending = reserve.pendingFrom(incomingKeys);
         reserve.reveal(incomingKeys, count: _initialReveal(pending.length));
-        await widget.repository.saveUnseenReserve(next, reserve);
+        await repository.saveUnseenReserve(next, reserve);
       }
+      if (!active()) return;
       // Materialize only on actual user advancement, never during invisible
       // prefetch. This trims older seen rows without losing the next cursor.
-      await widget.repository.retainPresentedWindow(next);
-      if (!mounted || !identical(current, _query)) return;
+      await repository.retainPresentedWindow(next);
+      if (!active()) return;
       setState(() => _query = next);
-      widget.repository.rememberExploration(next);
+      repository.rememberExploration(next);
       await _rememberPosition(next);
     } on Object {
-      if (mounted && identical(current, _query)) {
+      if (active()) {
         setState(() => _loadMoreFailed = true);
       }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && generation == _ownerGeneration &&
+          identical(widget.repository, repository)) {
+        setState(() => _loadingMore = false);
+      }
     }
   }
 
