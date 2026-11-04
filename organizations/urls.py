@@ -1,4 +1,9 @@
 from django.urls import include, path
+from space_assets.web_views import (
+    SpaceDocumentsWebView, SpaceDocumentDetailWebView,
+    SpaceDocumentUploadWebView, SpaceDocumentVersionWebView,
+    SpaceDocumentArchiveWebView, SpaceDocumentDownloadWebView,
+)
 from payments.space_obligation_views import SpacePayerObligationWebView
 
 from transport.console_views import (
@@ -103,6 +108,12 @@ urlpatterns = [
     path("new/", OrganizationCreateView.as_view(), name="create"),
     path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
     path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/us/documents/", SpaceDocumentsWebView.as_view(), name="space-documents"),
+    path("<slug:slug>/us/documents/add/", SpaceDocumentUploadWebView.as_view(), name="space-document-upload"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/", SpaceDocumentDetailWebView.as_view(), name="space-document-detail"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/versions/", SpaceDocumentVersionWebView.as_view(), name="space-document-version"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/archive/", SpaceDocumentArchiveWebView.as_view(), name="space-document-archive"),
+    path("<slug:slug>/us/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadWebView.as_view(), name="space-document-download"),
     path("<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationWebView.as_view(), name="space-payment-obligation"),
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
