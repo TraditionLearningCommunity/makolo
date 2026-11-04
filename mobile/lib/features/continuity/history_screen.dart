@@ -123,6 +123,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshPage(offset: view.nextOffset);
+      final received =
+          await widget.repository.readPage(offset: view.nextOffset);
+      if (received == null) {
+        throw StateError('History continuation unavailable');
+      }
     } on Object {
       // Keep the currently cached history for retry.
       if (mounted) {
