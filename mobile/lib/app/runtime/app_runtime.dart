@@ -119,6 +119,8 @@ class AppRuntime {
   bool get apiConfigured => api != null;
 
   Future<void> close() async {
+    sync?.deactivate();
+    outboxProcessor?.deactivate();
     api?.close();
     preferences?.dispose();
     actorContext?.dispose();
