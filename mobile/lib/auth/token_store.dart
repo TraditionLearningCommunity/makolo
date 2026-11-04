@@ -106,6 +106,14 @@ class FlutterSecureTokenStore implements TokenStore {
   static const _accountsKey = 'makolo.device_accounts.v1';
 
   final FlutterSecureStorage _storage;
+  static Future<void> _accountWrites = Future<void>.value();
+
+  Future<T> _serialAccounts<T>(Future<T> Function() action) {
+    final result = _accountWrites.catchError((Object _) {})
+        .then((_) => action());
+    _accountWrites = result.then<void>((_) {}).catchError((Object _) {});
+    return result;
+  }
 
   @override
   Future<AuthSession?> readSession() async {
@@ -120,7 +128,10 @@ class FlutterSecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> writeSession(AuthSession session) async {
+  Future<void> writeSession(AuthSession session) =>
+      _serialAccounts(() => _writeSessionDirect(session));
+
+  Future<void> _writeSessionDirect(AuthSession session) async {
     await _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
 
     final profileId = session.profileId;
@@ -134,7 +145,8 @@ class FlutterSecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> clearSession() => _storage.delete(key: _sessionKey);
+  Future<void> clearSession() =>
+      _serialAccounts(() => _storage.delete(key: _sessionKey));
 
   @override
   Future<String> deviceInstanceId() async {
@@ -187,7 +199,11 @@ class FlutterSecureTokenStore implements TokenStore {
   Future<void> saveAccount(
     DeviceAccount account, {
     AuthSession? quickAccessSession,
-  }) async {
+  }) => _serialAccounts(() async {
+    if (quickAccessSession != null &&
+        quickAccessSession.profileId != account.profileId) {
+      throw ArgumentError('Quick access belongs to a different Profile');
+    }
     final accounts = await _readAccountRecords();
     accounts[account.profileId] = <String, dynamic>{
       'username': account.username,
@@ -197,7 +213,7 @@ class FlutterSecureTokenStore implements TokenStore {
       'session': quickAccessSession?.toJson(),
     };
     await _writeAccountRecords(accounts);
-  }
+  });
 
   @override
   Future<AuthSession?> readAccountSession(String profileId) async {
@@ -213,35 +229,38 @@ class FlutterSecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> clearAccountSession(String profileId) async {
+  Future<void> clearAccountSession(String profileId) =>
+      _serialAccounts(() async {
     final accounts = await _readAccountRecords();
     final record = accounts[profileId];
     if (record == null) return;
     record['session'] = null;
     await _writeAccountRecords(accounts);
-  }
+  });
 
   @override
-  Future<void> removeAccount(String profileId) async {
+  Future<void> removeAccount(String profileId) =>
+      _serialAccounts(() async {
     final active = await readSession();
     if (active?.profileId == profileId) {
-      await clearSession();
+      await _storage.delete(key: _sessionKey);
     }
     final accounts = await _readAccountRecords();
     if (accounts.remove(profileId) != null) {
       await _writeAccountRecords(accounts);
     }
-  }
+  });
 
   @override
-  Future<AuthSession> activateAccount(String profileId) async {
+  Future<AuthSession> activateAccount(String profileId) =>
+      _serialAccounts(() async {
     final session = await readAccountSession(profileId);
-    if (session == null) {
-      throw StateError('quick access unavailable');
+    if (session == null || session.profileId != profileId) {
+      throw StateError('quick access unavailable for this Profile');
     }
-    await writeSession(session);
+    await _writeSessionDirect(session);
     return session;
-  }
+  });
 
   Future<Map<String, Map<String, dynamic>>> _readAccountRecords() async {
     final raw = await _storage.read(key: _accountsKey);
