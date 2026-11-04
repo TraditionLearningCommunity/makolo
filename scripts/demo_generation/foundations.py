@@ -44,6 +44,7 @@ def main(argv=None):
     ).order_by("username")[:min(a.count, 100)])
     if not people:
         p.error("Aucun profil world_* de démonstration admissible")
+    from .editorial import activity_title
     now = timezone.now()
     counters = Counter()
     labels = {
