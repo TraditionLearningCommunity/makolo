@@ -11,7 +11,7 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 
 from .audience_services import conversation_viewer_ids, profile_in_audience, resolve_audience_ids
-from .core_models import ConversationLifecycle
+from .core_models import Conversation, ConversationLifecycle
 from .point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -156,6 +156,9 @@ def create_point(
     opens_at=None, deadline_at=None, valid_until=None, allow_response_change=False, threshold_value=None,
     represented_space=None, client_reference=None, options=(), publish=True,
 ):
+    # Serialize creation for one Conversation so retries with the same client
+    # reference do not race on the global uniqueness constraint.
+    conversation = Conversation.objects.select_for_update(of=("self",)).get(pk=conversation.pk)
     if not can_publish_in_conversation(actor, conversation):
         raise PermissionDenied("Vous ne pouvez pas publier dans cette Conversation.")
     if conversation.lifecycle != ConversationLifecycle.OPEN:
