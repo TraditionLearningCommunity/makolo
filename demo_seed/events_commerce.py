@@ -191,12 +191,12 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
             "organization": org,
             "category": categories[category_slug],
             "venue": venue,
-            "title": f"Exemple — {title}",
+            "title": title,
             "slug": f"demo-{year}-{i+1:02d}-{stable_token(title, 6)}",
-            "short_description": f"Exemple fictif à {city} : {title}. Aucun événement réel n’est annoncé.",
+            "short_description": f"Rencontre à {city} autour de {title.lower()}.",
             "description": (
-                f"Cet événement est fictif : {title}. Ses dates et les éventuels billets ou inscriptions "
-                f"servent uniquement aux essais de l’application. Aucun événement réel n’est annoncé à {city}."
+                f"Retrouvez le programme de {title}, les horaires et les modalités de participation "
+                f"pour cette rencontre à {city}."
             ),
             "status": status,
             "visibility": visibility,
