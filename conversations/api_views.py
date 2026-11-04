@@ -27,7 +27,7 @@ from .rich_services import (
     visible_attachments_for_profile,
     submit_point_media_response,
 )
-from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
+from .point_services import acknowledge_point, point_response_allowed, point_visible_to, point_resolution_visible_to, submit_point_response
 from .presentation import (
     conversation_context_label,
     conversations_for_context,
@@ -57,8 +57,8 @@ def _bounded_limit(request, default=50):
         raise DRFValidationError({"limit": "limit doit être un entier entre 1 et 100."}) from exc
 
 
-def _resolution_summary(point):
-    if point.lifecycle != "resolved":
+def _resolution_summary(point, profile):
+    if point.lifecycle != "resolved" or not point_resolution_visible_to(profile, point):
         return ""
     try:
         return point.resolution.summary or ""
@@ -133,7 +133,7 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         } if linked_form is not None else None),
         "attention_reason": reason,
         "section": section,
-        "resolution_summary": _resolution_summary(point),
+        "resolution_summary": _resolution_summary(point, profile),
         "published_at": point.published_at,
         "updated_at": point.updated_at,
     }
