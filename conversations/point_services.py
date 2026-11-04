@@ -165,7 +165,20 @@ def create_point(
     if ref:
         existing = ConversationPoint.objects.filter(client_reference=ref).first()
         if existing:
-            if existing.conversation_id == conversation.pk:
+            same_request = (
+                existing.conversation_id == conversation.pk
+                and existing.published_by_id == actor.pk
+                and existing.kind == kind
+                and existing.response_mode == response_mode
+                and existing.title == (title or "").strip()
+                and existing.body == (body or "").strip()
+                and existing.visibility_audience_id == getattr(visibility_audience, "pk", None)
+                and existing.response_audience_id == getattr(response_audience, "pk", None)
+                and existing.expected_action_audience_id == getattr(expected_action_audience, "pk", None)
+                and existing.represented_space_id == getattr(represented_space, "pk", None)
+                and list(existing.options.order_by("position").values_list("label", flat=True)) == list(options)
+            )
+            if same_request:
                 return existing
             raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
     point = ConversationPoint(
@@ -404,7 +417,12 @@ def create_exchange_entry(*, actor, point, body, reply_to=None, represented_spac
     if ref:
         existing = PointExchangeEntry.objects.filter(client_reference=ref).first()
         if existing:
-            if existing.point_id == locked.pk and existing.author_id == actor.pk:
+            if (
+                existing.point_id == locked.pk and existing.author_id == actor.pk
+                and existing.body == (body or "").strip()
+                and existing.represented_space_id == getattr(represented_space, "pk", None)
+                and existing.reply_to_id == getattr(reply_to, "pk", None)
+            ):
                 return existing
             raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
     return PointExchangeEntry.objects.create(
