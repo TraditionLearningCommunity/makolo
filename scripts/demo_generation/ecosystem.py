@@ -115,7 +115,8 @@ def main(argv=None):
             for label, start, duration, state in windows:
                 natural_label = {"historique": "Séance précédente", "en-cours": "Rencontre du jour", "demain": "Prochaine rencontre"}[label]
                 existing_occurrence = (Occurrence.objects.filter(activity=activity, label=natural_label).first()
-                    or Occurrence.objects.filter(activity=activity, label="DEMO " + label).first())
+                    or Occurrence.objects.filter(activity=activity, label="DEMO " + label).first()
+                    or Occurrence.objects.filter(activity=activity, label=label).first())
                 if existing_occurrence:
                     counts["occurrences_existing"] += 1
                     continue
