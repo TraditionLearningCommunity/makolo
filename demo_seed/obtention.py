@@ -53,7 +53,7 @@ def _ensure_obtention(*, actor, space, slug, title, targets, modes, result_label
     )
     if existing is not None:
         # This slug belongs to the deterministic beta seed, not to a real offer.
-        expected_title = f"Exemple — {title}"
+        expected_title = title
         updates = {"title": expected_title}
         for name in ("short_description", "description"):
             if name in kwargs:
@@ -67,7 +67,7 @@ def _ensure_obtention(*, actor, space, slug, title, targets, modes, result_label
     return create_obtention(
         actor=actor,
         space=space,
-        title=f"Exemple — {title}",
+        title=title,
         targets=targets,
         modes=modes,
         result_label=result_label,
