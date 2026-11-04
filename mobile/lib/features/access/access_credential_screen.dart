@@ -33,6 +33,32 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
   Object? _error;
   bool _loading = false;
   int _generation = 0;
+  Timer? _expiryTimer;
+
+  void _setCredential(AccessCredentialData? next) {
+    _expiryTimer?.cancel();
+    _expiryTimer = null;
+    if (!mounted) return;
+    setState(() => _credential = next);
+    final deadline = next?.offlineUntil;
+    if (deadline == null) return;
+    final remaining = deadline.toUtc().difference(DateTime.now().toUtc());
+    if (remaining <= Duration.zero) {
+      setState(() => _credential = null);
+      return;
+    }
+    _expiryTimer = Timer(remaining, () {
+      if (!mounted) return;
+      // The offline presentation lease has ended. A fresh owner response
+      // is required; never leave the old QR visible in a resumed view.
+      _generation++;
+      _loading = false;
+      setState(() {
+        _credential = null;
+        _error = StateError('AccessCredential display permission expired');
+      });
+    });
+  }
 
   @override
   void initState() {
@@ -48,6 +74,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
         oldWidget.credentialPath != widget.credentialPath ||
         oldWidget.repository != widget.repository) {
       _generation++;
+      _expiryTimer?.cancel();
       _loading = false;
       _credential = null;
       _error = null;
@@ -63,6 +90,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
     }
     // A pending request must not redraw a secret after the app backgrounds.
     _generation++;
+    _expiryTimer?.cancel();
     _loading = false;
     if (mounted && (_credential != null || _error != null)) {
       setState(() {
@@ -76,6 +104,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _generation++;
+    _expiryTimer?.cancel();
     _credential = null;
     super.dispose();
   }
@@ -102,7 +131,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       if (!mounted || _generation != generation ||
           widget.accessId != requestedAccess) return;
       if (retained != null) {
-        setState(() => _credential = retained);
+        _setCredential(retained);
       }
       final path = widget.credentialPath ??
           await widget.repository.readKnownCredentialPath(requestedAccess);
@@ -118,14 +147,17 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       );
       if (!mounted || _generation != generation ||
           widget.accessId != requestedAccess) return;
-      setState(() => _credential = fresh);
+      _setCredential(fresh);
     } on Object catch (error) {
       if (!mounted || _generation != generation ||
           widget.accessId != requestedAccess) return;
       final revoked = error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404);
       setState(() {
-        if (revoked) _credential = null;
+        if (revoked) {
+          _expiryTimer?.cancel();
+          _credential = null;
+        }
         _error = error;
       });
     } finally {
