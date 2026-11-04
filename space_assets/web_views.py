@@ -213,7 +213,7 @@ class SpaceDocumentShareWebView(SpaceWebMixin):
         if doc is None:
             raise Http404
         version = doc.versions.order_by("-version").first()
-        username = (request.POST.get("recipient") or "").strip()
+        username = (request.POST.get("recipient") or "").strip().removeprefix("@")
         recipient = get_user_model().objects.filter(
             username__iexact=username,
             profile__isnull=False, is_active=True,
