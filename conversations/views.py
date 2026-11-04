@@ -1,4 +1,5 @@
 from datetime import datetime
+from urllib.parse import urlencode
 from uuid import uuid4
 
 from django.contrib import messages
@@ -20,6 +21,7 @@ from .core_models import ConversationContext, ConversationContextKind
 from organizations.models import Organization
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, create_exchange_entry, submit_point_response
+from .history import page_points_for_profile
 from .presentation import (
     catch_up_summary,
     conversation_context_label,
@@ -139,6 +141,7 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
                 "q": q,
                 "search_results": search_conversation(self.request.user, conversation, q) if q else [],
                 "catch_up": catch_up_summary(self.request.user, conversation, since=previous_open),
+                "personal_state": previous_state,
                 "composer": composer_capabilities(self.request.user, conversation),
                 "compose_refs": {
                     key: str(uuid4()) for key in (
@@ -154,6 +157,69 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         )
         update_personal_conversation_state(actor=self.request.user, conversation=conversation, opened=True)
         return context
+
+
+class ConversationPointHistoryView(ConversationAccessMixin, TemplateView):
+    """N2 search and older/changed Points, keyset-continuable and ACL-checked."""
+    template_name = "conversations/history.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        conversation = self.get_conversation()
+        query = (self.request.GET.get("q") or "").strip()[:120]
+        section = (self.request.GET.get("section") or "history").strip()
+        if section not in {"history", "all", "active"}:
+            section = "history"
+        error = None
+        try:
+            page = page_points_for_profile(
+                self.request.user, conversation, query=query,
+                section=section, limit=25,
+                cursor=self.request.GET.get("cursor") or None,
+            )
+        except ValidationError:
+            page = {"results": [], "next_cursor": None}
+            error = "Cette recherche a changé. Recommencez."
+        params = {"section": section}
+        if query:
+            params["q"] = query
+        if page["next_cursor"]:
+            params["cursor"] = page["next_cursor"]
+        context.update({
+            "conversation": conversation,
+            "context_label": conversation_context_label(conversation, self.request.user),
+            "query": query, "section": section,
+            "results": page["results"], "next_cursor": page["next_cursor"],
+            "next_query": urlencode(params),
+            "history_error": error,
+        })
+        return context
+
+
+class ConversationPersonalStateWebView(ConversationAccessMixin, View):
+    """Only personal state is changed; no shared Conversation lifecycle."""
+    def post(self, request, pk):
+        conversation = self.get_conversation()
+        action = (request.POST.get("action") or "").strip()
+        field = {
+            "pin": ("pinned", "pinned_at"),
+            "mute": ("mute", "muted_at"),
+            "archive": ("archived", "archived_at"),
+            "hide": ("hidden", "hidden_at"),
+            "revisit": ("revisit", "revisit_at"),
+        }.get(action)
+        if field is None:
+            raise Http404("Action inconnue.")
+        state = conversation.user_states.filter(profile=request.user).first()
+        active = bool(state and getattr(state, field[1]))
+        try:
+            update_personal_conversation_state(
+                actor=request.user, conversation=conversation,
+                **{field[0]: not active},
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, str(exc))
+        return redirect("conversations:detail", pk=conversation.pk)
 
 
 class ConversationContextOpenView(LoginRequiredMixin, View):
