@@ -237,6 +237,38 @@ class OutboxRepository {
     return {for (final row in rows) row.operationId: row.state};
   }
 
+  /// Cyclic dependencies cannot be resolved by a reconnection. Never send an
+  /// operation while its prerequisites can eventually depend on itself.
+  Future<bool> hasDependencyCycle(
+    String operationId,
+    Iterable<String> dependencies,
+  ) async {
+    final rows = await (database.select(database.outboxOperations)..where(
+          (row) => row.profileId.equals(profileId),
+        ))
+        .get();
+    final byId = {for (final row in rows) row.operationId: row};
+    final seen = <String>{};
+    final pending = dependencies.toList();
+    while (pending.isNotEmpty) {
+      final key = pending.removeLast();
+      if (key == operationId) return true;
+      if (!seen.add(key)) continue;
+      if (seen.length > 256) return true; // fail closed on broken graphs
+      final row = byId[key];
+      if (row == null) continue;
+      try {
+        final raw = jsonDecode(row.dependencyIdsJson);
+        if (raw is! List || raw.any((entry) =>
+            entry is! String || entry.isEmpty)) return true;
+        pending.addAll(raw.cast<String>());
+      } on Object {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Backward-compatible explicit start for existing callers.
   Future<void> beginAttempt(String operationId) async {
     final row = await (database.select(database.outboxOperations)..where(
