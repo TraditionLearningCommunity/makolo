@@ -347,7 +347,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 padding: const EdgeInsets.all(20),
                                 child: Center(
                                   child: Text(
-                                    hasMore ? '' : 'Vous avez tout vu',
+                                    hasMore
+                                        ? '${((projection?.payload[_onlyUnread ? 'count' : 'total_count'] as num?)?.toInt() ?? 0) - rows.length > 0 ? ((projection?.payload[_onlyUnread ? 'count' : 'total_count'] as num?)!.toInt() - rows.length) : 0} autres à afficher'
+                                        : 'Vous avez tout vu',
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ),
