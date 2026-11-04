@@ -132,7 +132,7 @@ class SpaceUsResourcesTests(TestCase):
         self.assertEqual(docs["Cache-Control"], "private, no-store")
         self.assertEqual(docs.data["items"][0]["id"], str(issued.pk))
         self.assertEqual(docs.data["counts"], {
-            "passport": 1, "template": 1, "theme": 1,
+            "document": 0, "passport": 1, "template": 1, "theme": 1,
         })
         self.assertEqual(
             self.client.get(self.url + "?kind=template").data["items"][0]["title"],
@@ -170,9 +170,14 @@ class SpaceUsResourcesTests(TestCase):
             f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
         )
         self.assertEqual(root.status_code, 200, root.data)
-        self.assertEqual(root.data["resources"]["visibility"], "restricted")
-        self.assertNotIn("resources", root.data["handoffs"])
-        self.assertEqual(self.client.get(self.url).status_code, 404)
+        # A Space-view mandate may expose public-facing Presentation resources,
+        # but never confidential documents or issued Passport snapshots.
+        self.assertEqual(root.data["resources"]["counts"]["passport"], 0)
+        self.assertEqual(root.data["resources"]["counts"]["document"], 0)
+        self.assertEqual(
+            self.client.get(self.url).status_code, 200,
+        )
+        self.assertEqual(self.client.get(self.url).data["items"], [])
 
         activity = Activity.objects.create(
             title="Activité locale", slug="us-res-local",
