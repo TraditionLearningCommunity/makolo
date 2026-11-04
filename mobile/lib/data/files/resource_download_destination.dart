@@ -42,3 +42,17 @@ Future<void> removeLocallyRetainedResourceVersions({
   ));
   if (await directory.exists()) await directory.delete(recursive: true);
 }
+
+/// Clear only Makolo's Profile-private Resource copies when the collection
+/// owner explicitly withdraws all visibility. The system Downloads export
+/// remains a separate user-controlled copy.
+Future<void> removeAllLocallyRetainedResources(String profileId) async {
+  final root = await getApplicationDocumentsDirectory();
+  final directory = Directory(p.join(
+    root.path,
+    'makolo',
+    'resources',
+    ProfilePaths.safeProfileId(profileId),
+  ));
+  if (await directory.exists()) await directory.delete(recursive: true);
+}
