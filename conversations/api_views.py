@@ -68,12 +68,26 @@ def _resolution_summary(point):
 
 def _serialize_point(point, *, profile, reason=None, section=None):
     linked_form = form_request_for_profile(point, profile) if point.kind == "form_request" else None
+    prior = point.supersedes if point.supersedes_id else None
+    successor = (
+        point.superseded_by_points.order_by("-published_at", "-created_at").first()
+        if point.lifecycle == "superseded" else None
+    )
     return {
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
         "kind": point.kind,
         "response_mode": point.response_mode,
         "lifecycle": point.lifecycle,
+        "response_status": point_personal_result(profile, point),
+        "can_change_response": point.allow_response_change,
+        "supersedes_point_id": (
+            str(prior.pk) if prior is not None and point_visible_to(profile, prior) else None
+        ),
+        "replaced_by_point_id": (
+            str(successor.pk) if successor is not None
+            and point_visible_to(profile, successor) else None
+        ),
         "importance": point.importance,
         "title": point.title,
         "body": point.body,
@@ -277,7 +291,6 @@ class ConversationPointsDepthAPIView(PrivateNoStoreMixin, views.APIView):
             "results": [
                 {
                     **_serialize_point(point, profile=request.user, section="history"),
-                    "personal_result": point_personal_result(request.user, point),
                 }
                 for point in page["results"]
             ],
