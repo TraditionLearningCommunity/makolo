@@ -5,6 +5,7 @@ from space_assets.web_views import (
     SpaceDocumentArchiveWebView, SpaceDocumentDownloadWebView,
     SpaceDocumentShareWebView, SpaceDocumentShareRevokeWebView,
     SpaceDocumentReuseWebView,
+    SpaceDocumentUpdateWebView,
 )
 from payments.space_obligation_views import SpacePayerObligationWebView
 
@@ -114,6 +115,7 @@ urlpatterns = [
     path("<slug:slug>/us/documents/add/", SpaceDocumentUploadWebView.as_view(), name="space-document-upload"),
     path("<slug:slug>/us/documents/<uuid:document_id>/", SpaceDocumentDetailWebView.as_view(), name="space-document-detail"),
     path("<slug:slug>/us/documents/<uuid:document_id>/versions/", SpaceDocumentVersionWebView.as_view(), name="space-document-version"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/edit/", SpaceDocumentUpdateWebView.as_view(), name="space-document-update"),
     path("<slug:slug>/us/documents/<uuid:document_id>/archive/", SpaceDocumentArchiveWebView.as_view(), name="space-document-archive"),
     path("<slug:slug>/us/documents/<uuid:document_id>/share/", SpaceDocumentShareWebView.as_view(), name="space-document-share"),
     path("<slug:slug>/us/documents/<uuid:document_id>/reuse/", SpaceDocumentReuseWebView.as_view(), name="space-document-reuse"),
