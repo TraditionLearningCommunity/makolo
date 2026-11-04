@@ -30,12 +30,12 @@ def can_manage_documents(actor, space):
 def can_read_document(actor, document):
     if not getattr(actor, "is_authenticated", False):
         return False
-    permission = (
-        PermissionCode.SPACE_MANAGE
-        if document.visibility == SpaceDocumentVisibility.RESTRICTED
-        else PermissionCode.SPACE_VIEW
+    if can_manage_documents(actor, document.space):
+        return True
+    return (
+        document.visibility == SpaceDocumentVisibility.INTERNAL
+        and has_direct_space_permission(actor, document.space, PermissionCode.SPACE_VIEW)
     )
-    return has_direct_space_permission(actor, document.space, permission)
 
 
 def visible_documents(*, actor, space):
