@@ -28,6 +28,7 @@ class ConversationMediaSheet extends StatefulWidget {
     required this.onPublished,
     this.representedSpaceId,
     this.lockedPointId,
+    this.responsePointId,
   });
 
   final String mode; // voice, photo, camera, document
@@ -37,6 +38,7 @@ class ConversationMediaSheet extends StatefulWidget {
   final ValueChanged<String> onPublished;
   final String? representedSpaceId;
   final String? lockedPointId;
+  final String? responsePointId;
 
   @override
   State<ConversationMediaSheet> createState() => _ConversationMediaSheetState();
@@ -72,10 +74,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
   }
 
   bool get _requiresAudience =>
+      widget.responsePointId == null &&
       widget.capabilities['text_mode'] == 'information' &&
       widget.capabilities['audience_selection_required'] == true;
 
   bool get _requiresPoint =>
+      widget.responsePointId == null &&
       widget.lockedPointId == null &&
       widget.capabilities['text_mode'] == 'exchange_select';
 
@@ -269,17 +273,27 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     });
     try {
       _reference ??= _newMediaReference();
-      final result = await widget.repository.uploadMedia(
-        conversationId: widget.conversationId,
-        filePath: _path!,
-        filename: _filename!,
-        kind: _kind!,
-        clientReference: _reference!,
-        caption: _caption.text,
-        audienceId: _selectedAudienceId,
-        pointId: _selectedPointId,
-        representedSpaceId: _representedSpace,
-      );
+      final result = widget.responsePointId == null
+          ? await widget.repository.uploadMedia(
+              conversationId: widget.conversationId,
+              filePath: _path!,
+              filename: _filename!,
+              kind: _kind!,
+              clientReference: _reference!,
+              caption: _caption.text,
+              audienceId: _selectedAudienceId,
+              pointId: _selectedPointId,
+              representedSpaceId: _representedSpace,
+            )
+          : await widget.repository.respondWithMedia(
+              conversationId: widget.conversationId,
+              pointId: widget.responsePointId!,
+              filePath: _path!,
+              filename: _filename!,
+              kind: _kind!,
+              clientReference: _reference!,
+              representedSpaceId: _representedSpace,
+            );
       if (!mounted) return;
       final id = result['point_id']?.toString();
       if (id == null || id.isEmpty) {
