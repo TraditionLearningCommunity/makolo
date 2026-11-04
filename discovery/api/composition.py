@@ -283,6 +283,11 @@ def _activity_resource_previews(activity_ids, *, profile=None, occurrence_scope=
         ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility,
     )
     from preparation.services import can_view_resource
+    from groups.selectors import eligible_activity_ids_for_profile
+
+    # Preserve the Preparation authority check for every resource, but resolve
+    # its Group gate for this viewer and admitted Activity set in one query.
+    eligible_ids = eligible_activity_ids_for_profile(profile, activity_ids)
 
     rows = (
         ActivityResource.objects.filter(
@@ -308,7 +313,9 @@ def _activity_resource_previews(activity_ids, *, profile=None, occurrence_scope=
         # Cache that check, but never cache it across viewers or requests.
         access_key = (activity_id, str(resource.occurrence_id) if resource.occurrence_id else None)
         if access_key not in access_by_context:
-            access_by_context[access_key] = can_view_resource(profile, resource)
+            access_by_context[access_key] = can_view_resource(
+                profile, resource, eligible_activity_ids=eligible_ids,
+            )
         if not access_by_context[access_key]:
             continue
         bucket = result.setdefault(activity_id, [])
