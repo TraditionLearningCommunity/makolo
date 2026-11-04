@@ -31,13 +31,20 @@ def query_origin():
     # Find the deepest application call site (closest to SQL) rather than
     # the top-level entrypoint. Exclude Django, site-packages, this file.
     while frame is not None:
-        filename = Path(frame.f_code.co_filename)
+        raw_filename = frame.f_code.co_filename
+        # manage.py shell -c executes this script as <string>. Resolving
+        # that synthetic name against cwd incorrectly classifies our wrapper
+        # as an application caller and hides every real SQL origin.
+        if raw_filename.startswith("<") or frame.f_code.co_name in {"wrapper", "query_origin"}:
+            frame = frame.f_back
+            continue
+        filename = Path(raw_filename)
         try:
             relative = filename.resolve().relative_to(ROOT).as_posix()
         except ValueError:
             frame = frame.f_back
             continue
-        if relative.startswith("scripts/discovery_stage6_sql_origins.py"):
+        if relative.startswith("scripts/discovery_stage6_sql_origins.py") or relative == "<string>":
             frame = frame.f_back
             continue
         if relative.startswith(("venv/", ".venv/", "env/")):
