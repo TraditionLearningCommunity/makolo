@@ -4,6 +4,7 @@ from conversations.attention import attention_points_for_profile, conversation_a
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label, conversations_for_context
+from conversations.composing import can_ensure_context_conversation
 from core.web.request_context import get_request_context
 
 
@@ -92,3 +93,10 @@ def conversation_context_entry(profile, kind, context_pk):
         return bool(conversations_for_context(profile, kind, str(context_pk)))
     except (ValueError, TypeError):
         return False
+
+
+@register.simple_tag
+def conversation_context_can_ensure(profile, kind, context_pk):
+    if not getattr(profile, "is_authenticated", False) or not context_pk:
+        return False
+    return can_ensure_context_conversation(profile, kind, str(context_pk))
