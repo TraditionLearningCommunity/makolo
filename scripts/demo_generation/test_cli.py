@@ -316,5 +316,45 @@ class DemoGenerationCLITests(unittest.TestCase):
         connected.assert_called_once_with(["--apply", "--count", "50", "--profiles", "30"])
 
 
+
+    def test_conversation_generator_plan_routes_target_and_seed(self):
+        self.assertIn("conversations", parse_domains("all"))
+        args = build_parser().parse_args([
+            "plan", "--domains", "conversations", "--count", "500",
+            "--profiles", "20", "--profile-username", "world_011_divine",
+            "--seed", "7", "--conversation-points", "3",
+        ])
+        with patch("scripts.demo_generation.conversations.main") as seeded:
+            run(args)
+        self.assertEqual(seeded.call_args.args[0], [
+            "--count", "500", "--profiles", "20", "--seed", "7",
+            "--points", "3", "--profile-username", "world_011_divine",
+        ])
+
+    def test_conversations_generate_explicit_apply(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "conversations", "--count", "500",
+        ])
+        with patch("scripts.demo_generation.conversations.main") as seeded:
+            run(args)
+        self.assertIn("--apply", seeded.call_args.args[0])
+
+    def test_conversation_phase_and_point_story_are_grounded(self):
+        from datetime import datetime, timedelta, timezone
+        from scripts.demo_generation.conversations import (
+            phase_for_dates, point_blueprints, scenario_reference,
+        )
+        now = datetime(2026, 11, 4, tzinfo=timezone.utc)
+        self.assertEqual(phase_for_dates(now - timedelta(days=3),
+                                         now - timedelta(days=2), now), "past")
+        self.assertEqual(phase_for_dates(now - timedelta(minutes=5),
+                                         now + timedelta(minutes=30), now), "live")
+        self.assertEqual(phase_for_dates(now + timedelta(days=2),
+                                         now + timedelta(days=3), now), "future")
+        self.assertEqual(len(point_blueprints("live", "Atelier")), 4)
+        self.assertEqual(scenario_reference("activity", "123", "live", 2),
+                         scenario_reference("activity", "123", "live", 2))
+
+
 if __name__ == "__main__":
     unittest.main()
