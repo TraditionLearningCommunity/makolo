@@ -1104,7 +1104,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     final essential = unique(detail.essential);
                     _focusAfterLayout();
 
-                    return ListView(
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 860),
+                        child: ListView(
                       key: const Key('conversation-detail-content'),
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                       children: [
@@ -1159,6 +1162,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                             onPublished: _afterPublish,
                           ),
                       ],
+                        ),
+                      ),
                     );
                   },
                 ),
