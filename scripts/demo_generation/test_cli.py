@@ -317,6 +317,22 @@ class DemoGenerationCLITests(unittest.TestCase):
 
 
 
+    def test_conversation_generation_follows_context_foundations(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "services,conversations", "--count", "3",
+        ])
+        calls = []
+        with (
+            patch("scripts.demo_generation.foundations.main",
+                  side_effect=lambda _args: calls.append("foundations")),
+            patch("scripts.demo_generation.verticals.main",
+                  side_effect=lambda _args: calls.append("verticals")),
+            patch("scripts.demo_generation.conversations.main",
+                  side_effect=lambda _args: calls.append("conversations")),
+        ):
+            run(args)
+        self.assertEqual(calls, ["foundations", "verticals", "conversations"])
+
     def test_conversation_generator_plan_routes_target_and_seed(self):
         self.assertIn("conversations", parse_domains("all"))
         args = build_parser().parse_args([
