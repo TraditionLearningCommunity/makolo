@@ -105,3 +105,22 @@ def conversation_context_can_ensure(profile, kind, context_pk):
 @register.simple_tag
 def conversation_point_exchange_preview(point, profile):
     return visible_exchange_entries_for_profile(profile, point, limit=5)
+
+
+
+@register.simple_tag
+def conversation_point_attachments(point, profile):
+    from conversations.rich_services import visible_attachments_for_profile
+    return [
+        item for item in visible_attachments_for_profile(profile, point)
+        if item.exchange_entry_id is None
+    ]
+
+
+@register.simple_tag
+def conversation_exchange_attachments(entry, profile):
+    from conversations.media_services import can_download_attachment
+    return [
+        item for item in entry.attachments.all()
+        if can_download_attachment(profile, item)
+    ]
