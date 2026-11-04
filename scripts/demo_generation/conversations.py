@@ -195,10 +195,11 @@ def main(argv=None):
     from conversations.services import (
         ensure_context_conversation, can_view_conversation,
         update_personal_conversation_state, transition_conversation,
+        activate_participation,
     )
     from conversations.point_services import (
         create_point, submit_point_response, create_exchange_entry,
-        point_response_allowed, resolve_point,
+        point_response_allowed, resolve_point, acknowledge_point,
     )
     from conversations.audience_services import conversation_viewer_ids
     if connection.vendor != "sqlite":
@@ -272,6 +273,18 @@ def main(argv=None):
                 if conversation.lifecycle != ConversationLifecycle.OPEN:
                     counts["closed_conversations_preserved"] += 1
                     continue
+                # Explicitly materialize only participants already granted
+                # contextual viewing rights by the canonical audience selector.
+                eligible = conversation_viewer_ids(conversation) - {actor.pk}
+                demo_participants = list(U.objects.filter(
+                    pk__in=eligible, is_active=True, is_staff=False, is_superuser=False,
+                    username__startswith="world_",
+                ).order_by("username")[:3])
+                for participant in demo_participants:
+                    activate_participation(
+                        actor=actor, conversation=conversation, profile=participant,
+                    )
+                    counts["participations_ensured"] += 1
                 refs = point_blueprints(phase, label)[:args.points]
                 for index, (point_kind, title, body, response_mode, options) in enumerate(refs):
                     ref = scenario_reference(kind, target.pk, phase, index)
@@ -322,10 +335,17 @@ def main(argv=None):
                                     client_reference=ref + "-reply")
                                 counts["responses_created"] += 1
                             elif respondent and point_kind == ConversationPointKind.EXCHANGE:
-                                create_exchange_entry(actor=respondent, point=point,
+                                first_entry = create_exchange_entry(actor=respondent, point=point,
                                     body="Pouvons-nous clarifier l'organisation de cette étape ?",
                                     client_reference=ref + "-entry")
                                 counts["exchanges_created"] += 1
+                                create_exchange_entry(actor=actor, point=point,
+                                    body="Oui. Reprenons le point prioritaire et la prochaine action.",
+                                    reply_to=first_entry, client_reference=ref + "-reply-entry")
+                                counts["exchange_replies_created"] += 1
+                            if respondent and point.requires_acknowledgement:
+                                acknowledge_point(actor=respondent, point=point)
+                                counts["acknowledgements_created"] += 1
                             if phase == "past" and respondent and point_kind in {
                                 ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
                             }:
