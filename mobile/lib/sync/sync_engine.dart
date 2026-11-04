@@ -200,9 +200,13 @@ class SyncEngine {
                   row.profileId.equals(profileId) &
                   row.sourceKey.equals(source.sourceKey)))
             .getSingleOrNull();
-        if (acquired.sourceGeneratedAt != null &&
-            observed?.generatedAtSeen != null &&
-            acquired.sourceGeneratedAt!.isBefore(observed!.generatedAtSeen!)) {
+        if (observed?.generatedAtSeen != null &&
+            (acquired.sourceGeneratedAt == null ||
+                acquired.sourceGeneratedAt!.isBefore(
+                  observed!.generatedAtSeen!,
+                ))) {
+          // A response without newer provenance cannot overwrite a locally
+          // known, owner-timestamped observation.
           return;
         }
         if (!isCurrent()) return;
