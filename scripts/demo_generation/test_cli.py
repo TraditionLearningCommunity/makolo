@@ -419,5 +419,32 @@ class DemoGenerationCLITests(unittest.TestCase):
         db.close()
 
 
+    def test_editorial_titles_are_natural_and_repeatable(self):
+        from types import SimpleNamespace
+        from scripts.demo_generation.editorial import (
+            space_name, group_name, objective_titles, activity_title,
+            space_activity_title,
+        )
+        owner = SimpleNamespace(pk="10000000-0000-0000-0000-000000000011",
+                                username="world_011_divine")
+        values = [
+            space_name(owner), group_name(owner), *objective_titles(owner),
+            activity_title("funding", 0), activity_title("services", 7),
+            activity_title("obtention", 20), space_activity_title(owner),
+        ]
+        self.assertEqual(space_name(owner), space_name(owner))
+        self.assertEqual(group_name(owner), group_name(owner))
+        self.assertTrue(all(value and "demo" not in value.lower()
+                            and "world_" not in value.lower() for value in values))
+
+    def test_conversation_reply_stays_contextual_and_deterministic(self):
+        from scripts.demo_generation.conversations import coherent_reply, exchange_dialogue
+        response = coherent_reply("future", "Atelier des familles", "reference-123")
+        self.assertEqual(response, coherent_reply("future", "Atelier des familles", "reference-123"))
+        self.assertNotIn("demo", response.lower())
+        self.assertEqual(len(exchange_dialogue("live", "reference-123")), 2)
+
+
+
 if __name__ == "__main__":
     unittest.main()
