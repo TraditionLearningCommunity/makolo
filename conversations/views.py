@@ -286,7 +286,7 @@ class ConversationMediaWebView(ConversationDetailView):
                 represented_space=represented,
                 client_reference=request.POST.get("client_reference"),
             )
-        except (ValidationError, PermissionDenied, Organization.DoesNotExist) as exc:
+        except (ValidationError, PermissionDenied, Organization.DoesNotExist, ValueError, TypeError) as exc:
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
                 return JsonResponse({"detail": str(exc)}, status=403 if isinstance(exc, PermissionDenied) else 400)
             self.compose_error = "Pièce non envoyée. " + str(exc)
@@ -352,7 +352,7 @@ class ConversationPointMediaWebView(LoginRequiredMixin, View):
                 represented_space=space,
                 client_reference=request.POST.get("client_reference"),
             )
-        except (ValidationError, PermissionDenied, Organization.DoesNotExist) as exc:
+        except (ValidationError, PermissionDenied, Organization.DoesNotExist, ValueError, TypeError) as exc:
             if request.headers.get("x-requested-with") == "XMLHttpRequest":
                 return JsonResponse({"detail": str(exc)}, status=403 if isinstance(exc, PermissionDenied) else 400)
             messages.error(request, "Envoi non confirmé : " + str(exc))
