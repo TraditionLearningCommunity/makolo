@@ -10,6 +10,7 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/downloads/device_downloads.dart';
+import '../../platform/sharing/share_gateway.dart';
 
 /// Space-owned document N3: owner actions and versioned private file transfer.
 class SpaceDocumentDetailScreen extends StatefulWidget {
@@ -162,9 +163,25 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final id = _actor!.space.id;
     final versionId = version['id']?.toString();
     if (api == null || versionId == null) return;
-    final filename = '${DateTime.now().microsecondsSinceEpoch}.bin';
+    final mime = version['mime_type']?.toString() ?? 'application/octet-stream';
+    final ext = switch (mime) {
+      'application/pdf' => 'pdf',
+      'image/jpeg' => 'jpg',
+      'image/png' => 'png',
+      'text/plain' => 'txt',
+      'application/msword' => 'doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+      _ => 'bin',
+    };
+    final safeName = makoloDownloadName(
+      '${_document?['title'] ?? 'Document'}-v${version['number']}',
+      ext,
+    );
     final temporary = await getTemporaryDirectory();
-    final file = File('${temporary.path}/$filename');
+    final folder = await Directory(
+      '${temporary.path}/makolo-export-${DateTime.now().microsecondsSinceEpoch}',
+    ).create();
+    final file = File('${folder.path}/$safeName');
     setState(() => _working = true);
     try {
       await api.download(
@@ -172,31 +189,18 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         destinationPath: file.path,
       );
       if (!mounted || _actor?.space.id != id) return;
-      final mime = version['mime_type']?.toString() ?? 'application/octet-stream';
-      final ext = switch (mime) {
-        'application/pdf' => 'pdf',
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'text/plain' => 'txt',
-        'application/msword' => 'doc',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-        _ => 'bin',
-      };
-      await const AndroidDeviceDownloads().save(
-        source: file,
-        fileName: makoloDownloadName(
-          '${_document?['title'] ?? 'Document'}-v${version['number']}',
-          ext,
-        ),
-        mimeType: mime,
-      );
-      if (mounted && _actor?.space.id == id) _toast('Document téléchargé.');
+      if (Platform.isAndroid) {
+        await const AndroidDeviceDownloads().save(
+          source: file, fileName: safeName, mimeType: mime,
+        );
+      } else {
+        await const SystemShareGateway().shareFiles(paths: [file.path]);
+      }
+      if (mounted && _actor?.space.id == id) _toast('Document enregistré.');
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Téléchargement impossible.');
     } finally {
-      if (await file.exists()) await file.delete();
-      final partial = File('${file.path}.part');
-      if (await partial.exists()) await partial.delete();
+      if (await folder.exists()) await folder.delete(recursive: true);
       if (mounted) setState(() => _working = false);
     }
   }
