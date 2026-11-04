@@ -5,7 +5,7 @@ from space_assets.api_views import (
     SpaceDocumentDetailAPIView,
     SpaceDocumentVersionCreateAPIView,
     SpaceDocumentDownloadAPIView,
-    SpaceDocumentReuseAPIView, SpaceDocumentShareAPIView,
+    SpaceDocumentReuseAPIView, SpaceDocumentEligibleJourneysAPIView, SpaceDocumentShareAPIView,
     SpaceDocumentShareRevokeAPIView,
 )
 
@@ -79,6 +79,7 @@ urlpatterns = [
     path("workspaces/<slug:slug>/us/authority/", SpaceUsAuthorityAPIView.as_view(), name="workspace-us-authority"),
     path("workspaces/<slug:slug>/us/resources/", SpaceUsResourcesAPIView.as_view(), name="workspace-us-resources"),
     path("workspaces/<slug:slug>/documents/", SpaceDocumentCollectionAPIView.as_view(), name="workspace-documents"),
+    path("workspaces/<slug:slug>/documents/eligible-journeys/", SpaceDocumentEligibleJourneysAPIView.as_view(), name="workspace-documents-eligible-journeys"),
     path("workspaces/<slug:slug>/documents/<uuid:document_id>/", SpaceDocumentDetailAPIView.as_view(), name="workspace-document"),
     path("workspaces/<slug:slug>/documents/<uuid:document_id>/versions/", SpaceDocumentVersionCreateAPIView.as_view(), name="workspace-document-version-create"),
     path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadAPIView.as_view(), name="workspace-document-download"),
