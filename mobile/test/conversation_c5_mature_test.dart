@@ -372,4 +372,68 @@ void main() {
     expect(find.byKey(const Key('conversation-compose-send')), findsNothing);
     expect(find.byKey(const Key('conversation-open-history')), findsOneWidget);
   });
+  testWidgets('C5: confirmed publication reacquires and focuses a Point absent from summary groups', (tester) async {
+    final requests = <Uri>[];
+    var confirmed = false;
+    final repository = repositoryFor((request) async {
+      requests.add(request.url);
+      if (request.url.path == '/api/v1/conversations/conv-focus/compose/') {
+        confirmed = true;
+        return const MockResponse(
+          '{"kind":"point","id":"point-new","point_id":"point-new"}', 200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conv-focus/') {
+        return MockResponse(jsonEncode({
+          'id': 'conv-focus',
+          'title': 'Coordination',
+          'context': {'kind': 'activity', 'label': 'Départ'},
+          'points': [],
+          'essential': [],
+          'elsewhere': [],
+          'focused_point': confirmed &&
+                  request.url.queryParameters['focus_point'] == 'point-new'
+              ? {
+                  'id': 'point-new', 'title': 'Point confirmé',
+                  'kind': 'information', 'response_mode': 'none',
+                  'lifecycle': 'open', 'can_respond': false,
+                  'section': 'focus', 'options': [],
+                }
+              : null,
+          'composer': {
+            'can_create': true,
+            'allowed_kinds': ['information'],
+            'text_mode': 'information',
+            'audience_selection_required': false,
+            'audiences': [],
+            'media_kinds': [],
+          },
+        }), 200);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return const MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conv-focus');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        id: 'conv-focus', repository: repository,
+      ),
+    );
+    final editor = find.byKey(const Key('conversation-compose-text'));
+    await tester.ensureVisible(editor);
+    await tester.enterText(editor, 'Nouvel état confirmé');
+    await tester.tap(find.byKey(const Key('conversation-compose-send')));
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 180)),
+    );
+    await tester.pump();
+    expect(requests.any((url) =>
+      url.path == '/api/v1/conversations/conv-focus/' &&
+      url.queryParameters['focus_point'] == 'point-new'), isTrue);
+    expect(find.text('Point confirmé'), findsOneWidget);
+  });
+
 }
