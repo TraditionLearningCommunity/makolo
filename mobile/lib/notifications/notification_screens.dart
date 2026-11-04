@@ -111,6 +111,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     if (_loadingMore || _refreshing) return;
     final snapshot = await widget.repository.readList();
     if (!mounted || snapshot?.payload['next'] is! String) return;
+    if (_onlyUnread && snapshot?.payload['unread_count'] == 0) return;
     setState(() {
       _loadingMore = true;
       _pageFailed = false;
@@ -145,12 +146,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     }
     if (!mounted) return;
     final path = row.destinationPath;
-    if (path == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucune destination disponible.')),
-      );
-      return;
-    }
+    if (path == null) return;
     await widget.onOpenDestination(path);
   }
 
@@ -177,6 +173,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     invalidated: source.invalidated,
                   );
             final available = projection != null;
+            final hasMore = projection?.payload['next'] is String;
+            final pendingUnread = projection?.payload['unread_count'];
+            final noneUnread = _onlyUnread && pendingUnread is num && pendingUnread == 0;
             final state = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -187,7 +186,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 pendingOperations: const [],
               ),
               availability: available
-                  ? visible.isEmpty
+                  ? (visible.isEmpty && (!hasMore || noneUnread))
                         ? MakoloAvailabilityCue.empty
                         : MakoloAvailabilityCue.content
                   : _refreshing
@@ -205,7 +204,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
             );
             final total = projection?.payload['total_count'];
             final unread = projection?.payload['unread_count'];
-            final hasMore = projection?.payload['next'] is String;
             WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
 
             return Scaffold(
