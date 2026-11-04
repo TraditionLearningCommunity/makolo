@@ -12,7 +12,7 @@
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div class="min-w-0">
         <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{% if work_is_collection %}{{ work_collection_title }}{% else %}{{ projection.primary_business_label }}{% endif %}</h2>
-        {% if work_is_collection %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Page {{ work_collection_page }} · Uniquement les éléments visibles dans votre responsabilité.</p>{% endif %}
+        {% if work_is_collection %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Page {{ work_collection_page }} · Éléments liés aux activités auxquelles vous avez accès.</p>{% endif %}
         <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ projection.presentation.question|default:"Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?" }}</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -58,7 +58,7 @@
 
   {% if not work_has_items %}
   <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
-    <h3 id="work-empty-title" class="text-xl font-extrabold">{% if work_is_collection %}{{ work_collection_empty }}{% elif projection.coverage_state == "partial" %}Aucun élément connu dans votre responsabilité.{% else %}{{ projection.presentation.empty_message }}{% endif %}</h3>
+    <h3 id="work-empty-title" class="text-xl font-extrabold">{% if work_is_collection %}{{ work_collection_empty }}{% elif projection.coverage_state == "partial" %}Aucun élément à afficher dans cette sélection.{% else %}{{ projection.presentation.empty_message }}{% endif %}</h3>
     {% if projection.coverage_state == "partial" %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">Cette sélection ne décrit pas l’ensemble du travail de l’Espace.</p>{% endif %}
   </section>
   {% endif %}
