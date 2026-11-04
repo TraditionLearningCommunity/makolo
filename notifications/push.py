@@ -209,6 +209,9 @@ def send_push_notification(*, endpoint: PushEndpoint, notification) -> str:
     message = messaging.Message(
         token=token,
         notification=visible,
+        android=messaging.AndroidConfig(
+            notification=messaging.AndroidNotification(channel_id="makolo_alerts"),
+        ),
         data=data,
     )
     try:
