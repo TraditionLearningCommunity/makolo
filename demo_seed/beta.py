@@ -106,7 +106,7 @@ def _place(key, name, locality, lat, lon, owner):
 
 def _event(ctx, key, space, manager, category, place, title, days, hour, *, status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC, capacity=80, price=None, mode=PaymentMode.NONE):
     activity = upsert(Activity, f"beta-event-{key}", defaults={
-        "space": space, "created_by": manager, "title": title, "slug": f"beta-event-{key}",
+        "space": space, "created_by": manager, "title": f"Exemple — {title}", "slug": f"beta-event-{key}",
         "short_description": f"Scénario bêta — {title}", "description": "Événement fictif pour la bêta Makolo.",
         "status": status, "visibility": visibility,
     })
@@ -175,7 +175,7 @@ def _transport(ctx, users, space, places):
         TransportRouteStop.objects.update_or_create(route=route, position=1, defaults={"place": origin, "boarding_allowed": True, "alighting_allowed": False})
         TransportRouteStop.objects.update_or_create(route=route, position=2, defaults={"place": destination, "boarding_allowed": False, "alighting_allowed": True})
         activity = upsert(Activity, f"beta-transport-{key}", defaults={
-            "space": space, "created_by": users["transport_operator"], "title": route.name, "slug": f"beta-transport-{key}",
+            "space": space, "created_by": users["transport_operator"], "title": f"Exemple — {route.name}", "slug": f"beta-transport-{key}",
             "short_description": "Trajet routier fictif de la bêta Makolo.", "description": "Exemple fictif de trajet routier.",
             "status": ActivityStatus.PUBLISHED, "visibility": ActivityVisibility.PUBLIC,
         })
