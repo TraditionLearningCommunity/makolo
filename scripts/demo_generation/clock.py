@@ -93,22 +93,90 @@ def table_columns(db, table):
     return {row[0] for row in db.execute('SELECT name FROM pragma_table_info(?)', (table,))}
 
 def update_by_id(db, table, identifier, fields, delta):
+    """Shift all related columns in ONE UPDATE to preserve SQLite CHECK constraints."""
     cols = table_columns(db, table)
-    changed = False
-    for field in fields:
-        if field not in cols:
-            continue
-        select_sql, update_sql = FIELD_QUERIES[(table, field)]
-        row = db.execute(select_sql, (identifier,)).fetchone()
-        if row is None:
-            return int(changed)
-        previous = row[0]
+    available = [field for field in fields if field in cols]
+    if not available:
+        return 0
+    # Only fixed identifiers from FIELDS are ever interpolated into SQL.
+    if table not in FIELDS or any(field not in FIELDS[table] for field in available):
+        raise ValueError('Unapproved timeline update')
+    values = db.execute(
+        'SELECT ' + ','.join('"' + field + '"' for field in available) +
+        ' FROM "' + table + '" WHERE id=?', (identifier,)
+    ).fetchone()
+    if values is None:
+        return 0
+    changed = {}
+    for field, previous in zip(available, values):
         kind = 'date' if field.endswith('_date') or field == 'schedule_local_date' else 'datetime'
-        next_value = shift_text(previous, delta, kind)
-        if previous != next_value:
-            db.execute(update_sql, (next_value, identifier))
-            changed = True
-    return int(changed)
+        value = shift_text(previous, delta, kind)
+        if value != previous:
+            changed[field] = value
+    if not changed:
+        return 0
+    db.execute(
+        'UPDATE "' + table + '" SET ' +
+        ','.join('"' + field + '"=?' for field in changed) + ' WHERE id=?',
+        (*changed.values(), identifier),
+    )
+    return 1
+
+
+def update_occurrence(db, identifier, delta):
+    """Move canonical exact-time and local date/time projections atomically.
+
+    Recurrence-generated slots are intentionally excluded: moving an individual
+    slot would break the parent schedule and its (schedule,local_date) uniqueness.
+    """
+    row = db.execute(
+        'SELECT start_at,end_at,start_date,end_date,start_time,end_time,'
+        'schedule_local_date,timezone,schedule_id '
+        'FROM activities_occurrence WHERE id=?', (identifier,),
+    ).fetchone()
+    if row is None or row[8] is not None:
+        return 0
+    start_at, end_at, start_date, end_date, start_time, end_time, slot, tzname, _ = row
+    old_start = parsed(start_at)
+    if old_start is None:
+        return 0
+    new_start = old_start + delta
+    old_end = parsed(end_at)
+    new_end = old_end + delta if old_end else None
+    tz = ZoneInfo(tzname)
+    local_start = new_start.astimezone(tz)
+    local_end = new_end.astimezone(tz) if new_end else None
+    if end_date and not local_end:
+        # No exact end instant: preserve the original local end-day offset.
+        days = (dt.date.fromisoformat(str(end_date)[:10]) -
+                dt.date.fromisoformat(str(start_date)[:10])).days
+        shifted_end_date = (local_start.date() + dt.timedelta(days=days)).isoformat()
+    else:
+        shifted_end_date = local_end.date().isoformat() if local_end else None
+    # Keep the source's naive-UTC representation to match Django SQLite.
+    def encode(instant, original):
+        if instant is None:
+            return None
+        parsed_original = dt.datetime.fromisoformat(str(original).replace('Z','+00:00'))
+        if parsed_original.tzinfo is None:
+            instant = instant.replace(tzinfo=None)
+        return instant.isoformat(sep=' ')
+    fields = {
+        'start_at': encode(new_start, start_at),
+        'end_at': encode(new_end, end_at) if new_end else None,
+        'start_date': local_start.date().isoformat(),
+        'start_time': local_start.time().replace(tzinfo=None).isoformat(),
+        'end_date': shifted_end_date,
+        'end_time': local_end.time().replace(tzinfo=None).isoformat() if local_end else end_time,
+        'schedule_local_date': None if slot is None else local_start.date().isoformat(),
+    }
+    # For a non-scheduled occurrence, no slot conflict is possible.
+    db.execute(
+        'UPDATE activities_occurrence SET ' +
+        ','.join('"' + field + '"=?' for field in fields) +
+        ' WHERE id=?', (*fields.values(), identifier),
+    )
+    return 1
 
 def ids(db, table, foreign_key, identifier):
     if foreign_key not in table_columns(db, table):
@@ -117,7 +185,7 @@ def ids(db, table, foreign_key, identifier):
 
 def move_occurrence(db, occ_id, delta):
     counts={t:0 for t in FIELDS}
-    counts['activities_occurrence']+=update_by_id(db,'activities_occurrence',occ_id,FIELDS['activities_occurrence'],delta)
+    counts['activities_occurrence']+=update_occurrence(db,occ_id,delta)
     accesses=ids(db,'access_access','occurrence_id',occ_id)
     for aid in accesses:
         counts['access_access']+=update_by_id(db,'access_access',aid,FIELDS['access_access'],delta)
@@ -248,11 +316,11 @@ def main(argv=None):
         rows=db.execute(
             'SELECT o.id,o.start_at,o.end_at FROM activities_occurrence o '
             'JOIN activities_activity a ON a.id=o.activity_id '
-            'WHERE o.start_at IS NOT NULL AND (? OR a.slug LIKE ?) ORDER BY o.id LIMIT ?',
+            'WHERE o.start_at IS NOT NULL AND o.schedule_id IS NULL AND (? OR a.slug LIKE ?) ORDER BY o.id LIMIT ?',
             (int(a.include_existing), 'demo-2026-q4-%', a.limit if a.limit>0 else -1),
         ).fetchall()
         # Autres lots synthetiques peuvent utiliser un prefixe different : voir --include-existing.
-        print('Occurrences selectionnees:',len(rows),'| mode:', 'MODIFICATION' if a.apply else 'APERCU')
+        print('Occurrences selectionnees (hors recurrents):',len(rows),'| mode:', 'MODIFICATION' if a.apply else 'APERCU')
         print('Reference UTC:',now.isoformat(),'| base:',source)
         if a.apply:
             db.execute('PRAGMA foreign_keys=ON')
