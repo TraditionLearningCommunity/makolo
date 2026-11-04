@@ -231,6 +231,34 @@ class ConversationC5MatureTests(TestCase):
             ).json()['results']],
         )
 
+    def test_closed_conversation_has_no_stale_attention_or_response_controls(self):
+        from .attention import point_attention_reason
+
+        expected = self._audience(self.member, 'Réponse attendue')
+        point = self._point(
+            'Confirmer le rendez-vous',
+            kind=ConversationPointKind.CONFIRMATION,
+            response_mode=ConversationPointResponseMode.BOOLEAN,
+            expected_action_audience=expected,
+            response_audience=expected,
+        )
+        self.assertEqual(point_attention_reason(self.member, point), 'respond')
+        transition_conversation(
+            actor=self.manager, conversation=self.conversation,
+            lifecycle=ConversationLifecycle.CLOSED,
+        )
+        point.conversation.refresh_from_db()
+        self.assertIsNone(point_attention_reason(self.member, point))
+        self.client.force_login(self.member)
+        detail = self.client.get(reverse(
+            'conversations-api:detail', kwargs={'pk': self.conversation.pk},
+        ))
+        self.assertEqual(detail.status_code, 200)
+        for section in ('points', 'essential', 'elsewhere'):
+            for item in detail.json()[section]:
+                if item['id'] == str(point.pk):
+                    self.assertFalse(item['can_respond'])
+
     def test_closed_conversation_read_only_and_history_still_available(self):
         point = self._point('État établi')
         transition_conversation(
