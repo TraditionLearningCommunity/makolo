@@ -314,7 +314,7 @@ class ResourceRepository {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
     await client.download(
-      _relative(path),
+      _relative(path, action: 'download'),
       destinationPath: destinationPath,
       onProgress: onProgress,
     );
@@ -329,7 +329,7 @@ class ResourceRepository {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
     final response = await client.post(
-      _relative(path),
+      _relative(path, action: 'reuse'),
       body: {'journey_id': journeyId},
     );
     final envelope = response.jsonObject();
@@ -346,8 +346,41 @@ class ResourceRepository {
     );
   }
 
-  String _relative(String path) =>
-      path.startsWith('/') ? path.substring(1) : path;
+  String _relative(String path, {required String action}) {
+    final uri = Uri.tryParse(path);
+    if (uri == null || uri.hasScheme || uri.hasAuthority ||
+        uri.hasQuery || uri.hasFragment) {
+      throw const FormatException('Unexpected PersonalAsset owner link');
+    }
+    final relative = uri.path.startsWith('/')
+        ? uri.path.substring(1)
+        : uri.path;
+    final ownerRoute = RegExp(
+      r'^api/v1/me/resources/versions/'
+      r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/(download|reuse)/
+}
+
+Map<String, dynamic> _map(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const {};
+}
+
+String? _string(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}
+,
+    );
+    if (!ownerRoute.hasMatch(relative) ||
+        !relative.endsWith('/$action/')) {
+      throw const FormatException('PersonalAsset action path mismatch');
+    }
+    return relative;
+  }
 }
 
 Map<String, dynamic> _map(Object? value) {
