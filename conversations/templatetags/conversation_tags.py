@@ -100,3 +100,13 @@ def conversation_context_can_ensure(profile, kind, context_pk):
     if not getattr(profile, "is_authenticated", False) or not context_pk:
         return False
     return can_ensure_context_conversation(profile, kind, str(context_pk))
+
+
+@register.simple_tag
+def conversation_point_exchange_preview(point, profile):
+    from conversations.point_services import point_visible_to
+    if point.kind != "exchange" or not point_visible_to(profile, point):
+        return []
+    return list(reversed(list(point.exchange_entries.filter(
+        moderation_state="visible",
+    ).order_by("-created_at", "-pk")[:5])))
