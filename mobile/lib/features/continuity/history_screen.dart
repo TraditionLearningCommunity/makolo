@@ -41,6 +41,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _searching = false;
   int _searchGeneration = 0;
   bool _loadingMore = false;
+  bool _loadFailed = false;
+  bool _mayLoadNext = false;
+  String? _lastRequested;
+  _HistoryView? _loadedView;
+  final ScrollController _scroll = ScrollController();
   bool _requestedInitialRefresh = false;
   bool _preparingOffline = false;
   int _preparedPages = 0;
@@ -49,7 +54,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_checkEnd);
     unawaited(_acquireOrRefresh());
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _checkEnd() {
+    final current = _loadedView;
+    if (!_scroll.hasClients ||
+        _scroll.position.extentAfter >= 480 ||
+        !_mayLoadNext ||
+        _loadFailed ||
+        _loadingMore ||
+        _searching ||
+        current == null ||
+        !current.hasMore) return;
+    final key = '${_query}:${_filter}:${current.nextOffset}:${_remoteHistory != null}';
+    if (_lastRequested == key) return;
+    _lastRequested = key;
+    if (_remoteHistory == null) {
+      unawaited(_loadMore(current));
+    } else {
+      unawaited(_remoteSearch(more: true));
+    }
   }
 
   Future<void> _acquireOrRefresh() async {
@@ -72,7 +104,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _refreshFirst() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    setState(() {
+      _refreshing = true;
+      _loadFailed = false;
+      _lastRequested = null;
+    });
     try {
       await widget.repository.refreshPage(offset: 0);
     } on Object {
@@ -83,14 +119,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _loadMore(_HistoryView view) async {
-    if (_loadingMore || !view.hasMore) return;
+    if (_loadingMore || !view.hasMore || _loadFailed) return;
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshPage(offset: view.nextOffset);
     } on Object {
-      // Keep the currently cached history.
+      // Keep the currently cached history for retry.
+      if (mounted) {
+        _lastRequested = null;
+        setState(() => _loadFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted) {
+        setState(() => _loadingMore = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _checkEnd();
+        });
+      }
     }
   }
 
@@ -151,11 +196,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _remoteSearch({bool more = false}) async {
+    if (_searching) return;
     final generation = ++_searchGeneration;
     final query = _query;
     final filter = _filter;
     setState(() {
       _searching = true;
+      if (!more) {
+        _loadFailed = false;
+        _lastRequested = null;
+      }
     });
     try {
       final nextOffset = more && _remoteHistory != null
@@ -193,6 +243,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _query == query &&
           _filter == filter) {
         // Preserve the already available local History on remote failure.
+        _lastRequested = null;
+        setState(() => _loadFailed = true);
       }
     } finally {
       if (mounted &&
@@ -200,6 +252,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           _query == query &&
           _filter == filter) {
         setState(() => _searching = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _checkEnd();
+        });
       }
     }
   }
