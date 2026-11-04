@@ -20,6 +20,8 @@ typedef OutboxReconciler = Future<OutboxResolution> Function(
 );
 
 class OutboxProcessor {
+  static final Expando<Set<String>> _activeClaims =
+      Expando<Set<String>>('outbox-claims-per-database');
   OutboxProcessor({
     required this.repository,
     required this.handlers,
@@ -48,6 +50,10 @@ class OutboxProcessor {
     final operations = await repository.pending();
     for (final operation in operations) {
       if (!_active) return;
+      final claims = _activeClaims[repository.database] ??= <String>{};
+      final claimKey = '${repository.profileId}:${operation.operationId}';
+      if (!claims.add(claimKey)) continue;
+      try {
       final handler = handlers[operation.operationKind];
       if (handler == null) continue;
 
@@ -160,6 +166,9 @@ class OutboxProcessor {
             errorCode: 'transport_error',
           );
         }
+      }
+      } finally {
+        claims.remove(claimKey);
       }
     }
   }
