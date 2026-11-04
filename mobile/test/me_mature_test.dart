@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/features/me/me_collectives_screen.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
@@ -901,6 +905,42 @@ void main() {
     expect(find.byType(MakoloNotice), findsNothing);
   });
 
+  testWidgets('collectives depth is contextual, scrollable and has no page control', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-1');
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: 1,
+      payload: _fullPayload(),
+      receivedAt: now,
+      sourceGeneratedAt: now,
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('http://localhost/'),
+      tokenStore: _UnusedMeTokenStore(),
+    );
+    addTearDown(api.close);
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeCollectivesScreen(
+        personal: PersonalRepository(store),
+        api: api,
+        onOpenDestination: (_) => true,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Équipe terrain'), findsOneWidget);
+    expect(find.text('Équipe · Espace Makolo'), findsOneWidget);
+    expect(find.text('Groupe · Espace Makolo'), findsOneWidget);
+    expect(find.text('Afficher la suite'), findsNothing);
+    expect(find.text('Vous avez tout vu'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final scale in [1.0, 1.3, 1.6]) {
     testWidgets('textScale $scale keeps essential content available', (
       tester,
@@ -957,6 +997,11 @@ class _MeStreamRepository extends PersonalRepository {
 }
 
 class _NeverUsedStore implements ProfileStore {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnusedMeTokenStore implements TokenStore {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
