@@ -51,14 +51,17 @@ class _NotificationPreferencesScreenState
     }
   }
 
-  Future<void> _change(String key, Object? value) async {
+  Future<void> _change(String key, Object? value) =>
+      _changeMany({key: value});
+
+  Future<void> _changeMany(Map<String, dynamic> changes) async {
     if (_saving || widget.repository.sync == null) return;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      await widget.repository.updatePreferences({key: value});
+      await widget.repository.updatePreferences(changes);
     } on Object {
       if (mounted) {
         setState(
@@ -126,6 +129,16 @@ class _NotificationPreferencesScreenState
             );
           }
           final editable = widget.repository.sync != null && !_saving;
+          const recommended = [
+            'push_notifications',
+            'email_notifications',
+            'sms_notifications',
+            'security_notifications',
+            'event_notifications',
+            'service_notifications',
+            'opportunity_notifications',
+          ];
+          final someDisabled = recommended.any((key) => values[key] == false);
           final quietStart = values['quiet_hours_start'];
           final quietEnd = values['quiet_hours_end'];
           Widget toggle(String key, String title, String detail) {
@@ -159,10 +172,6 @@ class _NotificationPreferencesScreenState
                   'Dernières préférences connues : modification hors ligne indisponible.',
                 ),
               if (widget.runtime != null) ...[
-                Text(
-                  'Mes appareils de notification',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
                 PushDeviceControls(
                   runtime: widget.runtime!,
                   mutationsEnabled: widget.runtime!.isAuthenticated &&
@@ -177,51 +186,68 @@ class _NotificationPreferencesScreenState
                 ),
                 const SizedBox(height: MakoloSpacing.lg),
               ],
+              if (someDisabled)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: editable
+                          ? () => _changeMany({
+                                for (final key in recommended) key: true,
+                              })
+                          : null,
+                      icon: const Icon(Icons.notifications_active_outlined),
+                      label: const Text('Activer les notifications utiles'),
+                    ),
+                  ),
+                ),
               Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: MakoloSpacing.sm),
               toggle(
                 'push_notifications',
-                'Notifications sur cet appareil',
-                'Selon les permissions du système.',
+                'Sur cet appareil',
+                'Avec l’autorisation du téléphone.',
               ),
               toggle(
                 'email_notifications',
                 'E-mail',
-                'Recevoir des messages par e-mail.',
+                'Recevoir les informations par e-mail.',
               ),
               toggle(
                 'sms_notifications',
                 'SMS',
-                'Recevoir des messages par SMS.',
+                'Recevoir les informations par SMS.',
               ),
               const SizedBox(height: MakoloSpacing.lg),
               Text(
-                'Types de notifications',
+                'À propos de vos activités',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               toggle(
                 'security_notifications',
                 'Sécurité',
-                'Accès et sécurité du compte.',
+                'Connexions et protection du compte.',
               ),
               toggle(
                 'event_notifications',
                 'Événements',
-                'Informations sur les événements.',
+                'Changements et rappels importants.',
               ),
               toggle(
                 'service_notifications',
                 'Services',
-                'Informations sur les services.',
+                'Suivi de vos services.',
               ),
               toggle(
                 'opportunity_notifications',
                 'Opportunités',
-                'Informations sur les opportunités.',
+                'Évolutions de vos possibilités.',
               ),
               toggle(
                 'marketing_notifications',
                 'Communications commerciales',
-                'Votre choix explicite pour les communications promotionnelles.',
+                'Offres et messages promotionnels, à votre choix.',
               ),
               const SizedBox(height: MakoloSpacing.lg),
               Text(
@@ -231,7 +257,7 @@ class _NotificationPreferencesScreenState
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Activer les heures calmes'),
-                subtitle: const Text('Les alertes attendent, les informations restent accessibles ici.'),
+                subtitle: const Text('Moins d’alertes pendant vos moments de repos.'),
                 value: values['quiet_hours_enabled'] == true,
                 onChanged: editable && quietStart != null && quietEnd != null
                     ? (value) => _change('quiet_hours_enabled', value)
