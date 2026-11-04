@@ -253,6 +253,69 @@ class ConversationC5MatureTests(TestCase):
         )
         self.assertEqual(invalid.status_code, 404)
 
+    def test_replacement_does_not_reveal_hidden_successor_id(self):
+        member_only = self._audience(self.member, 'Only member')
+        other_only = self._audience(self.other, 'Only other')
+        old = self._point('Ancien Point partagé')
+        hidden_successor = self._point(
+            'Nouveau contenu privé', visibility_audience=other_only,
+            publish=False,
+        )
+        supersede_point(
+            actor=self.manager, old_point=old, new_point=hidden_successor,
+        )
+        self.client.force_login(self.member)
+        page = self._history(query='Ancien Point')
+        self.assertEqual(page.status_code, 200)
+        row = page.json()['results'][0]
+        self.assertEqual(row['id'], str(old.pk))
+        self.assertIsNone(row['replaced_by_point_id'])
+        html = self.client.get(
+            reverse('conversations:history', kwargs={'pk': self.conversation.pk}),
+            {'section': 'history', 'q': 'Ancien Point'},
+        )
+        self.assertNotContains(html, str(hidden_successor.pk))
+        self.assertNotContains(html, 'Voir le Point actuel')
+        self.client.force_login(self.other)
+        other = self._history(query='Ancien Point')
+        self.assertEqual(other.status_code, 200)
+        self.assertEqual(
+            other.json()['results'][0]['replaced_by_point_id'],
+            str(hidden_successor.pk),
+        )
+        self.assertTrue(point_visible_to(self.other, hidden_successor))
+
+    def test_response_result_does_not_expose_private_count_to_peer(self):
+        private_audience = self._audience(self.member, 'Membre répondant')
+        point = self._point(
+            'Confirmation privée',
+            kind=ConversationPointKind.CONFIRMATION,
+            response_mode=ConversationPointResponseMode.BOOLEAN,
+            response_audience=private_audience,
+            response_visibility='respondent_and_authorities',
+        )
+        from .point_services import submit_point_response
+        submit_point_response(
+            actor=self.member, point=point, value=True,
+            client_reference='c5-respond-private',
+        )
+        self.client.force_login(self.other)
+        response = self.client.get(reverse(
+            'conversations-api:point-depth',
+            kwargs={'pk': self.conversation.pk},
+        ), {'section': 'all', 'q': 'Confirmation privée'})
+        self.assertEqual(response.status_code, 200)
+        result = response.json()['results'][0]['response_status']
+        self.assertEqual(result['responded'], False)
+        self.assertIsNone(result['response_count'])
+        self.client.force_login(self.member)
+        own = self._history(query='Confirmation privée').json()['results'][0]
+        self.assertTrue(own['response_status']['responded'])
+        self.assertIsNone(own['response_status']['response_count'])
+        self.client.force_login(self.manager)
+        manager = self._history(query='Confirmation privée').json()['results'][0]
+        self.assertEqual(manager['response_status']['response_count'], 1)
+
     def test_web_history_search_is_accessible_and_cursor_preserves_filter(self):
         for i in range(27):
             self._point('Contrôle %02d' % i)
