@@ -37,12 +37,12 @@ def _families(space, profile):
     manager = can_manage_documents(profile, space)
     return {
         "document": visible_documents(actor=profile, space=space).order_by("-updated_at", "-pk"),
-        "passport": PassportSnapshot.objects.filter(
-            space=space, revoked_at__isnull=True,
-        ).filter(pk__in=(
-            PassportSnapshot.objects.filter(space=space).values("pk")
-            if manager else PassportSnapshot.objects.none().values("pk")
-        )).order_by("-generated_at", "-pk"),
+        "passport": (
+            PassportSnapshot.objects.filter(
+                space=space, revoked_at__isnull=True,
+            ).order_by("-generated_at", "-pk")
+            if manager else PassportSnapshot.objects.none()
+        ),
         "template": PresentationTemplateVersion.objects.filter(
             template__owner_space=space,
             status=VersionStatus.PUBLISHED,
