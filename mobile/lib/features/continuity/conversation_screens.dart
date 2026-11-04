@@ -781,6 +781,29 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Publié')),
     );
+    // Publication was confirmed by the owner. The normal detail groups may
+    // omit this Point, so explicitly reacquire its authorized focus projection.
+    unawaited(_refreshPublishedFocus(pointId));
+  }
+
+  Future<void> _refreshPublishedFocus(String pointId) async {
+    final repository = widget.repository;
+    final conversationId = widget.id;
+    try {
+      await repository.refreshDetail(
+        conversationId, focusPointId: pointId,
+      );
+    } on Object {
+      if (!mounted || widget.repository != repository ||
+          widget.id != conversationId || _focusedPointId != pointId) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Publié · affichage du Point à actualiser.'),
+        ),
+      );
+    }
   }
 
   String? get _focusedPointId => _justPublishedPointId ?? widget.focusPointId;
@@ -840,7 +863,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final id = widget.id;
     setState(() => _refreshing = true);
     try {
-      await repository.refreshDetail(id, focusPointId: widget.focusPointId);
+      await repository.refreshDetail(id, focusPointId: _focusedPointId);
     } on Object {
       // Retain the authorized local detail during transport failures.
     } finally {
