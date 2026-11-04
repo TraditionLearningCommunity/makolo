@@ -345,7 +345,7 @@ void main() {
     expect(find.textContaining('autorisations'), findsWidgets);
     await harness.actorContext.selectPersonal();
     await tester.pumpAndSettle();
-    expect(find.textContaining('n’est plus le contexte actif'), findsOneWidget);
+    expect(find.textContaining('Vous avez changé d’Espace'), findsOneWidget);
     expect(find.text('Droits associés à ce rôle'), findsNothing);
     await _disposeUi(tester);
   });
@@ -392,7 +392,7 @@ void main() {
     await harness.actorContext.selectPersonal();
     await tester.pumpAndSettle();
     expect(find.text('Amina'), findsNothing);
-    expect(find.textContaining('n’est plus le contexte actif'), findsOneWidget);
+    expect(find.textContaining('Vous avez changé d’Espace'), findsOneWidget);
     await _disposeUi(tester);
   });
 
