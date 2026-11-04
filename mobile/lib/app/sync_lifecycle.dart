@@ -207,8 +207,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
 
   @override
   void dispose() {
-    widget.runtime.sync?.deactivate();
-    widget.runtime.outboxProcessor?.deactivate();
+    // The AppRuntime owns worker lifetime; a temporary shell unmount must
+    // not permanently disable an otherwise reusable authenticated runtime.
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_connectivity?.cancel());
     unawaited(_outbox?.cancel());
