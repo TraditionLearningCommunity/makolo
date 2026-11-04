@@ -17,6 +17,7 @@ import 'conversation_repository.dart';
 import 'conversation_composer.dart';
 import 'conversation_attachment_viewer.dart';
 import 'conversation_exchange_sheet.dart';
+import 'conversation_media_sheet.dart';
 
 class ConversationListScreen extends StatefulWidget {
   const ConversationListScreen({
@@ -602,6 +603,24 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     );
   }
 
+  Future<void> _openResponseMedia(_ConversationPoint point, String mode) async {
+    await showModalBottomSheet<void>(
+      context: context, useSafeArea: true, isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => ConversationMediaSheet(
+        mode: mode, responsePointId: point.id,
+        repository: widget.repository,
+        conversationId: widget.id,
+        capabilities: _activeComposer,
+        representedSpaceId: widget.representedSpaceId,
+        onPublished: (pointId) {
+          Navigator.of(sheetContext).pop();
+          _afterPublish(pointId);
+        },
+      ),
+    );
+  }
+
   Future<void> _openExchange(_ConversationPoint point) async {
     await showModalBottomSheet<void>(
       context: context, useSafeArea: true, isScrollControlled: true,
@@ -761,6 +780,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         onOpenFormRequest: widget.onOpenFormRequest,
         onOpenAttachment: _openAttachment,
         onOpenExchange: () => _openExchange(point),
+        onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
       ),
     );
   }
@@ -1018,6 +1038,7 @@ class _PointCard extends StatefulWidget {
     this.onOpenFormRequest,
     this.onOpenAttachment,
     this.onOpenExchange,
+    this.onRespondWithMedia,
   });
 
   final _ConversationPoint point;
@@ -1028,6 +1049,7 @@ class _PointCard extends StatefulWidget {
   final Future<void> Function(String requestId)? onOpenFormRequest;
   final Future<void> Function(Map<String, dynamic> attachment)? onOpenAttachment;
   final VoidCallback? onOpenExchange;
+  final ValueChanged<String>? onRespondWithMedia;
 
   @override
   State<_PointCard> createState() => _PointCardState();
@@ -1202,6 +1224,37 @@ class _PointCardState extends State<_PointCard> {
           ),
         ],
         if (point.canRespond &&
+            (point.responseMode == 'file' || point.responseMode == 'voice') &&
+            !widget.readOnly && widget.onRespondWithMedia != null) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          if (point.responseMode == 'voice')
+            FilledButton.tonalIcon(
+              key: Key('conversation-point-media-${point.id}'),
+              onPressed: () => widget.onRespondWithMedia!('voice'),
+              icon: const Icon(Icons.mic_none_rounded),
+              label: const Text('Répondre par vocal'),
+            )
+          else
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              children: [
+                FilledButton.tonalIcon(
+                  key: Key('conversation-point-media-${point.id}'),
+                  onPressed: () => widget.onRespondWithMedia!('document'),
+                  icon: const Icon(Icons.attach_file_rounded),
+                  label: const Text('Joindre un fichier'),
+                ),
+                TextButton.icon(
+                  onPressed: () => widget.onRespondWithMedia!('photo'),
+                  icon: const Icon(Icons.image_outlined),
+                  label: const Text('Photo'),
+                ),
+              ],
+            ),
+        ],
+        if (point.canRespond &&
+            point.responseMode != 'file' &&
+            point.responseMode != 'voice' &&
             point.kind != 'exchange' &&
             !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.md),
