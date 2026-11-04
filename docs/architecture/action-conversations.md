@@ -228,3 +228,17 @@ Ne jamais affaiblir un test pour obtenir du vert. Corriger la cause racine.
 J est fermé lorsque Makolo peut montrer à un Profile non pas combien de messages se sont accumulés, mais ce qui reste effectivement à savoir, répondre, confirmer, décider ou résoudre, tout en conservant l’historique et les frontières canoniques.
 
 > **Pas le plaisir de rester. Le plaisir d’avancer.**
+
+
+## 15. C3 — Composition Web et Flutter (contrat de consommation)
+
+Le compositeur travaille sur une Conversation réelle et ne déclare un envoi réussi qu'après confirmation du propriétaire serveur. Il consomme la projection `composer` de `GET /api/v1/conversations/{id}/` : `can_create`, `allowed_kinds`, audiences disponibles, sélection requise, `text_mode`, échange cible et capacité explicite de représentation d'Espace.
+
+Les commandes autorisées et leurs propriétaires sont :
+
+- `POST /api/v1/conversations/{id}/compose/` : `mode=text` contribue au Point Exchange actif et autorisé (sélection explicite s'il y en a plusieurs) ou crée une Information seulement avec l'autorité de publication ; `mode=point` publie Information, Question, Demande, Confirmation, Sondage ou Point Exchange conformément à la policy. Un `client_reference` stable rend les reprises idempotentes.
+- `POST /api/v1/conversations/points/{point_id}/entries/` : contribution textuelle au Point Exchange canonique, avec contrôle du destinataire, de l'acteur et de la période d'ouverture.
+- `GET /api/v1/conversations/by-context/{kind}/{id}/` : retourne les Conversations existantes visibles et `can_ensure` calculé par le serveur.
+- `POST /api/v1/conversations/by-context/{kind}/{id}/ensure/` : crée/réutilise la Conversation de contexte via le service métier si l'autorité MANAGE est vérifiée. Aucun DM direct n'est créé depuis le Profil public ; les Conversations directes autorisées déjà établies restent consommables.
+
+La réponse d'une commande n'est pas un transfert de `Permission`, `Mandate`, `Access` ni d'autorité sur les médias. La projection Web/Flutter filtre les extraits Exchange selon la visibilité des réponses, pas seulement celle du Point. Les erreurs préservent le brouillon et la référence d'idempotence ; aucune action hors ligne n'est affichée comme envoyée. Les actions Form Request, vocal et média relèvent de C4.
