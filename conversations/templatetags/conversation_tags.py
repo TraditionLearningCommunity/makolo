@@ -124,3 +124,15 @@ def conversation_exchange_attachments(entry, profile):
         item for item in entry.attachments.all()
         if can_download_attachment(profile, item)
     ]
+
+
+@register.simple_tag
+def conversation_visible_successor(point, profile):
+    """A replaced Point never reveals the identity of a private successor."""
+    from conversations.point_services import point_visible_to
+    if point.lifecycle != "superseded" or not getattr(profile, "is_authenticated", False):
+        return None
+    for candidate in point.superseded_by_points.order_by("-published_at", "-created_at")[:5]:
+        if point_visible_to(profile, candidate):
+            return candidate
+    return None
