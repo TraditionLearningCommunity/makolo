@@ -133,6 +133,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _refreshing = false;
   bool _acquisitionFailed = false;
   String? _verifiedFieldKey;
+  String? _boundFieldKey;
+  DiscoveryRepository? _boundRepository;
+  late Stream<StoredProjection?> _itemsStream;
+  late Stream<DiscoverySourceState> _fieldSourceStream;
+
+  void _bindFieldStreamsIfNeeded() {
+    if (_boundFieldKey == _query.fingerprint &&
+        identical(_boundRepository, widget.repository)) {
+      return;
+    }
+    _boundFieldKey = _query.fingerprint;
+    _boundRepository = widget.repository;
+    _itemsStream = widget.repository.watchItems(_query);
+    _fieldSourceStream = widget.repository.watchSource(
+      widget.repository.itemsSource(_query),
+    );
+  }
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
@@ -158,6 +175,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     });
     widget.repository.rememberExploration(_query);
     unawaited(_restorePositionThenAcquire());
+  }
+
+  @override
+  void didUpdateWidget(covariant DiscoveryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.repository, widget.repository)) {
+      // Viewer-scoped content and focus cannot survive a profile switch.
+      _query = const DiscoveryQuery();
+      _verifiedFieldKey = null;
+      _boundFieldKey = null;
+      _boundRepository = null;
+      _unseenReserve = null;
+      _unseenField = null;
+      _pendingScrollRestore = null;
+      _focusedCandidateKey = null;
+      _pageRequests.clear();
+      unawaited(_restorePositionThenAcquire());
+    }
   }
 
   @override
@@ -511,12 +546,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final source = widget.repository.itemsSource(_query);
+    _bindFieldStreamsIfNeeded();
     return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchItems(_query),
+      stream: _itemsStream,
       builder: (context, snapshot) {
         return StreamBuilder<DiscoverySourceState>(
-          stream: widget.repository.watchSource(source),
+          stream: _fieldSourceStream,
           initialData: DiscoverySourceState.unknown,
           builder: (context, sourceSnapshot) {
             final projection = snapshot.data;
