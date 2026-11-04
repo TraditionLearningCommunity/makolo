@@ -14,12 +14,12 @@ String pushActivationConfirmation({
   required bool projectionRefreshed,
 }) {
   if (!devicesRefreshed) {
-    return 'Appareil inscrit. Impossible d’actualiser la liste.';
+    return 'Notifications activées. La liste des appareils n’a pas pu être actualisée.';
   }
   if (!projectionRefreshed) {
-    return 'Appareil inscrit. Connexions à actualiser.';
+    return 'Notifications activées. Actualisation encore nécessaire.';
   }
-  return 'Appareil inscrit pour les notifications.';
+  return 'Notifications activées sur cet appareil.';
 }
 
 /// Online-only, owner-scoped Notifications management.
@@ -102,6 +102,12 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           'platform': value['platform'] as String,
           'appVersion': value['app_version'] is String
               ? value['app_version'] as String
+              : '',
+          'deviceName': value['device_name'] is String
+              ? value['device_name'] as String
+              : '',
+          'lastSeen': value['last_seen_at'] is String
+              ? value['last_seen_at'] as String
               : '',
         });
       }
@@ -246,14 +252,11 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Mes appareils de notification',
+          'Mes appareils',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Appareils enregistrés auprès de Notifications. '
-          'Leur présence ne garantit pas la livraison de chaque message.',
-        ),
+        const Text('Appareils qui peuvent recevoir vos alertes.'),
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (_error != null)
           TextButton.icon(
@@ -262,24 +265,61 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             label: Text(_error!),
           ),
         if (!_loading && _error == null && _devices.isEmpty)
-          const Text('Aucun appareil actif pour ce Profil.'),
-        for (final device in _devices)
-          Card(
-            child: ListTile(
-              key: Key('push-device-${device['id']}'),
-              leading: const Icon(Icons.notifications_active_outlined),
-              title: Text(device['platform'] == 'android' ? 'Android' : 'iOS'),
-              subtitle: device['appVersion']!.isEmpty
-                  ? null
-                  : Text('Makolo ${device['appVersion']}'),
-              trailing: OutlinedButton(
-                onPressed: _busy || !widget.mutationsEnabled
-                    ? null
-                    : () => unawaited(_revoke(device['id']!)),
-                child: const Text('Retirer'),
-              ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text('Aucun appareil enregistré.'),
+          ),
+        for (final device in _devices) ...[
+          Padding(
+            key: Key('push-device-${device['id']}'),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  device['platform'] == 'android'
+                      ? Icons.smartphone_rounded
+                      : Icons.phone_iphone_rounded,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        device['deviceName']!.trim().isNotEmpty
+                            ? device['deviceName']!.trim()
+                            : device['platform'] == 'android'
+                                ? 'Appareil Android'
+                                : 'Appareil Apple',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      if (device['appVersion']!.isNotEmpty)
+                        Text(
+                          'Makolo ${device['appVersion']}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      if (DateTime.tryParse(device['lastSeen']!) != null)
+                        Text(
+                          'Vu le ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(device['lastSeen']!).toLocal())}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _busy || !widget.mutationsEnabled
+                      ? null
+                      : () => unawaited(_revoke(device['id']!)),
+                  child: const Text('Retirer'),
+                ),
+              ],
             ),
           ),
+          const Divider(height: 1),
+        ],
         if (widget.runtime.config?.firebase.enabled == true &&
             (Platform.isAndroid || Platform.isIOS))
           OutlinedButton.icon(
@@ -288,13 +328,10 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                 ? null
                 : () => unawaited(_enableHere()),
             icon: const Icon(Icons.add_alert_outlined),
-            label: const Text('Activer sur cet appareil'),
+            label: const Text('Activer ici'),
           ),
         if (!widget.mutationsEnabled)
-          const Text(
-            'Gestion suspendue tant que la connexion ou les droits '
-            'ne sont pas confirmés.',
-          ),
+          const Text('Reconnectez-vous pour modifier vos appareils.'),
       ],
     );
   }
