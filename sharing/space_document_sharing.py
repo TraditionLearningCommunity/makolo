@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from space_assets.models import SpaceDocument, SpaceDocumentVersion
 from space_assets.services import can_manage_documents
 
 from .models import (
@@ -22,7 +23,10 @@ from .services import (
 @transaction.atomic
 def share_space_document(*, actor, version, recipient, days=7):
     """One authenticated Makolo recipient; no public bearer-file link."""
-    doc = version.document
+    doc = SpaceDocument.objects.select_for_update().select_related("space").get(
+        pk=version.document_id,
+    )
+    version = SpaceDocumentVersion.objects.get(pk=version.pk, document=doc)
     if doc.archived_at is not None or not can_manage_documents(actor, doc.space):
         raise PermissionDenied("Vous ne pouvez pas partager ce document.")
     _validate_direct_participants(created_by=actor, recipient=recipient)
