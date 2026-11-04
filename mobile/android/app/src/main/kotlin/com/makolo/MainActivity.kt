@@ -2,6 +2,8 @@ package com.makolo
 
 import android.content.ContentValues
 import android.content.Intent
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.os.Environment
 import android.provider.MediaStore
 import android.net.Uri
@@ -18,6 +20,7 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val SHARE_CHANNEL = "makolo/native_share"
         private const val DOWNLOAD_CHANNEL = "makolo/downloads"
+        private const val ALERT_CHANNEL = "makolo_alerts"
     }
 
     private var shareChannel: MethodChannel? = null
@@ -27,6 +30,14 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            val channel = NotificationChannel(
+                ALERT_CHANNEL, "Notifications Makolo", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            channel.setShowBadge(false)
+            manager.createNotificationChannel(channel)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Flutter may draw immediately. Keep this same native view only
             // while its real local initialization is unfinished, never for a timer.
