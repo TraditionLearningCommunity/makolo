@@ -29,7 +29,7 @@ def _preferences_for(user):
 
 def _category_allowed(preferences, category: str, *, channel: str) -> bool:
     if not preferences:
-        return True
+        return category != NotificationCategory.MARKETING
     if channel == DeliveryChannel.EMAIL and not preferences.email_notifications:
         return False
     if channel == DeliveryChannel.PUSH and not preferences.push_notifications:
@@ -45,6 +45,31 @@ def _category_allowed(preferences, category: str, *, channel: str) -> bool:
     if category == NotificationCategory.OPPORTUNITY:
         return preferences.opportunity_notifications
     return True
+
+
+_EXTERNAL_TEMPLATE_KEYS = frozenset({
+    "journey.payment.required", "access.issued",
+    "occurrence.cancelled", "occurrence.rescheduled",
+    "conversation.point.action_required", "conversation.point.escalation",
+    "form.requested", "form.reopened",
+})
+
+
+def _external_attention_warranted(*, kind: str, category: str, template_key: str) -> bool:
+    # Only significant consequences or opted-in communication warrant an
+    # external interruption. Other signals remain in Notifications.
+    if category in {
+        NotificationCategory.SECURITY, NotificationCategory.PAYMENT,
+        NotificationCategory.TICKET, NotificationCategory.MARKETING,
+    }:
+        return True
+    if kind in {
+        NotificationKind.EVENT_REMINDER, NotificationKind.TICKETS_ISSUED,
+        NotificationKind.PAYMENT_FAILED, NotificationKind.PAYMENT_SUCCEEDED,
+        NotificationKind.PAYMENT_REFUNDED,
+    }:
+        return True
+    return template_key in _EXTERNAL_TEMPLATE_KEYS
 
 
 def _quiet_hours_release(preferences, now=None):
@@ -135,10 +160,13 @@ def create_notification(
     else:
         notification = Notification.objects.create(**defaults)
 
+    external = _external_attention_warranted(
+        kind=kind, category=category, template_key=template_key,
+    )
     if queue_email:
         email = (getattr(recipient, "email", "") or "").strip().lower()
         preferences = _preferences_for(recipient)
-        allowed = bool(email) and _category_allowed(
+        allowed = external and bool(email) and _category_allowed(
             preferences,
             category,
             channel=DeliveryChannel.EMAIL,
@@ -148,6 +176,8 @@ def create_notification(
         reason = ""
         if not email:
             reason = "Le destinataire ne possède pas d’adresse e-mail."
+        elif not external:
+            reason = "Information disponible dans Notifications sans interruption."
         elif not allowed:
             reason = "Les préférences utilisateur désactivent cet envoi e-mail."
 
@@ -162,7 +192,7 @@ def create_notification(
 
     if queue_push:
         preferences = _preferences_for(recipient)
-        allowed = _category_allowed(
+        allowed = external and _category_allowed(
             preferences,
             category,
             channel=DeliveryChannel.PUSH,
@@ -176,9 +206,11 @@ def create_notification(
                 status=DeliveryStatus.QUEUED if allowed else DeliveryStatus.SKIPPED,
                 scheduled_for=scheduled_for,
                 skipped_reason=(
-                    ""
-                    if allowed
-                    else "Les préférences utilisateur désactivent cet envoi push."
+                    "" if allowed
+                    else (
+                        "Les préférences utilisateur désactivent cet envoi push."
+                        if external else "Information disponible dans Notifications sans interruption."
+                    )
                 ),
             )
 
@@ -209,6 +241,25 @@ def dispatch_delivery(delivery_id) -> str:
         return "ignored"
 
     notification = delivery.notification
+    # Recheck at dispatch: a preference disabled after queueing still wins.
+    if (
+        not _external_attention_warranted(
+            kind=notification.kind,
+            category=notification.category,
+            template_key=notification.template_key,
+        )
+        or not _category_allowed(
+            _preferences_for(notification.recipient),
+            notification.category,
+            channel=delivery.channel,
+        )
+    ):
+        NotificationDelivery.objects.filter(pk=delivery.pk).update(
+            status=DeliveryStatus.SKIPPED,
+            skipped_reason="Livraison externe désactivée pour cette information.",
+            updated_at=timezone.now(),
+        )
+        return "skipped"
 
     if delivery.channel == DeliveryChannel.PUSH:
         from .models import PushEndpoint
