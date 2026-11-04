@@ -17,7 +17,8 @@ ECOSYSTEM=("spaces","loyalty","automation")
 AFTERCARE=("outcomes",)
 SUBSCRIPTIONS=("subscriptions","subscription-catalog")
 CONNECTIONS=("connections",)
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,*CONNECTIONS,"content")
+CONVERSATIONS=("conversations",)
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,*CONNECTIONS,*CONVERSATIONS,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain not in {"content","subscriptions","subscription-catalog"})
 
 
@@ -45,6 +46,8 @@ def build_parser():
         s.add_argument("--count",type=int,default=50,help="Budget de scenarios par module")
         s.add_argument("--profiles",type=int,default=30,help="Profils world_* candidats")
         s.add_argument("--profile-username",default=None,help="Cibler explicitement un beneficiaire par username (aucun compte code en dur)")
+        s.add_argument("--seed",type=int,default=2026,help="Graine de repartition stable (Conversations)")
+        s.add_argument("--conversation-points",type=int,default=4,choices=(1,2,3,4))
         s.add_argument("--scans",type=int,default=None)
         s.add_argument("--orders",type=int,default=None)
         s.add_argument("--grant-roles",action="store_true",help="Concession explicite des Mandates demo")
@@ -58,7 +61,7 @@ def build_parser():
 
 
 def run(a):
-    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections
+    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections, conversations
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
@@ -94,6 +97,12 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    if "conversations" in domains:
+        options=["--count",str(min(a.count,2000)), "--profiles",str(a.profiles),
+                 "--seed",str(a.seed), "--points",str(a.conversation_points)]
+        if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if apply: options.append("--apply")
+        conversations.main(options)
     if "connections" in domains:
         connections.main((["--apply"] if apply else []) + ["--count", str(min(a.count,5000)), "--profiles", str(a.profiles)] + (["--profile-username", a.profile_username] if a.profile_username else []))
     if "subscription-catalog" in domains:
