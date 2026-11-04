@@ -75,6 +75,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenHistory: () => context.push(
           '/conversations/${state.pathParameters['id']}/history',
         ),
+        onOpenRelatedPoint: (pointId) => context.push(
+          '/conversations/${state.pathParameters['id']}?focus=${Uri.encodeQueryComponent(pointId)}',
+        ),
         onOpenFormRequest: (requestId) async {
           await context.push('/conversations/${state.pathParameters['id']}/forms/$requestId');
           if (context.mounted) {
