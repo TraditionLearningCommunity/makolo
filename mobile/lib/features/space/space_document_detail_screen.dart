@@ -1,0 +1,448 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/app_runtime.dart';
+import '../../design/makolo_theme.dart';
+import '../../network/makolo_api_client.dart';
+import '../../platform/downloads/device_downloads.dart';
+
+/// Space-owned document N3: owner actions and versioned private file transfer.
+class SpaceDocumentDetailScreen extends StatefulWidget {
+  const SpaceDocumentDetailScreen({
+    super.key,
+    required this.runtime,
+    required this.slug,
+    required this.documentId,
+  });
+
+  final AppRuntime runtime;
+  final String slug;
+  final String documentId;
+
+  @override
+  State<SpaceDocumentDetailScreen> createState() =>
+      _SpaceDocumentDetailScreenState();
+}
+
+class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
+  Map<String, dynamic>? _document;
+  bool _canManage = false;
+  bool _loading = true;
+  bool _working = false;
+  int _request = 0;
+  String? _error;
+
+  SpaceActorContext? get _actor {
+    final actor = widget.runtime.actorContext?.value;
+    return actor is SpaceActorContext && actor.space.slug == widget.slug
+        ? actor : null;
+  }
+
+  String get _base =>
+      'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/documents/';
+
+  String get _url => '${_base}${Uri.encodeComponent(widget.documentId)}/';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.runtime.actorContext?.addListener(_actorChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _request++;
+    widget.runtime.actorContext?.removeListener(_actorChanged);
+    super.dispose();
+  }
+
+  void _actorChanged() {
+    _request++;
+    if (!mounted) return;
+    setState(() {
+      _document = null;
+      _canManage = false;
+      _error = _actor == null ? 'Cet Espace n’est plus actif.' : null;
+      _loading = _actor != null;
+    });
+    if (_actor != null) _load();
+  }
+
+  Future<void> _load() async {
+    final api = widget.runtime.api;
+    final id = _actor?.space.id;
+    final ticket = ++_request;
+    if (api == null || id == null) {
+      if (!mounted) return;
+      setState(() {
+        _document = null;
+        _loading = false;
+        _error = id == null ? 'Cet Espace n’est plus actif.' : 'Connexion nécessaire.';
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final payload = (await api.get(_url)).jsonObject();
+      if (!mounted || ticket != _request || _actor?.space.id != id) return;
+      final doc = payload['document'];
+      if (doc is! Map<String, dynamic> ||
+          doc['id'] != widget.documentId) {
+        throw const FormatException('Document incohérent');
+      }
+      setState(() {
+        _document = doc;
+        _canManage = payload['can_manage'] == true;
+        _loading = false;
+      });
+    } on Object {
+      if (!mounted || ticket != _request || _actor?.space.id != id) return;
+      setState(() {
+        _document = null;
+        _canManage = false;
+        _error = 'Document indisponible.';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _replace() async {
+    if (_working || !_canManage || _actor == null) return;
+    final selection = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg'],
+    );
+    if (selection == null || selection.files.isEmpty || !mounted) return;
+    final file = selection.files.single;
+    if (file.path == null) return;
+    final id = _actor?.space.id;
+    final api = widget.runtime.api;
+    if (id == null || api == null) return;
+    setState(() => _working = true);
+    try {
+      await api.upload(
+        '${_url}versions/',
+        files: [
+          MakoloUploadFile(
+            fieldName: 'file', path: file.path!, filename: file.name,
+          ),
+        ],
+      );
+      if (!mounted || _actor?.space.id != id) return;
+      _toast('Version ajoutée.');
+      await _load();
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Ajout impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _download(Map<String, dynamic> version) async {
+    if (_working || _actor == null) return;
+    final api = widget.runtime.api;
+    final id = _actor!.space.id;
+    final versionId = version['id']?.toString();
+    if (api == null || versionId == null) return;
+    final filename = '${DateTime.now().microsecondsSinceEpoch}.bin';
+    final temporary = await getTemporaryDirectory();
+    final file = File('${temporary.path}/$filename');
+    setState(() => _working = true);
+    try {
+      await api.download(
+        '${_base}versions/${Uri.encodeComponent(versionId)}/download/',
+        destinationPath: file.path,
+      );
+      if (!mounted || _actor?.space.id != id) return;
+      final mime = version['mime_type']?.toString() ?? 'application/octet-stream';
+      final ext = switch (mime) {
+        'application/pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'text/plain' => 'txt',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        _ => 'bin',
+      };
+      await const AndroidDeviceDownloads().save(
+        source: file,
+        fileName: makoloDownloadName(
+          '${_document?['title'] ?? 'Document'}-v${version['number']}',
+          ext,
+        ),
+        mimeType: mime,
+      );
+      if (mounted && _actor?.space.id == id) _toast('Document téléchargé.');
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Téléchargement impossible.');
+    } finally {
+      if (await file.exists()) await file.delete();
+      final partial = File('${file.path}.part');
+      if (await partial.exists()) await partial.delete();
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _share(Map<String, dynamic> version) async {
+    if (_working || !_canManage || _actor == null) return;
+    final controller = TextEditingController();
+    var days = 7;
+    final recipient = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Partager'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixText: '@', labelText: 'Destinataire Makolo',
+                ),
+              ),
+              DropdownButtonFormField<int>(
+                initialValue: days,
+                decoration: const InputDecoration(labelText: 'Durée'),
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('1 jour')),
+                  DropdownMenuItem(value: 7, child: Text('7 jours')),
+                  DropdownMenuItem(value: 30, child: Text('30 jours')),
+                ],
+                onChanged: (value) => update(() => days = value ?? 7),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+              child: const Text('Partager'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (recipient == null || recipient.isEmpty || _actor == null) return;
+    final id = _actor!.space.id;
+    final api = widget.runtime.api;
+    if (api == null) return;
+    setState(() => _working = true);
+    try {
+      await api.post(
+        '${_base}versions/${Uri.encodeComponent(version['id'].toString())}/share/',
+        body: {
+          'recipient_username': recipient.startsWith('@')
+              ? recipient.substring(1) : recipient,
+          'days': days,
+        },
+      );
+      if (mounted && _actor?.space.id == id) _toast('Document partagé.');
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Partage impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _reuse(Map<String, dynamic> version) async {
+    if (_working || _actor == null) return;
+    final api = widget.runtime.api;
+    final id = _actor!.space.id;
+    if (api == null) return;
+    List<Map<String, dynamic>> journeys;
+    try {
+      final response = (await api.get('${_base}eligible-journeys/')).jsonObject();
+      if (!mounted || _actor?.space.id != id ||
+          response['space_id'] != id) return;
+      journeys = [
+        for (final row in response['items'] as List? ?? [])
+          if (row is Map<String, dynamic>) row,
+      ];
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Démarches indisponibles.');
+      return;
+    }
+    if (!mounted || journeys.isEmpty) {
+      if (mounted && _actor?.space.id == id) _toast('Aucune démarche disponible.');
+      return;
+    }
+    final journeyId = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(MakoloSpacing.md),
+              child: Text('Choisir une démarche',
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            for (final journey in journeys)
+              ListTile(
+                leading: const Icon(Icons.route_outlined),
+                title: Text(journey['title']?.toString() ?? 'Démarche'),
+                onTap: () => Navigator.pop(
+                    sheetContext, journey['id']?.toString()),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (journeyId == null || _actor?.space.id != id) return;
+    setState(() => _working = true);
+    try {
+      await api.post(
+        '${_base}versions/${Uri.encodeComponent(version['id'].toString())}/reuse/',
+        body: {'journey_id': journeyId},
+      );
+      if (mounted && _actor?.space.id == id) _toast('Ajouté à la démarche.');
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Ajout impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _archive() async {
+    if (_working || !_canManage || _actor == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Archiver ce document ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Archiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || _actor == null) return;
+    final id = _actor!.space.id;
+    setState(() => _working = true);
+    try {
+      await widget.runtime.api!.delete(_url);
+      if (!mounted || _actor?.space.id != id) return;
+      context.pop();
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Archivage impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final doc = _document;
+    final versions = <Map<String, dynamic>>[
+      for (final row in doc?['versions'] as List? ?? [])
+        if (row is Map<String, dynamic>) row,
+    ];
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Document'),
+        actions: [
+          if (_canManage)
+            IconButton(
+              tooltip: 'Archiver',
+              onPressed: _working ? null : _archive,
+              icon: const Icon(Icons.archive_outlined),
+            ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(child: Text(_error!))
+          : doc == null
+          ? const Center(child: Text('Document indisponible.'))
+          : ListView(
+              padding: const EdgeInsets.all(MakoloSpacing.lg),
+              children: [
+                Icon(Icons.description_outlined, size: 44, color: colors.primary),
+                const SizedBox(height: MakoloSpacing.md),
+                Text(doc['title']?.toString() ?? 'Document',
+                    style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(doc['visibility'] == 'restricted'
+                    ? 'Confidentiel' : 'Équipe autorisée'),
+                const SizedBox(height: MakoloSpacing.xl),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Versions',
+                          style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    ),
+                    if (_canManage)
+                      IconButton(
+                        tooltip: 'Nouvelle version',
+                        onPressed: _working ? null : _replace,
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                  ],
+                ),
+                for (final version in versions)
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.history_rounded),
+                      title: Text('Version ${version['number']}'),
+                      subtitle: Text(
+                        version['mime_type']?.toString() ?? 'Document',
+                      ),
+                      trailing: Wrap(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Télécharger',
+                            onPressed: _working ? null : () => _download(version),
+                            icon: const Icon(Icons.download_rounded),
+                          ),
+                          if (_canManage)
+                            IconButton(
+                              tooltip: 'Partager',
+                              onPressed: _working ? null : () => _share(version),
+                              icon: const Icon(Icons.share_outlined),
+                            ),
+                          IconButton(
+                            tooltip: 'Utiliser',
+                            onPressed: _working ? null : () => _reuse(version),
+                            icon: const Icon(Icons.arrow_outward_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 70),
+              ],
+            ),
+    );
+  }
+}
