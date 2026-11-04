@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load conversation_tags %}
 {% block title %}Conversations | Makolo{% endblock %}
 {% block content %}
 <main class="mx-auto max-w-3xl pb-12">
@@ -39,7 +40,10 @@
           <div class="min-w-0">
             <h2 class="text-base font-bold">{% if result.point and result.point.title %}{{ result.point.title }}{% elif result.conversation.title_override %}{{ result.conversation.title_override }}{% else %}{{ result.context_label }}{% endif %}</h2>
             <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ result.context_label }}</p>
-            {% if result.point and result.point.lifecycle == 'resolved' and result.point.resolution %}<p class="mt-2 text-sm">✓ {{ result.point.resolution.summary }}</p>{% endif %}
+            {% if result.point %}
+              {% conversation_visible_resolution result.point request.user as result_summary %}
+              {% if result_summary %}<p class="mt-2 text-sm">✓ {{ result_summary }}</p>{% endif %}
+            {% endif %}
           </div><span aria-hidden="true">›</span>
         </a>
       {% empty %}<p class="p-6 text-sm" style="color:var(--mk-muted)">Aucun résultat.</p>{% endfor %}
