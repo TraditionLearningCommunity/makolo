@@ -26,7 +26,7 @@ from .composing import (
     _validate_represented_context, composer_capabilities, contribute_text,
     publish_composed_point,
 )
-from .core_models import ConversationLifecycle
+from .core_models import Conversation, ConversationLifecycle
 from .form_services import _conversation_activity, ensure_form_requests_for_point
 from .media_models import ConversationAttachmentKind, ConversationPointAttachment
 from .media_services import (
@@ -95,6 +95,9 @@ def publish_conversation_form(
     *, actor, conversation, title, client_reference, form_version_id=None,
     questions=None, audience_id=None, represented_space=None,
 ):
+    # Serialize duplicate form preparations before the Form/Version rows are
+    # created, not only when the canonical Point is published.
+    conversation = Conversation.objects.select_for_update(of=("self",)).get(pk=conversation.pk)
     activity = _form_context_activity(actor, conversation)
     if activity is None:
         raise PermissionDenied("Vous ne pouvez pas demander de formulaire ici.")
