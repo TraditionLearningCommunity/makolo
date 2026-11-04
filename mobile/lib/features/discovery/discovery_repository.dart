@@ -1622,19 +1622,14 @@ class DiscoveryRepository {
     final saved = confirmed['saved'];
     final capabilities = confirmed['capabilities'];
     if (saved is! Map || capabilities is! List) return;
-    final cached = await store.readProjections(itemsProjectionKind);
-    for (final projection in cached) {
-      if (projection.schemaVersion != 1) continue;
-      final key = projection.payload['results'] is List
-          ? 'results'
-          : projection.payload['items'] is List
-              ? 'items'
-              : null;
-      if (key == null) continue;
-      final existing = projection.payload[key] as List;
+
+    // Patch only the exact owner-confirmed resource, without disturbing
+    // ordering, relevance, geometry, other candidates or acquisition time.
+    List<dynamic>? patchedRows(Object? input) {
+      if (input is! List) return null;
       var changed = false;
       final rows = <dynamic>[];
-      for (final raw in existing) {
+      for (final raw in input) {
         if (raw is! Map) {
           rows.add(raw);
           continue;
@@ -1648,18 +1643,52 @@ class DiscoveryRepository {
           rows.add(raw);
           continue;
         }
-        final updated = Map<String, dynamic>.from(raw);
-        updated['saved'] = Map<String, dynamic>.from(saved);
-        updated['capabilities'] = List<dynamic>.from(capabilities);
-        rows.add(updated);
+        rows.add({
+          ...Map<String, dynamic>.from(raw),
+          'saved': Map<String, dynamic>.from(saved),
+          'capabilities': List<dynamic>.from(capabilities),
+        });
         changed = true;
       }
+      return changed ? rows : null;
+    }
+
+    final cached = await store.readProjections(itemsProjectionKind);
+    for (final projection in cached) {
+      if (projection.schemaVersion != 1) continue;
+      final viewer = projection.payload['viewer'];
+      if (viewer is! Map || viewer['id'] != profileId) continue;
+
+      final payload = Map<String, dynamic>.from(projection.payload);
+      var changed = false;
+      final rows = patchedRows(payload['results'] ?? payload['items']);
+      if (rows != null) {
+        // The DiscoveryWire requires equal results/items aliases.
+        if (payload['results'] is List) payload['results'] = rows;
+        if (payload['items'] is List) payload['items'] = rows;
+        changed = true;
+      }
+      final spatial = payload['spatial_index'];
+      if (spatial is Map &&
+          spatial['detail_available'] == true &&
+          spatial['viewer'] is Map &&
+          (spatial['viewer'] as Map)['id'] == profileId) {
+        final indexRows = patchedRows(spatial['results']);
+        if (indexRows != null) {
+          payload['spatial_index'] = {
+            ...Map<String, dynamic>.from(spatial),
+            'results': indexRows,
+          };
+          changed = true;
+        }
+      }
       if (!changed) continue;
+      DiscoveryWire.validateData(payload);
       await store.putProjection(
         kind: itemsProjectionKind,
         resourceKey: projection.resourceKey,
         schemaVersion: projection.schemaVersion,
-        payload: {...projection.payload, key: rows},
+        payload: payload,
         receivedAt: projection.receivedAt,
         sourceGeneratedAt: projection.sourceGeneratedAt,
         sourceUpdatedAt: projection.sourceUpdatedAt,
