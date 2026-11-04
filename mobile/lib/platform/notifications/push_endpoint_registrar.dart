@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../auth/token_store.dart';
@@ -18,7 +19,19 @@ class PushEndpointRegistrar {
   final TokenStore tokens;
   final PushTokenSource source;
 
+  static const _deviceChannel = MethodChannel('makolo/device');
   StreamSubscription<String>? _subscription;
+
+  Future<String> _readDeviceName() async {
+    if (!Platform.isAndroid) return '';
+    try {
+      return (await _deviceChannel.invokeMethod<String>('name'))?.trim() ?? '';
+    } on Object {
+      // Missing platform support must not prevent registration.
+      return '';
+    }
+  }
+
   bool _disposed = false;
 
   Future<void> _register(String token, {bool reactivate = false}) async {
@@ -26,6 +39,7 @@ class PushEndpointRegistrar {
     if (_disposed || platform == null || token.trim().isEmpty) return;
     final installationId = await tokens.deviceInstanceId();
     final info = await PackageInfo.fromPlatform();
+    final deviceName = await _readDeviceName();
     final appVersion = info.buildNumber.isEmpty
         ? info.version
         : '${info.version}+${info.buildNumber}';
@@ -37,6 +51,7 @@ class PushEndpointRegistrar {
         'installation_id': installationId,
         'token': token.trim(),
         'app_version': appVersion,
+        'device_name': deviceName,
         'reactivate': reactivate,
       },
     );
