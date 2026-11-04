@@ -83,14 +83,16 @@ Map<String, dynamic> _fullPayload({bool supportAvailable = false}) {
       'teams': {
         'count': 1,
         'items': [
-          {'kind': 'team', 'id': 'team-1', 'name': 'Équipe terrain'},
+          {'kind': 'team', 'id': 'team-1', 'name': 'Équipe terrain',
+            'space': {'id': 'space-1', 'name': 'Espace Makolo'}},
         ],
         'has_more': false,
       },
       'groups': {
         'count': 1,
         'items': [
-          {'kind': 'group', 'id': 'group-1', 'name': 'Groupe local'},
+          {'kind': 'group', 'id': 'group-1', 'name': 'Groupe local',
+            'owner': {'kind': 'space', 'id': 'space-1', 'name': 'Espace Makolo'}},
         ],
         'has_more': false,
       },
@@ -205,7 +207,7 @@ void main() {
     expect(selection.identitySubtitle, 'Ingénieur · Lubumbashi, RDC');
     expect(
       selection.territories.map((territory) => territory.presentation.key),
-      ['passport', 'considerations', 'collectives', 'accesses', 'resources'],
+      ['passport', 'considerations', 'accesses', 'collectives', 'resources'],
     );
 
     final resources = selection.territories.singleWhere(
@@ -222,9 +224,9 @@ void main() {
       (territory) => territory.presentation.key == 'collectives',
     );
     expect(collectives.items.map((item) => item.subtitle), [
-      'Contexte autorisé',
-      'Équipe',
-      'Groupe',
+      'Peut agir pour cet Espace',
+      'Équipe · Espace Makolo',
+      'Groupe · Espace Makolo',
     ]);
     expect(
       collectives.items
@@ -234,8 +236,72 @@ void main() {
                 item.destination.kind == 'group',
           )
           .map((item) => item.subtitle),
-      isNot(contains('Contexte autorisé')),
+      isNot(contains('Peut agir pour cet Espace')),
     );
+  });
+
+  test('homonymous teams and proofs keep their canonical context', () {
+    final payload = _fullPayload();
+    final collectives = payload['collectives'] as Map<String, dynamic>;
+    collectives['teams'] = {
+      'count': 2,
+      'items': [
+        {
+          'id': 'team-one',
+          'name': 'Équipe principale',
+          'space': {'id': 'space-one', 'name': 'Mulykap'},
+        },
+        {
+          'id': 'team-two',
+          'name': 'Équipe principale',
+          'space': {'id': 'space-two', 'name': 'Fondation'},
+        },
+      ],
+      'has_more': false,
+    };
+    final resources = payload['resources'] as Map<String, dynamic>;
+    resources['proofs'] = {
+      'count': 2,
+      'items': [
+        {
+          'id': 'proof-one',
+          'proof_type_label': 'Accès utilisé',
+          'status_label': 'Établie',
+          'activity': {'title': 'Rencontre à Luanda'},
+        },
+        {
+          'id': 'proof-two',
+          'proof_type_label': 'Accès utilisé',
+          'status_label': 'Établie',
+          'activity': {'title': 'Atelier à Cape Town'},
+        },
+      ],
+      'has_more': false,
+    };
+    final selection = selector.select(
+      projection: _projection(payload),
+      now: now,
+    );
+    final teams = selection.territories
+        .singleWhere((territory) => territory.presentation.key == 'collectives')
+        .items
+        .where((item) => item.destination.kind == 'team')
+        .toList();
+    expect(teams.map((item) => item.destination.id), ['team-one', 'team-two']);
+    expect(teams.map((item) => item.subtitle), [
+      'Équipe · Mulykap',
+      'Équipe · Fondation',
+    ]);
+    final proofs = selection.territories
+        .singleWhere((territory) => territory.presentation.key == 'resources')
+        .items
+        .where((item) => item.destination.kind == 'proof')
+        .toList();
+    expect(proofs.map((item) => item.subtitle), [
+      'Rencontre à Luanda · Établie',
+      'Atelier à Cape Town · Établie',
+    ]);
+    expect(proofs.map((item) => item.destination.kind), ['proof', 'proof']);
   });
 
   test('saved media requires an owner-backed recognition use', () {
@@ -334,7 +400,7 @@ void main() {
       );
       expect(find.text('Possibilité 0'), findsOneWidget);
       expect(find.text('Possibilité 1'), findsOneWidget);
-      expect(find.text('Possibilité 2'), findsOneWidget);
+      expect(find.text('Possibilité 2'), findsNothing);
       expect(find.text('Possibilité 3'), findsNothing);
       expect(find.text('Possibilité 4'), findsNothing);
       expect(find.text('Vous avez tout exploré'), findsNothing);
