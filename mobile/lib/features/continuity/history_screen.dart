@@ -346,6 +346,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
               }
             }
             final effectiveView = _remoteHistory ?? view;
+            _loadedView = effectiveView;
+            _mayLoadNext =
+                !source.invalidated &&
+                source.lastErrorCode == null &&
+                source.reachability != ReachabilityState.unreachable &&
+                ((_query.isEmpty && _filter == 'all') || _remoteHistory != null);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _checkEnd();
+            });
             final first = effectiveView.firstPage ?? view.firstPage;
             final wide =
                 MediaQuery.sizeOf(context).width >= 900 &&
@@ -417,6 +426,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Expanded(
                       flex: 3,
                       child: ListView(
+                        controller: _scroll,
                         key: const Key('history-content'),
                         padding: const EdgeInsets.all(MakoloSpacing.inner),
                         children: [
@@ -434,6 +444,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 _remoteHistory = null;
                                 _remotePages = [];
                                 _selectedHistoryKey = null;
+                                        _lastRequested = null;
+                                        _loadFailed = false;
                               });
                               unawaited(_restoreCachedSearch());
                             },
@@ -465,6 +477,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       _remoteHistory = null;
                                       _remotePages = [];
                                       _selectedHistoryKey = null;
+                                        _lastRequested = null;
+                                        _loadFailed = false;
                                     });
                                     unawaited(_restoreCachedSearch());
                                   },
@@ -531,21 +545,45 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (index < visible.length - 1)
                               const SizedBox(height: MakoloSpacing.sm),
                           ],
-                          if ((_remoteHistory ?? view).hasMore) ...[
-                            const SizedBox(height: MakoloSpacing.md),
-                            OutlinedButton(
-                              onPressed: _loadingMore || _searching
-                                  ? null
-                                  : _remoteHistory == null
-                                  ? () => _loadMore(view)
-                                  : () => _remoteSearch(more: true),
-                              child: Text(
-                                _loadingMore || _searching
-                                    ? 'Chargement…'
-                                    : 'Afficher la suite',
-                              ),
-                            ),
-                          ],
+                          if (effectiveView.hasMore && (_loadingMore || _searching))
+                             const Center(
+                               child: Padding(
+                                 padding: EdgeInsets.all(MakoloSpacing.md),
+                                 child: CircularProgressIndicator.adaptive(),
+                               ),
+                             ),
+                           if (_loadFailed)
+                             Center(
+                               child: TextButton(
+                                 onPressed: () {
+                                   setState(() {
+                                     _loadFailed = false;
+                                     _lastRequested = null;
+                                   });
+                                   if (_remoteHistory == null) {
+                                     unawaited(_loadMore(view));
+                                   } else {
+                                     unawaited(_remoteSearch(more: true));
+                                   }
+                                 },
+                                 child: const Text('Réessayer'),
+                               ),
+                             ),
+                           if (!_loadFailed &&
+                               !_loadingMore &&
+                               !_searching &&
+                               !effectiveView.hasMore &&
+                               visible.isNotEmpty &&
+                               source.lastErrorCode == null &&
+                               source.reachability != ReachabilityState.unreachable &&
+                               ((_query.isEmpty && _filter == 'all') ||
+                                   _remoteHistory != null))
+                             const Center(
+                               child: Padding(
+                                 padding: EdgeInsets.all(MakoloSpacing.md),
+                                 child: Text('Vous avez tout vu'),
+                               ),
+                             ),
                         ],
                       ),
                     ),
