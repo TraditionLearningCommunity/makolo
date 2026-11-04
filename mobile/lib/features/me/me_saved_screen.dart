@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
+import '../../sync/sync_status.dart';
 import '../../sync/projection_contract.dart';
 import 'me_local_preview.dart';
 
@@ -318,7 +319,36 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                 onTap: () =>
                     widget.onOpen((row['activity'] as Map)['id'].toString()),
               ),
-          if (!_loading && !_failed && !_hasMore && _rows.isEmpty && _hasKnownCollection)
+          if (_loading)
+             const Center(
+               child: Padding(
+                 padding: EdgeInsets.all(16),
+                 child: CircularProgressIndicator.adaptive(),
+               ),
+             ),
+           if (_failed)
+             Center(
+               child: TextButton(
+                 onPressed: () {
+                   setState(() => _failed = false);
+                   unawaited(_next());
+                 },
+                 child: const Text('Réessayer'),
+               ),
+             ),
+           if (!_loading &&
+               !_failed &&
+               !_hasMore &&
+               _rows.isNotEmpty &&
+               _hasKnownCollection &&
+               SyncStatusScope.maybeOf(context)?.state != SyncVisualState.offline)
+             const Center(
+               child: Padding(
+                 padding: EdgeInsets.symmetric(vertical: 20),
+                 child: Text('Vous avez tout vu'),
+               ),
+             ),
+           if (!_loading && !_failed && !_hasMore && _rows.isEmpty && _hasKnownCollection)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
