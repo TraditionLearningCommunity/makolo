@@ -189,6 +189,9 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
     _generation++;
     setState(() {
       _query = term;
+      if (term.isNotEmpty && _section == 'history') {
+        _section = 'all';
+      }
       _nextCursor = null;
       _rows.clear();
       _showingLocal = false;
