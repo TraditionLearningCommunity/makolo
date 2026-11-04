@@ -57,6 +57,34 @@ class NotificationInboxFlowTests(TestCase):
         self.assertEqual(filtered["count"], 33)
         self.assertEqual(filtered["total_count"], 34)
 
+    def test_unread_continuation_uses_filtered_count_across_all_pages(self):
+        first = self.api.get("/api/v1/notifications/").data["results"][0]["id"]
+        self.assertEqual(
+            self.api.post(f"/api/v1/notifications/{first}/read/").status_code, 200
+        )
+        url = "/api/v1/notifications/?filter=unread"
+        seen = set()
+        page_sizes = []
+        while url:
+            result = self.api.get(url)
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.data["count"], 33)
+            self.assertEqual(result.data["total_count"], 34)
+            page_sizes.append(len(result.data["results"]))
+            for row in result.data["results"]:
+                self.assertFalse(row["is_read"])
+                self.assertNotIn(row["id"], seen)
+                seen.add(row["id"])
+            next_url = result.data["next"]
+            url = (
+                urlsplit(next_url).path + "?" + urlsplit(next_url).query
+                if next_url else None
+            )
+            if url:
+                self.assertIn("filter=unread", url)
+        self.assertEqual(page_sizes, [15, 15, 3])
+        self.assertEqual(len(seen), 33)
+
     def test_owners_and_web_infinite_scroll_contract(self):
         self.api.force_authenticate(self.other)
         response = self.api.get("/api/v1/notifications/")
