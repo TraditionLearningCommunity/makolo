@@ -359,35 +359,68 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 Semantics(
                                   button: true,
                                   label: '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
-                                  child: ListTile(
+                                  child: InkWell(
                                     onTap: () => _open(row),
-                                    leading: ExcludeSemantics(
-                                      child: Icon(
-                                        row.isRead
-                                            ? Icons.notifications_none_outlined
-                                            : Icons.circle,
-                                        size: row.isRead ? 22 : 9,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: MakoloSpacing.inner,
+                                        vertical: MakoloSpacing.md,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(top: 8),
+                                              child: row.isRead
+                                                  ? const SizedBox.shrink()
+                                                  : Icon(
+                                                      Icons.circle,
+                                                      size: 8,
+                                                      color: Theme.of(context).colorScheme.primary,
+                                                    ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  row.title,
+                                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                    fontWeight: row.isRead
+                                                        ? FontWeight.w500
+                                                        : FontWeight.w700,
+                                                  ),
+                                                ),
+                                                if (row.message.isNotEmpty) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    row.message,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                ],
+                                                if (row.createdAt != null) ...[
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    _timeLabel(row.createdAt!),
+                                                    style: Theme.of(context).textTheme.bodySmall,
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          if (row.destinationPath != null) ...[
+                                            const SizedBox(width: 8),
+                                            const Icon(Icons.chevron_right_rounded),
+                                          ],
+                                        ],
                                       ),
                                     ),
-                                    title: Text(
-                                      row.title,
-                                      style: TextStyle(
-                                        fontWeight: row.isRead
-                                            ? FontWeight.w500
-                                            : FontWeight.w700,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      row.message +
-                                          (row.createdAt == null
-                                              ? ''
-                                              : '\n${_timeLabel(row.createdAt!)}'),
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    trailing: row.destinationPath == null
-                                        ? null
-                                        : const Icon(Icons.chevron_right_rounded),
                                   ),
                                 ),
                                 const Divider(height: 1),
@@ -434,12 +467,52 @@ class _NotificationRow {
         .map((item) {
           final row = item.map((key, value) => MapEntry(key.toString(), value));
           final path = router.resolveNavigation(row['navigation']);
+          final rawTitle = row['title']?.toString().trim() ?? '';
+          final rawMessage = row['message']?.toString().trim() ?? '';
+          // Legacy owner messages already contain a useful specific subject.
+          final confirmed = rawTitle == 'Confirmation Makolo'
+              ? RegExp(r'^Votre démarche pour «(.+)» est confirmée[.!]?
+            createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
+            destinationPath: path,
+          );
+        })
+        .where((row) => row.id.isNotEmpty)
+        .toList(growable: false);
+  }
+}
+
+String _timeLabel(DateTime value) {
+  final date = value.toLocal();
+  final now = DateTime.now();
+  final elapsed = now.difference(date);
+  if (elapsed.isNegative || elapsed.inMinutes < 1) return 'À l’instant';
+  if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
+  if (elapsed.inHours < 24 && date.day == now.day) {
+    return 'Il y a ${elapsed.inHours} h';
+  }
+  final day = DateTime(date.year, date.month, date.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final days = today.difference(day).inDays;
+  if (days == 1) return 'Hier';
+  if (days < 7) return 'Il y a ${days} jours';
+  if (days < 30) return 'Il y a ${(days / 7).floor()} semaines';
+  if (days < 365) return 'Il y a ${(days / 30).floor()} mois';
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+)
+                  .firstMatch(rawMessage)
+              : null;
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
-            title: row['title']?.toString().trim().isNotEmpty == true
-                ? row['title'].toString().trim()
-                : 'Notification',
-            message: row['message']?.toString().trim() ?? '',
+            title: confirmed?.group(1) ??
+                (rawTitle == 'Confirmation Makolo'
+                    ? 'Démarche confirmée'
+                    : rawTitle.isEmpty
+                        ? 'Notification'
+                        : rawTitle),
+            message: confirmed == null
+                ? rawMessage
+                : 'Votre démarche est confirmée.',
             isRead: row['is_read'] == true,
             createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
             destinationPath: path,
