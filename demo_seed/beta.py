@@ -84,10 +84,10 @@ def _users(ctx):
 
 def _space(key, name, owner, *, archetype=SpaceArchetype.GENERIC):
     org = upsert(Organization, f"beta-{key}", defaults={
-        "name": name, "slug": f"beta-{key}", "archetype": archetype, "description": f"Espace fictif {name}.", "contact_email": f"contact.beta.{key}@makolo.test",
+        "name": name, "slug": f"beta-{key}", "archetype": archetype, "description": f"Coordination des activités et des services de {name}.", "contact_email": f"contact.beta.{key}@makolo.test",
         "country": "CD", "city": "Lubumbashi", "public_profile": True, "verification_status": "verified", "created_by": owner,
     })
-    team = upsert(Team, f"beta-{key}", defaults={"organization": org, "name": "Équipe bêta", "is_default": True, "is_active": True})
+    team = upsert(Team, f"beta-{key}", defaults={"organization": org, "name": "Équipe de coordination", "is_default": True, "is_active": True})
     return org, team
 
 
@@ -106,8 +106,8 @@ def _place(key, name, locality, lat, lon, owner):
 
 def _event(ctx, key, space, manager, category, place, title, days, hour, *, status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC, capacity=80, price=None, mode=PaymentMode.NONE):
     activity = upsert(Activity, f"beta-event-{key}", defaults={
-        "space": space, "created_by": manager, "title": f"Exemple — {title}", "slug": f"beta-event-{key}",
-        "short_description": f"Scénario bêta — {title}", "description": "Événement fictif pour la bêta Makolo.",
+        "space": space, "created_by": manager, "title": title, "slug": f"beta-event-{key}",
+        "short_description": f"Rencontre autour de {title.lower()}.", "description": "Consultez le programme, les horaires et les modalités de participation.",
         "status": status, "visibility": visibility,
     })
     start = _at(ctx, days, hour)
@@ -138,7 +138,7 @@ def _event(ctx, key, space, manager, category, place, title, days, hour, *, stat
         })
         ticket_type = upsert(TicketType, f"beta-event-{key}", defaults={
             "event": event, "offer": offer, "capacity_pool": pool, "name": "Standard", "slug": "standard",
-            "description": "Tarif fictif associé à cet événement.", "is_public": True,
+            "description": "Informations et modalités associées à cette catégorie de billet.", "is_public": True,
         })
     return {"activity": activity, "occurrence": occ, "event": event, "pool": pool, "offer": offer, "ticket_type": ticket_type}
 
@@ -175,8 +175,8 @@ def _transport(ctx, users, space, places):
         TransportRouteStop.objects.update_or_create(route=route, position=1, defaults={"place": origin, "boarding_allowed": True, "alighting_allowed": False})
         TransportRouteStop.objects.update_or_create(route=route, position=2, defaults={"place": destination, "boarding_allowed": False, "alighting_allowed": True})
         activity = upsert(Activity, f"beta-transport-{key}", defaults={
-            "space": space, "created_by": users["transport_operator"], "title": f"Exemple — {route.name}", "slug": f"beta-transport-{key}",
-            "short_description": "Trajet routier fictif de la bêta Makolo.", "description": "Exemple fictif de trajet routier.",
+            "space": space, "created_by": users["transport_operator"], "title": route.name, "slug": f"beta-transport-{key}",
+            "short_description": "Trajet routier avec départs programmés.", "description": "Informations sur le parcours, le départ et les modalités d’accès.",
             "status": ActivityStatus.PUBLISHED, "visibility": ActivityVisibility.PUBLIC,
         })
         service = upsert(TransportService, f"beta-{key}", defaults={"activity": activity, "route": route, "mode": "road"})
@@ -320,11 +320,11 @@ def _console_data(ctx, users, space, paid):
     upsert(PromotionCode, "beta-active", defaults={"promotion": promo, "code": "BETA10", "starts_at": ctx.as_of - timedelta(days=2), "ends_at": ctx.as_of + timedelta(days=10), "is_active": True, "created_by": users["marketing"]})
     upsert(PromotionTargeting, "beta-active", defaults={"promotion": promo, "activity": paid["activity"], "audience": audience})
     upsert(PromotionOffer, "beta-active", defaults={"promotion": promo, "offer": paid["offer"], "source": "canonical"})
-    upsert(Promotion, "beta-expired", defaults={"organization": space, "name": "Bêta expirée", "discount_type": DiscountType.PERCENT, "discount_value": Decimal("5"), "starts_at": ctx.as_of - timedelta(days=30), "ends_at": ctx.as_of - timedelta(days=1), "is_active": False, "created_by": users["marketing"]})
-    group = upsert(Group, "beta-community", defaults={"name": "Communauté bêta Events", "slug": "beta-event-community", "description": "Groupe fictif de l’Espace.", "space": space, "created_by": users["event_manager"], "status": GroupStatus.ACTIVE, "visibility": GroupVisibility.SPACE})
+    upsert(Promotion, "beta-expired", defaults={"organization": space, "name": "Promotion achevée", "discount_type": DiscountType.PERCENT, "discount_value": Decimal("5"), "starts_at": ctx.as_of - timedelta(days=30), "ends_at": ctx.as_of - timedelta(days=1), "is_active": False, "created_by": users["marketing"]})
+    group = upsert(Group, "beta-community", defaults={"name": "Communauté des événements", "slug": "beta-event-community", "description": "Échanges autour des rencontres et de leur organisation.", "space": space, "created_by": users["event_manager"], "status": GroupStatus.ACTIVE, "visibility": GroupVisibility.SPACE})
     for key in ["participant", "marketing", "event_manager"]:
         upsert(GroupMembership, f"beta-{key}", defaults={"group": group, "profile": users[key], "status": GroupMembershipStatus.ACTIVE, "source": GroupMembershipSource.MANUAL, "joined_at": ctx.as_of - timedelta(days=7)})
-    upsert(AutomationRule, "beta-disabled", defaults={"space": space, "activity": paid["activity"], "name": "Rappel billet bêta (désactivé)", "trigger_event_type": DomainEventType.ACCESS_ISSUED, "conditions": {}, "action_kind": DomainAutomationActionKind.NOTIFICATION, "action_config": {"recipient": "beneficiary", "title": "Billet disponible", "message": "Votre billet Makolo est disponible.", "category": "ticket", "queue_email": False}, "is_active": False, "created_by": users["event_manager"]})
+    upsert(AutomationRule, "beta-disabled", defaults={"space": space, "activity": paid["activity"], "name": "Rappel de billet (inactif)", "trigger_event_type": DomainEventType.ACCESS_ISSUED, "conditions": {}, "action_kind": DomainAutomationActionKind.NOTIFICATION, "action_config": {"recipient": "beneficiary", "title": "Billet disponible", "message": "Votre billet Makolo est disponible.", "category": "ticket", "queue_email": False}, "is_active": False, "created_by": users["event_manager"]})
     for key, status, title, resolution in [("open", IncidentStatus.OPEN, "Incident bêta ouvert", ""), ("investigating", IncidentStatus.INVESTIGATING, "Incident bêta en cours", ""), ("resolved", IncidentStatus.RESOLVED, "Incident bêta résolu", "Résolution fictive validée.")]:
         upsert(OperationsIncident, f"beta-{key}", defaults={"title": title, "category": IncidentCategory.SUPPORT, "severity": IncidentSeverity.LOW, "status": status, "organization": space, "activity": paid["activity"], "occurrence": paid["occurrence"], "description": "Incident fictif pour Operations.", "resolution": resolution, "opened_by": users["staff"], "assigned_to": users["staff"], "detected_at": ctx.as_of - timedelta(days=2), "resolved_at": ctx.as_of - timedelta(days=1) if status == IncidentStatus.RESOLVED else None, "metadata": {"seed": "makolo-beta"}})
     ctx.contacts, ctx.promotions = contacts, [promo]
