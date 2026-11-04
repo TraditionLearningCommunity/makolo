@@ -380,16 +380,15 @@ def _occurrence_status(spec: dict) -> str:
 
 def _demo_title(title: str) -> str:
     """Keep a scenario recognizable without presenting it as a real offer."""
-    return title if title.startswith("Exemple — ") else f"Exemple — {title}"
+    return title.removeprefix("Exemple — ").strip()
 
 
 def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
     """Public-facing copy for a synthetic beta activity, never a real offer."""
     place = spec.get("geo")
-    short = f"Exemple fictif · {place}" if place else "Exemple fictif"
+    short = f"Informations pratiques · {place}" if place else "Informations et modalités pratiques"
     description = (
-        "Exemple fictif de démonstration. "
-        "Aucune inscription, réservation ou prestation réelle n’est proposée."
+        "Retrouvez les détails, les horaires et les conditions de participation liés à cette activité."
     )
     return short, description
 
@@ -838,10 +837,9 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
                 actor=actor,
                 space=space,
                 title=_demo_title(spec["title"]),
-                short_description="Exemple fictif",
+                short_description="Modalités de mise à disposition",
                 description=(
-                    "Exemple fictif de démonstration. "
-                    "Aucune commande, location ni remise réelle n’est proposée."
+                    "Consultez les conditions de mise à disposition et les étapes de la démarche."
                 ),
                 targets=[{"title": spec["title"], "quantity": "1", "unit": "unité"}],
                 modes=[MODE_CYCLE[index % len(MODE_CYCLE)]],
