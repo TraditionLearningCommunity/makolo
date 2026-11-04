@@ -11,7 +11,10 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 
 from .audience_services import conversation_viewer_ids, profile_in_audience, resolve_audience_ids
-from .core_models import Conversation, ConversationLifecycle
+from .core_models import (
+    Conversation, ConversationHistoryPolicy, ConversationLifecycle,
+    ConversationParticipation, ConversationParticipationStatus,
+)
 from .point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -44,6 +47,20 @@ POINT_POLICY_CAPABILITY = {
 def point_visible_to(profile, point, *, at=None):
     if not can_view_conversation(profile, point.conversation):
         return False
+    if point.lifecycle == ConversationPointLifecycle.DRAFT:
+        if point.published_by_id != getattr(profile, "pk", None) and not can_manage_conversation(profile, point.conversation):
+            return False
+    if (
+        point.published_at is not None
+        and point.conversation.history_policy == ConversationHistoryPolicy.FROM_JOIN
+        and not can_manage_conversation(profile, point.conversation)
+    ):
+        joined_at = ConversationParticipation.objects.filter(
+            conversation=point.conversation, profile=profile,
+            status=ConversationParticipationStatus.ACTIVE,
+        ).values_list("joined_at", flat=True).first()
+        if joined_at is not None and point.published_at < joined_at:
+            return False
     return not point.visibility_audience_id or profile_in_audience(profile, point.visibility_audience, at=at)
 
 
