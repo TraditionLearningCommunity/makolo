@@ -1,0 +1,424 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../../data/local/profile_store.dart';
+import '../../network/api_error.dart';
+import 'conversation_repository.dart';
+
+List<Map<String, dynamic>> _pointRows(Object? raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final item in raw)
+      if (item is Map)
+        item.map((key, value) => MapEntry(key.toString(), value)),
+  ];
+}
+
+/// A read-only N2 depth of canonical Points, not a second messaging timeline.
+/// Every remote continuation is signed and audience-checked by the owner.
+class ConversationHistoryScreen extends StatefulWidget {
+  const ConversationHistoryScreen({
+    super.key,
+    required this.repository,
+    required this.conversationId,
+    required this.onOpenPoint,
+    this.initialQuery = '',
+    this.initialSection = 'history',
+  });
+
+  final ConversationRepository repository;
+  final String conversationId;
+  final ValueChanged<String> onOpenPoint;
+  final String initialQuery;
+  final String initialSection;
+
+  @override
+  State<ConversationHistoryScreen> createState() =>
+      _ConversationHistoryScreenState();
+}
+
+class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
+  final _queryController = TextEditingController();
+  final _scrollController = ScrollController();
+  final List<Map<String, dynamic>> _rows = [];
+  Timer? _searchDebounce;
+  String _query = '';
+  String _section = 'history';
+  String? _nextCursor;
+  String? _error;
+  bool _loading = false;
+  bool _initialAttempted = false;
+  bool _showingLocal = false;
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _section = {'history', 'all', 'active'}.contains(widget.initialSection)
+        ? widget.initialSection : 'history';
+    _query = widget.initialQuery.trim();
+    _queryController.text = _query;
+    unawaited(_prepare());
+  }
+
+  @override
+  void didUpdateWidget(covariant ConversationHistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.repository != oldWidget.repository ||
+        widget.conversationId != oldWidget.conversationId) {
+      _generation++;
+      _rows.clear();
+      _nextCursor = null;
+      _error = null;
+      _initialAttempted = false;
+      _showingLocal = false;
+      _section = widget.initialSection;
+      _query = widget.initialQuery.trim();
+      _queryController.text = _query;
+      unawaited(_prepare());
+    }
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _searchDebounce?.cancel();
+    _queryController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _prepare() async {
+    if (_query.isEmpty && _section == 'history') {
+      try {
+        final source = await widget.repository.readDetailSource(widget.conversationId);
+        if (source.lastErrorCode == 'permission_denied' ||
+            source.lastErrorCode == 'not_found') {
+          if (mounted) setState(() {
+            _error = 'Cette conversation n’est plus accessible.';
+            _initialAttempted = true;
+          });
+          return;
+        }
+        final cached = await widget.repository.readPointDepth(widget.conversationId);
+        if (cached != null && mounted && _query.isEmpty && _section == 'history') {
+          setState(() {
+            _rows
+              ..clear()
+              ..addAll(_pointRows(cached.payload['results']));
+            _nextCursor = cached.payload['next_cursor']?.toString();
+            _showingLocal = true;
+          });
+        }
+      } on Object {
+        // The owner's network check will establish the visible final state.
+      }
+    }
+    if (mounted) unawaited(_load(reset: true));
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    if (_loading) return;
+    final generation = ++_generation;
+    final priorQuery = _query;
+    final priorSection = _section;
+    final cursor = reset ? null : _nextCursor;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final payload = await widget.repository.pointDepth(
+        conversationId: widget.conversationId,
+        query: priorQuery,
+        section: priorSection,
+        cursor: cursor,
+      );
+      if (!mounted || generation != _generation ||
+          widget.conversationId.isEmpty ||
+          _query != priorQuery || _section != priorSection) return;
+      final arrived = _pointRows(payload['results']);
+      setState(() {
+        if (reset) _rows.clear();
+        final known = _rows.map((row) => row['id']?.toString()).toSet();
+        for (final row in arrived) {
+          if (known.add(row['id']?.toString())) _rows.add(row);
+        }
+        _nextCursor = payload['next_cursor']?.toString();
+        _showingLocal = false;
+        _initialAttempted = true;
+      });
+    } on MakoloApiError catch (error) {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _initialAttempted = true;
+        if (error.statusCode == 403 || error.statusCode == 404) {
+          _rows.clear();
+          _nextCursor = null;
+          _showingLocal = false;
+          _error = 'Cette conversation n’est plus accessible.';
+        } else if (error.statusCode == 400 && cursor != null) {
+          _nextCursor = null;
+          _error = 'La suite a changé. Relancez la recherche.';
+        } else {
+          _error = _rows.isNotEmpty
+              ? 'Actualisation indisponible. La dernière lecture est conservée.'
+              : 'Impossible de charger les Points.';
+        }
+      });
+    } on Object {
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _initialAttempted = true;
+        _error = _rows.isNotEmpty
+            ? 'Hors ligne · dernière lecture disponible.'
+            : 'Connexion nécessaire pour retrouver les Points.';
+      });
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  void _scheduleQuery(String value) {
+    _searchDebounce?.cancel();
+    final term = value.trim();
+    if (term == _query) return;
+    _generation++;
+    setState(() {
+      _query = term;
+      _nextCursor = null;
+      _rows.clear();
+      _showingLocal = false;
+      _error = null;
+      _loading = false;
+    });
+    _searchDebounce = Timer(const Duration(milliseconds: 320), () {
+      if (mounted) unawaited(_load(reset: true));
+    });
+  }
+
+  void _setSection(String value) {
+    if (value == _section) return;
+    _searchDebounce?.cancel();
+    _generation++;
+    setState(() {
+      _section = value;
+      _nextCursor = null;
+      _rows.clear();
+      _showingLocal = false;
+      _error = null;
+      _loading = false;
+    });
+    unawaited(_load(reset: true));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themed = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Retrouver un Point'),
+        actions: [
+          IconButton(
+            tooltip: 'Actualiser',
+            onPressed: _loading ? null : () => _load(reset: true),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 780),
+            child: ListView(
+              key: PageStorageKey<String>(
+                'conversation-history-${widget.conversationId}',
+              ),
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
+              children: [
+                TextField(
+                  key: const Key('conversation-history-search'),
+                  controller: _queryController,
+                  onChanged: _scheduleQuery,
+                  maxLength: 120,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    labelText: 'Rechercher',
+                    hintText: 'Point, décision, fichier…',
+                    prefixIcon: Icon(Icons.search_rounded),
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      key: const Key('conversation-history-history'),
+                      label: const Text('Historique'),
+                      selected: _section == 'history',
+                      onSelected: (_) => _setSection('history'),
+                    ),
+                    ChoiceChip(
+                      key: const Key('conversation-history-all'),
+                      label: const Text('Tous les Points'),
+                      selected: _section == 'all',
+                      onSelected: (_) => _setSection('all'),
+                    ),
+                    ChoiceChip(
+                      key: const Key('conversation-history-active'),
+                      label: const Text('En cours'),
+                      selected: _section == 'active',
+                      onSelected: (_) => _setSection('active'),
+                    ),
+                  ],
+                ),
+                if (_showingLocal)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text('Dernière lecture sur cet appareil · vérification en cours'),
+                  ),
+                if (_error != null) ...[
+                  const SizedBox(height: 14),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _error!,
+                      key: const Key('conversation-history-error'),
+                      style: themed.textTheme.bodySmall,
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: _loading ? null : () => _load(reset: true),
+                      child: const Text('Réessayer'),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                Text('Points accessibles', style: themed.textTheme.titleMedium),
+                const SizedBox(height: 10),
+                if (_loading && _rows.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(22),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_rows.isEmpty && _initialAttempted && _error == null)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text('Aucun Point accessible pour ce filtre.'),
+                  ),
+                for (final row in _rows)
+                  _HistoricalPointRow(
+                    row: row,
+                    onOpen: () {
+                      final id = row['id']?.toString();
+                      if (id != null && id.isNotEmpty) widget.onOpenPoint(id);
+                    },
+                  ),
+                if (_nextCursor != null && !_loading && _error == null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const Key('conversation-history-more'),
+                      onPressed: () => _load(),
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: const Text('Voir les Points suivants'),
+                    ),
+                  ),
+                if (_loading && _rows.isNotEmpty)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoricalPointRow extends StatelessWidget {
+  const _HistoricalPointRow({required this.row, required this.onOpen});
+  final Map<String, dynamic> row;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final kind = switch (row['kind']?.toString()) {
+      'poll' => 'Sondage',
+      'confirmation' => 'Confirmation',
+      'form_request' => 'Formulaire',
+      'request' => 'Demande',
+      'question' => 'Question',
+      'exchange' => 'Échange',
+      _ => 'Information',
+    };
+    final lifecycle = switch (row['lifecycle']?.toString()) {
+      'resolved' => 'Terminé',
+      'superseded' => 'Remplacé',
+      'expired' => 'Expiré',
+      'cancelled' => 'Annulé',
+      'response_closed' => 'Réponses closes',
+      _ => '',
+    };
+    final title = row['title']?.toString() ?? '';
+    final resolution = row['resolution_summary']?.toString() ?? '';
+    final subtitle = row['body']?.toString() ?? '';
+    return Semantics(
+      button: true,
+      label: [kind, title, lifecycle, resolution, 'Ouvrir le Point'].where(
+        (v) => v.isNotEmpty,
+      ).join(', '),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: Key('conversation-history-point-${row['id']}'),
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lifecycle.isEmpty ? kind : '$kind · $lifecycle',
+                  style: theme.textTheme.labelMedium,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  title.isEmpty ? kind : title,
+                  style: theme.textTheme.titleMedium,
+                ),
+                if (resolution.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('✓ $resolution'),
+                  )
+                else if (subtitle.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      subtitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                const Divider(height: 24),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
