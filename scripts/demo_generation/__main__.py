@@ -99,13 +99,6 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
-    if "conversations" in domains:
-        options=["--count",str(min(a.count,2000)), "--profiles",str(a.profiles),
-                 "--seed",str(a.seed), "--points",str(a.conversation_points)]
-        if a.profile_username: options.extend(["--profile-username",a.profile_username])
-        if a.conversation_include_test_users: options.append("--include-test-users")
-        if apply: options.append("--apply")
-        conversations.main(options)
     if "connections" in domains:
         connections.main((["--apply"] if apply else []) + ["--count", str(min(a.count,5000)), "--profiles", str(a.profiles)] + (["--profile-username", a.profile_username] if a.profile_username else []))
     if "subscription-catalog" in domains:
@@ -199,6 +192,15 @@ def run(a):
         argv=["--count",str(min(a.count,10000))]
         if apply: argv.append("--apply")
         media.main(argv)
+    # Contextual conversations depend on the Activity, Occurrence, Space,
+    # Journey and Group rows materialized by the preceding generators.
+    if "conversations" in domains:
+        options=["--count",str(min(a.count,2000)), "--profiles",str(a.profiles),
+                 "--seed",str(a.seed), "--points",str(a.conversation_points)]
+        if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if a.conversation_include_test_users: options.append("--include-test-users")
+        if apply: options.append("--apply")
+        conversations.main(options)
     if "content" in domains:
         content.main()
     if not apply: print("PLAN en lecture seule : ajouter generate pour ecrire.")
