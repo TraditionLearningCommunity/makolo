@@ -104,8 +104,10 @@ def main(argv=None):
                 source_use = PresentationMediaUse.objects.filter(
                     asset=asset, state=PresentationMediaState.PUBLISHED,
                 ).exclude(alt_text="").order_by("id").first()
-                alt_text = (source_use.alt_text if source_use else
-                    "Illustration de " + activity.title[:200])
+                source_alt = source_use.alt_text.strip() if source_use else ""
+                if source_alt.startswith(("[DEMO]", "Illustration de demonstration pour ", "Exemple fictif")):
+                    source_alt = ""
+                alt_text = source_alt or "Illustration de " + activity.title[:200]
                 with transaction.atomic():
                     use = associate_presentation_media(
                         actor=actor, activity=activity, asset=asset,
