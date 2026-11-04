@@ -8,7 +8,16 @@
       {% csrf_token %}
       <input type="hidden" name="mode" value="text">
       <input type="hidden" name="client_reference" value="{% if compose_draft.mode == 'text' %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.text }}{% endif %}">
-      {% if composer.audience_selection_required and composer.text_mode != 'exchange' %}
+      {% if composer.text_mode == 'exchange_select' %}
+        <label class="block text-xs font-semibold" for="exchange-target">Échange</label>
+        <select id="exchange-target" name="point_id" class="mk-input w-full" required>
+          <option value="" selected disabled>Choisir</option>
+          {% for point in composer.exchange_targets %}
+            <option value="{{ point.id }}">{{ point.title }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+      {% if composer.audience_selection_required and composer.text_mode == 'information' %}
         <label class="block text-xs font-semibold" for="text-audience">Destinataires</label>
         <select class="mk-input w-full" id="text-audience" name="audience_id" required>
           <option value="" selected disabled>Choisir</option>
@@ -17,6 +26,9 @@
       {% endif %}
       <label class="sr-only" for="conversation-message">Écrire</label>
       <textarea id="conversation-message" name="body" maxlength="5000" required rows="2" class="mk-input w-full resize-y" placeholder="Écrire…">{% if compose_draft.mode == 'text' %}{{ compose_draft.body }}{% endif %}</textarea>
+      {% if composer.representable_space_id %}
+        <label class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)"><input type="checkbox" name="represented_space_id" value="{{ composer.representable_space_id }}"> Au nom de cet Espace</label>
+      {% endif %}
       <div class="flex items-center justify-end gap-3">
         <button class="mk-btn mk-btn-primary" type="submit">Envoyer</button>
       </div>
