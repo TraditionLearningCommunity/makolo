@@ -28,14 +28,10 @@ def query_origin():
     if frame is None:
         return "unknown"
     frame = frame.f_back
-    # Find the deepest application call site (closest to SQL) rather than
-    # the top-level entrypoint. Exclude Django, site-packages, this file.
+    origins = []
     while frame is not None:
         raw_filename = frame.f_code.co_filename
-        # manage.py shell -c executes this script as <string>. Resolving
-        # that synthetic name against cwd incorrectly classifies our wrapper
-        # as an application caller and hides every real SQL origin.
-        if raw_filename.startswith("<") or frame.f_code.co_name in {"wrapper", "query_origin"}:
+        if raw_filename.startswith("<"):
             frame = frame.f_back
             continue
         filename = Path(raw_filename)
@@ -44,18 +40,26 @@ def query_origin():
         except ValueError:
             frame = frame.f_back
             continue
-        if relative.startswith("scripts/discovery_stage6_sql_origins.py") or relative == "<string>":
+        if relative.startswith((
+            "scripts/discovery_stage6_sql_origins.py",
+            "venv/", ".venv/", "env/", "django/", "rest_framework/",
+        )):
             frame = frame.f_back
             continue
-        if relative.startswith(("venv/", ".venv/", "env/")):
-            frame = frame.f_back
-            continue
-        if relative.startswith(("django/", "rest_framework/")):
-            frame = frame.f_back
-            continue
-        return f"{relative}:{frame.f_code.co_name}"
-    return "external/unknown"
-
+        origin = f"{relative}:{frame.f_code.co_name}"
+        if origin not in origins:
+            origins.append(origin)
+        frame = frame.f_back
+    if not origins:
+        return "external/unknown"
+    # Include the next application caller for critical hotspots: a count of
+    # 493 eligibility checks alone does not identify who repeats them.
+    first = origins[0]
+    if first.startswith(("groups/selectors.py:eligible_activity_ids_for_profile",
+                         "presentations/product_language.py:_has_related")):
+        second = origins[1] if len(origins) > 1 else "caller/unknown"
+        return f"{first} <- {second}"
+    return first
 
 @contextmanager
 def observe():
