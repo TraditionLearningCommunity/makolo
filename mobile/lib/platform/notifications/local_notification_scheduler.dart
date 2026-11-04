@@ -80,6 +80,7 @@ class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
         android: AndroidNotificationDetails(
           request.androidChannelId,
           request.androidChannelName,
+          channelShowBadge: false,
         ),
         iOS: const DarwinNotificationDetails(),
       ),
