@@ -8,12 +8,12 @@ from decimal import Decimal
 
 
 DEMO_OFFERS = (
-    ("profile", "base", "demo.profile.plus", "DEMO Profil Plus", "7.00", "month", 1),
-    ("profile", "base", "demo.profile.max", "DEMO Profil Max", "18.00", "month", 1),
-    ("profile", "addon", "demo.profile.option", "DEMO Option Profil", "3.00", "month", 1),
-    ("space", "base", "demo.space.equipe", "DEMO Espace Equipe", "15.00", "month", 1),
-    ("space", "base", "demo.space.organisation", "DEMO Espace Organisation", "39.00", "month", 1),
-    ("space", "addon", "demo.space.option", "DEMO Option Espace", "5.00", "month", 1),
+    ("profile", "base", "demo.profile.plus", "Profil Plus", "7.00", "month", 1),
+    ("profile", "base", "demo.profile.max", "Profil Max", "18.00", "month", 1),
+    ("profile", "addon", "demo.profile.option", "Option Profil", "3.00", "month", 1),
+    ("space", "base", "demo.space.equipe", "Espace Équipe", "15.00", "month", 1),
+    ("space", "base", "demo.space.organisation", "Espace Organisation", "39.00", "month", 1),
+    ("space", "addon", "demo.space.option", "Option Espace", "5.00", "month", 1),
 )
 
 
@@ -21,9 +21,9 @@ DEMO_OFFERS = (
 # The three existing canonical features cannot justify inventing a separate
 # Profile entitlement for Plus vs Max. Actual differences remain server-owned.
 DEMO_BENEFIT_LABELS = {
-    "demo.profile.plus": "Scénario de formule personnelle payante",
-    "demo.profile.max": "Scénario de changement vers un tarif supérieur",
-    "demo.profile.option": "Scénario d’option personnelle cumulable",
+    "demo.profile.plus": "Fonctionnalités avancées pour vos démarches",
+    "demo.profile.max": "Capacité étendue pour vos activités personnelles",
+    "demo.profile.option": "Capacités complémentaires au forfait personnel",
     "demo.space.equipe": "Jusqu’à 5 membres d’équipe actifs",
     "demo.space.organisation": "Jusqu’à 25 membres et rôles personnalisés",
     "demo.space.option": "3 membres d’équipe supplémentaires",
@@ -62,8 +62,8 @@ def main(argv=None):
             )
             version = PlanVersion.objects.create(
                 plan=plan, version=1, name=name,
-                short_description="Offre fictive pour la validation de Makolo.",
-                description="Données de démonstration uniquement. Pas une offre commerciale.",
+                short_description="Formule pour accompagner vos activités et démarches.",
+                description="Accès aux fonctionnalités prévues par cette formule et ses conditions.",
             )
             entitlements = (
                 {"activities.create": True} if subject == "profile" else
