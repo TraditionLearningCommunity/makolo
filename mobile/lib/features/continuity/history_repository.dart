@@ -239,29 +239,30 @@ class HistoryRepository {
         _pageOffset(data) != offset) {
       throw const FormatException('History search owner response mismatched');
     }
-    // This direct owner search bypasses the generic SyncEngine applier.
-    // Do not persist a response acquired before logout or an intervening
-    // explicit refusal from the History owner.
-    if (sync?.isActive == false ||
-        (await readFirstPageSource()).invalidated) {
-      throw StateError('History owner context withdrawn during search');
-    }
-    final actor = data['actor'];
-    if (actor is Map && actor['id'] != null &&
-        actor['id'].toString() != profileId) {
-      throw const FormatException('History search Profile mismatch');
-    }
-    await store.putProjection(
-      kind: searchProjectionKind,
-      resourceKey: searchResourceKey(
-        query: query,
-        type: type,
-        offset: offset,
-        limit: limit,
-      ),
-      schemaVersion: 1,
-      payload: data,
-    );
+    // The owner tombstone and the search snapshot use the same SQLite
+    // transaction boundary. An in-flight 200 cannot follow a 403 purge.
+    await database.transaction(() async {
+      if (sync?.isActive == false ||
+          (await readFirstPageSource()).invalidated) {
+        throw StateError('History owner context withdrawn during search');
+      }
+      final actor = data['actor'];
+      if (actor is Map && actor['id'] != null &&
+          actor['id'].toString() != profileId) {
+        throw const FormatException('History search Profile mismatch');
+      }
+      await store.putProjection(
+        kind: searchProjectionKind,
+        resourceKey: searchResourceKey(
+          query: query,
+          type: type,
+          offset: offset,
+          limit: limit,
+        ),
+        schemaVersion: 1,
+        payload: data,
+      );
+    });
     return data;
   }
 
