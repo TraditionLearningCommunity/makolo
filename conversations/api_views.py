@@ -96,7 +96,8 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "deadline_at": point.deadline_at,
         "valid_until": point.valid_until,
         "can_respond": (
-            point.lifecycle == "open"
+            point.conversation.lifecycle == "open"
+            and point.lifecycle == "open"
             and (point.opens_at is None or point.opens_at <= timezone.now())
             and (point.deadline_at is None or point.deadline_at > timezone.now())
             and (point.valid_until is None or point.valid_until > timezone.now())
