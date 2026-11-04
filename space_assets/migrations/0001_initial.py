@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
             fields=[
                 ("id", models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, serialize=False)),
                 ("title", models.CharField(max_length=220)),
-                ("kind", models.CharField(max_length=32, default="other")),
+                ("kind", models.CharField(max_length=32, choices=[("cv", "CV"), ("cover_letter", "Lettre de motivation"), ("certificate", "Certificat"), ("transcript", "Relevé"), ("recommendation", "Recommandation"), ("identity_document", "Document d’identité"), ("form", "Formulaire"), ("payment_receipt", "Reçu de paiement"), ("other", "Autre")], default="other")),
                 ("visibility", models.CharField(max_length=16, choices=[("internal", "Équipe autorisée"), ("restricted", "Confidentiel")], default="restricted")),
                 ("archived_at", models.DateTimeField(blank=True, null=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
