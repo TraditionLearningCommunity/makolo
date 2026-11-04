@@ -22,7 +22,7 @@ void main() {
             'id': 'journey-confirmed',
             'title': 'Confirmation Makolo',
             'message': 'Votre démarche pour « Louer un véhicule à Kolwezi » est confirmée.',
-            'is_read': false,
+            'is_read': true,
           },
         ],
       },
