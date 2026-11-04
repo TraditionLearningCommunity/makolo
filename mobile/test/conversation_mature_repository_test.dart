@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -933,6 +934,69 @@ void main() {
     await tester.tap(find.text('Compléter le formulaire'));
     await tester.pump();
     expect(opened, 'form-request-1');
+  });
+
+  test('C4: FILE PointResponse upload confirms the existing Point', () async {
+    final file = File('${Directory.systemTemp.path}/c4-test-${DateTime.now().microsecondsSinceEpoch}.txt');
+    await file.writeAsString('Pièce privée');
+    try {
+      final requests = <String>[];
+      final repository = repositoryFor((request) async {
+        requests.add(request.url.path);
+        if (request.url.path == '/api/v1/conversations/points/point-4/reply-media/') {
+          return MockResponse(
+            '{"point_id":"point-4","response_id":"response-4","attachment":{"id":"file-4","kind":"file"}}', 200,
+          );
+        }
+        if (request.url.path == '/api/v1/conversations/conv-4/') {
+          return MockResponse('{"id":"conv-4","points":[],"title":"Coordination"}', 200);
+        }
+        if (request.url.path == '/api/v1/conversations/') {
+          return MockResponse('{"count":0,"results":[]}', 200);
+        }
+        throw StateError('Unexpected request ${request.url}');
+      });
+      final response = await repository.respondWithMedia(
+        conversationId: 'conv-4',
+        pointId: 'point-4',
+        filePath: file.path,
+        filename: 'document.txt',
+        kind: 'file',
+        clientReference: 'c4-response-stable',
+      );
+      expect(response['point_id'], 'point-4');
+      expect(requests.first, '/api/v1/conversations/points/point-4/reply-media/');
+    } finally {
+      if (await file.exists()) await file.delete();
+    }
+  });
+
+  testWidgets('C4: a FILE Point offers its actual upload action', (tester) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conv-4/') {
+        return MockResponse(jsonEncode({
+          'id': 'conv-4', 'title': 'Coordination',
+          'points': [
+            {
+              'id': 'point-file', 'kind': 'request',
+              'response_mode': 'file', 'title': 'Envoyez le document',
+              'can_respond': true, 'lifecycle': 'open',
+              'section': 'pour_moi', 'attention_reason': 'respond',
+              'options': [], 'requires_acknowledgement': false,
+            },
+          ],
+          'essential': [], 'composer': {},
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conv-4');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(id: 'conv-4', repository: repository),
+    );
+    expect(find.byKey(const Key('conversation-point-media-point-file')), findsOneWidget);
+    expect(find.text('Joindre un fichier'), findsOneWidget);
   });
 
 }
