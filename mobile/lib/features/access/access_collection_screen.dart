@@ -259,7 +259,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
                     Text(
-                      'Vos droits déjà accordés, avant leur représentation.',
+                      'Mes billets, invitations et droits disponibles.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -285,8 +285,8 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                         hasKnownFirstPage) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
-                        'Dernier état connu sur cet appareil. '
-                        'L’usage réel sera revalidé par le domaine Access.',
+                        'Dernières informations disponibles. '
+                        'Votre droit sera vérifié à l’entrée.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
