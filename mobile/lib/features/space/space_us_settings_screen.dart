@@ -221,7 +221,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
         setState(() {
           authorized = false;
           error =
-              'Votre autorité a changé. Cet espace ne peut plus être modifié.';
+              'Cette modification n’est plus accessible avec vos droits actuels.';
         });
       } else {
         setState(() {
