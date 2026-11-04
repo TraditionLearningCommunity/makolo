@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -6,11 +7,16 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from rest_framework.exceptions import NotFound
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
 from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
+from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
+from .services import ensure_context_conversation
+from .core_models import ConversationContext, ConversationContextKind
+from organizations.models import Organization
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, create_exchange_entry, submit_point_response
 from .presentation import (
@@ -132,6 +138,16 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
                 "q": q,
                 "search_results": search_conversation(self.request.user, conversation, q) if q else [],
                 "catch_up": catch_up_summary(self.request.user, conversation, since=previous_open),
+                "composer": composer_capabilities(self.request.user, conversation),
+                "compose_refs": {
+                    key: str(uuid4()) for key in (
+                        "text", "information", "poll", "confirmation",
+                        "question", "request", "exchange",
+                    )
+                },
+                "compose_error": getattr(self, "compose_error", None),
+                "compose_draft": getattr(self, "compose_draft", {}),
+
             }
         )
         update_personal_conversation_state(actor=self.request.user, conversation=conversation, opened=True)
@@ -156,6 +172,80 @@ class ConversationContextOpenView(LoginRequiredMixin, View):
                 {"conversation": item, "label": conversation_context_label(item, request.user)}
                 for item in candidates
             ]},
+        )
+
+
+class ConversationContextEnsureView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, kind, context_pk):
+        if not can_ensure_context_conversation(request.user, kind, context_pk):
+            raise PermissionDenied("Ouverture non autorisée.")
+        field = ConversationContext.TARGET_FIELDS[kind][0]
+        model = ConversationContext._meta.get_field(field).remote_field.model
+        try:
+            target = model.objects.get(pk=context_pk)
+        except (model.DoesNotExist, TypeError, ValueError, ValidationError) as exc:
+            raise Http404("Contexte introuvable.") from exc
+        conversation = ensure_context_conversation(
+            actor=request.user, kind=kind, **{field: target},
+        )
+        if not can_view_conversation(request.user, conversation):
+            raise Http404("Conversation introuvable.")
+        return redirect("conversations:detail", pk=conversation.pk)
+
+
+class ConversationComposeView(ConversationDetailView):
+    """Failure keeps the submitted draft and reference on the same Web surface."""
+
+    def post(self, request, pk):
+        conversation = self.get_conversation()
+        mode = (request.POST.get("mode") or "text").strip()
+        ref = request.POST.get("client_reference")
+        space_raw = request.POST.get("represented_space_id")
+        represented_space = None
+        try:
+            if space_raw:
+                try:
+                    represented_space = Organization.objects.get(pk=space_raw)
+                except (Organization.DoesNotExist, ValidationError, ValueError, TypeError) as exc:
+                    raise PermissionDenied("Espace non autorisé.") from exc
+            if mode == "text":
+                _, _, point_id = contribute_text(
+                    actor=request.user, conversation=conversation,
+                    body=request.POST.get("body"),
+                    point_id=request.POST.get("point_id") or None,
+                    audience_id=request.POST.get("audience_id") or None,
+                    represented_space=represented_space, client_reference=ref,
+                )
+            elif mode == "point":
+                kind = request.POST.get("kind")
+                options = [
+                    line.strip() for line in request.POST.get("options", "").splitlines()
+                    if line.strip()
+                ] if kind == "poll" else []
+                point = publish_composed_point(
+                    actor=request.user, conversation=conversation,
+                    kind=kind,
+                    title=request.POST.get("title", ""),
+                    body=request.POST.get("body", ""),
+                    audience_id=request.POST.get("audience_id") or None,
+                    options=options, represented_space=represented_space,
+                    client_reference=ref,
+                )
+                point_id = point.pk
+            else:
+                raise ValidationError("Action indisponible.")
+        except (ValidationError, PermissionDenied) as exc:
+            self.compose_error = (
+                "Vous n’êtes pas autorisé à publier dans cette Conversation."
+                if isinstance(exc, PermissionDenied) else str(exc)
+            )
+            self.compose_draft = request.POST
+            return self.get(request, pk=pk)
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': conversation.pk})}"
+            f"?focus={point_id}#point-{point_id}"
         )
 
 
