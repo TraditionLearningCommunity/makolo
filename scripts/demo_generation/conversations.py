@@ -78,6 +78,8 @@ def scenario_reference(kind, target_id, phase, index):
 
 def collect_candidates(people, now, limit, selected=None):
     from django.db.models import Q
+    from authorization.constants import PermissionCode
+    from authorization.services import can
     from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
     from journeys.models import Journey
     from organizations.models import Organization
@@ -92,13 +94,33 @@ def collect_candidates(people, now, limit, selected=None):
             return
         groups.setdefault(bucket, []).append((kind, field, obj, actor, label, phase))
 
-    base = Occurrence.objects.filter(
-        activity__owner_profile__in=people,
-    ).exclude(status=OccurrenceStatus.CANCELLED).select_related(
-        "activity", "activity__owner_profile"
+    def activity_actor(activity):
+        # Space creator is a candidate, never automatically authorized.
+        possible = (activity.owner_profile,
+                    activity.space.created_by if activity.space_id else None,
+                    activity.created_by)
+        for person in possible:
+            if person is None or person.pk not in ids:
+                continue
+            if activity.owner_profile_id == person.pk or can(
+                person, PermissionCode.ACTIVITY_CONVERSATIONS_MANAGE, activity=activity
+            ):
+                return person
+        return None
+
+    owner_or_space = (
+        Q(activity__owner_profile__in=people) |
+        Q(activity__space__created_by__in=people) |
+        Q(activity__created_by__in=people)
+    )
+    base = Occurrence.objects.filter(owner_or_space).exclude(
+        status=OccurrenceStatus.CANCELLED
+    ).select_related(
+        "activity", "activity__owner_profile",
+        "activity__space", "activity__space__created_by", "activity__created_by",
     )
     for obj in base.filter(start_at__lte=now, end_at__gt=now).order_by("start_at", "id")[:limit]:
-        add("live", "occurrence", "occurrence", obj, obj.activity.owner_profile,
+        add("live", "occurrence", "occurrence", obj, activity_actor(obj.activity),
             obj.activity.title, "live")
     for obj in base.filter(end_at__lte=now).order_by("-end_at", "id")[:limit]:
         add("past", "occurrence", "occurrence", obj, obj.activity.owner_profile,
@@ -108,9 +130,11 @@ def collect_candidates(people, now, limit, selected=None):
             obj.activity.title, "future")
 
     for obj in Activity.objects.filter(
-        owner_profile__in=people, status=ActivityStatus.PUBLISHED,
-    ).select_related("owner_profile").order_by("id")[:limit]:
-        add("activity", "activity", "activity", obj, obj.owner_profile, obj.title, "ongoing")
+        Q(owner_profile__in=people) | Q(space__created_by__in=people) |
+        Q(created_by__in=people),
+        status=ActivityStatus.PUBLISHED,
+    ).select_related("owner_profile", "space", "space__created_by", "created_by").order_by("id")[:limit]:
+        add("activity", "activity", "activity", obj, activity_actor(obj), obj.title, "ongoing")
 
     for obj in Journey.objects.filter(
         Q(beneficiary__in=people) | Q(initiated_by__in=people),
