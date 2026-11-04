@@ -22,6 +22,7 @@ class ConversationRepository {
   });
 
   static const listProjectionKind = 'conversation.list';
+  static const archivedProjectionKind = 'conversation.archived';
   static const detailProjectionKind = 'conversation.detail';
   static const invitationsProjectionKind = 'conversation.invitations';
   static const depthProjectionKind = 'conversation.point.depth';
@@ -59,6 +60,23 @@ class ConversationRepository {
         throw const FormatException(
           'Expected Conversations owner collection contract.',
         );
+      }
+      return AcquiredProjection(schemaVersion: 1, payload: payload);
+    },
+    applier: applyProjectionSnapshot,
+  );
+
+  SyncSourceDefinition archivedSource() => SyncSourceDefinition(
+    sourceKey: 'conversation-archives',
+    owner: 'Conversations',
+    path: 'api/v1/conversations/?limit=50&tab=archived',
+    projectionKind: archivedProjectionKind,
+    category: SyncSourceCategory.collection,
+    freshnessPolicy: listFreshness,
+    parser: (response) {
+      final payload = response.jsonObject();
+      if (payload['results'] is! List || payload['count'] is! num) {
+        throw const FormatException('Expected archived Conversations owner list.');
       }
       return AcquiredProjection(schemaVersion: 1, payload: payload);
     },
@@ -106,6 +124,11 @@ class ConversationRepository {
     },
     applier: applyProjectionSnapshot,
   );
+
+  Stream<StoredProjection?> watchArchived() =>
+      store.watchProjection(archivedProjectionKind);
+  Future<StoredProjection?> readArchived() =>
+      store.readProjection(archivedProjectionKind);
 
   Stream<StoredProjection?> watchList() =>
       store.watchProjection(listProjectionKind);
@@ -168,6 +191,14 @@ class ConversationRepository {
       throw StateError('Remote Conversations owner is not configured.');
     }
     await engine.refreshSource(listSource());
+  }
+
+  Future<void> refreshArchived() async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Conversations owner is not configured.');
+    }
+    await engine.refreshSource(archivedSource());
   }
 
   Future<void> refreshInvitations() async {
@@ -247,7 +278,8 @@ class ConversationRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> searchConversations(String query) async {
+  Future<List<Map<String, dynamic>>> searchConversations(
+    String query, {String tab = 'all'}) async {
     final term = query.trim();
     if (term.isEmpty) return const [];
     final engine = sync;
@@ -255,7 +287,8 @@ class ConversationRepository {
       throw StateError('La recherche distante est indisponible.');
     }
     final response = await engine.api.get(
-      'api/v1/conversations/?limit=50&q=${Uri.encodeQueryComponent(term)}',
+      'api/v1/conversations/?limit=50&q=${Uri.encodeQueryComponent(term)}'
+      '${tab == 'archived' ? '&tab=archived' : ''}',
     );
     final payload = response.jsonObject();
     if (payload['results'] is! List) {
