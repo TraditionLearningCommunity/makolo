@@ -1124,7 +1124,9 @@ class _PointCardState extends State<_PointCard> {
             child: Text(_busy ? 'En cours…' : 'Bien reçu'),
           ),
         ],
-        if (point.canRespond && !widget.readOnly) ...[
+        if (point.canRespond &&
+            point.kind != 'exchange' &&
+            !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.md),
           if (point.responseMode == 'boolean')
             Wrap(
@@ -1191,8 +1193,7 @@ class _PointCardState extends State<_PointCard> {
               child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
             ),
         ],
-        if (point.kind == 'exchange' && point.canRespond && !widget.readOnly)
-          const SizedBox.shrink(),
+
       ],
     );
     if (interactive || point.kind == 'poll' || point.kind == 'request') {
