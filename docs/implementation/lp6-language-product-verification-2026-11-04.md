@@ -69,9 +69,40 @@ flutter test test/now_selector_test.dart test/now_screen_test.dart test/ongoing_
 
 Le reseed, lorsqu'il est requis pour constater la rédaction des fiches, se fait **uniquement sur une base de démonstration isolée, avec sauvegarde et date explicite**, puis avec `validate_makolo_demo` et `assert_mobile_mature_demo_coverage`. Ne jamais effectuer cette opération sur des données réelles.
 
+## 5 bis. Vérification d'exécution et audit des résultats CI (4 novembre 2026)
+
+### Preuve de test local transmise par l'opérateur
+
+Commande (environnement Windows, `python manage.py test`) :
+
+```text
+python manage.py test core.test_product_language core.test_lp5_language_sources core.test_demo_seed core.test_now_composition
+Found 23 test(s).
+System check identified no issues (0 silenced).
+Ran 23 tests in 65.813s
+OK
+Destroying test database for alias 'default'...
+```
+
+Les scénarios bêta exécutés dans ce lot ont notamment validé un ensemble de **125 Activities mobile mature**, **125 Occurrences**, **25 unités par verticale**, **454 Resources**, **228 fichiers** et **40 Journeys** pour le persona de référence. Le rapport a été émis plusieurs fois lors des tests de génération et de reprise ; ce n'est pas une multiplication des données. Le SHA du checkout local n'était pas présent dans la sortie fournie : cette preuve **n'atteste pas à elle seule** le HEAD distant.
+
+### Historique CI et vérification des causes
+
+- `main` a été vérifié à `d0f0ec421c94c255fa4c0acd3509938a70c6322f` ; à la date du contrôle, une seule PR ouverte était #522.
+- Le run CI `41737627603` sur `25cd222b11…` échouait sur le contrôle de synchronisation des artefacts `static/dist/makolo.css` et `makolo.js`. Les versions compilées ont depuis été mises à jour par les commits `a9e0870c77fa` et `b35500bf62fb` respectivement. Seule une nouvelle exécution pourra certifier leur adéquation aux versions et dépendances actuelles.
+- Les workflows Flutter `41737627697` et `41737628077` sur ce même ancien commit échouaient lors de la génération / compilation. L'erreur visible `unawaited` dans `mobile/lib/features/now/now_screen.dart` a fait l'objet du commit `ab6c46c972aa` (import `dart:async`), présent dans la branche actuelle.
+- Le test Subscription qui échouait parce que la réponse ne comportait pas `funded` a été suivi du correctif `46e83570cd26` dans `subscriptions/coverage_native_api.py`, conservant les lignes strictement rattachées au payeur. Les autres échecs Abonnements de l'ancien run restent à certifier par une nouvelle exécution.
+- Le run Conversations PostgreSQL `41737627995` signalait d'anciennes assertions sur « 1 pour vous » et « Tout est en ordre ». Le test actuel `conversations/test_j4_experience.py` attend désormais « 1 à traiter » et « En cours ailleurs » après le commit `a9ad4c8e89af`. Une nouvelle exécution est nécessaire pour attester que la sémantique et la continuation restent correctes.
+- Le workflow de validation des générateurs de démonstration `41737627654` était **vert**, mais lui aussi sur `25cd222b11…`, antérieur à LP6.
+- Aucun run de CI sur le HEAD LP6 vérifié au cours de cette session n'a pu être attesté. L'environnement de travail ne dispose pas d'un checkout Django/Flutter exécutable et les outils GitHub disponibles ne proposent pas de `workflow_dispatch` direct. La tentative de déclenchement via navigateur connecté n'a pas démarré faute de crédit disponible dans ce navigateur ; aucun nouveau run n'a été lancé.
+
+### Conséquence de release
+
+**Les 23 tests ciblés LP6 sont réussis sur le checkout local de l'opérateur ; aucune certification CI du HEAD courant n'est acquise.** Ne pas fusionner. Les échecs de l'ancien SHA sont documentés et une partie a déjà reçu des correctifs, sans preuve d'exécution post-correctif.
+
 ## 6. Décision et critères de fermeture
 
-**LP6 : changements de code réalisés, certification exécutée non attestée.**
+**LP6 : changements de code réalisés ; 23 tests ciblés exécutés et réussis localement ; certification générale CI/Web/Flutter non attestée.**
 
 Fermeture finale uniquement lorsque :
 1. les tests ciblés Django/Flutter et l'analyse Flutter passent sur le HEAD actualisé ;
