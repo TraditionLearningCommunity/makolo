@@ -143,6 +143,7 @@ def run(a):
     if foundation_selected:
         argv=["--domains",",".join(sorted(foundation_selected)),
               "--count",str(min(a.count,100))]
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         if apply: argv.append("--apply")
         foundations.main(argv)
     if verticals_selected:
