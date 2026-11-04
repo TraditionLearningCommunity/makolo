@@ -54,6 +54,9 @@
     {% if form_request %}<a class="mk-btn mk-btn-primary mt-4" href="{% url 'questionnaires:request-detail' form_request.pk %}">Compléter le formulaire</a>{% endif %}
   {% endif %}
   {% if reason == 'respond' %}
+    {% if point.response_mode == 'file' or point.response_mode == 'voice' %}
+      {% include 'conversations/_media_response.html' %}
+    {% else %}
     <form method="post" action="{% url 'conversations:point-respond' point.pk %}" class="mt-4 space-y-3">{% csrf_token %}
       {% if point.response_mode == 'single_choice' %}
         {% for option in point.options.all %}<label class="flex items-center gap-3 text-sm"><input type="radio" name="choice" value="{{ option.pk }}" required> {{ option.label }}</label>{% endfor %}
@@ -74,6 +77,7 @@
         <button class="mk-btn mk-btn-primary" type="submit">Répondre</button>
       {% endif %}
     </form>
+    {% endif %}
   {% endif %}
 
 </article>
