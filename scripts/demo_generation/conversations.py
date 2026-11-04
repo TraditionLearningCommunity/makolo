@@ -76,7 +76,7 @@ def scenario_reference(kind, target_id, phase, index):
     return "demo-conv-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:44]
 
 
-def collect_candidates(people, now, limit, selected=None):
+def collect_candidates(people, now, limit):
     from django.db.models import Q
     from authorization.constants import PermissionCode
     from authorization.services import can
@@ -186,6 +186,7 @@ def main(argv=None):
     from django.contrib.auth import get_user_model
     from django.core.exceptions import PermissionDenied, ValidationError
     from django.db import connection, transaction
+    from django.db.models import Q
     from django.utils import timezone
     from conversations.core_models import ConversationContextKind, ConversationModePreset
     from conversations.point_models import (
@@ -291,8 +292,20 @@ def main(argv=None):
                             print("POINT_REJECTED", kind, type(exc).__name__, str(exc)[:160])
                         continue
                     viewers = conversation_viewer_ids(conversation) - {actor.pk}
-                    respondent = next((person for person in people if person.pk in viewers
-                                       and point_response_allowed(person, point)), None)
+                    # A targeted Profile may converse with *other* existing
+                    # synthetic users already eligible in this context.
+                    # Never impersonate arbitrary beta/real users.
+                    respondent = next((
+                        person for person in U.objects.filter(
+                            pk__in=viewers, is_active=True, is_staff=False,
+                            is_superuser=False,
+                        ).filter(
+                            Q(username__startswith="world_") |
+                            Q(username__startswith="beta_") |
+                            Q(username__startswith="mobile_mature_")
+                        ).order_by("username")
+                        if point_response_allowed(person, point)
+                    ), None)
                     try:
                         with transaction.atomic():
                             if respondent and response_mode != ConversationPointResponseMode.NONE:
