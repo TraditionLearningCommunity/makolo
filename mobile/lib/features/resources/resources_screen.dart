@@ -143,8 +143,18 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         query: query,
         offset: view.nextOffset,
       );
-      final source = await widget.repository.readCollectionSource(query: query);
-      if (source.invalidated || source.lastErrorCode != null) {
+      final source = await widget.repository.readCollectionSource(
+        query: query,
+        offset: view.nextOffset,
+      );
+      final received = await widget.repository.readCollectionPage(
+        query: query,
+        offset: view.nextOffset,
+      );
+      if (source.invalidated ||
+          source.lastErrorCode != null ||
+          source.lastSuccessAt == null ||
+          received == null) {
         throw StateError('Resource continuation unavailable');
       }
       if (!mounted || query != _query) return;
