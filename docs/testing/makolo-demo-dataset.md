@@ -353,3 +353,39 @@ python -m scripts.demo_generation generate --domains conversations --count 500 -
 ```
 
 Les comptes, les liens Activity/Occurrence/Journey et les Mandates restent ceux qui existent dans la base. Les appels sortants, les credentials, les justificatifs et les confirmations de paiement ne sont jamais inventés pour augmenter les compteurs. Le test ciblé des textes et des services est exécuté via le workflow de validation de génération et ses dépendances Django, pas via une modification directe de `main`.
+
+
+## Fermeture éditoriale et reprise des données (4 novembre 2026)
+
+Les générateurs de `scripts/demo_generation/` et les sources de `demo_seed/`
+utilisent désormais des noms, descriptions et échanges naturels, sans titres
+`[DEMO]`, `Exemple fictif` ou mentions de sandbox dans le contenu visible
+nouvellement créé. Les slugs, codes internes et clés d'idempotence conservent
+leur provenance; ils ne doivent pas être renommés par recherche/remplacement.
+
+- `editorial.py` choisit des noms stables pour les Espaces, Groupes, Dossiers,
+  Projects et Activities, sans afficher de usernames techniques.
+- Les recherches de compatibilité réutilisent les anciens objets, y compris
+  les noms dont un préfixe visible a déjà été retiré.
+- `connections` répartit les offres par tour complet entre les utilisateurs:
+  `--count 100 --profiles 2` vise 50 relations différentes par Profil,
+  tandis que `--count 50 --profiles 2` en vise 25 par Profil. Le maximum
+  reste 50 offres par Profil; aucune credential externe n'est créée.
+- `foundations` respecte `--profile-username`, y compris via la CLI transverse.
+- `conversations` peut compléter les réponses et échanges manquants d'un
+  Point existant et ne réactive pas une participation déjà active. Les
+  Conversations closes restent closes; les timestamps d'audit ne sont pas
+  antidatés.
+- Les associations média n'héritent plus des anciens alt-text de remplissage
+  synthétique. Un fichier absent reste bloquant.
+
+Les enregistrements **déjà stockés** et les versions d'Abonnement publiées
+ne sont pas modifiés en masse par ces corrections de générateurs.
+Le nettoyage d'une copie de la SQLite reste une opération séparée, avec
+sauvegarde, comme convenu.
+
+Tests de non-régression: `scripts.demo_generation.test_cli` vérifie
+notamment la rotation complète des 50 choix pour deux Profils, la transmission
+de `--profile-username`, les textes déterministes et les scénarios de
+Conversations. Le workflow `demo-generation-validation.yml` est le gate
+CI applicable avant toute fusion.
