@@ -129,7 +129,7 @@ void main() {
         ),
       ),
     );
-    expect(find.textContaining('limitée à votre responsabilité'), findsOneWidget);
+    expect(find.textContaining('Cette vue est partielle'), findsOneWidget);
     expect(find.text('Aucune activité globale.'), findsNothing);
   });
 
