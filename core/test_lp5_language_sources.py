@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from django.test import SimpleTestCase
 
+from core.api.personal_projections import _dossier_ongoing_item
 from core.participant_action_presentation import _access_presentation
+from readiness import ReadinessStatus
 from discovery.api.composition import _assessment, _opportunity_source_previews
 
 
@@ -45,3 +47,11 @@ class ServerProductLanguageTests(SimpleTestCase):
         self.assertEqual(shown["title"], "Catalogue indiqué")
         self.assertEqual(shown["external_url"], "https://example.org/catalogue/")
         self.assertEqual(shown["description"], "")
+
+    def test_dossier_summary_follows_owner_readiness_without_a_parallel_status(self):
+        dossier = SimpleNamespace(pk=uuid4(), title="Dossier formation", deadline=None)
+        ready = SimpleNamespace(status=ReadinessStatus.READY, primary_next_action=None)
+        item = _dossier_ongoing_item(dossier, readiness=ready)
+        self.assertEqual(item["summary"], "Ce dossier est prêt pour la prochaine étape.")
+        self.assertEqual(item["state"], ReadinessStatus.READY.value)
+        self.assertNotIn("objectif composé", item["summary"])
