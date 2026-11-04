@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import FileResponse, Http404
 from uuid import UUID
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -8,6 +9,7 @@ from django.utils.dateparse import parse_datetime
 from rest_framework import permissions, status, views
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
@@ -16,6 +18,13 @@ from .attention import has_conversation_attention
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
+from .form_services import form_request_for_profile
+from .media_services import attachment_for_download, can_download_attachment
+from .rich_services import (
+    available_form_versions, can_prepare_form, publish_conversation_form,
+    readable_exchange_entries, serialize_attachment, upload_conversation_media,
+    visible_attachments_for_profile,
+)
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
     conversation_context_label,
@@ -56,6 +65,7 @@ def _resolution_summary(point):
 
 
 def _serialize_point(point, *, profile, reason=None, section=None):
+    linked_form = form_request_for_profile(point, profile) if point.kind == "form_request" else None
     return {
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
@@ -81,9 +91,29 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             for option in point.options.all()
         ],
         "exchange_preview": [
-            {"id": str(entry.pk), "body": entry.body, "created_at": entry.created_at}
+            {
+                "id": str(entry.pk), "body": entry.body,
+                "created_at": entry.created_at, "own": entry.author_id == profile.pk,
+                "attachments": [
+                    serialize_attachment(item)
+                    for item in entry.attachments.all() if can_download_attachment(profile, item)
+                ],
+            }
             for entry in visible_exchange_entries_for_profile(profile, point, limit=5)
         ] if point.kind == "exchange" else [],
+        "attachments": [
+            serialize_attachment(item)
+            for item in visible_attachments_for_profile(profile, point)
+            if item.exchange_entry_id is None
+        ],
+        "form_request": ({
+            "id": str(linked_form.pk), "status": linked_form.status,
+            "links": {
+                "detail": f"api/v1/questionnaires/requests/{linked_form.pk}/",
+                "save": f"api/v1/questionnaires/requests/{linked_form.pk}/save/",
+                "submit": f"api/v1/questionnaires/requests/{linked_form.pk}/submit/",
+            },
+        } if linked_form is not None else None),
         "attention_reason": reason,
         "section": section,
         "resolution_summary": _resolution_summary(point),
@@ -367,6 +397,121 @@ class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
         if not can_view_conversation(request.user, conversation):
             raise NotFound("Conversation introuvable.")
         return Response({"id": str(conversation.pk)})
+
+
+class ConversationFormOptionsAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        return Response({
+            "can_prepare": can_prepare_form(request.user, conversation),
+            "results": available_form_versions(request.user, conversation),
+        })
+
+
+class ConversationFormComposeAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        try:
+            point = publish_conversation_form(
+                actor=request.user, conversation=conversation,
+                title=request.data.get("title"),
+                client_reference=request.data.get("client_reference"),
+                form_version_id=request.data.get("form_version_id"),
+                questions=request.data.get("questions"),
+                audience_id=request.data.get("audience_id"),
+                represented_space=_represented_space_from_request(request),
+            )
+            return Response({
+                "id": str(point.pk), "point_id": str(point.pk), "kind": "form_request",
+            })
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+
+
+class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        upload = request.FILES.get("file")
+        if upload is None:
+            raise DRFValidationError({"file": "Choisissez un fichier."})
+        try:
+            point, attachment = upload_conversation_media(
+                actor=request.user, conversation=conversation,
+                uploaded_file=upload, kind=request.data.get("kind", "file"),
+                body=request.data.get("body", ""),
+                client_reference=request.data.get("client_reference"),
+                point_id=request.data.get("point_id") or None,
+                audience_id=request.data.get("audience_id") or None,
+                represented_space=_represented_space_from_request(request),
+            )
+            return Response({
+                "point_id": str(point.pk), "attachment": serialize_attachment(attachment),
+            })
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+
+
+class ConversationAttachmentDownloadAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, attachment_pk):
+        try:
+            attachment = attachment_for_download(
+                actor=request.user, attachment_id=attachment_pk,
+            )
+        except PermissionDenied as exc:
+            raise NotFound("Pièce inaccessible.") from exc
+        attachment.file.open("rb")
+        reply = FileResponse(
+            attachment.file, as_attachment=True, filename=attachment.original_name,
+            content_type=attachment.mime_type,
+        )
+        reply["X-Content-Type-Options"] = "nosniff"
+        reply["Cache-Control"] = "private, no-store"
+        return reply
+
+
+class ConversationExchangeEntriesAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        limit = _bounded_limit(request, default=25)
+        try:
+            entries, cursor = readable_exchange_entries(
+                request.user, point, cursor=request.query_params.get("cursor"),
+                limit=limit,
+            )
+        except PermissionDenied as exc:
+            raise NotFound("Échange inaccessible.") from exc
+        except ValidationError as exc:
+            return _service_error(exc)
+        return Response({
+            "results": [
+                {
+                    "id": str(entry.pk), "body": entry.body,
+                    "created_at": entry.created_at, "own": entry.author_id == request.user.pk,
+                    "attachments": [
+                        serialize_attachment(item)
+                        for item in entry.attachments.all()
+                        if can_download_attachment(request.user, item)
+                    ],
+                }
+                for entry in entries
+            ],
+            "next_cursor": cursor,
+        })
 
 
 class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
