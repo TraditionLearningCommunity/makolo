@@ -287,7 +287,7 @@ class PushDeliveryTests(TestCase):
         notification = create_notification(
             recipient=self.user,
             kind=NotificationKind.SYSTEM,
-            category=NotificationCategory.SYSTEM,
+            category=NotificationCategory.SECURITY,
             title="Quelque chose a changé",
             message="Ouvrez Makolo.",
             queue_email=False,
@@ -301,7 +301,7 @@ class PushDeliveryTests(TestCase):
         notification = create_notification(
             recipient=self.user,
             kind=NotificationKind.SYSTEM,
-            category=NotificationCategory.SYSTEM,
+            category=NotificationCategory.SECURITY,
             title="Information non envoyée après retrait",
             message="Push annulé.",
             queue_email=False,
@@ -320,7 +320,7 @@ class PushDeliveryTests(TestCase):
         notification = create_notification(
             recipient=self.user,
             kind=NotificationKind.SYSTEM,
-            category=NotificationCategory.SYSTEM,
+            category=NotificationCategory.SECURITY,
             title="Action disponible",
             message="Ouvrez Makolo.",
             queue_email=False,
@@ -333,3 +333,30 @@ class PushDeliveryTests(TestCase):
         self.assertEqual(delivery.status, DeliveryStatus.SENT)
         self.assertEqual(delivery.provider_reference, "projects/makolo/messages/123")
         send.assert_called_once()
+
+    def test_ordinary_information_does_not_interrupt(self):
+        notification = create_notification(
+            recipient=self.user, kind=NotificationKind.SYSTEM,
+            category=NotificationCategory.SYSTEM, title="Information",
+            message="Vous pouvez la consulter.", queue_email=True,
+        )
+        deliveries = list(notification.deliveries.all())
+        self.assertEqual(len(deliveries), 2)
+        self.assertTrue(all(d.status == DeliveryStatus.SKIPPED for d in deliveries))
+        self.assertIsNone(notification.read_at)
+
+    def test_queued_alert_honors_changed_preferences(self):
+        from accounts.models import NotificationPreference
+        notification = create_notification(
+            recipient=self.user, kind=NotificationKind.SYSTEM,
+            category=NotificationCategory.SECURITY,
+            title="Sécurité", message="Accès modifié.", queue_email=False,
+        )
+        delivery = notification.deliveries.get(channel=DeliveryChannel.PUSH)
+        self.assertEqual(delivery.status, DeliveryStatus.QUEUED)
+        NotificationPreference.objects.update_or_create(
+            user=self.user, defaults={"push_notifications": False},
+        )
+        self.assertEqual(dispatch_delivery(delivery.pk), "skipped")
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.status, DeliveryStatus.SKIPPED)
