@@ -3,6 +3,8 @@ from django.urls import path
 from .media_views import serve_attachment, serve_inline_attachment
 from .views import (
     ConversationDetailView,
+    ConversationPointHistoryView,
+    ConversationPersonalStateWebView,
     ConversationContextOpenView,
     ConversationContextEnsureView,
     ConversationComposeView,
@@ -23,6 +25,8 @@ urlpatterns = [
     path("", ConversationListView.as_view(), name="list"),
     path("by-context/<str:kind>/<str:context_pk>/", ConversationContextOpenView.as_view(), name="by-context"),
     path("<uuid:pk>/", ConversationDetailView.as_view(), name="detail"),
+    path("<uuid:pk>/history/", ConversationPointHistoryView.as_view(), name="history"),
+    path("<uuid:pk>/personal-state/", ConversationPersonalStateWebView.as_view(), name="personal-state"),
     path("<uuid:pk>/compose/", ConversationComposeView.as_view(), name="compose"),
     path("<uuid:pk>/media/", ConversationMediaWebView.as_view(), name="media"),
     path("points/<uuid:point_pk>/", ConversationExchangeDepthView.as_view(), name="exchange-detail"),
