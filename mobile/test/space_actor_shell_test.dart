@@ -415,7 +415,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Ce contexte Space n’est pas disponible pour votre Profil.'),
+      find.text('Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.'),
       findsOneWidget,
     );
     expect(harness.actorContext.value, const PersonalActorContext());
