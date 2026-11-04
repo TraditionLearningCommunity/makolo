@@ -163,6 +163,11 @@ class ConversationContextOpenView(LoginRequiredMixin, View):
         except NotFound as exc:
             raise Http404("Conversation introuvable.") from exc
         if not candidates:
+            if can_ensure_context_conversation(request.user, kind, context_pk):
+                return render(
+                    request, "conversations/context_choices.html",
+                    {"conversations": [], "can_ensure": True, "kind": kind, "context_pk": context_pk},
+                )
             raise Http404("Aucune Conversation accessible.")
         if len(candidates) == 1:
             return redirect("conversations:detail", pk=candidates[0].pk)
