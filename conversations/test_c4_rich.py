@@ -21,7 +21,7 @@ from .core_models import ConversationContextKind
 from .form_models import ConversationPointFormRequest
 from .media_models import ConversationPointAttachment
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointResponseMode
-from .point_services import create_point
+from .point_services import create_point, resolve_point
 from .services import activate_participation, ensure_context_conversation
 
 
@@ -245,6 +245,83 @@ class ConversationC4RichTests(TestCase):
         view = self.client.get(reverse('conversations:exchange-detail', kwargs={'point_pk': exchange.pk}))
         self.assertEqual(view.status_code, 200)
         self.assertContains(view, 'Un message privé')
+
+    def test_file_response_attaches_to_canonical_response_not_new_point(self):
+        self.client.force_login(self.owner)
+        point = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.REQUEST,
+            response_mode=ConversationPointResponseMode.FILE,
+            title='Joindre le document', visibility_audience=self.audience,
+            response_audience=self.audience,
+            expected_action_audience=self.audience,
+        )
+        self.client.force_login(self.member)
+        url = reverse('conversations-api:point-reply-media', kwargs={'point_pk': point.pk})
+        def upload(data=b'contenu fourni', ref='c4-point-file'):
+            return self.client.post(url, {
+                'kind': 'file',
+                'client_reference': ref,
+                'file': SimpleUploadedFile(
+                    'contenu.txt', data, content_type='text/plain',
+                ),
+            })
+        first = upload()
+        self.assertEqual(first.status_code, 200, first.content)
+        again = upload()
+        self.assertEqual(again.status_code, 200, again.content)
+        self.assertEqual(first.json()['response_id'], again.json()['response_id'])
+        self.assertEqual(first.json()['attachment']['id'], again.json()['attachment']['id'])
+        self.assertEqual(ConversationPoint.objects.count(), 1)
+        self.assertEqual(point.responses.count(), 1)
+        attached = ConversationPointAttachment.objects.get(
+            pk=first.json()['attachment']['id'],
+        )
+        self.assertEqual(attached.response_id, point.responses.first().pk)
+        self.assertIsNone(attached.exchange_entry_id)
+        self.assertEqual(upload(data=b'mauvais fichier').status_code, 400)
+
+        self.client.force_login(self.owner)
+        resolve_point(actor=self.owner, point=point, summary='Pièce reçue')
+        self.client.force_login(self.member)
+        self.assertEqual(upload().status_code, 200)
+        self.client.force_login(self.outsider)
+        self.assertEqual(upload(ref='c4-outside').status_code, 404)
+
+    def test_voice_response_requires_signed_audio_and_correct_mode(self):
+        self.client.force_login(self.owner)
+        point = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.VOICE,
+            title='Répondre en vocal',
+            visibility_audience=self.audience,
+            response_audience=self.audience,
+            expected_action_audience=self.audience,
+        )
+        self.client.force_login(self.member)
+        url = reverse('conversations-api:point-reply-media', kwargs={'point_pk': point.pk})
+        sound = b'RIFF\x08\x00\x00\x00WAVEfmt ' + b'\x00' * 24
+        invalid = self.client.post(url, {
+            'kind': 'file', 'client_reference': 'c4-voice-mismatch',
+            'file': SimpleUploadedFile(
+                'fichier.txt', b'bonjour', content_type='text/plain',
+            ),
+        })
+        self.assertEqual(invalid.status_code, 400)
+        valid = self.client.post(url, {
+            'kind': 'voice', 'client_reference': 'c4-voice-point',
+            'file': SimpleUploadedFile(
+                'vocal.wav', sound, content_type='audio/wav',
+            ),
+        })
+        self.assertEqual(valid.status_code, 200, valid.content)
+        self.assertEqual(point.responses.count(), 1)
+        self.assertEqual(
+            ConversationPointAttachment.objects.filter(
+                point=point, response__isnull=False,
+            ).count(), 1,
+        )
 
     def test_web_form_and_media_actions_use_real_owners(self):
         self.client.force_login(self.owner)
