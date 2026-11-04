@@ -2,15 +2,35 @@
 {% load static %}
 {% block title %}{{ context_label }} · Conversations | Makolo{% endblock %}
 {% block content %}
-<main class="mx-auto max-w-3xl pb-16">
+<main class="mx-auto w-full max-w-4xl px-3 pb-16 sm:px-5" id="conversation-main">
   <header class="mb-8">
     <p class="mk-kicker">{{ conversation.context.get_kind_display }}</p>
     <h1 class="mk-page-title mt-2">{% if conversation.title_override %}{{ conversation.title_override }}{% else %}{{ context_label }}{% endif %}</h1>
     {% if conversation.purpose %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ conversation.purpose }}</p>{% endif %}
     <div class="mt-5 flex items-center gap-4 text-sm">
       <a href="#conversation-points" style="color:var(--mk-brand)">Points</a>
-      <a href="#conversation-search" style="color:var(--mk-brand)">Rechercher</a>
+      <a href="{% url 'conversations:history' conversation.pk %}" class="min-h-11 inline-flex items-center focus-visible:outline-2" style="color:var(--mk-brand)">Rechercher · Historique</a>
     </div>
+    <details class="mt-4 text-sm">
+      <summary class="inline-flex min-h-11 cursor-pointer items-center rounded-lg font-semibold focus-visible:outline-2" style="color:var(--mk-brand)">Pour moi · Options</summary>
+      <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mon état de Conversation">
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-btn mk-btn-secondary min-h-11" type="submit" name="action" value="pin">{% if personal_state and personal_state.pinned_at %}Désépingler{% else %}Épingler{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-btn mk-btn-secondary min-h-11" type="submit" name="action" value="mute">{% if personal_state and personal_state.muted_at %}Réactiver les signaux{% else %}Mettre en sourdine{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-btn mk-btn-secondary min-h-11" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-btn mk-btn-secondary min-h-11" type="submit" name="action" value="archive">{% if personal_state and personal_state.archived_at %}Désarchiver{% else %}Archiver{% endif %}</button>
+        </form>
+        <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
+          <button class="mk-btn mk-btn-secondary min-h-11" type="submit" name="action" value="hide">{% if personal_state and personal_state.hidden_at %}Afficher{% else %}Masquer{% endif %}</button>
+        </form>
+      </div>
+    </details>
   </header>
 
   {% if catch_up and catch_up.resolved or catch_up.superseded or catch_up.important or catch_up.remaining %}
@@ -79,15 +99,15 @@
     {% endif %}
   </div>
 
-  {% if composer.text_mode or composer.can_create %}
+  {% if composer.text_mode or composer.can_create or composer.can_form or composer.media_kinds %}
     {% include 'conversations/_composer.html' %}
   {% endif %}
 
   <section id="conversation-search" class="mt-8 border-t pt-6" style="border-color:var(--mk-border)">
     <h2 class="mb-3 text-base font-extrabold">Rechercher dans cette conversation</h2>
-    <form method="get" role="search" class="flex gap-2">
+    <form method="get" action="{% url 'conversations:history' conversation.pk %}" role="search" class="flex flex-wrap gap-2">
       <label class="sr-only" for="point-search">Rechercher un Point</label>
-      <input id="point-search" class="mk-input min-w-0 flex-1" name="q" value="{{ q }}" placeholder="Un sujet, une réponse…">
+      <input id="point-search" type="search" maxlength="120" class="mk-input min-w-0 flex-1" name="q" value="{{ q }}" placeholder="Un sujet, une réponse…">
       <button class="mk-btn mk-btn-secondary" type="submit">Rechercher</button>
     </form>
     {% if q %}
