@@ -95,6 +95,18 @@ class OutboxProcessor {
         );
         continue;
       }
+      if (dependencies.isNotEmpty &&
+          await repository.hasDependencyCycle(
+            operation.operationId,
+            dependencies,
+          )) {
+        await repository.setState(
+          operation.operationId,
+          OutboxState.conflict,
+          errorCode: 'dependency_cycle',
+        );
+        continue;
+      }
       if (dependencies.isNotEmpty) {
         final states = await repository.dependencyStates(dependencies);
         if (dependencies.any((id) =>
