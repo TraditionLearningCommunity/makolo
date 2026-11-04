@@ -51,6 +51,9 @@ def main(argv=None):
         "services": "Accompagnement aux démarches",
         "obtention": "Obtention de fournitures scolaires",
     }
+    contexts = ("rentrée scolaire", "soutien aux familles", "quartier", "nouveaux arrivants",
+                "préparation de dossier", "orientation locale", "équipement scolaire",
+                "accès aux services", "formation pratique", "accompagnement individuel")
     for domain in DOMAINS:
         if domain not in selected:
             continue
@@ -58,7 +61,7 @@ def main(argv=None):
             owner = people[index % len(people)]
             suffix = f"{index + 1:04d}"
             slug = f"demo-generation-{domain}-{suffix}"
-            title = f"[DEMO] {labels[domain]} {suffix}"
+            title = f"{labels[domain]} — {contexts[index % len(contexts)]}"
             activity = Activity.objects.filter(owner_profile=owner, slug=slug).first()
             if activity:
                 detail_present = {
@@ -76,8 +79,8 @@ def main(argv=None):
                     if domain == "funding":
                         detail = create_funding(
                             actor=owner, title=title,
-                            short_description="Collecte fictive pour tester Funding.",
-                            description="Simulation locale, aucun financement réel.",
+                            short_description="Mobilisation de ressources pour accompagner la rentrée scolaire.",
+                            description="Contributions destinées à soutenir l’accès aux fournitures essentielles.",
                             target_amount="5000.00", currency="USD",
                             minimum_contribution="1.00",
                             maximum_contribution="1000.00",
@@ -90,7 +93,7 @@ def main(argv=None):
                         activity = create_activity(
                             created_by=owner, owner_profile=owner, title=title,
                             status=ActivityStatus.PUBLISHED,
-                            short_description="Service fictif de préparation administrative.",
+                            short_description="Orientation et préparation des documents nécessaires aux démarches.",
                         )
                         grant_activity_role(
                             profile=owner, activity=activity,
@@ -108,7 +111,7 @@ def main(argv=None):
                                       "unit": "kit"}],
                             modes=[ObtentionModeCode.RECEIVE],
                             result_label="Kit scolaire remis",
-                            short_description="Attribution fictive à préparer.",
+                            short_description="Préparation et mise à disposition de fournitures scolaires.",
                             status=ActivityStatus.PUBLISHED,
                         )
                         activity = detail.activity
