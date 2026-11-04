@@ -370,12 +370,10 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       }
     }
     // Owner results win for their focused Point, without duplicating a row.
+    // Search is already scoped to 'for-me' by the owner. Relying on the
+    // first cached list page here would silently lose valid later matches.
     for (final result in _remote) {
-      if (_tab != 'for-me' ||
-          widget.items.any((row) =>
-              row.id == result.id && row.attentionCount > 0)) {
-        known[result.id] = result;
-      }
+      known[result.id] = result;
     }
     return known.values.toList(growable: false);
   }
