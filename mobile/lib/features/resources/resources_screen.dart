@@ -27,12 +27,18 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   String _query = '';
   bool _refreshing = false;
   bool _loadingMore = false;
+  bool _loadFailed = false;
+  bool _canLoadNext = false;
+  String? _completedRequest;
+  _ResourcesView? _visibleView;
+  final ScrollController _scroll = ScrollController();
   late Stream<List<StoredProjection>> _pages;
   late Stream<ResourceSourceState> _source;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_checkEnd);
     _pages = widget.repository.watchCollectionPages();
     _source = widget.repository.watchCollectionSource(query: _query);
     unawaited(_ensureFirstPage());
@@ -43,6 +49,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
       _pages = widget.repository.watchCollectionPages();
+      _completedRequest = null;
+      _loadFailed = false;
       _source = widget.repository.watchCollectionSource(query: _query);
       unawaited(_ensureFirstPage());
     }
@@ -51,7 +59,20 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   @override
   void dispose() {
     _search.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  void _checkEnd() {
+    final view = _visibleView;
+    if (!_scroll.hasClients ||
+        _scroll.position.extentAfter >= 480 ||
+        !_canLoadNext ||
+        _loadFailed ||
+        _loadingMore ||
+        view == null ||
+        !view.hasMore) return;
+    unawaited(_loadMore(view));
   }
 
   Future<void> _ensureFirstPage() async {
@@ -64,7 +85,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
 
   Future<void> _refreshFirst() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    setState(() {
+      _refreshing = true;
+      _loadFailed = false;
+      _completedRequest = null;
+    });
     try {
       final query = _query;
       await widget.repository.refreshCollectionPage(query: query, offset: 0);
@@ -105,17 +130,34 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   }
 
   Future<void> _loadMore(_ResourcesView view) async {
-    if (_loadingMore || !view.hasMore) return;
+    final query = _query;
+    final requestKey = '$query:${view.nextOffset}';
+    if (_loadingMore ||
+        _loadFailed ||
+        !_canLoadNext ||
+        !view.hasMore ||
+        _completedRequest == requestKey) return;
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshCollectionPage(
-        query: _query,
+        query: query,
         offset: view.nextOffset,
       );
+      final source = await widget.repository.readCollectionSource(query: query);
+      if (source.invalidated || source.lastErrorCode != null) {
+        throw StateError('Resource continuation unavailable');
+      }
+      if (!mounted || query != _query) return;
+      _completedRequest = requestKey;
     } on Object {
-      // Keep already acquired pages visible.
+      if (mounted && query == _query) setState(() => _loadFailed = true);
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && query == _query) {
+        setState(() => _loadingMore = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _checkEnd();
+        });
+      }
     }
   }
 
@@ -127,6 +169,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     }
     setState(() {
       _query = next;
+      _completedRequest = null;
+      _loadFailed = false;
       _source = widget.repository.watchCollectionSource(query: _query);
     });
     unawaited(_ensureFirstPage());
@@ -158,9 +202,18 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
+              _visibleView = view;
+              _canLoadNext =
+                  source.lastSuccessAt != null &&
+                  !source.invalidated &&
+                  source.reachability != ReachabilityState.unreachable;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _checkEnd();
+              });
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
                 child: ListView(
+                  controller: _scroll,
                   key: PageStorageKey<String>('resources:$_query'),
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
@@ -221,15 +274,23 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                           ].join(' · '),
                           onTap: () => widget.onOpenResource(document.id),
                         ),
-                    if (view.hasMore) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      OutlinedButton(
-                        onPressed: _loadingMore ? null : () => _loadMore(view),
-                        child: Text(
-                          _loadingMore ? 'Chargement…' : 'Afficher la suite',
+                    if (_loadingMore && view.hasMore)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(MakoloSpacing.md),
+                          child: CircularProgressIndicator.adaptive(),
                         ),
                       ),
-                    ],
+                    if (_loadFailed && view.hasMore)
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() => _loadFailed = false);
+                            unawaited(_loadMore(view));
+                          },
+                          child: const Text('Réessayer'),
+                        ),
+                      ),
                     if (_query.isEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
                       const _SectionTitle(
@@ -260,6 +321,17 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                             subtitle: credential.subtitle,
                           ),
                     ],
+                    if (!view.hasMore &&
+                        view.hasAnyContent &&
+                        source.lastSuccessAt != null &&
+                        source.lastErrorCode == null &&
+                        source.reachability != ReachabilityState.unreachable)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(MakoloSpacing.md),
+                          child: Text('Vous avez tout vu'),
+                        ),
+                      ),
                   ],
                 ),
               );
