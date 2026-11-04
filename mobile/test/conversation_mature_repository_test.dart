@@ -757,4 +757,182 @@ void main() {
     await tester.pump();
   });
 
+  test('C4: FormRequest publishes through owner and refreshes projections', () async {
+    final calls = <String>[];
+    final repository = repositoryFor((request) async {
+      calls.add(request.url.path);
+      if (request.url.path == '/api/v1/conversations/conv-4/forms/') {
+        final payload = request.data as Map;
+        expect(payload['title'], 'Préparation');
+        expect(payload['questions'], ['Votre matériel ?']);
+        expect(payload['audience_id'], 'audience-1');
+        expect(payload['client_reference'], 'form-stable-ref');
+        return MockResponse(
+          '{"id":"point-form","point_id":"point-form","kind":"form_request"}', 200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conv-4/') {
+        return MockResponse(
+          '{"id":"conv-4","title":"Coordination","points":[],"essential":[]}', 200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    final id = await repository.publishForm(
+      conversationId: 'conv-4', title: 'Préparation',
+      clientReference: 'form-stable-ref',
+      questions: ['Votre matériel ?'], audienceId: 'audience-1',
+    );
+    expect(id, 'point-form');
+    expect(calls, contains('/api/v1/conversations/conv-4/'));
+    expect(calls, contains('/api/v1/conversations/'));
+  });
+
+  test('C4: scoped Exchange pagination consumes only owner result', () async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/points/point-1/entries/') {
+        expect(request.url.queryParameters['cursor'], 'entry-cursor');
+        return MockResponse(jsonEncode({
+          'results': [
+            {'id': 'entry-2', 'body': 'Message accessible', 'own': true, 'attachments': []},
+          ],
+          'next_cursor': null,
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    final result = await repository.exchangeEntries(
+      pointId: 'point-1', cursor: 'entry-cursor',
+    );
+    expect((result['results'] as List).single['body'], 'Message accessible');
+    expect(result['next_cursor'], isNull);
+  });
+
+  test('C4: media MIME and private media transport are owner-scoped', () async {
+    expect(
+      ConversationRepository.mediaMime('document.pdf', 'file'),
+      'application/pdf',
+    );
+    expect(
+      ConversationRepository.mediaMime('vocal.m4a', 'voice'),
+      'audio/mp4',
+    );
+    expect(
+      ConversationRepository.mediaMime('photo.png', 'image'),
+      'image/png',
+    );
+    final requests = <String>[];
+    final repository = repositoryFor((request) async {
+      requests.add(request.url.path);
+      if (request.url.path == '/api/v1/conversations/conv-4/media/') {
+        return MockResponse(jsonEncode({
+          'point_id': 'point-2',
+          'attachment': {'id': 'attachment-2', 'kind': 'image'},
+        }), 200);
+      }
+      if (request.url.path == '/api/v1/conversations/conv-4/') {
+        return MockResponse('{"id":"conv-4","title":"Coordination","points":[]}', 200);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    // Upload bytes are intentionally tested with the native platform; no
+    // widget fabricates a sent state while the owner is unavailable.
+    await expectLater(
+      repository.downloadAttachment(attachmentId: '../unsafe', filename: '../file'),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  testWidgets('C4: immediate Form editor and real owner button are available', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conv-4/') {
+        return MockResponse(jsonEncode({
+          'id': 'conv-4',
+          'title': 'Préparation',
+          'points': [],
+          'essential': [],
+          'composer': {
+            'can_create': true,
+            'text_mode': 'information',
+            'allowed_kinds': ['information'],
+            'can_form': true,
+            'form_options': [],
+            'media_kinds': ['voice', 'file', 'image'],
+            'audience_selection_required': false,
+          },
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conv-4');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(id: 'conv-4', repository: repository),
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('conversation-compose-form')),
+    );
+    await tester.tap(find.byKey(const Key('conversation-compose-form')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('conversation-form-title')), findsOneWidget);
+    expect(find.byKey(const Key('conversation-form-questions')), findsOneWidget);
+    expect(find.byKey(const Key('conversation-form-publish')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('C4: Point Form Request continues into canonical owner', (tester) async {
+    String? opened;
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conv-4/') {
+        return MockResponse(jsonEncode({
+          'id': 'conv-4', 'title': 'Coordination',
+          'points': [
+            {
+              'id': 'point-form-1',
+              'kind': 'form_request',
+              'title': 'Préparation collective',
+              'response_mode': 'none',
+              'lifecycle': 'open',
+              'can_respond': false,
+              'requires_acknowledgement': false,
+              'options': [],
+              'form_request': {
+                'id': 'form-request-1',
+                'status': 'requested',
+                'links': {
+                  'detail': 'api/v1/questionnaires/requests/form-request-1/',
+                },
+              },
+              'section': 'pour_moi',
+            },
+          ],
+          'essential': [],
+          'composer': {},
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conv-4');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        id: 'conv-4', repository: repository,
+        onOpenFormRequest: (requestId) async { opened = requestId; },
+      ),
+    );
+    await tester.ensureVisible(find.text('Compléter le formulaire'));
+    await tester.tap(find.text('Compléter le formulaire'));
+    await tester.pump();
+    expect(opened, 'form-request-1');
+  });
+
 }
