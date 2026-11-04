@@ -295,7 +295,7 @@ class _SpaceTransportDepartureOperationsScreenState
                               ? 'Aucune limite renseignée'
                               : capacity['available'] == null
                                   ? 'Disponibilité à vérifier'
-                                  : '${capacity['available']} place(s) disponible(s)',
+                                  : "${capacity['available']} ${capacity['available'].toString() == '1' ? 'place disponible' : 'places disponibles'}",
                         ),
                       ),
                     if (flags?['can_assign_vehicle'] == true) ...[
