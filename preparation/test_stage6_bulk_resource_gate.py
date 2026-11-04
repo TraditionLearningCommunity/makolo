@@ -35,7 +35,7 @@ class PublicResourceBulkEligibilityTests(SimpleTestCase):
         activity.space.searchable = False
         with patch("groups.selectors.eligible_activity_ids_for_profile") as lookup:
             self.assertFalse(_public_activity_resource_allowed(
-                None, activity, eligible_activity_ids={42},
+                None, activity, eligible_activity_ids={"42"},
             ))
             lookup.assert_not_called()
 
