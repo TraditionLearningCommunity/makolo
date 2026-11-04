@@ -24,6 +24,7 @@ from .rich_services import (
     available_form_versions, can_prepare_form, publish_conversation_form,
     readable_exchange_entries, serialize_attachment, upload_conversation_media,
     visible_attachments_for_profile,
+    submit_point_media_response,
 )
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
@@ -397,6 +398,35 @@ class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
         if not can_view_conversation(request.user, conversation):
             raise NotFound("Conversation introuvable.")
         return Response({"id": str(conversation.pk)})
+
+
+class ConversationPointMediaResponseAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        uploaded = request.FILES.get("file")
+        if uploaded is None:
+            raise DRFValidationError({"file": "Choisissez un fichier."})
+        declared = request.data.get("mime_type")
+        if declared and uploaded.content_type in {"application/octet-stream", ""}:
+            uploaded.content_type = str(declared)
+        try:
+            response, attachment = submit_point_media_response(
+                actor=request.user, point=point,
+                uploaded_file=uploaded, kind=request.data.get("kind", "file"),
+                client_reference=request.data.get("client_reference"),
+                represented_space=_represented_space_from_request(request),
+            )
+            return Response({
+                "point_id": str(point.pk), "response_id": str(response.pk),
+                "attachment": serialize_attachment(attachment),
+            })
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
 
 
 class ConversationFormOptionsAPIView(PrivateNoStoreMixin, views.APIView):
