@@ -315,11 +315,21 @@ def main(argv=None):
             continue
         try:
             with transaction.atomic():
+                phase_label = {
+                    "past": "Bilan", "live": "Coordination en cours",
+                    "future": "Préparation", "ongoing": "Suivi",
+                }.get(phase, "Suivi")
+                phase_purpose = {
+                    "past": "Faire le point après ",
+                    "live": "Coordonner les actions en cours pour ",
+                    "future": "Préparer les étapes et questions avant ",
+                    "ongoing": "Suivre les échanges et les prochaines étapes de ",
+                }.get(phase, "Suivre les étapes de ")
                 conversation = ensure_context_conversation(
                     actor=actor, kind=kind, purpose_key=purpose_key,
-                    title_override=label[:180],
-                    purpose="Coordination concrète et contextualisée de " + label[:250],
-                    separation_reason="Coordination relative au contexte " + phase,
+                    title_override=(label[:160] + " — " + phase_label)[:220],
+                    purpose=(phase_purpose + label[:200])[:500],
+                    separation_reason=phase_label,
                     mode_preset=ConversationModePreset.MIXED,
                     **{field: target},
                 )
