@@ -216,14 +216,13 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       String? name;
       String kind = widget.mode == 'document' ? 'file' : 'image';
       if (widget.mode == 'document') {
-        final selected = await FilePicker.platform.pickFiles(
+        final selected = await FilePicker.pickFile(
           type: FileType.custom,
           allowedExtensions: const ['pdf', 'txt', 'doc', 'docx'],
-          withData: false,
         );
-        if (selected?.files.isNotEmpty == true) {
-          path = selected!.files.first.path;
-          name = selected.files.first.name;
+        if (selected != null) {
+          path = selected.path;
+          name = selected.name;
         }
       } else {
         final selected = await ImagePicker().pickImage(
