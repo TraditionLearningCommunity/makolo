@@ -42,6 +42,7 @@ def main(argv=None):
     if connection.vendor != "sqlite":
         p.error("SQLite demonstration required")
     from .selection import demo_profiles
+    from .editorial import space_name, space_activity_title
     people = demo_profiles(username=a.profile_username, limit=a.profiles)
 
     now = timezone.now()
@@ -50,8 +51,10 @@ def main(argv=None):
     if "spaces" in chosen:
         for i in range(min(a.count, len(people))):
             owner = people[i]
-            name = "[DEMO] Espace " + owner.username
-            org = Organization.objects.filter(created_by=owner, name=name).first()
+            name = space_name(owner)
+            org = (Organization.objects.filter(created_by=owner, name=name).first()
+                   or Organization.objects.filter(created_by=owner, name="[DEMO] Espace " + owner.username).first()
+                   or Organization.objects.filter(created_by=owner, name="Espace " + owner.username).first())
             if org is None and not a.apply:
                 counts["spaces_planned"] += 1
                 continue
@@ -59,7 +62,7 @@ def main(argv=None):
                 try:
                     with transaction.atomic():
                         org = create_organization(creator=owner, name=name,
-                            description="Espace fictif pour les tests multi-acteurs.",
+                            description="Un lieu pour organiser les activités, coordonner les équipes et partager les informations utiles.",
                             public_profile=True, searchable=True)
                     counts["spaces_created"] += 1
                 except (PermissionDenied, ValidationError):
@@ -91,8 +94,8 @@ def main(argv=None):
                     with transaction.atomic():
                         activity = create_activity(
                             created_by=owner, space=org,
-                            title="[DEMO] Atelier collectif de " + owner.username,
-                            short_description="Activité organisée au nom d'un Espace fictif.",
+                            title=space_activity_title(owner),
+                            short_description="Un temps d’échange et de préparation avec les membres de l’Espace.",
                             status=ActivityStatus.PUBLISHED)
                         activity.slug = slug
                         activity.full_clean()
@@ -110,7 +113,10 @@ def main(argv=None):
                  OccurrenceStatus.SCHEDULED),
             )
             for label, start, duration, state in windows:
-                if Occurrence.objects.filter(activity=activity, label="DEMO " + label).exists():
+                natural_label = {"historique": "Séance précédente", "en-cours": "Rencontre du jour", "demain": "Prochaine rencontre"}[label]
+                existing_occurrence = (Occurrence.objects.filter(activity=activity, label=natural_label).first()
+                    or Occurrence.objects.filter(activity=activity, label="DEMO " + label).first())
+                if existing_occurrence:
                     counts["occurrences_existing"] += 1
                     continue
                 if not a.apply:
@@ -120,7 +126,7 @@ def main(argv=None):
                     with transaction.atomic():
                         occurrence = create_occurrence(
                             activity=activity, timezone="Africa/Lubumbashi",
-                            label="DEMO " + label, start_at=start,
+                            label=natural_label, start_at=start,
                             end_at=start+duration, status=OccurrenceStatus.SCHEDULED)
                         if state == OccurrenceStatus.COMPLETED:
                             complete_occurrence(occurrence=occurrence)
@@ -130,8 +136,15 @@ def main(argv=None):
                     counts["occurrences_rejected"] += 1
 
     if "loyalty" in chosen:
-        spaces = Organization.objects.filter(name__startswith="[DEMO] Espace ").select_related(
-            "created_by").order_by("id")[:a.count]
+        spaces = []
+        for owner in people:
+            org = (Organization.objects.filter(created_by=owner, name=space_name(owner)).first()
+                   or Organization.objects.filter(created_by=owner, name="[DEMO] Espace " + owner.username).first()
+                   or Organization.objects.filter(created_by=owner, name="Espace " + owner.username).first())
+            if org is not None:
+                spaces.append(org)
+            if len(spaces) >= a.count:
+                break
         for org in spaces:
             owner = org.created_by
             if owner is None or not owner.is_active:
@@ -145,8 +158,8 @@ def main(argv=None):
                 with transaction.atomic():
                     if program is None:
                         program = LoyaltyProgram(
-                            organization=org, name="Fidélité [DEMO]",
-                            description="Programme fictif lié à un Espace fictif.",
+                            organization=org, name="Programme de fidélité",
+                            description="Avantages de participation et reconnaissance des engagements dans cet Espace.",
                             created_by=owner, points_per_order=10,
                             points_per_ticket=5, points_per_checkin=20)
                         program.full_clean()
@@ -160,7 +173,7 @@ def main(argv=None):
                         counts["loyalty_tiers_created"] += int(created)
                     plan, created = MembershipPlan.objects.get_or_create(
                         program=program, code="DEMO-FREE",
-                        defaults={"name":"Adhésion fictive gratuite",
+                        defaults={"name":"Adhésion annuelle",
                                   "price":0, "currency":"USD",
                                   "duration_days":365, "created_by":owner})
                     counts["membership_plans_created"] += int(created)
