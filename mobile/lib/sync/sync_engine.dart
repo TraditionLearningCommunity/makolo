@@ -284,6 +284,18 @@ class SyncEngine {
         .write(const SyncSourcesCompanion(invalidated: Value(true)));
   }
 
+  /// Use only on an explicit owner 403/404, never on a timeout or after
+  /// a local mutation. It withdraws derived material atomically.
+  Future<void> revoke(
+    SyncSourceDefinition source, {
+    String code = 'permission_denied',
+  }) {
+    if (code != 'permission_denied' && code != 'not_found') {
+      throw ArgumentError.value(code, 'code');
+    }
+    return _recordScopedUnavailable(source, code);
+  }
+
   Future<void> _recordScopedUnavailable(
     SyncSourceDefinition source,
     String code,
