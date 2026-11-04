@@ -11,6 +11,7 @@ import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
+import '../../platform/media/private_media_views.dart';
 
 /// Space-owned document N3: owner actions and versioned private file transfer.
 class SpaceDocumentDetailScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   bool _canManage = false;
   bool _loading = true;
   bool _working = false;
+  bool _previewOpen = false;
   int _request = 0;
   String? _error;
 
@@ -65,6 +67,10 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   void _actorChanged() {
+    if (_previewOpen && mounted) {
+      _previewOpen = false;
+      Navigator.of(context).maybePop();
+    }
     _request++;
     if (!mounted) return;
     setState(() {
@@ -200,6 +206,59 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     } on Object {
       if (mounted && _actor?.space.id == id) _toast('Téléchargement impossible.');
     } finally {
+      if (await folder.exists()) await folder.delete(recursive: true);
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _preview(Map<String, dynamic> version) async {
+    if (_working || _actor == null) return;
+    final mime = version['mime_type']?.toString();
+    if (mime != 'application/pdf' &&
+        mime != 'image/jpeg' &&
+        mime != 'image/png') return;
+    final api = widget.runtime.api;
+    final spaceId = _actor!.space.id;
+    final versionId = version['id']?.toString();
+    if (api == null || versionId == null) return;
+    final directory = await getTemporaryDirectory();
+    final folder = await Directory(
+      '${directory.path}/makolo-preview-${DateTime.now().microsecondsSinceEpoch}',
+    ).create();
+    final extension = mime == 'application/pdf'
+        ? 'pdf' : mime == 'image/png' ? 'png' : 'jpg';
+    final file = File('${folder.path}/document.$extension');
+    if (!mounted || _actor?.space.id != spaceId) {
+      if (await folder.exists()) await folder.delete(recursive: true);
+      return;
+    }
+    setState(() => _working = true);
+    try {
+      await api.download(
+        '${_base}versions/${Uri.encodeComponent(versionId)}/download/',
+        destinationPath: file.path,
+      );
+      if (!mounted || _actor?.space.id != spaceId) return;
+      setState(() => _working = false);
+      _previewOpen = true;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (previewContext) => Scaffold(
+            appBar: AppBar(title: const Text('Document')),
+            body: mime == 'application/pdf'
+                ? PrivatePdfView(path: file.path)
+                : InteractiveViewer(
+                    child: Center(child: Image.file(file)),
+                  ),
+          ),
+        ),
+      );
+    } on Object {
+      if (mounted && _actor?.space.id == spaceId) {
+        _toast('Aperçu indisponible.');
+      }
+    } finally {
+      _previewOpen = false;
       if (await folder.exists()) await folder.delete(recursive: true);
       if (mounted) setState(() => _working = false);
     }
@@ -534,6 +593,14 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                       trailing: Wrap(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (version['mime_type'] == 'application/pdf' ||
+                              version['mime_type'] == 'image/jpeg' ||
+                              version['mime_type'] == 'image/png')
+                            IconButton(
+                              tooltip: 'Ouvrir',
+                              onPressed: _working ? null : () => _preview(version),
+                              icon: const Icon(Icons.visibility_outlined),
+                            ),
                           IconButton(
                             tooltip: 'Télécharger',
                             onPressed: _working ? null : () => _download(version),
