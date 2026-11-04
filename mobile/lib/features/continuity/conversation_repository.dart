@@ -223,6 +223,86 @@ class ConversationRepository {
         .toList(growable: false);
   }
 
+  Future<Map<String, dynamic>> contextDecision({
+    required String kind,
+    required String id,
+  }) async {
+    const allowed = {
+      'space', 'group', 'activity', 'occurrence', 'journey',
+      'dossier', 'project', 'action_proposal', 'direct',
+    };
+    if (!allowed.contains(kind) || id.isEmpty) {
+      return {'results': <Object>[], 'can_ensure': false};
+    }
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion indisponible.');
+    }
+    final response = await engine.api.get(
+      'api/v1/conversations/by-context/$kind/${Uri.encodeComponent(id)}/',
+    );
+    return response.jsonObject();
+  }
+
+  Future<String> ensureContext({
+    required String kind,
+    required String id,
+  }) async {
+    if (kind == 'direct') {
+      throw StateError('Le contact direct exige un consentement existant.');
+    }
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final result = await engine.api.post(
+      'api/v1/conversations/by-context/$kind/${Uri.encodeComponent(id)}/ensure/',
+    );
+    final conversationId = result.jsonObject()['id']?.toString();
+    if (conversationId == null || conversationId.isEmpty) {
+      throw const FormatException('Conversation identity not returned.');
+    }
+    await refreshList();
+    return conversationId;
+  }
+
+  Future<String> compose({
+    required String conversationId,
+    required String clientReference,
+    required String mode,
+    String? kind,
+    String? body,
+    String? title,
+    List<String>? options,
+    String? audienceId,
+    String? pointId,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion nécessaire pour publier.');
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/compose/',
+      body: {
+        'mode': mode,
+        'client_reference': clientReference,
+        'kind': ?kind,
+        'body': ?body,
+        'title': ?title,
+        'options': ?options,
+        'audience_id': ?audienceId,
+        'point_id': ?pointId,
+        'represented_space_id': ?representedSpaceId,
+      },
+    );
+    final pointIdReturned = response.jsonObject()['point_id']?.toString();
+    if (pointIdReturned == null || pointIdReturned.isEmpty) {
+      throw const FormatException('Published Point identity not returned.');
+    }
+    await refreshDetail(conversationId);
+    await refreshList();
+    return pointIdReturned;
+  }
+
   Future<void> respondToPoint({
     required String conversationId,
     required String pointId,
