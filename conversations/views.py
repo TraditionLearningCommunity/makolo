@@ -14,7 +14,7 @@ from django.views.generic import TemplateView
 
 from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
-from .rich_services import publish_conversation_form, readable_exchange_entries, serialize_attachment, upload_conversation_media
+from .rich_services import publish_conversation_form, readable_exchange_entries, serialize_attachment, upload_conversation_media, submit_point_media_response
 from .services import ensure_context_conversation
 from .core_models import ConversationContext, ConversationContextKind
 from organizations.models import Organization
@@ -331,6 +331,44 @@ class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
             "client_reference": str(uuid4()),
         })
         return context
+
+
+class ConversationPointMediaWebView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, point_pk):
+        point = get_object_or_404(
+            ConversationPoint.objects.select_related("conversation__context"), pk=point_pk,
+        )
+        if not can_view_conversation(request.user, point.conversation):
+            raise Http404("Point inaccessible.")
+        try:
+            space_id = request.POST.get("represented_space_id")
+            space = Organization.objects.get(pk=space_id) if space_id else None
+            response, attachment = submit_point_media_response(
+                actor=request.user, point=point,
+                uploaded_file=request.FILES.get("file"),
+                kind=request.POST.get("kind", "file"),
+                represented_space=space,
+                client_reference=request.POST.get("client_reference"),
+            )
+        except (ValidationError, PermissionDenied, Organization.DoesNotExist) as exc:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"detail": str(exc)}, status=403 if isinstance(exc, PermissionDenied) else 400)
+            messages.error(request, "Envoi non confirmé : " + str(exc))
+            return redirect(
+                f"{reverse('conversations:detail', kwargs={'pk': point.conversation_id})}"
+                f"?focus={point.pk}#point-{point.pk}"
+            )
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "point_id": str(point.pk), "response_id": str(response.pk),
+                "attachment": serialize_attachment(attachment),
+            })
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': point.conversation_id})}"
+            f"?focus={point.pk}#point-{point.pk}"
+        )
 
 
 class ConversationInvitationRespondView(LoginRequiredMixin, View):
