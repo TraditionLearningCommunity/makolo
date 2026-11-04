@@ -48,11 +48,5 @@
       {% endif %}
     </form>
   {% endif %}
-  {% if point.kind == 'exchange' and point.lifecycle == 'open' %}
-    <form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-4 flex flex-wrap gap-2">{% csrf_token %}
-      <label class="sr-only" for="exchange-{{ point.pk }}">Écrire dans cet échange</label>
-      <input id="exchange-{{ point.pk }}" class="mk-input min-w-0 flex-1" name="body" required placeholder="Votre message…">
-      <button class="mk-btn mk-btn-secondary" type="submit">Envoyer</button>
-    </form>
-  {% endif %}
+
 </article>
