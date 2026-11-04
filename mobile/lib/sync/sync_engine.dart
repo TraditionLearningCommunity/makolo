@@ -125,6 +125,7 @@ class SyncEngine {
   );
 
   Future<void> bootstrap() async {
+    await store.purgeExpiredProjections();
     for (final root in roots) {
       await pull(root);
     }
@@ -132,6 +133,7 @@ class SyncEngine {
   }
 
   Future<bool> refreshRoots() async {
+    await store.purgeExpiredProjections();
     // Profile projections are independent: a slow Now request cannot delay
     // Ongoing or Me. Record partial failures without discarding local facts.
     final results = await Future.wait([
