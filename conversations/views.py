@@ -76,15 +76,17 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                     archived=tab == "archived",
                     only_attention=tab == "for-me",
                 ) if not q else [],
-                "search_results": self._deduplicated_search(q) if q else [],
+                "search_results": self._deduplicated_search(q, tab=tab) if q else [],
             }
         )
         return context
 
-    def _deduplicated_search(self, query):
+    def _deduplicated_search(self, query, *, tab="all"):
         seen = set()
         results = []
-        for result in search_conversations_for_profile(self.request.user, query):
+        for result in search_conversations_for_profile(
+            self.request.user, query, include_archived=tab == "archived",
+        ):
             if result.conversation.pk in seen:
                 continue
             seen.add(result.conversation.pk)
