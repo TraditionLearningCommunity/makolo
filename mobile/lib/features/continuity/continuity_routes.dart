@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
+import '../questionnaires/questionnaire_form_screen.dart';
+import '../questionnaires/questionnaire_repository.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_screens.dart';
 import 'history_screen.dart';
@@ -46,6 +48,42 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         repository: repository,
         representedSpaceId: actor is SpaceActorContext ? actor.space.id : null,
         focusPointId: state.uri.queryParameters['focus'],
+        onOpenFormRequest: (requestId) async {
+          await context.push('/conversations/${state.pathParameters['id']}/forms/$requestId');
+          if (context.mounted) {
+            try {
+              await repository.refreshDetail(state.pathParameters['id']!);
+            } on Object {
+              // Existing local Conversation projection remains available.
+            }
+          }
+        },
+      );
+    },
+  ),
+  GoRoute(
+    path: '/conversations/:id/forms/:requestId',
+    builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
+      final repository = runtime.questionnaires;
+      final drafts = runtime.drafts;
+      final outbox = runtime.outbox;
+      final submit = runtime.questionnaireSubmit;
+      if (repository == null || drafts == null || outbox == null || submit == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Formulaire', message: 'Formulaire indisponible sur cet appareil.',
+        );
+      }
+      final requestId = state.pathParameters['requestId']!;
+      final base = 'api/v1/questionnaires/requests/$requestId/';
+      return QuestionnaireFormScreen(
+        requestId: requestId,
+        journeyId: '',
+        links: QuestionnaireOwnerLinks(
+          detail: base, save: '${base}save/', submit: '${base}submit/',
+        ),
+        repository: repository, drafts: drafts, outbox: outbox,
+        submitCoordinator: submit, outboxProcessor: runtime.outboxProcessor,
       );
     },
   ),
