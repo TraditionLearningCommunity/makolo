@@ -532,7 +532,7 @@ class AccessRepository {
     }
     if (isCurrent() && canRetain &&
         !(await readSource(accessId)).invalidated &&
-        !await _hasRevokedBeneficiaryCollection()) {
+        !(await _hasRevokedBeneficiaryCollection())) {
       await _markCredentialRetention(accessId, denied: false);
     }
 
