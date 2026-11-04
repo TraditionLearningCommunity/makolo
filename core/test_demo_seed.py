@@ -48,8 +48,12 @@ class MakoloDemoSeedTests(TestCase):
         self.assertTrue(admin.is_superuser)
         self.assertTrue(admin.check_password(self.password))
         self.assertTrue(participant.check_password(self.password))
-        self.assertTrue(Activity.objects.get(slug="beta-event-free").title.startswith("Exemple — "))
-        self.assertTrue(Activity.objects.get(slug="beta-transport-lub-kol").title.startswith("Exemple — "))
+        event = Activity.objects.get(slug="beta-event-free")
+        transport = Activity.objects.get(slug="beta-transport-lub-kol")
+        self.assertEqual(event.title, "Atelier communauté gratuit")
+        self.assertEqual(transport.title, "Lubumbashi → Kolwezi")
+        self.assertFalse(event.title.startswith(("Exemple — ", "[DEMO]")))
+        self.assertFalse(transport.title.startswith(("Exemple — ", "[DEMO]")))
 
     def test_beta_seed_reconciles_guarded_status_snapshots_on_rerun(self):
         call_command(
@@ -155,11 +159,11 @@ class DemoProductLanguageTests(SimpleTestCase):
     def test_mobile_scenarios_are_identified_without_erasing_their_title(self):
         self.assertEqual(
             _demo_title("Festival musical à Lubumbashi"),
-            "Exemple — Festival musical à Lubumbashi",
+            "Festival musical à Lubumbashi",
         )
         self.assertEqual(
             _demo_title("Exemple — Festival musical à Lubumbashi"),
-            "Exemple — Festival musical à Lubumbashi",
+            "Festival musical à Lubumbashi",
         )
 
     def test_public_demo_opportunity_does_not_claim_a_personal_journey_or_real_offer(self):
