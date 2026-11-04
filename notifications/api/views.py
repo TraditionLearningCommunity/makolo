@@ -84,6 +84,7 @@ def _public_push_endpoint(endpoint):
         "provider": endpoint.provider,
         "platform": endpoint.platform,
         "app_version": endpoint.app_version,
+        "device_name": endpoint.device_name,
         "active": endpoint.active,
         "last_seen_at": endpoint.last_seen_at.isoformat() if endpoint.last_seen_at else None,
     }
