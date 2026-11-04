@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User, UserProfile
 from authorization.constants import SystemRoleCode
-from authorization.services import grant_space_role
+from authorization.services import grant_space_role, revoke_mandate
 from organizations.models import Organization
 from sharing.space_document_sharing import (
     share_space_document, space_document_delivery,
@@ -56,7 +56,7 @@ class SpaceDocumentTests(TestCase):
             name="Autre institution", slug="space-doc-other",
             created_by=self.other,
         )
-        grant_space_role(
+        self.owner_mandate = grant_space_role(
             profile=self.owner, space=self.space,
             role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
         )
@@ -97,6 +97,22 @@ class SpaceDocumentTests(TestCase):
             first.delete()
         with self.assertRaises(ValidationError):
             doc.delete()
+
+    def test_role_revocation_removes_all_document_authority(self):
+        doc, version = self.create()
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get(self.base).status_code, 200)
+        self.assertEqual(self.client.get(
+            f"{self.base}versions/{version.pk}/download/"
+        ).status_code, 200)
+        revoke_mandate(mandate=self.owner_mandate, actor=self.other_owner)
+        self.assertEqual(self.client.get(self.base).status_code, 404)
+        self.assertEqual(self.client.get(
+            f"{self.base}{doc.pk}/"
+        ).status_code, 404)
+        self.assertEqual(self.client.get(
+            f"{self.base}versions/{version.pk}/download/"
+        ).status_code, 404)
 
     def test_no_member_or_other_space_has_implicit_authority(self):
         doc, version = self.create()
