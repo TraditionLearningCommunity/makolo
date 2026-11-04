@@ -36,6 +36,10 @@ def main(argv=None):
     from crm.models import CRMContact
     from questionnaires.models import Form, FormRequest
     from social.models import Contribution
+    from conversations.models import (
+        ConversationContext, ConversationPoint, ConversationPointResponse,
+        ConversationPointResolution, PointExchangeEntry,
+    )
     if connection.vendor != "sqlite":
         p.error("Readiness audit only on a SQLite demonstration database")
     if a.at:
@@ -113,6 +117,11 @@ def main(argv=None):
         shares=apps.get_model("sharing.ActivityShareSubject").objects.filter(activity__slug__startswith="demo-").count(),
         proofs=Proof.objects.filter(journey__activity__slug__startswith="demo-").count(),
         reports=Report.objects.filter(journey__activity__slug__startswith="demo-").count(),
+        conversations=ConversationContext.objects.filter(purpose_key__startswith="demo-").count(),
+        conversation_points=ConversationPoint.objects.filter(conversation__context__purpose_key__startswith="demo-").count(),
+        conversation_responses=ConversationPointResponse.objects.filter(point__conversation__context__purpose_key__startswith="demo-").count(),
+        conversation_resolutions=ConversationPointResolution.objects.filter(point__conversation__context__purpose_key__startswith="demo-").count(),
+        conversation_exchanges=PointExchangeEntry.objects.filter(point__conversation__context__purpose_key__startswith="demo-").count(),
     )
     model_for_key = {
         "activities":"activities.Activity",
@@ -150,6 +159,11 @@ def main(argv=None):
         "personal_goals":"goals.PersonalGoal",
         "shares":"sharing.ActivityShareSubject",
         "proofs":"trust.Proof", "reports":"trust.Report",
+        "conversations":"conversations.ConversationContext",
+        "conversation_points":"conversations.ConversationPoint",
+        "conversation_responses":"conversations.ConversationPointResponse",
+        "conversation_resolutions":"conversations.ConversationPointResolution",
+        "conversation_exchanges":"conversations.PointExchangeEntry",
         "checkpoint_live":"operations.OccurrenceCheckpoint",
         "queue_live":"operations.OccurrenceQueue",
         "queue_entries":"operations.QueueEntry",
@@ -205,6 +219,7 @@ def main(argv=None):
         "Trust / Sharing": ("proofs", "reports", "shares"),
         "Forms / CRM": ("forms", "form_requests", "crm_contacts"),
         "Contextual content": ("contributions", "media_published"),
+        "Conversations": ("conversations", "conversation_points"),
     }
     for title, keys in essential.items():
         missing = [key for key in keys if demos[key] == 0]
