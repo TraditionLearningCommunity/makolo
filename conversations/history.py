@@ -19,7 +19,7 @@ from .point_models import (
     ConversationPoint, ConversationPointLifecycle, ConversationResponseVisibility,
     ConversationPointResponseStatus, ConversationExchangeModerationState,
 )
-from .point_services import point_visible_to
+from .point_services import point_visible_to, point_resolution_visible_to
 from .services import can_manage_conversation, can_view_conversation
 
 _CURSOR_SALT = "conversation-point-depth-c5-v1"
@@ -73,7 +73,7 @@ def _matching_visible_content(profile, point, term):
         return True
     if term in (point.title or "").casefold() or term in (point.body or "").casefold():
         return True
-    if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+    if point.lifecycle == ConversationPointLifecycle.RESOLVED and point_resolution_visible_to(profile, point):
         try:
             if term in (point.resolution.summary or "").casefold():
                 return True
@@ -156,15 +156,10 @@ def page_points_for_profile(profile, conversation, *, query="", section="history
         "response_audience", "expected_action_audience",
     ).prefetch_related("options", "responses").order_by("-published_at", "-pk")
     received = []
-    # A candidate-limit protects public APIs against arbitrarily expensive
-    # permission traversal; it never converts unread data into a false success.
-    inspected = 0
-    truncated = False
+    # Keep scanning until there are limit+1 *visible* matches. A hard
+    # candidate cap silently loses results when thousands of candidates
+    # belong to another audience; it is not valid pagination.
     for point in points.iterator(chunk_size=100):
-        inspected += 1
-        if inspected > 5000:
-            truncated = True
-            break
         if not point_visible_to(profile, point):
             continue
         if not _matching_visible_content(profile, point, query.casefold()):
@@ -173,7 +168,7 @@ def page_points_for_profile(profile, conversation, *, query="", section="history
         if len(received) > limit:
             break
 
-    has_next = len(received) > limit or truncated
+    has_next = len(received) > limit
     result = received[:limit]
     next_cursor = None
     if has_next and result:
@@ -209,7 +204,10 @@ def point_personal_result(profile, point):
         active = None
     manager = can_manage_conversation(profile, point.conversation)
     total = None
-    if manager or point.response_visibility == ConversationResponseVisibility.POINT_VIEWERS:
+    if manager or point.response_visibility in (
+        ConversationResponseVisibility.POINT_VIEWERS,
+        ConversationResponseVisibility.AGGREGATE,
+    ):
         total = len(active) if active is not None else point.responses.filter(
             status=ConversationPointResponseStatus.ACTIVE,
         ).count()
