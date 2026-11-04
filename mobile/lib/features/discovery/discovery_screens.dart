@@ -1634,6 +1634,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
     _selectedCandidateKey = _restoredSelectedCandidateKey;
     _visit.selectedCandidateKey = _selectedCandidateKey;
+    if (_visit.focusedAnchor?.candidateKey != _selectedCandidateKey) {
+      _visit.focusedAnchor = null;
+    }
     _bindStreams();
     unawaited(_acquire());
   }
@@ -1656,6 +1659,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
       _selectedCandidateKey = _restoredSelectedCandidateKey;
       _visit.selectedCandidateKey = _selectedCandidateKey;
+      if (_visit.focusedAnchor?.candidateKey != _selectedCandidateKey) {
+        _visit.focusedAnchor = null;
+      }
       _bindStreams();
       unawaited(_acquire());
     }
@@ -1845,6 +1851,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 showMapOnCompact: true,
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: _restoredSelectedCandidateKey,
+                initialFocusedAnchor: _visit.focusedAnchor,
                 detailRefreshRevision: _detailReturnRevision,
                 restoredViewport: _visit.viewport,
                 onViewportChanged: (viewport) {
@@ -1854,6 +1861,13 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 onSelectionChanged: (key) {
                   _selectedCandidateKey = key;
                   _visit.selectedCandidateKey = key;
+                  if (key == null ||
+                      _visit.focusedAnchor?.candidateKey != key) {
+                    _visit.focusedAnchor = null;
+                  }
+                },
+                onFocusedAnchorChanged: (anchor) {
+                  _visit.focusedAnchor = anchor;
                 },
                 resolveItem: _verifiedMapDetail,
                 onSave: widget.authenticated
