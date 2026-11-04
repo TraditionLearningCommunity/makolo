@@ -210,8 +210,7 @@ class SpaceUsSurface extends StatelessWidget {
                       const SizedBox(height: MakoloSpacing.md),
                       _notice(
                         context,
-                        'Contexte limité à certaines activités. '
-                        'Les données institutionnelles privées ne sont pas exposées.',
+                        'Vous voyez uniquement les activités auxquelles vous avez accès.',
                       ),
                     ],
                     if (passportTarget != null) ...[
@@ -219,7 +218,7 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         'Passeport Makolo',
-                        'Notre identité à présenter selon les faits disponibles.',
+                        'Les informations qui présentent notre collectif.',
                       ),
                       _passportCard(context, passportTarget, open),
                     ],
