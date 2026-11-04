@@ -219,7 +219,7 @@ def main(argv=None):
             with transaction.atomic():
                 checkpoint, created = OccurrenceCheckpoint.objects.get_or_create(
                     occurrence=occurrence, key="demo-volume-accueil",
-                    defaults={"label":"Accueil de demonstration", "status":CheckpointStatus.PLANNED})
+                    defaults={"label":"Accueil et orientation", "status":CheckpointStatus.PLANNED})
                 counts["checkpoints_created"] += int(created)
                 if checkpoint.status == CheckpointStatus.PLANNED:
                     checkpoint = open_checkpoint(actor=actor, checkpoint=checkpoint)
@@ -228,7 +228,7 @@ def main(argv=None):
                     continue
                 queue, created = OccurrenceQueue.objects.get_or_create(
                     occurrence=occurrence, key="demo-volume-accueil",
-                    defaults={"label":"File d'accueil de demonstration", "checkpoint":checkpoint,
+                    defaults={"label":"File d’accueil", "checkpoint":checkpoint,
                               "eligibility_policy":QueueEligibilityPolicy.JOURNEY_REQUIRED,
                               "status":QueueStatus.OPEN})
                 counts["queues_created"] += int(created)
@@ -299,8 +299,8 @@ def main(argv=None):
             assignment, created = ScannerAssignment.objects.get_or_create(
                 activity=event.activity, occurrence=occurrence, agent=scanner,
                 defaults={"event":event, "assigned_by":grantor, "checkpoint":checkpoint,
-                          "label":"Controle demo", "notes":"Donnees synthetiques demo"})
-            if not created and checkpoint and not assignment.checkpoint_id and assignment.notes == "Donnees synthetiques demo":
+                          "label":"Contrôle à l’entrée", "notes":"Contrôle lié au passage"})
+            if not created and checkpoint and not assignment.checkpoint_id and assignment.notes == "Contrôle lié au passage":
                 assignment.checkpoint = checkpoint
                 assignment.save(update_fields=["checkpoint", "updated_at"])
             counts["scanner_assignments_created"] += int(created)
@@ -354,7 +354,7 @@ def main(argv=None):
                 if args.apply:
                     try:
                         tt = configure_ticket_type(actor=actor, event=event,
-                            occurrence=occurrence, name="Billet standard demo",
+                            occurrence=occurrence, name="Billet standard",
                             price=("0.00" if event.pk.int % 4 == 0 else "12.50"),
                             currency="USD", quantity_total=500,
                             min_per_order=1, max_per_order=4)
