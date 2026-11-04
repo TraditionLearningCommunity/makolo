@@ -126,7 +126,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
           );
           return Scaffold(
             appBar: AppBar(
-              title: Text(widget.live ? 'Live Space' : 'Jour J Space'),
+              title: Text(widget.live ? 'Live' : 'Jour J'),
               actions: [
                 IconButton(
                   tooltip: 'Actualiser',
@@ -139,11 +139,11 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
               child: MakoloSurfaceStateView(
                 state: surface,
                 initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’Occurrence opérée…',
+                  label: 'Chargement de cette réalisation…',
                 ),
                 blockingErrorMessage: state.invalidated
-                    ? 'Cette Occurrence n’est plus disponible dans cette fenêtre opératoire ou cette autorité Space.'
-                    : 'Cette Occurrence n’est pas disponible dans votre autorité Space.',
+                    ? 'Vous ne pouvez plus consulter cette réalisation dans le contexte actuel.'
+                    : 'Vous n’avez pas accès à cette réalisation dans cet Espace.',
                 onRetry: _refresh,
                 content: _SpaceOccurrenceContent(
                   payload: projection?.payload,
