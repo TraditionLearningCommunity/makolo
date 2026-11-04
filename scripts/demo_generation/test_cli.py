@@ -356,5 +356,17 @@ class DemoGenerationCLITests(unittest.TestCase):
                          scenario_reference("activity", "123", "live", 2))
 
 
+
+    def test_conversations_accept_existing_beta_test_accounts(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "conversations",
+            "--count", "500", "--conversation-include-test-users",
+        ])
+        with patch("scripts.demo_generation.conversations.main") as seeded:
+            run(args)
+        self.assertIn("--include-test-users", seeded.call_args.args[0])
+        self.assertIn("--apply", seeded.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
