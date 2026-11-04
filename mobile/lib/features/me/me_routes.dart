@@ -9,6 +9,7 @@ import 'me_passport_screen.dart';
 import 'me_profile_screen.dart';
 import 'me_saved_screen.dart';
 import 'me_considerations_screen.dart';
+import 'me_collectives_screen.dart';
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -24,6 +25,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
           }
           if (destination.kind == 'considerations') {
             context.push('/me/considerations');
+            return true;
+          }
+          if (destination.kind == 'collectives') {
+            context.push('/me/collectives');
             return true;
           }
           if (destination.kind == 'saved_collection') {
@@ -78,6 +83,33 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'collectives',
+          builder: (context, state) =>
+              runtime.api == null || runtime.personal == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes collectifs',
+                  message: 'Mes collectifs sont momentanément indisponibles.',
+                )
+              : MeCollectivesScreen(
+                  api: runtime.api!,
+                  personal: runtime.personal!,
+                  onOpenDestination: (destination) {
+                    if (destination.kind == 'group') {
+                      context.push('/groups/${destination.id}');
+                      return true;
+                    }
+                    if (destination.kind == 'space' &&
+                        destination.link != null) {
+                      context.push(
+                        '/spaces/${Uri.encodeComponent(destination.link!)}',
+                      );
+                      return true;
+                    }
+                    return false;
+                  },
+                ),
+        ),
         GoRoute(
           path: 'considerations',
           builder: (context, state) =>
