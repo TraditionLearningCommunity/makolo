@@ -13,7 +13,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
-from .composing import composer_capabilities, contribute_text, publish_composed_point
+from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
@@ -109,6 +109,7 @@ class ConversationContextLookupAPIView(PrivateNoStoreMixin, views.APIView):
         conversations = conversations_for_context(request.user, kind, context_pk)
         return Response({
             "count": len(conversations),
+            "can_ensure": can_ensure_context_conversation(request.user, kind, context_pk),
             "results": [
                 {
                     "id": str(item.pk),
@@ -299,6 +300,7 @@ class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
                     body=request.data.get("body"),
                     point_id=request.data.get("point_id"),
                     client_reference=client_ref, represented_space=represented_space,
+                    audience_id=request.data.get("audience_id"),
                 )
                 return Response({"kind": outcome, "id": str(result.pk), "point_id": str(point_id)})
             if mode == "point":
@@ -359,7 +361,7 @@ class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
             return _service_error(exc)
         if not can_view_conversation(request.user, conversation):
             raise NotFound("Conversation introuvable.")
-        return Response({"id": str(conversation.pk), "created": False})
+        return Response({"id": str(conversation.pk)})
 
 
 class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
