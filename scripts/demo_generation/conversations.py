@@ -271,9 +271,9 @@ def main(argv=None):
             with transaction.atomic():
                 conversation = ensure_context_conversation(
                     actor=actor, kind=kind, purpose_key=purpose_key,
-                    title_override="[DEMO] " + label[:170],
+                    title_override=label[:180],
                     purpose="Coordination concrète et contextualisée de " + label[:250],
-                    separation_reason="Scénario de démonstration lié au contexte " + phase,
+                    separation_reason="Coordination relative au contexte " + phase,
                     mode_preset=ConversationModePreset.MIXED,
                     **{field: target},
                 )
