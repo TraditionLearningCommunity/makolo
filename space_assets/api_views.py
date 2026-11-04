@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from journeys.models import Journey
+from journeys.collaboration_services import ensure_case_access
 from organizations.api.workspace_projection import workspace_spaces
 
 from .models import SpaceDocument, SpaceDocumentVersion
@@ -287,3 +288,34 @@ class SpaceDocumentShareRevokeAPIView(SpaceDocumentBase):
         except (ShareUnavailable, DjangoPermissionDenied) as exc:
             raise NotFound() from exc
         return self.respond({"revoked": True})
+
+
+class SpaceDocumentEligibleJourneysAPIView(SpaceDocumentBase):
+    """Only current Journey write assignments in the active Space."""
+    def get(self, request, slug):
+        space = self.space(request, slug)
+        if not visible_documents(actor=request.user, space=space).exists() and not (
+            can_manage_documents(request.user, space)
+        ):
+            # Empty library does not by itself grant extra Journey visibility.
+            from authorization.constants import PermissionCode
+            from authorization.selectors import has_direct_space_permission
+            if not has_direct_space_permission(
+                request.user, space, PermissionCode.SPACE_VIEW,
+            ):
+                raise NotFound()
+        items = []
+        for journey in Journey.objects.select_related("activity").filter(
+            activity__space=space,
+        ).order_by("-updated_at", "id")[:120]:
+            try:
+                ensure_case_access(request.user, journey, write=True)
+            except DjangoPermissionDenied:
+                continue
+            items.append({
+                "id": str(journey.pk),
+                "title": journey.activity.title,
+            })
+            if len(items) >= 20:
+                break
+        return self.respond({"space_id": str(space.pk), "items": items})
