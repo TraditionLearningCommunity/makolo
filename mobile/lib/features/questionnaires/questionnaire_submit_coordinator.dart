@@ -193,6 +193,9 @@ class QuestionnaireSubmitCoordinator {
       resourceKind: resourceKind,
       resourceId: requestId,
     );
+    // A Profile-targeted Conversation FormRequest deliberately has no Journey.
+    // Its canonical owner is Questionnaires; no synthetic Journey is refreshed.
+    if (journeyId.isEmpty) return;
     await journeys.invalidateDetail(journeyId);
     try {
       await journeys.refreshDetail(journeyId);
