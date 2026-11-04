@@ -399,6 +399,17 @@ class ConversationC5MatureTests(TestCase):
             'Conclusion réservée aux autorités',
         )
 
+    def test_default_point_search_includes_current_open_points(self):
+        point = self._point('Validation en cours')
+        self.client.force_login(self.member)
+        result = self.client.get(
+            reverse('conversations:history', kwargs={'pk': self.conversation.pk}),
+            {'q': 'Validation en cours'},
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertContains(result, point.title)
+        self.assertContains(result, str(point.pk))
+
     def test_web_history_search_is_accessible_and_cursor_preserves_filter(self):
         for i in range(27):
             self._point('Contrôle %02d' % i)
