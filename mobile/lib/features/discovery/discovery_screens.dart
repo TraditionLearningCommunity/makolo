@@ -2157,13 +2157,22 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     try {
       await context.push<void>(path);
     } finally {
-      if (!mounted || key != _itemKey ||
-          !identical(repository, widget.repository)) return;
-      // Opening an Activity/Occurrence N3 is reading the same known facts.
-      // An action route (booking, payment, Journey, etc.) may change them.
-      if (mayChangeOwnerState ||
-          !await repository.hasReusableItem(family, id)) {
-        if (mounted && key == _itemKey &&
+      if (mounted &&
+          key == _itemKey &&
+          identical(repository, widget.repository)) {
+        // A read-only N3 is a presentation, not an owner mutation.
+        // Action routes may change capabilities, so always revalidate them.
+        bool needsRefresh = mayChangeOwnerState;
+        if (!needsRefresh) {
+          try {
+            needsRefresh = !await repository.hasReusableItem(family, id);
+          } on Object {
+            needsRefresh = true;
+          }
+        }
+        if (needsRefresh &&
+            mounted &&
+            key == _itemKey &&
             identical(repository, widget.repository)) {
           await _refresh();
         }
