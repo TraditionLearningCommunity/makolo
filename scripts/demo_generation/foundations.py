@@ -52,14 +52,6 @@ def main(argv=None):
     from .editorial import activity_title
     now = timezone.now()
     counters = Counter()
-    labels = {
-        "funding": "Soutien éducatif local",
-        "services": "Accompagnement aux démarches",
-        "obtention": "Obtention de fournitures scolaires",
-    }
-    contexts = ("rentrée scolaire", "soutien aux familles", "quartier", "nouveaux arrivants",
-                "préparation de dossier", "orientation locale", "équipement scolaire",
-                "accès aux services", "formation pratique", "accompagnement individuel")
     for domain in DOMAINS:
         if domain not in selected:
             continue
