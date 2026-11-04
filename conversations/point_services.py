@@ -66,6 +66,23 @@ def point_visible_to(profile, point, *, at=None):
     return not point.visibility_audience_id or profile_in_audience(profile, point.visibility_audience, at=at)
 
 
+def point_resolution_visible_to(profile, point, *, at=None):
+    """Gate resolution summaries and all derived result projections.
+
+    An ability to read the Point does not imply a right to its resolution.
+    Contextual authorities may inspect the result; other viewers require an
+    explicit resolution audience when one exists.
+    """
+    if not point_visible_to(profile, point, at=at):
+        return False
+    return (
+        not point.resolution_audience_id
+        or can_manage_conversation(profile, point.conversation)
+        or profile_in_audience(profile, point.resolution_audience, at=at)
+    )
+
+
+
 def point_response_allowed(profile, point, *, at=None):
     if not point_visible_to(profile, point, at=at):
         return False
