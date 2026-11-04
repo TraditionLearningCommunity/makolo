@@ -208,6 +208,34 @@ class SpaceDocumentDownloadWebView(SpaceWebMixin):
         return response
 
 
+class SpaceDocumentPreviewWebView(SpaceWebMixin):
+    """Inline view only for validated, inert browser-viewable formats."""
+    space_nav_key = "us"
+    inline_types = {"application/pdf", "image/jpeg", "image/png"}
+
+    def get(self, request, *args, **kwargs):
+        try:
+            version = version_for_download(
+                actor=request.user, space=self.space,
+                version_id=self.kwargs["version_id"],
+            )
+        except PermissionDenied as exc:
+            raise Http404 from exc
+        if version.mime_type not in self.inline_types:
+            raise Http404
+        response = FileResponse(
+            version.file.open("rb"), as_attachment=False,
+            filename=f"{slugify(version.document.title) or 'document'}-v{version.version}",
+            content_type=version.mime_type,
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "sandbox"
+        response["Referrer-Policy"] = "no-referrer"
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+
 class SpaceDocumentShareWebView(SpaceWebMixin):
     space_nav_key = "us"
 
