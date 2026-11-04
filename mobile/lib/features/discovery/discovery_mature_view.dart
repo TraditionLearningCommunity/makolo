@@ -567,6 +567,8 @@ class DiscoverySpatialView extends StatefulWidget {
     this.showMapOnCompact = false,
     this.fieldKey,
     this.onSelectionChanged,
+    this.onFocusedAnchorChanged,
+    this.initialFocusedAnchor,
     this.detailRefreshRevision = 0,
     this.spatialRevision,
     this.restoredViewport,
@@ -593,6 +595,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final bool showMapOnCompact;
   final String? fieldKey;
   final ValueChanged<String?>? onSelectionChanged;
+  final ValueChanged<DiscoverySpatialAnchor?>? onFocusedAnchorChanged;
+  final DiscoverySpatialAnchor? initialFocusedAnchor;
   /// N2 returned; refresh owner-confirmed actions, never the map's camera.
   final int detailRefreshRevision;
   /// Stable owner snapshot revision, independent from widget rebuilds.
@@ -639,16 +643,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       if (changed) _confirmedDetail = null;
     });
     widget.onSelectionChanged?.call(key);
+    widget.onFocusedAnchorChanged?.call(anchor);
     if (changed) unawaited(_resolveSelected());
     if (!moveCamera) return;
     final anchors = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
     );
-    for (final anchor in anchors) {
-      if (anchor.candidateKey != key) continue;
+    for (final point in anchors) {
+      if (point.candidateKey != key) continue;
+      final target = anchor ?? point;
       final controller = _mapController;
       if (controller != null) {
-        unawaited(_moveCamera(controller, anchor));
+        unawaited(_moveCamera(controller, target));
       }
       break;
     }
@@ -662,6 +668,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       _confirmedDetail = null;
     });
     widget.onSelectionChanged?.call(null);
+    widget.onFocusedAnchorChanged?.call(null);
   }
 
   Future<void> _resolveSelected() async {
@@ -909,6 +916,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   void initState() {
     super.initState();
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    if (widget.initialFocusedAnchor?.candidateKey == _selectedCandidateKey) {
+      _focusedAnchor = widget.initialFocusedAnchor;
+    }
     if (_selectedCandidateKey != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_resolveSelected());
@@ -933,7 +943,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         widget.initialSelectedCandidateKey) {
       ++_detailGeneration;
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
-      _focusedAnchor = null;
+      _focusedAnchor = widget.initialFocusedAnchor?.candidateKey == _selectedCandidateKey
+          ? widget.initialFocusedAnchor
+          : null;
       _confirmedDetail = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _selectedCandidateKey != null) {
@@ -978,6 +990,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       _focusedAnchor = null;
       _confirmedDetail = null;
       widget.onSelectionChanged?.call(null);
+      widget.onFocusedAnchorChanged?.call(null);
     }
   }
 
