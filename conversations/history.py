@@ -152,7 +152,7 @@ def page_points_for_profile(profile, conversation, *, query="", section="history
     points = points.select_related(
         "conversation__context", "visibility_audience", "resolution_audience",
         "response_audience", "expected_action_audience",
-    ).prefetch_related("options").order_by("-published_at", "-pk")
+    ).prefetch_related("options", "responses").order_by("-published_at", "-pk")
     received = []
     # A candidate-limit protects public APIs against arbitrarily expensive
     # permission traversal; it never converts unread data into a false success.
@@ -188,15 +188,29 @@ def page_points_for_profile(profile, conversation, *, query="", section="history
 
 
 def point_personal_result(profile, point):
-    """Presence and aggregate counts only. A response identity is not an aggregate."""
-    mine = point.responses.filter(
-        actor=profile, status=ConversationPointResponseStatus.ACTIVE,
-        represented_space__isnull=True,
-    ).order_by("-submitted_at").first()
+    """Return only the viewer's response and permitted aggregate count."""
+    cached = getattr(point, "_prefetched_objects_cache", {}).get("responses")
+    if cached is not None:
+        active = [
+            row for row in cached
+            if row.status == ConversationPointResponseStatus.ACTIVE
+        ]
+        mine = next((
+            row for row in active if row.actor_id == profile.pk
+            and row.represented_space_id is None
+        ), None)
+    else:
+        mine = point.responses.filter(
+            actor=profile, status=ConversationPointResponseStatus.ACTIVE,
+            represented_space__isnull=True,
+        ).order_by("-submitted_at").first()
+        active = None
     manager = can_manage_conversation(profile, point.conversation)
     total = None
     if manager or point.response_visibility == ConversationResponseVisibility.POINT_VIEWERS:
-        total = point.responses.filter(status=ConversationPointResponseStatus.ACTIVE).count()
+        total = len(active) if active is not None else point.responses.filter(
+            status=ConversationPointResponseStatus.ACTIVE,
+        ).count()
     return {
         "responded": mine is not None,
         "responded_at": mine.submitted_at if mine else None,
