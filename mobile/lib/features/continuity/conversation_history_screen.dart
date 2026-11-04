@@ -317,6 +317,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 for (final row in _rows)
                   _HistoricalPointRow(
                     row: row,
+                    onOpenRelated: widget.onOpenPoint,
                     onOpen: () {
                       final id = row['id']?.toString();
                       if (id != null && id.isNotEmpty) widget.onOpenPoint(id);
@@ -347,9 +348,13 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
 }
 
 class _HistoricalPointRow extends StatelessWidget {
-  const _HistoricalPointRow({required this.row, required this.onOpen});
+  const _HistoricalPointRow({
+    required this.row, required this.onOpen,
+    required this.onOpenRelated,
+  });
   final Map<String, dynamic> row;
   final VoidCallback onOpen;
+  final ValueChanged<String> onOpenRelated;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +379,7 @@ class _HistoricalPointRow extends StatelessWidget {
     final title = row['title']?.toString() ?? '';
     final resolution = row['resolution_summary']?.toString() ?? '';
     final subtitle = row['body']?.toString() ?? '';
+    final replacement = row['replaced_by_point_id']?.toString();
     return Semantics(
       button: true,
       label: [kind, title, lifecycle, resolution, 'Ouvrir le Point'].where(
@@ -411,6 +417,15 @@ class _HistoricalPointRow extends StatelessWidget {
                       subtitle,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                if (replacement != null && replacement.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => onOpenRelated(replacement),
+                      icon: const Icon(Icons.call_made_rounded),
+                      label: const Text('Voir le Point actuel'),
                     ),
                   ),
                 const Divider(height: 24),
