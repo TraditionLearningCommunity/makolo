@@ -9,7 +9,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 
 from .audience_models import ConversationAudienceSet, ConversationAudienceStatus
-from .core_models import ConversationContextKind, ConversationLifecycle
+from .core_models import ConversationContext, ConversationContextKind, ConversationLifecycle
 from .point_models import (
     ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
     ConversationPointResolutionPolicy, ConversationPointResponseMode,
@@ -18,7 +18,7 @@ from .point_services import (
     POINT_POLICY_CAPABILITY, create_exchange_entry, create_point,
     point_response_allowed, point_visible_to,
 )
-from .services import can_publish_in_conversation, can_view_conversation
+from .services import _has_scope_permission, can_publish_in_conversation, can_view_conversation
 
 
 COMPOSABLE_KINDS = {
@@ -199,7 +199,7 @@ def publish_composed_point(
 
 def contribute_text(
     *, actor, conversation, body, point_id=None, represented_space=None,
-    client_reference=None,
+    client_reference=None, audience_id=None,
 ):
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Conversation non accessible.")
@@ -228,6 +228,22 @@ def contribute_text(
         actor=actor, conversation=conversation,
         kind=ConversationPointKind.INFORMATION, body=body,
         represented_space=represented_space,
+        audience_id=audience_id,
         client_reference=client_reference,
     )
     return "point", point, point.pk
+
+
+def can_ensure_context_conversation(profile, kind, context_pk):
+    """Only explicit manage authority permits contextual creation; never direct DM."""
+    if kind not in ConversationContext.TARGET_FIELDS or kind == ConversationContextKind.DIRECT:
+        return False
+    field = ConversationContext.TARGET_FIELDS[kind][0]
+    target_model = ConversationContext._meta.get_field(field).remote_field.model
+    try:
+        target = target_model.objects.get(pk=context_pk)
+        pending = ConversationContext(kind=kind, **{field: target})
+        pending.clean()
+    except (target_model.DoesNotExist, ValidationError, ValueError, TypeError):
+        return False
+    return _has_scope_permission(profile, pending, "MANAGE")
