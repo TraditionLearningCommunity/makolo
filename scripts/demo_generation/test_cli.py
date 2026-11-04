@@ -419,6 +419,10 @@ class DemoGenerationCLITests(unittest.TestCase):
         db.close()
 
 
+    def test_subscription_offers_have_natural_visible_names(self):
+        from scripts.demo_generation.subscription_catalog import DEMO_OFFERS
+        self.assertTrue(all("demo" not in item[3].lower() for item in DEMO_OFFERS))
+
     def test_editorial_titles_are_natural_and_repeatable(self):
         from types import SimpleNamespace
         from scripts.demo_generation.editorial import (
