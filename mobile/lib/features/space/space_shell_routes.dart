@@ -177,7 +177,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       builder: (context, status) {
         if (status.data?.invalidated == true) {
           return const MakoloEmptyState(
-            title: 'Autorité Space révoquée ou indisponible.',
+            title: 'Impossible d’accéder à cet Espace actuellement.',
             icon: Icons.lock_outline,
           );
         }
@@ -218,7 +218,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                           child: Text(
                             projection == null
                                 ? 'Actualisation indisponible.'
-                                : 'Actualisation indisponible. Observation conservée du ${projection.receivedAt.toLocal()}',
+                                : 'Impossible d’actualiser. Les dernières informations enregistrées restent affichées.',
                           ),
                         ),
                         TextButton(
@@ -807,9 +807,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'La personne doit déjà posséder un Profil Makolo. '
-                  'Le rôle choisi crée une autorité explicite et sera vérifié '
-                  'par le serveur.',
+                  'Cette personne doit déjà avoir un compte Makolo. '
+                  'Le rôle attribué détermine les droits d’action dans cet Espace.',
                 ),
                 TextField(
                   controller: email,
@@ -821,9 +820,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: selected,
                   isExpanded: true,
-                  hint: const Text('Choisir une responsabilité'),
+                  hint: const Text('Choisir un rôle'),
                   decoration: const InputDecoration(
-                    labelText: 'Responsabilité',
+                    labelText: 'Rôle',
                   ),
                   items: [
                     for (final role in roles)
@@ -959,13 +958,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('Transférer la propriété du Space'),
+          title: const Text('Transférer la propriété de l’Espace'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Choisissez un collaborateur actif. '
-                'Le serveur validera sa présence et votre autorité.',
+                'Votre droit de transférer la propriété sera vérifié.',
               ),
               DropdownButtonFormField<String>(
                 isExpanded: true,
@@ -1059,20 +1058,20 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (_loading) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Vérification du contexte Space…',
+        message: 'Vérification de votre accès à cet Espace…',
       );
     }
     if (_denied || _space == null) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Ce contexte Space n’est pas disponible pour votre Profil.',
+        message: 'Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.',
       );
     }
     final current = widget.runtime.actorContext?.value;
     if (current is! SpaceActorContext || current.space.id != _space!.id) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Ce Space n’est plus le contexte actif. Revenez à Nous pour continuer.',
+        message: 'Vous avez changé d’Espace. Revenez à Nous pour continuer.',
       );
     }
     final repository = widget.runtime.space!;
@@ -1085,7 +1084,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         if (state.invalidated) {
           return MakoloSecondaryScreen(
             title: _depthTitle(widget.depth),
-            message: 'Cette profondeur n’est plus disponible avec l’autorité actuelle. Le contexte public de l’Espace reste protégé.',
+            message: 'Cette rubrique n’est plus accessible avec vos droits actuels.',
           );
         }
         return StreamBuilder<StoredProjection?>(
@@ -1105,7 +1104,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
                 message:
-                    'Cette profondeur n’est pas autorisée dans ce contexte.',
+                    'Cette rubrique n’est pas accessible avec vos droits actuels.',
               );
             }
             final freshness = WorkspaceContextRepository.surfaceFreshness
@@ -1263,11 +1262,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         _map(payload['capabilities'])?['manage_ownership'] == true;
     final intro = switch (widget.depth) {
       'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
-      'responsibilities' => 'Les rôles associés à votre autorité actuelle. Ils ne constituent pas des Assignments opérationnels.',
+      'responsibilities' => 'Les rôles présentés ici sont distincts des tâches confiées aux collaborateurs.',
       'ownership' =>
-        'Les Mandates de propriétaire actifs, indépendants des appartenances.',
+        'Les personnes qui détiennent actuellement la propriété de cet Espace.',
       'trust' => 'Les faits de vérification établis dans ce contexte.',
-      _ => 'Cette profondeur dépend de vos droits sur le Space actif.',
+      _ => 'Cette rubrique dépend de vos droits dans l’Espace actif.',
     };
     return Scaffold(
       appBar: AppBar(title: Text(title)),
@@ -1293,7 +1292,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             const SizedBox(height: MakoloSpacing.md),
             const MakoloStatus(
               label:
-                  'Observation conservée hors réseau. Actions indisponibles.',
+                  'Dernières informations enregistrées. Les actions nécessitent une connexion.',
               tone: MakoloStatusTone.info,
               icon: Icons.cloud_off_outlined,
             ),
