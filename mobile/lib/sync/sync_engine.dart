@@ -6,6 +6,8 @@ import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../data/files/profile_recognition_image_store.dart';
 import '../data/files/profile_paths.dart';
+import '../data/files/resource_download_destination.dart';
+import '../features/access/access_credential_vault.dart';
 import '../network/api_error.dart';
 import '../network/makolo_api_client.dart';
 import '../presentation/possibilities/discovery_offline_store.dart';
@@ -294,6 +296,15 @@ class SyncEngine {
     if (_isDiscoveryRelated(source)) {
       coordinator.discoveryEpochs[profileId] = _discoveryRevocationEpoch + 1;
     }
+    // A denied History owner invalidates its previously received search
+    // views as a family. Older in-flight pages cannot restore them.
+    if (source.owner == 'ProfileHistory') {
+      for (final key in coordinator.generations.keys
+          .where((key) => key.startsWith('$profileId|history:')).toList()) {
+        coordinator.generations[key] =
+            (coordinator.generations[key] ?? 0) + 1;
+      }
+    }
     await database.transaction(() async {
       await store.deleteProjection(
         source.projectionKind,
@@ -317,6 +328,30 @@ class SyncEngine {
                   row.sourceKey.like('discovery%'),
             ))
             .write(const SyncSourcesCompanion(invalidated: Value(true)));
+      }
+      // Invalidate derived read models in the same SQLite transaction as
+      // the owner tombstone, so cold-start readers never see a partial purge.
+      if (source.projectionKind == 'personal.now') {
+        await store.deleteProjection('personal.now.continuation');
+      }
+      if (source.projectionKind == 'personal.ongoing') {
+        await store.deleteProjection('personal.ongoing.continuation');
+      }
+      if (source.projectionKind == 'personal.me') {
+        await store.deleteProjectionsOfKind('personal.me.passport');
+      }
+      if (source.owner == 'ProfileHistory') {
+        await store.deleteProjectionsOfKind('personal.history');
+        await store.deleteProjectionsOfKind('personal.history.search');
+        await (database.update(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.like('history:%'),
+            ))
+            .write(SyncSourcesCompanion(
+              invalidated: const Value(true),
+              lastErrorCode: Value(code),
+            ));
       }
       await _ensureSource(source);
       await (database.update(database.syncSources)..where(
@@ -345,13 +380,36 @@ class SyncEngine {
         // A failure in one filesystem surface must not skip the other.
       }
     }
-    // A root owner denial revokes its derived continuation too. A network
-    // failure never reaches this branch and therefore preserves it.
-    if (source.projectionKind == 'personal.now') {
-      await store.deleteProjection('personal.now.continuation');
+    // A source refusal withdraws only its retained private representation.
+    // Explicitly exported documents outside the app remain user-owned.
+    if (source.projectionKind == 'personal.resource.detail') {
+      try {
+        await removeLocallyRetainedResourceVersions(
+          profileId: profileId,
+          assetId: source.resourceKey,
+        );
+      } on Object {
+        // SQL denial remains binding even if cleanup must be retried.
+      }
+    } else if (source.projectionKind == 'personal.me.resources') {
+      try {
+        await removeAllLocallyRetainedResources(profileId);
+      } on Object {
+        // No credential or document bytes are written into projections.
+      }
     }
-    if (source.projectionKind == 'personal.ongoing') {
-      await store.deleteProjection('personal.ongoing.continuation');
+    if (source.projectionKind == 'personal.access.detail' ||
+        source.projectionKind == 'personal.accesses') {
+      try {
+        final vault = SecureAccessCredentialVault();
+        if (source.projectionKind == 'personal.access.detail') {
+          await vault.delete(profileId, source.resourceKey);
+        } else {
+          await vault.clearProfile(profileId);
+        }
+      } on Object {
+        // The Profile-local source tombstone still blocks presentation.
+      }
     }
     // Unlike a timeout, explicit owner denial withdraws recognition media.
     if (source.projectionKind == 'personal.me' ||
