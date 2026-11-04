@@ -230,6 +230,17 @@ class MatureDiscoveryAPITests(TestCase):
             place=place,
             role=OccurrencePlaceRole.PRIMARY,
         )
+        meeting = Place.objects.create(
+            name="Z3 point de rencontre",
+            locality="Lubumbashi",
+            latitude="-11.667000",
+            longitude="27.470000",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=meeting,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
         self.client.force_login(self.participant)
         compact = self._items(
             q="Z3", page_size=1, include_spatial_index="compact",
@@ -272,6 +283,10 @@ class MatureDiscoveryAPITests(TestCase):
         event = next(
             item for item in index["results"]
             if item["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertEqual(
+            {fact["role"] for fact in event["spatial_facts"]},
+            {"primary", "meeting_point"},
         )
         owner_detail = self.client.get(event["links"]["detail"])
         self.assertEqual(owner_detail.status_code, 200)
