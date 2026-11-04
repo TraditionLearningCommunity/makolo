@@ -71,7 +71,7 @@ void main() {
 
       expect(find.text('Bibliothèque'), findsOneWidget);
       expect(find.textContaining('owner Trust'), findsNothing);
-      expect(find.text('Faits vérifiés'), findsOneWidget);
+      expect(find.text('Mes preuves'), findsOneWidget);
       expect(find.text('Attestations et certificats'), findsOneWidget);
       expect(find.text('Passeport RDC'), findsOneWidget);
       expect(find.text('Participation'), findsOneWidget);
