@@ -109,9 +109,9 @@ def seed_transport(ctx: SeedContext) -> None:
         defaults={
             "space": space,
             "created_by": manager,
-            "title": "Lubumbashi → Kolwezi",
-            "short_description": "Trajet routier Mulykap",
-            "description": "Service routier régulier entre Lubumbashi et Kolwezi.",
+            "title": "Exemple — Lubumbashi → Kolwezi",
+            "short_description": "Trajet fictif entre Lubumbashi et Kolwezi.",
+            "description": "Exemple de trajet routier pour les essais Makolo. Les départs et billets de ce scénario ne correspondent pas à un service de transport réel.",
             "status": ActivityStatus.PUBLISHED,
             "visibility": ActivityVisibility.PUBLIC,
         },
