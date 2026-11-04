@@ -1,4 +1,5 @@
 """C5: owner-checked history, search, continuation and personal UX contracts."""
+from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -258,6 +259,36 @@ class ConversationC5MatureTests(TestCase):
             for item in detail.json()[section]:
                 if item['id'] == str(point.pk):
                     self.assertFalse(item['can_respond'])
+
+    def test_closed_rejects_acknowledge_resolve_cancel_and_supersede(self):
+        from .point_services import (
+            acknowledge_point, close_point_responses, resolve_point,
+        )
+        from .lifecycle_services import cancel_point
+
+        point = self._point(
+            'À valider avant fermeture',
+            kind=ConversationPointKind.CONFIRMATION,
+            response_mode=ConversationPointResponseMode.BOOLEAN,
+            requires_acknowledgement=True,
+        )
+        successor = self._point('Nouvelle proposition', publish=False)
+        transition_conversation(
+            actor=self.manager, conversation=self.conversation,
+            lifecycle=ConversationLifecycle.CLOSED,
+        )
+        with self.assertRaises(ValidationError):
+            acknowledge_point(actor=self.member, point=point)
+        with self.assertRaises(ValidationError):
+            resolve_point(actor=self.manager, point=point, summary='Non autorisé')
+        with self.assertRaises(ValidationError):
+            close_point_responses(actor=self.manager, point=point)
+        with self.assertRaises(ValidationError):
+            supersede_point(actor=self.manager, old_point=point, new_point=successor)
+        with self.assertRaises(ValidationError):
+            cancel_point(actor=self.manager, point=point)
+        point.refresh_from_db()
+        self.assertEqual(point.lifecycle, 'open')
 
     def test_closed_conversation_read_only_and_history_still_available(self):
         point = self._point('État établi')
