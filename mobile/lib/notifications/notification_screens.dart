@@ -8,7 +8,6 @@ import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
 import '../features/settings/notification_preferences_screen.dart' as settings;
-import '../navigation/structured_destination_codec.dart';
 import '../presentation/projection_surface_adapter.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
@@ -401,21 +400,12 @@ class _NotificationRow {
   static List<_NotificationRow> fromProjection(StoredProjection? projection) {
     final raw = projection?.payload['results'];
     if (raw is! List) return const [];
-    const codec = StructuredDestinationCodec();
+    const router = NotificationRouter();
     return raw
         .whereType<Map>()
         .map((item) {
           final row = item.map((key, value) => MapEntry(key.toString(), value));
-          final destination = codec.fromNavigation(row['navigation']);
-          final path = destination == null
-              ? null
-              : const NotificationRouter().resolve(
-                  NotificationRouteIntent(
-                    kind: destination.kind,
-                    id: destination.id,
-                    link: destination.link,
-                  ),
-                );
+          final path = router.resolveNavigation(row['navigation']);
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
             title: row['title']?.toString().trim().isNotEmpty == true
