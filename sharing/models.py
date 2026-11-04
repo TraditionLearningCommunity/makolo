@@ -26,6 +26,7 @@ class ShareSubjectType(models.TextChoices):
     OPPORTUNITY = "opportunity", "Opportunity"
     JOURNEY = "journey", "Journey"
     PASSPORT = "passport", "Passeport émis"
+    SPACE_DOCUMENT = "space_document", "Document de l’Espace"
 
 
 class ShareEnvelope(models.Model):
@@ -475,5 +476,36 @@ class PassportShareSubject(models.Model):
                 "snapshot_id": self.snapshot_id,
             }:
                 raise ValidationError("Un partage de Passeport reste lié au même document.")
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class SpaceDocumentShareSubject(models.Model):
+    """Sharing grant bound to one immutable institutional document version."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    envelope = models.OneToOneField(
+        ShareEnvelope, on_delete=models.CASCADE,
+        related_name="space_document_subject",
+    )
+    version = models.ForeignKey(
+        "space_assets.SpaceDocumentVersion", on_delete=models.PROTECT,
+        related_name="share_subjects",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        if self.envelope_id and self.envelope.subject_type != ShareSubjectType.SPACE_DOCUMENT:
+            raise ValidationError("Ce partage doit concerner un document de l'Espace.")
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            former = SpaceDocumentShareSubject.objects.filter(pk=self.pk).values(
+                "envelope_id", "version_id",
+            ).first()
+            if former and former != {
+                "envelope_id": self.envelope_id,
+                "version_id": self.version_id,
+            }:
+                raise ValidationError("La version partagée est immuable.")
         self.full_clean()
         return super().save(*args, **kwargs)
