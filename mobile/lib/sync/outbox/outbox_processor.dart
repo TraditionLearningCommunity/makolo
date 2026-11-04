@@ -129,6 +129,8 @@ class OutboxProcessor {
       }
 
       if (!_active) return;
+      if (operation.state == OutboxState.awaitingConfirmation.wireValue &&
+          !policy.requiresReconciliationBeforeReplay) continue;
       if (!await repository.claimForAttempt(
         operation.operationId,
         expectedAttempts: operation.attempts,
