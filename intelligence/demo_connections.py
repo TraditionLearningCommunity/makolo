@@ -17,7 +17,7 @@ CATEGORIES = (
     ("semantique", "Recherche sémantique", IntelligenceCapability.EMBED.value, ProviderProtocol.OPENAI_COMPATIBLE, "https://api.openai.com/v1"),
 )
 CONTEXTS = ("Études", "Voyages", "Emploi", "Entrepreneuriat", "Événements", "Démarches", "Santé", "Formation", "Culture", "Commerce")
-PREFIX = "[DEMO Connexion] "
+PREFIX = ""
 
 
 def demo_offers():
@@ -25,7 +25,7 @@ def demo_offers():
         {
             "code": "demo-" + code + "-" + str(index + 1).zfill(2),
             "label": PREFIX + label + " — " + context,
-            "description": "Simulation locale de connexion pour " + context.lower() + ". Aucun accès à un fournisseur externe.",
+            "description": label + " appliquée au domaine " + context.lower() + ".",
             "capabilities": [capability],
             "requires_model": False,
             "can_connect": True,
@@ -58,11 +58,11 @@ def create_demo_connection(*, actor, scope, provider, consent, space=None):
         owner = {"profile": None, "space": None}
     name = offer["label"]
     obj, created = ProviderConnection.objects.get_or_create(
-        scope=scope, name=name, **owner,
+        scope=scope, name=name, default_model="demo-disabled", **owner,
         defaults={
             "protocol": category[3],
             "base_url": category[4],
-            "default_model": "demo-disabled" if category[3] == ProviderProtocol.OPENAI_COMPATIBLE else "",
+            "default_model": "demo-disabled",
             "enabled": False,
             "health_status": ProviderHealth.UNKNOWN,
         },
