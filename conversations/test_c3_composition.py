@@ -13,7 +13,8 @@ from organizations.models import Organization
 from .audience_models import ConversationAudienceRuleKind, ConversationAudienceRuleOperation
 from .audience_services import add_audience_rule, create_audience_set
 from .core_models import Conversation, ConversationContextKind
-from .point_models import ConversationPoint, PointExchangeEntry
+from .point_models import ConversationPoint, ConversationPointKind, ConversationPointResponseMode, ConversationResponseVisibility, PointExchangeEntry
+from .point_services import create_exchange_entry, create_point
 from .services import activate_participation, ensure_context_conversation
 
 
@@ -187,6 +188,58 @@ class ConversationC3CompositionTests(TestCase):
         points = detail["points"] + detail["essential"] + detail["elsewhere"]
         item = next(item for item in points if item["id"] == point_id)
         self.assertEqual(item["exchange_preview"][0]["body"], payload["body"])
+
+    def test_c3_private_exchange_preview_never_leaks_other_people_text(self):
+        another = User.objects.create_user(
+            username="c3-another", password="StrongPass2026!",
+        )
+        activate_participation(
+            actor=self.owner, conversation=self.conversation, profile=another,
+        )
+        add_audience_rule(
+            actor=self.owner, audience_set=self.audience,
+            operation=ConversationAudienceRuleOperation.INCLUDE,
+            kind=ConversationAudienceRuleKind.EXPLICIT_PROFILE, profile=another,
+        )
+        point = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.EXCHANGE,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Échange privé",
+            visibility_audience=self.audience,
+            response_audience=self.audience,
+            response_visibility=ConversationResponseVisibility.RESPONDENT_AND_AUTHORITIES,
+        )
+        create_exchange_entry(
+            actor=self.member, point=point,
+            body="Contenu privé de la réponse de membre 1",
+            client_reference="c3-private-message-1",
+        )
+        self.client.force_login(another)
+        detail = self.client.get(reverse(
+            "conversations-api:detail", kwargs={"pk": self.conversation.pk},
+        ))
+        self.assertEqual(detail.status_code, 200)
+        entries = [
+            entry for key in ("points", "essential", "elsewhere")
+            for item in detail.json()[key] if item["id"] == str(point.pk)
+            for entry in item["exchange_preview"]
+        ]
+        self.assertEqual(entries, [])
+        html = self.client.get(reverse(
+            "conversations:detail", kwargs={"pk": self.conversation.pk},
+        ))
+        self.assertNotContains(html, "Contenu privé de la réponse de membre 1")
+        self.client.force_login(self.member)
+        detail = self.client.get(reverse(
+            "conversations-api:detail", kwargs={"pk": self.conversation.pk},
+        )).json()
+        self.assertTrue(any(
+            entry["body"] == "Contenu privé de la réponse de membre 1"
+            for key in ("points", "essential", "elsewhere")
+            for item in detail[key] if item["id"] == str(point.pk)
+            for entry in item["exchange_preview"]
+        ))
 
     def test_context_ensure_reuses_one_conversation_and_requires_manage_authority(self):
         grant_space_role(
