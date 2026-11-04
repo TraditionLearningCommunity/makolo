@@ -71,6 +71,52 @@ def point_blueprints(phase, label):
     )
 
 
+
+def coherent_reply(phase, label, reference):
+    """Stable natural responses anchored to the phase, never a fabricated proof."""
+    label = str(label).strip()[:90]
+    choices = {
+        "past": (
+            "Le déroulement était clair. Je voudrais connaître les démarches de suivi.",
+            "L'accueil m'a aidé à trouver les informations nécessaires. Une synthèse serait utile.",
+            "La prochaine fois, il faudrait communiquer les horaires un peu plus tôt.",
+        ),
+        "live": (
+            "Je suis sur place. Où retrouver les consignes d'accès et d'orientation ?",
+            "Je peux poursuivre, mais j'ai besoin d'une précision sur l'étape actuelle.",
+            "Je suis disponible pour aider à l'accueil si cela est utile.",
+        ),
+        "future": (
+            "Je vais préparer les informations demandées. Quels documents sont indispensables ?",
+            "Je souhaite vérifier l'heure et le lieu avant de confirmer ma participation.",
+            "Je peux m'organiser à l'avance si le déroulement prévu est confirmé.",
+        ),
+        "ongoing": (
+            "J'ai pris connaissance des prochaines étapes. Il reste un point à clarifier.",
+            "Je voudrais savoir à qui m'adresser pour la suite de cette démarche.",
+            "Je peux transmettre les informations demandées après confirmation des modalités.",
+        ),
+    }
+    variants = choices.get(phase, choices["ongoing"])
+    variant = int(hashlib.sha256(reference.encode("utf-8")).hexdigest()[:8], 16) % len(variants)
+    return variants[variant]
+
+
+def exchange_dialogue(phase, reference):
+    """Question and reply from the same practical situation."""
+    choices = {
+        "past": ("Peut-on retrouver un récapitulatif des étapes réalisées ?",
+                 "Oui, regroupons les informations utiles pour la prochaine démarche."),
+        "live": ("Où se trouve le point d'accueil pour la suite ?",
+                 "Les indications sont regroupées dans cette Conversation ; vérifions le parcours ensemble."),
+        "future": ("Quels éléments devons-nous préparer avant la rencontre ?",
+                   "Commençons par vérifier les documents, l'horaire et le lieu annoncés."),
+        "ongoing": ("Quelle est la prochaine action concrète à préparer ?",
+                    "Identifions d'abord ce qui manque et qui peut apporter une réponse."),
+    }
+    return choices.get(phase, choices["ongoing"])
+
+
 def scenario_reference(kind, target_id, phase, index):
     raw = f"demo-conversation-v1:{kind}:{target_id}:{phase}:{index}"
     return "demo-conv-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:44]
@@ -334,20 +380,21 @@ def main(argv=None):
                         with transaction.atomic():
                             if respondent and point_kind == ConversationPointKind.EXCHANGE:
                                 first_entry = create_exchange_entry(actor=respondent, point=point,
-                                    body="Pouvons-nous clarifier l'organisation de cette étape ?",
+                                    body=exchange_dialogue(phase, ref)[0],
                                     client_reference=ref + "-entry")
                                 counts["exchanges_created"] += 1
                                 create_exchange_entry(actor=actor, point=point,
-                                    body="Oui. Reprenons le point prioritaire et la prochaine action.",
+                                    body=exchange_dialogue(phase, ref)[1],
                                     reply_to=first_entry, client_reference=ref + "-reply-entry")
                                 counts["exchange_replies_created"] += 1
                             elif respondent and response_mode != ConversationPointResponseMode.NONE:
                                 if response_mode == ConversationPointResponseMode.BOOLEAN:
-                                    value = (index % 2 == 0)
+                                    value = (int(ref[-2:], 16) % 2 == 0)
                                 elif response_mode == ConversationPointResponseMode.SINGLE_CHOICE:
-                                    value = str(point.options.order_by("position").first().pk)
+                                    choices = list(point.options.order_by("position"))
+                                    value = str(choices[int(ref[-2:], 16) % len(choices)].pk)
                                 else:
-                                    value = "Je souhaite préciser les prochaines étapes de cette action."
+                                    value = coherent_reply(phase, label, ref)
                                 submit_point_response(actor=respondent, point=point, value=value,
                                     client_reference=ref + "-reply")
                                 counts["responses_created"] += 1
@@ -358,7 +405,7 @@ def main(argv=None):
                                 ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
                             }:
                                 resolve_point(actor=actor, point=point,
-                                    summary="Les retours ont été pris en compte pour la suite.")
+                                    summary="Les retours sur " + label[:140] + " ont été examinés pour préparer la suite.")
                                 counts["resolutions_created"] += 1
                     except (PermissionDenied, ValidationError):
                         counts["responses_or_resolutions_rejected"] += 1
