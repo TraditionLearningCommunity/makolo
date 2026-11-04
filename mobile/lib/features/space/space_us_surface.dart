@@ -231,7 +231,7 @@ class SpaceUsSurface extends StatelessWidget {
                     if (responsibilities.isEmpty)
                       _quiet(
                         context,
-                        'Aucune responsabilité supplémentaire visible.',
+                        'Aucun autre rôle visible.',
                       )
                     else
                       _panel(
