@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'conversation_repository.dart';
+import 'conversation_form_sheet.dart';
+import 'conversation_media_sheet.dart';
 
 String _newConversationReference() {
   final random = Random.secure();
@@ -184,12 +186,52 @@ class _ConversationComposerState extends State<ConversationComposer> {
     );
   }
 
+  Future<void> _openForm() async {
+    await showModalBottomSheet<void>(
+      context: context, isScrollControlled: true,
+      useSafeArea: true, showDragHandle: true,
+      builder: (sheetContext) => ConversationFormSheet(
+        repository: widget.repository,
+        conversationId: widget.conversationId,
+        capabilities: widget.capabilities,
+        representedSpaceId: widget.representedSpaceId,
+        onPublished: (id) {
+          Navigator.of(sheetContext).pop();
+          widget.onPublished(id);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openMedia(String mode) async {
+    await showModalBottomSheet<void>(
+      context: context, isScrollControlled: true,
+      useSafeArea: true, showDragHandle: true,
+      builder: (sheetContext) => ConversationMediaSheet(
+        mode: mode,
+        repository: widget.repository,
+        conversationId: widget.conversationId,
+        capabilities: widget.capabilities,
+        representedSpaceId: widget.representedSpaceId,
+        onPublished: (id) {
+          Navigator.of(sheetContext).pop();
+          widget.onPublished(id);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final canCreate = widget.capabilities['can_create'] == true;
     final textMode = widget.capabilities['text_mode']?.toString();
     final kinds = _kinds;
-    if (textMode == null && !canCreate) return const SizedBox.shrink();
+    final mediaKinds = (widget.capabilities['media_kinds'] as List?)
+        ?.map((item) => item.toString()).toSet() ?? <String>{};
+    final canForm = widget.capabilities['can_form'] == true;
+    if (textMode == null && !canCreate && mediaKinds.isEmpty && !canForm) {
+      return const SizedBox.shrink();
+    }
     final secondary = [
       for (final kind in const ['question', 'request', 'exchange', 'information'])
         if (kinds.contains(kind)) kind,
@@ -289,12 +331,26 @@ class _ConversationComposerState extends State<ConversationComposer> {
             const SizedBox(height: 8),
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
-          if (canCreate) ...[
+          if (canCreate || canForm || mediaKinds.isNotEmpty) ...[
             const SizedBox(height: 10),
             Wrap(
               spacing: 12,
               runSpacing: 4,
               children: [
+                if (mediaKinds.contains('voice'))
+                  TextButton.icon(
+                    key: const Key('conversation-compose-voice'),
+                    onPressed: () => _openMedia('voice'),
+                    icon: const Icon(Icons.mic_none_rounded),
+                    label: const Text('Vocal'),
+                  ),
+                if (canForm)
+                  TextButton.icon(
+                    key: const Key('conversation-compose-form'),
+                    onPressed: _openForm,
+                    icon: const Icon(Icons.list_alt_rounded),
+                    label: const Text('Formulaire'),
+                  ),
                 if (kinds.contains('poll'))
                   TextButton.icon(
                     onPressed: () => _openPointEditor('poll'),
@@ -307,12 +363,32 @@ class _ConversationComposerState extends State<ConversationComposer> {
                     icon: const Icon(Icons.check_circle_outline_rounded),
                     label: const Text('Confirmer'),
                   ),
-                if (secondary.isNotEmpty)
+                if (secondary.isNotEmpty ||
+                    mediaKinds.contains('image') ||
+                    mediaKinds.contains('file'))
                   PopupMenuButton<String>(
-                    tooltip: 'Autres Points',
+                    tooltip: 'Plus',
                     icon: const Icon(Icons.add_circle_outline_rounded),
-                    onSelected: _openPointEditor,
+                    onSelected: (value) {
+                      if (value.startsWith('media:')) {
+                        _openMedia(value.substring(6));
+                      } else {
+                        _openPointEditor(value);
+                      }
+                    },
                     itemBuilder: (context) => [
+                      if (mediaKinds.contains('image')) ...[
+                        const PopupMenuItem(
+                          value: 'media:photo', child: Text('Photo'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'media:camera', child: Text('Caméra'),
+                        ),
+                      ],
+                      if (mediaKinds.contains('file'))
+                        const PopupMenuItem(
+                          value: 'media:document', child: Text('Document'),
+                        ),
                       for (final kind in secondary)
                         PopupMenuItem(
                           value: kind,
