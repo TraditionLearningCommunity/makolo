@@ -233,6 +233,18 @@ class HistoryRepository {
         _pageOffset(data) != offset) {
       throw const FormatException('History search owner response mismatched');
     }
+    // This direct owner search bypasses the generic SyncEngine applier.
+    // Do not persist a response acquired before logout or an intervening
+    // explicit refusal from the History owner.
+    if (sync?.isActive == false ||
+        (await readFirstPageSource()).invalidated) {
+      throw StateError('History owner context withdrawn during search');
+    }
+    final actor = data['actor'];
+    if (actor is Map && actor['id'] != null &&
+        actor['id'].toString() != profileId) {
+      throw const FormatException('History search Profile mismatch');
+    }
     await store.putProjection(
       kind: searchProjectionKind,
       resourceKey: searchResourceKey(
