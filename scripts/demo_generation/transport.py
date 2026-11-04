@@ -94,9 +94,9 @@ def main(argv=None):
         if activity is None:
             activity = Activity(
                 owner_profile=operator, created_by=grantor,
-                title="[DEMO] Navette Lubumbashi - Kolwezi",
-                slug=slug, short_description="Voyage fictif pour tester Jour J et les operations.",
-                description="Depart de demonstration non commercial; aucun transport reel.",
+                title="Navette Lubumbashi–Kolwezi",
+                slug=slug, short_description="Liaison routière entre Lubumbashi et Kolwezi avec embarquement organisé.",
+                description="Informations de départ, réservation, accueil et suivi des voyageurs.",
                 status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC)
             activity.full_clean()
             activity.save()
@@ -106,8 +106,12 @@ def main(argv=None):
         made = {"occurrences":0,"journeys":0,"accesses":0,"queue_entries":0,"accepted":0,"capacity_pools":0,"seat_reservations":0,"places":0}
         for label, start, duration in windows:
             # La cle datee empeche de reprogrammer un depart ayant deja des passages.
-            key = "DEMO " + start.astimezone(tz).date().isoformat() + " " + label
-            occurrence = Occurrence.objects.filter(activity=activity,label=key).first()
+            date_label = start.astimezone(tz).date().isoformat()
+            key = "Départ du " + date_label + " — " + label.replace("-", " ")
+            legacy_key = "DEMO " + date_label + " " + label
+            occurrence = Occurrence.objects.filter(
+                activity=activity, label__in=(key, legacy_key, legacy_key[5:])
+            ).first()
             if occurrence is None:
                 occurrence = Occurrence(
                     activity=activity,label=key,start_at=start,end_at=start+duration,
@@ -130,7 +134,7 @@ def main(argv=None):
             pool, created = CapacityPool.objects.get_or_create(
                 source_key="makolo-demo-transport:"+str(occurrence.pk),
                 defaults={"activity":activity, "occurrence":occurrence,
-                          "label":"Sieges de demo", "total_quantity":max(100,a.beneficiaries)})
+                          "label":"Places assises", "total_quantity":max(100,a.beneficiaries)})
             made["capacity_pools"] += int(created)
             for person in people:
                 journey = Journey.objects.filter(activity=activity,occurrence=occurrence,
@@ -162,14 +166,14 @@ def main(argv=None):
                 continue
             checkpoint, created = OccurrenceCheckpoint.objects.get_or_create(
                 occurrence=occurrence,key="embarquement-demo",
-                defaults={"label":"Embarquement demo", "status":CheckpointStatus.PLANNED})
+                defaults={"label":"Contrôle d’embarquement", "status":CheckpointStatus.PLANNED})
             if checkpoint.status == CheckpointStatus.PLANNED:
                 checkpoint = open_checkpoint(actor=operator,checkpoint=checkpoint)
             if checkpoint.status != CheckpointStatus.OPEN or not checkpoint.active:
                 continue
             queue, created = OccurrenceQueue.objects.get_or_create(
                 occurrence=occurrence,key="embarquement-demo",
-                defaults={"checkpoint":checkpoint,"label":"File embarquement demo",
+                defaults={"checkpoint":checkpoint,"label":"File d’embarquement",
                           "eligibility_policy":QueueEligibilityPolicy.ACCESS_REQUIRED})
             if queue.status != QueueStatus.OPEN:
                 continue
