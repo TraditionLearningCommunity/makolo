@@ -266,20 +266,21 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                         MakoloSpacing.inner,
                         MakoloSpacing.sm,
                       ),
-                      child: Row(
+                      child: Wrap(
+                        spacing: MakoloSpacing.sm,
+                        runSpacing: MakoloSpacing.sm,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           ChoiceChip(
                             label: const Text('Toutes'),
                             selected: !_onlyUnread,
                             onSelected: (_) => setState(() => _onlyUnread = false),
                           ),
-                          const SizedBox(width: MakoloSpacing.sm),
                           ChoiceChip(
                             label: const Text('Non lues'),
                             selected: _onlyUnread,
                             onSelected: (_) => setState(() => _onlyUnread = true),
                           ),
-                          const Spacer(),
                           if (unread is num && unread > 0)
                             TextButton(
                               onPressed: _markAllRead,
