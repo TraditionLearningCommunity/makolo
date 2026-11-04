@@ -180,6 +180,9 @@ class DemoIntegrationTests(TestCase):
         from intelligence.models import ProviderScope, ProviderCredential, IntelligenceRoute
         from intelligence.interoperability import project_provider_connection
         self.assertEqual(len(demo_offers()), 50)
+        self.assertTrue(all("demo" not in offer["label"].lower() and
+                            "simulation" not in offer["description"].lower()
+                            for offer in demo_offers()))
         code = demo_offers()[0]["code"]
         connection, created = create_demo_connection(
             actor=self.owner, scope=ProviderScope.PROFILE,
