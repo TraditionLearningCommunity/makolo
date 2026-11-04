@@ -61,12 +61,9 @@ class SyncEngine {
   /// Stop all in-flight acquisitions on account/runtime replacement.
   /// Never erase durable user-owned offline knowledge on logout alone.
   void deactivate() {
+    // Old requests fail their own isCurrent guard; leave newly constructed
+    // workers for the same Profile free to complete after runtime rotation.
     _active = false;
-    final coordinator = _coordinator;
-    for (final key in coordinator.generations.keys
-        .where((key) => key.startsWith('$profileId|')).toList()) {
-      coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
-    }
   }
 
   static bool _isDiscoveryRelated(SyncSourceDefinition source) =>
