@@ -191,26 +191,60 @@ class OutboxRepository {
     });
   }
 
-  Future<void> beginAttempt(String operationId) async {
-    final row =
-        await (database.select(database.outboxOperations)..where(
-              (candidate) =>
-                  candidate.profileId.equals(profileId) &
-                  candidate.operationId.equals(operationId),
-            ))
-            .getSingle();
-    await (database.update(database.outboxOperations)..where(
+  /// Profile-scoped atomic claim. A second processor must never dispatch
+  /// the same operation while the first handler is still in flight.
+  Future<bool> claimForAttempt(
+    String operationId, {
+    required int expectedAttempts,
+    required String expectedState,
+  }) async {
+    if (expectedState != OutboxState.queued.wireValue &&
+        expectedState != OutboxState.failed.wireValue &&
+        expectedState != OutboxState.inFlight.wireValue) return false;
+    final changed = await (database.update(database.outboxOperations)..where(
           (candidate) =>
               candidate.profileId.equals(profileId) &
-              candidate.operationId.equals(operationId),
+              candidate.operationId.equals(operationId) &
+              candidate.state.equals(expectedState) &
+              candidate.attempts.equals(expectedAttempts),
         ))
         .write(
           OutboxOperationsCompanion(
             state: Value(OutboxState.inFlight.wireValue),
-            attempts: Value(row.attempts + 1),
+            attempts: Value(expectedAttempts + 1),
             lastErrorCode: const Value(null),
           ),
         );
+    return changed == 1;
+  }
+
+  /// Dependency statuses are read from this Profile exclusively. An unknown
+  /// dependency never silently authorizes a mutation.
+  Future<Map<String, String>> dependencyStates(
+    Iterable<String> operationIds,
+  ) async {
+    final ids = operationIds.toSet();
+    if (ids.isEmpty) return const {};
+    final rows = await (database.select(database.outboxOperations)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.operationId.isIn(ids),
+        ))
+        .get();
+    return {for (final row in rows) row.operationId: row.state};
+  }
+
+  /// Backward-compatible explicit start for existing callers.
+  Future<void> beginAttempt(String operationId) async {
+    final row = await (database.select(database.outboxOperations)..where(
+      (candidate) => candidate.profileId.equals(profileId) &
+          candidate.operationId.equals(operationId),
+    )).getSingle();
+    if (!await claimForAttempt(
+      operationId,
+      expectedAttempts: row.attempts,
+      expectedState: row.state,
+    )) throw StateError('Outbox operation already claimed');
   }
 
   Future<void> setState(
