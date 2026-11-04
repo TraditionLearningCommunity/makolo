@@ -58,7 +58,7 @@ def create_demo_connection(*, actor, scope, provider, consent, space=None):
         owner = {"profile": None, "space": None}
     name = offer["label"]
     obj, created = ProviderConnection.objects.get_or_create(
-        scope=scope, name=name, default_model="demo-disabled", **owner,
+        scope=scope, name=name, **owner,
         defaults={
             "protocol": category[3],
             "base_url": category[4],
