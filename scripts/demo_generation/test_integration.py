@@ -198,6 +198,21 @@ class DemoIntegrationTests(TestCase):
         projected = project_provider_connection(connection, manageable=True)
         self.assertTrue(projected["demo"])
         self.assertFalse(projected["usable"])
+        self.assertFalse(projected["connected"])
+        self.assertNotIn("[DEMO", projected["display_name"])
+        # Older beta records carry a visible prefix. A new run must reuse
+        # them without creating a second connection for the same owner.
+        connection.name = "[DEMO Connexion] " + connection.name
+        connection.default_model = ""
+        connection.save(update_fields=["name", "default_model", "updated_at"])
+        restored, was_created = create_demo_connection(
+            actor=self.owner, scope=ProviderScope.PROFILE,
+            provider=code, consent=True,
+        )
+        self.assertFalse(was_created)
+        self.assertEqual(restored.pk, connection.pk)
+        self.assertEqual(restored.default_model, "demo-disabled")
+        self.assertEqual(restored.name, demo_offers()[0]["label"])
         with self.assertRaises(ValidationError):
             update_connection(actor=self.owner, connection=connection, payload={"enabled": True})
         with self.assertRaises(ValidationError):
