@@ -9,7 +9,6 @@ from .api_views import (
     ConversationMediaUploadAPIView,
     ConversationAttachmentDownloadAPIView,
     ConversationExchangeEntriesAPIView,
-    ConversationExchangeEntryAPIView,
     ConversationContextEnsureAPIView,
     ConversationContextLookupAPIView,
     ConversationInvitationListAPIView,
@@ -35,7 +34,8 @@ urlpatterns = [
     path("<uuid:pk>/media/", ConversationMediaUploadAPIView.as_view(), name="media-upload"),
     path("attachments/<uuid:attachment_pk>/download/", ConversationAttachmentDownloadAPIView.as_view(), name="attachment-download"),
     path("points/<uuid:point_pk>/entries/", ConversationExchangeEntriesAPIView.as_view(), name="exchange-entries"),
-    path("points/<uuid:point_pk>/entries/", ConversationExchangeEntryAPIView.as_view(), name="exchange-entry"),
+    # GET and POST share the same guarded owner endpoint.
+
     path("<uuid:pk>/personal-state/", ConversationPersonalStateAPIView.as_view(), name="personal-state"),
     path("points/<uuid:point_pk>/respond/", ConversationPointResponseAPIView.as_view(), name="point-respond"),
     path("points/<uuid:point_pk>/acknowledge/", ConversationPointAcknowledgeAPIView.as_view(), name="point-acknowledge"),
