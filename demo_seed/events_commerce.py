@@ -195,8 +195,8 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
             "slug": f"demo-{year}-{i+1:02d}-{stable_token(title, 6)}",
             "short_description": f"Exemple fictif à {city} : {title}. Aucun événement réel n’est annoncé.",
             "description": (
-                f"Cet événement est fictif : {title}. Les horaires, les billets et les inscriptions "
-                f"servent aux essais de l’application ; ils ne donnent accès à aucun événement réel à {city}."
+                f"Cet événement est fictif : {title}. Ses dates et les éventuels billets ou inscriptions "
+                f"servent uniquement aux essais de l’application. Aucun événement réel n’est annoncé à {city}."
             ),
             "status": status,
             "visibility": visibility,
