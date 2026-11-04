@@ -15,6 +15,8 @@ import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
 import 'conversation_composer.dart';
+import 'conversation_attachment_viewer.dart';
+import 'conversation_exchange_sheet.dart';
 
 class ConversationListScreen extends StatefulWidget {
   const ConversationListScreen({
@@ -564,12 +566,14 @@ class ConversationDetailScreen extends StatefulWidget {
     required this.repository,
     this.representedSpaceId,
     this.focusPointId,
+    this.onOpenFormRequest,
   });
 
   final String id;
   final ConversationRepository repository;
   final String? representedSpaceId;
   final String? focusPointId;
+  final Future<void> Function(String requestId)? onOpenFormRequest;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -584,6 +588,35 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _attemptedRefresh = false;
   String? _handledFocus;
   String? _justPublishedPointId;
+  Map<String, dynamic> _activeComposer = const {};
+
+  Future<void> _openAttachment(Map<String, dynamic> attachment) async {
+    await showModalBottomSheet<void>(
+      context: context, useSafeArea: true, isScrollControlled: true,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.88,
+        child: ConversationAttachmentViewer(
+          repository: widget.repository, attachment: attachment,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExchange(_ConversationPoint point) async {
+    await showModalBottomSheet<void>(
+      context: context, useSafeArea: true, isScrollControlled: true,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.92,
+        child: ConversationExchangeSheet(
+          repository: widget.repository, conversationId: widget.id,
+          pointId: point.id, title: point.title, canRespond: point.canRespond,
+          capabilities: _activeComposer,
+          representedSpaceId: widget.representedSpaceId,
+          onPublished: _afterPublish,
+        ),
+      ),
+    );
+  }
 
   void _afterPublish(String pointId) {
     setState(() {
@@ -725,6 +758,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         conversationId: widget.id,
         representedSpaceId: widget.representedSpaceId,
         readOnly: readOnly,
+        onOpenFormRequest: widget.onOpenFormRequest,
+        onOpenAttachment: _openAttachment,
+        onOpenExchange: () => _openExchange(point),
       ),
     );
   }
@@ -897,6 +933,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       ];
                     }
 
+                    _activeComposer = detail.composer;
                     final focused = detail.focusedPoint;
                     final focusedOnly = focused != null &&
                             !detail.points.any((p) => p.id == focused.id) &&
@@ -947,7 +984,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                             child: Text('Tout est en ordre. ✓'),
                           ),
                         if (detail.composer['text_mode'] != null ||
-                            detail.composer['can_create'] == true)
+                            detail.composer['can_create'] == true ||
+                            detail.composer['can_form'] == true ||
+                            (detail.composer['media_kinds'] is List &&
+                                (detail.composer['media_kinds'] as List).isNotEmpty))
                           ConversationComposer(
                             repository: widget.repository,
                             conversationId: widget.id,
@@ -975,6 +1015,9 @@ class _PointCard extends StatefulWidget {
     required this.conversationId,
     this.representedSpaceId,
     this.readOnly = false,
+    this.onOpenFormRequest,
+    this.onOpenAttachment,
+    this.onOpenExchange,
   });
 
   final _ConversationPoint point;
@@ -982,6 +1025,9 @@ class _PointCard extends StatefulWidget {
   final String conversationId;
   final String? representedSpaceId;
   final bool readOnly;
+  final Future<void> Function(String requestId)? onOpenFormRequest;
+  final Future<void> Function(Map<String, dynamic> attachment)? onOpenAttachment;
+  final VoidCallback? onOpenExchange;
 
   @override
   State<_PointCard> createState() => _PointCardState();
@@ -1107,6 +1153,37 @@ class _PointCardState extends State<_PointCard> {
               child: Text(entry),
             ),
         ],
+        if (point.formRequest != null && widget.onOpenFormRequest != null) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          FilledButton.tonalIcon(
+            onPressed: () => widget.onOpenFormRequest!(
+              point.formRequest!['id']?.toString() ?? '',
+            ),
+            icon: const Icon(Icons.assignment_outlined),
+            label: Text(point.formRequest!['status'] == 'completed'
+                ? 'Voir le formulaire' : 'Compléter le formulaire'),
+          ),
+        ],
+        for (final attachment in point.attachments)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: widget.onOpenAttachment == null
+                  ? null : () => widget.onOpenAttachment!(attachment),
+              icon: const Icon(Icons.attach_file_rounded),
+              label: Text(attachment['name']?.toString() ?? 'Pièce jointe'),
+            ),
+          ),
+        if (point.kind == 'exchange' && widget.onOpenExchange != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: Key('conversation-exchange-open-${point.id}'),
+              onPressed: widget.onOpenExchange,
+              icon: const Icon(Icons.forum_outlined),
+              label: const Text('Voir l’échange'),
+            ),
+          ),
         if (point.resolutionSummary != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           Text('✓ ${point.resolutionSummary!}'),
@@ -1544,6 +1621,8 @@ class _ConversationPoint {
     this.publishedAt,
     this.updatedAt,
     this.exchangePreview = const [],
+    this.attachments = const [],
+    this.formRequest,
   });
 
   final String id;
@@ -1566,6 +1645,8 @@ class _ConversationPoint {
   final DateTime? publishedAt;
   final DateTime? updatedAt;
   final List<String> exchangePreview;
+  final List<Map<String, dynamic>> attachments;
+  final Map<String, dynamic>? formRequest;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -1611,6 +1692,9 @@ class _ConversationPoint {
       validUntil: DateTime.tryParse(_string(row['valid_until']) ?? ''),
       publishedAt: DateTime.tryParse(_string(row['published_at']) ?? ''),
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
+      attachments: _maps(row['attachments']),
+      formRequest: _map(row['form_request']).isEmpty
+          ? null : _map(row['form_request']),
       exchangePreview: [
         for (final row in _maps(row['exchange_preview']))
           if (_string(row['body']) != null) _string(row['body'])!,
