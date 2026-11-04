@@ -162,6 +162,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   double? _pendingScrollRestore;
   String? _focusedCandidateKey;
   int _restoreGeneration = 0;
+  int _ownerGeneration = 0;
 
   static const _positionProjection = 'discovery.presentation-position';
 
@@ -194,6 +195,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       _pageRequests.clear();
       _unseenLoad = null;
       ++_restoreGeneration;
+      ++_ownerGeneration;
+      _refreshing = false;
+      _loadingMore = false;
+      _positionDebounce?.cancel();
       unawaited(_restorePositionThenAcquire());
     }
   }
@@ -335,63 +340,70 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Future<void> _acquire() async {
+    final current = _query;
+    final repository = widget.repository;
+    bool active() => mounted &&
+        identical(repository, widget.repository) &&
+        identical(current, _query);
     try {
-      final current = _query;
-      final local = await widget.repository.readItems(current);
-      if (!mounted || !identical(current, _query)) return;
+      final local = await repository.readItems(current);
+      if (!active()) return;
       if (local != null) {
         await _ensureUnseenReserve(current);
+        if (!active()) return;
         try {
           DiscoveryWire.validateData(local.payload);
-          await widget.repository.indexItemPreviews(current);
+          await repository.indexItemPreviews(current);
         } on FormatException {
           // Malformed historical rows cannot become owner-verified previews.
         }
       }
-      if (!mounted || !identical(current, _query)) return;
-      // Re-entering N1 is a change of presentation, not a new owner request.
-      // The already authenticated field is reusable until its display TTL.
-      if (await widget.repository.hasReusableItems(current)) {
-        if (mounted && identical(current, _query)) {
+      if (!active()) return;
+      if (await repository.hasReusableItems(current)) {
+        if (active()) {
           setState(() => _verifiedFieldKey = current.mapFingerprint);
-          unawaited(_prefetchNext(current));
         }
         return;
       }
-      await _refreshItems();
+      if (active()) await _refreshItems();
     } on Object {
-      if (mounted) setState(() => _acquisitionFailed = true);
+      if (active()) setState(() => _acquisitionFailed = true);
     }
   }
 
   Future<void> _refreshItems() async {
     if (_refreshing || !mounted) return;
+    final repository = widget.repository;
+    final generation = ++_ownerGeneration;
     final current = _query;
+    bool active() => mounted &&
+        generation == _ownerGeneration &&
+        identical(widget.repository, repository);
     setState(() {
       _refreshing = true;
       _acquisitionFailed = false;
     });
     try {
-      final source = await widget.repository.readSource(
-        widget.repository.itemsSource(current),
+      final source = await repository.readSource(
+        repository.itemsSource(current),
       );
-      if (!mounted || !identical(current, _query)) return;
+      if (!active() || !identical(current, _query)) return;
       if (source.lastErrorCode == 'continuation_rejected') {
-        await widget.repository.store.deleteProjection(
+        await repository.store.deleteProjection(
           _positionProjection,
           resourceKey: const DiscoveryQuery().mapFingerprint,
         );
-        if (mounted && identical(current, _query)) {
-          setState(() => _query = const DiscoveryQuery());
-          widget.repository.rememberExploration(_query);
-        }
+        if (!active() || !identical(current, _query)) return;
+        setState(() => _query = const DiscoveryQuery());
+        repository.rememberExploration(_query);
       }
       final refreshed = _query;
-      await widget.repository.refreshItems(refreshed);
-      final status = await widget.repository.readSource(
-        widget.repository.itemsSource(refreshed),
+      await repository.refreshItems(refreshed);
+      final status = await repository.readSource(
+        repository.itemsSource(refreshed),
       );
-      if (mounted &&
+      if (active() &&
+          identical(refreshed, _query) &&
           status.lastErrorCode == null &&
           status.lastSuccessAt != null &&
           !status.invalidated) {
@@ -403,14 +415,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           }
         });
         await _ensureUnseenReserve(refreshed);
-        if (mounted && identical(refreshed, _query)) {
-          unawaited(_prefetchNext(refreshed));
-        }
       }
     } on Object {
-      if (mounted) setState(() => _acquisitionFailed = true);
+      if (active()) setState(() => _acquisitionFailed = true);
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (active()) setState(() => _refreshing = false);
     }
   }
 
@@ -430,36 +439,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       await request;
     } finally {
       _pageRequests.remove(key);
-    }
-  }
-
-  /// One invisible server continuation. A failed transport retains all
-  /// existing presentation and never fabricates another result.
-  Future<void> _prefetchNext(DiscoveryQuery current) async {
-    if (!mounted || !identical(current, _query)) return;
-    try {
-      final currentPage = await widget.repository.readItems(current);
-      if (currentPage == null) return;
-      final collection = _selector.collection(currentPage);
-      final token = collection.continuationToken;
-      if (!collection.hasNext || token == null || token.isEmpty) return;
-      final next = current.copyWith(
-        page: current.page + 1,
-        continuation: token,
-      );
-      await _acquirePage(next);
-      final retained = await widget.repository.readItems(next);
-      if (retained == null || !mounted ||
-          !identical(current, _query)) return;
-      await _ensureUnseenReserve(current);
-      final reserve = _unseenReserve;
-      if (reserve == null || _unseenField != current.mapFingerprint) return;
-      reserve.observe(
-        _selector.collection(retained).items.map((item) => item.wire),
-      );
-      await widget.repository.saveUnseenReserve(current, reserve);
-    } on Object {
-      // The existing field remains readable on network failure.
     }
   }
 
@@ -530,7 +509,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       setState(() => _query = next);
       widget.repository.rememberExploration(next);
       await _rememberPosition(next);
-      unawaited(_prefetchNext(next));
     } on Object {
       if (mounted && identical(current, _query)) {
         setState(() => _loadMoreFailed = true);
