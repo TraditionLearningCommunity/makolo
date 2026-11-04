@@ -59,7 +59,9 @@ def point_visible_to(profile, point, *, at=None):
             conversation=point.conversation, profile=profile,
             status=ConversationParticipationStatus.ACTIVE,
         ).values_list("joined_at", flat=True).first()
-        if joined_at is not None and point.published_at < joined_at:
+        # Derived eligibility has no historic join timestamp. Never pretend
+        # that Conversation.opened_at was this person's entry date.
+        if joined_at is None or point.published_at < joined_at:
             return False
     return not point.visibility_audience_id or profile_in_audience(profile, point.visibility_audience, at=at)
 
