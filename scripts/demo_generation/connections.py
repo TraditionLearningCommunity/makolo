@@ -19,6 +19,7 @@ def main(argv=None):
     django.setup()
     from django.contrib.auth import get_user_model
     from django.db import connection
+    from django.db.models import Q
     from intelligence.connection_management import catalog
     from intelligence.demo_connections import demo_offers, create_demo_connection
     from intelligence.models import ProviderConnection, ProviderCredential, IntelligenceRoute, ProviderScope
@@ -54,8 +55,8 @@ def main(argv=None):
         profile = UserProfile.objects.filter(user=actor).first()
         exists = bool(profile and ProviderConnection.objects.filter(
             scope=ProviderScope.PROFILE, profile=profile,
-            name=offer["label"],
-        ).exists())
+        ).filter(Q(name=offer["label"], default_model="demo-disabled") |
+                 Q(name="[DEMO Connexion] " + offer["label"])).exists())
         if exists:
             counts["already_connected_demo"] += 1
         elif not a.apply:
