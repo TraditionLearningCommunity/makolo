@@ -2,9 +2,9 @@
 
 **Date :** 3 novembre 2026  
 **Dépôt :** `TraditionLearningCommunity/makolo`  
-**Branche MT7 :** `feat/space-metier-mt7-cross-assembly-20261103`  
-**Base d'origine :** PR #522 — `51a7d9e6afc077f00e650cdefd53a263eb09129e`  
-**Cible d'intégration :** `fix/discover-a-continuation-context-20261014` (#522), **jamais directement `main`**.
+**Branche de travail unique :** `fix/discover-a-continuation-context-20261014` — **PR #522**.  
+**Base historique du chantier :** `51a7d9e6afc077f00e650cdefd53a263eb09129e` (simple point de départ, pas le HEAD courant).  
+**Intégration :** les sources et tests MT7 sont désormais présents directement dans #522. La PR intermédiaire #533 a été **fermée sans merge** ; elle ne doit pas servir de branche ou de cible d'intégration. **Aucune modification directe de `main`.**
 
 **Statut : implémentation source MT7 poussée, tests ajoutés mais non exécutés.** Le dépôt est modifié en parallèle sur #522 : réconcilier son HEAD, vérifier l'absence de conflits et exécuter les gates avant fusion. Ce checkpoint ne donne aucune autorisation de merge avec CI rouge.
 
