@@ -497,7 +497,7 @@ class DiscoveryRepository {
       sourceKey: 'discovery:${query.fingerprint}',
       owner: 'Discovery',
       path: query.page == 1
-          ? '${query.path}${query.path.contains('?') ? '&' : '?'}include_spatial_index=1'
+          ? '${query.path}${query.path.contains('?') ? '&' : '?'}include_spatial_index=compact'
           : query.path,
       projectionKind: itemsProjectionKind,
       resourceKey: query.fingerprint,
@@ -986,7 +986,10 @@ class DiscoveryRepository {
     final index = Map<String, dynamic>.from(raw);
     if (index['count'] is! int ||
         index['total_results'] is! int ||
-        index['results'] is! List) {
+        index['results'] is! List ||
+        index['detail_available'] is! bool ||
+        index['viewer'] is! Map ||
+        (index['viewer'] as Map)['id'] != profileId) {
       return null;
     }
     try {
