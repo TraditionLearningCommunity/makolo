@@ -231,9 +231,7 @@ class _NotificationPreferencesScreenState
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Activer les heures calmes'),
-                subtitle: quietStart == null || quietEnd == null
-                    ? const Text('Définissez d’abord un début et une fin.')
-                    : null,
+                subtitle: const Text('Les alertes attendent, les informations restent accessibles ici.'),
                 value: values['quiet_hours_enabled'] == true,
                 onChanged: editable && quietStart != null && quietEnd != null
                     ? (value) => _change('quiet_hours_enabled', value)
