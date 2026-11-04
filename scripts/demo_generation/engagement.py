@@ -117,7 +117,7 @@ def main(argv=None):
                 with transaction.atomic():
                     if form is None:
                         form = create_form(activity=activity, key=key,
-                            title="Preparation de demonstration", actor=actor)
+                            title="Informations pour préparer la démarche", actor=actor)
                         counts["forms_created"] += 1
                     if version is None:
                         version = create_form_version(form=form, actor=actor)
