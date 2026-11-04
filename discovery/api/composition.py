@@ -1514,6 +1514,25 @@ def spatial_index_from_rows(rows) -> dict:
     }
 
 
+
+def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
+    """Small spatial representation of the already-admitted Discovery field.
+
+    Preserve every published spatial role, place and canonical identity. The
+    first N1 page remains enriched; opening a compact-only candidate requests
+    its authorized owner detail on demand instead of treating the pin as N2.
+    """
+    spatial = spatial_index_from_rows(rows)
+    return {
+        **spatial,
+        "detail_available": False,
+        "viewer": (
+            {"type": "profile", "id": str(profile.pk)}
+            if _authenticated(profile) else None
+        ),
+    }
+
+
 def spatial_discovery_projection(rows, *, profile=None) -> dict:
     """Compose canonical public location facts with viewer-authorized N2 facts.
 
@@ -1636,10 +1655,16 @@ def paginated_projection(
         # One first-page acquisition also supplies the geographic presentation
         # of this same admitted field. No second owner search for Carte.
         **({
-            "spatial_index": spatial_discovery_projection(
-                composition.rows, profile=profile
+            "spatial_index": (
+                compact_spatial_discovery_projection(
+                    composition.rows, profile=profile,
+                )
+                if params.get("include_spatial_index") == "compact"
+                else spatial_discovery_projection(
+                    composition.rows, profile=profile,
+                )
             ),
-        } if page == 1 and params.get("include_spatial_index") == "1" else {}),
+        } if page == 1 and params.get("include_spatial_index") in {"1", "compact"} else {}),
         "continuation": {
             "state": "more" if has_next else "end",
             "token": (
