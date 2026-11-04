@@ -383,8 +383,11 @@ def ensure_context_conversation(
     conversation.save()
     context.conversation = conversation
     try:
-        context.save()
+        with transaction.atomic():
+            context.save()
     except IntegrityError:
+        # A concurrent ensure won the unique context. Roll back the failed
+        # insert to a savepoint before querying the canonical winner.
         canonical = ConversationContext.objects.select_related("conversation").get(**lookup)
         conversation.delete()
         return canonical.conversation
