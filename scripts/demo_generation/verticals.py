@@ -84,9 +84,9 @@ def main(argv=None):
             username="beta_staff", is_active=True).first()
         for index, source in enumerate(sources):
             user = profiles[index % len(profiles)]
-            note = "[DEMO] Source suggeree depuis une veille fictive"
+            note = "Cette source pourrait compléter les informations disponibles."
             submission = OpportunitySubmission.objects.filter(
-                submitted_by=user, url=source.url, comment=note).order_by("id").first()
+                submitted_by=user, url=source.url).order_by("id").first()
             if submission:
                 counts["opportunity_submissions_existing"] += 1
             elif not a.apply:
@@ -97,7 +97,7 @@ def main(argv=None):
                     with transaction.atomic():
                         submission = submit_opportunity(
                             submitted_by=user, url=source.url,
-                            title="[DEMO] Proposition " + str(index + 1),
+                            title="Informations complémentaires sur " + source.opportunity.title[:120],
                             comment=note)
                     counts["opportunity_submissions_created"] += 1
                 except (ValidationError, PermissionDenied):
@@ -112,7 +112,7 @@ def main(argv=None):
                                 submission=submission, actor=staff,
                                 decision=OpportunitySubmissionStatus.DUPLICATE,
                                 resolved_opportunity=source.opportunity,
-                                review_note="Demo : source deja connue, proposition dedupliquee.")
+                                review_note="Source déjà connue, proposition rapprochée du dossier existant.")
                         counts["opportunity_submissions_reviewed"] += 1
                     except (ValidationError, PermissionDenied):
                         counts["opportunity_submissions_pending_review"] += 1
@@ -145,7 +145,7 @@ def main(argv=None):
             try:
                 with transaction.atomic():
                     create_service_journey(service=service,initiated_by=user,beneficiary=user,
-                        objective="Demande fictive de service pour les tests Makolo")
+                        objective="Préparer ma demande et obtenir les informations nécessaires")
                 counts["service_created"] += 1
             except (ValidationError,PermissionDenied):
                 counts["service_ineligible"] += 1
