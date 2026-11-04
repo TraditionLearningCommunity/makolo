@@ -568,6 +568,7 @@ class ConversationDetailScreen extends StatefulWidget {
     this.representedSpaceId,
     this.focusPointId,
     this.onOpenFormRequest,
+    this.onOpenHistory,
   });
 
   final String id;
@@ -575,6 +576,7 @@ class ConversationDetailScreen extends StatefulWidget {
   final String? representedSpaceId;
   final String? focusPointId;
   final Future<void> Function(String requestId)? onOpenFormRequest;
+  final VoidCallback? onOpenHistory;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -878,6 +880,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 actions: [
+                  if (widget.onOpenHistory != null)
+                    IconButton(
+                      key: const Key('conversation-open-history'),
+                      tooltip: 'Rechercher · Historique',
+                      onPressed: widget.onOpenHistory,
+                      icon: const Icon(Icons.manage_search_rounded),
+                    ),
                   PopupMenuButton<String>(
                     tooltip: 'État personnel',
                     onSelected: (action) =>
@@ -1002,6 +1011,18 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                           const Padding(
                             padding: EdgeInsets.all(MakoloSpacing.inner),
                             child: Text('Tout est en ordre. ✓'),
+                          ),
+                        if (widget.onOpenHistory != null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                onPressed: widget.onOpenHistory,
+                                icon: const Icon(Icons.history_rounded),
+                                label: const Text('Retrouver un Point'),
+                              ),
+                            ),
                           ),
                         if (detail.composer['text_mode'] != null ||
                             detail.composer['can_create'] == true ||
