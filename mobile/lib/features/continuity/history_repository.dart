@@ -214,8 +214,14 @@ class HistoryRepository {
       if (error.statusCode == 403 || error.statusCode == 404) {
         // Explicit owner withdrawal is not a transport outage. It must also
         // hide cached searches, not merely the unfiltered first page.
-        await forgetCachedSearch(query: query, type: type);
-        await sync?.invalidate(sourceFor(offset: 0));
+        if (sync != null) {
+          await sync!.revoke(
+            sourceFor(offset: 0),
+            code: error.statusCode == 403 ? 'permission_denied' : 'not_found',
+          );
+        } else {
+          await forgetCachedSearch(query: query, type: type);
+        }
       }
       rethrow;
     }
