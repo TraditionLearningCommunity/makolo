@@ -176,6 +176,8 @@ def main(argv=None):
                         help="Maximum distinct context Conversations (not Points)")
     parser.add_argument("--profiles", type=int, default=30)
     parser.add_argument("--profile-username", default=None)
+    parser.add_argument("--include-test-users", action="store_true",
+                        help="Include existing beta_* and mobile_mature_* users")
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--points", type=int, default=4, choices=(1, 2, 3, 4))
     args = parser.parse_args(argv)
@@ -208,6 +210,12 @@ def main(argv=None):
     queryset = U.objects.filter(is_active=True, is_staff=False, is_superuser=False)
     if args.profile_username:
         queryset = queryset.filter(username=args.profile_username)
+    elif args.include_test_users:
+        queryset = queryset.filter(
+            Q(username__startswith="world_") |
+            Q(username__startswith="beta_") |
+            Q(username__startswith="mobile_mature_")
+        )
     else:
         queryset = queryset.filter(username__startswith="world_")
     people = list(queryset.order_by("username")[:args.profiles])
