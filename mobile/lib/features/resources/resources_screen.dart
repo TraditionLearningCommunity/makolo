@@ -294,8 +294,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     if (_query.isEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
                       const _SectionTitle(
-                        title: 'Faits vérifiés',
-                        subtitle: 'Informations vérifiées',
+                        title: 'Mes preuves',
+                        subtitle: 'Participations et faits attestés',
                       ),
                       if (view.proofs.isEmpty)
                         const Text('Aucun fait vérifié à afficher.')
