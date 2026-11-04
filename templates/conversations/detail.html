@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}{{ context_label }} · Conversations | Makolo{% endblock %}
 {% block content %}
 <main class="mx-auto max-w-3xl pb-16">
@@ -101,4 +102,5 @@
     {% endif %}
   </section>
 </main>
+<script defer src="{% static 'js/conversations-rich-composer.js' %}"></script>
 {% endblock %}
