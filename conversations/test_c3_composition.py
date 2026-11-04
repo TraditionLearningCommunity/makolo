@@ -189,6 +189,30 @@ class ConversationC3CompositionTests(TestCase):
         item = next(item for item in points if item["id"] == point_id)
         self.assertEqual(item["exchange_preview"][0]["body"], payload["body"])
 
+    def test_direct_profile_conversation_is_composable_only_after_owner_ensures_it(self):
+        # Consent is established by the domain before the UI opens this
+        # Conversation. The public Profile route cannot create a DM.
+        direct = ensure_context_conversation(
+            actor=self.owner, kind=ConversationContextKind.DIRECT,
+            direct_profile_a=self.owner, direct_profile_b=self.member,
+        )
+        self.client.force_login(self.member)
+        result = self._post({
+            "mode": "text", "body": "Préparons cette action.",
+            "client_reference": "c3-direct-existing",
+        }, conversation=direct)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(
+            ConversationPoint.objects.get(pk=result.json()["point_id"]).conversation,
+            direct,
+        )
+        self.client.force_login(self.outsider)
+        denied = self._post({
+            "mode": "text", "body": "Je ne suis pas dans cet échange.",
+            "client_reference": "c3-direct-outsider",
+        }, conversation=direct)
+        self.assertEqual(denied.status_code, 404)
+
     def test_c3_private_exchange_preview_never_leaks_other_people_text(self):
         another = User.objects.create_user(
             username="c3-another", password="StrongPass2026!",
