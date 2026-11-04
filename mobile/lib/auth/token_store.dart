@@ -221,7 +221,12 @@ class FlutterSecureTokenStore implements TokenStore {
     final raw = record?['session'];
     if (raw is! Map) return null;
     try {
-      return AuthSession.fromJson(Map<String, dynamic>.from(raw));
+      final session = AuthSession.fromJson(Map<String, dynamic>.from(raw));
+      if (session.profileId != profileId) {
+        await clearAccountSession(profileId);
+        return null;
+      }
+      return session;
     } on Object {
       await clearAccountSession(profileId);
       return null;
