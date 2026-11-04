@@ -273,7 +273,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
                               ? 'Approuvée'
                               : request['status'] == 'rejected'
                               ? 'Refusée'
-                              : 'Statut modifié dans le métier',
+                              : 'État de la demande à vérifier',
                         ),
                         const SizedBox(height: MakoloSpacing.md),
                         if (request['purpose_label'] is String)
