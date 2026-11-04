@@ -1,6 +1,8 @@
 """Compact institutional document UX, with current Space authority at every action."""
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
@@ -28,6 +30,13 @@ class SpaceDocumentsWebView(SpaceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if not (
+            can_manage_documents(self.request.user, self.space)
+            or has_direct_space_permission(
+                self.request.user, self.space, PermissionCode.SPACE_VIEW,
+            )
+        ):
+            raise Http404
         search = (self.request.GET.get("q") or "").strip()[:120]
         documents = visible_documents(
             actor=self.request.user, space=self.space,
