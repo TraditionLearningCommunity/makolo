@@ -101,8 +101,14 @@ class ZS4SpaceProjectionTests(TestCase):
             response.data["handoffs"]["passport"],
             f"/space/{self.space.slug}/us/passport",
         )
-        # Resources must remain owner-backed: no fabricated Space inventory.
-        self.assertNotIn("resources", response.data["handoffs"])
+        # The Space owner sees only actual institutional resources;
+        # an empty library never becomes a fabricated document.
+        self.assertEqual(response.data["resources"]["visibility"], "visible")
+        self.assertEqual(response.data["resources"]["count"], 0)
+        self.assertEqual(
+            response.data["handoffs"]["resources"],
+            f"/space/{self.space.slug}/us/resources",
+        )
         self.assertEqual(len(response.data["ownership"]["items"]), 1)
         self.assertNotIn("permissions", response.data)
         self.assertNotIn("subscription_id", response.data)
