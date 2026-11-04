@@ -250,7 +250,7 @@ class SpaceDocumentShareAPIView(SpaceDocumentBase):
             raise NotFound()
         username = (request.data.get("recipient_username") or "").strip()
         recipient = (
-            get_user_model().objects.filter(username__iexact=username)
+            get_user_model().objects.filter(username__iexact=username, profile__isnull=False, is_active=True)
             .select_related("profile").first()
         ) if username else None
         if recipient is None:
