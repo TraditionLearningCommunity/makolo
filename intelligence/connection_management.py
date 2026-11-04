@@ -207,8 +207,6 @@ def create_connection(*, actor, scope, payload, space=None):
 
 @transaction.atomic
 def update_connection(*, actor, connection, payload):
-    if isinstance(payload, dict) and (connection.default_model == "demo-disabled" or connection.name.startswith("[DEMO Connexion] ")) and (payload.get("enabled") is True or "api_key" in payload):
-        raise ValidationError("Cette simulation ne peut pas être activée ni recevoir de clé externe.")
     if not isinstance(payload, dict) or not payload or set(payload) - {"enabled", "api_key"}:
         raise ValidationError("Champs non autorisés.")
     enabled = payload.get("enabled")
@@ -222,6 +220,8 @@ def update_connection(*, actor, connection, payload):
         actor=actor, scope=connection.scope,
         profile=connection.profile, space=connection.space,
     )
+    if (connection.default_model == "demo-disabled" or connection.name.startswith("[DEMO Connexion] ")) and (enabled is True or secret is not None):
+        raise ValidationError("Cette simulation ne peut pas être activée ni recevoir de clé externe.")
     previous_enabled = connection.enabled
     if enabled is True and not hasattr(connection, "credential") and secret is None:
         raise ValidationError({"enabled": "Une clé est nécessaire pour activer cette connexion."})
