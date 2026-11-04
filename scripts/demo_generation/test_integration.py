@@ -198,7 +198,8 @@ class DemoIntegrationTests(TestCase):
         projected = project_provider_connection(connection, manageable=True)
         self.assertTrue(projected["demo"])
         self.assertFalse(projected["usable"])
-        self.assertFalse(projected["connected"])
+        self.assertTrue(projected["connected"])
+        self.assertFalse(projected["external_execution"])
         self.assertNotIn("[DEMO", projected["display_name"])
         # Older beta records carry a visible prefix. A new run must reuse
         # them without creating a second connection for the same owner.
