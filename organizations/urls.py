@@ -3,6 +3,7 @@ from space_assets.web_views import (
     SpaceDocumentsWebView, SpaceDocumentDetailWebView,
     SpaceDocumentUploadWebView, SpaceDocumentVersionWebView,
     SpaceDocumentArchiveWebView, SpaceDocumentDownloadWebView,
+    SpaceDocumentShareWebView, SpaceDocumentShareRevokeWebView,
 )
 from payments.space_obligation_views import SpacePayerObligationWebView
 
@@ -113,6 +114,8 @@ urlpatterns = [
     path("<slug:slug>/us/documents/<uuid:document_id>/", SpaceDocumentDetailWebView.as_view(), name="space-document-detail"),
     path("<slug:slug>/us/documents/<uuid:document_id>/versions/", SpaceDocumentVersionWebView.as_view(), name="space-document-version"),
     path("<slug:slug>/us/documents/<uuid:document_id>/archive/", SpaceDocumentArchiveWebView.as_view(), name="space-document-archive"),
+    path("<slug:slug>/us/documents/<uuid:document_id>/share/", SpaceDocumentShareWebView.as_view(), name="space-document-share"),
+    path("<slug:slug>/us/documents/shares/<uuid:delivery_id>/revoke/", SpaceDocumentShareRevokeWebView.as_view(), name="space-document-share-revoke"),
     path("<slug:slug>/us/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadWebView.as_view(), name="space-document-download"),
     path("<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationWebView.as_view(), name="space-payment-obligation"),
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
