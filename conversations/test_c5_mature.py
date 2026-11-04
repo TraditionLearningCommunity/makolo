@@ -324,6 +324,53 @@ class ConversationC5MatureTests(TestCase):
         manager = self._history(query='Confirmation privée').json()['results'][0]
         self.assertEqual(manager['response_status']['response_count'], 1)
 
+    def test_private_resolution_never_leaks_via_history_list_search_or_web(self):
+        from .point_services import resolve_point
+
+        authority_audience = self._audience(self.manager, 'Résolution des autorités')
+        point = self._point(
+            'Point de décision',
+            kind=ConversationPointKind.CONFIRMATION,
+            response_mode=ConversationPointResponseMode.BOOLEAN,
+            resolution_audience=authority_audience,
+        )
+        resolve_point(
+            actor=self.manager, point=point, summary='Conclusion réservée aux autorités',
+        )
+
+        self.client.force_login(self.member)
+        search = self._history(query='Conclusion réservée')
+        self.assertEqual(search.status_code, 200)
+        self.assertEqual(search.json()['results'], [])
+        permitted_point = self._history(query='Point de décision')
+        self.assertEqual(permitted_point.status_code, 200)
+        self.assertEqual(permitted_point.json()['results'][0]['id'], str(point.pk))
+        self.assertFalse(
+            permitted_point.json()['results'][0]['resolution_summary']
+        )
+        listing = self.client.get(
+            reverse('conversations-api:list'), {'q': 'Conclusion réservée'},
+        )
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json()['results'], [])
+        normal_list = self.client.get(reverse('conversations-api:list'))
+        self.assertNotIn('Conclusion réservée', normal_list.content.decode())
+        web = self.client.get(
+            reverse('conversations:history', kwargs={'pk': self.conversation.pk}),
+            {'section': 'all', 'q': 'Point de décision'},
+        )
+        self.assertEqual(web.status_code, 200)
+        self.assertNotContains(web, 'Conclusion réservée aux autorités')
+
+        self.client.force_login(self.manager)
+        allowed = self._history(query='Conclusion réservée')
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(allowed.json()['results'][0]['id'], str(point.pk))
+        self.assertEqual(
+            allowed.json()['results'][0]['resolution_summary'],
+            'Conclusion réservée aux autorités',
+        )
+
     def test_web_history_search_is_accessible_and_cursor_preserves_filter(self):
         for i in range(27):
             self._point('Contrôle %02d' % i)
