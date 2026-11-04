@@ -573,4 +573,188 @@ void main() {
     await tester.pump();
   });
 
+  test('C3: composition sends owner commands, keeps client reference and refreshes', () async {
+    final calls = <MockRequest>[];
+    final repository = repositoryFor((request) async {
+      calls.add(request);
+      if (request.url.path == '/api/v1/conversations/conversation-1/compose/') {
+        final body = request.data as Map;
+        expect(body['mode'], 'point');
+        expect(body['kind'], 'poll');
+        expect(body['client_reference'], 'c3-fixed-ref');
+        expect(body['options'], ['14 h', '15 h']);
+        expect(body['audience_id'], 'audience-1');
+        return MockResponse(
+          '{"kind":"point","id":"point-1","point_id":"point-1"}', 200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(jsonEncode({
+          'id': 'conversation-1',
+          'title': 'Coordination',
+          'points': [],
+          'essential': [],
+          'composer': {'text_mode': 'information', 'can_create': true},
+        }), 200);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+
+    final id = await repository.compose(
+      conversationId: 'conversation-1',
+      mode: 'point',
+      kind: 'poll',
+      title: 'Quelle heure ?',
+      options: ['14 h', '15 h'],
+      audienceId: 'audience-1',
+      clientReference: 'c3-fixed-ref',
+    );
+    expect(id, 'point-1');
+    expect(calls.map((item) => item.url.path), contains(
+      '/api/v1/conversations/conversation-1/',
+    ));
+    expect(calls.map((item) => item.url.path), contains(
+      '/api/v1/conversations/',
+    ));
+  });
+
+  test('C3: context ensure creates through owner and rejects implicit direct', () async {
+    final calls = <MockRequest>[];
+    final repository = repositoryFor((request) async {
+      calls.add(request);
+      if (request.url.path ==
+          '/api/v1/conversations/by-context/space/space-1/') {
+        return MockResponse(
+          '{"count":0,"can_ensure":true,"results":[]}', 200,
+        );
+      }
+      if (request.url.path ==
+          '/api/v1/conversations/by-context/space/space-1/ensure/') {
+        return MockResponse('{"id":"conversation-new"}', 200);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    final decision = await repository.contextDecision(kind: 'space', id: 'space-1');
+    expect(decision['can_ensure'], true);
+    final id = await repository.ensureContext(kind: 'space', id: 'space-1');
+    expect(id, 'conversation-new');
+    await expectLater(
+      repository.ensureContext(kind: 'direct', id: 'profile-2'),
+      throwsStateError,
+    );
+    expect(calls.where((item) => item.url.path.endsWith('/ensure/')).length, 1);
+  });
+
+  testWidgets('C3: inline text is sent once and a failed send retains its draft', (
+    tester,
+  ) async {
+    var failFirst = true;
+    final sent = <String>[];
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conversation-1/compose/') {
+        final body = request.data as Map;
+        sent.add(body['client_reference'].toString());
+        expect(body['body'], 'Point de coordination');
+        if (failFirst) {
+          failFirst = false;
+          return MockResponse('{"detail":"Temporary failure"}', 500);
+        }
+        return MockResponse(
+          '{"kind":"point","id":"point-1","point_id":"point-1"}', 200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(jsonEncode({
+          'id': 'conversation-1',
+          'title': 'Organisation',
+          'purpose': 'Coordination',
+          'context': {'kind': 'space', 'label': 'Espace'},
+          'points': [],
+          'essential': [],
+          'elsewhere': [],
+          'personal_state': {},
+          'composer': {
+            'can_create': true,
+            'text_mode': 'information',
+            'allowed_kinds': ['information', 'poll', 'confirmation'],
+            'audience_selection_required': false,
+            'audiences': [],
+          },
+        }), 200);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        id: 'conversation-1', repository: repository,
+      ),
+    );
+    final input = find.byKey(const Key('conversation-compose-text'));
+    await tester.ensureVisible(input);
+    await tester.enterText(input, 'Point de coordination');
+    await tester.tap(find.byKey(const Key('conversation-compose-send')));
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 120)),
+    );
+    await tester.pump();
+    expect(find.text('Point de coordination'), findsOneWidget);
+    expect(find.textContaining('Envoi non confirmé'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('conversation-compose-send')));
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 120)),
+    );
+    await tester.pump();
+    expect(sent.length, 2);
+    expect(sent[0], sent[1]);
+    expect(find.text('Point de coordination'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('C3: Poll shortcut opens a real editor with fields', (tester) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(jsonEncode({
+          'id': 'conversation-1',
+          'title': 'Organisation',
+          'points': [],
+          'essential': [],
+          'composer': {
+            'can_create': true,
+            'text_mode': 'information',
+            'allowed_kinds': ['poll', 'confirmation', 'information'],
+            'audience_selection_required': false,
+          },
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        id: 'conversation-1', repository: repository,
+      ),
+    );
+    await tester.ensureVisible(find.text('Sondage'));
+    await tester.tap(find.text('Sondage'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('conversation-compose-title')), findsOneWidget);
+    expect(find.byKey(const Key('conversation-compose-options')), findsOneWidget);
+    expect(find.byKey(const Key('conversation-compose-publish')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
 }
