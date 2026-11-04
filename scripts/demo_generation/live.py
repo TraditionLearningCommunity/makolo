@@ -73,7 +73,7 @@ def main(argv=None):
                 counts["assignments_planned"] += len({j.beneficiary_id for j in journeys})
             if "incidents" in selected:
                 counts["incidents_planned"] += int(not OperationsIncident.objects.filter(
-                    occurrence=occurrence, title="[DEMO] Controle de circulation").exists())
+                    occurrence=occurrence, title__in=["Contrôle de circulation", "Controle de circulation", "[DEMO] Controle de circulation"]).exists())
             continue
         if "placement" in selected:
             try:
@@ -81,7 +81,7 @@ def main(argv=None):
                     if plan is None:
                         plan = PlacementPlan.objects.create(
                             occurrence=occurrence, key="demo-zones",
-                            label="Zones de demonstration", required=False, active=True)
+                            label="Zones d’accueil", required=False, active=True)
                         counts["placement_plans_created"] += 1
                     units = []
                     for key in ("zone-a", "zone-b"):
@@ -104,9 +104,10 @@ def main(argv=None):
                 counts["placement_rejected"] += 1
         if "incidents" not in selected:
             continue
-        title = "[DEMO] Controle de circulation"
+        title = "Contrôle de circulation"
         if OperationsIncident.objects.filter(
-            occurrence=occurrence, title=title
+            occurrence=occurrence,
+            title__in=[title, "Controle de circulation", "[DEMO] Controle de circulation"]
         ).exists():
             counts["incidents_existing"] += 1
             continue
@@ -115,7 +116,7 @@ def main(argv=None):
                 create_incident(actor=operator, title=title,
                     category=IncidentCategory.OTHER,
                     severity=IncidentSeverity.LOW,
-                    description="Incident purement fictif pour verifier le triage operationnel.",
+                    description="Un besoin d’orientation a été signalé près de l’entrée principale.",
                     activity=occurrence.activity, occurrence=occurrence,
                     organization=occurrence.activity.space,
                     metadata={"synthetic_demo":True})
