@@ -50,7 +50,8 @@ function Measure-Discovery([string]$Label, [string]$Path) {
 try {
     $scenarios = @(
         @{ Label='N1 seul'; Path='/api/v1/discovery/items/?page=1&page_size=24' },
-        @{ Label='N1 + carte'; Path='/api/v1/discovery/items/?page=1&page_size=24&include_spatial_index=1' },
+        @{ Label='N1 + carte full'; Path='/api/v1/discovery/items/?page=1&page_size=24&include_spatial_index=1' },
+        @{ Label='N1 + carte compact'; Path='/api/v1/discovery/items/?page=1&page_size=24&include_spatial_index=compact' },
         @{ Label='Page 2'; Path='/api/v1/discovery/items/?page=2&page_size=24' }
     )
     Write-Host 'Echauffement (non comptabilise)...'
@@ -85,13 +86,21 @@ try {
     }
     $summary | Format-Table -AutoSize
     $first = $summary | Where-Object { $_.Scenario -eq 'N1 seul' }
-    $spatial = $summary | Where-Object { $_.Scenario -eq 'N1 + carte' }
-    $deltaKB = $spatial.MeanKB-$first.MeanKB
-    $deltaMs = $spatial.MedianMs-$first.MedianMs
-    Write-Host ("Surcout observe de l'index : {0:N1} Ko et {1:N1} ms (mediane)" -f $deltaKB,$deltaMs)
-    if ($spatial.Index -ne $spatial.IndexRows) { Write-Warning 'Le count spatial differe du nombre de lignes indexees.' }
-    if ($spatial.N1 -ne $spatial.Items) { Write-Warning 'results/items ont des longueurs differentes.' }
-    if ($spatial.Index -eq $null -or $spatial.Detail -ne $true) { Write-Warning 'Index spatial enrichi non disponible dans la reponse.' }
+    $full = $summary | Where-Object { $_.Scenario -eq 'N1 + carte full' }
+    $compact = $summary | Where-Object { $_.Scenario -eq 'N1 + carte compact' }
+    Write-Host ("Carte full : surcout {0:N1} Ko / {1:N1} ms" -f ($full.MeanKB-$first.MeanKB), ($full.MedianMs-$first.MedianMs))
+    Write-Host ("Carte compact : surcout {0:N1} Ko / {1:N1} ms" -f ($compact.MeanKB-$first.MeanKB), ($compact.MedianMs-$first.MedianMs))
+    Write-Host ("Gain compact vs full : {0:N1} Ko / {1:N1} ms (mediane)" -f ($full.MeanKB-$compact.MeanKB), ($full.MedianMs-$compact.MedianMs))
+    foreach ($spatial in @($full, $compact)) {
+        if ($spatial.Index -ne $spatial.IndexRows) { Write-Warning "Count spatial incoherent : $($spatial.Scenario)" }
+        if ($spatial.N1 -ne $spatial.Items) { Write-Warning "results/items differents : $($spatial.Scenario)" }
+        if ($spatial.Index -eq $null) { Write-Warning "Index absent : $($spatial.Scenario)" }
+    }
+    if ($compact.Detail -ne $false) { Write-Warning 'Index compact annonce incorrectement les details N2.' }
+    if ($full.Detail -ne $true) { Write-Warning 'Mode historique full ne garantit plus les details N2.' }
+    if ($full.Index -ne $compact.Index -or $full.Total -ne $compact.Total) {
+        Write-Warning 'Les deux modes ne retournent pas les memes comptes (donnees susceptibles de changer entre appels).'
+    }
     if (($summary | Where-Object { $_.Scenario -eq 'Page 2' }).Index -ne $null) { Write-Warning 'Index spatial inattendu en page 2.' }
     Write-Host 'Aucune reponse JSON, identite, coordonnee ni credential n''a ete imprime.'
 } finally {
