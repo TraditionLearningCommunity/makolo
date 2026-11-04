@@ -94,8 +94,19 @@ def composer_capabilities(profile, conversation):
         can(profile, PermissionCode.SPACE_CONVERSATIONS_PUBLISH, space=representative_space)
         else None
     )
+    from .media_services import KIND_POLICY_FIELD
+    from .rich_services import available_form_versions, can_prepare_form
+    can_send_media = bool(can_create or exchange_points)
+    media_kinds = sorted(
+        kind for kind, capability in KIND_POLICY_FIELD.items()
+        if can_send_media and getattr(policy, capability, False)
+    )
+    form_options = available_form_versions(profile, conversation) if can_create else []
     return {
         "can_create": can_create,
+        "can_form": bool(can_create and can_prepare_form(profile, conversation)),
+        "form_options": form_options,
+        "media_kinds": media_kinds,
         "allowed_kinds": allowed_kinds,
         "audiences": [{"id": str(item.pk), "label": item.label} for item in audiences],
         "audience_selection_required": len(audiences) > 1,
