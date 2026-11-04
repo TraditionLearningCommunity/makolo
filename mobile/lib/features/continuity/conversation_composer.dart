@@ -47,11 +47,19 @@ class _ConversationComposerState extends State<ConversationComposer> {
   String? _reference;
   String? _error;
   String? _audienceId;
+  String? _exchangeTargetId;
+
+  String? get _representedSpace => widget.representedSpaceId != null &&
+          widget.representedSpaceId ==
+              widget.capabilities['representable_space_id']?.toString()
+      ? widget.representedSpaceId
+      : null;
 
   @override
   void initState() {
     super.initState();
     _audienceId = widget.capabilities['default_audience_id']?.toString();
+    _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
     _text.addListener(_edited);
   }
 
@@ -69,6 +77,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
       _text.clear();
       _error = null;
       _audienceId = widget.capabilities['default_audience_id']?.toString();
+      _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
     } else if (oldWidget.capabilities['default_audience_id'] !=
         widget.capabilities['default_audience_id']) {
       _audienceId = widget.capabilities['default_audience_id']?.toString();
@@ -93,8 +102,13 @@ class _ConversationComposerState extends State<ConversationComposer> {
   Future<void> _sendText() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
+    if (widget.capabilities['text_mode'] == 'exchange_select' &&
+        _exchangeTargetId == null) {
+      setState(() => _error = 'Choisissez un échange.');
+      return;
+    }
     if (_needsAudience && _audienceId == null &&
-        widget.capabilities['text_mode'] != 'exchange') {
+        widget.capabilities['text_mode'] == 'information') {
       setState(() => _error = 'Choisissez les destinataires.');
       return;
     }
@@ -109,11 +123,12 @@ class _ConversationComposerState extends State<ConversationComposer> {
         clientReference: _reference!,
         mode: 'text',
         body: body,
-        pointId: widget.capabilities['text_mode'] == 'exchange'
-            ? widget.capabilities['default_exchange_point_id']?.toString()
+        pointId: widget.capabilities['text_mode'] == 'exchange' ||
+                widget.capabilities['text_mode'] == 'exchange_select'
+            ? _exchangeTargetId
             : null,
         audienceId: _audienceId,
-        representedSpaceId: widget.representedSpaceId,
+        representedSpaceId: _representedSpace,
       );
       if (!mounted) return;
       _text.clear();
@@ -168,7 +183,31 @@ class _ConversationComposerState extends State<ConversationComposer> {
           const Divider(),
           const SizedBox(height: 12),
           if (textMode != null) ...[
-            if (_needsAudience && textMode != 'exchange')
+            if (textMode == 'exchange_select')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: DropdownButtonFormField<String>(
+                  value: _exchangeTargetId,
+                  decoration: const InputDecoration(
+                    labelText: 'Échange',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final item in _audienceRows({
+                      'audiences': widget.capabilities['exchange_targets'],
+                    }))
+                      DropdownMenuItem<String>(
+                        value: item['id']?.toString(),
+                        child: Text(item['title']?.toString() ?? 'Échange'),
+                      ),
+                  ],
+                  onChanged: _sending ? null : (value) => setState(() {
+                    _exchangeTargetId = value;
+                    _reference = null;
+                  }),
+                ),
+              ),
+            if (_needsAudience && textMode == 'information')
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: DropdownButtonFormField<String>(
@@ -304,6 +343,12 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   String? _error;
   bool _sending = false;
 
+  String? get _representedSpace => widget.representedSpaceId != null &&
+          widget.representedSpaceId ==
+              widget.capabilities['representable_space_id']?.toString()
+      ? widget.representedSpaceId
+      : null;
+
   @override
   void initState() {
     super.initState();
@@ -369,7 +414,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         body: body,
         options: options,
         audienceId: _audienceId,
-        representedSpaceId: widget.representedSpaceId,
+        representedSpaceId: _representedSpace,
         clientReference: _reference!,
       );
       if (mounted) widget.onPublished(published);
