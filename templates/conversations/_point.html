@@ -13,8 +13,25 @@
     <div class="mt-3 space-y-2 border-l-2 pl-4 text-sm" style="border-color:var(--mk-border)">
       {% for entry in exchange_preview %}
         <p class="whitespace-pre-wrap">{{ entry.body }}</p>
+        {% conversation_exchange_attachments entry request.user as exchange_files %}
+        {% for attachment in exchange_files %}
+          <a class="text-xs font-semibold" href="{% url 'conversations:attachment' attachment.pk %}" style="color:var(--mk-brand)">{{ attachment.original_name }}</a>
+        {% endfor %}
       {% endfor %}
     </div>
+  {% endif %}
+  {% conversation_point_attachments point request.user as visible_files %}
+  {% if visible_files %}
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for attachment in visible_files %}
+        <a class="mk-btn mk-btn-secondary" href="{% url 'conversations:attachment' attachment.pk %}">
+          {% if attachment.kind == 'voice' or attachment.kind == 'audio' %}Écouter{% elif attachment.kind == 'image' %}Photo{% else %}Document{% endif %} · {{ attachment.original_name }}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+  {% if point.kind == 'exchange' %}
+    <a class="mt-3 inline-block text-sm font-semibold" href="{% url 'conversations:exchange-detail' point.pk %}" style="color:var(--mk-brand)">Voir l’échange</a>
   {% endif %}
   {% if point.lifecycle == 'resolved' and point.resolution %}<div class="mt-3 border-l-2 pl-3 text-sm font-semibold" style="border-color:var(--mk-brand)">✓ {{ point.resolution.summary }}</div>{% endif %}
   {% if reason == 'acknowledge' and point.requires_acknowledgement %}
