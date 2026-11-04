@@ -6,6 +6,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from .audience_services import profile_in_audience
+from .core_models import ConversationLifecycle
 from .point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -97,6 +98,10 @@ def point_attention_reason(
     conversation_manage_cache=None,
 ):
     at = at or timezone.now()
+    # A closed Conversation may be read, but it must no longer demand a
+    # response, acknowledgement, resolution or other unfinished action.
+    if point.conversation.lifecycle != ConversationLifecycle.OPEN:
+        return None
     if point.lifecycle not in ATTENTION_LIFECYCLES:
         return None
     if not _conversation_visible(
