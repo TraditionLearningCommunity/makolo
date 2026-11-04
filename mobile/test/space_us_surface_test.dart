@@ -257,6 +257,39 @@ void main() {
     expect(find.text('Explorer les relations'), findsOneWidget);
   });
 
+  testWidgets('Nous presents institutional documents without private data', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['resources'] as Map<String, dynamic>)['items'] = [
+      {
+        'kind': 'document',
+        'id': 'f3f928b9-113a-43ed-a66d-67de43de521a',
+        'title': 'Statuts de l’Espace',
+        'detail': 'Document de l’Espace · Confidentiel',
+      },
+    ];
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Espace',
+            onOpen: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Statuts de l’Espace'), findsOneWidget);
+    expect(find.textContaining('private_media'), findsNothing);
+    await tester.ensureVisible(find.text('Consulter les ressources'));
+    await tester.tap(find.text('Consulter les ressources'));
+    expect(opened.single, '/space/atelier/us/resources');
+  });
+
   testWidgets('Resources never open a forged cross-Space destination', (
     tester,
   ) async {
