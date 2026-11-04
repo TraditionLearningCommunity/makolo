@@ -201,6 +201,45 @@ void main() {
     expect(requests.where((path) => path.contains('cursor=second')), hasLength(1));
   });
 
+  test('unread filter uses server scope and continues beyond the first 15', () async {
+    final requests = <Uri>[];
+    final repository = repositoryFor((request) async {
+      requests.add(request.url);
+      if (request.url.path.endsWith('/unread-0/read/')) {
+        return const MockResponse('{"is_read":true}', 200);
+      }
+      if (request.url.path.endsWith('/read-all/')) {
+        return const MockResponse('{"updated":29}', 200);
+      }
+      final unread = request.url.queryParameters['filter'] == 'unread';
+      final second = request.url.queryParameters.containsKey('cursor');
+      return MockResponse(jsonEncode({
+        'count': unread ? 30 : 89,
+        'total_count': 89,
+        'unread_count': 30,
+        'next': unread && !second
+            ? 'https://makolo.invalid/api/v1/notifications/?cursor=second&filter=unread'
+            : null,
+        'results': List.generate(unread ? 15 : 1, (i) => {
+          'id': unread ? 'unread-${i + (second ? 15 : 0)}' : 'read-0',
+          'is_read': !unread,
+        }),
+      }), 200);
+    });
+    await repository.refreshList();
+    await repository.refreshList(onlyUnread: true);
+    expect((await repository.readList())!.payload['results'], hasLength(1));
+    expect(await repository.loadMore(onlyUnread: true), true);
+    expect((await repository.readList(onlyUnread: true))!.payload['results'], hasLength(30));
+    expect(requests.where((u) => u.queryParameters['filter'] == 'unread'), hasLength(2));
+    await repository.markRead('unread-0');
+    final remaining = (await repository.readList(onlyUnread: true))!.payload;
+    expect(remaining['results'], hasLength(29));
+    expect(remaining['count'], 29);
+    await repository.markAllRead();
+    expect((await repository.readList(onlyUnread: true))!.payload['results'], isEmpty);
+  });
+
   test('rejects a continuation that points to another owner path', () async {
     final repository = repositoryFor((request) async {
       return MockResponse(
