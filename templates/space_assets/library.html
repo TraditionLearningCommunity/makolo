@@ -15,7 +15,7 @@
       <form method="post" enctype="multipart/form-data" action="{% url 'organizations:space-document-upload' slug=space.slug %}" class="mk-docs-form">
         {% csrf_token %}
         <label>Titre<input name="title" maxlength="220" required placeholder="Ex. Statuts de l’association"></label>
-        <label>Document<input name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx"></label>
+        <label>Document<input name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx"></label>
         <div class="mk-docs-fields">
           <label>Accès<select name="visibility"><option value="restricted">Confidentiel</option><option value="internal">Équipe autorisée</option></select></label>
           <label>Catégorie<select name="kind"><option value="other">Document</option><option value="certificate">Attestation</option><option value="identity_document">Identité</option><option value="form">Formulaire</option><option value="payment_receipt">Reçu</option></select></label>
