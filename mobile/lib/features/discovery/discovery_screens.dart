@@ -1611,6 +1611,15 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   String? _selectedCandidateKey;
   String? _restoredSelectedCandidateKey;
   int _detailReturnRevision = 0;
+  late Stream<StoredProjection?> _spatialStream;
+  late Stream<DiscoverySourceState> _sourceStream;
+
+  void _bindStreams() {
+    _spatialStream = widget.repository.watchSpatial(_query);
+    _sourceStream = widget.repository.watchSource(
+      widget.repository.itemsSource(_query),
+    );
+  }
 
   @override
   void initState() {
@@ -1625,6 +1634,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
     _selectedCandidateKey = _restoredSelectedCandidateKey;
     _visit.selectedCandidateKey = _selectedCandidateKey;
+    _bindStreams();
     unawaited(_acquire());
   }
 
@@ -1646,6 +1656,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
       _selectedCandidateKey = _restoredSelectedCandidateKey;
       _visit.selectedCandidateKey = _selectedCandidateKey;
+      _bindStreams();
       unawaited(_acquire());
     }
   }
@@ -1769,20 +1780,20 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         fit: StackFit.expand,
         children: [
           StreamBuilder<StoredProjection?>(
-        stream: widget.repository.watchSpatial(_query),
+        stream: _spatialStream,
         builder: (context, snapshot) {
           return StreamBuilder<DiscoverySourceState>(
-            stream: widget.repository.watchSource(
-              widget.repository.itemsSource(_query),
-            ),
+            stream: _sourceStream,
             initialData: DiscoverySourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source =
                   sourceSnapshot.data ?? DiscoverySourceState.unknown;
               if (!_refreshing &&
+                  snapshot.connectionState != ConnectionState.waiting &&
                   snapshot.data == null &&
-                  source.lastSuccessAt != null &&
-                  source.lastErrorCode == null) {
+                  (source.lastSuccessAt != null ||
+                      source.lastErrorCode != null ||
+                      snapshot.hasError)) {
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 320),
@@ -1793,7 +1804,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text(
-                              'Impossible d’afficher la carte pour cette recherche.',
+                              'Les points de cette recherche sont indisponibles. '
+                              'Vous pouvez réessayer sans perdre les critères.',
                               textAlign: TextAlign.center,
                             ),
                             TextButton.icon(
