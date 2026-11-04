@@ -1,5 +1,6 @@
 """Compact institutional document UX, with current Space authority at every action."""
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect
@@ -71,7 +72,17 @@ class SpaceDocumentDetailWebView(SpaceWebMixin):
             )
         ) or not can_read_document(self.request.user, document):
             raise Http404
+        from sharing.models import ShareDelivery, ShareSubjectType
+        grants = (
+            ShareDelivery.objects.select_related("recipient__user", "envelope")
+            .filter(
+                envelope__subject_type=ShareSubjectType.SPACE_DOCUMENT,
+                envelope__space_document_subject__version__document=document,
+            ).order_by("-delivered_at")[:20]
+            if can_manage_documents(self.request.user, self.space) else []
+        )
         context.update({
+            "share_rows": grants,
             "document": document,
             "document_versions": document.versions.order_by("-version")[:30],
             "can_manage_documents": can_manage_documents(
@@ -172,3 +183,64 @@ class SpaceDocumentDownloadWebView(SpaceWebMixin):
         response["X-Content-Type-Options"] = "nosniff"
         response["Referrer-Policy"] = "no-referrer"
         return response
+
+
+class SpaceDocumentShareWebView(SpaceWebMixin):
+    space_nav_key = "us"
+
+    def post(self, request, *args, **kwargs):
+        from sharing.space_document_sharing import share_space_document
+        if not can_manage_documents(request.user, self.space):
+            raise Http404
+        doc = SpaceDocument.objects.filter(
+            pk=self.kwargs["document_id"], space=self.space,
+            archived_at__isnull=True,
+        ).first()
+        if doc is None:
+            raise Http404
+        version = doc.versions.order_by("-version").first()
+        username = (request.POST.get("recipient") or "").strip()
+        recipient = get_user_model().objects.filter(
+            username__iexact=username,
+            profile__isnull=False, is_active=True,
+        ).select_related("profile").first()
+        if version is None or recipient is None:
+            messages.error(request, "Destinataire indisponible.")
+            return redirect(_space_document_url(self.space, doc))
+        try:
+            share_space_document(
+                actor=request.user, version=version, recipient=recipient.profile,
+                days=int(request.POST.get("days", "7")),
+            )
+        except (PermissionDenied, ValidationError, ValueError, TypeError):
+            messages.error(request, "Partage impossible.")
+        else:
+            messages.success(request, "Document partagé.")
+        return redirect(_space_document_url(self.space, doc))
+
+
+class SpaceDocumentShareRevokeWebView(SpaceWebMixin):
+    space_nav_key = "us"
+
+    def post(self, request, *args, **kwargs):
+        from sharing.space_document_sharing import revoke_space_document_share
+        from sharing.services import ShareUnavailable
+        from sharing.models import ShareDelivery, ShareSubjectType
+        if not can_manage_documents(request.user, self.space):
+            raise Http404
+        delivery = ShareDelivery.objects.filter(
+            pk=self.kwargs["delivery_id"],
+            envelope__subject_type=ShareSubjectType.SPACE_DOCUMENT,
+            envelope__space_document_subject__version__document__space=self.space,
+        ).select_related("envelope__space_document_subject__version").first()
+        if delivery is None:
+            raise Http404
+        doc = delivery.envelope.space_document_subject.version.document
+        try:
+            revoke_space_document_share(
+                actor=request.user, delivery_id=delivery.pk,
+            )
+        except (PermissionDenied, ShareUnavailable) as exc:
+            raise Http404 from exc
+        messages.success(request, "Partage révoqué.")
+        return redirect(_space_document_url(self.space, doc))
