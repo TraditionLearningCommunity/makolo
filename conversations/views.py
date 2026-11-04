@@ -4,7 +4,7 @@ from uuid import uuid4
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from rest_framework.exceptions import NotFound
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,6 +14,7 @@ from django.views.generic import TemplateView
 
 from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
+from .rich_services import publish_conversation_form, readable_exchange_entries, serialize_attachment, upload_conversation_media
 from .services import ensure_context_conversation
 from .core_models import ConversationContext, ConversationContextKind
 from organizations.models import Organization
@@ -143,6 +144,7 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
                     key: str(uuid4()) for key in (
                         "text", "information", "poll", "confirmation",
                         "question", "request", "exchange",
+                        "form", "voice", "file", "image",
                     )
                 },
                 "compose_error": getattr(self, "compose_error", None),
@@ -223,6 +225,20 @@ class ConversationComposeView(ConversationDetailView):
                     audience_id=request.POST.get("audience_id") or None,
                     represented_space=represented_space, client_reference=ref,
                 )
+            elif mode == "form":
+                questions = [
+                    line.strip() for line in request.POST.get("questions", "").splitlines()
+                    if line.strip()
+                ] if not request.POST.get("form_version_id") else None
+                point = publish_conversation_form(
+                    actor=request.user, conversation=conversation,
+                    title=request.POST.get("title", ""),
+                    form_version_id=request.POST.get("form_version_id") or None,
+                    questions=questions, audience_id=request.POST.get("audience_id") or None,
+                    represented_space=represented_space,
+                    client_reference=ref,
+                )
+                point_id = point.pk
             elif mode == "point":
                 kind = request.POST.get("kind")
                 options = [
@@ -252,6 +268,68 @@ class ConversationComposeView(ConversationDetailView):
             f"{reverse('conversations:detail', kwargs={'pk': conversation.pk})}"
             f"?focus={point_id}#point-{point_id}"
         )
+
+
+class ConversationMediaWebView(ConversationDetailView):
+    def post(self, request, pk):
+        conversation = self.get_conversation()
+        try:
+            raw_space = request.POST.get("represented_space_id")
+            represented = Organization.objects.get(pk=raw_space) if raw_space else None
+            point, attachment = upload_conversation_media(
+                actor=request.user, conversation=conversation,
+                uploaded_file=request.FILES.get("file"),
+                kind=request.POST.get("kind", "file"),
+                body=request.POST.get("body", ""),
+                audience_id=request.POST.get("audience_id") or None,
+                point_id=request.POST.get("point_id") or None,
+                represented_space=represented,
+                client_reference=request.POST.get("client_reference"),
+            )
+        except (ValidationError, PermissionDenied, Organization.DoesNotExist) as exc:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"detail": str(exc)}, status=403 if isinstance(exc, PermissionDenied) else 400)
+            self.compose_error = "Pièce non envoyée. " + str(exc)
+            self.compose_draft = request.POST
+            return self.get(request, pk=pk)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "point_id": str(point.pk), "attachment": serialize_attachment(attachment),
+            })
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': conversation.pk})}"
+            f"?focus={point.pk}#point-{point.pk}"
+        )
+
+
+class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "conversations/exchange.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        point = get_object_or_404(
+            ConversationPoint.objects.select_related("conversation__context"), pk=self.kwargs["point_pk"],
+        )
+        from .point_services import point_visible_to
+        if not point_visible_to(self.request.user, point) or point.kind != "exchange":
+            raise Http404("Échange inaccessible.")
+        try:
+            entries, cursor = readable_exchange_entries(
+                self.request.user, point, cursor=self.request.GET.get("cursor"),
+            )
+        except ValidationError as exc:
+            raise Http404("Curseur invalide.") from exc
+        context.update({
+            "conversation": point.conversation, "point": point,
+            "entries": entries, "next_cursor": cursor,
+            "can_contribute": bool(point.lifecycle == "open" and
+                (point.opens_at is None or point.opens_at <= timezone.now()) and
+                (point.deadline_at is None or point.deadline_at > timezone.now()) and
+                (point.valid_until is None or point.valid_until > timezone.now())),
+            "client_reference": str(uuid4()),
+        })
+        return context
 
 
 class ConversationInvitationRespondView(LoginRequiredMixin, View):
