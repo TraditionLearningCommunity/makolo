@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django import template
 
 from conversations.attention import attention_points_for_profile, conversation_attention_badge_count, has_conversation_attention
@@ -136,3 +137,17 @@ def conversation_visible_successor(point, profile):
         if point_visible_to(profile, candidate):
             return candidate
     return None
+
+
+@register.simple_tag
+def conversation_visible_resolution(point, profile):
+    """Use the same result-audience projection as the API and search."""
+    from conversations.point_services import point_resolution_visible_to
+    if point.lifecycle != "resolved" or not getattr(profile, "is_authenticated", False):
+        return None
+    if not point_resolution_visible_to(profile, point):
+        return None
+    try:
+        return point.resolution.summary or None
+    except ObjectDoesNotExist:
+        return None
