@@ -852,6 +852,12 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
             existing.activity.slug = f"mobile-mature-{spec['id'].lower()}"
             existing.activity.save(update_fields=["slug", "updated_at"])
         activity = existing.activity
+        # Existing seed-owned Obtention records must also regain the visible
+        # demonstration marker on a deterministic reseed. No real offer is touched.
+        expected_title = _demo_title(spec["title"])
+        if activity.title != expected_title:
+            activity.title = expected_title
+            activity.save(update_fields=["title", "updated_at"])
         # Keep Obtention enterable until the beneficiary Journey has been
         # created through the canonical service. Historical closure is applied
         # after personal relations are seeded.
