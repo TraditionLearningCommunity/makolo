@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../network/api_error.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -261,6 +262,15 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       setState(() {
         _archived = _ConversationSummary.fromProjection(acquired);
       });
+    } on MakoloApiError catch (error) {
+      if (mounted && widget.repository == repository) {
+        setState(() {
+          _archiveFailed = true;
+          if (error.statusCode == 403 || error.statusCode == 404) {
+            _archived = const [];
+          }
+        });
+      }
     } on Object {
       if (mounted && widget.repository == repository) {
         setState(() => _archiveFailed = true);
