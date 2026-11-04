@@ -404,6 +404,41 @@ class ConversationRepository {
     return payload;
   }
 
+  Future<Map<String, dynamic>> respondWithMedia({
+    required String conversationId,
+    required String pointId,
+    required String filePath,
+    required String filename,
+    required String kind,
+    required String clientReference,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion nécessaire pour répondre avec un fichier.');
+    }
+    final response = await engine.api.upload(
+      'api/v1/conversations/points/$pointId/reply-media/',
+      fields: {
+        'client_reference': clientReference,
+        'kind': kind,
+        'mime_type': mediaMime(filename, kind),
+        'represented_space_id': representedSpaceId,
+      },
+      files: [
+        MakoloUploadFile(fieldName: 'file', path: filePath, filename: filename),
+      ],
+    );
+    final payload = response.jsonObject();
+    if (payload['point_id']?.toString() != pointId ||
+        payload['response_id'] == null ||
+        payload['attachment'] is! Map) {
+      throw const FormatException('Media response confirmation is incomplete.');
+    }
+    await _refreshPublished(conversationId);
+    return payload;
+  }
+
   Future<void> _refreshPublished(String id) async {
     // The mutation is owner-confirmed already. A later projection refresh
     // failure must not turn success into an erroneous retry prompt.
