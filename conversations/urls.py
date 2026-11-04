@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .media_views import serve_attachment
+from .media_views import serve_attachment, serve_inline_attachment
 from .views import (
     ConversationDetailView,
     ConversationContextOpenView,
@@ -31,4 +31,5 @@ urlpatterns = [
     path("points/<uuid:point_pk>/acknowledge/", PointAcknowledgeView.as_view(), name="point-acknowledge"),
     path("points/<uuid:point_pk>/exchange/", PointExchangeView.as_view(), name="point-exchange"),
     path("attachments/<uuid:attachment_pk>/", serve_attachment, name="attachment"),
+    path("attachments/<uuid:attachment_pk>/inline/", serve_inline_attachment, name="attachment-inline"),
 ]
