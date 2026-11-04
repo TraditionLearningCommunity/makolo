@@ -62,7 +62,7 @@ def main(argv=None):
             owner = people[index % len(people)]
             suffix = f"{index + 1:04d}"
             slug = f"demo-generation-{domain}-{suffix}"
-            title = f"{labels[domain]} — {contexts[index % len(contexts)]}"
+            title = activity_title(domain, index)
             activity = Activity.objects.filter(owner_profile=owner, slug=slug).first()
             if activity:
                 detail_present = {
