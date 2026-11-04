@@ -56,7 +56,7 @@ def _ensure_obtention(*, actor, space, slug, title, targets, modes, result_label
     return create_obtention(
         actor=actor,
         space=space,
-        title=title,
+        title=f"Exemple — {title}",
         targets=targets,
         modes=modes,
         result_label=result_label,
@@ -102,7 +102,7 @@ def seed_obtention(ctx: SeedContext) -> None:
         slug="kit-scolaire-a-retirer",
         title="Kit scolaire à retirer",
         short_description="Recevoir un kit scolaire complet à Lubumbashi.",
-        description="Scénario bêta d’attribution réelle, indépendant du paiement.",
+        description="Exemple fictif de remise de kit scolaire. Il permet d’essayer la préparation et le retrait, sans attribution réelle ni paiement.",
         targets=[
             {"title": "Sac scolaire", "quantity": "1", "unit": "pièce"},
             {"title": "Cahiers", "quantity": "10", "unit": "pièces"},
@@ -169,7 +169,7 @@ def seed_obtention(ctx: SeedContext) -> None:
         slug="projecteur-4k",
         title="Projecteur 4K",
         short_description="Acheter ou louer un projecteur pour une activité.",
-        description="Scénario bêta montrant plusieurs modes sans créer de sous-verticale Achat/Location.",
+        description="Exemple fictif de projecteur proposé à l’achat ou à la location. Aucune commande, location ou remise réelle n’est possible.",
         targets=[{"title": "Projecteur 4K", "quantity": "1", "unit": "pièce"}],
         modes=[ObtentionModeCode.BUY, ObtentionModeCode.RENT],
         result_label="Projecteur effectivement obtenu",
