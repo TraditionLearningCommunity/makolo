@@ -27,6 +27,7 @@ Map<String, dynamic> _item(int index) => {
 };
 
 Map<String, dynamic> _page(int page, int start, String? next) => {
+  'viewer': {'type': 'profile', 'id': 'profile-a'},
   'page': page,
   'page_size': 24,
   'count': 72,
