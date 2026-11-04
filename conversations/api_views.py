@@ -79,6 +79,12 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             {"id": str(option.pk), "label": option.label}
             for option in point.options.all()
         ],
+        "exchange_preview": [
+            {"id": str(entry.pk), "body": entry.body, "created_at": entry.created_at}
+            for entry in reversed(list(point.exchange_entries.filter(
+                moderation_state="visible",
+            ).order_by("-created_at", "-pk")[:5]))
+        ] if point.kind == "exchange" else [],
         "attention_reason": reason,
         "section": section,
         "resolution_summary": _resolution_summary(point),
