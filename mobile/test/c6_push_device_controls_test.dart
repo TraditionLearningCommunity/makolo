@@ -25,14 +25,14 @@ void main() {
         devicesRefreshed: true,
         projectionRefreshed: false,
       ),
-      contains('connexions restent à vérifier'),
+      contains('Actualisation encore nécessaire'),
     );
     expect(
       pushActivationConfirmation(
         devicesRefreshed: true,
         projectionRefreshed: true,
       ),
-      contains('connexions sont actualisées'),
+      contains('Notifications activées sur cet appareil'),
     );
   });
 
@@ -59,6 +59,7 @@ void main() {
                     'id': 'device-1',
                     'provider': 'fcm',
                     'platform': 'android',
+                    'device_name': 'Samsung Galaxy A54',
                     'active': true,
                     'app_version': '1.4',
                     'token_hint': 'NEVER-RENDER-HINT',
@@ -105,14 +106,14 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Android'), findsOneWidget);
+    expect(find.text('Samsung Galaxy A54'), findsOneWidget);
     expect(find.textContaining('NEVER-RENDER-HINT'), findsNothing);
     await tester.tap(find.text('Retirer'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(mutations, 1);
     expect(refreshed, isTrue);
-    expect(find.text('Aucun appareil actif pour ce Profil.'), findsOneWidget);
+    expect(find.text('Aucun appareil enregistré.'), findsOneWidget);
     expect(
       requests,
       contains('/api/v1/notifications/push/endpoints/device-1/'),
