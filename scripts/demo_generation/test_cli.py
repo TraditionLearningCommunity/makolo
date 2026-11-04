@@ -466,5 +466,27 @@ class DemoGenerationCLITests(unittest.TestCase):
 
 
 
+    def test_connection_rotation_covers_50_choices_for_each_profile(self):
+        from scripts.demo_generation.connections import offer_index
+        for profile_position in range(2):
+            values = {
+                offer_index(slot, 2, 50)
+                for slot in range(profile_position, 100, 2)
+            }
+            self.assertEqual(values, set(range(50)))
+        self.assertEqual(offer_index(50, 1, 50), 0)
+
+    def test_foundations_username_is_forwarded(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "services", "--count", "8",
+            "--profile-username", "world_011_divine",
+        ])
+        with patch("scripts.demo_generation.foundations.main") as foundations, \
+             patch("scripts.demo_generation.verticals.main"):
+            run(args)
+        self.assertIn("--profile-username", foundations.call_args.args[0])
+        self.assertIn("world_011_divine", foundations.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
