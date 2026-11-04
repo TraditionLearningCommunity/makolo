@@ -5,7 +5,7 @@ from events.models import Event
 from funding.models import FundingDetails
 from journeys.models import Journey
 from obtention.models import ObtentionDetails
-from opportunities.models import OpportunitySource
+from opportunities.models import OpportunityRevision, OpportunitySource, OpportunitySourceType
 from preparation.models import ActivityResource, ResourceKind
 from services.models import ServiceDetails
 from transport.models import TransportService
@@ -57,6 +57,13 @@ def assert_mobile_mature_demo_coverage() -> dict[str, int]:
         raise MobileMatureDemoValidationError("Le seed mature doit exposer au moins 150 Resources contextuelles.")
     if counts["mobile_mature_file_resources"] < 50:
         raise MobileMatureDemoValidationError("Le seed mature doit contenir un corpus média/fichier significatif.")
+    if activities.exclude(title__startswith="Exemple — ").exists():
+        raise MobileMatureDemoValidationError("Une Activity fictive ne porte pas son libellé d’exemple.")
+    synthetic_sources = OpportunitySource.objects.filter(external_reference__startswith="mobile-mature:")
+    if synthetic_sources.exclude(source_type=OpportunitySourceType.USER_SUPPLIED).exists() or synthetic_sources.filter(verified_at__isnull=False).exists():
+        raise MobileMatureDemoValidationError("Une référence de démonstration ne doit pas certifier une offre fictive.")
+    if OpportunityRevision.objects.filter(opportunity__sources__external_reference__startswith="mobile-mature:").exclude(title__startswith="Exemple — ").exists():
+        raise MobileMatureDemoValidationError("Une candidature fictive doit être identifiable par son titre.")
     if counts["mobile_mature_journeys"] < 30:
         raise MobileMatureDemoValidationError("Le persona principal doit posséder un historique/présent riche de Journeys.")
     for year in (2025, 2026, 2027):
