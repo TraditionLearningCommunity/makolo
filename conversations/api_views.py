@@ -443,6 +443,12 @@ class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
         upload = request.FILES.get("file")
         if upload is None:
             raise DRFValidationError({"file": "Choisissez un fichier."})
+        # The mobile multipart transport does not set per-file MIME. The
+        # supplied declaration is only a candidate; owner validation checks
+        # the actual file signature before any Point is created.
+        declared = request.data.get("mime_type")
+        if declared and upload.content_type in {"application/octet-stream", ""}:
+            upload.content_type = str(declared)
         try:
             point, attachment = upload_conversation_media(
                 actor=request.user, conversation=conversation,
