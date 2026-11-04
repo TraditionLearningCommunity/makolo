@@ -54,7 +54,8 @@ def main(argv=None):
         for index, owner in enumerate(users[:min(a.count, len(users))]):
             name = group_name(owner)
             group = (Group.objects.filter(owner_profile=owner, name=name).first()
-                     or Group.objects.filter(owner_profile=owner, name="[DEMO] Groupe d'entraide " + owner.username).first())
+                     or Group.objects.filter(owner_profile=owner, name="[DEMO] Groupe d'entraide " + owner.username).first()
+                     or Group.objects.filter(owner_profile=owner, name="Groupe d'entraide " + owner.username).first())
             if group is None:
                 if not a.apply:
                     counts["groups_planned"] += 1
@@ -89,9 +90,11 @@ def main(argv=None):
         for owner in users[:min(a.count, len(users))]:
             title, long_title = objective_titles(owner)
             dossier = (Dossier.objects.filter(owner_profile=owner, title=title).first()
-                       or Dossier.objects.filter(owner_profile=owner, title="[DEMO] Preparer une demarche - " + owner.username).first())
+                       or Dossier.objects.filter(owner_profile=owner, title="[DEMO] Preparer une demarche - " + owner.username).first()
+                       or Dossier.objects.filter(owner_profile=owner, title="Preparer une demarche - " + owner.username).first())
             project = (Project.objects.filter(owner_profile=owner, title=long_title).first()
-                       or Project.objects.filter(owner_profile=owner, title="[DEMO] Projet d'action - " + owner.username).first())
+                       or Project.objects.filter(owner_profile=owner, title="[DEMO] Projet d'action - " + owner.username).first()
+                       or Project.objects.filter(owner_profile=owner, title="Projet d'action - " + owner.username).first())
             if not a.apply:
                 counts["dossiers_planned"] += int(dossier is None)
                 counts["projects_planned"] += int(project is None)
@@ -202,7 +205,7 @@ def main(argv=None):
                 continue
             description = "Le point d’accueil était difficile à repérer à mon arrivée."
             if Report.objects.filter(journey=journey,
-                reporter=journey.beneficiary, description__in=(description, "[DEMO] Signalement fictif : accueil difficile a localiser.")).exists():
+                reporter=journey.beneficiary, description__in=(description, "[DEMO] Signalement fictif : accueil difficile a localiser.", "Signalement fictif : accueil difficile a localiser.")).exists():
                 counts["reports_existing"] += 1
             elif not a.apply:
                 counts["reports_planned"] += 1
@@ -229,7 +232,7 @@ def main(argv=None):
             message = "Avant de vous déplacer, vérifiez les horaires et les conditions publiés pour « " + journey.activity.title[:140] + " »."
             if Contribution.objects.filter(
                 activity=journey.activity, author_profile=journey.beneficiary,
-                body__in=(message, "[DEMO] Conseil contextuel : verifier les informations de cette activite avant d'agir."), kind=ContributionKind.TIP
+                body__in=(message, "[DEMO] Conseil contextuel : verifier les informations de cette activite avant d'agir.", "Conseil contextuel : verifier les informations de cette activite avant d'agir."), kind=ContributionKind.TIP
             ).exists():
                 counts["contributions_existing"] += 1
             elif not a.apply:
