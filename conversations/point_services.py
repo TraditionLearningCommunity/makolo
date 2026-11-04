@@ -297,6 +297,8 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
 @transaction.atomic
 def acknowledge_point(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "visibility_audience").get(pk=point.pk)
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if not locked.requires_acknowledgement:
         raise ValidationError("Ce Point ne demande pas de confirmation de lecture.")
     if not point_visible_to(actor, locked):
@@ -401,6 +403,8 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
         return locked.resolution
     if locked.lifecycle not in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
         raise ValidationError("Ce Point ne peut pas être résolu dans son état actuel.")
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
         raise PermissionDenied("Vous ne faites pas partie de l’audience de résolution.")
     if not can_manage_conversation(actor, locked.conversation):
@@ -414,6 +418,8 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
 @transaction.atomic
 def close_point_responses(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=point.pk)
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas fermer les réponses de ce Point.")
     if locked.lifecycle != ConversationPointLifecycle.OPEN:
@@ -429,6 +435,8 @@ def close_point_responses(*, actor, point):
 @transaction.atomic
 def supersede_point(*, actor, old_point, new_point):
     old = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation").get(pk=old_point.pk)
+    if old.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if old.conversation_id != new_point.conversation_id:
         raise ValidationError("Le Point de remplacement doit appartenir à la même Conversation.")
     if not can_publish_in_conversation(actor, old.conversation):
