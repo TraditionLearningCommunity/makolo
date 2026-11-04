@@ -7,6 +7,8 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
+from journeys.models import Journey, TERMINAL_JOURNEY_STATUSES
+from journeys.collaboration_services import ensure_case_access
 from django.utils.decorators import method_decorator
 
 from organizations.space_web_views import SpaceWebMixin
@@ -81,7 +83,19 @@ class SpaceDocumentDetailWebView(SpaceWebMixin):
             ).order_by("-delivered_at")[:20]
             if can_manage_documents(self.request.user, self.space) else []
         )
+        eligible = []
+        for journey in Journey.objects.select_related("activity").filter(
+            activity__space=self.space,
+        ).exclude(status__in=TERMINAL_JOURNEY_STATUSES).order_by("-updated_at", "id")[:120]:
+            try:
+                ensure_case_access(self.request.user, journey, write=True)
+            except PermissionDenied:
+                continue
+            eligible.append(journey)
+            if len(eligible) >= 20:
+                break
         context.update({
+            "eligible_journeys": eligible,
             "share_rows": grants,
             "document": document,
             "document_versions": document.versions.order_by("-version")[:30],
@@ -244,3 +258,35 @@ class SpaceDocumentShareRevokeWebView(SpaceWebMixin):
             raise Http404 from exc
         messages.success(request, "Partage révoqué.")
         return redirect(_space_document_url(self.space, doc))
+
+
+class SpaceDocumentReuseWebView(SpaceWebMixin):
+    space_nav_key = "us"
+
+    def post(self, request, *args, **kwargs):
+        from .services import use_document_in_journey
+        doc = SpaceDocument.objects.filter(
+            pk=self.kwargs["document_id"], space=self.space,
+            archived_at__isnull=True,
+        ).select_related("space").first()
+        if doc is None or not can_read_document(request.user, doc):
+            raise Http404
+        version = doc.versions.order_by("-version").first()
+        if version is None:
+            raise Http404
+        journey = Journey.objects.select_related("activity").filter(
+            pk=request.POST.get("journey_id"), activity__space=self.space,
+        ).first()
+        if journey is None:
+            raise Http404
+        try:
+            artifact = use_document_in_journey(
+                actor=request.user, document_version=version, journey=journey,
+            )
+        except PermissionDenied as exc:
+            raise Http404 from exc
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+            return redirect(_space_document_url(self.space, doc))
+        messages.success(request, "Document ajouté à la démarche.")
+        return redirect("core:participant-journey-detail", pk=journey.pk)
