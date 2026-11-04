@@ -6,6 +6,13 @@ import argparse
 from collections import Counter
 
 
+def offer_index(slot, profile_count, offer_count):
+    """Rotate every choice through every Profile before advancing to the next."""
+    if profile_count < 1 or offer_count < 1:
+        raise ValueError("Au moins un Profil et une offre sont requis.")
+    return (slot // profile_count) % offer_count
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true")
@@ -52,7 +59,7 @@ def main(argv=None):
     for index in range(min(a.count, len(offers) * len(people))):
         actor = people[index % len(people)]
         # Every selected profile receives successive choices, not just even/odd subsets.
-        offer = offers[(index // len(people)) % len(offers)]
+        offer = offers[offer_index(index, len(people), len(offers))]
         profile = UserProfile.objects.filter(user=actor).first()
         exists = bool(profile and ProviderConnection.objects.filter(
             scope=ProviderScope.PROFILE, profile=profile,
