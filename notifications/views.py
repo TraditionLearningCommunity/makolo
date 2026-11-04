@@ -35,14 +35,19 @@ class NotificationListView(LoginRequiredMixin, ListView):
         notifications = list(context["notifications"])
         for notification in notifications:
             navigation = build_notification_navigation(notification)
+            local_action = (
+                notification.action_url.startswith("/")
+                and not notification.action_url.startswith("//")
+                and "\\" not in notification.action_url
+            )
             notification.can_open = bool(
-                notification.action_url
+                local_action
                 or notification.access_id
                 or notification.journey_id
                 or notification.activity_id
                 or notification.commerce_order_id
                 or (navigation and navigation["target"] in {
-                    "conversation", "journey", "access", "activity", "occurrence",
+                    "conversation", "journey", "access", "occurrence",
                 })
             )
         context["notifications"] = notifications
@@ -91,7 +96,6 @@ class NotificationOpenView(LoginRequiredMixin, View):
             )
             if access:
                 return redirect("core:participant-access-detail", pk=access.pk)
-            return redirect("notifications:list")
 
         # Structured notifications can carry a real owner even without an action_url.
         # The owner endpoint still enforces current access and visibility.
@@ -124,7 +128,11 @@ class NotificationOpenView(LoginRequiredMixin, View):
                 if journey:
                     return redirect("core:participant-journey-detail", pk=journey.pk)
 
-        if notification.action_url.startswith("/") and not notification.action_url.startswith("//"):
+        if (
+            notification.action_url.startswith("/")
+            and not notification.action_url.startswith("//")
+            and "\\" not in notification.action_url
+        ):
             return redirect(notification.action_url)
         return redirect("notifications:list")
 
