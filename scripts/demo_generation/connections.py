@@ -51,7 +51,8 @@ def main(argv=None):
     # represented whenever count>=50. No arbitrary fake provider brands.
     for index in range(min(a.count, len(offers) * len(people))):
         actor = people[index % len(people)]
-        offer = offers[index % len(offers)]
+        # Every selected profile receives successive choices, not just even/odd subsets.
+        offer = offers[(index // len(people)) % len(offers)]
         profile = UserProfile.objects.filter(user=actor).first()
         exists = bool(profile and ProviderConnection.objects.filter(
             scope=ProviderScope.PROFILE, profile=profile,
