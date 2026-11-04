@@ -78,6 +78,10 @@
     {% endif %}
   </div>
 
+  {% if composer.text_mode or composer.can_create %}
+    {% include 'conversations/_composer.html' %}
+  {% endif %}
+
   <section id="conversation-search" class="mt-8 border-t pt-6" style="border-color:var(--mk-border)">
     <h2 class="mb-3 text-base font-extrabold">Rechercher dans cette conversation</h2>
     <form method="get" role="search" class="flex gap-2">
