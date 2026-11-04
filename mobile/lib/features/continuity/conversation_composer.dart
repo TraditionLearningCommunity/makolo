@@ -20,6 +20,22 @@ List<Map<String, dynamic>> _audienceRows(Map<String, dynamic> capabilities) {
   ];
 }
 
+class _PointDraft {
+  const _PointDraft({
+    required this.title,
+    required this.body,
+    required this.options,
+    this.audienceId,
+    this.reference,
+  });
+
+  final String title;
+  final String body;
+  final String options;
+  final String? audienceId;
+  final String? reference;
+}
+
 class ConversationComposer extends StatefulWidget {
   const ConversationComposer({
     super.key,
@@ -43,6 +59,7 @@ class ConversationComposer extends StatefulWidget {
 class _ConversationComposerState extends State<ConversationComposer> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focus = FocusNode();
+  final Map<String, _PointDraft> _drafts = {};
   bool _sending = false;
   String? _reference;
   String? _error;
@@ -74,6 +91,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
     if (oldWidget.repository != widget.repository ||
         oldWidget.conversationId != widget.conversationId) {
       _reference = null;
+      _drafts.clear();
       _text.clear();
       _error = null;
       _audienceId = widget.capabilities['default_audience_id']?.toString();
@@ -155,7 +173,10 @@ class _ConversationComposerState extends State<ConversationComposer> {
         conversationId: widget.conversationId,
         capabilities: widget.capabilities,
         representedSpaceId: widget.representedSpaceId,
+        initialDraft: _drafts[kind],
+        onDraftChanged: (draft) => _drafts[kind] = draft,
         onPublished: (id) {
+          _drafts.remove(kind);
           Navigator.of(sheetContext).pop();
           widget.onPublished(id);
         },
@@ -320,9 +341,13 @@ class _ComposePointSheet extends StatefulWidget {
     required this.conversationId,
     required this.capabilities,
     required this.onPublished,
+    required this.onDraftChanged,
+    this.initialDraft,
     this.representedSpaceId,
   });
 
+  final _PointDraft? initialDraft;
+  final ValueChanged<_PointDraft> onDraftChanged;
   final String kind;
   final ConversationRepository repository;
   final String conversationId;
@@ -335,9 +360,9 @@ class _ComposePointSheet extends StatefulWidget {
 }
 
 class _ComposePointSheetState extends State<_ComposePointSheet> {
-  final _title = TextEditingController();
-  final _body = TextEditingController();
-  final _options = TextEditingController(text: '\n');
+  late final TextEditingController _title;
+  late final TextEditingController _body;
+  late final TextEditingController _options;
   String? _reference;
   String? _audienceId;
   String? _error;
@@ -352,14 +377,31 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   @override
   void initState() {
     super.initState();
-    _audienceId = widget.capabilities['default_audience_id']?.toString();
+    final draft = widget.initialDraft;
+    _title = TextEditingController(text: draft?.title ?? '');
+    _body = TextEditingController(text: draft?.body ?? '');
+    _options = TextEditingController(text: draft?.options ?? '\n');
+    _reference = draft?.reference;
+    _audienceId = draft?.audienceId ??
+        widget.capabilities['default_audience_id']?.toString();
     _title.addListener(_changed);
     _body.addListener(_changed);
     _options.addListener(_changed);
   }
 
+  void _saveDraft() {
+    widget.onDraftChanged(_PointDraft(
+      title: _title.text,
+      body: _body.text,
+      options: _options.text,
+      audienceId: _audienceId,
+      reference: _reference,
+    ));
+  }
+
   void _changed() {
     _reference = null;
+    _saveDraft();
     if (_error != null && mounted) setState(() => _error = null);
   }
 
@@ -406,6 +448,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     });
     try {
       _reference ??= _newConversationReference();
+      _saveDraft();
       final published = await widget.repository.compose(
         conversationId: widget.conversationId,
         mode: 'point',
@@ -502,6 +545,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 onChanged: _sending ? null : (value) => setState(() {
                   _audienceId = value;
                   _reference = null;
+                  _saveDraft();
                 }),
               ),
             if (_error != null) ...[
