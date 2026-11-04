@@ -691,6 +691,7 @@ class ConversationDetailScreen extends StatefulWidget {
     this.focusPointId,
     this.onOpenFormRequest,
     this.onOpenHistory,
+    this.onOpenRelatedPoint,
   });
 
   final String id;
@@ -699,6 +700,7 @@ class ConversationDetailScreen extends StatefulWidget {
   final String? focusPointId;
   final Future<void> Function(String requestId)? onOpenFormRequest;
   final VoidCallback? onOpenHistory;
+  final ValueChanged<String>? onOpenRelatedPoint;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -905,6 +907,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         onOpenAttachment: _openAttachment,
         onOpenExchange: () => _openExchange(point),
         onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
+        onOpenRelatedPoint: widget.onOpenRelatedPoint,
       ),
     );
   }
@@ -1187,6 +1190,7 @@ class _PointCard extends StatefulWidget {
     this.onOpenAttachment,
     this.onOpenExchange,
     this.onRespondWithMedia,
+    this.onOpenRelatedPoint,
   });
 
   final _ConversationPoint point;
@@ -1198,6 +1202,7 @@ class _PointCard extends StatefulWidget {
   final Future<void> Function(Map<String, dynamic> attachment)? onOpenAttachment;
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
+  final ValueChanged<String>? onOpenRelatedPoint;
 
   @override
   State<_PointCard> createState() => _PointCardState();
@@ -1285,8 +1290,11 @@ class _PointCardState extends State<_PointCard> {
   @override
   Widget build(BuildContext context) {
     final point = widget.point;
+    final canRespond = point.canRespond &&
+        (!point.hasResponded || point.canChangeResponse ||
+            widget.representedSpaceId != null);
     final interactive = !widget.readOnly &&
-        (point.canRespond || point.attentionReason == 'acknowledge');
+        (canRespond || point.attentionReason == 'acknowledge');
     final kindLabel = switch (point.kind) {
       'information' => 'Information',
       'poll' => 'Sondage',
@@ -1354,6 +1362,30 @@ class _PointCardState extends State<_PointCard> {
               label: const Text('Voir l’échange'),
             ),
           ),
+        if (point.hasResponded)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text('✓ Réponse enregistrée',
+              style: Theme.of(context).textTheme.bodySmall),
+          ),
+        if (point.responseCount != null)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+            child: Text('${point.responseCount} réponse(s)',
+              style: Theme.of(context).textTheme.bodySmall),
+          ),
+        if (point.replacedByPointId != null &&
+            widget.onOpenRelatedPoint != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => widget.onOpenRelatedPoint!(
+                point.replacedByPointId!,
+              ),
+              icon: const Icon(Icons.call_made_rounded),
+              label: const Text('Voir le Point actuel'),
+            ),
+          ),
         if (point.resolutionSummary != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           Text('✓ ${point.resolutionSummary!}'),
@@ -1371,7 +1403,7 @@ class _PointCardState extends State<_PointCard> {
             child: Text(_busy ? 'En cours…' : 'Bien reçu'),
           ),
         ],
-        if (point.canRespond &&
+        if (canRespond &&
             (point.responseMode == 'file' || point.responseMode == 'voice') &&
             !widget.readOnly && widget.onRespondWithMedia != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
@@ -1400,7 +1432,7 @@ class _PointCardState extends State<_PointCard> {
               ],
             ),
         ],
-        if (point.canRespond &&
+        if (canRespond &&
             point.responseMode != 'file' &&
             point.responseMode != 'voice' &&
             point.kind != 'exchange' &&
@@ -1824,6 +1856,9 @@ class _ConversationPoint {
     this.exchangePreview = const [],
     this.attachments = const [],
     this.formRequest,
+    this.responseStatus = const {},
+    this.canChangeResponse = false,
+    this.replacedByPointId,
   });
 
   final String id;
@@ -1848,6 +1883,15 @@ class _ConversationPoint {
   final List<String> exchangePreview;
   final List<Map<String, dynamic>> attachments;
   final Map<String, dynamic>? formRequest;
+  final Map<String, dynamic> responseStatus;
+  final bool canChangeResponse;
+  final String? replacedByPointId;
+
+  bool get hasResponded => responseStatus['responded'] == true;
+  int? get responseCount =>
+      responseStatus['response_count'] is num
+          ? (responseStatus['response_count'] as num).toInt()
+          : null;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -1896,6 +1940,9 @@ class _ConversationPoint {
       attachments: _maps(row['attachments']),
       formRequest: _map(row['form_request']).isEmpty
           ? null : _map(row['form_request']),
+      responseStatus: _map(row['response_status']),
+      canChangeResponse: row['can_change_response'] == true,
+      replacedByPointId: _string(row['replaced_by_point_id']),
       exchangePreview: [
         for (final row in _maps(row['exchange_preview']))
           if (_string(row['body']) != null) _string(row['body'])!,
