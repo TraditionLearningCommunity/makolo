@@ -133,12 +133,11 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
 
   Future<void> _replace() async {
     if (_working || !_canManage || _actor == null) return;
-    final selection = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg'],
     );
-    if (selection == null || selection.files.isEmpty || !mounted) return;
-    final file = selection.files.single;
+    if (file == null || !mounted) return;
     if (file.path == null) return;
     final id = _actor?.space.id;
     final api = widget.runtime.api;
@@ -590,7 +589,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                       subtitle: Text(
                         version['mime_type']?.toString() ?? 'Document',
                       ),
-                      trailing: Wrap(
+                      trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (version['mime_type'] == 'application/pdf' ||
