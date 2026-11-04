@@ -1,4 +1,5 @@
 """Institutional document authority, immutable storage and explicit reuse."""
+import mimetypes
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -10,7 +11,7 @@ from authorization.selectors import has_direct_space_permission
 from journeys.collaboration_models import JourneyArtifactKind, JourneyArtifactSensitivity
 from journeys.models import TERMINAL_JOURNEY_STATUSES
 from journeys.collaboration_services import (
-    create_artifact, ensure_case_access, validate_artifact_upload,
+    SAFE_MIME_TYPES, create_artifact, ensure_case_access, validate_artifact_upload,
 )
 
 from .models import (
@@ -61,6 +62,19 @@ def _require_read(actor, document):
         raise PermissionDenied("Document indisponible dans ce contexte.")
 
 
+def _validated_upload(file):
+    if file is None:
+        return validate_artifact_upload(file)
+    # Mobile multipart clients may send application/octet-stream.
+    # A filename is only a MIME hint: shared signature validation remains
+    # mandatory and rejects disguised or executable contents.
+    if getattr(file, "content_type", "") == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(getattr(file, "name", ""))
+        if guessed in SAFE_MIME_TYPES:
+            file.content_type = guessed
+    return validate_artifact_upload(file)
+
+
 @transaction.atomic
 def create_document(
     *, actor, space, title, uploaded_file, kind=JourneyArtifactKind.OTHER,
@@ -72,7 +86,7 @@ def create_document(
     if visibility not in SpaceDocumentVisibility.values:
         raise ValidationError({"visibility": "Visibilité non reconnue."})
     # Validate before creating a durable object; no empty database records.
-    data, mime_type, digest = validate_artifact_upload(uploaded_file)
+    data, mime_type, digest = _validated_upload(uploaded_file)
     with transaction.atomic():
         document = SpaceDocument.objects.create(
             space=space, created_by=actor, title=title,
@@ -107,7 +121,7 @@ def add_document_version(
     *, actor, document, uploaded_file, issued_at=None, expires_at=None,
 ):
     _require_manage(actor, document.space)
-    data, mime_type, digest = validate_artifact_upload(uploaded_file)
+    data, mime_type, digest = _validated_upload(uploaded_file)
     locked = SpaceDocument.objects.select_for_update().get(pk=document.pk)
     _require_manage(actor, locked.space)
     if locked.archived_at is not None:
