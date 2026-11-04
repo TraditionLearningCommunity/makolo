@@ -54,6 +54,33 @@ class PushEndpointApiTests(TestCase):
         self.assertEqual(endpoint.user, self.user)
         self.assertTrue(endpoint.active)
 
+    def test_device_model_is_private_and_survives_a_token_rotation(self):
+        registered = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm",
+                "platform": "android",
+                "installation_id": "visible-phone",
+                "token": "one-time-token",
+                "device_name": "itel S23",
+            },
+            format="json",
+        )
+        self.assertEqual(registered.status_code, 200)
+        self.assertEqual(registered.data["device_name"], "itel S23")
+        self._register(token="rotated-token", installation="visible-phone")
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        self.assertEqual(endpoint.device_name, "itel S23")
+        inventory = self.client.get("/api/v1/notifications/push/endpoints/")
+        self.assertEqual(inventory.data["results"][0]["device_name"], "itel S23")
+        for secret in ("visible-phone", "one-time-token", "rotated-token"):
+            self.assertNotIn(secret, str(inventory.data))
+        self.client.force_authenticate(self.other)
+        self.assertEqual(
+            self.client.get("/api/v1/notifications/push/endpoints/").data["results"],
+            [],
+        )
+
     def test_same_installation_rotates_token_without_duplicate(self):
         self._register(token="fcm-token-a")
         self._register(token="fcm-token-b")
