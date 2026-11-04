@@ -161,6 +161,78 @@ void main() {
         'received locally');
   });
 
+  test('explicit History withdrawal drops every cached query in this Profile',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final other = ProfileStore(db, 'profile-b');
+    for (final kind in ['personal.history', 'personal.history.search']) {
+      await store.putProjection(
+        kind: kind, schemaVersion: 1,
+        resourceKey: 'known', payload: {'items': ['sensitive-a']},
+      );
+      await other.putProjection(
+        kind: kind, schemaVersion: 1,
+        resourceKey: 'known', payload: {'items': ['kept-b']},
+      );
+    }
+    final sync = SyncEngine(
+      api: clientFor(MockClient((_) async => throw StateError('unused'))),
+      store: store, database: db, profileId: 'profile-a',
+    );
+    await sync.revoke(
+      SyncSourceDefinition.projectionEnvelope(
+        sourceKey: 'history:0:24',
+        owner: 'ProfileHistory',
+        path: 'api/v1/me/history/?limit=24&offset=0',
+        projectionKind: 'personal.history',
+        resourceKey: 'offset:0:limit:24',
+        category: SyncSourceCategory.collection,
+      ),
+    );
+    expect(await store.readProjections('personal.history'), isEmpty);
+    expect(await store.readProjections('personal.history.search'), isEmpty);
+    expect(await other.readProjections('personal.history'), hasLength(1));
+    expect(await other.readProjections('personal.history.search'), hasLength(1));
+  });
+
+  test('revoked roots discard only their derived continuation', () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final other = ProfileStore(db, 'profile-b');
+    for (final kind in ['personal.now.continuation',
+                        'personal.ongoing.continuation']) {
+      await store.putProjection(
+        kind: kind, schemaVersion: 1,
+        payload: {'items': ['stale']},
+      );
+      await other.putProjection(
+        kind: kind, schemaVersion: 1,
+        payload: {'items': ['other']},
+      );
+    }
+    final sync = SyncEngine(
+      api: clientFor(MockClient((_) async => throw StateError('unused'))),
+      store: store, database: db, profileId: 'profile-a',
+    );
+    await sync.revoke(source('personal.now'));
+    expect(await store.readProjection('personal.now.continuation'), isNull);
+    expect(await store.readProjection('personal.ongoing.continuation'),
+        isNotNull);
+    await sync.revoke(SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'personal.ongoing',
+      owner: 'Profile',
+      path: 'api/v1/me/ongoing/',
+      projectionKind: 'personal.ongoing',
+    ));
+    expect(await store.readProjection('personal.ongoing.continuation'), isNull);
+    expect(await other.readProjection('personal.now.continuation'), isNotNull);
+    expect(await other.readProjection('personal.ongoing.continuation'),
+        isNotNull);
+  });
+
   test('expired projection cannot be reused offline across Profile reads',
       () async {
     final db = MakoloDatabase.memory();
