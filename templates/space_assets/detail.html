@@ -13,6 +13,20 @@
       <a class="mk-docs-primary" href="{% url 'organizations:space-document-download' slug=space.slug version_id=document_versions.0.id %}" title="Télécharger la dernière version"><i data-lucide="download" aria-hidden="true"></i> Télécharger</a>
     {% endif %}
   </header>
+  {% if can_manage_documents %}
+  <details class="mk-docs-edit">
+    <summary class="mk-docs-quiet"><i data-lucide="pencil" aria-hidden="true"></i> Modifier</summary>
+    <form class="mk-docs-form" method="post" action="{% url 'organizations:space-document-update' slug=space.slug document_id=document.id %}">
+      {% csrf_token %}
+      <label>Titre<input name="title" value="{{ document.title }}" required maxlength="220"></label>
+      <label>Accès<select name="visibility">
+        <option value="restricted" {% if document.visibility == 'restricted' %}selected{% endif %}>Confidentiel</option>
+        <option value="internal" {% if document.visibility == 'internal' %}selected{% endif %}>Équipe autorisée</option>
+      </select></label>
+      <button class="mk-docs-primary" type="submit"><i data-lucide="check" aria-hidden="true"></i> Enregistrer</button>
+    </form>
+  </details>
+  {% endif %}
   {% if document.archived_at %}<div class="mk-docs-notice"><i data-lucide="archive" aria-hidden="true"></i> Document archivé</div>{% endif %}
   <section class="mk-docs-panel">
     <header><h2>Versions</h2>
