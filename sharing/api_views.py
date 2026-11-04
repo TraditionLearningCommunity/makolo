@@ -222,6 +222,18 @@ class ShareDeliveryResolveAPIView(SharingNoStoreBoundary, APIView):
                 user=request.user,
                 mark_opened=True,
             )
+            if delivery.envelope.subject_type == ShareSubjectType.SPACE_DOCUMENT:
+                version = delivery.envelope.space_document_subject.version
+                response = Response({
+                    "family": "space_document",
+                    "id": str(version.pk),
+                    "route": reverse(
+                        "sharing:space-document-delivery",
+                        kwargs={"delivery_id": delivery.pk},
+                    ),
+                })
+                response["Cache-Control"] = "private, no-store"
+                return response
             if delivery.envelope.subject_type == ShareSubjectType.PASSPORT:
                 snapshot = delivery.envelope.passport_subject.snapshot
                 response = Response({
