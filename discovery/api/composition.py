@@ -377,7 +377,7 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
             {
                 "id": str(source.pk),
                 "title": source.source_name,
-                "description": "Source publique de référence.",
+                "description": "",
                 "kind": "url",
                 "mime_type": None,
                 "external_url": _safe_public_http_url(source.url),
@@ -573,7 +573,7 @@ def _assessment(projection: dict) -> list[dict]:
             {
                 "state": "unknown",
                 "code": "personal_relation_not_resolved",
-                "label": "Votre situation n’est pas encore déterminée ici",
+                "label": "Nous n’avons pas encore confirmé si cette possibilité est liée à une démarche ou à un accès vous concernant.",
                 "provenance": "personal_relation",
             }
         )
