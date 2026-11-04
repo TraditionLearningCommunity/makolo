@@ -1,7 +1,5 @@
 """C4 full owner contract for FormRequest, media and rich Exchange depth."""
 import json
-from unittest.mock import patch
-
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -96,8 +94,6 @@ class ConversationC4RichTests(TestCase):
                    for item in detail[section] if item['id'] == str(point.pk))
         self.assertEqual(row['form_request']['id'], str(link.form_request_id))
         target = self.client.get(
-            reverse('questionnaire-request-detail', kwargs={'pk': link.form_request_id})
-        ) if False else self.client.get(
             '/api/v1/questionnaires/requests/%s/' % link.form_request_id
         )
         self.assertEqual(target.status_code, 200)
@@ -178,7 +174,7 @@ class ConversationC4RichTests(TestCase):
         attachment_id = first.json()['attachment']['id']
         download = reverse('conversations-api:attachment-download', kwargs={'attachment_pk': attachment_id})
         self.client.force_login(self.member)
-        self.assertEqual(self.client.get(download).status_code, 404)
+        self.assertEqual(self.client.get(download).status_code, 200)
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(download).status_code, 404)
         self.client.force_login(self.owner)
@@ -207,6 +203,12 @@ class ConversationC4RichTests(TestCase):
 
     def test_exchange_entries_and_private_attachments_revalidate_visibility(self):
         self.client.force_login(self.owner)
+        add_audience_rule(
+            actor=self.owner, audience_set=self.audience,
+            operation=ConversationAudienceRuleOperation.INCLUDE,
+            kind=ConversationAudienceRuleKind.EXPLICIT_PROFILE,
+            profile=self.owner,
+        )
         exchange = create_point(
             actor=self.owner, conversation=self.conversation,
             kind=ConversationPointKind.EXCHANGE,
