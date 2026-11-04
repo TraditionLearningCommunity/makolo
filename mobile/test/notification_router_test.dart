@@ -18,4 +18,24 @@ void main() {
       isNull,
     );
   });
+  test('legacy ticket with explicit Access opens owner destination', () {
+    const router = NotificationRouter();
+    final target = router.resolveNavigation({
+      'schema_version': 1,
+      'target': 'ticket',
+      'ticket_id': 'ticket-42',
+      'access_id': 'access-42',
+      'resource': {'kind': 'ticket', 'id': 'ticket-42'},
+    });
+    expect(target, '/accesses/access-42');
+  });
+
+  test('unsupported priority cannot manufacture an owner handoff', () {
+    const router = NotificationRouter();
+    expect(router.resolveNavigation({
+      'schema_version': 1,
+      'resource': {'kind': 'ticket', 'id': 'ticket-42'},
+    }), isNull);
+  });
+
 }
