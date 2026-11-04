@@ -363,7 +363,7 @@ class AccessRepository {
 
   static bool _isCredentialPath(String path, String accessId) {
     final parsed = Uri.tryParse(path);
-    if (parsed == null || parsed.hasAuthority ||
+    if (parsed == null || parsed.hasScheme || parsed.hasAuthority ||
         parsed.hasQuery || parsed.hasFragment) return false;
     return parsed.path ==
         '/api/v1/me/accesses/$accessId/credential/';
