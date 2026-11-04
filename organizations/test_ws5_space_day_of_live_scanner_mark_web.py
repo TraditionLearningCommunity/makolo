@@ -128,6 +128,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Jour J")
         self.assertContains(response, "Départ 08 h")
+        self.assertNotContains(response, "État : unknown")
         self.assertContains(
             response,
             self._url("organizations:space-occurrence-live", self.occurrence),
@@ -163,6 +164,9 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["projection"]["perspective"], "operator")
         self.assertEqual(response.context["projection"]["phase"], "live")
+        self.assertContains(response, "Makolo Live · Suivi")
+        self.assertNotContains(response, "Makolo Live · Occurrence")
+        self.assertNotContains(response, ">unknown</dd>")
         self.assertContains(
             response,
             "Une planification n’est jamais présentée comme une observation live.",
