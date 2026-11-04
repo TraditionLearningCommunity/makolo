@@ -73,7 +73,7 @@ class SpaceWorkSurface extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
             child: Text(
-              'Vue limitée aux activités autorisées dans votre responsabilité.',
+              'Vous voyez uniquement les activités auxquelles vous avez accès.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -136,8 +136,7 @@ class SpaceWorkSurface extends StatelessWidget {
           Text(
             payload['coverage_state'] == 'partial' ||
                     payload['composition_state'] == 'partial'
-                ? 'Cette lecture est limitée à votre responsabilité ou à '
-                      'cet aperçu. Aucun élément connu dans cette sélection.'
+                ? 'Cette vue est partielle. Aucun élément à afficher dans cette sélection.'
                 : emptyMessage,
           ),
         if (visible.isNotEmpty)
@@ -168,7 +167,7 @@ class SpaceWorkSurface extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           if (section.items.isEmpty)
-            const Text('D’autres éléments sont disponibles dans cette section.'),
+            const Text('Aucun élément dans cet aperçu.'),
           for (final item in section.items)
             _item(context, item, section.key),
           if (section.hasMore) ...[
