@@ -369,5 +369,55 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--apply", seeded.call_args.args[0])
 
 
+
+    def test_timeline_moves_occurrence_with_atomic_date_window(self):
+        import sqlite3
+        from scripts.demo_generation.clock import update_occurrence
+        from datetime import timedelta
+        db = sqlite3.connect(":memory:")
+        db.execute(
+            "CREATE TABLE activities_occurrence ("
+            "id TEXT PRIMARY KEY, start_at TEXT, end_at TEXT,"
+            "start_date TEXT, end_date TEXT, start_time TEXT, end_time TEXT,"
+            "schedule_local_date TEXT, timezone TEXT, schedule_id TEXT,"
+            "CONSTRAINT activities_occ_date_window CHECK "
+            "(end_date IS NULL OR start_date IS NULL OR end_date >= start_date))"
+        )
+        db.execute(
+            "INSERT INTO activities_occurrence VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("one", "2026-10-10 09:00:00", "2026-10-11 10:00:00",
+             "2026-10-10", "2026-10-11", "10:00:00", "11:00:00",
+             None, "Africa/Kinshasa", None),
+        )
+        self.assertEqual(update_occurrence(db, "one", timedelta(days=60)), 1)
+        result = db.execute(
+            "SELECT start_date,end_date FROM activities_occurrence WHERE id='one'"
+        ).fetchone()
+        self.assertEqual(result, ("2026-12-09", "2026-12-10"))
+        self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+        db.close()
+
+    def test_timeline_preserves_schedule_generated_slots(self):
+        import sqlite3
+        from scripts.demo_generation.clock import update_occurrence
+        from datetime import timedelta
+        db = sqlite3.connect(":memory:")
+        db.execute(
+            "CREATE TABLE activities_occurrence ("
+            "id TEXT, start_at TEXT, end_at TEXT, start_date TEXT, end_date TEXT,"
+            "start_time TEXT, end_time TEXT, schedule_local_date TEXT,"
+            "timezone TEXT, schedule_id TEXT)"
+        )
+        row = ("one", "2026-10-10 09:00:00", "2026-10-10 10:00:00",
+               "2026-10-10", "2026-10-10", "10:00:00", "11:00:00",
+               "2026-10-10", "Africa/Kinshasa", "schedule-1")
+        db.execute("INSERT INTO activities_occurrence VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+        self.assertEqual(update_occurrence(db, "one", timedelta(days=20)), 0)
+        self.assertEqual(
+            db.execute("SELECT * FROM activities_occurrence").fetchone(), row
+        )
+        db.close()
+
+
 if __name__ == "__main__":
     unittest.main()
