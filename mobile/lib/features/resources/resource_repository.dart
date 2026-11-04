@@ -274,6 +274,10 @@ class ResourceRepository {
     required int versionNumber,
     TransferProgress? onProgress,
   }) async {
+    if (sync?.isActive == false ||
+        (await readDetailSource(assetId)).invalidated) {
+      throw StateError('Resource owner permission withdrawn');
+    }
     final destination = await resourceDownloadDestination(
       profileId: profileId,
       assetId: assetId,
@@ -290,6 +294,14 @@ class ResourceRepository {
       destinationPath: destination,
       onProgress: onProgress,
     );
+    if (sync?.isActive == false ||
+        (await readDetailSource(assetId)).invalidated) {
+      await removeLocallyRetainedResourceVersions(
+        profileId: profileId,
+        assetId: assetId,
+      );
+      throw StateError('Resource owner permission withdrawn during transfer');
+    }
   }
 
   Future<void> downloadVersion({
