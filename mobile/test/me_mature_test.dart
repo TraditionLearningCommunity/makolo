@@ -211,7 +211,7 @@ void main() {
     expect(selection.identitySubtitle, 'Ingénieur · Lubumbashi, RDC');
     expect(
       selection.territories.map((territory) => territory.presentation.key),
-      ['passport', 'considerations', 'accesses', 'collectives', 'resources'],
+      ['passport', 'accesses', 'considerations', 'collectives', 'resources'],
     );
 
     final resources = selection.territories.singleWhere(
@@ -922,7 +922,7 @@ void main() {
       baseUri: Uri.parse('http://localhost/'),
       tokenStore: _UnusedMeTokenStore(),
     );
-    addTearDown(api.close);
+    addTearDown(() => api.close());
     await PresentationHarness.pump(
       tester,
       viewport: const Size(430, 932),
