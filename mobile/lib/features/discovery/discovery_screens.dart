@@ -770,6 +770,22 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   String? _locationMessage;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
+  String? _boundResultsKey;
+  DiscoveryRepository? _boundResultsRepository;
+  late Stream<StoredProjection?> _resultsStream;
+  late Stream<DiscoverySourceState> _resultsSourceStream;
+  late Stream<StoredProjection?> _watchesStream;
+
+  void _bindResultStreams() {
+    if (_boundResultsKey == _query.fingerprint &&
+        identical(_boundResultsRepository, widget.repository)) return;
+    _boundResultsKey = _query.fingerprint;
+    _boundResultsRepository = widget.repository;
+    _resultsStream = widget.repository.watchItems(_query);
+    _resultsSourceStream = widget.repository.watchSource(
+      widget.repository.itemsSource(_query),
+    );
+  }
   bool _refreshing = false;
   String? _verifiedFieldKey;
   bool _clarifying = false;
@@ -781,6 +797,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void initState() {
     super.initState();
     _query = widget.initialQuery;
+    _watchesStream = widget.repository.watchWatches();
     unawaited(_refreshSavedWatches());
     widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
@@ -797,6 +814,36 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (_query.hasCriteria) {
       _refreshing = true;
       _searchCoordinator.changed(immediate: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant DiscoverySearchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.repository, widget.repository)) {
+      // A new viewer cannot inherit another viewer's filters or watches.
+      _searchCoordinator.invalidate();
+      _watchesStream = widget.repository.watchWatches();
+      _boundResultsKey = null;
+      _boundResultsRepository = null;
+      _query = widget.initialQuery;
+      _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _pageTokens.clear();
+      _selectedWatchId = null;
+      _verifiedFieldKey = null;
+      _search.text = _query.text;
+      _place.text = _query.place;
+      _when = _query.date.isNotEmpty ? 'custom' : _query.when;
+      _date = _query.date;
+      _price = _query.price;
+      _vertical = _query.vertical;
+      unawaited(_refreshSavedWatches());
+      if (_query.hasCriteria) {
+        _refreshing = true;
+        _searchCoordinator.changed(immediate: true);
+      } else {
+        _refreshing = false;
+      }
     }
   }
 
@@ -890,7 +937,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   Widget _watchFilter() => StreamBuilder<StoredProjection?>(
-    stream: widget.repository.watchWatches(),
+    stream: _watchesStream,
     builder: (context, snapshot) {
       final results = snapshot.data?.payload['results'];
       if (results is! List) return const SizedBox.shrink();
@@ -1531,12 +1578,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                     child: Text('Saisissez ce que vous recherchez.'),
                   );
                 }
-                final source = widget.repository.itemsSource(_query);
+                _bindResultStreams();
                 return StreamBuilder<StoredProjection?>(
-                  stream: widget.repository.watchItems(_query),
+                  stream: _resultsStream,
                   builder: (context, snapshot) {
                     return StreamBuilder<DiscoverySourceState>(
-                      stream: widget.repository.watchSource(source),
+                      stream: _resultsSourceStream,
                       initialData: DiscoverySourceState.unknown,
                       builder: (context, sourceSnapshot) {
                         final projection = snapshot.data;
