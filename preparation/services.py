@@ -68,17 +68,22 @@ def _participant_has_context(actor, resource):
     return queryset.exists()
 
 
-def _public_activity_resource_allowed(actor, activity):
+def _public_activity_resource_allowed(actor, activity, *, eligible_activity_ids=None):
     """Published public Resource != authority to reveal a private Activity."""
     from accounts.models import UserProfile
     from activities.models import ActivityStatus, ActivityVisibility
     from groups.selectors import eligible_activity_ids_for_profile
     from organizations.models import SpaceLifecycle
 
+    admitted = (
+        eligible_activity_ids_for_profile(actor, [activity.pk])
+        if eligible_activity_ids is None
+        else eligible_activity_ids
+    )
     if (
         activity.status != ActivityStatus.PUBLISHED
         or activity.visibility != ActivityVisibility.PUBLIC
-        or activity.pk not in eligible_activity_ids_for_profile(actor, [activity.pk])
+        or activity.pk not in admitted
     ):
         return False
     if activity.space_id:
@@ -96,11 +101,13 @@ def _public_activity_resource_allowed(actor, activity):
     ).exists()
 
 
-def can_view_resource(actor, resource):
+def can_view_resource(actor, resource, *, eligible_activity_ids=None):
     if resource.status != ResourceStatus.PUBLISHED:
         return bool(getattr(actor, "is_authenticated", False) and can(actor, PermissionCode.ACTIVITY_MANAGE, activity=resource.activity))
     if resource.visibility == ResourceVisibility.PUBLIC:
-        if _public_activity_resource_allowed(actor, resource.activity):
+        if _public_activity_resource_allowed(
+            actor, resource.activity, eligible_activity_ids=eligible_activity_ids,
+        ):
             return True
         if getattr(actor, "is_authenticated", False):
             return (
