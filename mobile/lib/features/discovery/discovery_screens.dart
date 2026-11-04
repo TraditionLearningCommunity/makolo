@@ -2146,16 +2146,27 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     }
   }
 
-  Future<void> _openOwnerDepth(String path) async {
+  Future<void> _openOwnerDepth(
+    String path, {
+    required bool mayChangeOwnerState,
+  }) async {
     final key = _itemKey;
+    final repository = widget.repository;
+    final family = widget.family;
+    final id = widget.id;
     try {
       await context.push<void>(path);
     } finally {
-      // A purchase, contribution, registration or read-only depth can change
-      // the owner's capabilities. Reconcile N2 only when returning to the
-      // same possibility; keep the surrounding navigation stack intact.
-      if (mounted && key == _itemKey) {
-        await _refresh();
+      if (!mounted || key != _itemKey ||
+          !identical(repository, widget.repository)) return;
+      // Opening an Activity/Occurrence N3 is reading the same known facts.
+      // An action route (booking, payment, Journey, etc.) may change them.
+      if (mayChangeOwnerState ||
+          !await repository.hasReusableItem(family, id)) {
+        if (mounted && key == _itemKey &&
+            identical(repository, widget.repository)) {
+          await _refresh();
+        }
       }
     }
   }
@@ -2230,10 +2241,18 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               allowOwnerActions: verified,
                               detailMode: true,
                               onOpen: () {},
-                              onNativeAction: (path) =>
-                                  unawaited(_openOwnerDepth(path)),
-                              onOwnerDepth: (path) =>
-                                  unawaited(_openOwnerDepth(path)),
+                              onNativeAction: (path) => unawaited(
+                                _openOwnerDepth(
+                                  path,
+                                  mayChangeOwnerState: true,
+                                ),
+                              ),
+                              onOwnerDepth: (path) => unawaited(
+                                _openOwnerDepth(
+                                  path,
+                                  mayChangeOwnerState: false,
+                                ),
+                              ),
                               onSave: widget.authenticated && verified && !_saving &&
                                       (item.savedState == 'saved'
                                           ? item.canUnsave
