@@ -82,7 +82,7 @@ def main(argv=None):
                     with transaction.atomic():
                         watch, created = ensure_discovery_watch(
                             owner=user, criteria=criteria,
-                            name="[DEMO] Veille " + criteria["q"])
+                            name="Veille sur " + criteria["q"])
                     counts["watch_created" if created else "watch_existing"] += 1
                 except (ValidationError, PermissionDenied):
                     counts["watch_rejected"] += 1
