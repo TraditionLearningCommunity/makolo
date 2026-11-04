@@ -174,11 +174,26 @@ def _service_discovery_row(
     }
 
 
+
+def _service_discovery_queryset():
+    """Preserve owner admission; preload relationships read by vertical_for.
+
+    The Service candidate is already admitted by public_services(). This is
+    strictly a query optimization, never a replacement for owner/group gates.
+    """
+    return public_services().select_related(
+        "activity__event_vertical",
+        "activity__transport_service",
+        "activity__funding_details",
+        "activity__obtention_details",
+    )
+
+
 def public_service_discovery_item(activity_id, *, profile=None):
     # The owner owns public admission. Never reproduce a looser Service
     # status/visibility filter in Discovery (Space lifecycle and Profile
     # publication choices are checked by public_services).
-    service = public_services().filter(activity_id=activity_id).first()
+    service = _service_discovery_queryset().filter(activity_id=activity_id).first()
     if service is None:
         return None
     if service.activity_id not in eligible_activity_ids_for_profile(
@@ -226,7 +241,7 @@ def public_service_discovery_items(
         return []
 
     text = (params.get("q") or "").strip()
-    services = public_services()
+    services = _service_discovery_queryset()
     opportunities = _matching_opportunities(text)
     opportunity = opportunities[0] if opportunities else None
 
