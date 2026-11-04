@@ -236,6 +236,14 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
             })
 
         if q:
+            attention_by_conversation = (
+                {
+                    row.conversation.pk: row.attention_count
+                    for row in conversation_rows_for_profile(
+                        request.user, only_attention=True, limit=300,
+                    )
+                } if tab == "for-me" else {}
+            )
             seen = set()
             payload = []
             for result in search_conversations_for_profile(
@@ -243,6 +251,8 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
             ):
                 conversation = result.conversation
                 if conversation.pk in seen:
+                    continue
+                if tab == "for-me" and conversation.pk not in attention_by_conversation:
                     continue
                 if updated_after and conversation.updated_at <= updated_after:
                     continue
@@ -254,6 +264,7 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
                     "lifecycle": conversation.lifecycle,
                     "context": {"kind": conversation.context.kind, "label": result.context_label},
                     "matched_point_id": str(result.point.pk) if result.point else None,
+                    "attention_count": attention_by_conversation.get(conversation.pk, 0),
                     "updated_at": conversation.updated_at,
                 })
                 if len(payload) >= limit:
