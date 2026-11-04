@@ -303,8 +303,9 @@ class ConversationRepository {
     if (pointIdReturned == null || pointIdReturned.isEmpty) {
       throw const FormatException('Published Point identity not returned.');
     }
-    await refreshDetail(conversationId);
-    await refreshList();
+    // A Point/Exchange already confirmed by the owner remains successful
+    // even when its next projection acquisition fails.
+    await _refreshPublished(conversationId);
     return pointIdReturned;
   }
 
