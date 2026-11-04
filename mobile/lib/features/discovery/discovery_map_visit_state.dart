@@ -1,5 +1,6 @@
 import '../../platform/maps/makolo_map_view.dart';
 import 'discovery_repository.dart';
+import 'discovery_selector.dart';
 
 /// Transient presentation memory for Carte. It belongs to the current
 /// Discovery repository (and therefore its viewer) and never enters a server
@@ -7,6 +8,9 @@ import 'discovery_repository.dart';
 class DiscoveryMapVisitState {
   MapViewport? viewport;
   String? selectedCandidateKey;
+  /// UX-only hint for an exact departure/stopover/arrival selection.
+  /// Never grants a right or replaces the owner's geographic facts.
+  DiscoverySpatialAnchor? focusedAnchor;
 }
 
 final Expando<Map<String, DiscoveryMapVisitState>> _visits =
