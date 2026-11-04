@@ -287,7 +287,9 @@ def _activity_resource_previews(activity_ids, *, profile=None, occurrence_scope=
 
     # Preserve the Preparation authority check for every resource, but resolve
     # its Group gate for this viewer and admitted Activity set in one query.
-    eligible_ids = eligible_activity_ids_for_profile(profile, activity_ids)
+    eligible_ids = {
+        str(value) for value in eligible_activity_ids_for_profile(profile, activity_ids)
+    }
 
     rows = (
         ActivityResource.objects.filter(
