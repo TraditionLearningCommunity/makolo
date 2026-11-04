@@ -138,12 +138,11 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
   Future<void> _add() async {
     if (_busy || !_canManage || _actor == null) return;
-    final selection = await FilePicker.platform.pickFiles(
+    final chosen = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg'],
     );
-    if (selection == null || selection.files.isEmpty || !mounted) return;
-    final chosen = selection.files.single;
+    if (chosen == null || !mounted) return;
     if (chosen.path == null) return;
     final controller = TextEditingController(
       text: chosen.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
