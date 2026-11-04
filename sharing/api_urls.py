@@ -1,4 +1,5 @@
 from django.urls import path
+from .space_document_views import SpaceDocumentShareDownloadAPIView
 
 from .passport_reader_api import (
     PassportSharedReaderAPIView, PassportVerificationReaderAPIView, PassportDeliveryReaderAPIView,
@@ -14,6 +15,7 @@ from .api_views import (
 app_name = "sharing_api"
 
 urlpatterns = [
+    path("documents/deliveries/<uuid:delivery_id>/download/", SpaceDocumentShareDownloadAPIView.as_view(), name="document-delivery-download"),
     path("passport/verify/<str:token>/", PassportVerificationReaderAPIView.as_view(), name="passport-verify-reader"),
     path("passport/shared/<str:token>/", PassportSharedReaderAPIView.as_view(), name="passport-shared-reader"),
     path("passport/deliveries/<uuid:delivery_id>/", PassportDeliveryReaderAPIView.as_view(), name="passport-direct-reader"),
