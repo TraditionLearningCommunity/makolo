@@ -243,6 +243,14 @@ class ConversationC5MatureTests(TestCase):
         ))
         self.assertEqual(detail.status_code, 200)
         self.assertFalse(detail.json()['composer']['can_create'])
+        rows = detail.json()['points'] + detail.json()['essential'] + detail.json().get('elsewhere', [])
+        for row in rows:
+            self.assertFalse(row['can_respond'])
+        denied_response = self.client.post(
+            reverse('conversations-api:point-respond', kwargs={'point_pk': point.pk}),
+            {'value': 'reply after closing'},
+        )
+        self.assertEqual(denied_response.status_code, 400)
         history = self._history()
         self.assertEqual(
             [item['id'] for item in history.json()['results']], [str(point.pk)],
