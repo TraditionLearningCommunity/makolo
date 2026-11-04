@@ -52,7 +52,8 @@ class SyncEngine {
   // Separate runtimes cannot resurrect a previously withdrawn Profile fact.
   _SyncCoordinator get _coordinator =>
       _coordinators[database] ??= _SyncCoordinator();
-  String _scopeKey(String sourceKey) => '$profileId|$sourceKey';
+  String _scopeKey(SyncSourceDefinition source) =>
+      '$profileId|${source.actorScope.stableKey}|${source.sourceKey}';
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
   bool _active = true;
@@ -170,7 +171,7 @@ class SyncEngine {
 
   Future<void> pullSource(SyncSourceDefinition source) async {
     if (!_active) return;
-    final key = _scopeKey(source.sourceKey);
+    final key = _scopeKey(source);
     final coordinator = _coordinator;
     final generation = (coordinator.generations[key] ?? 0) + 1;
     coordinator.generations[key] = generation;
@@ -275,7 +276,7 @@ class SyncEngine {
   }
 
   Future<void> invalidate(SyncSourceDefinition source) async {
-    final key = _scopeKey(source.sourceKey);
+    final key = _scopeKey(source);
     final coordinator = _coordinator;
     coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
     await _ensureSource(source);
@@ -307,7 +308,7 @@ class SyncEngine {
     // response to another request, started before this denial, cannot
     // rehydrate a derived collection after the withdrawal committed.
     final coordinator = _coordinator;
-    final key = _scopeKey(source.sourceKey);
+    final key = _scopeKey(source);
     coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
     if (_isDiscoveryRelated(source)) {
       coordinator.discoveryEpochs[profileId] = _discoveryRevocationEpoch + 1;
@@ -316,7 +317,7 @@ class SyncEngine {
     // views as a family. Older in-flight pages cannot restore them.
     if (source.owner == 'ProfileHistory') {
       for (final key in coordinator.generations.keys
-          .where((key) => key.startsWith('$profileId|history:')).toList()) {
+          .where((key) => key.startsWith('$profileId|personal|history:')).toList()) {
         coordinator.generations[key] =
             (coordinator.generations[key] ?? 0) + 1;
       }
