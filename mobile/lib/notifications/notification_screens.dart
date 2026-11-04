@@ -41,6 +41,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   bool _loadingMore = false;
   bool _pageFailed = false;
   bool _onlyUnread = false;
+  bool _requestedUnread = false;
 
   @override
   void initState() {
@@ -57,8 +58,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 
   Future<void> _acquire() async {
     try {
-      final local = await widget.repository.readList();
-      final source = await widget.repository.readListSource();
+      final local = await widget.repository.readList(onlyUnread: _onlyUnread);
+      final source = await widget.repository.readListSource(onlyUnread: _onlyUnread);
       if (!mounted) return;
       if (local == null ||
           NotificationRepository.listFreshness.evaluate(
@@ -82,13 +83,14 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    _requestedUnread = _onlyUnread;
     setState(() {
       _refreshing = true;
       _pageFailed = false;
       _loadFailed = false;
     });
     try {
-      await widget.repository.refreshList();
+      await widget.repository.refreshList(onlyUnread: _requestedUnread);
     } on Object {
       if (mounted) setState(() => _loadFailed = true);
     } finally {
@@ -97,6 +99,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
           _attempted = true;
           _refreshing = false;
         });
+        if (_requestedUnread != _onlyUnread) unawaited(_acquire());
       }
     }
   }
@@ -109,7 +112,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 
   Future<void> _loadMore() async {
     if (_loadingMore || _refreshing) return;
-    final snapshot = await widget.repository.readList();
+    final snapshot = await widget.repository.readList(onlyUnread: _onlyUnread);
     if (!mounted || snapshot?.payload['next'] is! String) return;
     if (_onlyUnread && snapshot?.payload['unread_count'] == 0) return;
     setState(() {
@@ -117,12 +120,23 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       _pageFailed = false;
     });
     try {
-      await widget.repository.loadMore();
+      await widget.repository.loadMore(onlyUnread: _onlyUnread);
     } on Object {
       if (mounted) setState(() => _pageFailed = true);
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
+  }
+
+  void _chooseFilter(bool unreadOnly) {
+    if (_onlyUnread == unreadOnly) return;
+    setState(() {
+      _onlyUnread = unreadOnly;
+      _pageFailed = false;
+      _loadFailed = false;
+      _attempted = false;
+    });
+    unawaited(_acquire());
   }
 
   Future<void> _markAllRead() async {
@@ -155,10 +169,12 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchList(),
+      key: ValueKey<bool>(_onlyUnread),
+      stream: widget.repository.watchList(onlyUnread: _onlyUnread),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
-          stream: widget.repository.watchListSource(),
+          key: ValueKey<String>('source-$_onlyUnread'),
+          stream: widget.repository.watchListSource(onlyUnread: _onlyUnread),
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
             final projection = projectionSnapshot.data;
@@ -253,12 +269,21 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                           MakoloSpacing.inner,
                           0,
                         ),
-                        child: Row(
-                          children: [
-                            Text('${total.toInt()} notifications'),
-                            const SizedBox(width: MakoloSpacing.md),
-                            Text('${unread.toInt()} non lues'),
-                          ],
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: MakoloSpacing.md,
+                            runSpacing: 4,
+                            children: [
+                              Text('${total.toInt()} notifications'),
+                              Text(
+                                '${unread.toInt()} non lues',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     Padding(
@@ -276,12 +301,12 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                           ChoiceChip(
                             label: const Text('Toutes'),
                             selected: !_onlyUnread,
-                            onSelected: (_) => setState(() => _onlyUnread = false),
+                            onSelected: (_) => _chooseFilter(false),
                           ),
                           ChoiceChip(
                             label: const Text('Non lues'),
                             selected: _onlyUnread,
-                            onSelected: (_) => setState(() => _onlyUnread = true),
+                            onSelected: (_) => _chooseFilter(true),
                           ),
                           if (unread is num && unread > 0)
                             TextButton(
@@ -322,7 +347,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 padding: const EdgeInsets.all(20),
                                 child: Center(
                                   child: Text(
-                                    hasMore ? '' : 'Fin des notifications',
+                                    hasMore ? '' : 'Vous avez tout vu',
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ),
