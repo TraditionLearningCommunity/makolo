@@ -86,7 +86,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       // The currently open dated/history/share sheet must not remain
       // visible when the active owner is no longer this Space.
       setState(() {
-        error = 'Contexte Espace indisponible.';
+        error = 'Impossible de consulter le Passeport de cet Espace actuellement.';
         loading = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,7 +130,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     if (!authorized || api == null) {
       if (mounted) setState(() {
         source = null; loading = false;
-        error = 'Contexte Espace indisponible.';
+        error = 'Impossible de consulter le Passeport de cet Espace actuellement.';
       });
       return;
     }
@@ -237,7 +237,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
         ++epoch;
         if (mounted) setState(() {
           source = null;
-          error = 'Autorité Espace indisponible.';
+          error = 'Impossible de confirmer vos droits pour cette action.';
         });
       } else {
         message('Action indisponible.');
