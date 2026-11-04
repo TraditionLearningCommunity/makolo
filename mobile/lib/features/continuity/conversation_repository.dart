@@ -258,13 +258,17 @@ class ConversationRepository {
       }
       if (cursor == null && section == 'history' && query.trim().isEmpty) {
         final now = DateTime.now().toUtc();
-        await store.putProjection(
-          kind: depthProjectionKind, resourceKey: conversationId,
-          schemaVersion: 1, payload: payload, receivedAt: now,
-          freshUntil: now.add(const Duration(minutes: 15)),
-          expiresAt: now.add(const Duration(hours: 12)),
-          freshnessPolicyId: 'conversation-depth-owner',
-        );
+        try {
+          await store.putProjection(
+            kind: depthProjectionKind, resourceKey: conversationId,
+            schemaVersion: 1, payload: payload, receivedAt: now,
+            freshUntil: now.add(const Duration(minutes: 15)),
+            expiresAt: now.add(const Duration(hours: 12)),
+            freshnessPolicyId: 'conversation-depth-owner',
+          );
+        } on Object {
+          // Owner-confirmed search results still render if local storage fails.
+        }
       }
       return payload;
     } on MakoloApiError catch (error) {
