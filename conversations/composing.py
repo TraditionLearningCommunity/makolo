@@ -6,6 +6,9 @@ same permissions, policy, audience, lifecycle and represented actor.
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
+
+from authorization.constants import PermissionCode
+from authorization.services import can
 from django.utils import timezone
 
 from .audience_models import ConversationAudienceSet, ConversationAudienceStatus
@@ -79,8 +82,16 @@ def composer_capabilities(profile, conversation):
     default_exchange_id = str(exchange_points[0].pk) if len(exchange_points) == 1 else None
     text_mode = (
         "exchange" if default_exchange_id else
+        "exchange_select" if len(exchange_points) > 1 else
         "information" if ConversationPointKind.INFORMATION in allowed_kinds else
         None
+    )
+    representative_space = _context_space_for_composer(conversation)
+    representable_space_id = (
+        str(representative_space.pk)
+        if representative_space is not None and
+        can(profile, PermissionCode.SPACE_CONVERSATIONS_PUBLISH, space=representative_space)
+        else None
     )
     return {
         "can_create": can_create,
@@ -89,6 +100,7 @@ def composer_capabilities(profile, conversation):
         "audience_selection_required": len(audiences) > 1,
         "default_audience_id": str(audiences[0].pk) if len(audiences) == 1 else None,
         "text_mode": text_mode,
+        "representable_space_id": representable_space_id,
         "default_exchange_point_id": default_exchange_id,
         "exchange_targets": [
             {"id": str(item.pk), "title": item.title or "Échange"}
@@ -113,26 +125,30 @@ def _audience_for_publish(conversation, audience_id):
         raise ValidationError({"audience_id": "Audience indisponible."}) from exc
 
 
+def _context_space_for_composer(conversation):
+    context = conversation.context
+    if context.kind == ConversationContextKind.SPACE:
+        return context.space
+    if context.kind == ConversationContextKind.GROUP:
+        return context.group.space
+    if context.kind == ConversationContextKind.ACTIVITY:
+        return context.activity.space
+    if context.kind == ConversationContextKind.OCCURRENCE:
+        return context.occurrence.activity.space
+    if context.kind == ConversationContextKind.JOURNEY:
+        return context.journey.activity.space
+    if context.kind == ConversationContextKind.DOSSIER:
+        return context.dossier.owning_space
+    if context.kind == ConversationContextKind.PROJECT:
+        return context.project.owning_space
+    return None
+
+
 def _validate_represented_context(conversation, represented_space):
     if represented_space is None:
         return
-    context = conversation.context
-    space_id = None
-    if context.kind == ConversationContextKind.SPACE:
-        space_id = context.space_id
-    elif context.kind == ConversationContextKind.GROUP:
-        space_id = context.group.space_id
-    elif context.kind == ConversationContextKind.ACTIVITY:
-        space_id = context.activity.space_id
-    elif context.kind == ConversationContextKind.OCCURRENCE:
-        space_id = context.occurrence.activity.space_id
-    elif context.kind == ConversationContextKind.JOURNEY:
-        space_id = context.journey.activity.space_id
-    elif context.kind == ConversationContextKind.DOSSIER:
-        space_id = context.dossier.owning_space_id
-    elif context.kind == ConversationContextKind.PROJECT:
-        space_id = context.project.owning_space_id
-    if space_id != represented_space.pk:
+    owner_space = _context_space_for_composer(conversation)
+    if owner_space is None or owner_space.pk != represented_space.pk:
         raise PermissionDenied("Cet Espace ne porte pas cette Conversation.")
 
 
