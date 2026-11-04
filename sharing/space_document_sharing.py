@@ -53,6 +53,8 @@ def space_document_delivery(*, user, delivery_id, mark_opened=False):
     delivery = resolve_delivery_for_recipient(
         delivery_id=delivery_id, user=user, mark_opened=mark_opened,
     )
+    if delivery.declined_at is not None:
+        raise ShareUnavailable
     envelope = delivery.envelope
     if envelope.subject_type != ShareSubjectType.SPACE_DOCUMENT:
         raise ShareUnavailable
