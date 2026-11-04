@@ -379,18 +379,45 @@ def _occurrence_status(spec: dict) -> str:
 
 
 def _demo_title(title: str) -> str:
-    """Keep a scenario recognizable without presenting it as a real offer."""
+    """Restore natural titles from older seed snapshots without changing identity."""
     return title.removeprefix("Exemple — ").strip()
 
 
 def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
-    """Public-facing copy for a synthetic beta activity, never a real offer."""
+    """Contextual editorial copy; the seed's technical provenance remains separate."""
+    title = _demo_title(spec["title"])
     place = spec.get("geo")
-    short = f"Informations pratiques · {place}" if place else "Informations et modalités pratiques"
-    description = (
-        "Retrouvez les détails, les horaires et les conditions de participation liés à cette activité."
+    short_labels = {
+        "event": "Dates et repères de participation",
+        "transport": "Parcours et informations de départ",
+        "service": "Étapes et ressources de la démarche",
+        "funding": "Objectif et modalités du financement",
+    }
+    short = short_labels.get(vertical, "Informations et modalités pratiques")
+    if place:
+        short = f"{short} · {place}"
+    descriptions = {
+        "event": (
+            f"Pour « {title} », prenez connaissance des dates et des informations "
+            "pratiques disponibles afin de préparer votre participation."
+        ),
+        "transport": (
+            f"Pour préparer « {title} », retrouvez le parcours, le départ et les "
+            "indications de voyage lorsqu’elles sont précisées."
+        ),
+        "service": (
+            f"« {title} » rassemble les informations utiles pour comprendre cette "
+            "démarche, repérer les ressources associées et envisager la suite."
+        ),
+        "funding": (
+            f"Autour de « {title} », découvrez l’objectif de cette initiative et "
+            "examinez les modalités annoncées avant d’envisager une contribution."
+        ),
+    }
+    return short, descriptions.get(
+        vertical,
+        f"Retrouvez les informations et les ressources associées à « {title} ».",
     )
-    return short, description
 
 
 def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) -> Activity:
@@ -769,10 +796,21 @@ OPPORTUNITY_KINDS = (OpportunityKind.PROGRAM, OpportunityKind.SCHOLARSHIP, Oppor
 
 
 def _opportunity_summary(spec: dict) -> str:
+    """Describe the synthetic scenario, not a real user's private journey."""
+    situation = {
+        "engaged": "Le scénario permet d’explorer les étapes d’un dossier déjà commencé.",
+        "saved": "Il montre comment conserver une piste et revenir examiner ses conditions.",
+        "watched": "Il illustre le suivi des changements avant de prendre une décision.",
+        "not_eligible": "Il invite à vérifier les critères avant de préparer une candidature.",
+        "rejected": "Il permet de comprendre les suites possibles après un refus.",
+        "planned": "Il aide à organiser les questions à résoudre avant une candidature.",
+        "draft": "Il permet de préparer les informations nécessaires sans les transmettre.",
+        "discover_only": "Il aide à explorer les informations avant de décider de se lancer.",
+    }.get(spec.get("relation"), "Il permet d’examiner les informations et de préparer une suite.")
     return (
-        "Cette possibilité fait partie des exemples de Makolo. "
-        "Elle permet de découvrir les étapes d’une candidature, sans correspondre à un appel réel. "
-        "Les dates, les conditions et les résultats du scénario sont fictifs."
+        f"« {spec['title']} » fait partie des exemples de Makolo. {situation} "
+        "Les dates, les conditions et les résultats du scénario sont fictifs ; "
+        "aucune candidature réelle n’est ouverte par cette fiche."
     )
 
 
