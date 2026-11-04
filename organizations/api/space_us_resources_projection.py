@@ -11,28 +11,38 @@ from authorization.selectors import has_direct_space_permission
 from presentations.enums import VersionStatus
 from presentations.models import PresentationTemplateVersion, PresentationThemeVersion
 from sharing.models import PassportSnapshot
+from space_assets.models import SpaceDocument
+from space_assets.services import visible_documents, can_manage_documents
 
 PAGE_SIZE = 20
-PREVIEW_LIMIT = 3
-RESOURCE_KINDS = ("passport", "template", "theme")
+PREVIEW_LIMIT = 4
+RESOURCE_KINDS = ("document", "passport", "template", "theme")
 # These are the currently established institutional owners, not a claim
 # that every kind of corporate document has a canonical Makolo owner.
 RESOURCE_COVERAGE = {
     "state": "partial",
-    "owners": ["sharing.passport", "presentations.library"],
+    "owners": ["space_assets.documents", "sharing.passport", "presentations.library"],
 }
 
 
 def can_view_space_resources(*, profile, space):
     """The included private documents require current institutional authority."""
-    return has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE)
+    return (
+        has_direct_space_permission(profile, space, PermissionCode.SPACE_VIEW)
+        or has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE)
+    )
 
 
-def _families(space):
+def _families(space, profile):
+    manager = can_manage_documents(profile, space)
     return {
+        "document": visible_documents(actor=profile, space=space).order_by("-updated_at", "-pk"),
         "passport": PassportSnapshot.objects.filter(
-            space=space, revoked_at__isnull=True
-        ).order_by("-generated_at", "-pk"),
+            space=space, revoked_at__isnull=True,
+        ).filter(pk__in=(
+            PassportSnapshot.objects.filter(space=space).values("pk")
+            if manager else PassportSnapshot.objects.none().values("pk")
+        )).order_by("-generated_at", "-pk"),
         "template": PresentationTemplateVersion.objects.filter(
             template__owner_space=space,
             status=VersionStatus.PUBLISHED,
@@ -45,6 +55,18 @@ def _families(space):
 
 
 def _item(kind, row, *, slug):
+    if kind == "document":
+        return {
+            "kind": kind,
+            "id": str(row.pk),
+            "title": row.title,
+            "detail": "Document de l’Espace" + (
+                " · Confidentiel" if row.visibility == "restricted" else ""
+            ),
+            "issued_at": None,
+            "owner": "space_assets",
+            "handoff": f"/space/{slug}/us/documents/{row.pk}",
+        }
     if kind == "passport":
         return {
             "kind": kind,
@@ -83,14 +105,14 @@ def build_space_us_resources_projection(
     if not isinstance(offset, int) or offset < 0 or offset > 100000:
         raise ValueError("Invalid resource offset")
 
-    families = _families(space)
+    families = _families(space, profile)
     counts = {name: qs.count() for name, qs in families.items()}
     total = sum(counts.values())
     if preview:
         # One preview per actual owner family prevents many Passport
         # revisions from drowning out reusable institutional resources.
         items = []
-        for name in ("template", "theme", "passport"):
+        for name in ("document", "template", "theme", "passport"):
             items.extend(
                 _item(name, row, slug=space.slug)
                 for row in families[name][:1]
