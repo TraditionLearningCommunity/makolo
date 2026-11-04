@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from .core_models import ConversationLifecycle
 from .contact_models import CommunicationRoute, CommunicationRouteStatus
 from .point_models import ConversationPoint, ConversationPointLifecycle
 from .services import can_manage_conversation, can_manage_conversation_routes
@@ -16,6 +17,8 @@ def cancel_point(*, actor, point: ConversationPoint):
         raise PermissionDenied("Vous ne pouvez pas annuler ce Point.")
     if locked.lifecycle == ConversationPointLifecycle.CANCELLED:
         return locked
+    if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("La Conversation est fermée.")
     if locked.lifecycle not in {
         ConversationPointLifecycle.OPEN,
         ConversationPointLifecycle.RESPONSE_CLOSED,
