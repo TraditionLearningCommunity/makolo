@@ -182,7 +182,9 @@ class ConversationJ7ContractsTests(TestCase):
         )
         response = self.client.get(reverse("conversations-api:by-context", kwargs=kwargs))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"count": 0, "results": []})
+        self.assertEqual(response.json()["count"], 0)
+        self.assertEqual(response.json()["results"], [])
+        self.assertFalse(response.json()["can_ensure"])
         self.assertEqual(Conversation.objects.count(), before)
 
     def test_c2_groups_visible_points_once_with_essential_and_elsewhere(self):
