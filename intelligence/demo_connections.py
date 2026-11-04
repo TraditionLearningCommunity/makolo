@@ -5,6 +5,7 @@ but are ALWAYS disabled and NEVER have credentials. No gateway may dispatch them
 """
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from accounts.models import UserProfile
 from .capabilities import IntelligenceCapability
 from .models import ProviderConnection, ProviderHealth, ProviderProtocol, ProviderScope, IntelligenceRoute
@@ -57,12 +58,22 @@ def create_demo_connection(*, actor, scope, provider, consent, space=None):
         _assert_management(actor=actor, scope=scope)
         owner = {"profile": None, "space": None}
     name = offer["label"]
+    legacy = ProviderConnection.objects.filter(scope=scope, **owner).filter(
+        Q(name="[DEMO Connexion] " + name) |
+        Q(name=name, default_model="demo-disabled")
+    ).first()
+    if legacy:
+        if legacy.name != name or legacy.default_model != "demo-disabled" or legacy.enabled:
+            legacy.name = name
+            legacy.default_model = "demo-disabled"
+            legacy.enabled = False
+            legacy.save(update_fields=["name", "default_model", "enabled", "updated_at"])
+        return legacy, False
     obj, created = ProviderConnection.objects.get_or_create(
-        scope=scope, name=name, **owner,
+        scope=scope, name=name, default_model="demo-disabled", **owner,
         defaults={
             "protocol": category[3],
             "base_url": category[4],
-            "default_model": "demo-disabled",
             "enabled": False,
             "health_status": ProviderHealth.UNKNOWN,
         },
