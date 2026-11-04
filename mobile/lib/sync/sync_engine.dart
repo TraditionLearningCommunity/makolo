@@ -56,6 +56,7 @@ class SyncEngine {
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
   bool _active = true;
+  bool get isActive => _active;
 
   /// Stop all in-flight acquisitions on account/runtime replacement.
   /// Never erase durable user-owned offline knowledge on logout alone.
