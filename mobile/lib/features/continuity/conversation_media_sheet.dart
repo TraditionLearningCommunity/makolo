@@ -27,6 +27,7 @@ class ConversationMediaSheet extends StatefulWidget {
     required this.capabilities,
     required this.onPublished,
     this.representedSpaceId,
+    this.lockedPointId,
   });
 
   final String mode; // voice, photo, camera, document
@@ -35,6 +36,7 @@ class ConversationMediaSheet extends StatefulWidget {
   final Map<String, dynamic> capabilities;
   final ValueChanged<String> onPublished;
   final String? representedSpaceId;
+  final String? lockedPointId;
 
   @override
   State<ConversationMediaSheet> createState() => _ConversationMediaSheetState();
@@ -57,7 +59,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
   String? _selectedPointId;
   bool _sending = false;
   bool _opening = false;
-  bool _playing = false;
+  // Capture state is owned here; no optimistic upload success.
 
   List<Map<String, dynamic>> _rows(String key) {
     final raw = widget.capabilities[key];
@@ -74,6 +76,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       widget.capabilities['audience_selection_required'] == true;
 
   bool get _requiresPoint =>
+      widget.lockedPointId == null &&
       widget.capabilities['text_mode'] == 'exchange_select';
 
   String? get _representedSpace =>
@@ -88,7 +91,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     super.initState();
     _selectedAudienceId =
         widget.capabilities['default_audience_id']?.toString();
-    _selectedPointId =
+    _selectedPointId = widget.lockedPointId ??
         widget.capabilities['default_exchange_point_id']?.toString();
     _caption.addListener(_edited);
     WidgetsBinding.instance.addPostFrameCallback((_) {
