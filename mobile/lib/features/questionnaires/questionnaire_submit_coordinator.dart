@@ -91,7 +91,7 @@ class QuestionnaireSubmitCoordinator {
   Future<OutboxResolution> _execute(OutboxOperation operation) async {
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
-    final journeyId = _requiredString(payload, 'journey_id');
+    final journeyId = payload['journey_id']?.toString().trim() ?? '';
     final answers = _answers(payload['answers']);
     final links = _links(payload);
 
@@ -149,7 +149,7 @@ class QuestionnaireSubmitCoordinator {
   Future<OutboxResolution> _reconcile(OutboxOperation operation) async {
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
-    final journeyId = _requiredString(payload, 'journey_id');
+    final journeyId = payload['journey_id']?.toString().trim() ?? '';
     final links = _links(payload);
 
     try {
