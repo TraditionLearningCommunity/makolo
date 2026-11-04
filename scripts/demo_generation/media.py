@@ -105,7 +105,7 @@ def main(argv=None):
                     asset=asset, state=PresentationMediaState.PUBLISHED,
                 ).exclude(alt_text="").order_by("id").first()
                 alt_text = (source_use.alt_text if source_use else
-                    "Illustration de demonstration pour " + activity.title[:200])
+                    "Illustration de " + activity.title[:200])
                 with transaction.atomic():
                     use = associate_presentation_media(
                         actor=actor, activity=activity, asset=asset,
