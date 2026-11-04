@@ -1,10 +1,12 @@
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from accounts.models import User
+from activities.models import Activity
 from authorization.constants import PermissionCode
 from authorization.services import can
 from demo_seed.beta import BETA_PERSONAS
+from demo_seed.mobile_mature_universe import _demo_title, _opportunity_summary
 from demo_seed.beta_validation import assert_beta_scenario_coverage
 from demo_seed.task22_extension import T22_PERSONAS
 from events.models import Event
@@ -46,6 +48,8 @@ class MakoloDemoSeedTests(TestCase):
         self.assertTrue(admin.is_superuser)
         self.assertTrue(admin.check_password(self.password))
         self.assertTrue(participant.check_password(self.password))
+        self.assertTrue(Activity.objects.get(slug="beta-event-free").title.startswith("Exemple — "))
+        self.assertTrue(Activity.objects.get(slug="beta-transport-lub-kol").title.startswith("Exemple — "))
 
     def test_beta_seed_reconciles_guarded_status_snapshots_on_rerun(self):
         call_command(
@@ -145,3 +149,27 @@ class MakoloDemoSeedTests(TestCase):
             },
         )
         self.assertTrue(all(email.endswith(".test") for email in set(BETA_PERSONAS.values()) | set(T22_PERSONAS.values())))
+
+
+class DemoProductLanguageTests(SimpleTestCase):
+    def test_mobile_scenarios_are_identified_without_erasing_their_title(self):
+        self.assertEqual(
+            _demo_title("Festival musical à Lubumbashi"),
+            "Exemple — Festival musical à Lubumbashi",
+        )
+        self.assertEqual(
+            _demo_title("Exemple — Festival musical à Lubumbashi"),
+            "Exemple — Festival musical à Lubumbashi",
+        )
+
+    def test_public_demo_opportunity_does_not_claim_a_personal_journey_or_real_offer(self):
+        summary = _opportunity_summary({
+            "title": "Formation professionnelle",
+            "relation": "engaged",
+            "state": "ongoing",
+            "geo": "Lubumbashi",
+        })
+        self.assertIn("exemples de Makolo", summary)
+        self.assertIn("fictifs", summary)
+        self.assertNotIn("Alain", summary)
+        self.assertNotIn("actuellement ouverte", summary)
