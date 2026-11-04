@@ -498,8 +498,10 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: MakoloSpacing.xs,
               children: [
                 if (canChangeSaved)
                   IconButton(
