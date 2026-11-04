@@ -505,6 +505,7 @@ class AccessRepository {
         checked != null &&
         !expiry.isBefore(checked) &&
         expiry.isAfter(DateTime.now().toUtc());
+    var securelyRetained = false;
     if (canRetain && expiry != null && checked != null) {
       try {
         await credentialVault.save(
@@ -518,6 +519,7 @@ class AccessRepository {
             expiresAt: expiry,
           ),
         );
+        securelyRetained = true;
       } on Object {
         // Secure-store failure never copies a secret into an unprotected DB.
       }
@@ -533,10 +535,22 @@ class AccessRepository {
         }
       }
     }
-    if (isCurrent() && canRetain &&
-        !(await readSource(accessId)).invalidated &&
-        !(await _hasRevokedBeneficiaryCollection())) {
-      await _markCredentialRetention(accessId, denied: false);
+    if (isCurrent() && canRetain) {
+      final stillAuthorized = sync?.isActive != false &&
+          !(await readSource(accessId)).invalidated &&
+          !(await _hasRevokedBeneficiaryCollection());
+      if (stillAuthorized && securelyRetained) {
+        await _markCredentialRetention(accessId, denied: false);
+      } else {
+        // Generic Access revocation and secure-vault failure both fail
+        // closed, even when the HTTP credential response itself was 200.
+        await _markCredentialRetention(accessId, denied: true);
+        try {
+          await credentialVault.delete(profileId, accessId);
+        } on Object {
+          // The nonsecret Profile tombstone prevents local disclosure.
+        }
+      }
     }
 
     return AccessCredentialData(
