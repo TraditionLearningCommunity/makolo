@@ -4,6 +4,10 @@ Le seed Makolo est un environnement de démonstration et de test manuel reproduc
 
 Aucune donnée réelle ne doit être utilisée. Les comptes, contacts, lieux métier et historiques du profil bêta sont fictifs ; les adresses e-mail utilisent le domaine réservé `.test`.
 
+Les offres et activités synthétiques destinées aux vues publiques portent un titre reconnaissable commençant par « Exemple — », tout en conservant leur contexte et leur intitulé. Les descriptions indiquent explicitement que les inscriptions, commandes, billets ou remises ne correspondent pas à un service réel. Dans le jeu mobile mature, les annuaires et sites publics ajoutés comme références illustratives ne vérifient **pas** l'existence des opportunités fictives : leurs sources ne portent donc aucune certification fictive.
+
+Ces garanties sont appliquées par les générateurs et la validation du seed, pas par une réécriture générale du contenu publié par les vrais porteurs. **Une modification du générateur ne corrige pas à elle seule les enregistrements déjà présents dans une base bêta** : effectuer un reseed contrôlé des seules données de démonstration, puis exécuter la validation. Ne pas toucher aux offres réelles pour réparer une ancienne fixture.
+
 ## Profil recommandé
 
 Le profil de référence pour la bêta est `beta` :
