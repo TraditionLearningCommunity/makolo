@@ -394,7 +394,10 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
           builder: (context, invitationSourceSnapshot) {
             final invitationFailure =
                 invitationSourceSnapshot.data?.lastErrorCode != null;
-            return ListView(
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: ListView(
               key: const Key('conversation-list-content'),
               padding: const EdgeInsets.symmetric(
                 horizontal: MakoloSpacing.inner,
@@ -404,7 +407,11 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                 TextField(
                   key: const Key('conversation-search-field'),
                   onChanged: _scheduleSearch,
+                  maxLength: 120,
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
+                    labelText: 'Rechercher',
+                    counterText: '',
                     hintText: 'Rechercher une conversation…',
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _searching
@@ -422,6 +429,49 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                         : null,
                   ),
                 ),
+                const SizedBox(height: MakoloSpacing.sm),
+                Wrap(
+                  spacing: MakoloSpacing.sm,
+                  runSpacing: MakoloSpacing.xs,
+                  children: [
+                    ChoiceChip(
+                      key: const Key('conversation-tab-all'),
+                      label: const Text('Toutes'),
+                      selected: _tab == 'all',
+                      onSelected: (_) => _setTab('all'),
+                    ),
+                    ChoiceChip(
+                      key: const Key('conversation-tab-for-me'),
+                      label: const Text('À traiter'),
+                      selected: _tab == 'for-me',
+                      onSelected: (_) => _setTab('for-me'),
+                    ),
+                    ChoiceChip(
+                      key: const Key('conversation-tab-archived'),
+                      label: const Text('Archives'),
+                      selected: _tab == 'archived',
+                      onSelected: (_) => _setTab('archived'),
+                    ),
+                  ],
+                ),
+                if (_archiveLoading && _tab == 'archived')
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
+                if (_archiveFailed && _tab == 'archived') ...[
+                  const Padding(
+                    padding: EdgeInsets.only(top: MakoloSpacing.sm),
+                    child: Text('Mise à jour des archives indisponible.'),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: _loadArchive,
+                      child: const Text('Réessayer'),
+                    ),
+                  ),
+                ],
                 if (_searchFailed)
                   const Padding(
                     padding: EdgeInsets.only(top: MakoloSpacing.sm),
@@ -458,7 +508,9 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
                     child: Text(
                       _query.trim().isEmpty
-                          ? 'Aucune conversation à afficher.'
+                          ? (_tab == 'archived'
+                               ? 'Aucune archive disponible.'
+                               : 'Aucune conversation à afficher.')
                           : _searching
                           ? 'Recherche…'
                           : 'Aucun résultat.',
@@ -513,9 +565,13 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                               ),
                               const SizedBox(width: MakoloSpacing.sm),
                               if (item.attentionCount > 0)
-                                Text(
-                                  '${item.attentionCount} à traiter',
-                                  style: Theme.of(context).textTheme.labelMedium,
+                                Flexible(
+                                  child: Text(
+                                    '${item.attentionCount} à traiter',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.labelMedium,
+                                  ),
                                 )
                               else
                                 const Icon(Icons.chevron_right_rounded, size: 20),
@@ -527,6 +583,8 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                     const Divider(height: 1),
                   ],
               ],
+                ),
+              ),
             );
           },
         );
