@@ -112,17 +112,20 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 
   Future<void> _loadMore() async {
     if (_loadingMore || _refreshing) return;
-    final snapshot = await widget.repository.readList(onlyUnread: _onlyUnread);
+    final requestedUnread = _onlyUnread;
+    final snapshot = await widget.repository.readList(onlyUnread: requestedUnread);
     if (!mounted || snapshot?.payload['next'] is! String) return;
-    if (_onlyUnread && snapshot?.payload['unread_count'] == 0) return;
+    if (requestedUnread && snapshot?.payload['unread_count'] == 0) return;
     setState(() {
       _loadingMore = true;
       _pageFailed = false;
     });
     try {
-      await widget.repository.loadMore(onlyUnread: _onlyUnread);
+      await widget.repository.loadMore(onlyUnread: requestedUnread);
     } on Object {
-      if (mounted) setState(() => _pageFailed = true);
+      if (mounted && requestedUnread == _onlyUnread) {
+        setState(() => _pageFailed = true);
+      }
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
@@ -130,6 +133,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 
   void _chooseFilter(bool unreadOnly) {
     if (_onlyUnread == unreadOnly) return;
+    if (_scroll.hasClients) _scroll.jumpTo(0);
     setState(() {
       _onlyUnread = unreadOnly;
       _pageFailed = false;
@@ -322,7 +326,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                         onRefresh: _refresh,
                         child: ListView.builder(
                           controller: _scroll,
-                          key: const PageStorageKey<String>('notification-inbox-list'),
+                          key: PageStorageKey<String>(
+                            _onlyUnread ? 'notification-unread' : 'notification-all',
+                          ),
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: visible.length + 1,
                           itemBuilder: (context, index) {
