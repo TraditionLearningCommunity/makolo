@@ -122,7 +122,7 @@ def main(argv=None):
                     if version is None:
                         version = create_form_version(form=form, actor=actor)
                         add_question(form_version=version, actor=actor,
-                            key="notes", label="Informations utiles pour votre demarche",
+                            key="notes", label="Quelles informations complémentaires souhaitez-vous partager ?",
                             question_type=QuestionType.LONG_TEXT,
                             position=1, required=False)
                         publish_form_version(form_version=version, actor=actor)
