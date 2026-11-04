@@ -146,9 +146,30 @@ class SpaceDocumentCollectionAPIView(SpaceDocumentBase):
 class SpaceDocumentDetailAPIView(SpaceDocumentBase):
     def get(self, request, slug, document_id):
         doc = self.item(request, slug, document_id)
+        may_manage = can_manage_documents(request.user, doc.space)
+        shares = []
+        if may_manage:
+            from sharing.models import ShareDelivery, ShareSubjectType
+            rows = ShareDelivery.objects.select_related(
+                "recipient__user", "envelope",
+            ).filter(
+                envelope__subject_type=ShareSubjectType.SPACE_DOCUMENT,
+                envelope__space_document_subject__version__document=doc,
+            ).order_by("-delivered_at")[:30]
+            shares = [
+                {
+                    "id": str(row.pk),
+                    "recipient": row.recipient.user.username,
+                    "active": row.envelope.is_active_at() and not row.declined_at,
+                    "expires_at": row.envelope.expires_at.isoformat()
+                    if row.envelope.expires_at else None,
+                }
+                for row in rows
+            ]
         return self.respond({
             "document": _document_item(doc, detail=True),
-            "can_manage": can_manage_documents(request.user, doc.space),
+            "can_manage": may_manage,
+            "shares": shares,
         })
 
     def patch(self, request, slug, document_id):
