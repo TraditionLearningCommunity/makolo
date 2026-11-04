@@ -161,6 +161,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   Timer? _positionDebounce;
   double? _pendingScrollRestore;
   String? _focusedCandidateKey;
+  int _restoreGeneration = 0;
 
   static const _positionProjection = 'discovery.presentation-position';
 
@@ -191,6 +192,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       _pendingScrollRestore = null;
       _focusedCandidateKey = null;
       _pageRequests.clear();
+      _unseenLoad = null;
+      ++_restoreGeneration;
       unawaited(_restorePositionThenAcquire());
     }
   }
@@ -238,14 +241,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Future<void> _loadUnseenReserve(DiscoveryQuery query) async {
-    final projection = await widget.repository.readItems(query);
+    final repository = widget.repository;
+    final projection = await repository.readItems(query);
     if (projection == null) return;
     final collection = _selector.collection(projection);
-    final root = await widget.repository.readItems(
+    final root = await repository.readItems(
       query.copyWith(page: 1, clearContinuation: true),
     );
     if (root == null) return;
-    final saved = await widget.repository.readUnseenReserve(query);
+    final saved = await repository.readUnseenReserve(query);
     final reserve = saved ??
         DiscoveryUnseenReserve(rootReceivedAt: root.receivedAt);
     reserve.observe(collection.items.map((item) => item.wire));
@@ -255,45 +259,58 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         count: _initialReveal(collection.items.length),
       );
     }
-    if (!mounted || query.mapFingerprint != _query.mapFingerprint) return;
+    if (!mounted ||
+        !identical(widget.repository, repository) ||
+        query.mapFingerprint != _query.mapFingerprint) return;
     setState(() {
       _unseenReserve = reserve;
       _unseenField = query.mapFingerprint;
     });
-    await widget.repository.saveUnseenReserve(query, reserve);
+    await repository.saveUnseenReserve(query, reserve);
   }
 
   Future<void> _restorePositionThenAcquire() async {
+    final generation = ++_restoreGeneration;
+    final repository = widget.repository;
+    final initial = _query;
+    bool current() => mounted &&
+        generation == _restoreGeneration &&
+        identical(widget.repository, repository) &&
+        identical(_query, initial);
     try {
-      final initial = _query;
-      final marker = await widget.repository.store.readProjection(
+      final marker = await repository.store.readProjection(
         _positionProjection,
         resourceKey: initial.mapFingerprint,
       );
+      if (!current()) return;
       _pendingScrollRestore = retainedDiscoveryScrollOffset(marker);
       _focusedCandidateKey = retainedDiscoveryFocusedCandidate(marker);
       final restored = retainedDiscoveryPosition(marker);
       if (restored != null) {
-        final known = await widget.repository.readItems(restored);
-        final source = await widget.repository.readSource(
-          widget.repository.itemsSource(restored),
+        final known = await repository.readItems(restored);
+        final source = await repository.readSource(
+          repository.itemsSource(restored),
         );
+        if (!current()) return;
         if (known != null &&
             !source.ownerUnavailable &&
-            source.lastErrorCode != 'continuation_rejected' &&
-            mounted &&
-            identical(_query, initial)) {
+            source.lastErrorCode != 'continuation_rejected') {
           setState(() => _query = restored);
-          widget.repository.rememberExploration(restored);
+          repository.rememberExploration(restored);
         }
       }
     } on Object {
       // A missing or outdated cursor never prevents the initial field.
     }
-    if (mounted) {
+    if (mounted &&
+        generation == _restoreGeneration &&
+        identical(widget.repository, repository)) {
       setState(() {});
       await _ensureUnseenReserve(_query);
-      await _acquire();
+      if (mounted && generation == _restoreGeneration &&
+          identical(widget.repository, repository)) {
+        await _acquire();
+      }
     }
   }
 
