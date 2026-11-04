@@ -10,6 +10,9 @@
       <h1 id="docs-title">{{ document.title }}</h1>
     </div>
     {% if not document.archived_at and document_versions %}
+      {% if document_versions.0.mime_type == "application/pdf" or document_versions.0.mime_type == "image/jpeg" or document_versions.0.mime_type == "image/png" %}
+      <a class="mk-docs-quiet" href="{% url 'organizations:space-document-preview' slug=space.slug version_id=document_versions.0.id %}" target="_blank" rel="noopener noreferrer" title="Ouvrir"><i data-lucide="eye" aria-hidden="true"></i> Ouvrir</a>
+      {% endif %}
       <a class="mk-docs-primary" href="{% url 'organizations:space-document-download' slug=space.slug version_id=document_versions.0.id %}" title="Télécharger la dernière version"><i data-lucide="download" aria-hidden="true"></i> Télécharger</a>
     {% endif %}
   </header>
@@ -47,6 +50,9 @@
         <span class="mk-docs-file"><i data-lucide="file-text" aria-hidden="true"></i></span>
         <span class="mk-docs-copy"><strong>Version {{ version.version }}</strong><small>{{ version.created_at|date:"d M Y" }} · {{ version.size|filesizeformat }}</small></span>
         {% if not document.archived_at %}
+        {% if version.mime_type == "application/pdf" or version.mime_type == "image/jpeg" or version.mime_type == "image/png" %}
+        <a href="{% url 'organizations:space-document-preview' slug=space.slug version_id=version.id %}" target="_blank" rel="noopener noreferrer" class="mk-docs-icon" title="Ouvrir" aria-label="Ouvrir la version {{ version.version }}"><i data-lucide="eye" aria-hidden="true"></i></a>
+        {% endif %}
         <a href="{% url 'organizations:space-document-download' slug=space.slug version_id=version.id %}" class="mk-docs-icon" title="Télécharger" aria-label="Télécharger la version {{ version.version }}"><i data-lucide="download" aria-hidden="true"></i></a>
         {% endif %}
       </li>
