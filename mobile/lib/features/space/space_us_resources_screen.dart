@@ -240,7 +240,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           ),
           const SizedBox(height: MakoloSpacing.lg),
           if (_denied)
-            const Text('Ce contexte ou ces ressources ne sont pas autorisés.')
+            const Text('Vous n’avez pas accès à ces ressources.')
           else if (_error != null) ...[
             Text(_error!),
             TextButton.icon(
@@ -251,7 +251,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           ] else if (_loading && _items.isEmpty)
             const Center(child: CircularProgressIndicator())
           else if (_items.isEmpty)
-            const Text('Aucune ressource disponible dans cette catégorie.')
+            const Text('Aucune ressource dans cette catégorie.')
           else
             for (final item in _items)
               Card(
@@ -339,7 +339,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           ),
           const SizedBox(height: MakoloSpacing.lg),
           if (_denied)
-            const Text('Ce contexte ou ces ressources ne sont pas autorisés.')
+            const Text('Vous n’avez pas accès à ces ressources.')
           else if (_error != null) ...[
             Text(_error!),
             TextButton.icon(
@@ -350,7 +350,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           ] else if (_loading && _items.isEmpty)
             const Center(child: CircularProgressIndicator())
           else if (_items.isEmpty)
-            const Text('Aucune ressource disponible dans cette catégorie.')
+            const Text('Aucune ressource dans cette catégorie.')
           else
             for (final item in _items)
               Card(
