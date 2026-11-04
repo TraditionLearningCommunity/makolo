@@ -265,6 +265,80 @@ class SpaceDocumentTests(TestCase):
             version.share_subjects.exists(),
         )
 
+    def test_web_collection_detail_versions_and_sharing(self):
+        from django.urls import reverse
+        doc, version = self.create()
+        self.client.force_login(self.owner)
+        library_url = reverse(
+            "organizations:space-documents", kwargs={"slug": self.space.slug},
+        )
+        response = self.client.get(library_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Statuts collectifs")
+        self.assertContains(response, "Ajouter")
+        detail_url = reverse(
+            "organizations:space-document-detail",
+            kwargs={"slug": self.space.slug, "document_id": doc.pk},
+        )
+        detail = self.client.get(detail_url)
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Versions")
+        self.assertContains(detail, "Partager")
+        update_url = reverse(
+            "organizations:space-document-update",
+            kwargs={"slug": self.space.slug, "document_id": doc.pk},
+        )
+        self.assertEqual(self.client.post(update_url, {
+            "title": "Statuts révisés", "visibility": "internal",
+        }).status_code, 302)
+        doc.refresh_from_db()
+        self.assertEqual(doc.title, "Statuts révisés")
+        share_url = reverse(
+            "organizations:space-document-share",
+            kwargs={"slug": self.space.slug, "document_id": doc.pk},
+        )
+        self.assertEqual(self.client.post(share_url, {
+            "recipient": self.recipient.username, "days": 7,
+        }).status_code, 302)
+        self.assertEqual(version.share_subjects.count(), 1)
+        archive_url = reverse(
+            "organizations:space-document-archive",
+            kwargs={"slug": self.space.slug, "document_id": doc.pk},
+        )
+        self.assertEqual(self.client.post(archive_url).status_code, 302)
+        self.assertNotContains(self.client.get(library_url), "Statuts révisés")
+
+    def test_space_read_permission_cannot_open_confidential_file(self):
+        from authorization.constants import SystemRoleCode
+        from authorization.services import grant_space_role
+        public_user = User.objects.create_user(
+            username="doc-space-marketing", password="x",
+        )
+        UserProfile.objects.get_or_create(user=public_user)
+        grant_space_role(
+            profile=public_user, space=self.space,
+            role=SystemRoleCode.MARKETING, granted_by=self.owner,
+        )
+        restricted, restricted_version = self.create()
+        internal, internal_version = self.create(visibility="internal")
+        self.client.force_authenticate(public_user)
+        docs = self.client.get(self.base)
+        self.assertEqual(docs.status_code, 200, docs.data)
+        self.assertEqual([item["id"] for item in docs.data["items"]], [
+            str(internal.pk),
+        ])
+        self.assertEqual(self.client.get(
+            f"{self.base}versions/{restricted_version.pk}/download/"
+        ).status_code, 404)
+        self.assertEqual(self.client.get(
+            f"{self.base}versions/{internal_version.pk}/download/"
+        ).status_code, 200)
+        self.assertEqual(self.client.post(
+            self.base,
+            {"title": "Tentative", "file": pdf()},
+            format="multipart",
+        ).status_code, 404)
+
     def test_documents_owner_is_composed_into_nous_without_private_urls(self):
         doc, _ = self.create()
         self.client.force_authenticate(self.owner)
