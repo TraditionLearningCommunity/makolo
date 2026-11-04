@@ -54,9 +54,15 @@ def _ensure_obtention(*, actor, space, slug, title, targets, modes, result_label
     if existing is not None:
         # This slug belongs to the deterministic beta seed, not to a real offer.
         expected_title = f"Exemple — {title}"
-        if existing.activity.title != expected_title:
-            existing.activity.title = expected_title
-            existing.activity.save(update_fields=["title", "updated_at"])
+        updates = {"title": expected_title}
+        for name in ("short_description", "description"):
+            if name in kwargs:
+                updates[name] = kwargs[name]
+        changed = [name for name, value in updates.items() if getattr(existing.activity, name) != value]
+        if changed:
+            for name in changed:
+                setattr(existing.activity, name, updates[name])
+            existing.activity.save(update_fields=[*changed, "updated_at"])
         return existing
     return create_obtention(
         actor=actor,
