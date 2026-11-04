@@ -15,6 +15,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--domains", default=",".join(DOMAINS))
     p.add_argument("--count", type=int, default=4)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
@@ -38,10 +39,14 @@ def main(argv=None):
     from obtention.services import create_obtention
     if connection.vendor != "sqlite":
         p.error("La génération est limitée à une base SQLite de démonstration")
-    people = list(get_user_model().objects.filter(
-        username__startswith="world_", is_active=True,
-        is_staff=False, is_superuser=False,
-    ).order_by("username")[:min(a.count, 100)])
+    people_qs = get_user_model().objects.filter(
+        is_active=True, is_staff=False, is_superuser=False,
+    )
+    if a.profile_username:
+        people_qs = people_qs.filter(username=a.profile_username)
+    else:
+        people_qs = people_qs.filter(username__startswith="world_")
+    people = list(people_qs.order_by("username")[:min(a.count, 100)])
     if not people:
         p.error("Aucun profil world_* de démonstration admissible")
     from .editorial import activity_title
