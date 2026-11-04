@@ -15,6 +15,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
+from .history import page_points_for_profile, point_personal_result
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
@@ -244,6 +245,35 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
             rows = [row for row in rows if row.conversation.updated_at > updated_after]
         rows = rows[:limit]
         return Response({"results": [_serialize_conversation_row(row) for row in rows], "count": len(rows)})
+
+
+class ConversationPointsDepthAPIView(PrivateNoStoreMixin, views.APIView):
+    """Search and stable-keyset history of real Points; never a chat timeline."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        try:
+            page = page_points_for_profile(
+                request.user, conversation,
+                query=request.query_params.get("q", ""),
+                section=request.query_params.get("section", "history"),
+                cursor=request.query_params.get("cursor") or None,
+                limit=request.query_params.get("limit", 25),
+            )
+        except ValidationError as exc:
+            return _service_error(exc)
+        return Response({
+            "results": [
+                {
+                    **_serialize_point(point, profile=request.user, section="history"),
+                    "personal_result": point_personal_result(request.user, point),
+                }
+                for point in page["results"]
+            ],
+            "next_cursor": page["next_cursor"],
+            "section": request.query_params.get("section", "history"),
+        })
 
 
 class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
