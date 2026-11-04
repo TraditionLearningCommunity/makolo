@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 
+import '../features/access/access_credential_vault.dart';
 import '../network/api_error.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_status.dart';
@@ -119,6 +120,13 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       });
     }
     try {
+      // The QR vault belongs to this Profile, not to a network response.
+      // Expired presentation secrets are removed even if reconnect fails.
+      try {
+        await SecureAccessCredentialVault().purgeExpiredProfile(profileId);
+      } on Object {
+        // Secure-store availability must not block nonsecret Now/Me data.
+      }
       final rootsSucceeded = await sync.refreshRoots();
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
