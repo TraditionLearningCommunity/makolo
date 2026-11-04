@@ -231,6 +231,7 @@ void main() {
         resourceKey: query.fingerprint,
         schemaVersion: 1,
         payload: const {
+          'viewer': {'type': 'profile', 'id': 'profile-a'},
           'count': 1,
           'page': 1,
           'page_size': 24,
