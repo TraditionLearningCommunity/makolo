@@ -203,3 +203,30 @@ class DemoIntegrationTests(TestCase):
         with self.assertRaises(ValidationError):
             create_demo_connection(actor=self.beneficiary, scope=ProviderScope.PROFILE,
                                    provider=code, consent=False)
+
+    def test_contextual_conversation_point_is_idempotent(self):
+        from activities.services import create_activity
+        from conversations.core_models import ConversationContextKind, ConversationModePreset
+        from conversations.point_models import ConversationPointKind, ConversationPointResponseMode, ConversationPoint
+        from conversations.services import ensure_context_conversation
+        from conversations.point_services import create_point
+        activity = create_activity(
+            created_by=self.owner, owner_profile=self.owner,
+            title="[DEMO] Atelier de preparation", status=ActivityStatus.PUBLISHED,
+        )
+        kw = dict(actor=self.owner, kind=ConversationContextKind.ACTIVITY,
+                  activity=activity, purpose_key="demo-preparation",
+                  mode_preset=ConversationModePreset.MIXED)
+        conversation = ensure_context_conversation(**kw)
+        self.assertEqual(conversation.pk, ensure_context_conversation(**kw).pk)
+        point_kw = dict(
+            actor=self.owner, conversation=conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Preparation", body="Que faut-il clarifier?",
+            client_reference="demo-conv-test-unique-point",
+        )
+        first = create_point(**point_kw)
+        self.assertEqual(first.pk, create_point(**point_kw).pk)
+        self.assertEqual(ConversationPoint.objects.filter(
+            conversation=conversation).count(), 1)
