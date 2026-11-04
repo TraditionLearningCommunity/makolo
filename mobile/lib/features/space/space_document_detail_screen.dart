@@ -352,6 +352,77 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     }
   }
 
+  Future<void> _edit() async {
+    final doc = _document;
+    if (_working || !_canManage || doc == null || _actor == null) return;
+    final controller = TextEditingController(text: doc['title']?.toString() ?? '');
+    var visibility = doc['visibility']?.toString() ?? 'restricted';
+    final changes = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Modifier'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                maxLength: 220,
+                decoration: const InputDecoration(labelText: 'Titre'),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: visibility,
+                decoration: const InputDecoration(labelText: 'Accès'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'restricted', child: Text('Confidentiel'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'internal', child: Text('Équipe autorisée'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    update(() => visibility = value ?? 'restricted'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  Navigator.pop(dialogContext, {
+                    'title': controller.text.trim(),
+                    'visibility': visibility,
+                  });
+                }
+              },
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (changes == null || _actor == null) return;
+    final id = _actor!.space.id;
+    setState(() => _working = true);
+    try {
+      await widget.runtime.api!.patch(_url, body: changes);
+      if (mounted && _actor?.space.id == id) {
+        _toast('Document actualisé.');
+        await _load();
+      }
+    } on Object {
+      if (mounted && _actor?.space.id == id) _toast('Modification impossible.');
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
   Future<void> _archive() async {
     if (_working || !_canManage || _actor == null) return;
     final confirmed = await showDialog<bool>(
@@ -403,6 +474,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       appBar: AppBar(
         title: const Text('Document'),
         actions: [
+          if (_canManage)
+            IconButton(
+              tooltip: 'Modifier',
+              onPressed: _working ? null : _edit,
+              icon: const Icon(Icons.edit_outlined),
+            ),
           if (_canManage)
             IconButton(
               tooltip: 'Archiver',
