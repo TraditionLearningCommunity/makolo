@@ -14,6 +14,7 @@ import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
+import 'conversation_composer.dart';
 
 class ConversationListScreen extends StatefulWidget {
   const ConversationListScreen({
@@ -582,6 +583,19 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _requestedInitialRefresh = false;
   bool _attemptedRefresh = false;
   String? _handledFocus;
+  String? _justPublishedPointId;
+
+  void _afterPublish(String pointId) {
+    setState(() {
+      _justPublishedPointId = pointId;
+      _handledFocus = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Publié')),
+    );
+  }
+
+  String? get _focusedPointId => _justPublishedPointId ?? widget.focusPointId;
 
   @override
   void initState() {
@@ -596,6 +610,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         oldWidget.repository != widget.repository ||
         oldWidget.focusPointId != widget.focusPointId) {
       _handledFocus = null;
+      _justPublishedPointId = null;
       _requestedInitialRefresh = false;
       _attemptedRefresh = false;
       _refreshing = false;
@@ -700,7 +715,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   }
 
   Widget _pointWidget(_ConversationPoint point, {bool readOnly = false}) {
-    final focused = point.id == widget.focusPointId;
+    final focused = point.id == _focusedPointId;
     return Padding(
       key: focused ? _pointFocusKey : ValueKey('point-${point.id}'),
       padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
@@ -739,10 +754,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   }
 
   void _focusAfterLayout() {
-    final id = widget.focusPointId;
+    final id = _focusedPointId;
     if (id == null || id == _handledFocus) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || id != widget.focusPointId) return;
+      if (!mounted || id != _focusedPointId) return;
       final focused = _pointFocusKey.currentContext;
       if (focused == null) return;
       _handledFocus = id;
@@ -931,6 +946,15 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                             padding: EdgeInsets.all(MakoloSpacing.inner),
                             child: Text('Tout est en ordre. ✓'),
                           ),
+                        if (detail.composer['text_mode'] != null ||
+                            detail.composer['can_create'] == true)
+                          ConversationComposer(
+                            repository: widget.repository,
+                            conversationId: widget.id,
+                            capabilities: detail.composer,
+                            representedSpaceId: widget.representedSpaceId,
+                            onPublished: _afterPublish,
+                          ),
                       ],
                     );
                   },
@@ -1062,7 +1086,8 @@ class _PointCardState extends State<_PointCard> {
       children: [
         Text(kindLabel, style: Theme.of(context).textTheme.labelMedium),
         const SizedBox(height: 6),
-        Text(point.title, style: Theme.of(context).textTheme.titleMedium),
+        if (point.title.isNotEmpty)
+          Text(point.title, style: Theme.of(context).textTheme.titleMedium),
         if (point.body != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           Text(point.body!),
@@ -1073,6 +1098,14 @@ class _PointCardState extends State<_PointCard> {
             'Avant le ${MaterialLocalizations.of(context).formatShortDate(point.deadlineAt!)}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+        ],
+        if (point.exchangePreview.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final entry in point.exchangePreview)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Text(entry),
+            ),
         ],
         if (point.resolutionSummary != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
@@ -1393,6 +1426,7 @@ class _ConversationDetail {
     required this.points,
     required this.essential,
     required this.personalState,
+    this.composer = const {},
     this.elsewhere = const [],
     this.focusedPoint,
     this.purpose,
@@ -1409,6 +1443,7 @@ class _ConversationDetail {
   final List<_ConversationPoint> elsewhere;
   final _ConversationPoint? focusedPoint;
   final _ConversationPersonalState personalState;
+  final Map<String, dynamic> composer;
 
   factory _ConversationDetail.fromProjection(StoredProjection? projection) {
     if (projection == null) {
@@ -1443,6 +1478,7 @@ class _ConversationDetail {
       personalState: _ConversationPersonalState.fromMap(
         _map(payload['personal_state']),
       ),
+      composer: _map(payload['composer']),
     );
   }
 }
@@ -1506,6 +1542,7 @@ class _ConversationPoint {
     this.validUntil,
     this.publishedAt,
     this.updatedAt,
+    this.exchangePreview = const [],
   });
 
   final String id;
@@ -1527,6 +1564,7 @@ class _ConversationPoint {
   final DateTime? validUntil;
   final DateTime? publishedAt;
   final DateTime? updatedAt;
+  final List<String> exchangePreview;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -1549,7 +1587,7 @@ class _ConversationPoint {
   factory _ConversationPoint.fromMap(Map<String, dynamic> row) {
     return _ConversationPoint(
       id: _string(row['id']) ?? '',
-      title: _string(row['title']) ?? 'Point',
+      title: _string(row['title']) ?? '',
       responseMode: _string(row['response_mode']) ?? 'none',
       body: _string(row['body']),
       lifecycle: MakoloHumanization.presentationLabel(
@@ -1572,6 +1610,10 @@ class _ConversationPoint {
       validUntil: DateTime.tryParse(_string(row['valid_until']) ?? ''),
       publishedAt: DateTime.tryParse(_string(row['published_at']) ?? ''),
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
+      exchangePreview: [
+        for (final row in _maps(row['exchange_preview']))
+          if (_string(row['body']) != null) _string(row['body'])!,
+      ],
     );
   }
 }
