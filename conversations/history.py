@@ -9,7 +9,7 @@ from datetime import datetime
 from uuid import UUID
 
 from django.core import signing
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
@@ -75,7 +75,7 @@ def _matching_visible_content(profile, point, term):
         try:
             if term in (point.resolution.summary or "").casefold():
                 return True
-        except (AttributeError, ConversationPoint.resolution.RelatedObjectDoesNotExist):
+        except (AttributeError, ObjectDoesNotExist):
             pass
 
     # A private Exchange entry cannot cause an observable search hit for another
