@@ -65,7 +65,7 @@ def _journey_confirmation_copy(journey, commerce_order=None):
         return "Réservation confirmée", f"Votre réservation pour « {subject} » est confirmée."
     if journey.workflow == WorkflowKind.PURCHASE:
         return "Achat confirmé", f"Votre achat pour « {subject} » est confirmé."
-    return "Confirmation Makolo", f"Votre démarche pour « {subject} » est confirmée."
+    return "Démarche confirmée", f"Votre démarche pour « {subject} » est confirmée."
 
 
 def _notify_journey_confirmed(domain_event):
