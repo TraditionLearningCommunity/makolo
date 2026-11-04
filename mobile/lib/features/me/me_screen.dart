@@ -40,10 +40,6 @@ class MeScreen extends StatefulWidget {
 class _MeScreenState extends State<MeScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
-  StoredProjection? _last;
-  String? _loading;
-  bool _pageFailed = false;
-  bool _retryRequested = false;
 
   @override
   void initState() {
@@ -55,10 +51,7 @@ class _MeScreenState extends State<MeScreen> {
   void didUpdateWidget(covariant MeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
-      _last = null;
-      _loading = null;
-      _pageFailed = false;
-      _bindStreams();
+       _bindStreams();
     }
   }
 
@@ -105,8 +98,7 @@ class _MeScreenState extends State<MeScreen> {
       );
     }
 
-    _last = projection;
-    final selection = const MeSelector().select(
+     final selection = const MeSelector().select(
       projection: projection,
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
       reachability: _reachability(source, syncStatus),
@@ -123,63 +115,7 @@ class _MeScreenState extends State<MeScreen> {
       avatarProfileId: widget.repository.store.profileId,
       avatarRevision: projection.receivedAt,
       onOpenDestination: widget.onOpenDestination,
-      loadingMore: _loading != null,
-      loadFailed: _pageFailed,
-      onRetry: () {
-        setState(() {
-          _pageFailed = false;
-          _retryRequested = true;
-        });
-        _loadNext(selection);
-      },
-      onReachEnd:
-          widget.api == null || syncStatus?.state == SyncVisualState.offline
-          ? null
-          : () => _loadNext(selection),
     );
-  }
-
-  Future<void> _loadNext(MeSelection selection) async {
-    if (_loading != null ||
-        (_pageFailed && !_retryRequested) ||
-        widget.api == null ||
-        _last == null) {
-      return;
-    }
-    _retryRequested = false;
-    const families = ['considerations', 'collectives', 'resources'];
-    final pending = selection.territories.where(
-      (territory) =>
-          territory.hasMore && families.contains(territory.presentation.key),
-    );
-    if (pending.isEmpty) return;
-    final territory = pending.first.presentation.key;
-    final repository = widget.repository;
-    setState(() => _loading = territory);
-    try {
-      final current =
-          await repository.store.readProjection('personal.me') ?? _last!;
-      await repository.loadMoreMe(
-        api: widget.api!,
-        current: current,
-        territory: territory,
-      );
-      // The next load must never be based on the old snapshot while the
-      // projection watcher is still delivering its update.
-      final latest = await repository.store.readProjection('personal.me');
-      if (!mounted || widget.repository != repository) return;
-      _last = latest;
-      setState(() {
-        _loading = null;
-        _pageFailed = false;
-      });
-    } on Object {
-      if (!mounted || widget.repository != repository) return;
-      setState(() {
-        _loading = null;
-        _pageFailed = true;
-      });
-    }
   }
 
   MakoloReachabilityCue _reachability(
@@ -207,21 +143,13 @@ class MeView extends StatefulWidget {
     this.mediaApi,
     this.avatarProfileId,
     this.avatarRevision,
-    this.onReachEnd,
-    this.onRetry,
-    this.loadingMore = false,
-    this.loadFailed = false,
-  });
+   });
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
   final MakoloApiClient? mediaApi;
   final String? avatarProfileId;
   final Object? avatarRevision;
-  final VoidCallback? onReachEnd;
-  final VoidCallback? onRetry;
-  final bool loadingMore;
-  final bool loadFailed;
 
   @override
   State<MeView> createState() => _MeViewState();
@@ -230,20 +158,7 @@ class MeView extends StatefulWidget {
 class _MeViewState extends State<MeView> {
   final ScrollController _controller = ScrollController();
 
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_checkEnd);
-  }
-
-  void _checkEnd() {}
-
-  @override
-  void didUpdateWidget(covariant MeView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-  }
-
-  @override
+   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -267,14 +182,7 @@ class _MeViewState extends State<MeView> {
             avatarRevision: widget.avatarRevision,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
-            loadingMore: widget.loadingMore,
-            loadFailed: widget.loadFailed,
-            onRetry: widget.onRetry,
-            hasMore: widget.selection.territories.any((t) => t.hasMore),
             hasOwnerNavigation: widget.onOpenDestination != null,
-            canConfirmExhaustion:
-                widget.onReachEnd != null ||
-                widget.selection.territories.every((t) => !t.hasMore),
           ),
         );
       },
@@ -371,12 +279,7 @@ class _MeField extends StatelessWidget {
     this.avatarRevision,
     required this.useTwoTerritories,
     required this.onSelectItem,
-    required this.loadingMore,
-    required this.loadFailed,
-    required this.onRetry,
-    required this.hasMore,
     required this.hasOwnerNavigation,
-    required this.canConfirmExhaustion,
   });
 
   final MeSelection selection;
@@ -386,12 +289,7 @@ class _MeField extends StatelessWidget {
   final Object? avatarRevision;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
-  final bool loadingMore;
-  final bool loadFailed;
-  final VoidCallback? onRetry;
-  final bool hasMore;
   final bool hasOwnerNavigation;
-  final bool canConfirmExhaustion;
 
   @override
   Widget build(BuildContext context) {
