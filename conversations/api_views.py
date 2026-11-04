@@ -13,7 +13,8 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
-from .core_models import Conversation, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
+from .composing import composer_capabilities, contribute_text, publish_composed_point
+from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
@@ -29,6 +30,7 @@ from .services import (
     can_view_conversation,
     respond_to_conversation_invitation,
     update_personal_conversation_state,
+    ensure_context_conversation,
 )
 
 
@@ -258,6 +260,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 for point in elsewhere
             ],
             "focused_point": focused_point,
+            "composer": composer_capabilities(request.user, conversation),
             "personal_state": {
                 "muted": bool(state and state.muted_at),
                 "hidden": bool(state and state.hidden_at),
@@ -267,6 +270,96 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
             },
             "updated_at": conversation.updated_at,
         })
+
+
+
+def _represented_space_from_request(request):
+    raw = request.data.get("represented_space_id")
+    if raw in (None, ""):
+        return None
+    try:
+        return Organization.objects.get(pk=raw)
+    except (Organization.DoesNotExist, ValidationError, ValueError, TypeError) as exc:
+        raise PermissionDenied("Espace non autorisé.") from exc
+
+
+class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
+    """Owner-confirmed Point publication or contribution to an existing Exchange."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        mode = (request.data.get("mode") or "text").strip()
+        client_ref = request.data.get("client_reference")
+        represented_space = _represented_space_from_request(request)
+        try:
+            if mode == "text":
+                outcome, result, point_id = contribute_text(
+                    actor=request.user, conversation=conversation,
+                    body=request.data.get("body"),
+                    point_id=request.data.get("point_id"),
+                    client_reference=client_ref, represented_space=represented_space,
+                )
+                return Response({"kind": outcome, "id": str(result.pk), "point_id": str(point_id)})
+            if mode == "point":
+                point = publish_composed_point(
+                    actor=request.user, conversation=conversation,
+                    kind=request.data.get("kind"), title=request.data.get("title", ""),
+                    body=request.data.get("body", ""), options=request.data.get("options"),
+                    audience_id=request.data.get("audience_id"),
+                    represented_space=represented_space, client_reference=client_ref,
+                )
+                return Response({"kind": "point", "id": str(point.pk), "point_id": str(point.pk)})
+            raise DRFValidationError({"mode": "Mode de composition inconnu."})
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+
+
+class ConversationExchangeEntryAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        try:
+            outcome, entry, point_id = contribute_text(
+                actor=request.user, conversation=point.conversation,
+                body=request.data.get("body"), point_id=str(point.pk),
+                represented_space=_represented_space_from_request(request),
+                client_reference=request.data.get("client_reference"),
+            )
+            return Response({"kind": outcome, "id": str(entry.pk), "point_id": str(point_id)})
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+
+
+class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
+    """Open a permitted contextual Conversation; never infer direct consent."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, kind, context_pk):
+        if kind == ConversationContextKind.DIRECT or kind not in ConversationContext.TARGET_FIELDS:
+            raise PermissionDenied("Une Conversation directe exige un consentement existant.")
+        field = ConversationContext.TARGET_FIELDS[kind][0]
+        related_model = ConversationContext._meta.get_field(field).remote_field.model
+        try:
+            target = related_model.objects.get(pk=context_pk)
+        except (related_model.DoesNotExist, ValidationError, ValueError, TypeError):
+            raise NotFound("Contexte introuvable.")
+        try:
+            conversation = ensure_context_conversation(
+                actor=request.user, kind=kind, **{field: target},
+            )
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+        if not can_view_conversation(request.user, conversation):
+            raise NotFound("Conversation introuvable.")
+        return Response({"id": str(conversation.pk), "created": False})
 
 
 class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
