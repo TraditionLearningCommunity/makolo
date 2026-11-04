@@ -165,6 +165,6 @@ void main() {
     await actor.selectPersonal();
     await tester.pumpAndSettle();
     expect(find.text('Atelier collectif'), findsNothing);
-    expect(find.text('Contexte Espace indisponible.'), findsOneWidget);
+    expect(find.text('Impossible de consulter le Passeport de cet Espace actuellement.'), findsOneWidget);
   });
 }
