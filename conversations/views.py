@@ -392,6 +392,7 @@ class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
             "conversation": point.conversation, "point": point,
             "entries": entries, "next_cursor": cursor,
             "can_contribute": bool(point_response_allowed(self.request.user, point) and
+                point.conversation.lifecycle == "open" and
                 point.lifecycle == "open" and
                 (point.opens_at is None or point.opens_at <= timezone.now()) and
                 (point.deadline_at is None or point.deadline_at > timezone.now()) and
