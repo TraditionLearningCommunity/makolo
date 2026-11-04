@@ -46,6 +46,7 @@ def main(argv=None):
     if connection.vendor != "sqlite":
         p.error("SQLite de demonstration obligatoire")
     from .selection import demo_profiles
+    from .editorial import submission_title
     profiles = demo_profiles(username=a.profile_username, limit=a.profiles)
     if not profiles:
         p.error("Aucun utilisateur world_")
@@ -97,7 +98,7 @@ def main(argv=None):
                     with transaction.atomic():
                         submission = submit_opportunity(
                             submitted_by=user, url=source.url,
-                            title="Informations complémentaires sur " + source.opportunity.title[:120],
+                            title="Informations complémentaires sur " + submission_title(source.opportunity)[:120],
                             comment=note)
                     counts["opportunity_submissions_created"] += 1
                 except (ValidationError, PermissionDenied):
