@@ -23,7 +23,7 @@
       <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="space-y-3">
         {% csrf_token %}
         <input type="hidden" name="mode" value="form">
-        <input type="hidden" name="client_reference" value="{{ compose_refs.form }}-new">
+        <input type="hidden" name="client_reference" value="{% if compose_draft.mode == 'form' and not compose_draft.form_version_id %}{{ compose_draft.client_reference }}{% else %}{{ compose_refs.form }}-new{% endif %}">
         <label class="block text-xs font-semibold" for="form-new-title">Nouveau formulaire</label>
         <input id="form-new-title" name="title" class="mk-input w-full" required maxlength="220" placeholder="Objet">
         <label class="sr-only" for="form-new-questions">Questions</label>
