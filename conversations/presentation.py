@@ -15,9 +15,9 @@ from .core_models import (
     ConversationParticipationStatus,
     ConversationUserState,
 )
-from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle
+from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle, ConversationResponseVisibility
 from .point_services import point_visible_to
-from .services import can_view_conversation
+from .services import can_manage_conversation, can_view_conversation
 
 
 @dataclass(frozen=True)
@@ -67,6 +67,21 @@ def conversations_for_context(profile, kind, context_pk):
         return []
     return [conversation for conversation in candidates if can_view_conversation(profile, conversation)][:50]
 
+
+
+def visible_exchange_entries_for_profile(profile, point, *, limit=5):
+    """A Point's visibility never implies access to every author's raw text."""
+    if point.kind != ConversationPointKind.EXCHANGE or not point_visible_to(profile, point):
+        return []
+    entries = point.exchange_entries.filter(moderation_state="visible")
+    if not can_manage_conversation(profile, point.conversation):
+        if point.response_visibility == ConversationResponseVisibility.POINT_VIEWERS:
+            pass
+        elif point.response_visibility == ConversationResponseVisibility.RESPONDENT_AND_AUTHORITIES:
+            entries = entries.filter(author=profile)
+        else:
+            return []
+    return list(reversed(list(entries.order_by("-created_at", "-pk")[:limit])))
 
 
 def conversation_context_label(conversation, profile=None):
