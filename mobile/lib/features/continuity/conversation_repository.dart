@@ -1,4 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:path_provider/path_provider.dart';
+
+import '../../network/makolo_api_client.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -301,6 +306,333 @@ class ConversationRepository {
     await refreshDetail(conversationId);
     await refreshList();
     return pointIdReturned;
+  }
+
+  Future<String> publishForm({
+    required String conversationId,
+    required String title,
+    required String clientReference,
+    String? formVersionId,
+    List<String>? questions,
+    String? audienceId,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion nécessaire pour demander un formulaire.');
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/forms/',
+      body: {
+        'title': title,
+        'client_reference': clientReference,
+        'form_version_id': ?formVersionId,
+        'questions': ?questions,
+        'audience_id': ?audienceId,
+        'represented_space_id': ?representedSpaceId,
+      },
+    );
+    final pointId = response.jsonObject()['point_id']?.toString();
+    if (pointId == null || pointId.isEmpty) {
+      throw const FormatException('Form Point identity not returned.');
+    }
+    await _refreshPublished(conversationId);
+    return pointId;
+  }
+
+  static String mediaMime(String name, String kind) {
+    final lower = name.toLowerCase();
+    if (kind == 'voice' || kind == 'audio') {
+      if (lower.endsWith('.webm')) return 'audio/webm';
+      if (lower.endsWith('.ogg')) return 'audio/ogg';
+      if (lower.endsWith('.mp3')) return 'audio/mpeg';
+      if (lower.endsWith('.wav')) return 'audio/wav';
+      return 'audio/mp4';
+    }
+    if (kind == 'image') {
+      return lower.endsWith('.png') ? 'image/png' : 'image/jpeg';
+    }
+    if (kind == 'video') {
+      return lower.endsWith('.webm') ? 'video/webm' : 'video/mp4';
+    }
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.docx')) {
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    if (lower.endsWith('.doc')) return 'application/msword';
+    if (lower.endsWith('.txt')) return 'text/plain';
+    return 'application/octet-stream';
+  }
+
+  Future<Map<String, dynamic>> uploadMedia({
+    required String conversationId,
+    required String filePath,
+    required String filename,
+    required String kind,
+    required String clientReference,
+    String? caption,
+    String? pointId,
+    String? audienceId,
+    String? representedSpaceId,
+    TransferProgress? onProgress,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion nécessaire pour envoyer une pièce.');
+    final response = await engine.api.upload(
+      'api/v1/conversations/$conversationId/media/',
+      fields: {
+        'client_reference': clientReference,
+        'kind': kind,
+        'mime_type': mediaMime(filename, kind),
+        'body': caption ?? '',
+        'point_id': pointId,
+        'audience_id': audienceId,
+        'represented_space_id': representedSpaceId,
+      },
+      files: [
+        MakoloUploadFile(
+          fieldName: 'file', path: filePath, filename: filename,
+        ),
+      ],
+      onProgress: onProgress,
+    );
+    final payload = response.jsonObject();
+    if (payload['point_id']?.toString().isEmpty != false ||
+        payload['attachment'] is! Map) {
+      throw const FormatException('Attachment identity not returned.');
+    }
+    await _refreshPublished(conversationId);
+    return payload;
+  }
+
+  Future<void> _refreshPublished(String id) async {
+    // The mutation is owner-confirmed already. A later projection refresh
+    // failure must not turn success into an erroneous retry prompt.
+    try {
+      await refreshDetail(id);
+    } on Object {
+      // Local snapshot stays available until the next owner acquisition.
+    }
+    try {
+      await refreshList();
+    } on Object {
+      // The confirmed mutation is not rolled back by a transport incident.
+    }
+  }
+
+  Future<Map<String, dynamic>> exchangeEntries({
+    required String pointId,
+    String? cursor,
+    int limit = 25,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion nécessaire pour ouvrir cet échange.');
+    final query = '?limit=$limit${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}';
+    final response = await engine.api.get(
+      'api/v1/conversations/points/$pointId/entries/$query',
+    );
+    final payload = response.jsonObject();
+    if (payload['results'] is! List) {
+      throw const FormatException('Expected Exchange owner collection.');
+    }
+    return payload;
+  }
+
+  Future<File> downloadAttachment({
+    required String attachmentId,
+    required String filename,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion nécessaire pour consulter cette pièce.');
+    if (!RegExp(r'^[0-9a-fA-F-]{36}
+    required String conversationId,
+    required String pointId,
+    required Object? value,
+    required String clientReference,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour envoyer cette réponse.',
+      );
+    }
+    await engine.api.post(
+      'api/v1/conversations/points/$pointId/respond/',
+      body: {
+        'value': value,
+        'client_reference': clientReference,
+        'represented_space_id': ?representedSpaceId,
+      },
+    );
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+
+  Future<void> acknowledgePoint({
+    required String conversationId,
+    required String pointId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour confirmer la lecture.',
+      );
+    }
+    await engine.api.post('api/v1/conversations/points/$pointId/acknowledge/');
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+
+  Future<String?> respondToInvitation({
+    required String invitationId,
+    required bool accept,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour répondre à cette invitation.',
+      );
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/invitations/$invitationId/respond/',
+      body: {'decision': accept ? 'accept' : 'decline'},
+    );
+    final payload = response.jsonObject();
+    await refreshInvitations();
+    await refreshList();
+    return payload['conversation_id']?.toString();
+  }
+
+  Future<void> updatePersonalState({
+    required String conversationId,
+    bool? mute,
+    bool? hidden,
+    bool? archived,
+    bool? pinned,
+    bool? revisit,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Une connexion est nécessaire pour modifier cet état.');
+    }
+    await engine.api.post(
+      'api/v1/conversations/$conversationId/personal-state/',
+      body: {
+        'mute': ?mute,
+        'hidden': ?hidden,
+        'archived': ?archived,
+        'pinned': ?pinned,
+        'revisit': ?revisit,
+      },
+    );
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+}
+).hasMatch(attachmentId)) {
+      throw const FormatException('Invalid Attachment identity.');
+    }
+    final basename = filename.split(RegExp(r'[/\\]')).last;
+    final dot = basename.lastIndexOf('.');
+    final extension = dot < 0 ? '.bin' : basename.substring(dot);
+    final safeExtension = RegExp(r'^\.[A-Za-z0-9]{1,9}
+    required String conversationId,
+    required String pointId,
+    required Object? value,
+    required String clientReference,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour envoyer cette réponse.',
+      );
+    }
+    await engine.api.post(
+      'api/v1/conversations/points/$pointId/respond/',
+      body: {
+        'value': value,
+        'client_reference': clientReference,
+        'represented_space_id': ?representedSpaceId,
+      },
+    );
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+
+  Future<void> acknowledgePoint({
+    required String conversationId,
+    required String pointId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour confirmer la lecture.',
+      );
+    }
+    await engine.api.post('api/v1/conversations/points/$pointId/acknowledge/');
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+
+  Future<String?> respondToInvitation({
+    required String invitationId,
+    required bool accept,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError(
+        'Une connexion est nécessaire pour répondre à cette invitation.',
+      );
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/invitations/$invitationId/respond/',
+      body: {'decision': accept ? 'accept' : 'decline'},
+    );
+    final payload = response.jsonObject();
+    await refreshInvitations();
+    await refreshList();
+    return payload['conversation_id']?.toString();
+  }
+
+  Future<void> updatePersonalState({
+    required String conversationId,
+    bool? mute,
+    bool? hidden,
+    bool? archived,
+    bool? pinned,
+    bool? revisit,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Une connexion est nécessaire pour modifier cet état.');
+    }
+    await engine.api.post(
+      'api/v1/conversations/$conversationId/personal-state/',
+      body: {
+        'mute': ?mute,
+        'hidden': ?hidden,
+        'archived': ?archived,
+        'pinned': ?pinned,
+        'revisit': ?revisit,
+      },
+    );
+    await refreshDetail(conversationId);
+    await refreshList();
+  }
+}
+).hasMatch(extension)
+        ? extension
+        : '.bin';
+    final temp = await getTemporaryDirectory();
+    final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
+    final folder = Directory('${temp.path}/conversation-$safeProfile');
+    await folder.create(recursive: true);
+    final destination = File('${folder.path}/$attachmentId$safeExtension');
+    await engine.api.download(
+      'api/v1/conversations/attachments/$attachmentId/download/',
+      destinationPath: destination.path,
+    );
+    return destination;
   }
 
   Future<void> respondToPoint({
