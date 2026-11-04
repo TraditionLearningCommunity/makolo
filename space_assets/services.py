@@ -8,6 +8,7 @@ from django.utils import timezone
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from journeys.collaboration_models import JourneyArtifactKind, JourneyArtifactSensitivity
+from journeys.models import TERMINAL_JOURNEY_STATUSES
 from journeys.collaboration_services import (
     create_artifact, ensure_case_access, validate_artifact_upload,
 )
@@ -172,6 +173,8 @@ def use_document_in_journey(
         raise PermissionDenied("Document indisponible.")
     document = source.document
     _require_read(actor, document)
+    if journey.status in TERMINAL_JOURNEY_STATUSES:
+        raise ValidationError("Cette démarche est terminée.")
     if journey.activity.space_id != document.space_id:
         raise PermissionDenied("La démarche n'appartient pas à cet Espace.")
     # A Journey-specific assignment and Activity permission remain mandatory.
