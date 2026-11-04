@@ -202,7 +202,7 @@ def orchestrate_space_mark(*, profile, space, input_kind, value, context, observ
 
             action = {
                 "code": "add_team_member",
-                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec le rôle d’autorité {role}.",
+                "consequence": f"Ajouter {email} à l’équipe de {space.name} avec le rôle « {role} ».",
                 "target": {"email": email, "role": role},
             }
             confirmation = _mapping(context.get("confirmation"))
