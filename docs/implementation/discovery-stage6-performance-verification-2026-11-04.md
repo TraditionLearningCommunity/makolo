@@ -56,3 +56,29 @@ python manage.py shell -c "exec(open('scripts/discovery_stage6_sql_origins.py', 
 - Ne pas créer de nouveau cache métier indépendant pour la carte.
 - Ne pas modifier les migrations de démonstration, les fichiers privés locaux ni les autres chantiers concurrents de la PR.
 - La compression HTTP n'a pas été observée sur le serveur local (absence de `Content-Encoding`) ; cela reste une optimisation de transport distincte, non une preuve de compression désactivée dans tous les environnements.
+
+## Extension étape 6 : volume mobile et index géographique compact
+
+**Ajout dans #522 :** le premier appel Discovery mobile demande maintenant
+`include_spatial_index=compact` au lieu de `include_spatial_index=1`.
+
+- `include_spatial_index=1` reste le contrat historique : N1 enrichi + tous les éléments spatiaux enrichis, avec `detail_available=true`.
+- `include_spatial_index=compact` : N1 enrichi inchangé + tous les éléments spatiaux admis sous forme de références compactes (`identity`, `representation.title`, `place`, `spatial_facts`, `capabilities: ["view"]`, `links.detail`), avec `detail_available=false` et `viewer` explicite. Les coordonnées ne sont jamais inférées; les rôles de départ, escale, arrivée et autres lieux publics restent distincts.
+- La première page et Carte restent **une seule acquisition** et **un seul snapshot local**. Flutter construit la présentation Carte depuis le `spatial_index` de Discovery, sans second cache de recherche ni nouveau classement.
+- Un item seulement connu via l'index compact ne devient **pas** artificiellement un N2 enrichi : la sélection passe par le détail autorisé de l'API propriétaire. Les faits du N1 ou détails précédemment acquis restent réutilisables si frais et non révoqués. Les permissions/action mutations exigent toujours leur autorité serveur.
+- Aucune limite arbitraire de dix, cinquante ou cent positions n'est appliquée au champ spatial admis. Le nombre visible, le clustering et les prochains chargements N1 relèvent de la présentation et des politiques client, sans dupliquer la vérité métier.
+- Les anciennes snapshots enrichies sont encore lisibles tant que valides; la fraîcheur et les refus d'autorité existants continuent de s'appliquer.
+
+**Deux tests Flutter historiques corrigés à la source :** leurs fixtures manquaient du `viewer` requis par la validation locale existante. Le contrôle n'a pas été retiré.
+
+**Nouveaux tests :** `discovery.api.test_mature_discovery.MatureDiscoveryAPITests.test_compact_spatial_keeps_every_location_and_requests_details_on_demand` et `mobile/test/discovery_compact_spatial_test.dart`, plus les cinq tests ciblés déjà exécutés pendant la réduction des requêtes SQL.
+
+**Comparaison HTTP à faire sur la même base locale :**
+
+```powershell
+.\scripts\makolo_etape6_diagnostic_serveur.ps1 -Iterations 3
+```
+
+Le script compare N1, index full et index compact, ainsi que la page 2. Ne pas affirmer le gain de volume avant d'avoir mesuré les deux modes. Les données sont temporelles : comparer les comptes et identités dans un jeu figé pour prouver une stricte équivalence.
+
+**Gates encore non attestées dans cette session :** les nouveaux tests Django/Flutter et la fluidité Android sur appareil, plus la CI de la tête effective de #522. Ne pas annoncer l'étape 6 entièrement fermée ni merger sans ces vérifications.
