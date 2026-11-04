@@ -437,7 +437,9 @@ class AccessRepository {
     }
     final generation = (_credentialGenerations[accessId] ?? 0) + 1;
     _credentialGenerations[accessId] = generation;
-    bool isCurrent() => _credentialGenerations[accessId] == generation;
+    bool isCurrent() =>
+        _credentialGenerations[accessId] == generation &&
+        sync?.isActive != false;
 
     late final Map<String, dynamic> data;
     try {
@@ -466,7 +468,8 @@ class AccessRepository {
     }
     // An explicit Access owner denial may have arrived via another
     // concurrent SyncEngine while this credential GET was in flight.
-    if ((await readSource(accessId)).invalidated ||
+    if (sync?.isActive == false ||
+        (await readSource(accessId)).invalidated ||
         await _hasRevokedBeneficiaryCollection()) {
       await _markCredentialRetention(accessId, denied: true);
       try {
