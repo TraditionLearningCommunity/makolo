@@ -18,7 +18,7 @@ from organizations.space_web_views import SpaceWebMixin
 from .models import SpaceDocument, SpaceDocumentVersion, SpaceDocumentVisibility
 from .services import (
     add_document_version, archive_document, can_manage_documents,
-    can_read_document, create_document, version_for_download,
+    can_read_document, create_document, update_document, version_for_download,
     visible_documents,
 )
 
@@ -299,3 +299,28 @@ class SpaceDocumentReuseWebView(SpaceWebMixin):
             return redirect(_space_document_url(self.space, doc))
         messages.success(request, "Document ajouté à la démarche.")
         return redirect("core:participant-journey-detail", pk=journey.pk)
+
+
+class SpaceDocumentUpdateWebView(SpaceWebMixin):
+    space_nav_key = "us"
+
+    def post(self, request, *args, **kwargs):
+        if not can_manage_documents(request.user, self.space):
+            raise Http404
+        doc = SpaceDocument.objects.filter(
+            pk=self.kwargs["document_id"], space=self.space,
+            archived_at__isnull=True,
+        ).first()
+        if doc is None:
+            raise Http404
+        try:
+            update_document(
+                actor=request.user, document=doc,
+                title=request.POST.get("title", ""),
+                visibility=request.POST.get("visibility", "restricted"),
+            )
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, "Document actualisé.")
+        return redirect(_space_document_url(self.space, doc))
