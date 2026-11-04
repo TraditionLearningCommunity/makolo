@@ -129,8 +129,16 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
       );
       final source = await widget.repository.readCollectionSource(
         relationship: relationship,
+        offset: view.nextOffset,
       );
-      if (source.invalidated || source.lastErrorCode != null) {
+      final received = await widget.repository.readCollectionPage(
+        relationship: relationship,
+        offset: view.nextOffset,
+      );
+      if (source.invalidated ||
+          source.lastErrorCode != null ||
+          source.lastSuccessAt == null ||
+          received == null) {
         throw StateError('Access continuation unavailable');
       }
       if (!mounted || relationship != _relationship) return;
