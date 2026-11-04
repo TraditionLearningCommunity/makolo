@@ -38,6 +38,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
   bool _loading = true;
   bool _more = false;
   bool _denied = false;
+  bool _accessConfirmed = false;
   String? _error;
   int _nextOffset = 0;
   int _requestVersion = 0;
@@ -64,6 +65,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       _items = [];
       _counts = {};
       _denied = false;
+      _accessConfirmed = false;
       WidgetsBinding.instance.addPostFrameCallback((_) => _load(reset: true));
     }
   }
@@ -84,6 +86,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       _more = false;
       _nextOffset = 0;
       _denied = !_authorized;
+      _accessConfirmed = false;
       _error = null;
       _loading = _authorized;
     });
@@ -140,6 +143,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           if (item is Map<String, dynamic>) item,
       ];
       setState(() {
+        _accessConfirmed = true;
         _counts = data['counts'] is Map<String, dynamic>
             ? data['counts'] as Map<String, dynamic> : {};
         _items = reset ? rows : [..._items, ...rows];
@@ -152,6 +156,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       if (!mounted || ticket != _requestVersion || !_authorized) return;
       setState(() {
         _loading = false;
+        _accessConfirmed = false;
         _denied = error.statusCode == 401 ||
             error.statusCode == 403 || error.statusCode == 404;
         _items = [];
@@ -166,6 +171,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
         _loading = false;
         _items = [];
         _more = false;
+        _accessConfirmed = false;
         _error = 'Impossible de charger les ressources.';
       });
     }
@@ -205,12 +211,10 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
               style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
           const SizedBox(height: MakoloSpacing.sm),
           const Text(
-            'Documents émis et outils de présentation appartenant à cet '
-            'Espace. Les fichiers personnels et les ressources des '
-            'activités ne sont pas transférés ici.',
+            'Les ressources de notre collectif.',
           ),
           const SizedBox(height: MakoloSpacing.lg),
-          if (_authorized && !_denied)
+          if (_authorized && !_denied && _accessConfirmed)
             Padding(
               padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
               child: OutlinedButton.icon(
