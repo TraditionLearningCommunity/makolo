@@ -51,7 +51,8 @@
          style="color:var(--mk-brand)">Voir le Point actuel</a>
     {% endif %}
   {% endif %}
-  {% if point.lifecycle == 'resolved' and point.resolution %}<div class="mt-3 border-l-2 pl-3 text-sm font-semibold" style="border-color:var(--mk-brand)">✓ {{ point.resolution.summary }}</div>{% endif %}
+  {% conversation_visible_resolution point request.user as resolution_summary %}
+  {% if resolution_summary %}<div class="mt-3 border-l-2 pl-3 text-sm font-semibold" style="border-color:var(--mk-brand)">✓ {{ resolution_summary }}</div>{% endif %}
   {% if reason == 'acknowledge' and point.requires_acknowledgement %}
     <form method="post" action="{% url 'conversations:point-acknowledge' point.pk %}" class="mt-4">{% csrf_token %}
       <button class="mk-btn mk-btn-primary" type="submit">Bien reçu</button>
