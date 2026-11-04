@@ -86,6 +86,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   void didUpdateWidget(covariant SyncLifecycle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.runtime, widget.runtime)) {
+      oldWidget.runtime.sync?.deactivate();
+      oldWidget.runtime.outboxProcessor?.deactivate();
       _bindOutbox();
       unawaited(_refresh());
     }
@@ -205,6 +207,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
 
   @override
   void dispose() {
+    widget.runtime.sync?.deactivate();
+    widget.runtime.outboxProcessor?.deactivate();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_connectivity?.cancel());
     unawaited(_outbox?.cancel());
