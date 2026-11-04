@@ -1656,6 +1656,129 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Carte preserves the exact arrival place across owner refreshes',
+    (tester) async {
+      final arrival = DiscoverySpatialAnchor(
+        candidateKey: 'activity:route',
+        latitude: -10.7,
+        longitude: 25.46,
+        fact: const {
+          'role': 'arrival',
+          'place': {
+            'name': 'Kolwezi',
+            'latitude': -10.7,
+            'longitude': 25.46,
+          },
+        },
+      );
+      final route = DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'route',
+        candidateKey: 'activity:route',
+        title: 'Voyage vers Kolwezi',
+        summary: 'Déplacement confirmé',
+        savedState: 'unknown',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'spatial_facts': [
+            {
+              'role': 'departure',
+              'place': {
+                'name': 'Lubumbashi',
+                'latitude': -11.66,
+                'longitude': 27.48,
+              },
+            },
+            {
+              'role': 'arrival',
+              'place': {
+                'name': 'Kolwezi',
+                'latitude': -10.7,
+                'longitude': 25.46,
+              },
+            },
+          ],
+        },
+      );
+      var revision = 0;
+      StateSetter? redraw;
+      DiscoverySpatialAnchor? focused = arrival;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(320, 640),
+        child: StatefulBuilder(
+          builder: (context, setLocalState) {
+            redraw = setLocalState;
+            return DiscoverySpatialView(
+              selection: selection(items: [route]),
+              mapConfig: const MakoloMapsConfig(
+                enabled: false,
+                style: null,
+              ),
+              showMapOnCompact: true,
+              fieldKey: 'same-route-two-places',
+              initialSelectedCandidateKey: route.candidateKey,
+              initialFocusedAnchor: arrival,
+              detailRefreshRevision: revision,
+              onFocusedAnchorChanged: (value) => focused = value,
+              resolveItem: (_) async => route,
+              onOpen: (_) {},
+            );
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Arrivée · Kolwezi'), findsOneWidget);
+      redraw!(() => revision++);
+      await tester.pumpAndSettle();
+      expect(find.text('Arrivée · Kolwezi'), findsOneWidget);
+      await tester.tap(find.byTooltip('Fermer l’aperçu'));
+      await tester.pump();
+      expect(focused, isNull);
+      expect(find.byKey(const Key('discover-map-selected-preview')), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Carte compact actions wrap on enlarged text and a narrow viewport',
+    (tester) async {
+      final route = DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'route',
+        candidateKey: 'activity:route',
+        title: 'Voyage vers Kolwezi',
+        summary: 'Déplacement confirmé',
+        savedState: 'not_saved',
+        capabilities: const {'view', 'save'},
+        links: const {'web': '/discover/items/activity/route/'},
+        latitude: -11.66,
+        longitude: 27.48,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(320, 580),
+        textScale: 1.6,
+        child: DiscoverySpatialView(
+          selection: selection(items: [route]),
+          mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+          showMapOnCompact: true,
+          initialSelectedCandidateKey: route.candidateKey,
+          resolveItem: (_) async => route,
+          onSave: (_) async {},
+          onOpen: (_) {},
+          baseUri: Uri.parse('https://makolo.invalid/'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
+      expect(find.byKey(const Key('discover-map-open-n2')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Carte stays immersive and opens the same possibility detail', (
     tester,
   ) async {
