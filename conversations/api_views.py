@@ -25,6 +25,7 @@ from .presentation import (
     now_points_for_profile,
     other_visible_points_for_profile,
     search_conversations_for_profile,
+    visible_exchange_entries_for_profile,
 )
 from .services import (
     can_view_conversation,
@@ -81,9 +82,7 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         ],
         "exchange_preview": [
             {"id": str(entry.pk), "body": entry.body, "created_at": entry.created_at}
-            for entry in reversed(list(point.exchange_entries.filter(
-                moderation_state="visible",
-            ).order_by("-created_at", "-pk")[:5]))
+            for entry in visible_exchange_entries_for_profile(profile, point, limit=5)
         ] if point.kind == "exchange" else [],
         "attention_reason": reason,
         "section": section,
