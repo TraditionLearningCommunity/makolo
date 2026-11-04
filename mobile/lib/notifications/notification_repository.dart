@@ -32,6 +32,7 @@ class NotificationRepository {
   final ProfileStore store;
   final String profileId;
   final SyncEngine? sync;
+  bool _loadingMore = false;
 
   SyncSourceDefinition listSource() => SyncSourceDefinition(
     sourceKey: 'notifications',
@@ -99,7 +100,7 @@ class NotificationRepository {
     if (engine == null) {
       throw StateError('Remote Notifications owner is not configured.');
     }
-    await engine.refreshSource(listSource());
+    await engine.pullSource(listSource());
   }
 
   Future<void> refreshPreferences() async {
@@ -107,7 +108,103 @@ class NotificationRepository {
     if (engine == null) {
       throw StateError('Remote notification preferences are not configured.');
     }
-    await engine.refreshSource(preferencesSource());
+    await engine.pullSource(preferencesSource());
+  }
+
+  /// Continue a previously acquired list without using a server URL as a transport target.
+  /// Only an owner-issued cursor on the same API path is accepted.
+  Future<bool> loadMore() async {
+    if (_loadingMore) return false;
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Notifications owner is not configured.');
+    }
+    final original = await readList();
+    final continuation = original?.payload['next'];
+    if (continuation is! String || continuation.isEmpty) return false;
+    final uri = Uri.tryParse(continuation);
+    if (uri == null ||
+        uri.path != '/api/v1/notifications/' ||
+        !uri.queryParameters.containsKey('cursor') ||
+        uri.queryParameters.keys.any((key) => key != 'cursor' && key != 'filter')) {
+      throw const FormatException('Invalid Notifications continuation.');
+    }
+    final cursor = uri.queryParameters['cursor'];
+    if (cursor == null || cursor.isEmpty) {
+      throw const FormatException('Missing Notifications cursor.');
+    }
+
+    _loadingMore = true;
+    try {
+      final answer = await engine.api.get(
+        'api/v1/notifications/?cursor=${Uri.encodeQueryComponent(cursor)}',
+      );
+      final page = answer.jsonObject();
+      if (page['results'] is! List || page['count'] is! num) {
+        throw const FormatException('Invalid Notifications page.');
+      }
+      final current = await readList();
+      if (current == null ||
+          current.payload['next'] != continuation ||
+          !current.receivedAt.isAtSameMomentAs(original!.receivedAt)) {
+        return false; // A refresh or read mutation won the race.
+      }
+      final existing = current.payload['results'];
+      if (existing is! List) {
+        throw const FormatException('Invalid cached Notifications page.');
+      }
+      final known = <String>{};
+      final merged = <Object?>[];
+      for (final row in [...existing, ...(page['results'] as List)]) {
+        if (row is! Map || row['id'] == null) continue;
+        if (known.add(row['id'].toString())) merged.add(row);
+      }
+      await store.putProjection(
+        kind: listProjectionKind,
+        schemaVersion: current.schemaVersion,
+        payload: {
+          ...current.payload,
+          ...page,
+          'results': merged,
+        },
+        sourceGeneratedAt: current.sourceGeneratedAt,
+        sourceUpdatedAt: current.sourceUpdatedAt,
+        freshnessPolicyId: listFreshness.id,
+      );
+      return true;
+    } finally {
+      _loadingMore = false;
+    }
+  }
+
+  Future<void> _reflectRead({String? id}) async {
+    final current = await readList();
+    final rows = current?.payload['results'];
+    if (current == null || rows is! List) return;
+    var changed = 0;
+    final now = DateTime.now().toUtc().toIso8601String();
+    final nextRows = rows.map((value) {
+      if (value is! Map) return value;
+      if (id != null && value['id']?.toString() != id) return value;
+      if (value['is_read'] == true) return value;
+      changed++;
+      return {...value, 'is_read': true, 'read_at': now};
+    }).toList(growable: false);
+    final unread = current.payload['unread_count'];
+    await store.putProjection(
+      kind: listProjectionKind,
+      schemaVersion: current.schemaVersion,
+      payload: {
+        ...current.payload,
+        'results': nextRows,
+        if (id == null) 'unread_count': 0,
+        if (id != null && unread is num)
+          'unread_count': (unread.toInt() - changed).clamp(0, 1 << 30),
+      },
+      sourceGeneratedAt: current.sourceGeneratedAt,
+      sourceUpdatedAt: current.sourceUpdatedAt,
+      freshnessPolicyId: listFreshness.id,
+    );
   }
 
   Future<void> markRead(String id) async {
@@ -118,7 +215,7 @@ class NotificationRepository {
       );
     }
     await engine.api.post('api/v1/notifications/$id/read/');
-    await refreshList();
+    await _reflectRead(id: id);
   }
 
   Future<void> markAllRead() async {
@@ -129,7 +226,7 @@ class NotificationRepository {
       );
     }
     await engine.api.post('api/v1/notifications/read-all/');
-    await refreshList();
+    await _reflectRead();
   }
 
   Future<void> updatePreferences(Map<String, dynamic> changes) async {

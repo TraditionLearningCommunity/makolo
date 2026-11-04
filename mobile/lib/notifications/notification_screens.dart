@@ -1,5 +1,3 @@
-import '../selectors/projection_selector.dart';
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -9,11 +7,13 @@ import '../data/local/profile_store.dart';
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
+import '../features/settings/notification_preferences_screen.dart' as settings;
 import '../navigation/structured_destination_codec.dart';
 import '../presentation/projection_surface_adapter.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
 import 'notification_repository.dart';
+import 'notification_router.dart';
 
 class NotificationInboxScreen extends StatefulWidget {
   const NotificationInboxScreen({
@@ -34,39 +34,93 @@ class NotificationInboxScreen extends StatefulWidget {
 
 class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
+  final ScrollController _scroll = ScrollController();
   bool _refreshing = false;
+  bool _attempted = false;
+  bool _loadFailed = false;
+  bool _loadingMore = false;
+  bool _pageFailed = false;
   bool _onlyUnread = false;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_maybeLoadMore);
     unawaited(_acquire());
   }
 
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
   Future<void> _acquire() async {
-    final local = await widget.repository.readList();
-    final source = await widget.repository.readListSource();
-    if (!mounted) return;
-    if (local == null ||
-        NotificationRepository.listFreshness.evaluate(
-              local,
-              now: DateTime.now(),
-              invalidated: source.invalidated,
-            ) !=
-            FreshnessState.fresh) {
-      await _refresh();
+    try {
+      final local = await widget.repository.readList();
+      final source = await widget.repository.readListSource();
+      if (!mounted) return;
+      if (local == null ||
+          NotificationRepository.listFreshness.evaluate(
+                local,
+                now: DateTime.now(),
+                invalidated: source.invalidated,
+              ) != FreshnessState.fresh) {
+        await _refresh();
+      } else {
+        setState(() => _attempted = true);
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _attempted = true;
+          _loadFailed = true;
+        });
+      }
     }
   }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    setState(() {
+      _refreshing = true;
+      _pageFailed = false;
+      _loadFailed = false;
+    });
     try {
       await widget.repository.refreshList();
     } on Object {
-      // Preserve the last locally synchronized inbox.
+      if (mounted) setState(() => _loadFailed = true);
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted) {
+        setState(() {
+          _attempted = true;
+          _refreshing = false;
+        });
+      }
+    }
+  }
+
+  void _maybeLoadMore() {
+    if (!mounted || _refreshing || _loadingMore || _pageFailed) return;
+    if (!_scroll.hasClients || _scroll.position.extentAfter > 500) return;
+    unawaited(_loadMore());
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _refreshing) return;
+    final snapshot = await widget.repository.readList();
+    if (!mounted || snapshot?.payload['next'] is! String) return;
+    setState(() {
+      _loadingMore = true;
+      _pageFailed = false;
+    });
+    try {
+      await widget.repository.loadMore();
+    } on Object {
+      if (mounted) setState(() => _pageFailed = true);
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
     }
   }
 
@@ -76,11 +130,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Impossible de confirmer la lecture. Actualisez avant de réessayer.',
-          ),
-        ),
+        const SnackBar(content: Text('Lecture non confirmée. Réessayez.')),
       );
     }
   }
@@ -90,17 +140,14 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       try {
         await widget.repository.markRead(row.id);
       } on Object {
-        // The owner handoff remains independent from read state. Local unread
-        // state is preserved when the server did not confirm the mutation.
+        // Navigation does not claim a read that the server has not confirmed.
       }
     }
-    final path = row.destinationPath;
     if (!mounted) return;
+    final path = row.destinationPath;
     if (path == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cette destination n’est plus disponible.'),
-        ),
+        const SnackBar(content: Text('Aucune destination disponible.')),
       );
       return;
     }
@@ -147,22 +194,31 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: source.lastErrorCode != null && available
+              failure: available
+                  ? (source.lastErrorCode != null || _loadFailed)
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.none
+                  : (_attempted && !_refreshing)
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
+            final total = projection?.payload['total_count'];
+            final unread = projection?.payload['unread_count'];
+            final hasMore = projection?.payload['next'] is String;
+            WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
 
             return Scaffold(
               appBar: AppBar(
                 title: const Text('Notifications'),
                 actions: [
                   IconButton(
-                    tooltip: 'Préférences de notification',
+                    tooltip: 'Préférences',
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => NotificationPreferencesScreen(
+                        builder: (_) => settings.NotificationPreferencesScreen(
                           repository: widget.repository,
+                          runtime: widget.runtime,
                         ),
                       ),
                     ),
@@ -180,15 +236,31 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des notifications…',
                 ),
+                recoverableErrorMessage: 'Actualisation indisponible.',
                 empty: MakoloEmptyState(
                   title: _onlyUnread
                       ? 'Aucune notification non lue.'
                       : 'Aucune notification.',
-                  body: 'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
                 ),
                 onRetry: _refresh,
                 content: Column(
                   children: [
+                    if (total is num && unread is num)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          MakoloSpacing.inner,
+                          MakoloSpacing.sm,
+                          MakoloSpacing.inner,
+                          0,
+                        ),
+                        child: Row(
+                          children: [
+                            Text('${total.toInt()} notifications'),
+                            const SizedBox(width: MakoloSpacing.md),
+                            Text('${unread.toInt()} non lues'),
+                          ],
+                        ),
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         MakoloSpacing.inner,
@@ -201,18 +273,16 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                           ChoiceChip(
                             label: const Text('Toutes'),
                             selected: !_onlyUnread,
-                            onSelected: (_) =>
-                                setState(() => _onlyUnread = false),
+                            onSelected: (_) => setState(() => _onlyUnread = false),
                           ),
                           const SizedBox(width: MakoloSpacing.sm),
                           ChoiceChip(
                             label: const Text('Non lues'),
                             selected: _onlyUnread,
-                            onSelected: (_) =>
-                                setState(() => _onlyUnread = true),
+                            onSelected: (_) => setState(() => _onlyUnread = true),
                           ),
                           const Spacer(),
-                          if (rows.any((row) => !row.isRead))
+                          if (unread is num && unread > 0)
                             TextButton(
                               onPressed: _markAllRead,
                               child: const Text('Tout marquer comme lu'),
@@ -221,48 +291,84 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                       ),
                     ),
                     Expanded(
-                      child: ListView.separated(
-                        key: const PageStorageKey<String>(
-                          'notification-inbox-list',
+                      child: RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ListView.builder(
+                          controller: _scroll,
+                          key: const PageStorageKey<String>('notification-inbox-list'),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: visible.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == visible.length) {
+                              if (_pageFailed) {
+                                return Center(
+                                  child: TextButton(
+                                    onPressed: () {
+                                      setState(() => _pageFailed = false);
+                                      unawaited(_loadMore());
+                                    },
+                                    child: const Text('Réessayer'),
+                                  ),
+                                );
+                              }
+                              if (_loadingMore) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Center(
+                                  child: Text(
+                                    hasMore ? '' : 'Fin des notifications',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ),
+                              );
+                            }
+                            final row = visible[index];
+                            return Column(
+                              children: [
+                                Semantics(
+                                  button: true,
+                                  label: '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
+                                  child: ListTile(
+                                    onTap: () => _open(row),
+                                    leading: ExcludeSemantics(
+                                      child: Icon(
+                                        row.isRead
+                                            ? Icons.notifications_none_outlined
+                                            : Icons.circle,
+                                        size: row.isRead ? 22 : 9,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      row.title,
+                                      style: TextStyle(
+                                        fontWeight: row.isRead
+                                            ? FontWeight.w500
+                                            : FontWeight.w700,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      row.message +
+                                          (row.createdAt == null
+                                              ? ''
+                                              : '\n${_timeLabel(row.createdAt!)}'),
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: row.destinationPath == null
+                                        ? null
+                                        : const Icon(Icons.chevron_right_rounded),
+                                  ),
+                                ),
+                                const Divider(height: 1),
+                              ],
+                            );
+                          },
                         ),
-                        itemCount: visible.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final row = visible[index];
-                          return Semantics(
-                            button: true,
-                            label:
-                                '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
-                            child: ListTile(
-                              onTap: () => _open(row),
-                              leading: ExcludeSemantics(
-                                child: Icon(
-                                  row.isRead
-                                      ? Icons.notifications_none_outlined
-                                      : Icons.circle,
-                                  size: row.isRead ? 22 : 9,
-                                ),
-                              ),
-                              title: Text(
-                                row.title,
-                                style: TextStyle(
-                                  fontWeight: row.isRead
-                                      ? FontWeight.w500
-                                      : FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                row.message +
-                                    (row.createdAt == null
-                                        ? ''
-                                        : '\n${_timeLabel(row.createdAt!)}'),
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: const Icon(Icons.chevron_right_rounded),
-                            ),
-                          );
-                        },
                       ),
                     ),
                   ],
@@ -274,223 +380,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       },
     );
   }
-}
-
-class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({super.key, required this.repository});
-
-  final NotificationRepository repository;
-
-  @override
-  State<NotificationPreferencesScreen> createState() =>
-      _NotificationPreferencesScreenState();
-}
-
-class _NotificationPreferencesScreenState
-    extends State<NotificationPreferencesScreen> {
-  Map<String, dynamic>? _draft;
-  bool _loading = true;
-  bool _saving = false;
-  String? _message;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final local = await widget.repository.readPreferences();
-      if (local != null) {
-        _draft = Map<String, dynamic>.from(local.payload);
-      }
-      await widget.repository.refreshPreferences();
-      final fresh = await widget.repository.readPreferences();
-      if (fresh != null) _draft = Map<String, dynamic>.from(fresh.payload);
-    } on Object {
-      // Existing local preferences remain usable as the last server-known state.
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  bool _bool(String key, {bool fallback = false}) =>
-      _draft?[key] is bool ? _draft![key] as bool : fallback;
-
-  void _setBool(String key, bool value) {
-    setState(() {
-      _draft ??= <String, dynamic>{};
-      _draft![key] = value;
-      _message = null;
-    });
-  }
-
-  TimeOfDay? _time(String key) {
-    final value = _draft?[key]?.toString();
-    if (value == null || value.length < 5) return null;
-    final parts = value.split(':');
-    if (parts.length < 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  Future<void> _pickTime(String key) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _time(key) ?? TimeOfDay.now(),
-    );
-    if (picked == null) return;
-    setState(() {
-      _draft ??= <String, dynamic>{};
-      _draft![key] =
-          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
-    });
-  }
-
-  Future<void> _save() async {
-    final draft = _draft;
-    if (_saving || draft == null) return;
-    if (_bool('quiet_hours_enabled') &&
-        (_time('quiet_hours_start') == null ||
-            _time('quiet_hours_end') == null)) {
-      setState(
-        () =>
-            _message = 'Choisissez le début et la fin des heures silencieuses.',
-      );
-      return;
-    }
-    setState(() {
-      _saving = true;
-      _message = null;
-    });
-    try {
-      await widget.repository.updatePreferences({
-        'push_notifications': _bool('push_notifications', fallback: true),
-        'email_notifications': _bool('email_notifications', fallback: true),
-        'security_notifications': _bool(
-          'security_notifications',
-          fallback: true,
-        ),
-        'event_notifications': _bool('event_notifications', fallback: true),
-        'service_notifications': _bool('service_notifications', fallback: true),
-        'opportunity_notifications': _bool(
-          'opportunity_notifications',
-          fallback: true,
-        ),
-        'marketing_notifications': _bool('marketing_notifications'),
-        'quiet_hours_enabled': _bool('quiet_hours_enabled'),
-        'quiet_hours_start': draft['quiet_hours_start'],
-        'quiet_hours_end': draft['quiet_hours_end'],
-      });
-      if (mounted) setState(() => _message = 'Préférences enregistrées.');
-    } on Object {
-      if (mounted) {
-        setState(
-          () => _message = 'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading && _draft == null) {
-      return const Scaffold(
-        body: MakoloLoadingState(label: 'Chargement des préférences…'),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Préférences')),
-      body: ListView(
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        children: [
-          Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
-          SwitchListTile(
-            title: const Text('Notifications sur les appareils'),
-            subtitle: const Text(
-              'Recevoir des alertes sur les appareils enregistrés.',
-            ),
-            value: _bool('push_notifications', fallback: true),
-            onChanged: (value) => _setBool('push_notifications', value),
-          ),
-          SwitchListTile(
-            title: const Text('E-mail'),
-            value: _bool('email_notifications', fallback: true),
-            onChanged: (value) => _setBool('email_notifications', value),
-          ),
-          const Divider(),
-          Text('Catégories', style: Theme.of(context).textTheme.titleMedium),
-          _preferenceSwitch(
-            'Sécurité',
-            'security_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Événements',
-            'event_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Services',
-            'service_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch(
-            'Opportunités',
-            'opportunity_notifications',
-            fallback: true,
-          ),
-          _preferenceSwitch('Marketing', 'marketing_notifications'),
-          const Divider(),
-          SwitchListTile(
-            title: const Text('Heures silencieuses'),
-            subtitle: const Text(
-              'Les livraisons non urgentes attendent ; les vérités métier ne disparaissent pas.',
-            ),
-            value: _bool('quiet_hours_enabled'),
-            onChanged: (value) => _setBool('quiet_hours_enabled', value),
-          ),
-          if (_bool('quiet_hours_enabled')) ...[
-            ListTile(
-              title: const Text('Début'),
-              subtitle: Text(
-                _time('quiet_hours_start')?.format(context) ?? 'Choisir',
-              ),
-              onTap: () => _pickTime('quiet_hours_start'),
-            ),
-            ListTile(
-              title: const Text('Fin'),
-              subtitle: Text(
-                _time('quiet_hours_end')?.format(context) ?? 'Choisir',
-              ),
-              onTap: () => _pickTime('quiet_hours_end'),
-            ),
-          ],
-          if (_message != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(_message!),
-          ],
-          const SizedBox(height: MakoloSpacing.md),
-          FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _preferenceSwitch(String label, String key, {bool fallback = false}) =>
-      SwitchListTile(
-        title: Text(label),
-        value: _bool(key, fallback: fallback),
-        onChanged: (value) => _setBool(key, value),
-      );
 }
 
 class _NotificationRow {
@@ -519,20 +408,15 @@ class _NotificationRow {
         .map((item) {
           final row = item.map((key, value) => MapEntry(key.toString(), value));
           final destination = codec.fromNavigation(row['navigation']);
-          String? path;
-          if (destination != null) {
-            path = switch (destination.kind.toLowerCase()) {
-              'conversation' => '/conversations/${destination.id}',
-              'journey' => '/journeys/${destination.id}',
-              'activity' => '/activities/${destination.id}',
-              'occurrence' => '/occurrences/${destination.id}',
-              'access' => '/accesses/${destination.id}',
-              'dossier' => '/dossiers/${destination.id}',
-              'project' => '/projects/${destination.id}',
-              'group' => '/groups/${destination.id}',
-              _ => null,
-            };
-          }
+          final path = destination == null
+              ? null
+              : const NotificationRouter().resolve(
+                  NotificationRouteIntent(
+                    kind: destination.kind,
+                    id: destination.id,
+                    link: destination.link,
+                  ),
+                );
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
             title: row['title']?.toString().trim().isNotEmpty == true
@@ -550,7 +434,20 @@ class _NotificationRow {
 }
 
 String _timeLabel(DateTime value) {
-  final local = value.toLocal();
-  String two(int part) => part.toString().padLeft(2, '0');
-  return '${two(local.day)}/${two(local.month)}/${local.year} · ${two(local.hour)}:${two(local.minute)}';
+  final date = value.toLocal();
+  final now = DateTime.now();
+  final elapsed = now.difference(date);
+  if (elapsed.isNegative || elapsed.inMinutes < 1) return 'À l’instant';
+  if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
+  if (elapsed.inHours < 24 && date.day == now.day) {
+    return 'Il y a ${elapsed.inHours} h';
+  }
+  final day = DateTime(date.year, date.month, date.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final days = today.difference(day).inDays;
+  if (days == 1) return 'Hier';
+  if (days < 7) return 'Il y a ${days} jours';
+  if (days < 30) return 'Il y a ${(days / 7).floor()} semaines';
+  if (days < 365) return 'Il y a ${(days / 30).floor()} mois';
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
