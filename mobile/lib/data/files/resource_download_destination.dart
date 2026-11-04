@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -22,4 +24,21 @@ Future<String> resourceDownloadDestination({
     ProfilePaths.safeProfileId(assetId),
     '${safeTitle.isEmpty ? 'document' : safeTitle}-v$versionNumber',
   );
+}
+
+/// Only the app's retained private copy is withdrawn; files explicitly
+/// exported by the person into system Downloads remain user-managed.
+Future<void> removeLocallyRetainedResourceVersions({
+  required String profileId,
+  required String assetId,
+}) async {
+  final root = await getApplicationDocumentsDirectory();
+  final directory = Directory(p.join(
+    root.path,
+    'makolo',
+    'resources',
+    ProfilePaths.safeProfileId(profileId),
+    ProfilePaths.safeProfileId(assetId),
+  ));
+  if (await directory.exists()) await directory.delete(recursive: true);
 }
