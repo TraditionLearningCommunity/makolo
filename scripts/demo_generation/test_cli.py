@@ -352,6 +352,7 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertEqual(phase_for_dates(now + timedelta(days=2),
                                          now + timedelta(days=3), now), "future")
         self.assertEqual(len(point_blueprints("live", "Atelier")), 4)
+        self.assertTrue(all(mode == "free_text" for kind, _, _, mode, _ in point_blueprints("live", "Atelier") if kind == "exchange"))
         self.assertEqual(scenario_reference("activity", "123", "live", 2),
                          scenario_reference("activity", "123", "live", 2))
 
