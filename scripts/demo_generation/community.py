@@ -45,14 +45,16 @@ def main(argv=None):
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
     from .selection import demo_profiles
+    from .editorial import group_name, objective_titles
     users = demo_profiles(username=a.profile_username, limit=a.profiles)
 
 
     counts = Counter()
     if "groups" in selected:
         for index, owner in enumerate(users[:min(a.count, len(users))]):
-            name = "[DEMO] Groupe d'entraide " + owner.username
-            group = Group.objects.filter(owner_profile=owner, name=name).first()
+            name = group_name(owner)
+            group = (Group.objects.filter(owner_profile=owner, name=name).first()
+                     or Group.objects.filter(owner_profile=owner, name="[DEMO] Groupe d'entraide " + owner.username).first())
             if group is None:
                 if not a.apply:
                     counts["groups_planned"] += 1
@@ -60,7 +62,7 @@ def main(argv=None):
                 try:
                     with transaction.atomic():
                         group = create_group(actor=owner, name=name,
-                            description="Groupe fictif pour tester la participation.")
+                            description="Échanger des informations utiles, préparer des actions et s’entraider dans les démarches.")
                     counts["groups_created"] += 1
                 except (ValidationError, PermissionDenied):
                     counts["groups_rejected"] += 1
@@ -85,10 +87,11 @@ def main(argv=None):
 
     if "objectives" in selected:
         for owner in users[:min(a.count, len(users))]:
-            title = "[DEMO] Preparer une demarche - " + owner.username
-            long_title = "[DEMO] Projet d'action - " + owner.username
-            dossier = Dossier.objects.filter(owner_profile=owner, title=title).first()
-            project = Project.objects.filter(owner_profile=owner, title=long_title).first()
+            title, long_title = objective_titles(owner)
+            dossier = (Dossier.objects.filter(owner_profile=owner, title=title).first()
+                       or Dossier.objects.filter(owner_profile=owner, title="[DEMO] Preparer une demarche - " + owner.username).first())
+            project = (Project.objects.filter(owner_profile=owner, title=long_title).first()
+                       or Project.objects.filter(owner_profile=owner, title="[DEMO] Projet d'action - " + owner.username).first())
             if not a.apply:
                 counts["dossiers_planned"] += int(dossier is None)
                 counts["projects_planned"] += int(project is None)
@@ -97,11 +100,11 @@ def main(argv=None):
                 with transaction.atomic():
                     if project is None:
                         project = create_project(actor=owner, owner_profile=owner,
-                            title=long_title, description="Horizon fictif de tests Makolo.")
+                            title=long_title, description="Développer une trajectoire durable reliant les actions et les démarches utiles.")
                         counts["projects_created"] += 1
                     if dossier is None:
                         dossier = create_dossier(actor=owner, owner_profile=owner,
-                            title=title, description="Objectif fictif relie aux Journeys.")
+                            title=title, description="Préparer les étapes nécessaires et réunir les informations pour avancer.")
                         counts["dossiers_created"] += 1
                     if not ProjectDossierLink.objects.filter(
                         project=project, dossier=dossier, is_active=True).exists():
@@ -132,8 +135,8 @@ def main(argv=None):
                         recipient=journey.beneficiary,
                         kind=NotificationKind.SYSTEM,
                         category=NotificationCategory.SERVICE,
-                        title="Demarche de demonstration",
-                        message="Scenario fictif lie a votre demarche Makolo.",
+                        title="Suivi de votre démarche",
+                        message="Retrouvez les étapes et les informations utiles pour « " + journey.activity.title[:140] + " ».",
                         dedup_key=key, activity=journey.activity, journey=journey,
                         metadata={"synthetic_demo": True},
                         queue_email=False, queue_push=False)
@@ -162,7 +165,7 @@ def main(argv=None):
                     submit_feedback(
                         journey=journey, actor=journey.beneficiary,
                         overall_sentiment="neutral",
-                        comment="Retour fictif, genere pour les tests Makolo.")
+                        comment="Les étapes étaient compréhensibles, mais quelques précisions pratiques seraient utiles pour la suite.")
                 counts["feedback_created"] += 1
             except (ValidationError, PermissionDenied):
                 counts["feedback_rejected"] += 1
@@ -197,9 +200,9 @@ def main(argv=None):
         for index, journey in enumerate(reported):
             if index % 5:
                 continue
-            description = "[DEMO] Signalement fictif : accueil difficile a localiser."
+            description = "Le point d’accueil était difficile à repérer à mon arrivée."
             if Report.objects.filter(journey=journey,
-                reporter=journey.beneficiary, description=description).exists():
+                reporter=journey.beneficiary, description__in=(description, "[DEMO] Signalement fictif : accueil difficile a localiser.")).exists():
                 counts["reports_existing"] += 1
             elif not a.apply:
                 counts["reports_planned"] += 1
@@ -223,10 +226,10 @@ def main(argv=None):
             if key in seen or len(seen) >= a.count:
                 continue
             seen.add(key)
-            message = "[DEMO] Conseil contextuel : verifier les informations de cette activite avant d'agir."
+            message = "Avant de vous déplacer, vérifiez les horaires et les conditions publiés pour « " + journey.activity.title[:140] + " »."
             if Contribution.objects.filter(
                 activity=journey.activity, author_profile=journey.beneficiary,
-                body=message, kind=ContributionKind.TIP
+                body__in=(message, "[DEMO] Conseil contextuel : verifier les informations de cette activite avant d'agir."), kind=ContributionKind.TIP
             ).exists():
                 counts["contributions_existing"] += 1
             elif not a.apply:
