@@ -250,40 +250,50 @@ def main(argv=None):
                     if ConversationPoint.objects.filter(client_reference=ref).exists():
                         counts["points_existing"] += 1
                         continue
-                    point = create_point(
-                        actor=actor, conversation=conversation,
-                        kind=point_kind, title=title[:220], body=body,
-                        response_mode=response_mode,
-                        options=options, client_reference=ref,
-                        requires_acknowledgement=False,
-                    )
-                    counts["points_created"] += 1
-                    # Only actors already eligible for this particular context
-                    # can answer. No synthetic membership or automatic consent.
+                    try:
+                        # A failed answer/resolution cannot roll back unrelated
+                        # valid Points of the same Conversation.
+                        with transaction.atomic():
+                            point = create_point(
+                                actor=actor, conversation=conversation,
+                                kind=point_kind, title=title[:220], body=body,
+                                response_mode=response_mode,
+                                options=options, client_reference=ref,
+                            )
+                        counts["points_created"] += 1
+                    except (PermissionDenied, ValidationError) as exc:
+                        counts["points_rejected"] += 1
+                        if counts["points_rejected"] <= 5:
+                            print("POINT_REJECTED", kind, type(exc).__name__, str(exc)[:160])
+                        continue
                     viewers = conversation_viewer_ids(conversation) - {actor.pk}
                     respondent = next((person for person in people if person.pk in viewers
                                        and point_response_allowed(person, point)), None)
-                    if respondent and response_mode != ConversationPointResponseMode.NONE:
-                        if response_mode == ConversationPointResponseMode.BOOLEAN:
-                            value = (index % 2 == 0)
-                        elif response_mode == ConversationPointResponseMode.SINGLE_CHOICE:
-                            value = str(point.options.order_by("position").first().pk)
-                        else:
-                            value = "Je souhaite préciser les prochaines étapes de cette action."
-                        submit_point_response(actor=respondent, point=point, value=value,
-                            client_reference=ref + "-reply")
-                        counts["responses_created"] += 1
-                    elif respondent and point_kind == ConversationPointKind.EXCHANGE:
-                        create_exchange_entry(actor=respondent, point=point,
-                            body="Pouvons-nous clarifier l'organisation de cette étape ?",
-                            client_reference=ref + "-entry")
-                        counts["exchanges_created"] += 1
-                    if phase == "past" and respondent and point_kind in {
-                        ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
-                    }:
-                        resolve_point(actor=actor, point=point,
-                            summary="Les retours ont été pris en compte pour la suite.")
-                        counts["resolutions_created"] += 1
+                    try:
+                        with transaction.atomic():
+                            if respondent and response_mode != ConversationPointResponseMode.NONE:
+                                if response_mode == ConversationPointResponseMode.BOOLEAN:
+                                    value = (index % 2 == 0)
+                                elif response_mode == ConversationPointResponseMode.SINGLE_CHOICE:
+                                    value = str(point.options.order_by("position").first().pk)
+                                else:
+                                    value = "Je souhaite préciser les prochaines étapes de cette action."
+                                submit_point_response(actor=respondent, point=point, value=value,
+                                    client_reference=ref + "-reply")
+                                counts["responses_created"] += 1
+                            elif respondent and point_kind == ConversationPointKind.EXCHANGE:
+                                create_exchange_entry(actor=respondent, point=point,
+                                    body="Pouvons-nous clarifier l'organisation de cette étape ?",
+                                    client_reference=ref + "-entry")
+                                counts["exchanges_created"] += 1
+                            if phase == "past" and respondent and point_kind in {
+                                ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
+                            }:
+                                resolve_point(actor=actor, point=point,
+                                    summary="Les retours ont été pris en compte pour la suite.")
+                                counts["resolutions_created"] += 1
+                    except (PermissionDenied, ValidationError):
+                        counts["responses_or_resolutions_rejected"] += 1
                 if can_view_conversation(actor, conversation):
                     update_personal_conversation_state(
                         actor=actor, conversation=conversation, opened=True)
