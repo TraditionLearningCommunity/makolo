@@ -314,14 +314,18 @@ def search_conversation(profile, conversation, query, *, limit=50):
     return [row[2] for row in scored[:limit]]
 
 
-def search_conversations_for_profile(profile, query, *, limit=50):
+def search_conversations_for_profile(profile, query, *, limit=50, include_archived=False):
     """Privacy-safe global Conversation search with outcome/current-state precedence."""
     query = (query or "").strip()[:120]
     if not query or not getattr(profile, "is_authenticated", False):
         return []
     normalized = query.casefold()
     rows = []
-    for conversation in _accessible_conversations(profile, include_archived=False, limit=300):
+    for conversation in _accessible_conversations(profile, include_archived=include_archived, limit=300):
+        if include_archived:
+            state = _profile_state(conversation)
+            if not (state and state.archived_at):
+                continue
         context_label = conversation_context_label(conversation, profile)
         haystack = " ".join((conversation.title_override or "", conversation.purpose or "", context_label)).casefold()
         if normalized in haystack:
