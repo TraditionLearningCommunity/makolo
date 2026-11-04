@@ -64,7 +64,7 @@
                 <summary class="cursor-pointer text-sm font-medium">{% if item == 'question' %}Question{% elif item == 'request' %}Demande{% elif item == 'exchange' %}Nouvel échange{% else %}Information{% endif %}</summary>
                 <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="mt-3 space-y-3">{% csrf_token %}
                   <input type="hidden" name="mode" value="point"><input type="hidden" name="kind" value="{{ item }}">
-                  <input type="hidden" name="client_reference" value="{{ compose_refs.question }}">
+                  <input type="hidden" name="client_reference" value="{% if compose_draft.kind == item %}{{ compose_draft.client_reference }}{% elif item == 'question' %}{{ compose_refs.question }}{% elif item == 'request' %}{{ compose_refs.request }}{% elif item == 'exchange' %}{{ compose_refs.exchange }}{% else %}{{ compose_refs.information }}{% endif %}">
                   {% if item != 'information' %}
                     <label class="sr-only" for="other-title-{{ item }}">Titre</label>
                     <input id="other-title-{{ item }}" name="title" maxlength="220" required class="mk-input w-full" placeholder="{% if item == 'question' %}Question{% else %}Sujet{% endif %}">
