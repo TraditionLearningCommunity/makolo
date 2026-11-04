@@ -246,7 +246,15 @@ void main() {
     expect(await first.readProjection('private.capability'), isNull);
     expect(await first.readProjections('private.capability'), isEmpty);
     expect(await first.watchProjection('private.capability').first, isNull);
-    expect(await ProfileStore(db, 'profile-b')
-        .readProjection('private.capability'), isNull);
+    final other = ProfileStore(db, 'profile-b');
+    await other.putProjection(
+      kind: 'private.capability', schemaVersion: 1,
+      payload: {'state': 'still-valid'},
+      expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+    );
+    expect(await first.purgeExpiredProjections(), 1);
+    expect(await first.readProjection('private.capability'), isNull);
+    expect((await other.readProjection('private.capability'))?.payload['state'],
+        'still-valid');
   });
 }
