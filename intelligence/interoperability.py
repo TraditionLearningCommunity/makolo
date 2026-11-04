@@ -116,11 +116,11 @@ def project_provider_connection(connection: ProviderConnection, *, manageable: b
         "provider_protocol": connection.protocol,
         "display_name": connection.name,
         "available": True,
-        "connected": not demo,
+        "connected": True,
         "usable": usable and not demo,
         "manageable": bool(manageable),
         "enabled": connection.enabled,
-        "status": "available" if demo else ("connected" if connection.enabled else "disabled"),
+        "status": "connected" if connection.enabled else "disabled",
         "health": _public_health(connection.health_status),
         "capabilities": capabilities,
         "permissions": {
