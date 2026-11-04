@@ -182,7 +182,7 @@ class ConversationC5MatureTests(TestCase):
 
     def test_history_resolved_superseded_and_draft_not_public(self):
         old = self._point('Ancien horaire')
-        newer = self._point('Horaire confirmé')
+        newer = self._point('Horaire confirmé', publish=False)
         supersede_point(actor=self.manager, old_point=old, new_point=newer)
         draft = self._point('Brouillon réservé', publish=False)
         self.client.force_login(self.member)
@@ -222,7 +222,7 @@ class ConversationC5MatureTests(TestCase):
         web = self.client.get(
             reverse('conversations:list'), {'tab': 'archived'},
         )
-        self.assertContains(web, 'Décision coordonnée' if False else 'C5 Activity')
+        self.assertContains(web, 'C5 Activity')
         self.client.post(action_url, {'action': 'archive'})
         self.assertIn(
             str(self.conversation.pk),
@@ -264,6 +264,6 @@ class ConversationC5MatureTests(TestCase):
         self.assertContains(result, 'Voir les Points suivants')
         self.assertContains(result, 'cursor=')
         self.assertContains(result, 'q=Contr%C3%B4le')
-        outside = self.client.force_login(self.outside)
+        self.client.force_login(self.outside)
         denied = self.client.get(url)
         self.assertIn(denied.status_code, (403, 404))
