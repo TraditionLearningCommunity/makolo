@@ -1,6 +1,7 @@
 """Private recipient download for an explicit immutable document share."""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import FileResponse, Http404
+from django.core.exceptions import PermissionDenied
 from django.utils.text import slugify
 from django.views import View
 from rest_framework.permissions import IsAuthenticated
@@ -15,7 +16,7 @@ def _download_for(user, delivery_id):
         _, version = space_document_delivery(
             user=user, delivery_id=delivery_id, mark_opened=True,
         )
-    except (ShareUnavailable, Exception) as exc:
+    except (ShareUnavailable, PermissionDenied) as exc:
         # A forged or revoked grant must never reveal whether a file exists.
         # Authentication and recipient identity are verified by Sharing.
         raise Http404 from exc
