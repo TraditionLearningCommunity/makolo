@@ -178,14 +178,21 @@ def use_document_in_journey(
     *, actor, document_version, journey, step=None,
 ):
     """Create an independent JourneyArtifact, never auto-satisfy a Requirement."""
+    document = (
+        SpaceDocument.objects.select_for_update()
+        .filter(pk=document_version.document_id, archived_at__isnull=True)
+        .first()
+    )
+    if document is None:
+        raise PermissionDenied("Document indisponible.")
     source = (
         SpaceDocumentVersion.objects.select_related("document", "document__space")
-        .filter(pk=document_version.pk, document__archived_at__isnull=True)
+        .filter(pk=document_version.pk, document=document)
         .first()
     )
     if source is None:
         raise PermissionDenied("Document indisponible.")
-    document = source.document
+    # The document lock closes the archive/change-of-visibility race.
     _require_read(actor, document)
     if journey.status in TERMINAL_JOURNEY_STATUSES:
         raise ValidationError("Cette démarche est terminée.")
@@ -198,9 +205,10 @@ def use_document_in_journey(
     )
     if source.expires_at and source.expires_at < timezone.localdate():
         raise ValidationError("Cette version est expirée.")
+    with source.file.open("rb") as handle:
+        data = handle.read()
     upload = SimpleUploadedFile(
-        "document.bin", source.file.open("rb").read(),
-        content_type=source.mime_type,
+        "document.bin", data, content_type=source.mime_type,
     )
     artifact = create_artifact(
         journey=journey, step=step, kind=document.kind, title=document.title,
