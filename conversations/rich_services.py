@@ -200,7 +200,7 @@ def readable_exchange_entries(profile, point, *, cursor=None, limit=25):
             rows = rows.none()
     if cursor:
         try:
-            marker = point.exchange_entries.get(pk=UUID(str(cursor)))
+            marker = rows.get(pk=UUID(str(cursor)))
         except (ValueError, TypeError, PointExchangeEntry.DoesNotExist) as exc:
             raise ValidationError({"cursor": "Curseur invalide."}) from exc
         rows = rows.filter(Q(created_at__gt=marker.created_at) | Q(
