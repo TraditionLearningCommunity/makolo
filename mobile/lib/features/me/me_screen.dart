@@ -398,7 +398,7 @@ class _MeField extends StatelessWidget {
     final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
     final territories = <Widget>[
       for (final territory in selection.territories) ...[
-        if (territory.presentation.key == 'resources' &&
+        if (territory.presentation.key == 'accesses' &&
             selection.canOpenHistory)
           _MeHistorySection(
             edge: edge,
@@ -426,7 +426,7 @@ class _MeField extends StatelessWidget {
         ),
       ],
       if (selection.canOpenHistory &&
-          !selection.territories.any((t) => t.presentation.key == 'resources'))
+          !selection.territories.any((t) => t.presentation.key == 'accesses'))
         _MeHistorySection(
           edge: edge,
           onOpen: hasOwnerNavigation
@@ -793,14 +793,16 @@ class _MeTerritory extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: presentation.key == 'considerations' && hasOwnerNavigation
+              onTap: hasOwnerNavigation &&
+                      (presentation.key == 'considerations' ||
+                          presentation.key == 'collectives')
                   ? () => onSelectItem(
-                      const MeItemPresentation(
+                      MeItemPresentation(
                         destination: StructuredDestination(
-                          kind: 'considerations',
+                          kind: presentation.key,
                           id: 'mine',
                         ),
-                        title: 'Ce qui compte pour moi',
+                        title: presentation.label,
                         canOpen: true,
                       ),
                     )
@@ -830,8 +832,9 @@ class _MeTerritory extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                    if (presentation.key == 'considerations' &&
-                        hasOwnerNavigation)
+                    if (hasOwnerNavigation &&
+                        (presentation.key == 'considerations' ||
+                            presentation.key == 'collectives'))
                       const Padding(
                         padding: EdgeInsetsDirectional.only(start: 6),
                         child: Icon(Icons.chevron_right_rounded),
@@ -969,7 +972,7 @@ class _MeTerritory extends StatelessWidget {
   Widget _considerations(BuildContext context) {
     final saved = territory.items
         .where((item) => item.destination.kind == 'activity')
-        .take(3)
+        .take(2)
         .toList();
     final interests = territory.items
         .where((item) => item.destination.kind == 'topic')
@@ -977,7 +980,7 @@ class _MeTerritory extends StatelessWidget {
         .toList();
     final openTo = territory.items
         .where((item) => item.destination.kind == 'open_to')
-        .take(3)
+        .take(2)
         .toList();
     final colors = Theme.of(context).colorScheme;
     final canNavigate = hasOwnerNavigation;
@@ -1053,12 +1056,29 @@ class _MeTerritory extends StatelessWidget {
     }
     return Column(
       children: [
-        for (final item in territory.items)
+        for (final item in territory.items.take(3))
           _MeIdentityRow(
             item: item,
             onTap: item.canOpen && hasOwnerNavigation
                 ? () => onSelectItem(item)
                 : null,
+          ),
+        if (hasOwnerNavigation && territory.totalCount > 3)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: () => onSelectItem(
+                const MeItemPresentation(
+                  destination: StructuredDestination(
+                    kind: 'collectives',
+                    id: 'mine',
+                  ),
+                  title: 'Mes collectifs',
+                  canOpen: true,
+                ),
+              ),
+              child: const Text('Voir tous mes collectifs'),
+            ),
           ),
       ],
     );
@@ -1070,7 +1090,7 @@ class _MeTerritory extends StatelessWidget {
     }
     return Column(
       children: [
-        for (final item in territory.items)
+        for (final item in territory.items.take(4))
           _MeResourceRow(
             item: item,
             onTap: item.canOpen && hasOwnerNavigation
