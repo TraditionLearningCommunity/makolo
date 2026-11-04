@@ -87,6 +87,8 @@ def _validate_represented_space(actor, represented_space):
 
 def _active_window(point, *, at=None):
     at = at or timezone.now()
+    if point.conversation.lifecycle != ConversationLifecycle.OPEN:
+        raise ValidationError("Cette Conversation est fermée.")
     if point.lifecycle != ConversationPointLifecycle.OPEN:
         raise ValidationError("Ce Point n’accepte pas de réponse actuellement.")
     if point.opens_at and at < point.opens_at:
