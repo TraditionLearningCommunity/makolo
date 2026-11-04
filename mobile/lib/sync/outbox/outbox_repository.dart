@@ -200,7 +200,10 @@ class OutboxRepository {
   }) async {
     if (expectedState != OutboxState.queued.wireValue &&
         expectedState != OutboxState.failed.wireValue &&
-        expectedState != OutboxState.inFlight.wireValue) return false;
+        expectedState != OutboxState.inFlight.wireValue &&
+        expectedState != OutboxState.awaitingConfirmation.wireValue) {
+      return false;
+    }
     final changed = await (database.update(database.outboxOperations)..where(
           (candidate) =>
               candidate.profileId.equals(profileId) &
