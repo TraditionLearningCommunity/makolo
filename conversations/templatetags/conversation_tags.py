@@ -3,7 +3,7 @@ from django import template
 from conversations.attention import attention_points_for_profile, conversation_attention_badge_count, has_conversation_attention
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
-from conversations.presentation import conversation_context_label, conversations_for_context
+from conversations.presentation import conversation_context_label, conversations_for_context, visible_exchange_entries_for_profile
 from conversations.composing import can_ensure_context_conversation
 from core.web.request_context import get_request_context
 
@@ -104,9 +104,4 @@ def conversation_context_can_ensure(profile, kind, context_pk):
 
 @register.simple_tag
 def conversation_point_exchange_preview(point, profile):
-    from conversations.point_services import point_visible_to
-    if point.kind != "exchange" or not point_visible_to(profile, point):
-        return []
-    return list(reversed(list(point.exchange_entries.filter(
-        moderation_state="visible",
-    ).order_by("-created_at", "-pk")[:5])))
+    return visible_exchange_entries_for_profile(profile, point, limit=5)
