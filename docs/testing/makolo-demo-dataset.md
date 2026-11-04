@@ -298,3 +298,29 @@ python -m scripts.demo_generation generate --domains connections --count 50 --pr
 ```
 
 Remplacer `world_example` par un vrai username synthétique; ne pas inventer un compte. Le catalogue contient 50 options, mais ce ne sont pas 50 intégrations tierces fonctionnelles. Les connexions réelles restent soumises aux clés, à la configuration et au consentement d'origine.
+
+## Conversations Makolo : scénarios contextualisés et temporels
+
+Le domaine `conversations` est intégré à la CLI de démonstration. Il ne crée ni feed, ni chat type WhatsApp. Il utilise `ensure_context_conversation`, `create_point`, `submit_point_response`, `create_exchange_entry`, `resolve_point` et les politiques/permissions serveur. Les contextes sélectionnés sont **Activity, Occurrence, Journey, Space, Group, Dossier, Project, ActionProposal**. Les échanges directs entre personnes ne sont pas auto-fabriqués : ils supposent leur contrat de consentement bilatéral.
+
+Une Conversation de démonstration contient jusqu'à quatre Points utiles : information, question, confirmation, sondage, demande ou échange selon le contexte. Les réponses structurées sont limitées aux autres profils déjà éligibles dans le contexte; aucune Membership ou Mandate n'est inventée. Les réponses, résolutions et Points sont idempotents via leurs références déterministes.
+
+Les Occurrences déterminent le **type d'histoire au moment du lancement** : terminée (bilan), Live (coordination immédiate), future (préparation). Les états temporels du métier ne sont pas confondus avec les timestamps d'audit : on ne prétend pas qu'un Point fraîchement généré a été publié dans le passé.
+
+Exemples pour la SQLite de test déjà configurée :
+
+```bash
+python -m scripts.demo_generation plan --domains conversations --count 500 --profiles 30 --seed 2026
+python -m scripts.demo_generation generate --domains conversations --count 500 --profiles 30 --seed 2026 --conversation-points 4
+python -m scripts.demo_generation generate --domains conversations --count 500 --profile-username world_011_divine --seed 2027
+```
+
+`--count 500` est un plafond de **500 Conversations contextuelles distinctes** (pas 500 publications par conversation). Le résultat peut être inférieur si les utilisateurs existants manquent de contextes admissibles. La même graine permet une sélection reproductible; changer `--seed` renouvelle la sélection des contextes mais ne crée pas de doublons pour le même contexte et la même finalité. `--profile-username` cible un compte existant pour les contextes qu'il possède ou peut gérer, sans forcer l'accès à d'autres Conversations privées.
+
+Pour inspecter le résultat réel :
+
+```bash
+python manage.py shell -c "from conversations.models import Conversation,ConversationPoint,ConversationPointResponse; print('Conversations',Conversation.objects.count(),'Points',ConversationPoint.objects.count(),'Réponses',ConversationPointResponse.objects.count())"
+```
+
+La génération ne garantit ni la couverture de toutes les sous-tables avancées (audiences détaillées, demandes d'invitation, bridges média/formulaires), ni la création de 500 Conversations si moins de 500 contextes propriétaires sont admissibles. Ces sous-parcours ne doivent pas être inventés pour remplir artificiellement toutes les tables.
