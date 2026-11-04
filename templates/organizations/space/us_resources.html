@@ -40,7 +40,7 @@
       {% endfor %}
       </ul>
     {% else %}
-      <p class="mk-ws4-empty">Aucune ressource disponible dans cette catégorie. Les autres catégories restent accessibles.</p>
+      <p class="mk-ws4-empty">Aucune ressource dans cette catégorie.</p>
     {% endif %}
     {% if resources_depth.has_more %}
       <a class="mk-ws4-deep-link" href="{{ resources_base_url }}&amp;kind={{ resources_depth.kind|urlencode }}&amp;offset={{ resources_depth.next_offset }}">Voir les suivantes <i data-lucide="arrow-right" aria-hidden="true"></i></a>
