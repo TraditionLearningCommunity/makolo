@@ -35,6 +35,7 @@ from .media_services import (
 )
 from .point_models import (
     PointExchangeEntry, ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
+    ConversationPointResponse,
     ConversationPointResponseMode, ConversationResponseVisibility,
     ConversationExchangeModerationState,
 )
@@ -308,6 +309,18 @@ def submit_point_media_response(
         raise PermissionDenied("Ce type de réponse n'est pas autorisé par la Conversation.")
     data, mime, digest = validate_conversation_upload(uploaded_file, kind)
     raw_name = Path(getattr(uploaded_file, "name", "fichier") or "fichier").name[:255]
+    from .point_services import point_response_allowed
+    if not point_response_allowed(actor, point):
+        raise PermissionDenied("Réponse média non autorisée.")
+    existing_response = ConversationPointResponse.objects.filter(
+        client_reference=ref, point=point, actor=actor,
+        represented_space=represented_space,
+    ).first()
+    if existing_response is not None:
+        previous_attachment = existing_response.attachments.first()
+        if previous_attachment is None or previous_attachment.kind != kind or previous_attachment.content_hash != digest:
+            raise ValidationError("Cette référence de réponse désigne un autre fichier.")
+        return existing_response, previous_attachment
     response = submit_point_response(
         actor=actor, point=point, value=None,
         represented_space=represented_space, client_reference=ref,
