@@ -75,15 +75,15 @@ def _public_activity_resource_allowed(actor, activity, *, eligible_activity_ids=
     from groups.selectors import eligible_activity_ids_for_profile
     from organizations.models import SpaceLifecycle
 
-    admitted = (
-        eligible_activity_ids_for_profile(actor, [activity.pk])
+    admitted_by_group = (
+        activity.pk in eligible_activity_ids_for_profile(actor, [activity.pk])
         if eligible_activity_ids is None
-        else eligible_activity_ids
+        else str(activity.pk) in eligible_activity_ids
     )
     if (
         activity.status != ActivityStatus.PUBLISHED
         or activity.visibility != ActivityVisibility.PUBLIC
-        or activity.pk not in admitted
+        or not admitted_by_group
     ):
         return False
     if activity.space_id:
