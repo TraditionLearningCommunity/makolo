@@ -50,3 +50,16 @@
 .mk-docs :is(a,button,input,summary,select):focus-visible{outline:3px solid #FF704D;outline-offset:3px}
 @media(max-width:600px){.mk-docs-heading{align-items:stretch}.mk-docs-create>.mk-docs-primary{width:100%}.mk-docs-form{min-width:0}.mk-docs-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.mk-docs-row{transition:none}}
+
+.mk-docs-edit{margin-bottom:20px}
+.mk-docs-edit summary{list-style:none}
+.mk-docs-edit summary::-webkit-details-marker{display:none}
+.mk-docs-edit[open] .mk-docs-form{max-width:420px;margin-top:10px}
+.mk-docs-share,.mk-docs-use{margin-top:20px}
+.mk-docs-share h2,.mk-docs-use h2{display:flex;align-items:center;gap:10px}
+.mk-docs-share h2 svg,.mk-docs-use h2 svg{width:20px;color:#5232DB}
+.mk-docs-icon{border:0;cursor:pointer}
+.mk-docs-use-form{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.mk-docs-use-form select{min-height:46px;min-width:200px;flex:1;border:1px solid #E6E6ED;border-radius:12px;padding:10px 12px;background:white;font:inherit}
+.mk-docs-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mk-docs-empty-compact{padding:12px 0;color:#64748B;font-size:.84rem}
