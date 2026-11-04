@@ -239,6 +239,7 @@ def main(argv=None):
     from conversations.core_models import ConversationContextKind, ConversationModePreset, ConversationLifecycle
     from conversations.point_models import (
         ConversationPoint, ConversationPointKind, ConversationPointResponseMode,
+        ConversationPointLifecycle, ConversationPointResponse, PointExchangeEntry,
     )
     from conversations.services import (
         ensure_context_conversation, can_view_conversation,
@@ -250,6 +251,7 @@ def main(argv=None):
         point_response_allowed, resolve_point, acknowledge_point,
     )
     from conversations.audience_services import conversation_viewer_ids
+    from conversations.core_models import ConversationParticipation, ConversationParticipationStatus, ConversationUserState
     if connection.vendor != "sqlite":
         parser.error("SQLite demo uniquement")
     U = get_user_model()
@@ -345,6 +347,12 @@ def main(argv=None):
                     username__startswith="world_",
                 ).order_by("username")[:3])
                 for participant in demo_participants:
+                    if ConversationParticipation.objects.filter(
+                        conversation=conversation, profile=participant,
+                        status=ConversationParticipationStatus.ACTIVE,
+                    ).exists():
+                        counts["participations_existing"] += 1
+                        continue
                     activate_participation(
                         actor=actor, conversation=conversation, profile=participant,
                     )
@@ -352,25 +360,29 @@ def main(argv=None):
                 refs = point_blueprints(phase, label)[:args.points]
                 for index, (point_kind, title, body, response_mode, options) in enumerate(refs):
                     ref = scenario_reference(kind, target.pk, phase, index)
-                    if ConversationPoint.objects.filter(client_reference=ref).exists():
+                    point = ConversationPoint.objects.filter(
+                        conversation=conversation, client_reference=ref,
+                    ).first()
+                    if point:
                         counts["points_existing"] += 1
-                        continue
-                    try:
-                        # A failed answer/resolution cannot roll back unrelated
-                        # valid Points of the same Conversation.
-                        with transaction.atomic():
-                            point = create_point(
-                                actor=actor, conversation=conversation,
-                                kind=point_kind, title=title[:220], body=body,
-                                response_mode=response_mode,
-                                options=options, client_reference=ref,
-                            )
-                        counts["points_created"] += 1
-                    except (PermissionDenied, ValidationError) as exc:
-                        counts["points_rejected"] += 1
-                        if counts["points_rejected"] <= 5:
-                            print("POINT_REJECTED", kind, type(exc).__name__, str(exc)[:160])
-                        continue
+                        if point.lifecycle != ConversationPointLifecycle.OPEN:
+                            continue
+                    else:
+                        try:
+                            # A failed answer cannot roll back other valid Points.
+                            with transaction.atomic():
+                                point = create_point(
+                                    actor=actor, conversation=conversation,
+                                    kind=point_kind, title=title[:220], body=body,
+                                    response_mode=response_mode,
+                                    options=options, client_reference=ref,
+                                )
+                            counts["points_created"] += 1
+                        except (PermissionDenied, ValidationError) as exc:
+                            counts["points_rejected"] += 1
+                            if counts["points_rejected"] <= 5:
+                                print("POINT_REJECTED", kind, type(exc).__name__, str(exc)[:160])
+                            continue
                     viewers = conversation_viewer_ids(conversation) - {actor.pk}
                     # A targeted Profile may converse with *other* existing
                     # synthetic users already eligible in this context.
@@ -389,14 +401,19 @@ def main(argv=None):
                     try:
                         with transaction.atomic():
                             if respondent and point_kind == ConversationPointKind.EXCHANGE:
-                                first_entry = create_exchange_entry(actor=respondent, point=point,
-                                    body=exchange_dialogue(phase, ref)[0],
-                                    client_reference=ref + "-entry")
-                                counts["exchanges_created"] += 1
-                                create_exchange_entry(actor=actor, point=point,
-                                    body=exchange_dialogue(phase, ref)[1],
-                                    reply_to=first_entry, client_reference=ref + "-reply-entry")
-                                counts["exchange_replies_created"] += 1
+                                first_entry = PointExchangeEntry.objects.filter(
+                                    point=point, client_reference=ref + "-entry").first()
+                                if first_entry is None:
+                                    first_entry = create_exchange_entry(actor=respondent, point=point,
+                                        body=exchange_dialogue(phase, ref)[0],
+                                        client_reference=ref + "-entry")
+                                    counts["exchanges_created"] += 1
+                                if not PointExchangeEntry.objects.filter(
+                                    point=point, client_reference=ref + "-reply-entry").exists():
+                                    create_exchange_entry(actor=actor, point=point,
+                                        body=exchange_dialogue(phase, ref)[1],
+                                        reply_to=first_entry, client_reference=ref + "-reply-entry")
+                                    counts["exchange_replies_created"] += 1
                             elif respondent and response_mode != ConversationPointResponseMode.NONE:
                                 if response_mode == ConversationPointResponseMode.BOOLEAN:
                                     value = (int(ref[-2:], 16) % 2 == 0)
@@ -405,9 +422,11 @@ def main(argv=None):
                                     value = str(choices[int(ref[-2:], 16) % len(choices)].pk)
                                 else:
                                     value = coherent_reply(phase, label, ref)
-                                submit_point_response(actor=respondent, point=point, value=value,
-                                    client_reference=ref + "-reply")
-                                counts["responses_created"] += 1
+                                if not ConversationPointResponse.objects.filter(
+                                    point=point, client_reference=ref + "-reply").exists():
+                                    submit_point_response(actor=respondent, point=point, value=value,
+                                        client_reference=ref + "-reply")
+                                    counts["responses_created"] += 1
                             if respondent and point.requires_acknowledgement:
                                 acknowledge_point(actor=respondent, point=point)
                                 counts["acknowledgements_created"] += 1
@@ -419,7 +438,10 @@ def main(argv=None):
                                 counts["resolutions_created"] += 1
                     except (PermissionDenied, ValidationError):
                         counts["responses_or_resolutions_rejected"] += 1
-                if can_view_conversation(actor, conversation):
+                if can_view_conversation(actor, conversation) and not ConversationUserState.objects.filter(
+                    conversation=conversation, profile=actor,
+                    last_opened_at__isnull=False,
+                ).exists():
                     update_personal_conversation_state(
                         actor=actor, conversation=conversation, opened=True)
                 if phase == "past":
