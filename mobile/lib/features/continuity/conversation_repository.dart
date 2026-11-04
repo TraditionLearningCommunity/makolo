@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -23,6 +24,7 @@ class ConversationRepository {
   static const listProjectionKind = 'conversation.list';
   static const detailProjectionKind = 'conversation.detail';
   static const invitationsProjectionKind = 'conversation.invitations';
+  static const depthProjectionKind = 'conversation.point.depth';
   static const listFreshness = FreshnessPolicy(
     id: 'conversation-list-contextual',
     refreshRecommendedAfter: Duration(minutes: 15),
@@ -181,7 +183,68 @@ class ConversationRepository {
     if (engine == null) {
       throw StateError('Remote Conversations owner is not configured.');
     }
-    await engine.refreshSource(detailSource(id, focusPointId: focusPointId));
+    try {
+      await engine.refreshSource(detailSource(id, focusPointId: focusPointId));
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        await store.deleteProjection(depthProjectionKind, resourceKey: id);
+      }
+      rethrow;
+    }
+  }
+
+  Future<StoredProjection?> readPointDepth(String conversationId) =>
+      store.readProjection(depthProjectionKind, resourceKey: conversationId);
+
+  Future<Map<String, dynamic>> pointDepth({
+    required String conversationId,
+    String section = 'history',
+    String query = '',
+    String? cursor,
+    int limit = 25,
+  }) async {
+    if (!{'history', 'all', 'active'}.contains(section) ||
+        limit < 1 || limit > 60) {
+      throw ArgumentError('Invalid Point depth selector.');
+    }
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion nécessaire pour consulter cet historique.');
+    }
+    final params = <String, String>{
+      'section': section,
+      'limit': '$limit',
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+    };
+    final uri = Uri(path: 'api/v1/conversations/$conversationId/points/',
+      queryParameters: params);
+    try {
+      final response = await engine.api.get(uri.toString());
+      final payload = response.jsonObject();
+      if (payload['results'] is! List || !payload.containsKey('next_cursor')) {
+        throw const FormatException('Expected C5 Conversation Point history.');
+      }
+      if (cursor == null && section == 'history' && query.trim().isEmpty) {
+        final now = DateTime.now().toUtc();
+        await store.putProjection(
+          kind: depthProjectionKind, resourceKey: conversationId,
+          schemaVersion: 1, payload: payload, receivedAt: now,
+          freshUntil: now.add(const Duration(minutes: 15)),
+          expiresAt: now.add(const Duration(hours: 12)),
+          freshnessPolicyId: 'conversation-depth-owner',
+        );
+      }
+      return payload;
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        await store.deleteProjection(depthProjectionKind,
+          resourceKey: conversationId);
+        await store.deleteProjection(detailProjectionKind,
+          resourceKey: conversationId);
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, dynamic>>> searchConversations(String query) async {
@@ -556,8 +619,18 @@ class ConversationRepository {
       body: {'decision': accept ? 'accept' : 'decline'},
     );
     final payload = response.jsonObject();
-    await refreshInvitations();
-    await refreshList();
+    // The invitation decision is confirmed already. Refresh errors must
+    // never turn that success into a second accept/decline attempt.
+    try {
+      await refreshInvitations();
+    } on Object {
+      // Next owner acquisition reconciles the invitation list.
+    }
+    try {
+      await refreshList();
+    } on Object {
+      // Accepted invitation remains confirmed.
+    }
     return payload['conversation_id']?.toString();
   }
 
@@ -583,7 +656,6 @@ class ConversationRepository {
         'revisit': ?revisit,
       },
     );
-    await refreshDetail(conversationId);
-    await refreshList();
+    await _refreshPublished(conversationId);
   }
 }
