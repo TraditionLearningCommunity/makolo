@@ -1,4 +1,5 @@
 """Current-Space, permission-checked institutional document endpoints."""
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse
@@ -230,3 +231,59 @@ class SpaceDocumentReuseAPIView(SpaceDocumentBase):
             "journey_artifact_id": str(artifact.pk),
             "status": "draft", "requirement_satisfied": False,
         }, status=201)
+
+
+class SpaceDocumentShareAPIView(SpaceDocumentBase):
+    """Send one version to a named Makolo recipient via Sharing."""
+    def post(self, request, slug, version_id):
+        from sharing.space_document_sharing import share_space_document
+        space = self.space(request, slug)
+        if not can_manage_documents(request.user, space):
+            raise NotFound()
+        version = (
+            SpaceDocumentVersion.objects.select_related("document")
+            .filter(pk=version_id, document__space=space, document__archived_at__isnull=True)
+            .first()
+        )
+        if version is None:
+            raise NotFound()
+        username = (request.data.get("recipient_username") or "").strip()
+        recipient = (
+            get_user_model().objects.filter(username__iexact=username)
+            .select_related("profile").first()
+        ) if username else None
+        if recipient is None:
+            raise ValidationError({"recipient": "Destinataire indisponible."})
+        try:
+            delivery = share_space_document(
+                actor=request.user, version=version, recipient=recipient.profile,
+                days=int(request.data.get("days", 7)),
+            )
+        except DjangoPermissionDenied as exc:
+            raise NotFound() from exc
+        except (DjangoValidationError, ValueError, TypeError) as exc:
+            if isinstance(exc, DjangoValidationError):
+                raise _validation_error(exc) from exc
+            raise ValidationError({"days": "Durée invalide."}) from exc
+        return self.respond({"delivery_id": str(delivery.pk)}, status=201)
+
+
+class SpaceDocumentShareRevokeAPIView(SpaceDocumentBase):
+    """Revoke the Sharing grant without changing the document version."""
+    def post(self, request, slug, delivery_id):
+        from sharing.services import ShareUnavailable
+        from sharing.space_document_sharing import revoke_space_document_share
+        space = self.space(request, slug)
+        from sharing.models import ShareDelivery, ShareSubjectType
+        share = ShareDelivery.objects.filter(
+            pk=delivery_id,
+            envelope__subject_type=ShareSubjectType.SPACE_DOCUMENT,
+            envelope__space_document_subject__version__document__space=space,
+        ).first()
+        if share is None:
+            raise NotFound()
+        try:
+            revoke_space_document_share(actor=request.user, delivery_id=delivery_id)
+        except (ShareUnavailable, DjangoPermissionDenied) as exc:
+            raise NotFound() from exc
+        return self.respond({"revoked": True})
