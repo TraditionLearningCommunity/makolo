@@ -57,8 +57,8 @@ def query_origin():
     first = origins[0]
     if first.startswith(("groups/selectors.py:eligible_activity_ids_for_profile",
                          "presentations/product_language.py:_has_related")):
-        second = origins[1] if len(origins) > 1 else "caller/unknown"
-        return f"{first} <- {second}"
+        callers = origins[1:4]
+        return " <- ".join([first, *callers]) if callers else first
     return first
 
 @contextmanager
