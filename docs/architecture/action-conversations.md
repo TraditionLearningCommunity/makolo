@@ -259,3 +259,31 @@ C4 raccorde des **propriétaires existants**, et non un second stockage document
 **Limite de vérification :** l'exécution sur appareil Android réel, en particulier permission micro et capture, doit être attestée séparément avant de déclarer la recette matérielle fermée.
 
 **Réponses média structurées.** Lorsqu'un Point canonique attend `response_mode=FILE` ou `VOICE`, `POST /api/v1/conversations/points/{point_id}/reply-media/` (ou sa route Web homologue) appelle `submit_point_response`, puis attache le fichier validé à **cette réponse** dans la même transaction. Cette action ne crée aucune Information supplémentaire. Une reprise avec la même référence et les mêmes octets retourne la réponse déjà confirmée, même après sa résolution ; un changement d'octets est refusé. La visibilité des pièces suit la réponse et `response_visibility`, recalculée au téléchargement.
+
+
+## 17. C5 — Consultation mature, recherche et fermeture (4 novembre 2026)
+
+### Contrat serveur de la profondeur
+
+- `GET /api/v1/conversations/{conversation_id}/points/?section=history|active|all&q=…&limit=25&cursor=…` renvoie une page de Points **publiés et réellement visibles**. Le curseur est signé et lié au viewer, à la Conversation, au filtre, à la recherche, à la taille de page et au plafond temporel. Il ne peut pas être partagé entre Profils, Conversations ou filtres.
+- La profondeur et les détails réévaluent `can_view_conversation`, `point_visible_to`, la policy `FROM_JOIN`, l'audience de résolution et la visibilité de chaque réponse ou pièce jointe. Aucun ancien Point ne donne accès au contenu d'un successeur privé.
+- La recherche inspecte les titres, corps, résumés de résolution, pièces et contributions Exchange, **mais ne retient un résultat que si le viewer peut lire le texte ayant effectivement correspondu**. Pas de révélation par simple existence d'un match privé. Un Point remplacé reste consultable avec une liaison vers son successeur seulement s'il est visible.
+- `response_status` exprime la réponse personnelle confirmée ; `response_count` n'est fourni qu'à une autorité ou lorsque le contrat `response_visibility` autorise l'agrégat. Jamais de liste d'identités dérivée des totaux.
+- Une Conversation fermée reste consultable ; elle ne projette plus de capacité de réponse ni d'attention métier et refuse les mutations de Point/Exchange au serveur. Archiver, épingler, masquer, mettre en sourdine et revoir plus tard restent **des états personnels**, jamais une fermeture partagée.
+
+### Contrat d'expérience Web / Flutter
+
+- Liste et détail sont deux N1 distincts ; historique et Point précis sont des profondeurs N2. L'ouverture d'une profondeur conserve la pile de retour.
+- La recherche depuis le détail inclut les Points actuels et passés ; les filtres permettent de distinguer historique, tous les Points et Points actifs. Les Conversations archivées restent retrouvables séparément des Conversations à traiter.
+- Un nouveau Point confirmé déclenche le chargement ciblé de son identifiant pour le focus ; sa publication ne dépend pas du succès d'un GET de rafraîchissement. Une 403/404 retire les projections locales et les rows privées déjà présentées ; un timeout préserve uniquement la dernière projection autorisée et affiche une récupération.
+- Les dimensions compactes à larges, le texte agrandi, le clavier, les états sombres et les boutons directs sont couverts par des scénarios Flutter dédiés ; l'application ne simule jamais un envoi hors ligne.
+
+### Suite ciblée et critères d'intégration
+
+Serveur : `python manage.py test conversations.test_c3_composition conversations.test_c4_rich conversations.test_c5_mature conversations.test_j7_contracts` (adapter aux modules présents sur le checkout actuel).
+
+Flutter, depuis `mobile/` : `flutter pub get` puis `dart format --output=none --set-exit-if-changed lib/features/continuity test/conversation_c5_mature_test.dart`, `flutter analyze`, `flutter test test/conversation_c5_mature_test.dart test/conversation_mature_repository_test.dart`, puis les régressions de navigation locale et Goldens pertinentes. Régénérer et versionner `pubspec.lock` avec **la toolchain Flutter officielle** si les dépendances C4 `record`, `just_audio` et `open_filex` restent ajoutées ; ne pas fabriquer un verrouillage de dépendances à la main.
+
+Recette visuelle : Conversation directe, Activity/Occurrence multipoints, Space multi-audiences et Conversation longue 150+ Points ; Compact 360/430, Medium 834, Wide 1440, clair/sombre, texte 1,6, réduction des animations, clavier et retour depuis N2. Android réel : ouvrir Conversation, répondre, publier, revenir au nouveau Point, capturer/annuler/envoyer un vocal, passer en mode avion et reprendre ; recueillir captures/Goldens réels.
+
+**État de vérification :** les changements C5 et tests ciblés sont présents dans la PR #522 ; aucune exécution locale Flutter/Django sur le HEAD C5, aucun rendu Android réel ni Golden de référence nouvellement généré n'a été attesté depuis cet environnement connecté au dépôt. Ces gates restent obligatoires pour déclarer « livré, intégré et vérifié » et pour toute fusion ; ne pas les inscrire comme verts sans preuve.
