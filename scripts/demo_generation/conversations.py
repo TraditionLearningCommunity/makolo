@@ -188,13 +188,13 @@ def main(argv=None):
     from django.db import connection, transaction
     from django.db.models import Q
     from django.utils import timezone
-    from conversations.core_models import ConversationContextKind, ConversationModePreset
+    from conversations.core_models import ConversationContextKind, ConversationModePreset, ConversationLifecycle
     from conversations.point_models import (
         ConversationPoint, ConversationPointKind, ConversationPointResponseMode,
     )
     from conversations.services import (
         ensure_context_conversation, can_view_conversation,
-        update_personal_conversation_state,
+        update_personal_conversation_state, transition_conversation,
     )
     from conversations.point_services import (
         create_point, submit_point_response, create_exchange_entry,
@@ -269,6 +269,9 @@ def main(argv=None):
                     **{field: target},
                 )
                 counts["conversations_existing" if existing else "conversations_created"] += 1
+                if conversation.lifecycle != ConversationLifecycle.OPEN:
+                    counts["closed_conversations_preserved"] += 1
+                    continue
                 refs = point_blueprints(phase, label)[:args.points]
                 for index, (point_kind, title, body, response_mode, options) in enumerate(refs):
                     ref = scenario_reference(kind, target.pk, phase, index)
@@ -334,6 +337,12 @@ def main(argv=None):
                 if can_view_conversation(actor, conversation):
                     update_personal_conversation_state(
                         actor=actor, conversation=conversation, opened=True)
+                if phase == "past":
+                    transition_conversation(
+                        actor=actor, conversation=conversation,
+                        lifecycle=ConversationLifecycle.CLOSED,
+                    )
+                    counts["historical_conversations_closed"] += 1
                 counts["phase_" + phase] += 1
         except (PermissionDenied, ValidationError) as exc:
             counts["rejected"] += 1
