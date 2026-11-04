@@ -105,7 +105,7 @@ def project_provider_connection(connection: ProviderConnection, *, manageable: b
         and connection.health_status
         not in {ProviderHealth.UNAVAILABLE, ProviderHealth.INVALID_CREDENTIALS}
     )
-    demo = connection.name.startswith("[DEMO Connexion] ")
+    demo = connection.default_model == "demo-disabled" or connection.name.startswith("[DEMO Connexion] ")
     return {
         "demo": demo,
         "simulation_only": demo,
@@ -116,15 +116,15 @@ def project_provider_connection(connection: ProviderConnection, *, manageable: b
         "provider_protocol": connection.protocol,
         "display_name": connection.name,
         "available": True,
-        "connected": True,
-        "usable": usable,
+        "connected": not demo,
+        "usable": usable and not demo,
         "manageable": bool(manageable),
         "enabled": connection.enabled,
-        "status": "connected" if connection.enabled else "disabled",
+        "status": "available" if demo else ("connected" if connection.enabled else "disabled"),
         "health": _public_health(connection.health_status),
         "capabilities": capabilities,
         "permissions": {
-            "use": usable,
+            "use": usable and not demo,
             "manage": bool(manageable),
         },
     }
