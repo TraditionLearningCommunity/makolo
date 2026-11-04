@@ -101,6 +101,58 @@ void main() {
     expect(row.lastErrorCode, 'idempotency_key_required');
   });
 
+  test('cyclic dependencies never send either owner mutation', () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final repo = OutboxRepository(db, 'profile-a');
+    await enqueue(repo, 'alpha', dependencies: ['beta']);
+    await enqueue(repo, 'beta', dependencies: ['alpha']);
+    var dispatched = 0;
+    await OutboxProcessor(
+      repository: repo,
+      handlers: {'owner.intent': (_) async {
+        dispatched++;
+        return OutboxResolution.confirmed;
+      }},
+    ).run();
+    expect(dispatched, 0);
+    final states = await repo.dependencyStates(['alpha', 'beta']);
+    expect(states['alpha'], OutboxState.conflict.wireValue);
+    expect(states['beta'], OutboxState.conflict.wireValue);
+  });
+
+  test('owner confirmation can safely release a previously ambiguous intent',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final repo = OutboxRepository(db, 'profile-a');
+    await enqueue(
+      repo, 'reconciled', policy: ReplayPolicy.refetchBeforeRetry,
+    );
+    var ownerCanRetry = false;
+    var sends = 0;
+    final worker = OutboxProcessor(
+      repository: repo,
+      handlers: {'owner.intent': (_) async {
+        sends++;
+        if (sends == 1) throw TimeoutException('lost owner response');
+        return OutboxResolution.confirmed;
+      }},
+      reconcilers: {'owner.intent': (_) async =>
+          ownerCanRetry
+              ? OutboxResolution.retryable
+              : OutboxResolution.awaitingConfirmation},
+    );
+    await worker.run();
+    expect((await repo.dependencyStates(['reconciled']))['reconciled'],
+        OutboxState.awaitingConfirmation.wireValue);
+    ownerCanRetry = true;
+    await worker.run();
+    expect(sends, 2);
+    expect((await repo.dependencyStates(['reconciled']))['reconciled'],
+        OutboxState.confirmed.wireValue);
+  });
+
   test('crashed in-flight non-replayable action awaits owner decision',
       () async {
     final db = MakoloDatabase.memory();
