@@ -15,6 +15,7 @@ from .audience_models import ConversationAudienceSet, ConversationAudienceStatus
 from .core_models import ConversationContext, ConversationContextKind, ConversationLifecycle
 from .point_models import (
     ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
+    ConversationResponseVisibility,
     ConversationPointResolutionPolicy, ConversationPointResponseMode,
 )
 from .point_services import (
@@ -209,6 +210,11 @@ def publish_composed_point(
             ConversationPointKind.CONFIRMATION, ConversationPointKind.POLL,
         } else None,
         represented_space=represented_space,
+        response_visibility=(
+            ConversationResponseVisibility.POINT_VIEWERS
+            if kind == ConversationPointKind.EXCHANGE
+            else ConversationResponseVisibility.RESPONDENT_AND_AUTHORITIES
+        ),
         client_reference=client_reference,
     )
 
