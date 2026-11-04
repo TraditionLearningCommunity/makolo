@@ -82,12 +82,22 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         return context
 
     def _deduplicated_search(self, query, *, tab="all"):
+        visible_attention_ids = (
+            {
+                row.conversation.pk for row in conversation_rows_for_profile(
+                    self.request.user, only_attention=True, limit=300,
+                )
+            } if tab == "for-me" else None
+        )
         seen = set()
         results = []
         for result in search_conversations_for_profile(
             self.request.user, query, include_archived=tab == "archived",
         ):
             if result.conversation.pk in seen:
+                continue
+            if (visible_attention_ids is not None and
+                    result.conversation.pk not in visible_attention_ids):
                 continue
             seen.add(result.conversation.pk)
             results.append(result)
