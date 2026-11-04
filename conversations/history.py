@@ -63,7 +63,9 @@ def _history_start(profile, conversation):
         conversation=conversation, profile=profile,
         status=ConversationParticipationStatus.ACTIVE,
     ).first()
-    return membership.joined_at if membership is not None else conversation.opened_at
+    # Without an explicit participation the owner's FROM_JOIN start is
+    # unknown, so the historical projection fails closed.
+    return membership.joined_at if membership is not None else timezone.now()
 
 
 def _matching_visible_content(profile, point, term):
