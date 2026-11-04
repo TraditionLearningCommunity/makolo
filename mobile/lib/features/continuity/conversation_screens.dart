@@ -236,6 +236,55 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   bool _searching = false;
   bool _searchFailed = false;
   List<_ConversationSummary> _remote = const [];
+  List<_ConversationSummary> _archived = const [];
+  String _tab = 'all';
+  bool _archiveLoading = false;
+  bool _archiveFailed = false;
+
+  Future<void> _loadArchive() async {
+    if (_archiveLoading) return;
+    final repository = widget.repository;
+    setState(() {
+      _archiveLoading = true;
+      _archiveFailed = false;
+    });
+    try {
+      final local = await repository.readArchived();
+      if (mounted && widget.repository == repository && local != null) {
+        setState(() {
+          _archived = _ConversationSummary.fromProjection(local);
+        });
+      }
+      await repository.refreshArchived();
+      final acquired = await repository.readArchived();
+      if (!mounted || widget.repository != repository) return;
+      setState(() {
+        _archived = _ConversationSummary.fromProjection(acquired);
+      });
+    } on Object {
+      if (mounted && widget.repository == repository) {
+        setState(() => _archiveFailed = true);
+      }
+    } finally {
+      if (mounted && widget.repository == repository) {
+        setState(() => _archiveLoading = false);
+      }
+    }
+  }
+
+  void _setTab(String tab) {
+    if (_tab == tab) return;
+    _debounce?.cancel();
+    _searchGeneration++;
+    setState(() {
+      _tab = tab;
+      _remote = const [];
+      _searching = false;
+      _searchFailed = false;
+    });
+    if (tab == 'archived') unawaited(_loadArchive());
+    if (_query.isNotEmpty) _scheduleSearch(_query);
+  }
 
   @override
   void dispose() {
@@ -250,6 +299,10 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       _debounce?.cancel();
       _searchGeneration++;
       _remote = const [];
+      _archived = const [];
+      _tab = 'all';
+      _archiveLoading = false;
+      _archiveFailed = false;
       _searching = false;
       _searchFailed = false;
       if (_query.trim().isNotEmpty) _scheduleSearch(_query);
@@ -268,7 +321,9 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     if (!_searching) return;
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       try {
-        final results = await widget.repository.searchConversations(query);
+        final results = await widget.repository.searchConversations(
+          query, tab: _tab,
+        );
         if (!mounted || generation != _searchGeneration) return;
         setState(() {
           _remote = results
@@ -288,10 +343,15 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   }
 
   List<_ConversationSummary> _matchingRows() {
+    final available = _tab == 'archived'
+        ? _archived
+        : _tab == 'for-me'
+        ? widget.items.where((row) => row.attentionCount > 0).toList()
+        : widget.items;
     final normalized = _query.trim().toLowerCase();
-    if (normalized.isEmpty) return widget.items;
+    if (normalized.isEmpty) return available;
     final known = <String, _ConversationSummary>{};
-    for (final item in widget.items) {
+    for (final item in available) {
       if (item.title.toLowerCase().contains(normalized) ||
           (item.purpose ?? '').toLowerCase().contains(normalized) ||
           (item.contextLabel ?? '').toLowerCase().contains(normalized) ||
@@ -301,7 +361,11 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     }
     // Owner results win for their focused Point, without duplicating a row.
     for (final result in _remote) {
-      known[result.id] = result;
+      if (_tab != 'for-me' ||
+          widget.items.any((row) =>
+              row.id == result.id && row.attentionCount > 0)) {
+        known[result.id] = result;
+      }
     }
     return known.values.toList(growable: false);
   }
