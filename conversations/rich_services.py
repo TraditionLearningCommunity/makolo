@@ -38,7 +38,7 @@ from .point_models import (
     ConversationPointResponseMode, ConversationResponseVisibility,
     ConversationExchangeModerationState,
 )
-from .point_services import create_point, point_visible_to
+from .point_services import create_point, point_visible_to, submit_point_response
 from .services import can_manage_conversation, can_publish_in_conversation, can_view_conversation
 
 
@@ -280,3 +280,46 @@ def upload_conversation_media(
         exchange_entry=entry,
     )
     return point, attachment
+
+
+@transaction.atomic
+def submit_point_media_response(
+    *, actor, point, uploaded_file, kind, client_reference,
+    represented_space=None,
+):
+    """A FILE/VOICE response is owned by ConversationPointResponse.
+
+    The private attachment is associated with that response in the same DB
+    transaction. Neither a free-text URL nor a new Information is created.
+    """
+    ref = _validate_compose_reference(client_reference)
+    mode = point.response_mode
+    if mode not in {ConversationPointResponseMode.FILE, ConversationPointResponseMode.VOICE}:
+        raise ValidationError({"response_mode": "Ce Point n'attend pas de réponse média."})
+    expected_kinds = {
+        ConversationPointResponseMode.FILE: {ConversationAttachmentKind.FILE, ConversationAttachmentKind.IMAGE},
+        ConversationPointResponseMode.VOICE: {ConversationAttachmentKind.VOICE, ConversationAttachmentKind.AUDIO},
+    }
+    if kind not in expected_kinds[mode]:
+        raise ValidationError({"kind": "Type de média incompatible avec ce Point."})
+    _validate_represented_context(point.conversation, represented_space)
+    policy = getattr(point.conversation, "policy", None)
+    if not policy or not getattr(policy, KIND_POLICY_FIELD[kind], False):
+        raise PermissionDenied("Ce type de réponse n'est pas autorisé par la Conversation.")
+    data, mime, digest = validate_conversation_upload(uploaded_file, kind)
+    raw_name = Path(getattr(uploaded_file, "name", "fichier") or "fichier").name[:255]
+    response = submit_point_response(
+        actor=actor, point=point, value=None,
+        represented_space=represented_space, client_reference=ref,
+    )
+    attachment = response.attachments.order_by("created_at", "pk").first()
+    if attachment is not None:
+        if attachment.kind != kind or attachment.content_hash != digest:
+            raise ValidationError("Cette référence de réponse désigne un autre fichier.")
+        return response, attachment
+    attachment = create_point_attachment(
+        actor=actor, point=point, uploaded_file=SimpleUploadedFile(
+            raw_name, data, content_type=mime,
+        ), kind=kind, response=response,
+    )
+    return response, attachment
