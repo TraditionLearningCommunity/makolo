@@ -222,6 +222,11 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
             );
             final total = projection?.payload['total_count'];
             final unread = projection?.payload['unread_count'];
+            final filteredCount = projection?.payload['count'];
+            final remaining = filteredCount is num &&
+                    filteredCount.toInt() > rows.length
+                ? filteredCount.toInt() - rows.length
+                : 0;
             WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
 
             return Scaffold(
@@ -348,7 +353,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 child: Center(
                                   child: Text(
                                     hasMore
-                                        ? '${((projection?.payload[_onlyUnread ? 'count' : 'total_count'] as num?)?.toInt() ?? 0) - rows.length > 0 ? ((projection?.payload[_onlyUnread ? 'count' : 'total_count'] as num?)!.toInt() - rows.length) : 0} autres à afficher'
+                                        ? '${remaining} autres à afficher'
                                         : 'Vous avez tout vu',
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
