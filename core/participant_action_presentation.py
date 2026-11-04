@@ -60,10 +60,10 @@ def _access_presentation(rows):
     if not rows:
         return {"state": "not_required", "label": "Aucun accès à présenter", "detail": "Vous n’avez pas d’accès distinct à présenter ici."}
     if any(row["usable"] for row in rows):
-        return {"state": "ready", "label": "Votre accès est prêt", "detail": "Vous pouvez l’utiliser pour cette occurrence."}
+        return {"state": "ready", "label": "Votre accès est prêt", "detail": "Vous pouvez présenter cet accès au moment prévu."}
     if any(row["status"] == "pending" for row in rows):
         return {"state": "waiting", "label": "Votre accès est en préparation", "detail": "Aucune action nécessaire actuellement."}
-    return {"state": "unavailable", "label": "Votre accès n’est pas disponible", "detail": "Ouvrez la démarche avant de vous déplacer."}
+    return {"state": "unavailable", "label": "Votre accès n’est pas disponible", "detail": "Consultez votre démarche pour vérifier ce qui manque avant de vous déplacer."}
 
 
 def _placement_presentation(payload):
