@@ -78,7 +78,7 @@
           <span class="mk-kicker">{% if section.role == "structure" %}Structure{% else %}{{ projection.primary_business_label }}{% endif %}</span>
           <h3 id="work-{{ section.key }}-title" class="mt-1 text-xl font-extrabold">{{ section.label }}</h3>
         </div>
-        {% if section.has_more %}<span class="mk-badge">Aperçu borné</span>{% endif %}
+        {% if section.has_more %}<span class="mk-badge">Une partie des éléments</span>{% endif %}
       </div>
 
       {% if not section.items and section.has_more %}
