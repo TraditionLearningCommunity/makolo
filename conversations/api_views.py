@@ -325,7 +325,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 raise DRFValidationError({"focus_point": "Point invalide."})
             focused = ConversationPoint.objects.filter(
                 pk=focused_id, conversation=conversation,
-            ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options").first()
+            ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options", "responses").first()
             if focused and point_visible_to(request.user, focused):
                 if focused.pk not in seen:
                     focused_point = _serialize_point(focused, profile=request.user, section="focus")
