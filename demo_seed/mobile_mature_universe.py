@@ -378,6 +378,11 @@ def _occurrence_status(spec: dict) -> str:
     return OccurrenceStatus.SCHEDULED
 
 
+def _demo_title(title: str) -> str:
+    """Keep a scenario recognizable without presenting it as a real offer."""
+    return title if title.startswith("Exemple — ") else f"Exemple — {title}"
+
+
 def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
     """Public-facing copy for a synthetic beta activity, never a real offer."""
     place = spec.get("geo")
@@ -397,7 +402,7 @@ def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) ->
         defaults={
             "space": space,
             "created_by": actor,
-            "title": spec["title"],
+            "title": _demo_title(spec["title"]),
             "slug": f"mobile-mature-{spec['id'].lower()}",
             "short_description": short_description,
             "description": description,
@@ -414,7 +419,7 @@ def _occurrence(ctx: SeedContext, spec: dict, *, activity: Activity, place: Plac
         f"mobile-mature-occ-{spec['id'].lower()}",
         defaults={
             "activity": activity,
-            "label": spec["title"][:180],
+            "label": _demo_title(spec["title"])[:180],
             "start_at": start,
             "end_at": start + timedelta(hours=2 + index % 4),
             "timezone": place.timezone if place else "Africa/Lubumbashi",
@@ -765,11 +770,10 @@ OPPORTUNITY_KINDS = (OpportunityKind.PROGRAM, OpportunityKind.SCHOLARSHIP, Oppor
 
 
 def _opportunity_summary(spec: dict) -> str:
-    relation = RELATION_LABELS.get(spec.get("relation"), "à explorer")
-    state = STATE_LABELS.get(spec.get("state"), "à suivre")
     return (
-        f"{spec['title']} est une possibilité {relation} dans le parcours d’Alain. "
-        f"Elle est rattachée à {spec.get('geo') or 'un contexte à confirmer'} et apparaît actuellement comme {state}."
+        "Cette possibilité fait partie des exemples de Makolo. "
+        "Elle permet de découvrir les étapes d’une candidature, sans correspondre à un appel réel. "
+        "Les dates, les conditions et les résultats du scénario sont fictifs."
     )
 
 
@@ -784,13 +788,13 @@ def _seed_opportunities(ctx, specs, *, curator, primary):
             defaults={
                 "opportunity": opportunity,
                 "version": 1,
-                "title": spec["title"],
+                "title": _demo_title(spec["title"]),
                 "summary": _opportunity_summary(spec),
                 "issuer_name": ISSUERS[index % len(ISSUERS)],
                 "opens_at": pivot - timedelta(days=30),
                 "deadline_at": pivot + (timedelta(days=90) if spec["state"] not in TERMINAL_STATES else timedelta(days=1)),
                 "timezone": "Africa/Lubumbashi",
-                "application_instructions": "Vérifier les conditions, préparer les pièces utiles et suivre la candidature depuis Makolo.",
+                "application_instructions": "Cet exemple vous permet de découvrir la préparation d’une candidature. Aucun dossier n’est transmis à un organisme réel.",
                 "remote_allowed": index % 3 == 0,
                 "created_by": curator,
             },
@@ -833,7 +837,7 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
             existing = create_obtention(
                 actor=actor,
                 space=space,
-                title=spec["title"],
+                title=_demo_title(spec["title"]),
                 short_description="Exemple fictif",
                 description=(
                     "Exemple fictif de démonstration. "
