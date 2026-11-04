@@ -16,7 +16,7 @@ from .core_models import (
     ConversationUserState,
 )
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle, ConversationResponseVisibility
-from .point_services import point_visible_to
+from .point_services import point_visible_to, point_resolution_visible_to
 from .services import can_manage_conversation, can_view_conversation
 
 
@@ -180,7 +180,7 @@ def _latest_resolution_summary(conversation, profile):
     if points is None:
         points = conversation.points.filter(lifecycle=ConversationPointLifecycle.RESOLVED).select_related("resolution", "visibility_audience").order_by("-resolved_at")[:20]
     for point in points[:20]:
-        if point_visible_to(profile, point):
+        if point_resolution_visible_to(profile, point):
             try:
                 return point.resolution.summary
             except Exception:
@@ -294,11 +294,18 @@ def search_conversation(profile, conversation, query, *, limit=50):
         if not point_visible_to(profile, point):
             continue
         resolution_summary = ""
-        if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+        if (point.lifecycle == ConversationPointLifecycle.RESOLVED and
+                point_resolution_visible_to(profile, point)):
             try:
                 resolution_summary = point.resolution.summary or ""
             except Exception:
                 resolution_summary = ""
+        if not (
+            normalized in (point.title or "").casefold()
+            or normalized in (point.body or "").casefold()
+            or normalized in resolution_summary.casefold()
+        ):
+            continue
         if resolution_summary and normalized in resolution_summary.casefold():
             score = 0
         elif point.lifecycle in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
@@ -331,7 +338,8 @@ def search_conversations_for_profile(profile, query, *, limit=50, include_archiv
         if normalized in haystack:
             rows.append(ConversationSearchRow(conversation=conversation, context_label=context_label, point=None, rank=2))
         for point in search_conversation(profile, conversation, query, limit=5):
-            if point.lifecycle == ConversationPointLifecycle.RESOLVED:
+            if (point.lifecycle == ConversationPointLifecycle.RESOLVED and
+                    point_resolution_visible_to(profile, point)):
                 try:
                     summary = point.resolution.summary or ""
                 except Exception:
