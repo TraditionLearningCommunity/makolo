@@ -618,8 +618,7 @@ class ConversationRepository {
         'represented_space_id': ?representedSpaceId,
       },
     );
-    await refreshDetail(conversationId);
-    await refreshList();
+    await _refreshPublished(conversationId);
   }
 
   Future<void> acknowledgePoint({
@@ -633,8 +632,7 @@ class ConversationRepository {
       );
     }
     await engine.api.post('api/v1/conversations/points/$pointId/acknowledge/');
-    await refreshDetail(conversationId);
-    await refreshList();
+    await _refreshPublished(conversationId);
   }
 
   Future<String?> respondToInvitation({
@@ -652,6 +650,24 @@ class ConversationRepository {
       body: {'decision': accept ? 'accept' : 'decline'},
     );
     final payload = response.jsonObject();
+    try {
+      final prior = await readInvitations();
+      if (prior != null && payload['status'] != 'pending') {
+        final entries = (prior.payload['results'] as List? ?? [])
+            .where((entry) => entry is Map && entry['id']?.toString() != invitationId)
+            .toList(growable: false);
+        await store.putProjection(
+          kind: invitationsProjectionKind,
+          schemaVersion: prior.schemaVersion,
+          payload: {...prior.payload, 'results': entries, 'count': entries.length},
+          receivedAt: DateTime.now().toUtc(),
+          freshnessPolicyId: invitationsFreshness.id,
+          expiresAt: prior.expiresAt,
+        );
+      }
+    } on Object {
+      // A failed optional local projection update never negates an owner ACK.
+    }
     // The invitation decision is confirmed already. Refresh errors must
     // never turn that success into a second accept/decline attempt.
     try {
@@ -679,7 +695,7 @@ class ConversationRepository {
     if (engine == null) {
       throw StateError('Une connexion est nécessaire pour modifier cet état.');
     }
-    await engine.api.post(
+    final response = await engine.api.post(
       'api/v1/conversations/$conversationId/personal-state/',
       body: {
         'mute': ?mute,
@@ -689,6 +705,72 @@ class ConversationRepository {
         'revisit': ?revisit,
       },
     );
+    try {
+      final confirmed = response.jsonObject();
+      final prior = await readDetail(conversationId);
+      if (prior != null) {
+        await store.putProjection(
+          kind: detailProjectionKind,
+          resourceKey: conversationId,
+          schemaVersion: prior.schemaVersion,
+          payload: {
+            ...prior.payload,
+            'personal_state': {
+              'muted': confirmed['muted'] == true,
+              'hidden': confirmed['hidden'] == true,
+              'archived': confirmed['archived'] == true,
+              'pinned': confirmed['pinned'] == true,
+              'revisit': confirmed['revisit'] == true,
+            },
+          },
+          receivedAt: DateTime.now().toUtc(),
+          expiresAt: prior.expiresAt,
+          freshnessPolicyId: detailFreshness.id,
+        );
+      }
+      if (confirmed['hidden'] == true || confirmed['archived'] == true) {
+        final listing = await readList();
+        if (listing != null) {
+          final visible = (listing.payload['results'] as List? ?? [])
+              .where((item) =>
+                  item is Map && item['id']?.toString() != conversationId)
+              .toList(growable: false);
+          await store.putProjection(
+            kind: listProjectionKind,
+            schemaVersion: listing.schemaVersion,
+            payload: {...listing.payload, 'results': visible, 'count': visible.length},
+            receivedAt: DateTime.now().toUtc(),
+            freshnessPolicyId: listFreshness.id,
+            expiresAt: listing.expiresAt,
+          );
+        }
+      }
+      if (confirmed['archived'] == false) {
+        final archived = await readArchived();
+        if (archived != null) {
+          final available = (archived.payload['results'] as List? ?? [])
+              .where((item) =>
+                  item is Map && item['id']?.toString() != conversationId)
+              .toList(growable: false);
+          await store.putProjection(
+            kind: archivedProjectionKind, schemaVersion: archived.schemaVersion,
+            payload: {...archived.payload, 'results': available, 'count': available.length},
+            receivedAt: DateTime.now().toUtc(),
+            freshnessPolicyId: listFreshness.id,
+            expiresAt: archived.expiresAt,
+          );
+        }
+      }
+    } on Object {
+      // The owner confirms this personal action even if local storage fails.
+    }
     await _refreshPublished(conversationId);
+    if (archived != null) {
+      try {
+        await refreshArchived();
+      } on Object {
+        // Archive projection reconciles during its next acquisition.
+      }
+    }
   }
 }
