@@ -42,6 +42,35 @@
     </ul>
   </section>
   {% if can_manage_documents %}
+  <section class="mk-docs-panel mk-docs-share" aria-labelledby="space-document-share-title">
+    <header>
+      <h2 id="space-document-share-title"><i data-lucide="share-2" aria-hidden="true"></i> Partager</h2>
+      <details class="mk-docs-create">
+        <summary class="mk-docs-quiet"><i data-lucide="send" aria-hidden="true"></i> Envoyer</summary>
+        <form method="post" action="{% url 'organizations:space-document-share' slug=space.slug document_id=document.id %}" class="mk-docs-form">
+          {% csrf_token %}
+          <label>Destinataire Makolo<input name="recipient" type="text" maxlength="150" required placeholder="@identifiant" autocomplete="off"></label>
+          <label>Durée<select name="days"><option value="1">1 jour</option><option value="7" selected>7 jours</option><option value="30">30 jours</option></select></label>
+          <button type="submit" class="mk-docs-primary"><i data-lucide="send" aria-hidden="true"></i> Partager</button>
+        </form>
+      </details>
+    </header>
+    <ul class="mk-docs-list">
+      {% for row in share_rows %}
+        <li class="mk-docs-version">
+          <span class="mk-docs-file"><i data-lucide="user-round" aria-hidden="true"></i></span>
+          <span class="mk-docs-copy"><strong>@{{ row.recipient.user.username }}</strong><small>{% if row.envelope.is_active_at and not row.declined_at %}Partagé{% else %}Terminé{% endif %} · {{ row.delivered_at|date:"d M Y" }}</small></span>
+          {% if row.envelope.is_active_at %}
+          <form method="post" action="{% url 'organizations:space-document-share-revoke' slug=space.slug delivery_id=row.id %}">
+            {% csrf_token %}<button type="submit" class="mk-docs-icon" title="Révoquer" aria-label="Révoquer le partage avec @{{ row.recipient.user.username }}"><i data-lucide="x" aria-hidden="true"></i></button>
+          </form>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="mk-docs-empty-compact">Aucun partage en cours</li>
+      {% endfor %}
+    </ul>
+  </section>
   <form method="post" action="{% url 'organizations:space-document-archive' slug=space.slug document_id=document.id %}" class="mk-docs-danger">
     {% csrf_token %}<button type="submit"><i data-lucide="archive" aria-hidden="true"></i> Archiver</button>
   </form>
