@@ -19,23 +19,52 @@ class SyncRoot {
   final String path;
 }
 
+class _SyncCoordinator {
+  final Map<String, int> generations = {};
+  final Map<String, int> discoveryEpochs = {};
+}
+
 class SyncEngine {
+  static final Expando<_SyncCoordinator> _coordinators =
+      Expando<_SyncCoordinator>('sync-per-database');
+
   SyncEngine({
     required this.api,
     required this.store,
     required this.database,
     required this.profileId,
-  });
+  }) {
+    if (profileId.isEmpty ||
+        store.profileId != profileId ||
+        !identical(store.database, database)) {
+      throw ArgumentError('SyncEngine must use one matching ProfileStore');
+    }
+  }
 
   final MakoloApiClient api;
   final ProfileStore store;
   final MakoloDatabase database;
   final String profileId;
 
-  // Only the most recently started request for a source may change its local
-  // state. A late 200 must not undo a newer owner 403/404 revocation.
-  final Map<String, int> _sourceGenerations = {};
-  int _discoveryRevocationEpoch = 0;
+  // Shared among SyncEngine instances bound to one SQLite connection.
+  // Separate runtimes cannot resurrect a previously withdrawn Profile fact.
+  _SyncCoordinator get _coordinator =>
+      _coordinators[database] ??= _SyncCoordinator();
+  String _scopeKey(String sourceKey) => '$profileId|$sourceKey';
+  int get _discoveryRevocationEpoch =>
+      _coordinator.discoveryEpochs[profileId] ?? 0;
+  bool _active = true;
+
+  /// Stop all in-flight acquisitions on account/runtime replacement.
+  /// Never erase durable user-owned offline knowledge on logout alone.
+  void deactivate() {
+    _active = false;
+    final coordinator = _coordinator;
+    for (final key in coordinator.generations.keys
+        .where((key) => key.startsWith('$profileId|')).toList()) {
+      coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
+    }
+  }
 
   static bool _isDiscoveryRelated(SyncSourceDefinition source) =>
       source.owner == 'Discovery' ||
@@ -138,20 +167,44 @@ class SyncEngine {
   Future<void> pullInteroperability() => pullSource(_interoperabilitySource);
 
   Future<void> pullSource(SyncSourceDefinition source) async {
-    final key = source.sourceKey;
-    final generation = (_sourceGenerations[key] ?? 0) + 1;
-    _sourceGenerations[key] = generation;
+    if (!_active) return;
+    final key = _scopeKey(source.sourceKey);
+    final coordinator = _coordinator;
+    final generation = (coordinator.generations[key] ?? 0) + 1;
+    coordinator.generations[key] = generation;
     final epoch = _discoveryRevocationEpoch;
     bool isCurrent() =>
-        _sourceGenerations[key] == generation &&
+        _active &&
+        coordinator.generations[key] == generation &&
         (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch);
     try {
       final response = await api.get(source.path);
       if (!isCurrent()) return;
       final acquired = source.parser(response);
       if (!isCurrent()) return;
+      // The owner sometimes exposes a Profile actor. If present, its
+      // identity must match the authenticated local storage boundary.
+      if (source.actorScope.isPersonal && source.owner == 'Profile') {
+        final actor = acquired.payload['actor'];
+        if (actor is Map && actor['id'] != null &&
+            actor['id'].toString() != profileId) {
+          throw const FormatException('Owner Profile mismatch');
+        }
+      }
 
       await database.transaction(() async {
+        // Across engine instances and process-resumed requests, a response
+        // with an older owner generation cannot replace newer local facts.
+        final observed = await (database.select(database.syncSources)
+              ..where((row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals(source.sourceKey)))
+            .getSingleOrNull();
+        if (acquired.sourceGeneratedAt != null &&
+            observed?.generatedAtSeen != null &&
+            acquired.sourceGeneratedAt!.isBefore(observed!.generatedAtSeen!)) {
+          return;
+        }
         if (!isCurrent()) return;
         await source.applier(
           SyncApplyContext(
@@ -216,6 +269,9 @@ class SyncEngine {
   }
 
   Future<void> invalidate(SyncSourceDefinition source) async {
+    final key = _scopeKey(source.sourceKey);
+    final coordinator = _coordinator;
+    coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
     await _ensureSource(source);
     await (database.update(database.syncSources)..where(
           (row) =>
@@ -232,7 +288,12 @@ class SyncEngine {
     // Invalidate all concurrently in-flight Discovery readers. A successful
     // response to another request, started before this denial, cannot
     // rehydrate a derived collection after the withdrawal committed.
-    if (_isDiscoveryRelated(source)) _discoveryRevocationEpoch++;
+    final coordinator = _coordinator;
+    final key = _scopeKey(source.sourceKey);
+    coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
+    if (_isDiscoveryRelated(source)) {
+      coordinator.discoveryEpochs[profileId] = _discoveryRevocationEpoch + 1;
+    }
     await database.transaction(() async {
       await store.deleteProjection(
         source.projectionKind,
