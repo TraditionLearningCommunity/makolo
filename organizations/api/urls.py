@@ -1,5 +1,13 @@
 from django.urls import path
 
+from space_assets.api_views import (
+    SpaceDocumentCollectionAPIView,
+    SpaceDocumentDetailAPIView,
+    SpaceDocumentVersionCreateAPIView,
+    SpaceDocumentDownloadAPIView,
+    SpaceDocumentReuseAPIView,
+)
+
 from interoperability.api_views import SpaceInteroperabilityAPIView
 from intelligence.connection_api import (
     SpaceIntelligenceConnectionsAPIView, SpaceIntelligenceConnectionAPIView,
@@ -69,6 +77,11 @@ urlpatterns = [
     path("workspaces/<slug:slug>/us/", SpaceUsAPIView.as_view(), name="workspace-us"),
     path("workspaces/<slug:slug>/us/authority/", SpaceUsAuthorityAPIView.as_view(), name="workspace-us-authority"),
     path("workspaces/<slug:slug>/us/resources/", SpaceUsResourcesAPIView.as_view(), name="workspace-us-resources"),
+    path("workspaces/<slug:slug>/documents/", SpaceDocumentCollectionAPIView.as_view(), name="workspace-documents"),
+    path("workspaces/<slug:slug>/documents/<uuid:document_id>/", SpaceDocumentDetailAPIView.as_view(), name="workspace-document"),
+    path("workspaces/<slug:slug>/documents/<uuid:document_id>/versions/", SpaceDocumentVersionCreateAPIView.as_view(), name="workspace-document-version-create"),
+    path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/download/", SpaceDocumentDownloadAPIView.as_view(), name="workspace-document-download"),
+    path("workspaces/<slug:slug>/documents/versions/<uuid:version_id>/reuse/", SpaceDocumentReuseAPIView.as_view(), name="workspace-document-reuse"),
     path("workspaces/<slug:slug>/passport/", SpacePassportAPIView.as_view(), name="workspace-passport"),
     path("workspaces/<slug:slug>/passport/pdf/", SpacePassportPdfAPIView.as_view(), name="workspace-passport-pdf"),
     path("workspaces/<slug:slug>/passport/issue/", SpacePassportIssueAPIView.as_view(), name="workspace-passport-issue"),
