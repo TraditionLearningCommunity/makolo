@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../data/local/makolo_database.dart';
 import 'outbox_repository.dart';
 
@@ -27,14 +29,82 @@ class OutboxProcessor {
   final OutboxRepository repository;
   final Map<String, OutboxHandler> handlers;
   final Map<String, OutboxReconciler> reconcilers;
+  Future<void>? _running;
+  bool _active = true;
 
-  Future<void> run() async {
+  void deactivate() => _active = false;
+
+  /// Reconnection, app resume and manual refresh share the same drain.
+  Future<void> run() {
+    if (!_active) return Future<void>.value();
+    final existing = _running;
+    if (existing != null) return existing;
+    final future = _drain();
+    _running = future;
+    return future.whenComplete(() => _running = null);
+  }
+
+  Future<void> _drain() async {
     final operations = await repository.pending();
     for (final operation in operations) {
+      if (!_active) return;
       final handler = handlers[operation.operationKind];
       if (handler == null) continue;
 
       final policy = _policy(operation.replayPolicy);
+      if (policy.requiresOwnerIdempotency &&
+          (operation.ownerIdempotencyKey == null ||
+           operation.ownerIdempotencyKey!.isEmpty)) {
+        await repository.setState(
+          operation.operationId,
+          OutboxState.awaitingConfirmation,
+          errorCode: 'idempotency_key_required',
+        );
+        continue;
+      }
+
+      // Dependencies must have been explicitly confirmed by this Profile.
+      // A missing/foreign dependency is not evidence of authorization.
+      List<String> dependencies;
+      try {
+        final decoded = jsonDecode(operation.dependencyIdsJson);
+        if (decoded is! List || decoded.any((item) =>
+            item is! String || item.isEmpty)) {
+          throw const FormatException('Invalid Outbox dependencies');
+        }
+        dependencies = decoded.cast<String>();
+      } on Object {
+        await repository.setState(
+          operation.operationId,
+          OutboxState.awaitingConfirmation,
+          errorCode: 'invalid_dependencies',
+        );
+        continue;
+      }
+      if (dependencies.contains(operation.operationId)) {
+        await repository.setState(
+          operation.operationId,
+          OutboxState.conflict,
+          errorCode: 'self_dependency',
+        );
+        continue;
+      }
+      if (dependencies.isNotEmpty) {
+        final states = await repository.dependencyStates(dependencies);
+        if (dependencies.any((id) =>
+            states[id] == OutboxState.conflict.wireValue ||
+            states[id] == OutboxState.cancelled.wireValue ||
+            states[id] == OutboxState.failed.wireValue)) {
+          await repository.setState(
+            operation.operationId,
+            OutboxState.conflict,
+            errorCode: 'dependency_unavailable',
+          );
+          continue;
+        }
+        if (dependencies.any((id) =>
+            states[id] != OutboxState.confirmed.wireValue)) continue;
+      }
 
       if (policy.requiresReconciliationBeforeReplay &&
           operation.state != OutboxState.queued.wireValue) {
@@ -52,7 +122,12 @@ class OutboxProcessor {
         continue;
       }
 
-      await repository.beginAttempt(operation.operationId);
+      if (!_active) return;
+      if (!await repository.claimForAttempt(
+        operation.operationId,
+        expectedAttempts: operation.attempts,
+        expectedState: operation.state,
+      )) continue;
 
       try {
         final result = await handler(operation);
