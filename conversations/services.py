@@ -453,10 +453,12 @@ def activate_participation(
             "created_by": actor,
         },
     )
+    was_active = participation.status == ConversationParticipationStatus.ACTIVE
     participation.status = ConversationParticipationStatus.ACTIVE
     participation.source = source
     participation.represented_space = represented_space
-    participation.joined_at = timezone.now()
+    if not was_active:
+        participation.joined_at = timezone.now()
     participation.left_at = None
     participation.removed_at = None
     participation.save()
