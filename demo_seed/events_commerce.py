@@ -191,12 +191,12 @@ def seed_events_and_commerce(ctx: SeedContext) -> None:
             "organization": org,
             "category": categories[category_slug],
             "venue": venue,
-            "title": title,
+            "title": f"Exemple — {title}",
             "slug": f"demo-{year}-{i+1:02d}-{stable_token(title, 6)}",
-            "short_description": f"{title} : une expérience Makolo pensée pour la communauté de {city}.",
+            "short_description": f"Exemple fictif à {city} : {title}. Aucun événement réel n’est annoncé.",
             "description": (
-                f"{title} réunit participants, intervenants et partenaires autour d'une expérience "
-                f"réaliste de démonstration. Billetterie, communication, accès et suivi sont gérés dans Makolo."
+                f"Cet événement est fictif : {title}. Les horaires, les billets et les inscriptions "
+                f"servent aux essais de l’application ; ils ne donnent accès à aucun événement réel à {city}."
             ),
             "status": status,
             "visibility": visibility,
