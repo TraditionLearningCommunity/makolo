@@ -169,7 +169,7 @@ class ConversationPointHistoryView(ConversationAccessMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         conversation = self.get_conversation()
         query = (self.request.GET.get("q") or "").strip()[:120]
-        section = (self.request.GET.get("section") or "history").strip()
+        section = (self.request.GET.get("section") or ("all" if query else "history")).strip()
         if section not in {"history", "all", "active"}:
             section = "history"
         error = None
