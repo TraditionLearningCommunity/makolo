@@ -7,6 +7,8 @@ import '../../navigation/destination.dart';
 import '../../network/makolo_api_client.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/sync_status.dart';
+import '../../sync/owner_source_state.dart';
+import '../../sync/freshness.dart';
 import 'me_selector.dart';
 
 /// Owner-backed personal collective relationships, not an authority editor.
@@ -29,6 +31,9 @@ class MeCollectivesScreen extends StatefulWidget {
 class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   final ScrollController _scroll = ScrollController();
   late Stream<StoredProjection?> _snapshots;
+  StreamSubscription<OwnerSourceState>? _ownerSubscription;
+  bool _invalidated = false;
+  bool _unreachable = false;
   bool _loading = false;
   bool _failed = false;
   bool _hasMore = false;
@@ -39,6 +44,7 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   void initState() {
     super.initState();
     _snapshots = widget.personal.watchMe();
+    _bindOwner();
     _scroll.addListener(_checkEnd);
   }
 
@@ -46,7 +52,11 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   void didUpdateWidget(covariant MeCollectivesScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.personal != widget.personal) {
+      unawaited(_ownerSubscription?.cancel());
       _snapshots = widget.personal.watchMe();
+      _invalidated = false;
+      _unreachable = false;
+      _bindOwner();
       _lastRequested = null;
       _loading = false;
       _failed = false;
@@ -56,8 +66,19 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
 
   @override
   void dispose() {
+    unawaited(_ownerSubscription?.cancel());
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _bindOwner() {
+    _ownerSubscription = widget.personal.watchMeSource().listen((source) {
+      if (!mounted) return;
+      setState(() {
+        _invalidated = source.invalidated;
+        _unreachable = source.reachability == ReachabilityState.unreachable;
+      });
+    });
   }
 
   void _checkEnd() {
@@ -123,10 +144,15 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
   @override
   Widget build(BuildContext context) {
     _offline =
+        _unreachable ||
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
     return Scaffold(
       appBar: AppBar(title: const Text('Mes collectifs')),
-      body: StreamBuilder<StoredProjection?>(
+      body: _invalidated
+          ? const Center(
+              child: Text('Ces collectifs ne sont plus accessibles.'),
+            )
+          : StreamBuilder<StoredProjection?>(
         stream: _snapshots,
         builder: (context, snapshot) {
           final projection = snapshot.data;
