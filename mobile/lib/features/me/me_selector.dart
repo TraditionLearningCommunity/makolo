@@ -134,9 +134,9 @@ class MeSelector {
         freshness,
         reachability,
       ),
-      _collectives(projection.payload['collectives'], freshness, reachability),
       if (_string(links?['accesses']) != null)
         _accesses(freshness, reachability),
+      _collectives(projection.payload['collectives'], freshness, reachability),
       _resources(
         projection.payload['resources'],
         freshness,
@@ -656,7 +656,7 @@ class MeSelector {
       ),
       canOpen: _string(raw['slug']) != null,
       title: title,
-      subtitle: raw['can_act'] == true ? 'Contexte autorisé' : 'Espace',
+      subtitle: raw['can_act'] == true ? 'Peut agir pour cet Espace' : 'Espace',
     );
   }
 
@@ -666,10 +666,11 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final parent = _string(_map(raw['space'])?['name']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'team', id: id),
       title: title,
-      subtitle: 'Équipe',
+      subtitle: parent == null ? 'Équipe' : 'Équipe · $parent',
     );
   }
 
@@ -679,11 +680,13 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final owner = _map(raw['owner']);
+    final parent = _string(owner?['name']) ?? _string(owner?['display_name']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'group', id: id),
       canOpen: true,
       title: title,
-      subtitle: 'Groupe',
+      subtitle: parent == null ? 'Groupe' : 'Groupe · $parent',
     );
   }
 
@@ -709,10 +712,16 @@ class MeSelector {
     if (id == null || title == null) {
       return null;
     }
+    final activity = _string(_map(raw['activity'])?['title']);
+    final status = _string(raw['status_label']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'proof', id: id),
       title: title,
-      subtitle: _string(raw['status_label']) ?? 'Preuve',
+      subtitle: [
+        if (activity != null) activity,
+        if (status != null) status,
+        if (activity == null && status == null) 'Preuve',
+      ].join(' · '),
     );
   }
 
@@ -725,7 +734,13 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'credential', id: id),
       title: title,
-      subtitle: _string(raw['credential_type_label']) ?? 'Titre',
+      subtitle: [
+        _string(raw['credential_type_label']) ?? 'Titre',
+        if (_string(_map(raw['issuer'])?['name']) != null)
+          _string(_map(raw['issuer'])?['name'])!,
+        if (_string(_map(raw['issuer'])?['display_name']) != null)
+          _string(_map(raw['issuer'])?['display_name'])!,
+      ].join(' · '),
       metadata: _metadata(_string(raw['status_label'])),
     );
   }
