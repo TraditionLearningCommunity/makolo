@@ -144,6 +144,42 @@ class SecureAccessCredentialVault implements AccessCredentialVault {
         await _writeKeys(profileId, keys);
       });
 
+  /// Periodic secure-store housekeeping is independent of connectivity.
+  /// Only expired, damaged or orphaned display-only credentials are removed.
+  Future<void> purgeExpiredProfile(String profileId) => _serialize(() async {
+    final keys = await _keys(profileId);
+    final keep = <String>{};
+    final now = DateTime.now().toUtc();
+    for (final accessId in keys) {
+      final raw = await _storage.read(key: _key(profileId, accessId));
+      var usable = false;
+      if (raw != null) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map &&
+              decoded['v'] == 1 &&
+              decoded['profile'] == profileId &&
+              decoded['access'] == accessId &&
+              decoded['payload'] is String &&
+              (decoded['payload'] as String).isNotEmpty &&
+              decoded['path'] is String) {
+            final expiry =
+                DateTime.tryParse(decoded['expiry']?.toString() ?? '');
+            usable = expiry != null && now.isBefore(expiry.toUtc());
+          }
+        } on FormatException {
+          // A malformed secure value is not an offline presentation right.
+        }
+      }
+      if (usable) {
+        keep.add(accessId);
+      } else {
+        await _storage.delete(key: _key(profileId, accessId));
+      }
+    }
+    await _writeKeys(profileId, keep);
+  });
+
   @override
   Future<void> clearProfile(String profileId) => _serialize(() async {
         for (final access in await _keys(profileId)) {
