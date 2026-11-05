@@ -46,6 +46,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     with WidgetsBindingObserver {
   StreamSubscription<List<ConnectivityResult>>? _connectivity;
   StreamSubscription<OutboxSummary>? _outbox;
+  Timer? _outboxRetryTimer;
+  int _retryRevision = 0;
   bool _online = true;
   bool _syncing = false;
   bool _refreshQueued = false;
@@ -65,8 +67,15 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       final online = results.any((result) => result != ConnectivityResult.none);
       final restored = online && !_online;
       if (mounted) setState(() => _online = online);
+      if (!online) {
+        _outboxRetryTimer?.cancel();
+        _retryRevision++;
+      }
       if (restored) widget.runtime.sync?.onConnectivityRestored();
-      if (online) unawaited(_refresh());
+      if (online) {
+        unawaited(_armOutboxRetry(widget.runtime));
+        unawaited(_refresh());
+      }
     });
   }
 
@@ -88,14 +97,57 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   void _bindOutbox() {
     unawaited(_outbox?.cancel());
     _outbox = widget.runtime.outbox?.watchSummary().listen((summary) {
-      if (mounted) setState(() => _outboxSummary = summary);
+      if (mounted) {
+        setState(() => _outboxSummary = summary);
+        unawaited(_armOutboxRetry(widget.runtime));
+      }
     });
+  }
+
+  /// Retry timing belongs to the existing foreground lifecycle, not to
+  /// widgets or an invented business scheduler. Android may suspend timers;
+  /// resume/reconnect always re-arm from the durable SQLite timestamp.
+  Future<void> _armOutboxRetry(AppRuntime runtime) async {
+    final revision = ++_retryRevision;
+    _outboxRetryTimer?.cancel();
+    if (!_online) return;
+    final next = await runtime.outbox?.nextAutomaticRetryAt();
+    if (!mounted ||
+        !_online ||
+        revision != _retryRevision ||
+        !identical(runtime, widget.runtime) ||
+        next == null) {
+      return;
+    }
+    final remaining = next.difference(DateTime.now().toUtc());
+    final delay = remaining.isNegative
+        ? const Duration(seconds: 2)
+        : remaining;
+    _outboxRetryTimer = Timer(delay, () {
+      _outboxRetryTimer = null;
+      unawaited(_runDueOutbox(runtime));
+    });
+  }
+
+  Future<void> _runDueOutbox(AppRuntime runtime) async {
+    if (!mounted || !_online || !identical(runtime, widget.runtime)) return;
+    try {
+      await runtime.outboxProcessor?.run();
+    } on Object {
+      // The operation itself records its own owner outcome for local readers.
+    } finally {
+      if (mounted && identical(runtime, widget.runtime)) {
+        unawaited(_armOutboxRetry(runtime));
+      }
+    }
   }
 
   @override
   void didUpdateWidget(covariant SyncLifecycle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.runtime, widget.runtime)) {
+      _outboxRetryTimer?.cancel();
+      _retryRevision++;
       oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
       widget.runtime.actorContext?.addListener(_onActorChanged);
       oldWidget.runtime.sync?.deactivate();
@@ -147,6 +199,9 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       await _refreshSpaceContextIfNeeded();
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await runtime.outboxProcessor?.run();
+      if (mounted && identical(runtime, widget.runtime)) {
+        unawaited(_armOutboxRetry(runtime));
+      }
       if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
           _syncFailed = !rootsSucceeded || !workingSetSucceeded;
@@ -235,6 +290,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     // The AppRuntime owns worker lifetime; a temporary shell unmount must
     // not permanently disable an otherwise reusable authenticated runtime.
     WidgetsBinding.instance.removeObserver(this);
+    _outboxRetryTimer?.cancel();
+    _retryRevision++;
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     unawaited(_connectivity?.cancel());
     unawaited(_outbox?.cancel());
