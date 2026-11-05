@@ -104,6 +104,35 @@ class _OwnerApi implements MakoloApiClient {
 }
 
 void main() {
+  test('QR display refuses future, reversed and expired owner windows',
+      () {
+    final now = DateTime.now().toUtc();
+    RetainedAccessQr qr(DateTime checked, DateTime expiry) =>
+        RetainedAccessQr(
+          accessId: 'access-1',
+          path: credentialPath,
+          payload: 'opaque-secret',
+          checkedAt: checked,
+          expiresAt: expiry,
+        );
+    expect(qr(
+      now.add(const Duration(minutes: 1)),
+      now.add(const Duration(hours: 2)),
+    ).displayableAt(now), isFalse);
+    expect(qr(
+      now.subtract(const Duration(hours: 1)),
+      now.subtract(const Duration(seconds: 1)),
+    ).displayableAt(now), isFalse);
+    expect(qr(
+      now.subtract(const Duration(minutes: 1)),
+      now.subtract(const Duration(minutes: 2)),
+    ).displayableAt(now), isFalse);
+    expect(qr(
+      now.subtract(const Duration(minutes: 1)),
+      now.add(const Duration(minutes: 1)),
+    ).displayableAt(now), isTrue);
+  });
+
   test('only the owner-approved QR persists, isolated and expiry bounded',
       () async {
     final db = MakoloDatabase.memory();
