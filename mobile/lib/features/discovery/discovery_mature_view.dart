@@ -428,6 +428,21 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
+                            if (item.timing != null)
+                              Row(
+                                children: [
+                                  const Icon(Icons.schedule_outlined, size: 14),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      item.timing!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             if (item.place != null && !commonPlace)
                               Text(
                                 item.place!,
@@ -466,7 +481,17 @@ class _DiscoveryMapThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
+    // Prefer the opportunity's published media. The publisher avatar is a
+    // valid fallback only when it is already in the admitted presentation.
+    final owner = item.wire['owner'];
+    final representation =
+        owner is Map ? owner['representation'] : null;
+    final avatar = representation is Map &&
+            representation['avatar_url'] is String
+        ? representation['avatar_url'] as String
+        : null;
+    final mediaUrl = item.imageUrl ?? avatar;
+    final uri = mediaUrl == null ? null : Uri.tryParse(mediaUrl);
     final resolved = uri == null
         ? null
         : uri.hasScheme ? uri : baseUri?.resolveUri(uri);
