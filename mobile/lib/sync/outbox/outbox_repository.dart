@@ -350,8 +350,8 @@ class OutboxRepository {
           .getSingleOrNull();
       if (operation == null) return;
       // Bounded exponential backoff: 10s, 20s, 40s... max 5 min.
-      final exponent = (operation.attempts - 1).clamp(0, 5);
-      final seconds = (10 * (1 << exponent)).clamp(10, 300);
+      final exponent = (operation.attempts - 1).clamp(0, 5).toInt();
+      final seconds = (10 * (1 << exponent)).clamp(10, 300).toInt();
       retryAt = DateTime.now().toUtc().add(Duration(seconds: seconds));
     }
     await (database.update(database.outboxOperations)..where(
