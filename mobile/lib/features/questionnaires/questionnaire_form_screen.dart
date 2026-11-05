@@ -48,7 +48,11 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
   Map<String, dynamic> _serverErrors = <String, dynamic>{};
   bool _initializedAnswers = false;
   bool _refreshing = false;
-  bool _savingDraft = false;
+  bool _submitting = false;
+  bool _draftDirty = false;
+  bool _submittedLocally = false;
+  int _draftRevision = 0;
+  Future<void> _draftWrites = Future<void>.value();
 
   String get _draftId => 'questionnaire:${widget.requestId}';
 
@@ -110,53 +114,71 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
   }
 
   void _changed(String key, Object? value) {
+    if (_submitting) return;
     setState(() {
       _answers[key] = value;
       _serverErrors.remove(key);
       _serverErrors.remove('_form');
+      _draftDirty = true;
+      _submittedLocally = false;
+      _draftRevision++;
     });
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 450), () {
-      unawaited(_persistDraft());
+      unawaited(_persistDraft().catchError((Object _) {}));
     });
   }
 
-  Future<void> _persistDraft() async {
-    if (_savingDraft) return;
-    _savingDraft = true;
-    try {
-      await widget.drafts.saveLocal(
-        draftId: _draftId,
-        owner: QuestionnaireSubmitCoordinator.owner,
-        resourceKind: QuestionnaireSubmitCoordinator.resourceKind,
-        resourceId: widget.requestId,
-        payload: <String, dynamic>{
-          'answers': _answers,
-          if (_serverErrors.isNotEmpty) 'server_errors': _serverErrors,
-          'base_observed_at': DateTime.now().toUtc().toIso8601String(),
-        },
-      );
-    } finally {
-      _savingDraft = false;
-      if (mounted) setState(() {});
-    }
+  Future<void> _persistDraft() {
+    // A quick submit must wait for a preceding autosave instead of
+    // returning early and racing the atomic draft + owner intent.
+    final answers = Map<String, dynamic>.from(_answers);
+    final errors = Map<String, dynamic>.from(_serverErrors);
+    final revision = _draftRevision;
+    final write = _draftWrites.then((_) => widget.drafts.saveLocal(
+      draftId: _draftId,
+      owner: QuestionnaireSubmitCoordinator.owner,
+      resourceKind: QuestionnaireSubmitCoordinator.resourceKind,
+      resourceId: widget.requestId,
+      payload: <String, dynamic>{
+        'answers': answers,
+        if (errors.isNotEmpty) 'server_errors': errors,
+        'base_observed_at': DateTime.now().toUtc().toIso8601String(),
+      },
+    ));
+    _draftWrites = write.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+    return write.then((_) {
+      if (_draftRevision == revision) _draftDirty = false;
+    });
   }
 
   Future<void> _submit(QuestionnaireRequestDetail detail) async {
+    if (_submitting) return;
     final validation = _validate(detail);
     if (validation.isNotEmpty) {
       setState(() => _serverErrors = validation);
       return;
     }
-    await _persistDraft();
-    final created = await widget.submitCoordinator.enqueue(
-      requestId: widget.requestId,
-      journeyId: widget.journeyId,
-      answers: Map<String, dynamic>.from(_answers),
-      links: widget.links,
-    );
-    if (created) {
-      await widget.outboxProcessor?.run();
+    _autosave?.cancel();
+    final answers = Map<String, dynamic>.from(_answers);
+    setState(() => _submitting = true);
+    try {
+      await _persistDraft();
+      final created = await widget.submitCoordinator.enqueue(
+        requestId: widget.requestId,
+        journeyId: widget.journeyId,
+        answers: answers,
+        links: widget.links,
+      );
+      if (created) {
+        _submittedLocally = true;
+        await widget.outboxProcessor?.run();
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -186,8 +208,8 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
   @override
   void dispose() {
     _autosave?.cancel();
-    if (_initializedAnswers) {
-      unawaited(_persistDraft());
+    if (_initializedAnswers && _draftDirty && !_submittedLocally) {
+      unawaited(_persistDraft().catchError((Object _) {}));
     }
     super.dispose();
   }
@@ -255,6 +277,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                       canSubmit:
                           widget.links.canSubmit &&
                           !detail.isSubmitted &&
+                          !_submitting &&
                           !_operationActive(operation),
                       onChanged: _changed,
                       onSubmit: () => _submit(detail!),
@@ -363,7 +386,9 @@ class _FormContent extends StatelessWidget {
               question: question,
               value: answers[question.key],
               error: errors[question.key]?.toString(),
-              enabled: !detail.isSubmitted,
+              enabled: !detail.isSubmitted &&
+                  commit != MakoloCommitCue.pending &&
+                  commit != MakoloCommitCue.awaitingConfirmation,
               onChanged: (value) => onChanged(question.key, value),
             ),
             const SizedBox(height: MakoloSpacing.inner),
