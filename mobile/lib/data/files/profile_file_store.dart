@@ -382,9 +382,7 @@ class ProfileFileStore {
 
   static String _safeSuffix(String filename) {
     final extension = p.extension(filename);
-    if (!RegExp(r'^\\.[A-Za-z0-9]{1,10}
-}
-).hasMatch(extension)) return '';
+    if (!RegExp(r'^\.[A-Za-z0-9]{1,10}$').hasMatch(extension)) return '';
     return extension.toLowerCase();
   }
 }
