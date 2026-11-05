@@ -246,7 +246,7 @@ def now_points_for_profile(profile, conversation, *, limit=100):
     now = timezone.now()
     rows = []
     points = conversation.points.filter(lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}).select_related(
-        "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
+        "published_by", "represented_space", "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
     ).prefetch_related("options", "responses").order_by("deadline_at", "-importance", "published_at")[: max(limit * 3, 100)]
     for point in points:
         if not point_visible_to(profile, point, at=now):
@@ -269,7 +269,7 @@ def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), 
     candidates = conversation.points.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED},
     ).select_related(
-        "visibility_audience", "response_audience", "expected_action_audience",
+        "published_by", "represented_space", "visibility_audience", "response_audience", "expected_action_audience",
         "resolution_audience",
     ).prefetch_related("options", "responses").order_by("published_at", "pk")[: max(limit * 4, 100)]
     result = []
@@ -287,7 +287,7 @@ def essential_points_for_profile(profile, conversation, *, limit=50):
         return []
     candidates = conversation.points.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED, ConversationPointLifecycle.RESOLVED}
-    ).select_related("visibility_audience", "resolution").prefetch_related("options", "responses").order_by("-shared_pinned_at", "-resolved_at", "-published_at")[: max(limit * 3, 100)]
+    ).select_related("published_by", "represented_space", "visibility_audience", "resolution").prefetch_related("options", "responses").order_by("-shared_pinned_at", "-resolved_at", "-published_at")[: max(limit * 3, 100)]
     result = []
     for point in candidates:
         if not point_visible_to(profile, point):
