@@ -665,6 +665,28 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertIsNone(item["owner"])
         self.assertNotIn("created_by", item)
 
+        # A public Activity location must not promote its non-public Space
+        # or creator to the compact map index.
+        place = Place.objects.create(
+            name="Z3 lieu visible",
+            latitude="-11.66",
+            longitude="27.48",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        spatial = self._items(
+            q="Z3 concert", include_spatial_index="compact",
+        )["data"]["spatial_index"]["results"]
+        event = next(
+            row for row in spatial
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertIsNone(event["owner"])
+        self.assertNotIn("created_by", event)
+
     def test_opportunity_issuer_is_external_without_makolo_identity(self):
         item = next(
             row for row in self._items(q="Z3 bourse")["data"]["results"]
