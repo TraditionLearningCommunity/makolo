@@ -49,6 +49,7 @@ class ConversationDetailPresentationTests(SimpleTestCase):
             patch("conversations.detail_presentation._public_context_image",
                   return_value=None),
             patch("accounts.profile_visibility.ProfileVisibilityResolver") as resolver,
+            patch("sharing.passport.profile_has_public_passport", return_value=True),
         ):
             resolver.return_value.field.return_value = False
             data = conversation_subject_for_profile(viewer, conversation, "Léa")
