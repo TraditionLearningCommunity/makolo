@@ -292,10 +292,12 @@ class DiscoveryCoLocatedPicker extends StatefulWidget {
     super.key,
     required this.items,
     required this.onChoose,
+    this.baseUri,
   });
 
   final List<DiscoveryItemPresentation> items;
   final ValueChanged<DiscoveryItemPresentation> onChoose;
+  final Uri? baseUri;
 
   @override
   State<DiscoveryCoLocatedPicker> createState() =>
@@ -357,16 +359,30 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${items.length} possibilités à cet emplacement',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.place_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: MakoloSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          '${items.length} opportunités ici',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                      ),
+                    ],
                   ),
                   if (commonPlace)
-                    Text(
-                      place!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    Padding(
+                      padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                      child: Text(
+                        place!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
                     ),
                 ],
               ),
@@ -377,29 +393,143 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
               key: const Key('discover-map-colocated-more'),
               onPressed: _showAll,
               icon: const Icon(Icons.expand_more_rounded),
-              label: Text('Voir les ${items.length} possibilités'),
+              label: Text('Voir les ${items.length} opportunités'),
             );
           }
           final item = items[index - 1];
-          return ListTile(
-            key: ValueKey('discover-map-place-choice-${item.candidateKey}'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: item.place == null
-                ? null
-                : Text(
-                    item.place!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+            child: Card(
+              margin: EdgeInsets.zero,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                key: ValueKey('discover-map-place-choice-${item.candidateKey}'),
+                onTap: () => widget.onChoose(item),
+                child: Padding(
+                  padding: const EdgeInsets.all(MakoloSpacing.sm),
+                  child: Row(
+                    children: [
+                      _DiscoveryMapThumbnail(item: item, baseUri: widget.baseUri),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (item.owner != null || item.eyebrow != null)
+                              Text(
+                                item.owner ?? item.eyebrow!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            if (item.place != null && !commonPlace)
+                              Text(
+                                item.place!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
                   ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => widget.onChoose(item),
+                ),
+              ),
+            ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Visual recognition uses only a real image already published by the owner.
+/// A neutral icon replaces the thumbnail when no valid media is available.
+class _DiscoveryMapThumbnail extends StatelessWidget {
+  const _DiscoveryMapThumbnail({
+    required this.item,
+    this.baseUri,
+    this.size = 58,
+  });
+
+  final DiscoveryItemPresentation item;
+  final Uri? baseUri;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
+    final resolved = uri == null
+        ? null
+        : uri.hasScheme ? uri : baseUri?.resolveUri(uri);
+    final placeholder = ColoredBox(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Center(
+        child: Icon(
+          Icons.event_available_outlined,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+    Widget content = placeholder;
+    if (resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http')) {
+      final trusted = baseUri != null &&
+          resolved.origin == baseUri!.origin &&
+          DiscoveryOfflineStore.isPublishedRecognitionUri(
+            resolved,
+            trustedOrigin: baseUri!,
+          );
+      content = trusted
+          ? RetainedPublicDiscoveryImage(
+              url: resolved,
+              trustedOrigin: baseUri!,
+              placeholder: placeholder,
+            )
+          : Image.network(
+              resolved.toString(),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => placeholder,
+            );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(width: size, height: size, child: content),
+    );
+  }
+}
+
+class _DiscoveryMapFact extends StatelessWidget {
+  const _DiscoveryMapFact({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: MakoloSpacing.xs),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -454,10 +584,16 @@ class _DiscoveryMapPreview extends StatelessWidget {
           children: [
             Row(
               children: [
+                _DiscoveryMapThumbnail(
+                  item: resolved ?? item,
+                  baseUri: baseUri,
+                  size: 68,
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
                   child: Text(
                     item.title,
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
@@ -478,25 +614,19 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             if (place != null && place!.trim().isNotEmpty)
-              Text(
-                place!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium,
+              _DiscoveryMapFact(
+                icon: Icons.place_outlined,
+                label: place!,
               ),
             if (resolved?.owner != null)
-              Text(
-                resolved!.owner!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
+              _DiscoveryMapFact(
+                icon: Icons.business_outlined,
+                label: resolved!.owner!,
               ),
             if (resolved?.timing != null)
-              Text(
-                resolved!.timing!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
+              _DiscoveryMapFact(
+                icon: Icons.schedule_outlined,
+                label: resolved!.timing!,
               ),
             Wrap(
               alignment: WrapAlignment.end,
@@ -535,7 +665,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 TextButton(
                   key: const Key('discover-map-open-n2'),
                   onPressed: onOpen,
-                  child: const Text('Voir le détail'),
+                  child: const Text('Voir l’opportunité'),
                 ),
               ],
             ),
@@ -795,6 +925,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       showDragHandle: true,
       builder: (sheetContext) => DiscoveryCoLocatedPicker(
         items: items,
+        baseUri: widget.baseUri,
         onChoose: (item) {
           Navigator.of(sheetContext).pop();
           if (!mounted) return;
@@ -1157,7 +1288,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                         child: Padding(
                           padding: const EdgeInsets.all(MakoloSpacing.sm),
                           child: Text(
-                            'Aucune possibilité localisée',
+                            'Aucune opportunité sur la carte',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
@@ -1166,14 +1297,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                   ),
                 if (widget.location != null && widget.mapConfig.enabled)
                   Positioned(
-                    top: 104,
-                    right: MakoloSpacing.sm,
+                    bottom: MediaQuery.paddingOf(context).bottom +
+                        (selected == null
+                            ? MakoloSpacing.lg
+                            : MediaQuery.sizeOf(context).height * 0.38 +
+                                MakoloSpacing.md),
+                    right: MakoloSpacing.md,
                     child: Material(
                       elevation: 2,
                       borderRadius: BorderRadius.circular(24),
                       color: Theme.of(context).colorScheme.surface,
                       child: IconButton(
-                        tooltip: 'Ma position',
+                        tooltip: 'Me localiser',
                         onPressed: () => unawaited(_recenterOnDevice()),
                         icon: const Icon(Icons.my_location_rounded),
                       ),
