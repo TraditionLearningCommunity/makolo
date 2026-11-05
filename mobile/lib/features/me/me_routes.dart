@@ -71,6 +71,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             context.push('/me/passport');
             return true;
           }
+          if (destination.kind == 'access') {
+            context.push('/accesses/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'journey') {
+            context.push('/journeys/${destination.id}');
+            return true;
+          }
           if (destination.kind == 'activity') {
             context.push('/activities/${destination.id}');
             return true;
