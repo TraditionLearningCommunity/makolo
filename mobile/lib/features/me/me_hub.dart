@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
 import 'me_selector.dart';
 
@@ -12,12 +15,14 @@ class MeHub extends StatefulWidget {
     super.key,
     required this.selection,
     required this.profileId,
+    this.store,
     required this.onSelectItem,
     required this.canNavigate,
   });
 
   final MeSelection selection;
   final String? profileId;
+  final ProfileStore? store;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool canNavigate;
 
@@ -28,6 +33,10 @@ class MeHub extends StatefulWidget {
 class _MeHubState extends State<MeHub> {
   static const _storage = FlutterSecureStorage();
   _MeLayout _layout = _MeLayout.list;
+  StreamSubscription<List<StoredProjection>>? _accessSubscription;
+  StreamSubscription<List<StoredProjection>>? _historySubscription;
+  List<MeItemPresentation> _accessPreviews = const [];
+  List<MeItemPresentation> _historyPreviews = const [];
 
   String? get _storageKey {
     final id = widget.profileId;
@@ -38,6 +47,14 @@ class _MeHubState extends State<MeHub> {
   void initState() {
     super.initState();
     _restoreLayout();
+    _bindLocalPreviews();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_accessSubscription?.cancel());
+    unawaited(_historySubscription?.cancel());
+    super.dispose();
   }
 
   @override
@@ -47,6 +64,97 @@ class _MeHubState extends State<MeHub> {
       _layout = _MeLayout.list;
       _restoreLayout();
     }
+    if (widget.store != oldWidget.store ||
+        widget.profileId != oldWidget.profileId) {
+      unawaited(_accessSubscription?.cancel());
+      unawaited(_historySubscription?.cancel());
+      _accessPreviews = const [];
+      _historyPreviews = const [];
+      _bindLocalPreviews();
+    }
+  }
+
+  static Map<String, dynamic>? _asMap(Object? raw) {
+    if (raw is! Map) return null;
+    return raw.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  static int _offset(StoredProjection page) {
+    final payloadPage = _asMap(page.payload['page']);
+    final value = payloadPage?['offset'];
+    return value is int ? value : 0;
+  }
+
+  void _bindLocalPreviews() {
+    final store = widget.store;
+    if (store == null) return;
+    _accessSubscription = store.watchProjections('personal.accesses')
+        .listen((pages) {
+      if (!mounted || store != widget.store) return;
+      final preview = <MeItemPresentation>[];
+      final seen = <String>{};
+      final ordered = pages
+          .where((page) => page.resourceKey.startsWith('beneficiary:'))
+          .toList()
+        ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+      for (final page in ordered) {
+        final items = page.payload['items'];
+        if (items is! List) continue;
+        for (final raw in items) {
+          final item = _asMap(raw);
+          final identity = _asMap(item?['identity']);
+          final activity = _asMap(item?['activity']);
+          final id = identity?['id']?.toString();
+          final title = activity?['title']?.toString();
+          if (id == null || title == null || !seen.add(id)) continue;
+          preview.add(
+            MeItemPresentation(
+              destination: StructuredDestination(kind: 'access', id: id),
+              title: title,
+              canOpen: true,
+            ),
+          );
+          if (preview.length == 3) break;
+        }
+        if (preview.length == 3) break;
+      }
+      setState(() => _accessPreviews = preview);
+    });
+    _historySubscription = store.watchProjections('personal.history')
+        .listen((pages) {
+      if (!mounted || store != widget.store) return;
+      final preview = <MeItemPresentation>[];
+      final seen = <String>{};
+      final ordered = pages.toList()
+        ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+      for (final page in ordered) {
+        final items = page.payload['items'];
+        if (items is! List) continue;
+        for (final raw in items) {
+          final item = _asMap(raw);
+          final source = _asMap(item?['source']);
+          final kind = source?['kind']?.toString();
+          final id = source?['id']?.toString();
+          final title = item?['title']?.toString();
+          if (title == null) continue;
+          final key = '$kind:$id:$title';
+          if (!seen.add(key)) continue;
+          preview.add(
+            MeItemPresentation(
+              destination: StructuredDestination(
+                kind: kind ?? 'history',
+                id: id ?? 'unknown',
+              ),
+              title: title,
+              canOpen: id != null && {'journey', 'access'}.contains(kind),
+            ),
+          );
+          if (preview.length == 3) break;
+        }
+        if (preview.length == 3) break;
+      }
+      setState(() => _historyPreviews = preview);
+    });
   }
 
   Future<void> _restoreLayout() async {
@@ -66,7 +174,7 @@ class _MeHubState extends State<MeHub> {
     setState(() => _layout = next);
     final key = _storageKey;
     if (key != null) {
-      _storeLayout(key, next);
+      unawaited(_storeLayout(key, next));
     }
   }
 
@@ -116,12 +224,15 @@ class _MeHubState extends State<MeHub> {
     final resources = _territory('resources');
     final support = _territory('support');
     return [
-      const _MeEntry(
+      _MeEntry(
         kind: 'access_collection',
         title: 'Mes accès',
         subtitle: 'Billets, invitations et droits',
         icon: Icons.confirmation_number_outlined,
+        previews: _accessPreviews,
       ),
+      // The actual preview comes from this Profile's locally retained Access
+      // collection; it is never invented from the existence of a link.
       _MeEntry(
         kind: 'considerations',
         title: 'Ce qui compte pour moi',
@@ -170,11 +281,12 @@ class _MeHubState extends State<MeHub> {
         count: resources?.totalCount,
       ),
       if (widget.selection.canOpenHistory)
-        const _MeEntry(
+        _MeEntry(
           kind: 'history',
           title: 'Mon historique',
           subtitle: 'Mon parcours',
           icon: Icons.history_rounded,
+          previews: _historyPreviews,
         ),
       if (support != null)
         _MeEntry(
