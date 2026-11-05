@@ -654,6 +654,13 @@ void main() {
       (space) => space.identity.id,
     ), ['space-y']);
 
+    // A later inventory 200 may know the Space exists as membership, but
+    // cannot regrant previously denied workspace authority.
+    await repository.refreshInventory();
+    expect((await repository.readInventory()).map(
+      (space) => space.identity.id,
+    ), ['space-y']);
+
     lateResponse.complete(MockResponse(jsonEncode(_now()), 200));
     await inFlight;
     expect(
