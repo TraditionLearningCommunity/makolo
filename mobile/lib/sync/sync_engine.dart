@@ -935,25 +935,27 @@ class SyncEngine {
         .write(const SyncSourcesCompanion(invalidated: Value(true)));
   }
 
-  Future<void> _recordFailure(SyncSourceDefinition source, String code) async {
-    await _ensureSource(source);
-    final observed = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals(source.sourceKey)))
-        .getSingleOrNull();
-    if (observed?.invalidated == true &&
-        _deniedOwnerState(observed?.lastErrorCode)) {
-      // Timeouts, 500s and clock/network errors cannot overwrite an
-      // explicit 403/404 tombstone. Only a validated owner 200 may clear it.
-      return;
-    }
-    await (database.update(database.syncSources)..where(
-          (row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals(source.sourceKey),
-        ))
-        .write(SyncSourcesCompanion(lastErrorCode: Value(code)));
+  Future<void> _recordFailure(SyncSourceDefinition source, String code) {
+    return database.transaction(() async {
+      await _ensureSource(source);
+      final observed = await (database.select(database.syncSources)
+            ..where((row) =>
+                row.profileId.equals(profileId) &
+                row.sourceKey.equals(source.sourceKey)))
+          .getSingleOrNull();
+      if (observed?.invalidated == true &&
+          _deniedOwnerState(observed?.lastErrorCode)) {
+        // A 500 or timeout cannot replace an owner 403/404. The transaction
+        // also prevents a concurrent denial from racing this state write.
+        return;
+      }
+      await (database.update(database.syncSources)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.sourceKey.equals(source.sourceKey),
+          ))
+          .write(SyncSourcesCompanion(lastErrorCode: Value(code)));
+    });
   }
 
   Future<void> _ensureSource(SyncSourceDefinition source) async {
