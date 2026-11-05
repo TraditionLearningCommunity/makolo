@@ -380,4 +380,55 @@ void main() {
     expect(started['already-started'], OutboxState.inFlight.wireValue);
   });
 
+  test('a scheduled retry remains the active intent for its resource',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'retry-form',
+      deviceInstanceId: 'device-a',
+      operationKind: 'questionnaire.form.submit',
+      owner: 'Questionnaires',
+      resourceId: 'request-a',
+      payload: const {},
+      intentId: 'retry-form-intent',
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+    );
+    await outbox.beginAttempt('retry-form');
+    await outbox.setState(
+      'retry-form',
+      OutboxState.failed,
+      errorCode: 'transport_error',
+    );
+
+    expect(
+      (await outbox.activeForResource(
+        operationKind: 'questionnaire.form.submit',
+        resourceId: 'request-a',
+      ))?.operationId,
+      'retry-form',
+    );
+    expect(
+      (await outbox.watchResource(
+        operationKind: 'questionnaire.form.submit',
+        resourceId: 'request-a',
+      ).first).single.retryScheduled,
+      isTrue,
+    );
+
+    await outbox.setState(
+      'retry-form',
+      OutboxState.failed,
+      errorCode: 'owner_rejected',
+    );
+    expect(
+      await outbox.activeForResource(
+        operationKind: 'questionnaire.form.submit',
+        resourceId: 'request-a',
+      ),
+      isNull,
+    );
+  });
+
 }
