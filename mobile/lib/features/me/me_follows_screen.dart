@@ -90,7 +90,15 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
   Future<void> _next() async {
     final personal = widget.personal;
     if (_loading || _offline || _failed) return;
-    final current = await personal.store.readProjection('personal.me');
+    StoredProjection? current;
+    try {
+      current = await personal.store.readProjection('personal.me');
+    } on Object {
+      if (mounted && personal == widget.personal) {
+        setState(() => _failed = true);
+      }
+      return;
+    }
     if (!mounted || personal != widget.personal || current == null) return;
     final family = _pendingFamily(current);
     if (family == null) return;
