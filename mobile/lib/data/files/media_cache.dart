@@ -135,6 +135,10 @@ class ProfileMediaCache {
         }
         continue;
       }
+      if (stat.size <= 0 || stat.size > maxItemBytes) {
+        await entry.delete();
+        continue;
+      }
       files.add((entry, stat));
     }
     files.sort((a, b) => b.$2.modified.compareTo(a.$2.modified));
