@@ -873,7 +873,7 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Point de coordination'), findsOneWidget);
-    expect(find.textContaining('Envoi non confirmé'), findsOneWidget);
+    expect(find.textContaining('Envoi non conservé'), findsOneWidget);
     await tester.tap(find.byKey(const Key('conversation-compose-send')));
     await tester.runAsync(
       () async => Future<void>.delayed(const Duration(milliseconds: 120)),
@@ -911,8 +911,10 @@ void main() {
         id: 'conversation-1', repository: repository,
       ),
     );
-    await tester.ensureVisible(find.text('Sondage'));
-    await tester.tap(find.text('Sondage'));
+    await tester.tap(find.byKey(const Key('conversation-compose-type')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('conversation-type-information')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('conversation-type-poll')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('conversation-compose-title')), findsOneWidget);
     expect(find.byKey(const Key('conversation-compose-options')), findsOneWidget);
@@ -1041,10 +1043,9 @@ void main() {
       tester,
       child: ConversationDetailScreen(id: 'conv-4', repository: repository),
     );
-    await tester.ensureVisible(
-      find.byKey(const Key('conversation-compose-form')),
-    );
-    await tester.tap(find.byKey(const Key('conversation-compose-form')));
+    await tester.tap(find.byKey(const Key('conversation-compose-type')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('conversation-type-form')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('conversation-form-title')), findsOneWidget);
     expect(find.byKey(const Key('conversation-form-questions')), findsOneWidget);
