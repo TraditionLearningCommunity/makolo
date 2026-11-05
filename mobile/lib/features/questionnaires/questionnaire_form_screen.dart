@@ -273,6 +273,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                       answers: _answers,
                       errors: _serverErrors,
                       commit: commit,
+                      retryScheduled: operation?.retryScheduled ?? false,
                       refreshing: _refreshing,
                       canEdit: !_submitting,
                       canSubmit:
@@ -292,7 +293,8 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
 
   bool _operationActive(OutboxResourceOperation? operation) {
     if (operation == null) return false;
-    return operation.state == OutboxState.queued.wireValue ||
+    return operation.retryScheduled ||
+        operation.state == OutboxState.queued.wireValue ||
         operation.state == OutboxState.inFlight.wireValue ||
         operation.state == OutboxState.awaitingConfirmation.wireValue;
   }
@@ -320,6 +322,7 @@ class _FormContent extends StatelessWidget {
     required this.answers,
     required this.errors,
     required this.commit,
+    required this.retryScheduled,
     required this.refreshing,
     required this.canEdit,
     required this.canSubmit,
@@ -331,6 +334,7 @@ class _FormContent extends StatelessWidget {
   final Map<String, dynamic> answers;
   final Map<String, dynamic> errors;
   final MakoloCommitCue commit;
+  final bool retryScheduled;
   final bool refreshing;
   final bool canEdit;
   final bool canSubmit;
@@ -379,6 +383,14 @@ class _FormContent extends StatelessWidget {
             const SizedBox(height: MakoloSpacing.md),
           ],
           MakoloCommitIndicator(commit: commit),
+          if (retryScheduled) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            const InlineMessage(
+              message: 'L’envoi a été interrompu. Une nouvelle tentative '
+                  'est prévue avec la même intention ; aucune seconde '
+                  'soumission n’est nécessaire.',
+            ),
+          ],
           if (errors['_form'] != null) ...[
             const SizedBox(height: MakoloSpacing.md),
             InlineMessage(message: errors['_form'].toString()),
@@ -390,6 +402,7 @@ class _FormContent extends StatelessWidget {
               value: answers[question.key],
               error: errors[question.key]?.toString(),
               enabled: canEdit &&
+                  !retryScheduled &&
                   !detail.isSubmitted &&
                   commit != MakoloCommitCue.pending &&
                   commit != MakoloCommitCue.awaitingConfirmation,
