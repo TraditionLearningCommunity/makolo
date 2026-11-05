@@ -3,6 +3,7 @@ import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../features/access/access_assembly.dart';
 import '../../features/continuity/continuity_assembly.dart';
+import '../../features/continuity/conversation_local_delivery.dart';
 import '../../features/day_of/day_of_assembly.dart';
 import '../../features/live/live_repository.dart';
 import '../../features/discovery/discovery_assembly.dart';
@@ -10,6 +11,7 @@ import '../../features/discovery/discovery_repository.dart';
 import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
+import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../../features/resources/resource_repository.dart';
 import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
@@ -22,6 +24,7 @@ import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../repositories/personal_repository.dart';
+import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
 import '../../sync/sync_engine.dart';
 import '../environment.dart';
@@ -141,6 +144,55 @@ Future<AppRuntime> buildAppRuntime({
     journeys: journeys,
     sync: sync,
   );
+  // One owner-scoped outbox processor dispatches both Questionnaire and
+  // Conversation operations. C3_bus never creates a private second queue.
+  final conversationDelivery = api == null ? null : ConversationLocalDelivery(
+    database: database,
+    drafts: drafts,
+    outbox: outbox,
+    tokens: tokens,
+    api: api,
+    profileId: profileId,
+    refreshDetail: (conversationId, focusedPointId) =>
+        continuity.conversations.refreshDetail(
+          conversationId,
+          focusPointId: focusedPointId,
+        ),
+  );
+  continuity.conversations.delivery = conversationDelivery;
+  final outboxProcessor = api == null ? null : OutboxProcessor(
+    repository: outbox,
+    handlers: {
+      if (questionnaires.submit != null)
+        QuestionnaireSubmitCoordinator.operationKind:
+            questionnaires.submit!.handler,
+      if (conversationDelivery != null)
+        ConversationLocalDelivery.operationKind: conversationDelivery.handle,
+    },
+    reconcilers: {
+      if (questionnaires.submit != null)
+        QuestionnaireSubmitCoordinator.operationKind:
+            questionnaires.submit!.reconciler,
+    },
+    expectedOwners: {
+      if (questionnaires.submit != null)
+        QuestionnaireSubmitCoordinator.operationKind:
+            QuestionnaireSubmitCoordinator.owner,
+      if (conversationDelivery != null)
+        ConversationLocalDelivery.operationKind: ConversationLocalDelivery.owner,
+    },
+    expectedReplayPolicies: {
+      if (questionnaires.submit != null)
+        QuestionnaireSubmitCoordinator.operationKind:
+            ReplayPolicy.refetchBeforeRetry,
+      if (conversationDelivery != null)
+        ConversationLocalDelivery.operationKind: ReplayPolicy.idempotent,
+    },
+    canDispatch: (operation) async =>
+        (await tokens.readSession())?.profileId == operation.profileId,
+  );
+  conversationDelivery?.requestDispatch = outboxProcessor?.run;
+
   final discovery = buildDiscoveryRepository(
     database: database,
     store: store,
@@ -245,7 +297,7 @@ Future<AppRuntime> buildAppRuntime({
     drafts: drafts,
     questionnaireSubmit: questionnaires.submit,
     outbox: outbox,
-    outboxProcessor: questionnaires.outboxProcessor,
+    outboxProcessor: outboxProcessor,
     sync: sync,
     actorContext: actorContext,
     mps: MpsPresentationRepository(
