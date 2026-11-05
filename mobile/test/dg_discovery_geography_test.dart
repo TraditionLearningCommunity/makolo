@@ -222,6 +222,46 @@ void main() {
     },
   );
 
+  test('Watch replay consumes its own projection without losing Discovery identity', () {
+    final projection = StoredProjection(
+      kind: DiscoveryRepository.watchResultsProjectionKind,
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 5),
+      payload: const {
+        'watch': {'id': 'watch-1', 'name': 'Logistique'},
+        'supported_families': ['activity', 'service_activity'],
+        'count': 1,
+        'page': 1,
+        'page_size': 24,
+        'has_next': false,
+        'results': [
+          {
+            'identity': {
+              'family': 'activity',
+              'candidate_key': 'occurrence:occurrence-watch',
+              'resource': {'kind': 'activity', 'id': 'activity-watch'},
+              'occurrence': {'kind': 'occurrence', 'id': 'occurrence-watch'},
+            },
+            'representation': {'title': 'Atelier logistique', 'summary': ''},
+            'watch': {'state': 'covered', 'watch_id': 'watch-1'},
+            'saved': {'state': 'not_saved'},
+            'capabilities': ['view'],
+            'links': {'detail': '/api/v1/discovery/items/activity/activity-watch/'},
+          },
+        ],
+      },
+    );
+    final selected = const DiscoverySelector().watchCollection(projection);
+    expect(selected.items.single.id, 'activity-watch');
+    expect(selected.items.single.family, 'activity');
+    expect(selected.items.single.watch?['watch_id'], 'watch-1');
+    expect(selected.hasNext, isFalse);
+    expect(
+      () => const DiscoverySelector().collection(projection),
+      throwsFormatException,
+    );
+  });
+
   test(
     'known Discovery items seed Activity and Occurrence read previews',
     () async {
