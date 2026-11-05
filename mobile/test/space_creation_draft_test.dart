@@ -86,6 +86,34 @@ void main() {
     expect(button.onPressed, isNull,
         reason: 'A cold restart must never resend an ambiguous owner POST');
     expect(await database.select(database.outboxOperations).get(), isEmpty);
+
+    await tester.tap(find.text('Après vérification, reprendre le brouillon'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reprendre le brouillon ?'), findsOneWidget);
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text('Après vérification, reprendre le brouillon'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('J’ai vérifié mes Espaces'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+      reason: 'Only explicit human confirmation unlocks another owner request',
+    );
+    final reopened = await drafts.read(
+      owner: 'Organizations',
+      resourceKind: 'space.creation',
+      resourceId: 'new',
+    );
+    expect(reopened?.payload['submission_state'], 'editing');
+    expect(await database.select(database.outboxOperations).get(), isEmpty);
   });
 
   testWidgets('owner-created Space keeps verification identity, not authority',
