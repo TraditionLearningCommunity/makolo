@@ -1,6 +1,6 @@
 # Makolo Mobile — Refondation du noyau applicatif autonome
 
-**Statut :** C0 audite ; C1, C2 et C3 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C4-C8 restent a faire.
+**Statut :** C0 audite ; C1-C4 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C5-C8 restent a faire.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
 **Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
@@ -180,7 +180,7 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 | C1 Connaissance | Code et tests ajoutes, execution non attestee | Recherche indexee owner-backed, profils, expirations, detail |
 | C2 Acquisition | Code et tests ajoutes, execution non attestee | Working set, 10/10/40, erreurs, invalidation, reconnect |
 | C3 Actions | Code et tests ajoutes, execution non attestee | Drafts durables, outbox, bail, refus, recovery, Space/Questionnaires |
-| C4 Autorite | A faire | revocation, profils, secrets |
+| C4 Autorite | Code et tests ajoutes, execution non attestee | Profils, Space/Access 403/404, tombstones, actor, QR, expiration, outbox |
 | C5 Cycle de vie | A faire | media, stockage, resume |
 | C6 Composition | A faire | couverture des surfaces |
 | C7 Extensibilite | A faire | guide + exemple reel + tests |
@@ -306,3 +306,57 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 - La creation d'Espace refuse volontairement le POST automatique en cas de reponse incertaine. Un futur contrat serveur prouve peut etendre ce cas, pas l'inverse.
 - Le cycle de vie Android au premier plan n'est pas Workmanager : les travaux C5/C8 doivent verifier les suspensions et redemarrages reels avant toute affirmation de scheduling garanti.
 - Le dernier HEAD de #522 et le statut des autres PR doivent etre reverifies au prochain checkpoint. Aucune integration vers `main` ou merge n'a ete effectue.
+
+
+---
+
+## 10. Compte rendu d'execution C4 — Autorite, confidentialite, expiration, revocation (5 novembre 2026)
+
+### Baseline, frontieres et collision
+
+Au debut de C4, le HEAD verifie de `main` etait `d0f0ec421c94c255fa4c0acd3509938a70c6322f`, celui de la PR #522 etait `3045c61c409e32068969df9aa5be13536d523fbe`. Les changements C4 ont ete apportes directement a la branche `fix/discover-a-continuation-context-20261014`. Aucun nouveau train, schema métier, endpoint Django, migration Drift ou branche ne sont introduits.
+
+La verification de fin de travail a releve un commit concurrent dans `mobile/lib/features/continuity/conversation_screens.dart`, sans conflit apparent avec les fichiers propres a C4. Ce fichier ne fait pas partie des modifications C4 effectuees ici.
+
+**Regle directrice :** Presence d'un Profile, d'un Space, d'un Assignment, d'une collection Access ou d'un brouillon n'est pas une autorite. Le proprietaire valide les actes, le mobile ne fait que retenir une observation privee, son contexte et sa fraicheur. Revoquer un droit est different de perdre le reseau.
+
+### 10.1 Frontiere Profile et changement d'acteur
+
+- `MakoloDatabase.profileDirectoryKey` conserve le chemin des identifiants canoniques composees de lettres/chiffres/tirets/underscores. Pour les autres valeurs, la cle de repertoire est un encodage reversible et non une substitution avec perte (qui pouvait faire coexister deux Profils sur un chemin physique identique).
+- Une copie locale ancienne sous un chemin non canonique avec collisions potentielles **n'est pas copiee automatiquement** : seule une migration auditée avec preuve d'appartenance serait acceptable. Les identifiants habituels déjà conformes restent a leur chemin courant.
+- `AccessRepository` refuse une combinaison `ProfileStore` / `SyncEngine` / base ne correspondant pas au `profileId`.
+- `OutboxProcessor` accepte un `canDispatch` controlant le Profil authentifie avant reconciliation et juste apres claim et avant handler. `QuestionnaireAssembly` raccorde ce gate au `TokenStore.readSession`; `QuestionnaireSubmitCoordinator` reverifie la session avant enregistrement/soumission owner et reconciliation.
+- Une intention bloque par changement de Profil reste dans l'outbox du bon Profil, pas rejouee sous le nouveau. Une fois les owner roots autentifies de nouveau pour le bon Profil, seules les operations effectivement `safe` / `idempotent` peuvent etre relachees. Les politiques sans replay aveugle restent soumises a reconciliation.
+- `WorkspaceContextRepository` n'alterera pas le contexte acteur si le `SyncEngine` du runtime ancien a ete desactive. Les preferences d'acteur ne conferent pas d'autorite.
+
+### 10.2 Retrait scoped Space
+
+- `SyncEngine` possede des epochs en memoire lies au Profil et au Space (partagees entre engines du meme objet SQLite). Elles font tomber les anciennes reponses en vol apres un retrait owner.
+- Un 403/404 sur `space.workspace` est la perte de l'entree d'autorite de ce Space : projections `space.*` et operationales `space.occurrence.*` du Space cible retirees, sources correspondantes invalidees, inventaire local redige, contexte acteur retourne a Personnel si ce Space etait selectionne.
+- Un refus de la liste `space.inventory` retire toutes les vues Space du Profil et l'acteur Space selectionne. Un refus de `space.pilot`, `space.now` ou d'une perspective seule ne devient pas une revocation transversale des autres espaces ou modules.
+- La relecture de l'inventaire authoritative sait identifier un Space present auparavant puis absent et appliquer le meme retrait scoped. Une reponse d'inventaire 200 ne peut pas reinserer une identite `space.workspace` qui porte toujours un tombstone 403/404.
+- Ni une invalidation douce, ni un timeout ni un 500 n'effacent un refus owner. Les lectures de Space restent bloquees tant qu'une revalidation legitime de l'owner Workspace/inventory n'a pas resolu le tombstone. Les autres Espaces et les donnees des autres Profils restent intacts.
+- Le travail personnel de l'utilisateur (brouillons/outbox) n'est pas efface par une revocation d'une projection Space.
+
+### 10.3 Retrait scoped Access et QR
+
+- Un 403/404 sur `personal.access.detail` retire ce detail et son Access de toutes les collections actuellement reutilisees ; un nouvel arrivage de collection est filtre par les refus keyed-owner durables. Le QR correspondant est retire du coffre protege (independamment du blocage SQLite qui reste decisif).
+- Un refus de collection `beneficiary` retire cette famille et invalide la presentation des credentials beneficiaires ; un refus de `purchased_for_other` ne revoque pas les beneficiaires independants.
+- Un `AccessCredential` ne peut pas etre ecrit comme `personal.access.credential` dans `ProfileStore.putProjection`. Aucun QR, token ou payload secret n'est ajoute a `ResourceIndex`, Analytics, aux journaux ou aux fixtures.
+- `AccessRepository` revalide la frontiere de Profil, utilise des identifiants URL-encodes, et refuse le resultat d'un appel credential surclasse par une autre reponse owner 403/404, meme provenant d'un second repository de la meme base.
+- `readRetainedCredential` reconsulte les tombstones apres une lecture asynchrone du coffre ; un 403 arrive pendant l'acces a Keystore/Keychain empêche de retourner le secret.
+- Une presentation QR offline est seulement *display-only*, jamais preuve d'AccessUse. Le coffre verifie desormais `checkedAt <= maintenant < expiresAt`, avec un intervalle owner correctement ordonne. Une horloge incoherente ou une fin de validite rend la representation inutilisable. Le secret reste hors des projections Drift generiques.
+
+### 10.4 Tests cibles ecrits
+
+- `mobile/test/space_repository_test.dart` : 403 workspace scoped, purge du selected actor et des vues operationnelles, autre Space preserve, reponse tardive ignoree, inventaire mis a jour sans resurrection, suppression owner de l'inventaire, refus global et isolation Profile, timeout/503 apres retrait, runtime ferme ne changeant plus l'acteur.
+- `mobile/test/c4_access_scope_test.dart` : 403 Access individuel, redaction de liste actuelle et de liste arrivee tardivement, refus durable meme sur 503, refus de collection acheteur sans perte de la collection beneficiaire.
+- `mobile/test/access_offline_qr_test.dart` : un 403 sur un repository invalide une reponse QR en vol sur un autre, verifications de fenetres temporelles, mauvais Profile refuse, lecture de coffre interrompue par une revocation.
+- `mobile/test/local_database_test.dart` : profils non collisionnants pour le nom de fichier SQLite, chemin canonique preserve, AccessCredential interdit en projection generique.
+- `mobile/test/outbox_processor_test.dart` : changement de Profil avant dispatch et entre le claim et le handler ; une intention `safe` ne repart qu'apres re-authentification legitime.
+
+### 10.5 Limites de verification
+
+Les changements ci-dessus sont codes, pousses et relus statiquement ; ils ne sont **pas declares testes par execution**. Le SDK Dart/Flutter n'est pas disponible dans le runtime local de cette session et les tests widget/SQLite/Android restent a executer. La CI globale n'est pas un prerequis a la poursuite de #522 conformement a la demande, mais cette absence de gate ne constitue pas un succes de validation, ni une autorisation de merger en rouge.
+
+Le modele n'invente pas de permission dans Drift. L'owner serveur doit toujours imposer les autorisations reellement en vigueur. Les verifications C5-C8 couvriront notamment suspension OS, stockage/médias, composition de toutes les surfaces et parcours Android.
