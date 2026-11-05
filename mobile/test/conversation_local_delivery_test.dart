@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
@@ -166,6 +167,30 @@ void main() {
     expect(await copy.exists(), isTrue);
     expect(await copy.readAsBytes(), [137, 80, 78, 71, 13, 10, 26, 10, 0]);
     expect(requests, isEmpty);
+  });
+
+  test('a Question with a photo dispatches one typed media mutation', () async {
+    final photo = File('${mediaDirectory.path}/question.png');
+    await photo.writeAsBytes([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+    await delivery.queue(
+      conversationId: 'conv-1',
+      mode: 'media',
+      pointKind: 'question',
+      title: 'Vous aimez cette photo ?',
+      body: 'Laquelle préférez-vous ?',
+      filePath: photo.path,
+      filename: photo.uri.pathSegments.last,
+      mediaKind: 'image',
+    );
+    await processor().run();
+    expect(requests.single.url.path,
+        '/api/v1/conversations/conv-1/media/');
+    final data = requests.single.data as FormData;
+    final fields = Map<String, String>.fromEntries(data.fields);
+    expect(fields['point_kind'], 'question');
+    expect(fields['title'], 'Vous aimez cette photo ?');
+    expect(fields['body'], 'Laquelle préférez-vous ?');
+    expect(data.files.single.key, 'file');
   });
 
   test('a mismatched Profile cannot dispatch a queued owner mutation', () async {
