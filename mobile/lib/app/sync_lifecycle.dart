@@ -57,6 +57,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.runtime.actorContext?.addListener(_onActorChanged);
     unawaited(_initConnectivity());
     _bindOutbox();
     unawaited(_refresh());
@@ -76,6 +77,12 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     );
   }
 
+  void _onActorChanged() {
+    // A changed Profile/Space perspective is an acquisition trigger, not an
+    // authority grant. Owner-scoped refresh still validates the actor.
+    unawaited(_refresh());
+  }
+
   void _bindOutbox() {
     unawaited(_outbox?.cancel());
     _outbox = widget.runtime.outbox?.watchSummary().listen((summary) {
@@ -87,6 +94,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   void didUpdateWidget(covariant SyncLifecycle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.runtime, widget.runtime)) {
+      oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
+      widget.runtime.actorContext?.addListener(_onActorChanged);
       oldWidget.runtime.sync?.deactivate();
       oldWidget.runtime.outboxProcessor?.deactivate();
       _bindOutbox();
@@ -224,6 +233,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     // The AppRuntime owns worker lifetime; a temporary shell unmount must
     // not permanently disable an otherwise reusable authenticated runtime.
     WidgetsBinding.instance.removeObserver(this);
+    widget.runtime.actorContext?.removeListener(_onActorChanged);
     unawaited(_connectivity?.cancel());
     unawaited(_outbox?.cancel());
     super.dispose();
