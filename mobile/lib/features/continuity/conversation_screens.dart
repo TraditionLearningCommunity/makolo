@@ -1001,12 +1001,17 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 860),
-        child: ListView(
+        // Keep focused Points mounted so ensureVisible can reach them even
+        // when a deep link targets an older contribution.
+        child: SingleChildScrollView(
           key: PageStorageKey<String>('conversation-detail-${widget.id}'),
           controller: _timelineScroll,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-          children: children,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
         ),
       ),
     );
