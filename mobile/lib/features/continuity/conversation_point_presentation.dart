@@ -15,6 +15,7 @@ class ConversationPointShell extends StatelessWidget {
     this.authorLabel,
     this.representedSpace = false,
     this.publishedAt,
+    this.statusIcon,
   });
 
   final String kind;
@@ -22,6 +23,7 @@ class ConversationPointShell extends StatelessWidget {
   final String? authorLabel;
   final bool representedSpace;
   final DateTime? publishedAt;
+  final Widget? statusIcon;
   final Widget child;
 
   static (String, IconData) typePresentation(String kind) => switch (kind) {
@@ -133,6 +135,10 @@ class ConversationPointShell extends StatelessWidget {
                               size: 14, color: scheme.onSurfaceVariant),
                         ],
                         const Spacer(),
+                        if (statusIcon != null) ...[
+                          statusIcon!,
+                          const SizedBox(width: 5),
+                        ],
                         if (time != null)
                           Text(
                             time,
