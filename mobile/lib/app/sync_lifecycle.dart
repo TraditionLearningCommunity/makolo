@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 
+import '../data/files/media_cache.dart';
+import '../data/files/profile_file_store.dart';
 import '../features/access/access_credential_vault.dart';
 import '../network/api_error.dart';
 import '../sync/outbox/outbox_repository.dart';
@@ -54,6 +56,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   bool _syncFailed = false;
   OutboxSummary _outboxSummary = OutboxSummary.empty;
   DateTime? _lastUpdatedAt;
+  DateTime? _lastStorageMaintenanceAt;
+  String? _maintainedProfile;
 
   @override
   void initState() {
@@ -152,6 +156,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     if (!identical(oldWidget.runtime, widget.runtime)) {
       _outboxRetryTimer?.cancel();
       _retryRevision++;
+      _lastStorageMaintenanceAt = null;
+      _maintainedProfile = null;
       oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
       widget.runtime.actorContext?.addListener(_onActorChanged);
       oldWidget.runtime.sync?.deactivate();
@@ -165,6 +171,47 @@ class _SyncLifecycleState extends State<SyncLifecycle>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_refresh());
+    }
+  }
+
+  /// Cold start and resume upkeep is conservative and fully local.
+  /// Never delete a user draft, pending operation or private FileRecord to
+  /// satisfy an automatic quota. OS cache cleanup is foreground-only.
+  Future<void> _maintainLocalStorage(AppRuntime runtime) async {
+    final profileId = runtime.session?.profileId;
+    final database = runtime.database;
+    if (profileId == null || database == null) return;
+    final now = DateTime.now().toUtc();
+    final last = _lastStorageMaintenanceAt;
+    if (_maintainedProfile == profileId &&
+        last != null &&
+        !last.isAfter(now) &&
+        now.difference(last) < const Duration(hours: 6)) {
+      return;
+    }
+    _maintainedProfile = profileId;
+    _lastStorageMaintenanceAt = now;
+    try {
+      await runtime.store?.purgeExpiredProjections();
+    } on Object {
+      // Owner snapshots remain usable only under their read-time TTL checks.
+    }
+    if (!mounted || !identical(runtime, widget.runtime)) return;
+    try {
+      final staging = await ProfileFileStore.open(
+        database: database,
+        profileId: profileId,
+      );
+      await staging.cleanupInterruptedStaging();
+    } on Object {
+      // Staging/Outbox are durable; failure to clean an orphan is harmless.
+    }
+    if (!mounted || !identical(runtime, widget.runtime)) return;
+    try {
+      final cache = await ProfileMediaCache.open(profileId);
+      await cache.compact();
+    } on Object {
+      // Storage pressure never causes deletion of private user bytes.
     }
   }
 
@@ -187,6 +234,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       });
     }
     try {
+      await _maintainLocalStorage(runtime);
+      if (!mounted || !identical(runtime, widget.runtime)) return;
       // The QR vault belongs to this Profile, not to a network response.
       // Expired presentation secrets are removed even if reconnect fails.
       try {
