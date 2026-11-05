@@ -9,7 +9,6 @@ import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
-import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
@@ -745,7 +744,7 @@ void main() {
     },
   );
 
-  testWidgets('saved opportunities reuse the filled Discover icon', (
+  testWidgets('saved previews open their real Activity without a submenu', (
     tester,
   ) async {
     final payload = _fullPayload();
@@ -764,21 +763,59 @@ void main() {
       projection: _projection(payload),
       now: now,
     );
+    String? destination;
     await PresentationHarness.pump(
       tester,
       viewport: const Size(430, 932),
-      child: MeView(selection: selection, onOpenDestination: (_) => true),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (item) {
+          destination = item.kind;
+          return true;
+        },
+      ),
     );
-    await tester.scrollUntilVisible(
-      find.text('Possibilité conservée'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    final saved = tester.widget<DiscoveryOrbitIcon>(
-      find.byType(DiscoveryOrbitIcon).first,
-    );
-    expect(saved.saved, isTrue);
+    await tester.ensureVisible(find.text('Possibilité conservée'));
+    await tester.tap(find.text('Possibilité conservée'));
+    expect(destination, 'activity');
     expect(find.text('Enregistré'), findsNothing);
+  });
+
+  testWidgets('Moi switches list/grid without losing its destinations', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    var destination = '';
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (item) {
+          destination = item.kind;
+          return true;
+        },
+      ),
+    );
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    expect(find.byKey(const Key('me-shortcut-project_collection')), findsOneWidget);
+    expect(find.byKey(const Key('me-shortcut-dossier_collection')), findsOneWidget);
+    expect(find.text('Mes veilles'), findsOneWidget);
+    expect(find.text('Mes suivis'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
+    await tester.tap(find.text('Grille'));
+    await tester.pump();
+    expect(find.byKey(const Key('me-navigation-grid')), findsOneWidget);
+    expect(find.text('Passeport.pdf'), findsNothing);
+    await tester.tap(find.text('Liste'));
+    await tester.pump();
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('me-shortcut-project_collection')));
+    await tester.tap(find.byKey(const Key('me-shortcut-project_collection')));
+    expect(destination, 'project_collection');
   });
 
   testWidgets('identity edit uses an explicit owner destination', (
