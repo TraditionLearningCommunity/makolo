@@ -417,7 +417,7 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                           children: [
                             Text(
                               item.title,
-                              maxLines: 2,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
@@ -472,7 +472,7 @@ class _DiscoveryMapThumbnail extends StatelessWidget {
   const _DiscoveryMapThumbnail({
     required this.item,
     this.baseUri,
-    this.size = 58,
+    this.size = 52,
   });
 
   final DiscoveryItemPresentation item;
@@ -499,7 +499,14 @@ class _DiscoveryMapThumbnail extends StatelessWidget {
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Center(
         child: Icon(
-          Icons.explore_outlined,
+          switch (item.representationKind ?? item.family) {
+            'event' => Icons.event_available_outlined,
+            'transport' || 'route' => Icons.directions_bus_outlined,
+            'service' || 'service_activity' => Icons.handshake_outlined,
+            'funding' || 'funding_activity' => Icons.account_balance_outlined,
+            'opportunity' => Icons.school_outlined,
+            _ => Icons.explore_outlined,
+          },
           color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
       ),
@@ -629,10 +636,9 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 ),
               ],
             ),
-            if (resolved?.eyebrow != null &&
-                resolved!.eyebrow!.trim().isNotEmpty)
+            if ((resolved?.eyebrow ?? item.eyebrow)?.trim().isNotEmpty == true)
               Text(
-                resolved!.eyebrow!,
+                (resolved?.eyebrow ?? item.eyebrow)!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium,
@@ -642,15 +648,15 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 icon: Icons.place_outlined,
                 label: place!,
               ),
-            if (resolved?.owner != null)
+            if ((resolved?.owner ?? item.owner) != null)
               _DiscoveryMapFact(
                 icon: Icons.business_outlined,
-                label: resolved!.owner!,
+                label: (resolved?.owner ?? item.owner)!,
               ),
-            if (resolved?.timing != null)
+            if ((resolved?.timing ?? item.timing) != null)
               _DiscoveryMapFact(
                 icon: Icons.schedule_outlined,
-                label: resolved!.timing!,
+                label: (resolved?.timing ?? item.timing)!,
               ),
             const SizedBox(height: MakoloSpacing.xs),
             const Divider(height: 1),
@@ -1323,51 +1329,55 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                       ),
                     ),
                   ),
-                if (widget.location != null && widget.mapConfig.enabled)
-                  Positioned(
-                    bottom: MediaQuery.paddingOf(context).bottom +
-                        (selected == null
-                            ? MakoloSpacing.lg
-                            : MediaQuery.sizeOf(context).height * 0.38 +
-                                MakoloSpacing.md),
-                    right: MakoloSpacing.md,
-                    child: Material(
-                      elevation: 2,
-                      borderRadius: BorderRadius.circular(24),
-                      color: Theme.of(context).colorScheme.surface,
-                      child: IconButton(
-                        tooltip: 'Me localiser',
-                        onPressed: () => unawaited(_recenterOnDevice()),
-                        icon: const Icon(Icons.my_location_rounded),
-                      ),
-                    ),
-                  ),
-                if (selected != null)
+                if (selected != null ||
+                    (widget.location != null && widget.mapConfig.enabled))
                   Positioned(
                     left: MakoloSpacing.sm,
                     right: MakoloSpacing.sm,
                     bottom: MediaQuery.paddingOf(context).bottom +
                         MakoloSpacing.sm,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.sizeOf(context).height * 0.38,
-                      ),
-                      child: _DiscoveryMapPreview(
-                        item: selected,
-                        place: _placeForSelection(selected, selectedPoint),
-                        detail: widget.allowOwnerActions
-                            ? _confirmedDetail
-                            : null,
-                        saving: _savingSelected,
-                        onClose: _clearSelection,
-                        onOpen: () => widget.onOpen(selected),
-                        onSave: widget.onSave == null
-                            ? null
-                            : () => unawaited(_saveSelected()),
-                        shareApi: widget.shareApi,
-                        shareAuthenticated: widget.shareAuthenticated,
-                        baseUri: widget.baseUri,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (widget.location != null && widget.mapConfig.enabled)
+                          Material(
+                            elevation: 2,
+                            shape: const CircleBorder(),
+                            color: Theme.of(context).colorScheme.surface,
+                            child: IconButton(
+                              tooltip: 'Me localiser',
+                              onPressed: () => unawaited(_recenterOnDevice()),
+                              icon: const Icon(Icons.my_location_rounded),
+                            ),
+                          ),
+                        if (selected != null) ...[
+                          if (widget.location != null && widget.mapConfig.enabled)
+                            const SizedBox(height: MakoloSpacing.sm),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  MediaQuery.sizeOf(context).height * 0.38,
+                            ),
+                            child: _DiscoveryMapPreview(
+                              item: selected,
+                              place: _placeForSelection(selected, selectedPoint),
+                              detail: widget.allowOwnerActions
+                                  ? _confirmedDetail
+                                  : null,
+                              saving: _savingSelected,
+                              onClose: _clearSelection,
+                              onOpen: () => widget.onOpen(selected),
+                              onSave: widget.onSave == null
+                                  ? null
+                                  : () => unawaited(_saveSelected()),
+                              shareApi: widget.shareApi,
+                              shareAuthenticated: widget.shareAuthenticated,
+                              baseUri: widget.baseUri,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
               ],
