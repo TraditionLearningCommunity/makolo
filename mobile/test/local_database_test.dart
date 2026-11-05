@@ -213,7 +213,8 @@ void main() {
       draftId: 'draft-keep',
       owner: 'JourneyArtifact',
       resourceKind: 'journey',
-      payload: {'text': 'not disposable'},
+      resourceId: 'journey-1',
+      payload: {'text': 'not disposable'}, 
     );
 
     expect(await alice.purgeExpiredProjections(), 1);
@@ -227,6 +228,7 @@ void main() {
       (await drafts.read(
         owner: 'JourneyArtifact',
         resourceKind: 'journey',
+        resourceId: 'journey-1',
       ))?.payload['text'],
       'not disposable',
     );
