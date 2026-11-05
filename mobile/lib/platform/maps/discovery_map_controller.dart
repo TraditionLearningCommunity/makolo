@@ -19,6 +19,7 @@ class DiscoveryMapController {
   static const _points = 'makolo-discovery-points';
 
   bool _clusterReady = false;
+  bool _fallbackPinsActive = false;
   Circle? _deviceCircle;
 
   /// Only public geographic facts from the admitted Discovery field reach
@@ -102,6 +103,14 @@ class DiscoveryMapController {
         );
         _clusterReady = true;
       }
+      if (_fallbackPinsActive) {
+        // The source recovered after using legacy annotations. Do not show
+        // two identical pin layers; the device dot is immediately repainted
+        // by the caller with its owner-independent local coordinates.
+        await _controller.clearCircles();
+        _deviceCircle = null;
+        _fallbackPinsActive = false;
+      }
       return const [];
     } on Object {
       // Keep the geographic field usable if a platform or style rejects
@@ -111,7 +120,9 @@ class DiscoveryMapController {
       try {
         await _controller.clearCircles();
         _deviceCircle = null;
-        return await addPins(pins);
+        final annotations = await addPins(pins);
+        _fallbackPinsActive = true;
+        return annotations;
       } on Object {
         return const [];
       }
