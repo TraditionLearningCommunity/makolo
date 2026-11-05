@@ -52,7 +52,7 @@ class _PointDraft {
     body: payload['body']?.toString() ?? '',
     options: payload['options'] is List
         ? (payload['options'] as List).map((item) => item.toString()).toList()
-        : (payload['options']?.toString() ?? '').split('\\n').where((item) => item.trim().isNotEmpty).toList(),
+        : (payload['options']?.toString() ?? '').split('\n').where((item) => item.trim().isNotEmpty).toList(),
     audienceId: payload['audience_id']?.toString(),
   );
 }
@@ -359,6 +359,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
       if (kinds.contains('poll')) ('poll', 'Sondage', Icons.poll_outlined),
       if (kinds.contains('confirmation'))
         ('confirmation', 'Confirmation', Icons.task_alt_rounded),
+      if (kinds.contains('exchange'))
+        ('exchange', 'Échange', Icons.forum_outlined),
     ];
     final chosen = await showModalBottomSheet<String>(
       context: context,
@@ -820,13 +822,15 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                       ? 'Question'
                       : kind == 'confirmation'
                       ? 'À confirmer'
+                      : kind == 'request'
+                      ? 'Action attendue'
                       : 'Sujet',
                   border: const OutlineInputBorder(),
                 ),
               ),
             if (kind == 'information' || kind == 'request' ||
                 kind == 'question' || kind == 'confirmation' ||
-                kind == 'poll')
+                kind == 'poll' || kind == 'exchange')
               TextField(
                 key: const Key('conversation-compose-body'),
                 controller: _body,
@@ -837,6 +841,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 decoration: InputDecoration(
                   labelText: kind == 'information'
                       ? 'Texte'
+                      : kind == 'request'
+                      ? 'Contexte et précisions (facultatif)'
+                      : kind == 'exchange'
+                      ? 'Message d’ouverture (facultatif)'
                       : 'Précisions (facultatif)',
                   border: OutlineInputBorder(),
                 ),
