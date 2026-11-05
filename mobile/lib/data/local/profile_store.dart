@@ -263,13 +263,33 @@ class ProfileStore {
 
   /// Expired owner snapshots cannot be revived merely by a transport failure.
   /// Cleanup is scoped to this Profile and never touches user-owned drafts.
-  Future<int> purgeExpiredProjections() {
+  Future<int> purgeExpiredProjections() async {
     final cutoff = DateTime.now().toUtc();
-    return (database.delete(database.projectionSnapshots)..where(
-          (row) => row.profileId.equals(profileId) &
-              row.expiresAt.isSmallerOrEqualValue(cutoff),
-        ))
-        .go();
+    return database.transaction(() async {
+      final removed = await (database.delete(database.projectionSnapshots)
+            ..where((row) =>
+                row.profileId.equals(profileId) &
+                row.expiresAt.isSmallerOrEqualValue(cutoff)))
+          .go();
+      // ResourceIndex is a rebuildable pointer, never independent owner
+      // knowledge. Compact only references whose exact owner snapshot has
+      // disappeared. Drafts, FileRecords and all other Profiles are untouched.
+      await database.customUpdate(
+        '''
+        DELETE FROM resource_index
+        WHERE profile_id = ?
+          AND NOT EXISTS (
+            SELECT 1 FROM projection_snapshots AS p
+            WHERE p.profile_id = resource_index.profile_id
+              AND p.projection_kind = resource_index.projection_kind
+              AND p.resource_key = resource_index.resource_id
+          )
+        ''',
+        variables: [Variable.withString(profileId)],
+        updates: {database.resourceIndex},
+      );
+      return removed;
+    });
   }
 
   /// Keep bounded reconstructible projections without touching the raw owner
