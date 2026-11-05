@@ -468,6 +468,20 @@ class DiscoverySelector {
     return _collectionFromPayload(payload, now: now ?? DateTime.now());
   }
 
+  /// Watch replay is its own owner-scoped projection. It shares Discovery
+  /// candidate rows, but must not be misidentified as discovery.items.
+  DiscoveryCollectionPresentation watchCollection(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
+    if (projection == null) return DiscoveryCollectionPresentation.empty;
+    if (projection.kind != 'discovery.watch-results' ||
+        projection.schemaVersion != 1) {
+      throw const FormatException('Incompatible Discovery watch snapshot');
+    }
+    return _collectionFromPayload(projection.payload, now: now ?? DateTime.now());
+  }
+
   DiscoveryCollectionPresentation _collectionFromPayload(
     Map<String, dynamic> payload, {
     required DateTime now,
