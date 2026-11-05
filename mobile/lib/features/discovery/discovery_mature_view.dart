@@ -758,6 +758,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   final Map<String, DiscoverySpatialAnchor> _locationAnchors = {};
   DiscoverySpatialAnchor? _focusedAnchor;
   int _pinGeneration = 0;
+  Future<void> _pinRender = Future<void>.value();
   bool _initialCameraPositioned = false;
   double? _deviceLatitude;
   double? _deviceLongitude;
@@ -971,45 +972,52 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     );
   }
 
-  Future<void> _displayPins(List<DiscoverySpatialAnchor> anchors) async {
+  Future<void> _displayPins(List<DiscoverySpatialAnchor> anchors) {
     final controller = _mapController;
-    if (controller == null) return;
+    if (controller == null) return Future<void>.value();
     final generation = ++_pinGeneration;
-    final selected = <DiscoverySpatialAnchor>[];
     final locations = <String, DiscoverySpatialAnchor>{};
     for (final anchor in anchors) {
       final key = '${anchor.latitude}:${anchor.longitude}';
-      if (locations.containsKey(key)) continue;
-      locations[key] = anchor;
-      selected.add(anchor);
+      locations.putIfAbsent(key, () => anchor);
     }
-    try {
-      final pins = await controller.renderPins([
-        for (final entry in locations.entries)
-          DiscoveryMapPin(
-            entry.value.latitude,
-            entry.value.longitude,
-            locationKey: entry.key,
-          ),
-      ]);
+    // MapLibre source updates are asynchronous. Serialize them to prevent a
+    // stale field revision or style callback from overwriting newer points.
+    final operation = _pinRender.then((_) async {
       if (!mounted ||
           _mapController != controller ||
           generation != _pinGeneration) return;
-      _locationAnchors
-        ..clear()
-        ..addAll(locations);
-      _circleAnchors.clear();
-      for (var i = 0; i < pins.length && i < selected.length; i++) {
-        _circleAnchors[pins[i]] = selected[i];
+      try {
+        final pins = await controller.renderPins([
+          for (final entry in locations.entries)
+            DiscoveryMapPin(
+              entry.value.latitude,
+              entry.value.longitude,
+              locationKey: entry.key,
+            ),
+        ]);
+        if (!mounted ||
+            _mapController != controller ||
+            generation != _pinGeneration) return;
+        _locationAnchors
+          ..clear()
+          ..addAll(locations);
+        _circleAnchors.clear();
+        final selected = locations.values.toList();
+        for (var i = 0; i < pins.length && i < selected.length; i++) {
+          _circleAnchors[pins[i]] = selected[i];
+        }
+        final latitude = _deviceLatitude;
+        final longitude = _deviceLongitude;
+        if (latitude != null && longitude != null) {
+          await controller.showDevicePosition(latitude, longitude);
+        }
+      } on Object {
+        // Renderer failure must not erase the admitted local collection.
       }
-      final latitude = _deviceLatitude;
-      final longitude = _deviceLongitude;
-      if (latitude != null && longitude != null) {
-        await controller.showDevicePosition(latitude, longitude);
-      }
-    } on Object {
-      // Map rendering failure never erases the admitted local collection.
-    }
+    });
+    _pinRender = operation;
+    return operation;
   }
 
   Future<void> _recenterOnDevice() async {
