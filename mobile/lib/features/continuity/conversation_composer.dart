@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -36,6 +37,20 @@ class _PointDraft {
   final String options;
   final String? audienceId;
   final String? reference;
+
+  Map<String, dynamic> toPayload() => {
+    'title': title,
+    'body': body,
+    'options': options,
+    if (audienceId != null) 'audience_id': audienceId,
+  };
+
+  factory _PointDraft.fromPayload(Map<String, dynamic> payload) => _PointDraft(
+    title: payload['title']?.toString() ?? '',
+    body: payload['body']?.toString() ?? '',
+    options: payload['options']?.toString() ?? '',
+    audienceId: payload['audience_id']?.toString(),
+  );
 }
 
 class ConversationComposer extends StatefulWidget {
@@ -62,11 +77,15 @@ class _ConversationComposerState extends State<ConversationComposer> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focus = FocusNode();
   final Map<String, _PointDraft> _drafts = {};
+  Timer? _draftTimer;
+  Future<void> _draftWrites = Future<void>.value();
+  bool _editingProgrammatically = false;
   bool _sending = false;
   String? _reference;
   String? _error;
   String? _audienceId;
   String? _exchangeTargetId;
+  String _selectedType = 'information';
 
   String? get _representedSpace => widget.representedSpaceId != null &&
           widget.representedSpaceId ==
@@ -80,10 +99,49 @@ class _ConversationComposerState extends State<ConversationComposer> {
     _audienceId = widget.capabilities['default_audience_id']?.toString();
     _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
     _text.addListener(_edited);
+    unawaited(_restoreDraft());
+  }
+
+  Future<void> _restoreDraft() async {
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final repository = widget.repository;
+    final conversationId = widget.conversationId;
+    try {
+      final draft = await delivery.readDraft(
+        conversationId: conversationId, kind: 'information',
+      );
+      if (!mounted || repository != widget.repository ||
+          conversationId != widget.conversationId ||
+          _text.text.isNotEmpty || draft == null) return;
+      _editingProgrammatically = true;
+      _text.text = draft['body']?.toString() ?? '';
+      _editingProgrammatically = false;
+    } on Object {
+      // A missing local draft must not block composing.
+    }
+  }
+
+  void _persistDraft(String content) {
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final conversationId = widget.conversationId;
+    _draftWrites = _draftWrites.catchError((Object _) {}).then((_) async {
+      await delivery.saveDraft(
+        conversationId: conversationId,
+        kind: 'information',
+        payload: {'body': content},
+      );
+    });
   }
 
   void _edited() {
+    if (_editingProgrammatically) return;
     _reference = null;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 350), () {
+      _persistDraft(_text.text);
+    });
     if (_error != null && mounted) setState(() => _error = null);
   }
 
@@ -92,12 +150,17 @@ class _ConversationComposerState extends State<ConversationComposer> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository ||
         oldWidget.conversationId != widget.conversationId) {
+      _draftTimer?.cancel();
+      _editingProgrammatically = true;
+      _text.clear();
+      _editingProgrammatically = false;
       _reference = null;
       _drafts.clear();
-      _text.clear();
       _error = null;
+      _selectedType = 'information';
       _audienceId = widget.capabilities['default_audience_id']?.toString();
       _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
+      unawaited(_restoreDraft());
     } else if (oldWidget.capabilities['default_audience_id'] !=
         widget.capabilities['default_audience_id']) {
       _audienceId = widget.capabilities['default_audience_id']?.toString();
@@ -106,6 +169,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    if (_text.text.isNotEmpty) _persistDraft(_text.text);
     _text.removeListener(_edited);
     _text.dispose();
     _focus.dispose();
@@ -122,41 +187,61 @@ class _ConversationComposerState extends State<ConversationComposer> {
   Future<void> _sendText() async {
     final body = _text.text.trim();
     if (body.isEmpty || _sending) return;
-    if (widget.capabilities['text_mode'] == 'exchange_select' &&
-        _exchangeTargetId == null) {
-      setState(() => _error = 'Choisissez un échange.');
+    final mode = widget.capabilities['text_mode']?.toString();
+    if (mode == 'exchange_select' && _exchangeTargetId == null) {
+      setState(() => _error = 'Choisissez une conversation à laquelle répondre.');
       return;
     }
-    if (_needsAudience && _audienceId == null &&
-        widget.capabilities['text_mode'] == 'information') {
+    if (_needsAudience && _audienceId == null && mode == 'information') {
       setState(() => _error = 'Choisissez les destinataires.');
       return;
     }
-    setState(() {
-      _sending = true;
-      _error = null;
-    });
+    setState(() { _sending = true; _error = null; });
     try {
-      _reference ??= _newConversationReference();
-      final published = await widget.repository.compose(
-        conversationId: widget.conversationId,
-        clientReference: _reference!,
-        mode: 'text',
-        body: body,
-        pointId: widget.capabilities['text_mode'] == 'exchange' ||
-                widget.capabilities['text_mode'] == 'exchange_select'
-            ? _exchangeTargetId
-            : null,
-        audienceId: _audienceId,
-        representedSpaceId: _representedSpace,
-      );
-      if (!mounted) return;
-      _text.clear();
+      final delivery = widget.repository.delivery;
+      final pointId = mode == 'exchange' || mode == 'exchange_select'
+          ? _exchangeTargetId : null;
+      if (delivery != null) {
+        _draftTimer?.cancel();
+        await delivery.queue(
+          conversationId: widget.conversationId,
+          mode: 'text',
+          body: body,
+          pointId: pointId,
+          audienceId: _audienceId,
+          representedSpaceId: _representedSpace,
+        );
+        // The Outbox is durable; network confirmation will arrive separately.
+        if (!mounted) return;
+        _editingProgrammatically = true;
+        _text.clear();
+        _editingProgrammatically = false;
+        await _draftWrites.catchError((Object _) {});
+        await delivery.clearDraft(
+          conversationId: widget.conversationId, kind: 'information',
+        );
+      } else {
+        _reference ??= _newConversationReference();
+        final sent = await widget.repository.compose(
+          conversationId: widget.conversationId,
+          clientReference: _reference!,
+          mode: 'text',
+          body: body,
+          pointId: pointId,
+          audienceId: _audienceId,
+          representedSpaceId: _representedSpace,
+        );
+        if (!mounted) return;
+        _editingProgrammatically = true;
+        _text.clear();
+        _editingProgrammatically = false;
+        widget.onPublished(sent);
+      }
       _reference = null;
-      widget.onPublished(published);
+      _focus.unfocus();
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Envoi non confirmé. Réessayer ou modifier.');
+        setState(() => _error = 'Envoi non conservé. Réessayer.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -164,6 +249,19 @@ class _ConversationComposerState extends State<ConversationComposer> {
   }
 
   Future<void> _openPointEditor(String kind) async {
+    _PointDraft? draft = _drafts[kind];
+    final delivery = widget.repository.delivery;
+    if (delivery != null) {
+      try {
+        final stored = await delivery.readDraft(
+          conversationId: widget.conversationId, kind: kind,
+        );
+        if (stored != null) draft = _PointDraft.fromPayload(stored);
+      } on Object {
+        // Keep the in-memory draft when local read is temporarily unavailable.
+      }
+    }
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -175,8 +273,21 @@ class _ConversationComposerState extends State<ConversationComposer> {
         conversationId: widget.conversationId,
         capabilities: widget.capabilities,
         representedSpaceId: widget.representedSpaceId,
-        initialDraft: _drafts[kind],
-        onDraftChanged: (draft) => _drafts[kind] = draft,
+        initialDraft: draft,
+        onDraftChanged: (next) {
+          _drafts[kind] = next;
+          if (delivery != null) {
+            unawaited(delivery.saveDraft(
+              conversationId: widget.conversationId,
+              kind: kind,
+              payload: next.toPayload(),
+            ).catchError((Object _) {}));
+          }
+        },
+        onQueued: () {
+          _drafts.remove(kind);
+          Navigator.of(sheetContext).pop();
+        },
         onPublished: (id) {
           _drafts.remove(kind);
           Navigator.of(sheetContext).pop();
@@ -184,6 +295,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
         },
       ),
     );
+    if (mounted) setState(() => _selectedType = 'information');
   }
 
   Future<void> _openForm() async {
@@ -195,12 +307,14 @@ class _ConversationComposerState extends State<ConversationComposer> {
         conversationId: widget.conversationId,
         capabilities: widget.capabilities,
         representedSpaceId: widget.representedSpaceId,
+        onQueued: () => Navigator.of(sheetContext).pop(),
         onPublished: (id) {
           Navigator.of(sheetContext).pop();
           widget.onPublished(id);
         },
       ),
     );
+    if (mounted) setState(() => _selectedType = 'information');
   }
 
   Future<void> _openMedia(String mode) async {
@@ -221,190 +335,232 @@ class _ConversationComposerState extends State<ConversationComposer> {
     );
   }
 
+  Future<void> _selectType() async {
+    final kinds = _kinds;
+    final canForm = widget.capabilities['can_form'] == true;
+    final entries = <(String, String, IconData)>[
+      if (widget.capabilities['text_mode'] != null ||
+          kinds.contains('information'))
+        ('information', 'Information', Icons.chat_bubble_outline_rounded),
+      if (kinds.contains('question'))
+        ('question', 'Question', Icons.help_outline_rounded),
+      if (kinds.contains('request'))
+        ('request', 'Demande', Icons.assignment_outlined),
+      if (canForm) ('form', 'Formulaire', Icons.article_outlined),
+      if (kinds.contains('poll')) ('poll', 'Sondage', Icons.poll_outlined),
+      if (kinds.contains('confirmation'))
+        ('confirmation', 'Confirmation', Icons.task_alt_rounded),
+    ];
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+              child: Text('Type', style: Theme.of(sheetContext).textTheme.titleLarge),
+            ),
+            for (final (id, label, icon) in entries)
+              ListTile(
+                key: Key('conversation-type-$id'),
+                leading: Icon(icon),
+                title: Text(label),
+                selected: id == _selectedType,
+                trailing: id == _selectedType
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.of(sheetContext).pop(id),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || chosen == null) return;
+    setState(() => _selectedType = chosen);
+    if (chosen == 'form') {
+      await _openForm();
+    } else if (chosen != 'information') {
+      await _openPointEditor(chosen);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final canCreate = widget.capabilities['can_create'] == true;
     final textMode = widget.capabilities['text_mode']?.toString();
     final kinds = _kinds;
     final mediaKinds = (widget.capabilities['media_kinds'] as List?)
-        ?.map((item) => item.toString()).toSet() ?? <String>{};
+            ?.map((item) => item.toString()).toSet() ?? <String>{};
     final canForm = widget.capabilities['can_form'] == true;
-    if (textMode == null && !canCreate && mediaKinds.isEmpty && !canForm) {
+    if (textMode == null && kinds.isEmpty &&
+        mediaKinds.isEmpty && !canForm) {
       return const SizedBox.shrink();
     }
-    final secondary = [
-      for (final kind in const ['question', 'request', 'exchange', 'information'])
-        if (kinds.contains(kind)) kind,
-    ];
-    final audienceRows = _audienceRows(widget.capabilities);
-    return Padding(
+    final scheme = Theme.of(context).colorScheme;
+    final audiences = _audienceRows(widget.capabilities);
+    return Material(
       key: const Key('conversation-composer'),
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Divider(),
-          const SizedBox(height: 12),
-          if (textMode != null) ...[
-            if (textMode == 'exchange_select')
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<String>(
-                  value: _exchangeTargetId,
-                  decoration: const InputDecoration(
-                    labelText: 'Échange',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final item in _audienceRows({
-                      'audiences': widget.capabilities['exchange_targets'],
-                    }))
-                      DropdownMenuItem<String>(
-                        value: item['id']?.toString(),
-                        child: Text(item['title']?.toString() ?? 'Échange'),
-                      ),
-                  ],
-                  onChanged: _sending ? null : (value) => setState(() {
-                    _exchangeTargetId = value;
-                    _reference = null;
-                  }),
-                ),
+      elevation: 3,
+      color: scheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (textMode == 'exchange_select' &&
+                _exchangeTargetId == null)
+              TextButton.icon(
+                onPressed: _sending ? null : () async {
+                  final selection = await showModalBottomSheet<String>(
+                    context: context, showDragHandle: true,
+                    builder: (sheetContext) => ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final target in _audienceRows({
+                          'audiences': widget.capabilities['exchange_targets'],
+                        }))
+                          ListTile(
+                            title: Text(target['title']?.toString() ?? 'Sujet'),
+                            onTap: () => Navigator.pop(
+                                sheetContext, target['id']?.toString()),
+                          ),
+                      ],
+                    ),
+                  );
+                  if (selection != null && mounted) {
+                    setState(() => _exchangeTargetId = selection);
+                  }
+                },
+                icon: const Icon(Icons.forum_outlined),
+                label: const Text('Choisir le sujet'),
               ),
             if (_needsAudience && textMode == 'information')
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: DropdownButtonFormField<String>(
-                  value: _audienceId,
-                  decoration: const InputDecoration(
-                    labelText: 'Destinataires',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final row in audienceRows)
-                      DropdownMenuItem<String>(
-                        value: row['id']?.toString(),
-                        child: Text(row['label']?.toString() ?? 'Destinataires'),
-                      ),
-                  ],
-                  onChanged: _sending ? null : (value) => setState(() {
-                    _audienceId = value;
-                    _reference = null;
-                  }),
+              DropdownButtonFormField<String>(
+                value: _audienceId,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Destinataires', isDense: true,
+                  border: OutlineInputBorder(),
                 ),
+                items: [
+                  for (final audience in audiences)
+                    DropdownMenuItem(
+                      value: audience['id']?.toString(),
+                      child: Text(audience['label']?.toString() ?? 'Destinataires'),
+                    ),
+                ],
+                onChanged: _sending ? null : (value) => setState(() {
+                  _audienceId = value;
+                  _reference = null;
+                }),
               ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const Key('conversation-compose-text'),
-                    controller: _text,
-                    focusNode: _focus,
-                    minLines: 2,
-                    maxLines: 6,
-                    maxLength: 5000,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      hintText: 'Écrire…',
-                      border: OutlineInputBorder(),
-                      counterText: '',
+            if (textMode != null) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const Key('conversation-compose-text'),
+                      controller: _text,
+                      focusNode: _focus,
+                      minLines: 1,
+                      maxLines: 4,
+                      maxLength: 5000,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Écrire quelque chose…',
+                        isDense: true,
+                        counterText: '',
+                        filled: true,
+                        fillColor: scheme.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  key: const Key('conversation-compose-send'),
-                  onPressed: _sending ? null : _sendText,
-                  tooltip: 'Envoyer',
-                  icon: _sending
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.arrow_upward_rounded),
-                ),
-              ],
-            ),
-          ],
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-          if (canCreate || canForm || mediaKinds.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
+                  const SizedBox(width: 6),
+                  IconButton.filled(
+                    key: const Key('conversation-compose-send'),
+                    onPressed: _sending ? null : _sendText,
+                    tooltip: 'Envoyer',
+                    icon: _sending
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.arrow_upward_rounded),
+                  ),
+                ],
+              ),
+            ],
+            Row(
               children: [
+                TextButton.icon(
+                  key: const Key('conversation-compose-type'),
+                  onPressed: _sending ? null : _selectType,
+                  icon: const Icon(Icons.tune_rounded, size: 19),
+                  label: Text('Type · ${_selectedType == 'information'
+                      ? 'Information'
+                      : _selectedType == 'form'
+                      ? 'Formulaire'
+                      : _selectedType == 'poll'
+                      ? 'Sondage'
+                      : _selectedType == 'request'
+                      ? 'Demande'
+                      : _selectedType == 'confirmation'
+                      ? 'Confirmation'
+                      : 'Question'}'),
+                ),
+                const Spacer(),
                 if (mediaKinds.contains('voice'))
-                  TextButton.icon(
+                  IconButton(
                     key: const Key('conversation-compose-voice'),
-                    onPressed: () => _openMedia('voice'),
+                    tooltip: 'Note vocale',
+                    onPressed: _sending ? null : () => _openMedia('voice'),
                     icon: const Icon(Icons.mic_none_rounded),
-                    label: const Text('Vocal'),
                   ),
-                if (canForm)
-                  TextButton.icon(
-                    key: const Key('conversation-compose-form'),
-                    onPressed: _openForm,
-                    icon: const Icon(Icons.list_alt_rounded),
-                    label: const Text('Formulaire'),
-                  ),
-                if (kinds.contains('poll'))
-                  TextButton.icon(
-                    onPressed: () => _openPointEditor('poll'),
-                    icon: const Icon(Icons.poll_outlined),
-                    label: const Text('Sondage'),
-                  ),
-                if (kinds.contains('confirmation'))
-                  TextButton.icon(
-                    onPressed: () => _openPointEditor('confirmation'),
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Confirmer'),
-                  ),
-                if (secondary.isNotEmpty ||
-                    mediaKinds.contains('image') ||
+                if (mediaKinds.contains('image') ||
                     mediaKinds.contains('file'))
                   PopupMenuButton<String>(
-                    tooltip: 'Plus',
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                    onSelected: (value) {
-                      if (value.startsWith('media:')) {
-                        _openMedia(value.substring(6));
-                      } else {
-                        _openPointEditor(value);
-                      }
-                    },
+                    key: const Key('conversation-compose-attachment'),
+                    tooltip: 'Joindre',
+                    icon: const Icon(Icons.attach_file_rounded),
+                    onSelected: (value) => _openMedia(value),
                     itemBuilder: (context) => [
                       if (mediaKinds.contains('image')) ...[
                         const PopupMenuItem(
-                          value: 'media:photo', child: Text('Photo'),
+                          value: 'photo', child: Text('Photo'),
                         ),
                         const PopupMenuItem(
-                          value: 'media:camera', child: Text('Caméra'),
+                          value: 'camera', child: Text('Caméra'),
                         ),
                       ],
                       if (mediaKinds.contains('file'))
                         const PopupMenuItem(
-                          value: 'media:document', child: Text('Document'),
-                        ),
-                      for (final kind in secondary)
-                        PopupMenuItem(
-                          value: kind,
-                          child: Text(switch (kind) {
-                            'question' => 'Question',
-                            'request' => 'Demande',
-                            'exchange' => 'Nouvel échange',
-                            _ => 'Information',
-                          }),
+                          value: 'document', child: Text('Document'),
                         ),
                     ],
                   ),
               ],
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  _error!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.error,
+                  ),
+                ),
+              ),
           ],
-        ],
+        ),
       ),
     );
   }
