@@ -274,6 +274,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                       errors: _serverErrors,
                       commit: commit,
                       refreshing: _refreshing,
+                      canEdit: !_submitting,
                       canSubmit:
                           widget.links.canSubmit &&
                           !detail.isSubmitted &&
@@ -320,6 +321,7 @@ class _FormContent extends StatelessWidget {
     required this.errors,
     required this.commit,
     required this.refreshing,
+    required this.canEdit,
     required this.canSubmit,
     required this.onChanged,
     required this.onSubmit,
@@ -330,6 +332,7 @@ class _FormContent extends StatelessWidget {
   final Map<String, dynamic> errors;
   final MakoloCommitCue commit;
   final bool refreshing;
+  final bool canEdit;
   final bool canSubmit;
   final void Function(String key, Object? value) onChanged;
   final VoidCallback onSubmit;
@@ -386,7 +389,8 @@ class _FormContent extends StatelessWidget {
               question: question,
               value: answers[question.key],
               error: errors[question.key]?.toString(),
-              enabled: !detail.isSubmitted &&
+              enabled: canEdit &&
+                  !detail.isSubmitted &&
                   commit != MakoloCommitCue.pending &&
                   commit != MakoloCommitCue.awaitingConfirmation,
               onChanged: (value) => onChanged(question.key, value),
