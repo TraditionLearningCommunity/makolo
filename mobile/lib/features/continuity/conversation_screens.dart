@@ -187,11 +187,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               ),
               // Network status is already represented by the thin shell cue.
               // Never replace a cached inbox with a transport-error tutorial.
-              body: available ||
-                      (_attemptedRefresh &&
-                          !_refreshing &&
-                          source.lastErrorCode != 'permission_denied' &&
-                          source.lastErrorCode != 'not_found')
+              body: (source.lastErrorCode != 'permission_denied' &&
+                      source.lastErrorCode != 'not_found' &&
+                      (available || (_attemptedRefresh && !_refreshing)))
                   ? _ConversationListBody(
                       repository: widget.repository,
                       items: items,
@@ -226,7 +224,6 @@ class _ConversationListBody extends StatefulWidget {
     required this.repository,
     required this.items,
     required this.onOpen,
-    required this.onRetryInvitations,
     this.onOpenPoint,
   });
 
@@ -234,7 +231,6 @@ class _ConversationListBody extends StatefulWidget {
   final List<_ConversationSummary> items;
   final void Function(String id) onOpen;
   final void Function(String id, String pointId)? onOpenPoint;
-  final Future<void> Function() onRetryInvitations;
 
   @override
   State<_ConversationListBody> createState() => _ConversationListBodyState();
@@ -278,8 +274,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
         });
       }
     } on Object {
-      if (mounted && widget.repository == repository) {
-      }
+      // Preserve the archived conversations already read from the device.
     } finally {
       if (mounted && widget.repository == repository) {
         setState(() => _archiveLoading = false);
