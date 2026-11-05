@@ -57,7 +57,16 @@ class AccessRepository {
     this.sync,
     this.api,
     AccessCredentialVault? credentialVault,
-  }) : credentialVault = credentialVault ?? SecureAccessCredentialVault();
+  }) : credentialVault = credentialVault ?? SecureAccessCredentialVault() {
+    if (profileId.trim().isEmpty ||
+        store.profileId != profileId ||
+        !identical(store.database, database) ||
+        (sync != null &&
+            (sync.profileId != profileId ||
+                !identical(sync.database, database)))) {
+      throw ArgumentError('Access owner scope must match ProfileStore and SyncEngine');
+    }
+  }
 
   static const collectionProjectionKind = 'personal.accesses';
   static const projectionKind = 'personal.access.detail';
@@ -398,16 +407,26 @@ class AccessRepository {
   Future<void> _markCredentialRetention(
     String accessId, {
     required bool denied,
+    int? expectedDenialEpoch,
   }) async {
-    await database.into(database.syncSources).insertOnConflictUpdate(
-      SyncSourcesCompanion.insert(
-        profileId: profileId,
-        sourceKey: 'access-credential:$accessId',
-        route: 'api/v1/me/accesses/$accessId/credential/',
-        invalidated: Value(denied),
-        lastErrorCode: Value(denied ? 'retention_denied' : null),
-      ),
-    );
+    await database.transaction(() async {
+      // A second repository may have seen a 403 while this 200 response
+      // was waiting to write. Never overwrite that newer tombstone.
+      if (!denied &&
+          expectedDenialEpoch != null &&
+          _denialEpoch(accessId) != expectedDenialEpoch) {
+        return;
+      }
+      await database.into(database.syncSources).insertOnConflictUpdate(
+        SyncSourcesCompanion.insert(
+          profileId: profileId,
+          sourceKey: 'access-credential:$accessId',
+          route: 'api/v1/me/accesses/$accessId/credential/',
+          invalidated: Value(denied),
+          lastErrorCode: Value(denied ? 'retention_denied' : null),
+        ),
+      );
+    });
   }
 
   Future<AccessCredentialData?> readRetainedCredential(
@@ -558,7 +577,11 @@ class AccessRepository {
           !(await readSource(accessId)).invalidated &&
           !(await _hasRevokedBeneficiaryCollection());
       if (stillAuthorized && securelyRetained) {
-        await _markCredentialRetention(accessId, denied: false);
+        await _markCredentialRetention(
+          accessId,
+          denied: false,
+          expectedDenialEpoch: denialEpoch,
+        );
       } else {
         // Generic Access revocation and secure-vault failure both fail
         // closed, even when the HTTP credential response itself was 200.
