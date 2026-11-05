@@ -491,7 +491,9 @@ class SyncEngine {
     // has actually been revalidated by its owner.
     final protectedDenial =
         (source.projectionKind == 'space.workspace' ||
-            source.projectionKind == 'space.inventory') &&
+            source.projectionKind == 'space.inventory' ||
+            source.projectionKind == 'personal.access.detail' ||
+            source.projectionKind == 'personal.accesses') &&
         existing?.invalidated == true &&
         _deniedOwnerState(existing?.lastErrorCode);
     await (database.update(database.syncSources)..where(
