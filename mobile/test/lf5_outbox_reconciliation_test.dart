@@ -121,6 +121,41 @@ void main() {
     expect(states['beta'], OutboxState.conflict.wireValue);
   });
 
+  test('a retryable failed prerequisite does not conflict its dependent',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final repo = OutboxRepository(db, 'profile-a');
+    await enqueue(repo, 'parent');
+    await enqueue(repo, 'child', dependencies: ['parent']);
+    var calls = 0;
+    final worker = OutboxProcessor(
+      repository: repo,
+      handlers: {'owner.intent': (operation) async {
+        calls++;
+        if (operation.operationId == 'parent' && calls == 1) {
+          throw TimeoutException('network interruption');
+        }
+        return OutboxResolution.confirmed;
+      }},
+    );
+    await worker.run();
+    final first = await repo.dependencyStates(['parent', 'child']);
+    expect(first['parent'], OutboxState.failed.wireValue);
+    expect(first['child'], OutboxState.queued.wireValue);
+
+    await db.customStatement(
+      "UPDATE outbox_operations SET next_retry_at = 1 "
+      "WHERE operation_id = 'parent'",
+    );
+    await worker.run();
+    final middle = await repo.dependencyStates(['parent', 'child']);
+    expect(middle['parent'], OutboxState.confirmed.wireValue);
+    // The already acquired queue may have dispatched the dependent too.
+    expect(middle['child'], OutboxState.confirmed.wireValue);
+    expect(calls, 3);
+  });
+
   test('owner confirmation can safely release a previously ambiguous intent',
       () async {
     final db = MakoloDatabase.memory();
