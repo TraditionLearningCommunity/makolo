@@ -260,6 +260,7 @@ class AccessRepository {
       path: 'api/v1/me/accesses/$accessId/',
       projectionKind: projectionKind,
       resourceKey: accessId,
+      indexedResourceKind: 'Access',
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: freshnessPolicy,
     );
