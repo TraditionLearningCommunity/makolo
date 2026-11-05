@@ -173,6 +173,65 @@ void main() {
     expect(await alice.readKnownResources(), isEmpty);
   });
 
+  test('expired snapshots compact only orphan indexes, never local work',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final alice = ProfileStore(db, 'profile-a');
+    final bob = ProfileStore(db, 'profile-b');
+    final past = DateTime.now().toUtc().subtract(const Duration(hours: 1));
+    await alice.putProjection(
+      kind: 'activity.detail',
+      resourceKey: 'activity-a',
+      schemaVersion: 1,
+      payload: {'title': 'expired'},
+      expiresAt: past,
+    );
+    await alice.putResourceReference(
+      resourceKind: 'Activity',
+      resourceId: 'activity-a',
+      projectionKind: 'activity.detail',
+    );
+    await bob.putProjection(
+      kind: 'activity.detail',
+      resourceKey: 'activity-b',
+      schemaVersion: 1,
+      payload: {'title': 'still known'},
+    );
+    await bob.putResourceReference(
+      resourceKind: 'Activity',
+      resourceId: 'activity-b',
+      projectionKind: 'activity.detail',
+    );
+    final outbox = OutboxRepository(db, 'profile-a');
+    final drafts = DraftRepository(
+      database: db,
+      outbox: outbox,
+      profileId: 'profile-a',
+    );
+    await drafts.saveLocal(
+      draftId: 'draft-keep',
+      owner: 'JourneyArtifact',
+      resourceKind: 'journey',
+      payload: {'text': 'not disposable'},
+    );
+
+    expect(await alice.purgeExpiredProjections(), 1);
+    expect(
+      (await db.select(db.resourceIndex).get())
+          .where((row) => row.profileId == 'profile-a'),
+      isEmpty,
+    );
+    expect(await bob.readKnownResources(), hasLength(1));
+    expect(
+      (await drafts.read(
+        owner: 'JourneyArtifact',
+        resourceKind: 'journey',
+      ))?.payload['text'],
+      'not disposable',
+    );
+  });
+
   test('draft and outbox are committed atomically', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
