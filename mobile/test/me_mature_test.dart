@@ -404,12 +404,12 @@ void main() {
       );
       expect(find.text('Possibilité 0'), findsOneWidget);
       expect(find.text('Possibilité 1'), findsOneWidget);
-      expect(find.text('Possibilité 2'), findsNothing);
+      expect(find.text('Possibilité 2'), findsOneWidget);
       expect(find.text('Possibilité 3'), findsNothing);
       expect(find.text('Possibilité 4'), findsNothing);
       expect(find.text('Vous avez tout exploré'), findsNothing);
-      await tester.ensureVisible(find.text('Voir les 5 enregistrements'));
-      await tester.tap(find.text('Voir les 5 enregistrements'));
+      await tester.ensureVisible(find.byKey(const Key('me-entry-saved_collection')));
+      await tester.tap(find.byKey(const Key('me-entry-saved_collection')));
       expect(opened, 'saved_collection');
     },
   );
@@ -476,8 +476,9 @@ void main() {
       textScale: 1.6,
       child: MeView(selection: selection),
     );
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
-    expect(find.byKey(const Key('me-territories-wide')), findsNothing);
+    expect(find.byKey(const Key('me-navigation-hub')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
+    expect(find.byType(MakoloContentFrame), findsNothing);
   });
 
   test('support is conditional on runtime availability', () {
@@ -600,9 +601,11 @@ void main() {
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
     expect(find.text('Aucun passeport disponible.'), findsOneWidget);
-    expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
-    expect(find.text('Aucun collectif associé.'), findsOneWidget);
-    expect(find.text('Aucune ressource disponible.'), findsOneWidget);
+    expect(find.text('Ce qui compte pour moi'), findsOneWidget);
+    expect(find.text('Mes collectifs'), findsOneWidget);
+    expect(find.text('Mes ressources'), findsOneWidget);
+    expect(find.text('Mes veilles'), findsOneWidget);
+    expect(find.text('Mes suivis'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -614,7 +617,7 @@ void main() {
       viewport: const Size(800, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
     expect(find.byKey(const Key('me-territories-wide')), findsNothing);
   });
 
@@ -626,8 +629,8 @@ void main() {
       viewport: const Size(840, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
-    expect(find.byKey(const Key('makolo-adaptive-grid')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-hub')), findsOneWidget);
+    expect(find.byType(MakoloContentFrame), findsOneWidget);
   });
 
   testWidgets('900 stays two-territory without dashboard expansion', (
@@ -640,12 +643,8 @@ void main() {
       viewport: const Size(900, 900),
     );
 
-    expect(find.byKey(const Key('me-territories-wide')), findsOneWidget);
-
-    final grid = tester.widget<MakoloAdaptiveGrid>(
-      find.byKey(const Key('me-territories-wide')),
-    );
-    expect(grid.maxColumns, 2);
+    expect(find.byType(MakoloContentFrame), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
   });
 
   testWidgets('sparse wide does not add cognitive depth for width alone', (
@@ -662,7 +661,7 @@ void main() {
       child: MeView(selection: selection),
     );
 
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
   });
 
   testWidgets(
@@ -695,7 +694,7 @@ void main() {
       expect(openedKind, 'personal_asset');
       expect(openedId, isNotEmpty);
       expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
-      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+      expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
     },
   );
 
@@ -732,7 +731,7 @@ void main() {
         viewport: const Size(430, 932),
         child: MeView(selection: selection, onOpenDestination: (_) => true),
       );
-      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+      expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
       final passport = find.byKey(const ValueKey('me-territory-passport'));
       expect(passport, findsOneWidget);
       expect(tester.getSize(passport).width, closeTo(430, 0.1));
