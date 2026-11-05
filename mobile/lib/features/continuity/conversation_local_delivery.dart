@@ -27,6 +27,7 @@ class ConversationOutgoing {
     this.remotePointId,
     this.mediaKind,
     this.filename,
+    this.localFilePath,
   });
 
   final String reference;
@@ -38,6 +39,7 @@ class ConversationOutgoing {
   final String? remotePointId;
   final String? mediaKind;
   final String? filename;
+  final String? localFilePath;
 
   bool get isConfirmed => state == OutboxState.confirmed.wireValue;
   bool get isBlocked => state == OutboxState.conflict.wireValue ||
@@ -58,6 +60,7 @@ class ConversationLocalDelivery {
     required this.profileId,
     required this.refreshDetail,
     required this.mediaMime,
+    this.mediaDirectory,
   }) {
     if (profileId != drafts.profileId || profileId != outbox.profileId ||
         !identical(database, drafts.database) ||
@@ -80,6 +83,7 @@ class ConversationLocalDelivery {
   final Future<void> Function(String conversationId, String? focusPointId)
       refreshDetail;
   final String Function(String filename, String kind) mediaMime;
+  final Future<Directory> Function()? mediaDirectory;
 
   Future<void> Function()? requestDispatch;
 
@@ -158,9 +162,10 @@ class ConversationLocalDelivery {
       if (!await original.exists()) {
         throw StateError('Le fichier sélectionné est introuvable.');
       }
-      final root = await getApplicationSupportDirectory();
-      final folder = Directory('${root.path}/profiles/'
-          '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing');
+      final folder = mediaDirectory == null
+          ? Directory('${(await getApplicationSupportDirectory()).path}/profiles/'
+              '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing')
+          : await mediaDirectory!();
       await folder.create(recursive: true);
       final name = filename.split(RegExp(r'[/\\]')).last;
       final suffix = name.contains('.')
@@ -249,6 +254,7 @@ class ConversationLocalDelivery {
       state: row.state,
       mediaKind: payload['media_kind']?.toString(),
       filename: payload['filename']?.toString(),
+      localFilePath: payload['local_file_path']?.toString(),
     );
   }
 
