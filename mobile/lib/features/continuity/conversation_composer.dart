@@ -219,9 +219,13 @@ class _ConversationComposerState extends State<ConversationComposer> {
         _text.clear();
         _editingProgrammatically = false;
         await _draftWrites.catchError((Object _) {});
-        await delivery.clearDraft(
-          conversationId: widget.conversationId, kind: 'information',
-        );
+        try {
+          await delivery.clearDraft(
+            conversationId: widget.conversationId, kind: 'information',
+          );
+        } on Object {
+          // A confirmed durable enqueue is never undone by draft cleanup.
+        }
       } else {
         _reference ??= _newConversationReference();
         final sent = await widget.repository.compose(
@@ -749,9 +753,13 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           audienceId: _audienceId,
           representedSpaceId: _representedSpace,
         );
-        await delivery.clearDraft(
-          conversationId: widget.conversationId, kind: kind,
-        );
+        try {
+          await delivery.clearDraft(
+            conversationId: widget.conversationId, kind: kind,
+          );
+        } on Object {
+          // Queued intent already belongs to Outbox.
+        }
         if (mounted) widget.onQueued();
       } else {
         if (_mediaPath != null) {
