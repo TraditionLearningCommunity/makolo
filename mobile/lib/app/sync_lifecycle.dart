@@ -203,6 +203,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
         profileId: profileId,
       );
       await staging.cleanupInterruptedStaging();
+      await staging.cleanupInterruptedPrivateCopies();
     } on Object {
       // Staging/Outbox are durable; failure to clean an orphan is harmless.
     }
