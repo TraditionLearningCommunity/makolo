@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -1062,6 +1063,43 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               if (intent.body.trim().isNotEmpty)
                 Text(intent.body,
                     style: Theme.of(context).textTheme.bodyMedium),
+              if (intent.mediaKind != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                if (intent.mediaKind == 'image' &&
+                    intent.localFilePath != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(intent.localFilePath!),
+                      height: 155,
+                      width: 250,
+                      fit: BoxFit.cover,
+                      cacheWidth: 750,
+                      errorBuilder: (context, error, trace) => const
+                          Icon(Icons.image_not_supported_outlined, size: 48),
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      Icon(
+                        intent.mediaKind == 'voice' || intent.mediaKind == 'audio'
+                            ? Icons.graphic_eq_rounded
+                            : intent.mediaKind == 'video'
+                            ? Icons.play_circle_outline_rounded
+                            : Icons.insert_drive_file_outlined,
+                        size: 22,
+                      ),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(child: Text(
+                        intent.filename ?? 'Pièce jointe',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      )),
+                    ],
+                  ),
+              ],
             ],
           ),
         ),
