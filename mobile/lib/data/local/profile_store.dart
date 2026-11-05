@@ -212,6 +212,11 @@ class ProfileStore {
     DateTime? expiresAt,
     String? freshnessPolicyId,
   }) async {
+    if (kind == 'personal.access.credential') {
+      throw const FormatException(
+        'AccessCredential secrets belong only in the protected credential vault',
+      );
+    }
     final observedAt = (receivedAt ?? DateTime.now()).toUtc();
     await database
         .into(database.projectionSnapshots)
