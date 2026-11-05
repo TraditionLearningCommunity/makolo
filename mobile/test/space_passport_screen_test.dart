@@ -96,7 +96,7 @@ void main() {
     );
     addTearDown(actor.dispose);
     await actor.selectSpace(
-      const SpaceActorIdentity(id: 'space-1', slug: 'atelier'),
+      SpaceActorIdentity(id: 'space-1', slug: 'atelier'),
     );
     var fetches = 0;
     final tokens = MemoryTokenStore(session: const AuthSession(
