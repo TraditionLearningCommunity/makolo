@@ -464,6 +464,69 @@ void main() {
     expect(calls, 3, reason: 'Fresh owner sources are not fetched each cycle');
   });
 
+  test('prepared delegated owner refresh observes persisted failure', () async {
+    var online = true;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((_) async {
+      if (!online) {
+        return MockResponse(
+          jsonEncode({
+            'error': {'code': 'owner_unavailable', 'message': 'Unavailable'},
+          }),
+          503,
+        );
+      }
+      return MockResponse(
+        jsonEncode({
+          'meta': {'projection': 'test.collection', 'schema_version': 1},
+          'data': {'results': <Object>[]},
+        }),
+        200,
+      );
+    });
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: client.dio,
+        tokenStore: tokens,
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    final source = SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'delegated',
+      owner: 'Test',
+      path: 'api/v1/test/',
+      projectionKind: 'test.collection',
+    );
+    // refreshSource is deliberately a best-effort repository entrypoint.
+    sync.registerPreparedSource(
+      source,
+      acquire: () => sync.refreshSource(source),
+    );
+    expect(await sync.refreshPreparedSources(), isTrue);
+    expect(await store.readProjection('test.collection'), isNotNull);
+
+    online = false;
+    await sync.invalidate(source);
+    expect(await sync.refreshPreparedSources(), isFalse);
+    expect(
+      await store.readProjection('test.collection'),
+      isNotNull,
+      reason: 'A server failure cannot erase owner facts acquired earlier.',
+    );
+  });
+
   test('owner denial stays withdrawn until explicit revalidation', () async {
     var calls = 0;
     var allowed = false;
