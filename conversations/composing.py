@@ -205,7 +205,9 @@ def publish_composed_point(
     mode = {
         ConversationPointKind.INFORMATION: ConversationPointResponseMode.NONE,
         ConversationPointKind.QUESTION: ConversationPointResponseMode.FREE_TEXT,
-        ConversationPointKind.REQUEST: ConversationPointResponseMode.FREE_TEXT,
+        # A Request is an action to take, not another open-ended question:
+        # the expected recipient commits to taking it or declines explicitly.
+        ConversationPointKind.REQUEST: ConversationPointResponseMode.BOOLEAN,
         ConversationPointKind.CONFIRMATION: ConversationPointResponseMode.BOOLEAN,
         ConversationPointKind.POLL: (
             ConversationPointResponseMode.MULTIPLE_CHOICE
@@ -223,10 +225,9 @@ def publish_composed_point(
         ),
         visibility_audience=audience,
         response_audience=audience if kind != ConversationPointKind.INFORMATION else None,
-        expected_action_audience=audience if kind in {
-            ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
-            ConversationPointKind.CONFIRMATION, ConversationPointKind.POLL,
-        } else None,
+        expected_action_audience=(
+            audience if kind == ConversationPointKind.REQUEST else None
+        ),
         represented_space=represented_space,
         response_visibility=(
             ConversationResponseVisibility.POINT_VIEWERS
