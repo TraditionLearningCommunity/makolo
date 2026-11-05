@@ -72,6 +72,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         conversationId: id,
         onOpenHistory: () => context.push('/conversations/$id/history'),
         onOpenConversation: () => context.pop(),
+        onOpenSubject: (route) => context.push(route),
       );
     },
   ),
