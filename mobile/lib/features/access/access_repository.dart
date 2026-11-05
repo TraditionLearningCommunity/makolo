@@ -280,7 +280,7 @@ class AccessRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: 'access:$accessId',
       owner: 'Access',
-      path: 'api/v1/me/accesses/$accessId/',
+      path: 'api/v1/me/accesses/${Uri.encodeComponent(accessId)}/',
       projectionKind: projectionKind,
       resourceKey: accessId,
       indexedResourceKind: 'Access',
@@ -390,7 +390,7 @@ class AccessRepository {
     if (parsed == null || parsed.hasScheme || parsed.hasAuthority ||
         parsed.hasQuery || parsed.hasFragment) return false;
     return parsed.path ==
-        '/api/v1/me/accesses/$accessId/credential/';
+        '/api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/';
   }
 
   /// Credential retention is an independent owner decision from Access
@@ -421,7 +421,7 @@ class AccessRepository {
         SyncSourcesCompanion.insert(
           profileId: profileId,
           sourceKey: 'access-credential:$accessId',
-          route: 'api/v1/me/accesses/$accessId/credential/',
+          route: 'api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/',
           invalidated: Value(denied),
           lastErrorCode: Value(denied ? 'retention_denied' : null),
         ),
