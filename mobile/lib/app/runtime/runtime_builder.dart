@@ -3,6 +3,7 @@ import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../features/access/access_assembly.dart';
 import '../../features/continuity/continuity_assembly.dart';
+import '../../features/continuity/objective_repository.dart';
 import '../../features/continuity/conversation_local_delivery.dart';
 import '../../features/continuity/conversation_repository.dart';
 import '../../features/day_of/day_of_assembly.dart';
@@ -254,7 +255,21 @@ Future<AppRuntime> buildAppRuntime({
       )
       ..registerPreparedSource(continuity.conversations.listSource())
       ..registerPreparedSource(notifications.listSource())
-      ..registerPreparedSource(continuity.history.sourceFor(offset: 0));
+      ..registerPreparedSource(continuity.history.sourceFor(offset: 0))
+      // Only first pages of the user's active objectives: the Profile owner
+      // decides membership and deeper pages remain demand-driven.
+      ..registerPreparedSource(
+        continuity.objectives.collectionSourceFor(
+          ObjectiveDepth.project,
+          offset: 0,
+        ),
+      )
+      ..registerPreparedSource(
+        continuity.objectives.collectionSourceFor(
+          ObjectiveDepth.dossier,
+          offset: 0,
+        ),
+      );
   }
 
   return AppRuntime(
