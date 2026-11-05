@@ -412,10 +412,15 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final when = created == null
         ? ''
         : MaterialLocalizations.of(context).formatMediumDate(created.toLocal());
+    final configuration = _map(data['configuration']);
     return ListView(
       key: const Key('conversation-details-settings-list'),
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 48),
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Text('Pour moi', style: Theme.of(context).textTheme.titleMedium),
+        ),
         _setting(
           'mute', Icons.notifications_off_outlined,
           'Signaux', 'Couper les signaux de cette conversation',
@@ -449,6 +454,28 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               color: Theme.of(context).colorScheme.error,
             )),
           ),
+        if (configuration.isNotEmpty) ...[
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text('Fonctionnement de la conversation',
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          for (final entry in [
+            ('Mode', configuration['mode']),
+            ('Accès', configuration['entry']),
+            ('Historique', configuration['history']),
+            ('État', configuration['lifecycle']),
+            ('Créée par', configuration['created_by']),
+          ])
+            if (entry.$2 != null &&
+                entry.$2.toString().trim().isNotEmpty)
+              ListTile(
+                dense: true,
+                title: Text(entry.$1),
+                subtitle: Text(entry.$2.toString()),
+              ),
+        ],
         if (when.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
