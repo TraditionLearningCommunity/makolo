@@ -1,6 +1,6 @@
 # Makolo Mobile — Refondation du noyau applicatif autonome
 
-**Statut :** C0 audite ; C1-C5 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C6-C8 restent a faire.
+**Statut :** C0 audite ; C1-C6 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C7-C8 restent a faire.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
 **Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
@@ -182,7 +182,7 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 | C3 Actions | Code et tests ajoutes, execution non attestee | Drafts durables, outbox, bail, refus, recovery, Space/Questionnaires |
 | C4 Autorite | Code et tests ajoutes, execution non attestee | Profils, Space/Access 403/404, tombstones, actor, QR, expiration, outbox |
 | C5 Cycle de vie | Code et tests ajoutes, execution non attestee | Stage/download durable, cache borne, maintenance, crash et horloge |
-| C6 Composition | A faire | couverture des surfaces |
+| C6 Composition | Code raccorde, matrice couverte, execution non attestee | Runtime unique, lectures locales, acquisition borne, Me, Notifications, Nous/Mark, erreurs et reprises |
 | C7 Extensibilite | A faire | guide + exemple reel + tests |
 | C8 Android/fermeture | A faire | 10 scenarios + CI verte |
 
@@ -412,3 +412,91 @@ Le modele n'invente pas de permission dans Drift. L'owner serveur doit toujours 
 **Implementation et tests pousses dans #522 ; tests non executes dans cet environnement.** Le SDK Dart/Flutter et un Android reel/emule n'y sont pas disponibles. Le formatage officiel, `flutter analyze`, les tests cibles et les parcours OS devront etre executes pour une validation prouvee. L'absence de blocage par la CI globale ne signifie pas que les gates soient vertes.
 
 Les politiques metier continuent d'appartenir aux owners ; cette maintenance ne decide jamais un AccessUse, une Permission, une Proof ni une satisfaction de Requirement. C6 (composition des vues), C7 (guide d'extension) et C8 (verification Android) restent distincts.
+
+
+---
+
+## 12. C6 — Composition de l'application sur le noyau autonome (5 novembre 2026)
+
+### 12.1 Etat de base, proprietaires et collision
+
+Avant C6 : \`main@d0f0ec421c94c255fa4c0acd3509938a70c6322f\`, \`#522@a58416ccbee0d8a0811c7fa134ae540c131481fb\` (PR ouverte). Seule la branche existante \`fix/discover-a-continuation-context-20261014\` a ete modifiee. Le collision audit des autres PR ouvertes n'en a trouve aucune autre a cette date ; des changements Discovery ont ete observes simultanement **dans la meme PR**, conserves sans les ecraser. Reconciliation des fichiers centraux par blob SHA au moment des ecritures. Pas de nouveau serveur, API, migration Drift, modele metier ni train concurrent.
+
+**Une seule composition :**
+- \`AppRuntime\` assemble les objets Profile-scoped et les repositories ; \`runtime_builder.dart\` est le point de composition.
+- \`ProfileStore\`/Drift et les selectors existants sont la source de lecture locale ; \`SyncEngine\` applique les observations des owners. \`SyncLifecycle\` reste l'unique orchestration foreground/resume/reconnect.
+- \`DraftRepository\` + \`OutboxRepository\` + **un** \`OutboxProcessor\` portent les intentions explicitement rejouables. Questionnaires et Conversations y branchent leurs handlers, sans creer de queue par ecran. Les autres mutations conservent leur politique owner prouvee.
+- Fichiers : \`FileRecords\` et les coordinateurs C5, avec cache reconstructible borne distinct des pieces durables. \`Presentation\` presente des faits sans les posseder.
+- Donnees de lecture ≠ autorite de mutation : Permission, Mandate, AccessCredential, Payment, Proof, Requirement et Readiness continuent d'etre verifies par leur owner, meme si la derniere observation est disponible localement.
+
+### 12.2 Changement de code C6 — sans seconde infrastructure
+
+1. \`AppRuntime.notifications\` est construit une seule fois dans \`runtime_builder.dart\`, reutilise par \`notification_routes.dart\` pour Inbox et Preferences. La construction opportuniste d'un nouveau \`NotificationRepository\` dans chaque route est supprimee et le repository impose l'identite ProfileStore/SyncEngine.
+2. \`SyncEngine.refreshPersonalMe()\` reemploie sa **source canonique** \`personal.me\` avec controles de profil, revocation et versions. Les mutations confirmees de \`MeProfileScreen\`, \`MeConsiderationsScreen\` et \`MeSavedScreen\` passent par ce meme refresh lorsqu'elles sont composees depuis \`me_routes.dart\`. Les chemins d'injection historique ne sont maintenus que pour les environnements isoles sans SyncEngine ; ils n'operent pas en double dans la vraie application.
+3. \`ObjectiveRepository\` reste proprietaire des collections Project/Dossier ; seules ses **premieres pages** rejoignent l'ensemble prepare deja existant. \`SyncLifecycle\` a un budget de neuf demandes pour neuf sources personnelles bornees au lancement, pas de crawl et pas de pages secondaires preacquises. Les details restent demandes par contexte d'action.
+4. \`SpaceWorkCollectionScreen\` restaure d'abord la projection \`space.work\` de la perspective active, a condition de respecter Space ID, responsibility, TTL et absence de retrait owner. La page detaillee reste un GET de continuation explicitement autorise, qui reconcilie les elements sans effacer l'observation locale en cas de 503. Aucun nouveau cache pour les collections Metier.
+5. \`SpaceDocumentsScreen\` conserve **en memoire dans la session courante uniquement** les documents deja affiches pendant une panne transitoire ; le droit de gestion cesse d'etre propose jusqu'a revalidation. 401/403/404 et changement d'acteur retirent les anciennes lignes. Les documents confidentiels ne sont pas verses dans une projection SQLite generique non couverte par une politique owner offline explicite.
+6. \`MarkScreen\` rebind son repository, ses captures et sa lecture de brouillon au runtime/acteur actifs. Les revisions de contexte empechent une restauration asynchrone, une selection fichier ou un resultat de soumission de l'ancien Profil de rejaillir dans la nouvelle session. Le Mark reutilise les brouillons et FileRecords existants, pas une deuxieme queue.
+
+### 12.3 Matrice de couverture : surface × lecture / interaction / erreur / reprise
+
+Legende : **L** = projection/selector local; **M** = Memoire locale ephemere d'une session; **O** = action/le moment critique reste sous verification owner online; **P** = public/visiteur, sans privilege personnel. La colonne « etat C6 » distingue reemploi confirme, correction C6 et limite volontaire ; ce n'est **pas** une certification par tests executables.
+
+| Surface Flutter / contexte | Lecture et source de verite | Interactions | Panne / autorite | Reprise et etat C6 |
+| --- | --- | --- | --- | --- |
+| Splash / onboarding / authentification | Preferences appareil et TokenStore existants ; aucune projection inventee | Sessions/compte par Auth owner | Sans session, pas de lecture du Profile precedent | Runtime reconstruit selon session ; **reemploi** |
+| Shell personnel, navigation, selection acteur | AppRuntime, ActorContextController et routes existantes | Preference locale d'acteur, non Mandate | Retrait Space revient a Personnel ; pas d'acces implicite | Etat de navigation deja persiste ; **reemploi** |
+| Now / Accueil | personal.now, PersonalRepository.watchNow, NowSelector | Handoff owner, pas de marqueur local de succes | Projection connue reste consultable sous sa fraicheur, refus retire | Refresh roots existant ; **reemploi** |
+| En cours / calendrier | personal.ongoing, selector et ressources connues | Continuation vers owners | Handoff lie aux faits autorises ; contenu ancien non presente comme en cours certain | Relecture locale + source ; **reemploi** |
+| Moi / tableau personnel | personal.me et MeLocalPreview | Routes explicites vers objectifs, suivis, passeport | Distinction inconnu/absence, isolement Profile | Rafraichissement owner canonique ; **raccorde C6** |
+| Moi : profil, considerations, enregistrements | Editor/draft, personal.me.settings, preview bookmarks et personal.me | PUT/PATCH/DELETE explicites via leurs owners | Aucun echec GET ne transforme un choix retenu en choix supprime | Un seul root de reconciliation SyncEngine en production ; **raccorde C6** |
+| Moi : suivis, collectifs, appuis | personal.me preview / flux locaux ; pagination sur demande | Ouverture contextuelle vers owner | N2 peut etre incomplet ; jamais une autorite par simple membership | Lectures locales existantes ; **reemploi** |
+| Passeport personnel, portrait et documents lecteur | Portrait prive et sous-projections owner autorisees ; Reader explicite | Publication, export, version, privacy selon owner | Secret et credential jamais deduits de la copie document | C4/C5 + couches Passport ; **reemploi**, mutation **O** |
+| Decouvrir, recherche, carte, detail, watches | DiscoveryRepository, projections locales, geometrie et Presentation | Selection, recherche, Watch / owner handoffs | Le cache media n'est pas source de verite ; pas de continuation signee preacquise | Prepared source premier pack, autres contextuelles ; **reemploi** |
+| Journey / Preparation / Requirement | JourneyRepository, RequirementRepository et sources keyed | Formulaires/preparations reelles, confirmation owner | Artifact ≠ Proof ≠ Requirement satisfait | Dossiers et pieces local-first ; **reemploi** |
+| Questionnaires | Detail local, DraftRepository et OutboxResourceOperation | Save + submit sous politique refetch-before-retry | Pas d'envoi sous mauvais Profil, pas de replay aveugle | C3/C4 conserve ; **reemploi** |
+| Projets / Dossiers (Objectives) | ObjectiveRepository : collection project/dossier + details | Creation/continuation owner uniquement | Collection locale ne prouve pas acces aux artefacts | Premiere page ajoutee au working set, suite a la demande ; **raccorde C6** |
+| Historique / retrieval | HistoryRepository, index local et query-scoped owner | Ouvrir contextuellement, pas de publication automatique | Reponse plus recente et refus owner priment sur l'ancien | Premiere page preparee ; **reemploi** |
+| Mes ressources / downloads | ResourceRepository + FileRecords/Reader | Download, export, rattachement sous owner | Posseder le fichier ≠ satisfaire un Requirement | Premiers resultats prepares, fichiers C5 conserves ; **reemploi** |
+| Access / Credential / Jour J / Live | AccessRepository, DayOfRepository, LiveRepository | Presentations QR et operations revalidees | Access ≠ AccessCredential ≠ AccessUse ; horloge/expiration bornee | Cache local informatif, QR coffre protege, Jour J volatile ; **reemploi**, critique **O** |
+| Conversations / invitations / archives | ConversationRepository, snapshots Drift et owner source | Compose local, OutboxProcessor partage et reconciliation | Autorite + destinataire + confirmation owner, pas de message « envoye » fictif | First page preparee, drafts C3 et intent idempotent ; **reemploi** |
+| Notifications / preferences | **Une** NotificationRepository depuis AppRuntime | Read/preferences par owner | Refus et transport distingues, pas de faux accusé de lecture | Meme repository pour Inbox et Preferences ; **raccorde C6** |
+| Interoperabilite / Connections (Personnel) | personal.interoperability root puis repository existant | Actions owner, integrations autorisees | Disponibilite technique ≠ autorite / connexion valide | Root existant etendu sans deuxieme model ; **reemploi** |
+| Nous : inventory / Now / Discover / Metier / Pilot | WorkspaceContextRepository, Scope Space/perspective, selectors | Handoffs owner et permissions independantes | Inventory/membership ≠ Permission/Mandate, retrait atomique C4 | Vue Metier detaillee lit root locale d'abord ; **raccorde C6** |
+| Nous : Work collection, Programme/Transport, Occurrences | Space Work source, SpaceOccurrenceRepository et vues detaillees | Creation / Operations par APIs owner revalidees | Aucun droits derives de simples items ou du cache | Root connue + continuation ponctuelle ; **raccorde C6**, mutation **O** |
+| Nous : relations / Passeport / settings | Projections Space autorisees, certains editeurs restent owner-only | Changement institutionnel, version/visibilite, Mandate | Un cache public ne permet pas edition ou partage prive | Donnees sensibles requierent revalidation **O** |
+| Nous : Documents confidentiels | **M** liste observee sur session active, pas de persistance generique des contenus | Upload owner direct sous \`can_manage\` revalide | 503 conserve lecture mais retire gestion ; 403 retire lignes | Changement acteur vide liste ; **raccorde C6**, mutation **O** |
+| Commerce / checkout / commandes | Etat temporaire d'interaction et lecture owner | Checkout, selection et idempotence owner | Stock/Capacity/Payment ne sont jamais calcules hors ligne | ResumableInteractionStore existant ; **reemploi**, acte **O** |
+| Services / Obtention / funding / Payments | Preparation de l'interaction, verification owner | Journey, paiement, contribution, obligation | Pas de droit obtenu ni paiement « reussi » hors connexion | Idempotence et continuation existantes ; **reemploi**, acte **O** |
+| Subscription / Billing / support financier | Reponses owner revalidees, pas d'inference a partir d'un abonnement ancien | Souscription/gestion par owner | Montants, statut et droit de gestion sont critiques ; pas d'optimisme offline | Consultation ou edition peut exiger reseau (**O** intentionnel) |
+| Makolo Mark (intake) | DraftRepository/ProfileFileStore, preview personal.me | Texte, photo, fichier, relecture avant owner POST | Space selectionne ne donne pas de Mandate, offline_draft ≠ traitement | Changement runtime/acteur et restaurations gardes ; **raccorde C6** |
+| Visiteur / espace public / carte publique | Projection publique uniquement et presentation autorisee | Lecture publique, handoff vers login si necessaire | Ne jamais montrer une projection privee anterieure au visiteur | Aucun profil global cree par visiteur ; **P** |
+| Parametres / push / compte | Preferences locales, source Notifications, services Auth/Platform | Push, settings, compte, actions owner | Push OS ≠ evenement metier, notification != preuve d'action | Preferences unifiees, push natif conserve ; **raccorde C6** |
+
+La couverture des familles mobiles (\`access, auth, commerce, continuity, day_of, discovery, funding, guest, interoperability, journey, live, mark, me, now, obtention, onboarding, ongoing, payments, personal, preparation, questionnaires, resources, services, settings, space, splash\`) est explicitee ci-dessus sans reinventer leur vocabulaire ni un deuxieme ecran pour chaque couche.
+
+### 12.4 Parcours sans Internet apres acquisition : sortie observable
+
+1. **Profil / Now / En cours / Moi** : au second lancement sans connexion, la projection autorisee deja observee est consultable avec sa provenance et ses limites ; le refresh en echec ne fabrique pas une liste vide.
+2. **Discover** : premier pack recu lisible/recherchable selon retention ; navigation sur une ressource absente exprime « non disponible » et non « rien n'existe ». Cartes et medias conservent leurs propres limitations.
+3. **Dossier / Project / Resource** : premieres pages observees restent, l'ouverture keyed-detail necessite que le detail ait ete acquis ou une connexion ; aucun nouveau droit n'est deduit du listing. Les brouillons et octets explicites survivent au redemarrage.
+4. **Conversations et Questionnaires** : intents prets restent dans l'outbox du Profile ; pas de send ni confirmation sous mauvais acteur. Les retries respectent l'owner.
+5. **Nous/Metier** : une continuation locale peut montrer le root Work du **meme** Space et Mandate/perspective apres un 503. 403/404 ou changement d'acteur retire l'affichage.
+6. **Nous/Documents** : dernier listing dans le widget reste visible apres un 503 ; upload interdit tant que les droits ne sont pas reverifies ; aucune copie durable automatique de documents confidentiels.
+7. **Access/Jour J/Payment** : connaissance locale affichable selon TTL mais le serveur reste seul proprietaire de l'usage, de la confirmation et de l'echange.
+8. **Mark** : brouillon et FileRecords retrouves sous le Profil et acteur d'origine ; une ancienne reponse ne rejoint jamais l'interface d'un autre Profil.
+
+### 12.5 Tests C6 ajoutes ou modifies
+
+- \`c6_notification_composition_test.dart\` : meme repository dans Inbox et Preferences, lecture locale sans API et impossibilite de relier un store d'un autre Profile.
+- \`space_mature_composition_test.dart\` : Work local de perspective precise visible apres 503, puis masque lors du changement d'acteur.
+- \`c6_space_documents_composition_test.dart\` : documents acquis conserves seulement en memoire apres 503, action de gestion retiree, refus 403 efface les lignes, retour Personnel les masque.
+- \`sync_engine_test.dart\` : reconciliation du seul root \`personal.me\` et retention en cas de panne.
+- \`mark_mature_test.dart\` : changement de runtime A → B dans le meme StatefulWidget et restauration du brouillon B, jamais celui de A.
+- Reutilisation des tests de contrats C1–C5 des Selectors, Drift, QR, outbox, autorite, media et runtime de remplacement.
+
+### 12.6 Gate de qualite et limites
+
+Les changements C6 sont commits dans #522 et revus statiquement. **Flutter/Dart tests, analyseur, formatteur et Android n'ont pas ete executes dans l'environnement courant** : la fermeture est **implementation ecrite**, pas validation instrumentee. Les ecrans online-only critiques (Permissions, Checkout, Payments, Billing, Passport prive, gestion de documents) sont des exceptions voulues, pas des copies persistantes a inventer pour satisfaire artificiellement un critere offline. Un manque reel de contrat d'owner n'est pas transforme en API fictive.
+
+C7 reste le guide d'extension avec exemple et test d'architecture ; C8 reste la validation Android/reconnect/kill/resume sur appareil. Aucune fusion dans \`main\` n'est autorisee sur la base de cette seule verification statique.
