@@ -111,7 +111,11 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     final revision = ++_retryRevision;
     _outboxRetryTimer?.cancel();
     if (!_online) return;
-    final next = await runtime.outbox?.nextAutomaticRetryAt();
+    final processor = runtime.outboxProcessor;
+    if (processor == null) return;
+    final next = await runtime.outbox?.nextAutomaticRetryAt(
+      handledKinds: processor.handlers.keys.toSet(),
+    );
     if (!mounted ||
         !_online ||
         revision != _retryRevision ||
