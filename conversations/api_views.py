@@ -77,6 +77,9 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
         "kind": point.kind,
+        "client_reference": (
+            point.client_reference if point.published_by_id == profile.pk else None
+        ),
         # Identity only for an already-authorized Point. No account IDs,
         # contact details or private Profile fields escape this projection.
         "author": {
@@ -126,6 +129,9 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             {
                 "id": str(entry.pk), "body": entry.body,
                 "created_at": entry.created_at, "own": entry.author_id == profile.pk,
+                "client_reference": (
+                    entry.client_reference if entry.author_id == profile.pk else None
+                ),
                 "attachments": [
                     serialize_attachment(item)
                     for item in entry.attachments.all() if can_download_attachment(profile, item)
