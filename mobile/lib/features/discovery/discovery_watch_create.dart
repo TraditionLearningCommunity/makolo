@@ -8,12 +8,13 @@ Future<String?> showDiscoveryWatchCreation(
   BuildContext context, {
   required DiscoveryRepository repository,
   required DiscoveryQuery query,
+  String? watchId,
+  String? initialName,
 }) async {
-  if (query.watchCriteria.isEmpty) return null;
   return showDialog<String>(
     context: context,
     builder: (_) =>
-        _CreateDiscoveryWatchDialog(repository: repository, query: query),
+        _CreateDiscoveryWatchDialog(repository: repository, query: query, watchId: watchId, initialName: initialName),
   );
 }
 
@@ -21,10 +22,14 @@ class _CreateDiscoveryWatchDialog extends StatefulWidget {
   const _CreateDiscoveryWatchDialog({
     required this.repository,
     required this.query,
+    this.watchId,
+    this.initialName,
   });
 
   final DiscoveryRepository repository;
   final DiscoveryQuery query;
+  final String? watchId;
+  final String? initialName;
 
   @override
   State<_CreateDiscoveryWatchDialog> createState() =>
@@ -34,25 +39,43 @@ class _CreateDiscoveryWatchDialog extends StatefulWidget {
 class _CreateDiscoveryWatchDialogState
     extends State<_CreateDiscoveryWatchDialog> {
   late final TextEditingController _name;
+  late final TextEditingController _keywords;
+  late final TextEditingController _place;
+  late final TextEditingController _from;
+  late final TextEditingController _to;
+  late String _vertical;
+  late String _when;
+  late String _price;
   bool _saving = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _keywords = TextEditingController(text: widget.query.text);
+    _place = TextEditingController(text: widget.query.place);
+    _from = TextEditingController(text: widget.query.dateFrom);
+    _to = TextEditingController(text: widget.query.dateTo);
+    _vertical = widget.query.vertical;
+    _when = widget.query.when;
+    _price = widget.query.price;
     final candidate = widget.query.text.trim().isNotEmpty
         ? widget.query.text.trim()
         : widget.query.place.trim().isNotEmpty
         ? 'Veille · ${widget.query.place.trim()}'
         : 'Ma veille';
     _name = TextEditingController(
-      text: candidate.length <= 140 ? candidate : candidate.substring(0, 140),
+      text: widget.initialName ?? (candidate.length <= 140 ? candidate : candidate.substring(0, 140)),
     );
   }
 
   @override
   void dispose() {
     _name.dispose();
+    _keywords.dispose();
+    _place.dispose();
+    _from.dispose();
+    _to.dispose();
     super.dispose();
   }
 
@@ -63,16 +86,27 @@ class _CreateDiscoveryWatchDialogState
       setState(() => _error = 'Donnez un nom de 1 à 140 caractères.');
       return;
     }
+    final query = widget.query.copyWith(text: _keywords.text.trim(), place: _place.text.trim(), dateFrom: _from.text.trim(), dateTo: _to.text.trim(), vertical: _vertical, when: _when, price: _price, page: 1, clearContinuation: true);
+    if (query.watchCriteria.isEmpty) {
+      setState(() => _error = 'Ajoutez au moins un mot-clé ou un filtre.');
+      return;
+    }
+    if (_when.isNotEmpty && (_from.text.trim().isNotEmpty || _to.text.trim().isNotEmpty)) {
+      setState(() => _error = 'Choisissez une période ou une plage de dates.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      final id = await widget.repository.createWatch(
-        name: name,
-        query: widget.query,
-      );
-      if (mounted) Navigator.of(context).pop(id);
+      if (widget.watchId != null) {
+        await widget.repository.editWatch(widget.watchId!, name: name, replaceCriteria: query);
+        if (mounted) Navigator.of(context).pop(widget.watchId);
+      } else {
+        final id = await widget.repository.createWatch(name: name, query: query);
+        if (mounted) Navigator.of(context).pop(id);
+      }
     } on Object {
       if (mounted) {
         setState(
@@ -88,16 +122,74 @@ class _CreateDiscoveryWatchDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Créer une veille'),
-      content: Column(
+      title: Text(widget.watchId == null ? 'Nouvelle veille' : 'Modifier la veille'),
+      content: SizedBox(width: 450, child: SingleChildScrollView(child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Cette veille réutilise les filtres de votre recherche. '
-            'Elle n’enregistre ni une possibilité ni une participation.',
+          const Text('Définissez les critères de recherche de cette veille.'),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('discover-watch-keywords'),
+            controller: _keywords,
+            maxLength: 200,
+            decoration: const InputDecoration(labelText: 'Mots-clés', hintText: 'Ex. logistique'),
           ),
-          const SizedBox(height: 16),
+          TextField(
+            key: const Key('discover-watch-place'),
+            controller: _place,
+            decoration: const InputDecoration(labelText: 'Lieu', hintText: 'Ex. Lubumbashi'),
+          ),
+          DropdownButtonFormField<String>(
+            value: _vertical,
+            decoration: const InputDecoration(labelText: 'Type'),
+            items: const [
+              DropdownMenuItem(value: '', child: Text('Tous les types')),
+              DropdownMenuItem(value: 'event', child: Text('Événements')),
+              DropdownMenuItem(value: 'transport', child: Text('Transports')),
+              DropdownMenuItem(value: 'service', child: Text('Services')),
+              DropdownMenuItem(value: 'other', child: Text('Autres activités')),
+            ],
+            onChanged: (v) => setState(() => _vertical = v ?? ''),
+          ),
+          DropdownButtonFormField<String>(
+            value: _when,
+            decoration: const InputDecoration(labelText: 'Période'),
+            items: const [
+              DropdownMenuItem(value: '', child: Text('Toutes dates')),
+              DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+              DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
+              DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+              DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
+            ],
+            onChanged: (v) => setState(() => _when = v ?? ''),
+          ),
+          DropdownButtonFormField<String>(
+            value: _price,
+            decoration: const InputDecoration(labelText: 'Prix'),
+            items: const [
+              DropdownMenuItem(value: '', child: Text('Tous les prix')),
+              DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+              DropdownMenuItem(value: 'paid', child: Text('Payant')),
+            ],
+            onChanged: (v) => setState(() => _price = v ?? ''),
+          ),
+          const SizedBox(height: 8),
+          const Text('Plage de dates (facultative)'),
+          Row(children: [
+            Expanded(child: TextField(
+              key: const Key('discover-watch-from'),
+              controller: _from,
+              decoration: const InputDecoration(labelText: 'Du', hintText: 'AAAA-MM-JJ'),
+            )),
+            const SizedBox(width: 8),
+            Expanded(child: TextField(
+              key: const Key('discover-watch-to'),
+              controller: _to,
+              decoration: const InputDecoration(labelText: 'Au', hintText: 'AAAA-MM-JJ'),
+            )),
+          ]),
+          const SizedBox(height: 12),
           TextField(
             key: const Key('discover-watch-name'),
             controller: _name,
@@ -112,7 +204,7 @@ class _CreateDiscoveryWatchDialogState
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
         ],
-      ),
+      ))),
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
@@ -127,7 +219,7 @@ class _CreateDiscoveryWatchDialogState
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Créer la veille'),
+              : Text(widget.watchId == null ? 'Créer la veille' : 'Enregistrer'),
         ),
       ],
     );
