@@ -765,6 +765,41 @@ void main() {
     expect((await repo.readSource(repo.workspaceSource(x))).invalidated, true);
   });
 
+  test('transport failure cannot erase a Workspace authority tombstone',
+      () async {
+    var denied = true;
+    final harness = await _harness(
+      handler: (_) async => MockResponse(jsonEncode({
+        'error': {
+          'code': denied ? 'permission_denied' : 'server_unavailable',
+          'message': 'Unable to verify Workspace',
+        },
+      }), denied ? 403 : 503),
+    );
+    addTearDown(harness.close);
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    await expectLater(
+      harness.repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    denied = false;
+    await expectLater(
+      harness.repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    final source = await harness.repository.readSource(
+      harness.repository.workspaceSource(space),
+    );
+    expect(source.invalidated, isTrue);
+    expect(source.lastErrorCode, 'permission_denied');
+    await expectLater(
+      harness.repository.sync!.pullSource(
+        harness.repository.nowSource(space, const ActorPerspective.all()),
+      ),
+      throwsA(isA<Exception>()),
+    );
+  });
+
   test('inventory 403 withdraws all Space projections but no other Profile',
       () async {
     var deny = false;
