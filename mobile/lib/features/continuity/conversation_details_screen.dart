@@ -581,7 +581,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         final sections = <(String, IconData)>[
           (data['subject'] is Map &&
                   _map(data['subject'])['kind'] == 'group'
-                  ? 'Membres' : 'Personnes',
+                  ? 'Participants' : 'Participants',
               Icons.people_outline_rounded),
           ('Médias', Icons.perm_media_outlined),
           if (hasResources) ('Ressources', Icons.folder_outlined),
@@ -593,29 +593,34 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             appBar: AppBar(
               title: const Text('Détails de la conversation'),
             ),
-            body: Column(
-              children: [
-                _hero(context, data),
-                Divider(height: 1, color: Theme.of(context).dividerColor),
-                TabBar(
-                  key: const Key('conversation-details-tabs'),
-                  isScrollable: sections.length > 3,
-                  tabs: [
-                    for (final (label, icon) in sections)
-                      Tab(text: label, icon: Icon(icon, size: 20)),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      _members(context, data),
-                      _media(context, data),
-                      if (hasResources) _resources(context, data),
-                      _settings(context, data),
-                    ],
+            body: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverToBoxAdapter(child: _hero(context, data)),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _ConversationDetailsTabHeader(
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: TabBar(
+                        key: const Key('conversation-details-tabs'),
+                        isScrollable: sections.length > 3,
+                        tabs: [
+                          for (final (label, icon) in sections)
+                            Tab(text: label, icon: Icon(icon, size: 20)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
+              body: TabBarView(
+                children: [
+                  _members(context, data),
+                  _media(context, data),
+                  if (hasResources) _resources(context, data),
+                  _settings(context, data),
+                ],
+              ),
             ),
           ),
         );
@@ -635,4 +640,25 @@ Map<String, dynamic> _map(Object? value) {
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
   return value.map(_map).where((value) => value.isNotEmpty).toList(growable: false);
+}
+
+
+class _ConversationDetailsTabHeader extends SliverPersistentHeaderDelegate {
+  const _ConversationDetailsTabHeader({required this.child});
+
+  final Widget child;
+
+  @override
+  double get minExtent => 72;
+
+  @override
+  double get maxExtent => 72;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      child;
+
+  @override
+  bool shouldRebuild(covariant _ConversationDetailsTabHeader oldDelegate) =>
+      oldDelegate.child != child;
 }
