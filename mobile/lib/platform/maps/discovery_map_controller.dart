@@ -3,10 +3,17 @@ import 'dart:math' as math;
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 class DiscoveryMapPin {
-  const DiscoveryMapPin(this.latitude, this.longitude, {this.locationKey});
+  const DiscoveryMapPin(
+    this.latitude,
+    this.longitude, {
+    this.locationKey,
+    this.opportunityCount = 1,
+  });
+
   final double latitude;
   final double longitude;
   final String? locationKey;
+  final int opportunityCount;
 }
 
 class DiscoveryMapController {
@@ -17,6 +24,7 @@ class DiscoveryMapController {
   static const _clusters = 'makolo-discovery-clusters';
   static const _counts = 'makolo-discovery-counts';
   static const _points = 'makolo-discovery-points';
+  static const _locationCounts = 'makolo-discovery-location-counts';
 
   bool _clusterReady = false;
   bool _fallbackPinsActive = false;
@@ -36,6 +44,7 @@ class DiscoveryMapController {
           'properties': {
             'location_key':
                 pin.locationKey ?? '${pin.latitude}:${pin.longitude}',
+            'opportunity_count': pin.opportunityCount,
           },
           'geometry': {
             'type': 'Point',
@@ -101,6 +110,23 @@ class DiscoveryMapController {
           ),
           filter: ['!', ['has', 'point_count']],
         );
+        // Exact-location multiplicity is different from a zoom cluster.
+        // A pin can represent many admitted opportunities at one Place.
+        await _controller.addSymbolLayer(
+          _source,
+          _locationCounts,
+          SymbolLayerProperties(
+            textField: ['to-string', [Expressions.get, 'opportunity_count']],
+            textSize: 12,
+            textColor: '#FFFFFF',
+            textAllowOverlap: true,
+          ),
+          filter: [
+            'all',
+            ['!', ['has', 'point_count']],
+            ['>', [Expressions.get, 'opportunity_count'], 1],
+          ],
+        );
         _clusterReady = true;
       }
       if (_fallbackPinsActive) {
@@ -130,7 +156,7 @@ class DiscoveryMapController {
   }
 
   Future<void> _removeClusterLayers() async {
-    for (final layer in [_points, _counts, _clusters]) {
+    for (final layer in [_locationCounts, _points, _counts, _clusters]) {
       try {
         await _controller.removeLayer(layer);
       } on Object {}
@@ -256,7 +282,7 @@ class DiscoveryMapController {
       for (final pin in pins)
         CircleOptions(
           geometry: LatLng(pin.latitude, pin.longitude),
-          circleRadius: 8,
+          circleRadius: pin.opportunityCount > 1 ? 12 : 8,
           circleColor: '#6741D9',
           circleStrokeWidth: 2,
           circleStrokeColor: '#FFFFFF',
