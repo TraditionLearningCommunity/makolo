@@ -73,6 +73,51 @@ void main() {
     },
   );
 
+  test('resource references are searchable only while owner facts exist', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final alice = ProfileStore(database, 'alice');
+    final bob = ProfileStore(database, 'bob');
+
+    await alice.putProjection(
+      kind: 'activity.detail',
+      resourceKey: 'activity-a',
+      schemaVersion: 1,
+      payload: {'id': 'activity-a', 'title': 'Formation'},
+    );
+    await alice.putResourceReference(
+      resourceKind: 'Activity',
+      resourceId: 'activity-a',
+      projectionKind: 'activity.detail',
+      label: 'Formation',
+    );
+
+    final found = await alice.readKnownResources(search: 'forma');
+    expect(found, hasLength(1));
+    expect(found.single.id, 'activity-a');
+    expect(await bob.readKnownResources(), isEmpty);
+    expect(
+      await alice.watchKnownResources(search: 'FORM').first,
+      hasLength(1),
+    );
+
+    await alice.deleteProjection('activity.detail', resourceKey: 'activity-a');
+    expect(
+      await alice.readKnownResources(),
+      isEmpty,
+      reason: 'An orphan index pointer must never resurrect an owner fact.',
+    );
+
+    await alice.putProjection(
+      kind: 'activity.detail',
+      resourceKey: 'activity-a',
+      schemaVersion: 1,
+      payload: {'id': 'activity-a'},
+      expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+    );
+    expect(await alice.readKnownResources(), isEmpty);
+  });
+
   test('draft and outbox are committed atomically', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
