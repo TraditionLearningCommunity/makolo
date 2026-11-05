@@ -999,4 +999,81 @@ void main() {
     expect(find.text('Joindre un fichier'), findsOneWidget);
   });
 
+  test('visual N1 image resolver refuses arbitrary URL and preserves owner', () {
+    final repository = repositoryFor((request) async =>
+        const MockResponse('{"results":[],"count":0}', 200));
+    expect(
+      repository.publicContextImageUri('/media/events/public.jpg').toString(),
+      'https://makolo.invalid/media/events/public.jpg',
+    );
+    expect(repository.publicContextImageUri('https://other.invalid/x.jpg'), isNull);
+    expect(repository.publicContextImageUri('//other.invalid/x.jpg'), isNull);
+    expect(repository.publicContextImageUri('/media/x.jpg?token=secret'), isNull);
+    expect(repository.publicContextImageUri(''), isNull);
+  });
+
+  testWidgets('visual N1 uses owner card without repeating long context and preserves direct route', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse(jsonEncode({
+          'results': [
+            {
+              'id': 'cooperative-1',
+              'title': 'Préparation pratique — Marché des coopératives — Lubumbashi',
+              'purpose': 'Texte administrativement long qui appartient au détail',
+              'context': {
+                'kind': 'activity',
+                'label': 'Marché des coopératives — Lubumbashi',
+              },
+              'attention_count': 2,
+              'all_clear': false,
+              'latest_result': null,
+              'updated_at': '2026-11-04T13:00:00Z',
+              'card': {
+                'title': 'Marché des coopératives',
+                'context_label': 'Lubumbashi',
+                'context_kind': 'activity',
+                'context_image_url': null,
+                'preview': 'Préparer les documents d’accès',
+                'preview_kind': 'point',
+                'media_kinds': ['image', 'form'],
+                'attention_count': 2,
+              },
+            },
+          ],
+          'count': 1,
+        }), 200);
+      }
+      if (request.url.path == '/api/v1/conversations/invitations/') {
+        return const MockResponse('{"results":[],"count":0}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshList();
+    String? opened;
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(
+        repository: repository,
+        onOpen: (id) => opened = id,
+      ),
+    );
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+    expect(find.text('Marché des coopératives'), findsOneWidget);
+    expect(find.text('Lubumbashi'), findsOneWidget);
+    expect(find.textContaining('Préparer les documents'), findsOneWidget);
+    expect(find.textContaining('Préparation pratique —'), findsNothing);
+    expect(find.byIcon(Icons.image_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.assignment_rounded), findsOneWidget);
+    expect(find.textContaining('2 à faire'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('conversation-tile-cooperative-1')));
+    expect(opened, 'cooperative-1');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
 }
