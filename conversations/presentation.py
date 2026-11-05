@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch, Q
@@ -38,6 +38,7 @@ class ConversationSearchRow:
     context_label: str
     point: ConversationPoint | None
     rank: int
+    card: dict | None = None
 
 
 def conversations_for_context(profile, kind, context_pk):
@@ -381,7 +382,16 @@ def search_conversations_for_profile(profile, query, *, limit=50, include_archiv
             ),
         )
     )
-    return rows[:limit]
+    return [
+        replace(
+            row,
+            card=conversation_list_card(
+                profile, row.conversation, context_label=row.context_label,
+                latest_result="", attention_count=0,
+            ),
+        )
+        for row in rows[:limit]
+    ]
 
 
 def catch_up_summary(profile, conversation, *, since=None):
