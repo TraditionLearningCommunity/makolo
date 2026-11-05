@@ -83,16 +83,16 @@ class DraftRepository {
       await database
           .into(database.localDrafts)
           .insertOnConflictUpdate(
-          LocalDraftsCompanion.insert(
-            draftId: draftId,
-            profileId: profileId,
-            owner: owner,
-            resourceKind: resourceKind,
-            resourceId: Value(resourceId),
-            payloadJson: jsonEncode(payload),
-            updatedAt: DateTime.now().toUtc(),
-          ),
-        );
+            LocalDraftsCompanion.insert(
+              draftId: draftId,
+              profileId: profileId,
+              owner: owner,
+              resourceKind: resourceKind,
+              resourceId: Value(resourceId),
+              payloadJson: jsonEncode(payload),
+              updatedAt: DateTime.now().toUtc(),
+            ),
+          );
     });
   }
 
