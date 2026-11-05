@@ -8,6 +8,32 @@ import 'package:makolo_mobile/repositories/draft_repository.dart';
 import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 void main() {
+  test('Profile SQLite paths cannot collide after identity normalization',
+      () {
+    expect(
+      MakoloDatabase.profileDirectoryKey(
+        '123e4567-e89b-12d3-a456-426614174000',
+      ),
+      '123e4567-e89b-12d3-a456-426614174000',
+      reason: 'Existing canonical Profile databases keep their paths',
+    );
+    final values = [
+      'person/a',
+      'person:a',
+      'person_a',
+      '__encoded__',
+      '__encoded__person',
+      'équipe française',
+    ];
+    final keys = values.map(MakoloDatabase.profileDirectoryKey).toSet();
+    expect(keys, hasLength(values.length));
+    expect(
+      () => MakoloDatabase.profileDirectoryKey(''),
+      throwsArgumentError,
+    );
+  });
+
+
   test('root projection is stored and isolated by Profile', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
