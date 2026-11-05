@@ -1860,7 +1860,7 @@ void main() {
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
     expect(find.byKey(const ValueKey('discover-map-wide-map')), findsOneWidget);
     expect(find.byKey(const Key('discover-spatial-pane')), findsNothing);
-    expect(find.text('Voir le détail'), findsNothing);
+    expect(find.text('Voir l’opportunité'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
