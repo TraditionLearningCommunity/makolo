@@ -242,6 +242,47 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     }
   }
 
+  Future<void> _unlockAfterManualVerification() async {
+    if (_saving || !_creationAttempted || _created) return;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reprendre le brouillon ?'),
+        content: const Text(
+          'Consultez d’abord vos Espaces. Une demande précédente a pu '
+          'aboutir malgré l’absence de réponse. En réessayant, vous '
+          'pourriez créer un doublon. Confirmez seulement après avoir '
+          'effectué cette vérification.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('J’ai vérifié mes Espaces'),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+    try {
+      await _saveDraft(state: 'editing');
+      if (mounted) {
+        setState(() {
+          _creationAttempted = false;
+          _error = null;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'La préparation locale n’a pas pu être réouverte.');
+      }
+    }
+  }
+
   Future<void> _verifyCreatedSpace(SpaceActorIdentity identity) async {
     final repository = widget.runtime.space!;
     final actor = widget.runtime.actorContext!;
@@ -368,11 +409,16 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                     : _create,
                 child: Text(_saving ? 'Création…' : 'Créer cet Espace'),
               ),
-              if (_creationAttempted && !_created)
+              if (_creationAttempted && !_created) ...[
                 TextButton(
                   onPressed: () => context.go('/me'),
                   child: const Text('Consulter mes Espaces depuis Moi'),
                 ),
+                OutlinedButton(
+                  onPressed: _saving ? null : _unlockAfterManualVerification,
+                  child: const Text('Après vérification, reprendre le brouillon'),
+                ),
+              ],
               if (_created) ...[
                 OutlinedButton(
                   onPressed: _saving ? null : _retryVerification,
