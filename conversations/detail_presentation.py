@@ -211,13 +211,24 @@ def conversation_resources_for_profile(profile, conversation, limit=8):
 
 def conversation_detail_extra_for_profile(profile, conversation, label):
     """Composition of read models only. No new owner, state, or authority."""
+    can_manage = can_manage_conversation(profile, conversation)
     return {
         "subject": conversation_subject_for_profile(profile, conversation, label),
         "members": conversation_members_for_profile(profile, conversation),
         "media": conversation_media_for_profile(profile, conversation),
         "resources": conversation_resources_for_profile(profile, conversation),
         "created_at": conversation.created_at,
-        "can_manage": can_manage_conversation(profile, conversation),
+        "can_manage": can_manage,
+        "configuration": {
+            "mode": conversation.get_mode_preset_display(),
+            "entry": conversation.get_entry_mode_display(),
+            "history": conversation.get_history_policy_display(),
+            "lifecycle": conversation.get_lifecycle_display(),
+            "created_by": (
+                conversation.created_by.full_name
+                or conversation.created_by.username
+            ) if can_manage else None,
+        },
         "share_path": f"/conversations/{conversation.pk}/",
         "share_requires_access": True,
     }
