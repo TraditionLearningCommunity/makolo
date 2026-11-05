@@ -322,7 +322,7 @@ La verification de fin de travail a releve un commit concurrent dans `mobile/lib
 
 ### 10.1 Frontiere Profile et changement d'acteur
 
-- `MakoloDatabase.profileDirectoryKey` conserve le chemin des identifiants canoniques composees de lettres/chiffres/tirets/underscores. Pour les autres valeurs, la cle de repertoire est un encodage reversible et non une substitution avec perte (qui pouvait faire coexister deux Profils sur un chemin physique identique).
+- `ProfilePaths.safeProfileId` est desormais la cle canonique unique des chemins privees (SQLite, media, staging, ressources). `MakoloDatabase.profileDirectoryKey` la reutilise. Les identifiants canoniques composes de lettres/chiffres/tirets/underscores conservent leur ancien chemin ; les autres utilisent un encodage reversible sans collision, contrairement a la substitution avec perte. Les identifiants d'assets passent par la meme regle dans le stockage local.
 - Une copie locale ancienne sous un chemin non canonique avec collisions potentielles **n'est pas copiee automatiquement** : seule une migration auditée avec preuve d'appartenance serait acceptable. Les identifiants habituels déjà conformes restent a leur chemin courant.
 - `AccessRepository` refuse une combinaison `ProfileStore` / `SyncEngine` / base ne correspondant pas au `profileId`.
 - `OutboxProcessor` accepte un `canDispatch` controlant le Profil authentifie avant reconciliation et juste apres claim et avant handler. `QuestionnaireAssembly` raccorde ce gate au `TokenStore.readSession`; `QuestionnaireSubmitCoordinator` reverifie la session avant enregistrement/soumission owner et reconciliation.
@@ -352,7 +352,7 @@ La verification de fin de travail a releve un commit concurrent dans `mobile/lib
 - `mobile/test/space_repository_test.dart` : 403 workspace scoped, purge du selected actor et des vues operationnelles, autre Space preserve, reponse tardive ignoree, inventaire mis a jour sans resurrection, suppression owner de l'inventaire, refus global et isolation Profile, timeout/503 apres retrait, runtime ferme ne changeant plus l'acteur.
 - `mobile/test/c4_access_scope_test.dart` : 403 Access individuel, redaction de liste actuelle et de liste arrivee tardivement, refus durable meme sur 503, refus de collection acheteur sans perte de la collection beneficiaire.
 - `mobile/test/access_offline_qr_test.dart` : un 403 sur un repository invalide une reponse QR en vol sur un autre, verifications de fenetres temporelles, mauvais Profile refuse, lecture de coffre interrompue par une revocation.
-- `mobile/test/local_database_test.dart` : profils non collisionnants pour le nom de fichier SQLite, chemin canonique preserve, AccessCredential interdit en projection generique.
+- `mobile/test/local_database_test.dart` : profils non collisionnants dans SQLite et ProfilePaths, chemin canonique preserve, AccessCredential interdit en projection generique.
 - `mobile/test/outbox_processor_test.dart` : changement de Profil avant dispatch et entre le claim et le handler ; une intention `safe` ne repart qu'apres re-authentification legitime.
 
 ### 10.5 Limites de verification
