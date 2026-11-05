@@ -5,6 +5,10 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/features/mark/mark_repository.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
 
 import 'fakes.dart';
 
@@ -48,6 +52,63 @@ void main() {
       expect(find.textContaining('A2'), findsNothing);
     },
   );
+
+  testWidgets('Mark runtime switch does not display another Profile draft',
+      (tester) async {
+    final dbA = MakoloDatabase.memory();
+    final dbB = MakoloDatabase.memory();
+    addTearDown(dbA.close);
+    addTearDown(dbB.close);
+
+    DraftRepository makeDrafts(MakoloDatabase db, String profile) =>
+        DraftRepository(
+          database: db,
+          outbox: OutboxRepository(db, profile),
+          profileId: profile,
+        );
+    final draftsA = makeDrafts(dbA, 'profile-a');
+    final draftsB = makeDrafts(dbB, 'profile-b');
+    for (final entry in [
+      (draftsA, 'Texte privé A'),
+      (draftsB, 'Texte privé B'),
+    ]) {
+      await entry.$1.saveLocal(
+        draftId: 'mark:personal',
+        owner: 'profile',
+        resourceKind: 'mark_intake',
+        resourceId: 'mark:personal',
+        payload: {
+          'input': entry.$2,
+          'attachments': <Object>[],
+        },
+      );
+    }
+    AppRuntime runtime(String profile, DraftRepository drafts) => AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: profile,
+      ),
+      recovery: SessionRecoveryController(),
+      drafts: drafts,
+    );
+    final first = runtime('profile-a', draftsA);
+    final second = runtime('profile-b', draftsB);
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: first)));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Texte privé A',
+    );
+
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: second)));
+    await tester.pumpAndSettle();
+    final editor = tester.widget<TextField>(find.byType(TextField));
+    expect(editor.controller?.text, 'Texte privé B');
+    expect(editor.controller?.text, isNot(contains('Texte privé A')));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('Mark never renders a second Space design', (tester) async {
     final runtime = AppRuntime(
