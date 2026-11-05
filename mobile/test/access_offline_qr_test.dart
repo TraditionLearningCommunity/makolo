@@ -10,6 +10,7 @@ import 'package:makolo_mobile/features/access/access_credential_vault.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
 import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/sync/sync_engine.dart';
 
 const credentialPath = '/api/v1/me/accesses/access-1/credential/';
 
@@ -37,6 +38,19 @@ class _Vault implements AccessCredentialVault {
   @override
   Future<void> clearProfile(String profileId) async {
     values.removeWhere((key, value) => key.startsWith('$profileId:'));
+  }
+}
+
+class _DelayedVault extends _Vault {
+  final began = Completer<void>();
+  final release = Completer<void>();
+
+  @override
+  Future<RetainedAccessQr?> read(String profileId, String accessId) async {
+    final observed = await super.read(profileId, accessId);
+    if (!began.isCompleted) began.complete();
+    await release.future;
+    return observed;
   }
 }
 
@@ -230,6 +244,35 @@ void main() {
     );
     expect(reacquired.payload, 'signed-secret-only-in-vault');
     expect(await first.readRetainedCredential('access-1'), isNotNull);
+  });
+
+  test('QR vault read cannot disclose a secret after concurrent Access 403',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final vault = _DelayedVault();
+    final owner = _OwnerApi();
+    final engine = SyncEngine(
+      api: owner,
+      database: db,
+      store: ProfileStore(db, 'profile-a'),
+      profileId: 'profile-a',
+    );
+    final repo = AccessRepository(
+      database: db,
+      store: ProfileStore(db, 'profile-a'),
+      profileId: 'profile-a',
+      api: owner,
+      sync: engine,
+      credentialVault: vault,
+    );
+    await repo.fetchCredential(accessId: 'access-1', path: credentialPath);
+
+    final pending = repo.readRetainedCredential('access-1');
+    await vault.began.future;
+    await engine.revoke(repo.sourceFor('access-1'));
+    vault.release.complete();
+    expect(await pending, isNull);
   });
 
   test('Access repository rejects cross-Profile secure credential bindings',
