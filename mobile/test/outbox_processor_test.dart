@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/sync/outbox/outbox_processor.dart';
 import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
@@ -149,4 +150,194 @@ void main() {
     final row = (await database.select(database.outboxOperations).get()).single;
     expect(row.state, OutboxState.awaitingConfirmation.wireValue);
   });
+  test('durable attempt lease prevents concurrent claims and recovers after crash',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final first = OutboxRepository(database, 'profile-a');
+    final second = OutboxRepository(database, 'profile-a');
+    await first.enqueue(
+      operationId: 'lease-op',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.save',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'lease-intent',
+      replayPolicy: ReplayPolicy.idempotent,
+      ownerIdempotencyKey: 'stable-key',
+    );
+    expect(await first.claimForAttempt(
+      'lease-op',
+      expectedAttempts: 0,
+      expectedState: OutboxState.queued.wireValue,
+    ), isTrue);
+    expect(await second.pending(), isEmpty);
+    expect(await second.claimForAttempt(
+      'lease-op',
+      expectedAttempts: 1,
+      expectedState: OutboxState.inFlight.wireValue,
+    ), isFalse);
+
+    await database.customStatement(
+      "UPDATE outbox_operations SET next_retry_at = 1 "
+      "WHERE operation_id = 'lease-op'",
+    );
+    final recovered = await second.pending();
+    expect(recovered, hasLength(1));
+    expect(recovered.single.state, OutboxState.inFlight.wireValue);
+    expect(await second.claimForAttempt(
+      'lease-op',
+      expectedAttempts: 1,
+      expectedState: OutboxState.inFlight.wireValue,
+    ), isTrue);
+    final row = (await database.select(database.outboxOperations).get()).single;
+    expect(row.attempts, 2);
+  });
+
+  test('403 owner refusal is terminal conflict, not a replayable outage',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'owner-denial',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'denied-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    var calls = 0;
+    final worker = OutboxProcessor(
+      repository: outbox,
+      handlers: {
+        'owner.action': (_) async {
+          calls++;
+          throw const MakoloApiError(
+            statusCode: 403,
+            code: 'permission_denied',
+            message: 'Denied',
+          );
+        },
+      },
+    );
+    await worker.run();
+    await worker.run();
+    expect(calls, 1);
+    final row = (await database.select(database.outboxOperations).get()).single;
+    expect(row.state, OutboxState.conflict.wireValue);
+    expect(row.lastErrorCode, 'owner_rejected');
+    expect(await outbox.pending(), isEmpty);
+  });
+
+  test('retryable network failures back off and preserve the same intent',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'retry-op',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'unchanged-intent',
+      replayPolicy: ReplayPolicy.idempotent,
+      ownerIdempotencyKey: 'stable-owner-key',
+    );
+    var calls = 0;
+    final worker = OutboxProcessor(
+      repository: outbox,
+      handlers: {
+        'owner.action': (operation) async {
+          calls++;
+          expect(operation.intentId, 'unchanged-intent');
+          expect(operation.ownerIdempotencyKey, 'stable-owner-key');
+          if (calls == 1) {
+            throw const MakoloApiError(
+              statusCode: 503,
+              code: 'unavailable',
+              message: 'Owner unavailable',
+            );
+          }
+          return OutboxResolution.confirmed;
+        },
+      },
+    );
+    await worker.run();
+    final failed = (await database.select(database.outboxOperations).get()).single;
+    expect(failed.state, OutboxState.failed.wireValue);
+    expect(failed.lastErrorCode, 'transport_error');
+    expect(failed.nextRetryAt, isNotNull);
+    await worker.run();
+    expect(calls, 1, reason: 'Do not hammer an unavailable owner');
+    await database.customStatement(
+      "UPDATE outbox_operations SET next_retry_at = 1 "
+      "WHERE operation_id = 'retry-op'",
+    );
+    await worker.run();
+    expect(calls, 2);
+    final result = (await database.select(database.outboxOperations).get()).single;
+    expect(result.state, OutboxState.confirmed.wireValue);
+    expect(result.attempts, 2);
+  });
+
+  test('an owner-mismatched handler never dispatches a mutation', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'foreign-domain',
+      deviceInstanceId: 'device-a',
+      operationKind: 'questionnaire.form.submit',
+      owner: 'Organizations',
+      payload: const {},
+      intentId: 'wrong-owner',
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+    );
+    var invoked = false;
+    await OutboxProcessor(
+      repository: outbox,
+      handlers: {'questionnaire.form.submit': (_) async {
+        invoked = true;
+        return OutboxResolution.confirmed;
+      }},
+      expectedOwners: const {'questionnaire.form.submit': 'Questionnaires'},
+    ).run();
+    expect(invoked, isFalse);
+    expect(
+      (await database.select(database.outboxOperations).get()).single.state,
+      OutboxState.conflict.wireValue,
+    );
+  });
+
+  test('an owner-declared permanent failure is never blindly retried',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'permanent',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'permanent-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    var attempts = 0;
+    final worker = OutboxProcessor(
+      repository: outbox,
+      handlers: {'owner.action': (_) async {
+        attempts++;
+        return OutboxResolution.failed;
+      }},
+    );
+    await worker.run();
+    await worker.run();
+    expect(attempts, 1);
+    expect(await outbox.pending(), isEmpty);
+  });
+
 }
