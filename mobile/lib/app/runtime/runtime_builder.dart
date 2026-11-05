@@ -15,6 +15,7 @@ import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../navigation/destination.dart';
+import '../../notifications/notification_repository.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
@@ -169,6 +170,13 @@ Future<AppRuntime> buildAppRuntime({
     sync: sync,
   );
 
+  final notifications = NotificationRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+  );
+
   // A bounded personal working set is registered once at composition time.
   // Refreshing it is owned by SyncLifecycle, not by destination widgets.
   // All definitions reuse the exact source and parser of their repository.
@@ -182,6 +190,7 @@ Future<AppRuntime> buildAppRuntime({
       resources.collectionSourceFor(query: '', offset: 0),
     )
     ..registerPreparedSource(continuity.conversations.listSource())
+    ..registerPreparedSource(notifications.listSource())
     ..registerPreparedSource(continuity.history.sourceFor(offset: 0));
 
   return AppRuntime(
