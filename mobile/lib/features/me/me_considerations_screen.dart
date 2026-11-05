@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../network/makolo_api_client.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
+import '../../sync/sync_engine.dart';
 import 'me_local_preview.dart';
 
 /// Explicit personal choices, not recommendations inferred from browsing.
@@ -13,9 +14,11 @@ class MeConsiderationsScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.personal,
+    this.sync,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
+  final SyncEngine? sync;
 
   @override
   State<MeConsiderationsScreen> createState() => _MeConsiderationsState();
@@ -261,25 +264,37 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       // response to restore stale choices.
       if (_query.text.trim().isNotEmpty) await _load();
       // Owner confirmed the change: update the only local personal projection.
-      try {
-        final root = await widget.api.get('api/v1/me/');
-        final envelope = ProjectionEnvelope.parse(
-          root.jsonObject(),
-          expectedProjection: 'personal.me',
-        );
-        if (envelope.data['actor'] is Map &&
-            (envelope.data['actor'] as Map)['id']?.toString() ==
-                widget.personal.store.profileId) {
-          await widget.personal.store.putProjection(
-            kind: 'personal.me',
-            schemaVersion: envelope.schemaVersion,
-            payload: envelope.data,
-            receivedAt: DateTime.now().toUtc(),
-            sourceGeneratedAt: envelope.generatedAt,
-          );
+      // In the composed app, all Me mutations reconcile via one canonical
+      // owner source instead of re-parsing and writing a separate root in UI.
+      final sync = widget.sync;
+      if (sync != null) {
+        try {
+          await sync.refreshPersonalMe();
+        } on Object {
+          // Local confirmed facts survive owner/transport unavailability.
         }
+      } else {
+        try {
+          final root = await widget.api.get('api/v1/me/');
+          final envelope = ProjectionEnvelope.parse(
+            root.jsonObject(),
+            expectedProjection: 'personal.me',
+          );
+          if (envelope.data['actor'] is Map &&
+              (envelope.data['actor'] as Map)['id']?.toString() ==
+                  widget.personal.store.profileId) {
+            await widget.personal.store.putProjection(
+              kind: 'personal.me',
+              schemaVersion: envelope.schemaVersion,
+              payload: envelope.data,
+              receivedAt: DateTime.now().toUtc(),
+              sourceGeneratedAt: envelope.generatedAt,
+            );
+          }
+  
       } on Object {
         // Saved on the server; local source will reconcile on next refresh.
+      }
       }
     } on Object {
       if (mounted) {
