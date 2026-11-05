@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from core.api.projections import projection_envelope
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
+    owned_dossiers_for_profile,
+    owned_projects_for_profile,
     active_assignments_for_dossier,
     dossiers_for_profile,
     projects_for_profile,
@@ -153,3 +155,99 @@ class ProjectDetailAPIView(APIView):
                 scope="authorized",
             )
         )
+
+
+def _page_args(query):
+    """Bounded owner collection offset; clients never select another actor."""
+    try:
+        limit = int(query.get("limit", 24))
+        offset = int(query.get("offset", 0))
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= limit <= 50 or offset < 0 or offset > 100000:
+        return None
+    return limit, offset
+
+
+class _ObjectiveCollectionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    kind = None
+
+    def get(self, request):
+        from rest_framework import status
+
+        args = _page_args(request.query_params)
+        if args is None:
+            return Response(
+                {"detail": "Paramètres de liste invalides."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        limit, offset = args
+        if self.kind == "dossier":
+            visible = dossiers_for_profile(request.user)
+            owned_ids = set(
+                owned_dossiers_for_profile(request.user)
+                .values_list("pk", flat=True)
+            )
+        else:
+            visible = projects_for_profile(request.user)
+            owned_ids = set(
+                owned_projects_for_profile(request.user)
+                .values_list("pk", flat=True)
+            )
+        page = list(
+            visible.order_by("-updated_at", "id")[offset : offset + limit + 1]
+        )
+        has_more = len(page) > limit
+        page = page[:limit]
+        entries = []
+        for objective in page:
+            space = getattr(objective, "owning_space", None)
+            entries.append(
+                {
+                    "kind": self.kind,
+                    "id": str(objective.pk),
+                    "title": objective.title,
+                    "state": objective.lifecycle,
+                    "relation": (
+                        "mine"
+                        if objective.pk in owned_ids
+                        else "space"
+                        if space is not None
+                        else "shared"
+                    ),
+                    "space": (
+                        {"name": space.name, "slug": space.slug}
+                        if space is not None
+                        else None
+                    ),
+                    "link": (
+                        f"/api/v1/objectives/{self.kind}s/{objective.pk}/"
+                    ),
+                }
+            )
+        return Response(
+            projection_envelope(
+                projection=f"objective.{self.kind}.collection",
+                data={
+                    "actor": {"type": "profile", "id": str(request.user.pk)},
+                    "items": entries,
+                    "page": {
+                        "offset": offset,
+                        "limit": limit,
+                        "has_more": has_more,
+                        "next_offset": offset + len(entries),
+                    },
+                },
+                generated_at=timezone.now(),
+                scope="authorized",
+            )
+        )
+
+
+class DossierCollectionAPIView(_ObjectiveCollectionAPIView):
+    kind = "dossier"
+
+
+class ProjectCollectionAPIView(_ObjectiveCollectionAPIView):
+    kind = "project"
