@@ -213,7 +213,7 @@ void main() {
       owner: 'JourneyArtifact',
       resourceKind: 'journey_artifact',
       resourceId: 'journey-artifact-1',
-      payload: {'attachment': {'file_id': staged.fileId}}, 
+      payload: {'attachment': {'file_id': staged.fileId}},
     );
     await outbox.enqueue(
       operationId: 'pending-upload',
