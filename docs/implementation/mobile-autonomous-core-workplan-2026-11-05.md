@@ -1,6 +1,6 @@
 # Makolo Mobile — Refondation du noyau applicatif autonome
 
-**Statut :** C0 audite ; C1 et C2 implementes sur la PR #522, tests cibles ajoutes mais non executes dans cet environnement ; C3-C8 a faire.
+**Statut :** C0 audite ; C1, C2 et C3 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C4-C8 restent a faire.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
 **Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
@@ -179,7 +179,7 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 | C0 Baseline | Audit et cartographie realises | HEADs, collisions et matrice ci-dessous |
 | C1 Connaissance | Code et tests ajoutes, execution non attestee | Recherche indexee owner-backed, profils, expirations, detail |
 | C2 Acquisition | Code et tests ajoutes, execution non attestee | Working set, 10/10/40, erreurs, invalidation, reconnect |
-| C3 Actions | A faire | draft/outbox, replay owner |
+| C3 Actions | Code et tests ajoutes, execution non attestee | Drafts durables, outbox, bail, refus, recovery, Space/Questionnaires |
 | C4 Autorite | A faire | revocation, profils, secrets |
 | C5 Cycle de vie | A faire | media, stockage, resume |
 | C6 Composition | A faire | couverture des surfaces |
@@ -245,5 +245,64 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 
 - C1 ne pretend pas avoir normalise tous les items de toutes les collections. Les fingerprints Discovery conservent leur signification de resultats owner contextuels ; l'index partage couvre ici les details owners avec identite stable.
 - C2 prepare un working set borne, non l'univers Makolo exhaustif. Les donnees jamais acquises demeurent inconnues. Les cursors pagines supplementaires doivent rester controles par les contrats owners (et par le futur travail de consolidation des collections si besoin).
-- C3 et C4 devront garantir operations et autorites, C5 fichiers/media, C6 l'harmonisation de toutes les experiences, C7 le guide d'extension, C8 les parcours Android.
+- C3 implemente la persistance et la transmission selon les contrats owner existants ; C4 devra encore auditer les permissions/revocations, C5 fichiers/media, C6 l'harmonisation de toutes les experiences, C7 le guide d'extension, C8 les parcours Android.
 - **Validation non attestee dans l'environnement d'execution actuel :** Dart/Flutter SDK absent ; `dart_format.sh`, `flutter analyze`, tests cibles et tests Android n'ont pas ete executes. Une revue statique des sources a ete realisee ; elle ne remplace pas le compilateur. Le souhait de ne pas bloquer sur la CI globale est respecte, mais aucune gate rouge ne doit etre decrite comme verte.
+
+
+---
+
+## 9. Compte rendu d'execution C3 — Continuite d'action, 5 novembre 2026
+
+### Baseline et collision
+
+Debut C3 : `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f` et `#522@07d7624863e5c1dccc75a17bd37fec01f44a890b`. La PR #522 etait ouverte. Depuis la fin de C2, 25 commits avaient ete apportes a #522, dont Conversations, Discovery et leurs tests. Les travaux C3 restent dans les chemins Flutter ci-dessous et le present suivi ; ils ne changent aucun endpoint, API Django, modele de domaine ni migration.
+
+### Classes d'intentions : qui peut faire quoi ?
+
+| Classe | Experience | Propriete |
+| --- | --- | --- |
+| A — Purement locale | Saisie d'un questionnaire, preparation du nom et de la visibilite d'un futur Espace | Brouillon sur l'appareil ; aucune mutation ni autorite distante |
+| B — Intention explicitement rejouable | Operation couverte par un owner avec idempotence ou innocuite prouvee ; politique `idempotent`/`safe` | Replay automatique autorise uniquement sous ce contrat ; meme intent/idempotency key |
+| C — Preparable, decision owner | Soumission de Questionnaire avec `refetch-before-retry`, creation d'Espace via POST manuel | Relecture/reconciliation avant toute reprise ambiguë ; jamais de succes local presume |
+| D — Intrinsequement distante | Paiement, usage d'Access, verification de QR, mutation exigeant autorite en temps reel | Aucune activation/revalidation offline par simple projection ; aucun outbox generique invente |
+
+La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, Readiness, Permission, Mandate, Payment ou Access.
+
+### Noyau commun : changements effectifs
+
+- `mobile/lib/sync/outbox/outbox_repository.dart` : enregistrement transactionnel avec dedup par `profile_id + intent_id`, identite operationnelle immuable ; bail d'execution SQLite `next_retry_at` de deux minutes ; tentative revendiquee par compare-and-swap sur etat/attempts/lease ; retry temporaire avec backoff 10 s -> 300 s ; erreurs permanentes exclues du replay automatique ; annulation uniquement des intentions encore `queued` avec zero tentative ; status de dependances et instant du prochain retry lisibles par le cycle applicatif.
+- `mobile/lib/sync/outbox/outbox_processor.dart` : refus owner definitifs en conflit, authentification requise en attente, transport incertain traite selon la politique, `unknown policy` sans dispatch ; lien optionnel handler -> owner verifie avant execution ; dependence temporairement en echec bloquante mais non conflictuelle ; jamais de reconfirmation locale sans observation owner.
+- Une operation `refetch-before-retry` demeure soumise a son reconciler ; une operation `no-blind-retry` deja envoyee ne repart pas automatiquement. Un handler absent n'est pas remplace par un POST generique.
+- `mobile/lib/repositories/draft_repository.dart` : isolation stricte profil/owner/ressource, transaction `saveAndQueue` (brouillon et intention ensemble, rollback si echec), payload local distinct du payload de l'operation, garde optionnelle de single active intent. Draft/Outbox doivent partager la meme connexion SQLite et le meme Profil.
+- `mobile/lib/app/sync_lifecycle.dart` : reutilisation du lifecycle Flutter pour re-armer les retries durables pendant l'execution au premier plan. Android peut suspendre les timers ; au resume/reconnect, les timestamps SQLite restent l'autorite de scheduling. Pas de second daemon, ni de promesse d'heure exacte en arriere-plan.
+
+### Cas owner 1 — Questionnaires
+
+- `QuestionnaireSubmitCoordinator.enqueue` utilise la transaction `DraftRepository.saveAndQueue`. Les reponses du brouillon et les liens owner du message sortant sont volontairement distincts ; seule la seconde partie constitue une intention envoyable.
+- Le handler est lie explicitement a `Questionnaires`. La recuperation apres interruption continue de consulter le detail owner et ne renvoie pas aveuglement la soumission.
+- Les chemins d'API mis en outbox doivent etre relatifs et sous `api/v1/`, pas des destinations externes arbitraires.
+- `QuestionnaireFormScreen` serialize l'autosave avec l'enqueue, desactive l'edition pendant commit/attente, et n'ecrit plus un brouillon tardif apres une soumission confirmee. Les erreurs de validation owner conservent les reponses editables.
+
+### Cas owner 2 — Creation d'Espace
+
+- `SpaceCreateScreen` persiste `name`, `public_profile` et un `submission_state` dans `LocalDrafts` sous Organizations / `space.creation`.
+- **Avant le POST**, l'etat est `verification_required` et doit etre durablement ecrit ; si ce stockage echoue, le POST n'est pas tente. Une erreur de transport ne rend pas cette demande rejouable.
+- **Apres reponse du POST**, le draft peut contenir `created_space_id` et `created_space_slug` sous `created_unverified` pour permettre de reprendre la verification du droit.
+- La fermeture/reouverture relit ces donnees, evite un second POST aveugle et propose la verification de l'inventaire et du workspace. Une identite retournee par POST ne confere ni membership ni autorite.
+- La suppression du draft intervient apres confirmation des lectures owners et selection explicite de l'acteur ; un echec de nettoyage local ne retire pas une autorite deja verifiee.
+- **Pas d'operation Space.create en outbox** tant que l'API Organizations ne garantit pas une idempotence/reconciliation fiable. Aucun nouvel endpoint ni faux Space local n'a ete cree.
+
+### Tests ajoutes ou ajustes
+
+- `mobile/test/local_database_test.dart` : profil et owner pour les brouillons, rollback d'enqueue, dedup d'intent, single active form.
+- `mobile/test/outbox_processor_test.dart` : lease durable et reprise, owner 403, backoff/replay meme intent, politiques inconnues, owner mismatch, refus permanent et annulation seulement avant dispatch.
+- `mobile/test/lf5_outbox_reconciliation_test.dart` : simulated crash avec lease echue, dependance en attente d'un prerequis temporairement indisponible.
+- `mobile/test/space_creation_draft_test.dart` : brouillon Space conserve apres reentree, incertitude avant reconciliation sans nouveau POST, retour owner cree mais autorite non encore verifiee.
+
+### Limites et conditions de fermeture
+
+- **Les tests sont ecrits et pousses, mais non executes dans cette session** : le SDK Dart/Flutter n'est pas accessible au runtime local ; compilation, formatage et tests Android restent a valider. Une lecture statique n'est pas un resultat de test.
+- Le bail protege les processeurs concurrents jusqu'a son expiration. Comme tout bail sans heartbeat, il ne prouve pas « exactement une execution » si un handler reste actif au-dela ; les operations rejouables doivent conserver leur contrat owner d'idempotence, et les autres passent par reconciliation ou attente.
+- La creation d'Espace refuse volontairement le POST automatique en cas de reponse incertaine. Un futur contrat serveur prouve peut etendre ce cas, pas l'inverse.
+- Le cycle de vie Android au premier plan n'est pas Workmanager : les travaux C5/C8 doivent verifier les suspensions et redemarrages reels avant toute affirmation de scheduling garanti.
+- Le dernier HEAD de #522 et le statut des autres PR doivent etre reverifies au prochain checkpoint. Aucune integration vers `main` ou merge n'a ete effectue.
