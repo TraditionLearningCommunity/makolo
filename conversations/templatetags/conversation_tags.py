@@ -151,3 +151,19 @@ def conversation_visible_resolution(point, profile):
         return point.resolution.summary or None
     except ObjectDoesNotExist:
         return None
+
+
+@register.simple_tag
+def conversation_media_label(kind):
+    """Only labels for media/Point kinds the server actually confirmed visible."""
+    return {
+        "voice": "Vocal",
+        "audio": "Audio",
+        "image": "Photo",
+        "video": "Vidéo",
+        "file": "Document",
+        "poll": "Sondage",
+        "form": "Formulaire",
+        "confirmation": "Confirmation",
+        "exchange": "Échanges",
+    }.get(kind, "Contenu")
