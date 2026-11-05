@@ -382,13 +382,17 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                   onTap: () => _openAttachment(attachment),
                   child: Column(
                     children: [
-                      Expanded(child: Center(
-                        child: Icon(
-                          ConversationListTile.mediaIcon(kind),
-                          size: 35,
-                          color: colors.primary,
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: ConversationAttachmentViewer(
+                            key: ValueKey('conversation-details-media-preview-' + (attachment['id']?.toString() ?? index.toString())),
+                            repository: widget.repository,
+                            attachment: attachment,
+                            inline: true,
+                          ),
                         ),
-                      )),
+                      ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(6, 0, 6, 9),
                         child: Text(
