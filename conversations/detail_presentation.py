@@ -67,6 +67,8 @@ def conversation_subject_for_profile(profile, conversation, label):
             route = f"/spaces/{context.space.slug}"
         elif kind == ConversationContextKind.GROUP and context.group_id:
             route = f"/groups/{context.group_id}"
+        elif kind == ConversationContextKind.JOURNEY and context.journey_id:
+            route = f"/journeys/{context.journey_id}"
     return {
         "kind": kind,
         "label": identity,
