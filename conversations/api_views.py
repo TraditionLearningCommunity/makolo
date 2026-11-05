@@ -53,6 +53,19 @@ MAX_PAGE_SIZE = 100
 
 
 
+def _request_boolean(request, key, default=False):
+    value = request.data.get(key, default)
+    if value is True or value is False:
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1"}:
+            return True
+        if normalized in {"false", "0", ""}:
+            return False
+    raise DRFValidationError({key: "Valeur booléenne invalide."})
+
+
 def _bounded_limit(request, default=50):
     try:
         return min(max(int(request.query_params.get("limit", default)), 1), MAX_PAGE_SIZE)
@@ -439,7 +452,7 @@ class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
                     actor=request.user, conversation=conversation,
                     kind=request.data.get("kind"), title=request.data.get("title", ""),
                     body=request.data.get("body", ""), options=request.data.get("options"),
-                    multiple_choice=request.data.get("multiple_choice", False),
+                    multiple_choice=_request_boolean(request, "multiple_choice"),
                     audience_id=request.data.get("audience_id"),
                     represented_space=represented_space, client_reference=client_ref,
                 )
