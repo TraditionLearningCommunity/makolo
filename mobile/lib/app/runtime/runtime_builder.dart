@@ -4,6 +4,7 @@ import '../../data/local/profile_store.dart';
 import '../../features/access/access_assembly.dart';
 import '../../features/continuity/continuity_assembly.dart';
 import '../../features/continuity/conversation_local_delivery.dart';
+import '../../features/continuity/conversation_repository.dart';
 import '../../features/day_of/day_of_assembly.dart';
 import '../../features/live/live_repository.dart';
 import '../../features/discovery/discovery_assembly.dart';
@@ -158,6 +159,7 @@ Future<AppRuntime> buildAppRuntime({
           conversationId,
           focusPointId: focusedPointId,
         ),
+    mediaMime: ConversationRepository.mediaMime,
   );
   continuity.conversations.delivery = conversationDelivery;
   final outboxProcessor = api == null ? null : OutboxProcessor(
