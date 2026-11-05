@@ -50,12 +50,13 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Louer un véhicule à Kolwezi'), findsOneWidget);
-    expect(find.text('Votre démarche est confirmée.'), findsOneWidget);
+    expect(find.text('Votre démarche est confirmée.'), findsNothing);
+    expect(find.text('Confirmée'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Non lues'));
+    await tester.tap(find.text('Non lues (0)'));
     await tester.pumpAndSettle();
     expect(find.text('Aucune notification non lue.'), findsOneWidget);
-    expect(find.text('Toutes'), findsOneWidget);
+    expect(find.text('Toutes (1)'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
