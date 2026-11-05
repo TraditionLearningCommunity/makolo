@@ -90,3 +90,26 @@ La recherche publique invitée lit les mêmes critères d'URL et maintient le te
 - [ ] Exécution des tests, Android, Web, CI et tests carte réelle : différés au chantier 09, sans aucune attestation de succès.
 
 **Décision : chantier 05 — implémentation livrée en code, validation exécutée différée. Prochain chantier : 06 exclusivement.**
+
+## 7. Finition Carte N1/N2 — 5 novembre 2026 (PR #522)
+
+Corrections limitées à la présentation spatiale du même champ **Découvrir**, sans nouveau domaine ni cache métier. La vue N3 commune est inchangée.
+
+- Un emplacement avec plusieurs opportunités affiche jusqu'à **quatre choix au départ**, puis une **liste complète défilable** en faisant glisser le panneau ; aucun bouton « Voir plus » et aucune troncature du jeu de candidats par cette vue.
+- Les cartes du panneau utilisent les médias déjà admis, ou un avatar public déjà présent, sinon un pictogramme neutre ; titre court, porteur et horaire lorsque disponibles, sans métadonnées inventées.
+- Un choix referme la liste et ouvre l'aperçu du même candidat, en préservant le viewport. L'index spatial compact fournit maintenant un **résumé public borné à 160 caractères**, en plus des faits de localisation/temps déjà admis. L'enrichissement N2 propriétaire reste à la demande.
+- Les trois actions Carte conservent l'icône Makolo d'enregistrement, la navigation N2 et le **même** composant Sharing de Découvrir ; le serveur confirme toujours les droits avant mutation ou partage, pas la coordonnée de Carte.
+- Liens Sharing : HTTPS pour les destinations publiques. Le HTTP ne passe que pour l'environnement Django local (boucle locale ou LAN privée correspondant exactement à l'origine de l'API configurée). Sans changement de route ou de token côté backend. **Un lien de test utilisant 127.0.0.1 n'est pas un lien public utilisable depuis un autre téléphone** ; configurer `MAKOLO_PUBLIC_BASE_URL` sur une URL effectivement atteignable pour une bêta réseau, HTTPS requis en production.
+- La représentation des lieux distingue le **nombre de candidats distincts au même point** du **clustering de lieux proches selon le zoom**. Aucun doublon créé pour une Activity avec plusieurs faits spatiaux à la même coordonnée. Le repli par annotations reste disponible si MapLibre rejette des layers.
+- « Me localiser » reste flottant en bas à droite et au-dessus de la fiche sélectionnée. Le lien et les résultats restent ceux du domaine Discovery.
+
+Régressions ajoutées ou actualisées :
+
+```powershell
+cd mobile
+flutter test test/discovery_mature_screen_test.dart test/discovery_share_public_uri_test.dart test/discovery_map_pin_counts_test.dart test/discovery_compact_spatial_test.dart
+cd ..
+python manage.py test discovery.api.test_mature_discovery.MatureDiscoveryAPITests.test_compact_spatial_keeps_every_location_and_requests_details_on_demand --keepdb
+```
+
+**Vérification encore nécessaire sur Android** : rendu du panneau à 4 entrées / grand texte, scroll jusqu'au dernier choix sans action supplémentaire, tap de compteur MapLibre, lien copie/QR utilisable avec le `MAKOLO_PUBLIC_BASE_URL` réel, sélection puis retour N2. Les tests ci-dessus sont ajoutés mais ne sont pas déclarés exécutés depuis l'agent GitHub.
