@@ -2,6 +2,18 @@ name: Mobile Android Build
 run-name: "Mobile DEV APK - ${{ github.head_ref || github.ref_name }}"
 
 on:
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - "mobile/lib/**"
+      - "mobile/android/**"
+      - "mobile/assets/**"
+      - "mobile/pubspec.yaml"
+      - "mobile/pubspec.lock"
+      - "mobile/.flutter-version"
+      - "mobile/config/dev.json"
+      - ".github/workflows/mobile-android-build.yml"
   pull_request:
     paths:
       - "mobile/lib/**"
