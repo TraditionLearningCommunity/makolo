@@ -53,6 +53,7 @@ class ProfileRecognitionImageStore {
   }
 
   Future<Uint8List?> read(String path) async {
+    if (!isPublishedRecognitionPath(path)) return null;
     final file = await _file(path);
     if (!await file.exists()) return null;
     final length = await file.length();
@@ -93,8 +94,23 @@ class ProfileRecognitionImageStore {
     final partial = File('${destination.path}.part-$nonce');
     try {
       await partial.writeAsBytes(bytes, flush: true);
-      if (await destination.exists()) await destination.delete();
-      await partial.rename(destination.path);
+      // A failed replacement must leave the older published bytes intact.
+      final backup = File('${destination.path}.backup-$nonce');
+      var previous = false;
+      try {
+        if (await destination.exists()) {
+          await destination.rename(backup.path);
+          previous = true;
+        }
+        await partial.rename(destination.path);
+      } on Object {
+        if (previous && await backup.exists()) {
+          if (await destination.exists()) await destination.delete();
+          await backup.rename(destination.path);
+        }
+        rethrow;
+      }
+      if (await backup.exists()) await backup.delete();
       await _prune(destination.parent);
     } on Object {
       if (await partial.exists()) await partial.delete();
@@ -123,23 +139,32 @@ class ProfileRecognitionImageStore {
     }
   }
 
-  Future<void> remove(String path) async {
-    final file = await _file(path);
-    if (await file.exists()) await file.delete();
+  Future<void> remove(String path) {
+    if (!isPublishedRecognitionPath(path)) return Future<void>.value();
+    final work = _pendingWrites.then((_) async {
+      final file = await _file(path);
+      if (await file.exists()) await file.delete();
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
   }
 
-  /// Explicit owner revocation can purge the whole retained recognition set.
-  /// Transport timeouts and cache cleaning never call this method.
-  Future<void> purge() async {
-    final root = rootOverride == null
-        ? await ProfilePaths.privateRoot(profileId)
-        : Directory(
-            '${rootOverride!.path}/profiles/'
-            '${ProfilePaths.safeProfileId(profileId)}',
-          );
-    final directory = Directory('${root.path}/recognition-images');
-    if (await directory.exists()) {
-      await directory.delete(recursive: true);
-    }
+  /// Serialize explicit revocation with pending writes. Otherwise an image
+  /// download can restore withdrawn recognition bytes after the owner 403.
+  Future<void> purge() {
+    final work = _pendingWrites.then((_) async {
+      final root = rootOverride == null
+          ? await ProfilePaths.privateRoot(profileId)
+          : Directory(
+              '${rootOverride!.path}/profiles/'
+              '${ProfilePaths.safeProfileId(profileId)}',
+            );
+      final directory = Directory('${root.path}/recognition-images');
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
   }
 }
