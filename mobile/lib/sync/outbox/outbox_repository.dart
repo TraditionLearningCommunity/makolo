@@ -265,7 +265,10 @@ class OutboxRepository {
           (row) =>
               row.profileId.equals(profileId) &
               row.state.equals(OutboxState.awaitingConfirmation.wireValue) &
-              row.lastErrorCode.equals('authentication_required') &
+              row.lastErrorCode.isIn([
+                'authentication_required',
+                'profile_context_changed',
+              ]) &
               row.replayPolicy.isIn([
                 ReplayPolicy.safe.wireValue,
                 ReplayPolicy.idempotent.wireValue,
