@@ -139,17 +139,24 @@ void main() {
       "WHERE operation_id = 'op-unknown'",
     );
 
+    var calls = 0;
     final processor = OutboxProcessor(
       repository: repository,
       handlers: {
-        'terminal.action': (_) async => throw TimeoutException('ambiguous'),
+        'terminal.action': (_) async {
+          calls++;
+          throw TimeoutException('ambiguous');
+        },
       },
     );
     await processor.run();
 
     final row = (await database.select(database.outboxOperations).get()).single;
     expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+    expect(row.lastErrorCode, 'unsupported_replay_policy');
+    expect(calls, 0);
   });
+
   test('durable attempt lease prevents concurrent claims and recovers after crash',
       () async {
     final database = MakoloDatabase.memory();
