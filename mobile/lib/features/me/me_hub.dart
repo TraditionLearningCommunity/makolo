@@ -280,7 +280,7 @@ class _MeHubState extends State<MeHub> {
       _MeEntry(
         kind: 'saved_collection',
         title: 'Mes enregistrements',
-        subtitle: 'Opportunités enregistrées',
+        subtitle: 'À retrouver',
         icon: Icons.bookmark_rounded,
         previews: saved,
         count: _territory('considerations')?.savedCount,
@@ -384,7 +384,7 @@ class _MeHubState extends State<MeHub> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
@@ -402,12 +402,12 @@ class _MeHubState extends State<MeHub> {
                   ButtonSegment(
                     value: _MeLayout.list,
                     icon: Icon(Icons.view_list_outlined, size: 18),
-                    label: Text('Liste'),
+                    tooltip: 'Liste',
                   ),
                   ButtonSegment(
                     value: _MeLayout.grid,
                     icon: Icon(Icons.grid_view_rounded, size: 18),
-                    label: Text('Grille'),
+                    tooltip: 'Grille',
                   ),
                 ],
                 selected: {_layout},
@@ -415,7 +415,7 @@ class _MeHubState extends State<MeHub> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           if (_layout == _MeLayout.list)
             Column(
               key: const Key('me-navigation-list'),
@@ -439,8 +439,8 @@ class _MeHubState extends State<MeHub> {
                     : constraints.maxWidth;
                 return Wrap(
                   key: const Key('me-navigation-grid'),
-                  spacing: 12,
-                  runSpacing: 12,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
                     for (final entry in entries)
                       SizedBox(
@@ -610,7 +610,7 @@ class _MeHubGridEntry extends StatelessWidget {
     final count = entry.count;
     if (count == null || count <= 0) return null;
     return switch (entry.kind) {
-      'saved_collection' => '$count ${count == 1 ? 'enregistrement' : 'enregistrements'}',
+      'saved_collection' => '$count ${count == 1 ? 'opportunité' : 'opportunités'}',
       'collectives' => '$count ${count == 1 ? 'collectif' : 'collectifs'}',
       'resource_collection' => '$count ${count == 1 ? 'ressource' : 'ressources'}',
       _ => null,
@@ -632,9 +632,9 @@ class _MeHubGridEntry extends StatelessWidget {
         key: Key('me-grid-${entry.kind}'),
         onTap: canNavigate ? onOpen : null,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 158),
+          constraints: const BoxConstraints(minHeight: 150),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -651,7 +651,7 @@ class _MeHubGridEntry extends StatelessWidget {
                 Text(
                   entry.title,
                   textAlign: TextAlign.center,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w800),
@@ -660,7 +660,7 @@ class _MeHubGridEntry extends StatelessWidget {
                 Text(
                   entry.subtitle,
                   textAlign: TextAlign.center,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
