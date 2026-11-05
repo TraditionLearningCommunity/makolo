@@ -18,12 +18,14 @@ class DiscoveryWatchSummary {
     required this.name,
     this.status,
     this.statusCode,
+    this.criteria = const {},
   });
 
   final String id;
   final String name;
   final String? status;
   final String? statusCode;
+  final Map<String, String> criteria;
 }
 
 class DiscoveryWatchSelector {
@@ -44,6 +46,9 @@ class DiscoveryWatchSelector {
           name: name,
           status: MakoloHumanization.presentationLabel(_text(row['status'])),
           statusCode: _text(row['status']),
+          criteria: row['criteria'] is Map
+              ? Map<String, String>.from((row['criteria'] as Map).map((key, value) => MapEntry(key.toString(), value.toString())))
+              : const {},
         ),
       );
     }
@@ -93,25 +98,19 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
   }
 
   Future<void> _create() async {
-    final query = widget.repository.activeExploration;
-    if (query.watchCriteria.isEmpty) {
-      context.push('/discover/search');
-      return;
-    }
     final id = await showDiscoveryWatchCreation(
       context,
       repository: widget.repository,
-      query: query,
+      query: const DiscoveryQuery(),
     );
     if (mounted && id != null) {
-      context.push('/discover/watches/${Uri.encodeComponent(id)}');
+      context.push('/discover/watches/' + Uri.encodeComponent(id));
     }
   }
 
   Future<void> _change(DiscoveryWatchSummary watch, String action) async {
     if (_mutating != null) return;
     String? renamed;
-    DiscoveryQuery? newCriteria;
     if (action == 'rename') {
       final controller = TextEditingController(text: watch.name);
       try {
@@ -143,34 +142,19 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       if (renamed == null || !mounted) return;
     }
     if (action == 'criteria') {
-      final current = widget.repository.activeExploration;
-      if (current.watchCriteria.isEmpty) {
-        context.push('/discover/search');
-        return;
-      }
-      final approved = await showDialog<bool>(
-        context: context,
-        builder: (dialog) => AlertDialog(
-          title: const Text('Remplacer les critères ?'),
-          content: Text(
-            'La veille « ${watch.name} » utilisera désormais '
-            'les filtres de votre recherche actuelle. '
-            'Les possibilités enregistrées restent inchangées.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialog, true),
-              child: const Text('Remplacer'),
-            ),
-          ],
-        ),
+      final id = await showDiscoveryWatchCreation(
+        context,
+        repository: widget.repository,
+        query: DiscoveryQuery.fromRouteParameters(watch.criteria),
+        watchId: watch.id,
+        initialName: watch.name,
       );
-      if (approved != true || !mounted) return;
-      newCriteria = current;
+      if (id != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veille modifiée.')),
+        );
+      }
+      return;
     }
     if (action == 'delete') {
       final confirmed = await showDialog<bool>(
@@ -201,11 +185,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         await widget.repository.deleteWatch(watch.id);
       } else if (action == 'rename') {
         await widget.repository.editWatch(watch.id, name: renamed!);
-      } else if (action == 'criteria') {
-        await widget.repository.editWatch(
-          watch.id,
-          replaceCriteria: newCriteria!,
-        );
+      }
       } else {
         await widget.repository.updateWatchStatus(watch.id, action);
       }
@@ -216,9 +196,8 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
               switch (action) {
                 'delete' => 'Veille supprimée.',
                 'rename' => 'Veille renommée.',
-                'criteria' => 'Critères de la veille mis à jour.',
-                'pause' => 'Veille mise en pause.',
-                'activate' => 'Veille réactivée.',
+                'paused' => 'Veille mise en pause.',
+                'active' => 'Veille réactivée.',
                 _ => 'Veille mise à jour.',
               },
             ),
@@ -248,9 +227,9 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         actions: [
           IconButton(
             key: const Key('discover-watch-create'),
-            tooltip: 'Créer une veille à partir des filtres actifs',
+            tooltip: 'Créer une veille',
             onPressed: () => _create(),
-            icon: const Icon(Icons.add_alert_outlined),
+            icon: const Icon(Icons.add_rounded),
           ),
           IconButton(
             tooltip: 'Actualiser',
@@ -278,17 +257,25 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
               onRefresh: _refresh,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
-                  SizedBox(height: 120),
-                  Padding(
-                    padding: EdgeInsets.all(MakoloSpacing.inner),
-                    child: Center(
-                      child: Text(
-                        'Aucune veille enregistrée.',
-                        textAlign: TextAlign.center,
-                      ),
+                children: [
+                  const SizedBox(height: 88),
+                  const Icon(Icons.radar_outlined, size: 44),
+                  const SizedBox(height: 16),
+                  const Center(child: Text('Aucune veille enregistrée.')),
+                  const SizedBox(height: 10),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 28),
+                    child: Text(
+                      'Indiquez ce que Makolo doit continuer à rechercher pour vous.',
+                      textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  Center(child: FilledButton.icon(
+                    onPressed: _create,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Créer une veille'),
+                  )),
                 ],
               ),
             );
@@ -339,7 +326,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                         ),
                         const PopupMenuItem(
                           value: 'criteria',
-                          child: Text('Remplacer par les filtres actifs'),
+                          child: Text('Modifier les critères'),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
