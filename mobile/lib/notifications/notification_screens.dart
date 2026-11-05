@@ -539,7 +539,7 @@ class _NotificationRow {
               : null;
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
-            title: confirmed?.group(1) ??
+            title: confirmed?.group(1)?.trim() ??
                 (rawTitle == 'Confirmation Makolo'
                     ? 'Démarche confirmée'
                     : rawTitle.isEmpty
