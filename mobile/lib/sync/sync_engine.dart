@@ -28,6 +28,7 @@ class _SpaceAuthorityWithheld implements Exception {
 class _SyncCoordinator {
   final Map<String, int> generations = {};
   final Map<String, int> discoveryEpochs = {};
+  final Map<String, int> accessEpochs = {};
   final Map<String, int> spaceEpochs = {};
   final Map<String, int> spaceInventoryEpochs = {};
 }
@@ -186,6 +187,8 @@ class SyncEngine {
       '$profileId|${source.actorScope.stableKey}|${source.sourceKey}';
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
+  int get _accessRevocationEpoch =>
+      _coordinator.accessEpochs[profileId] ?? 0;
   int _spaceEpoch(String spaceId) =>
       _coordinator.spaceEpochs['$profileId|$spaceId'] ?? 0;
   int get _spaceInventoryEpoch =>
@@ -343,6 +346,7 @@ class SyncEngine {
     final generation = (coordinator.generations[key] ?? 0) + 1;
     coordinator.generations[key] = generation;
     final epoch = _discoveryRevocationEpoch;
+    final accessEpoch = _accessRevocationEpoch;
     final inventoryEpoch = _spaceInventoryEpoch;
     final spaceId = source.actorScope.spaceId;
     final spaceEpoch = spaceId == null ? 0 : _spaceEpoch(spaceId);
@@ -350,6 +354,8 @@ class SyncEngine {
         _active &&
         coordinator.generations[key] == generation &&
         (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch) &&
+        (!source.projectionKind.startsWith('personal.access') ||
+            _accessRevocationEpoch == accessEpoch) &&
         (source.projectionKind != 'space.inventory' ||
             _spaceInventoryEpoch == inventoryEpoch) &&
         (spaceId == null ||
@@ -400,6 +406,9 @@ class SyncEngine {
           return;
         }
         if (!isCurrent()) return;
+        final approved = source.projectionKind == 'personal.accesses'
+            ? await _withoutRevokedAccessRows(acquired)
+            : acquired;
         await source.applier(
           SyncApplyContext(
             database: database,
@@ -407,7 +416,7 @@ class SyncEngine {
             profileId: profileId,
             source: source,
           ),
-          acquired,
+          approved,
         );
         await database
             .into(database.syncSources)
@@ -523,6 +532,10 @@ class SyncEngine {
     if (_isDiscoveryRelated(source)) {
       coordinator.discoveryEpochs[profileId] = _discoveryRevocationEpoch + 1;
     }
+    if (source.projectionKind == 'personal.access.detail' ||
+        source.projectionKind == 'personal.accesses') {
+      coordinator.accessEpochs[profileId] = _accessRevocationEpoch + 1;
+    }
     final deniedSpace = source.projectionKind == 'space.workspace'
         ? source.actorScope.spaceId
         : null;
@@ -565,6 +578,12 @@ class SyncEngine {
           spaceId: deniedSpace,
           code: code,
         );
+      }
+      if (source.projectionKind == 'personal.access.detail') {
+        await _redactAccessFromCollections(source.resourceKey);
+      }
+      if (source.projectionKind == 'personal.accesses') {
+        await _withdrawAccessCollectionRelationship(source, code);
       }
       // The field, map, N2 and previews are a composition of owner facts.
       // Once any such owner explicitly refuses access, retaining a copy
@@ -655,7 +674,8 @@ class SyncEngine {
       }
     }
     if (source.projectionKind == 'personal.access.detail' ||
-        source.projectionKind == 'personal.accesses') {
+        (source.projectionKind == 'personal.accesses' &&
+            source.resourceKey.startsWith('beneficiary:'))) {
       try {
         final vault = SecureAccessCredentialVault();
         if (source.projectionKind == 'personal.access.detail') {
@@ -683,6 +703,111 @@ class SyncEngine {
           // Portrait cleanup is independent of recognition file cleanup.
         }
       }
+    }
+  }
+
+  /// A detail denial only withdraws this Access from cached lists.
+  /// Other beneficiary rights remain readable, without inferring authority.
+  Future<void> _redactAccessFromCollections(String accessId) async {
+    if (accessId.isEmpty) return;
+    final pages = await store.readProjections('personal.accesses');
+    for (final page in pages) {
+      final items = page.payload['items'];
+      if (items is! List) continue;
+      final retained = items.where((row) {
+        if (row is! Map) return true;
+        final identity = row['identity'];
+        return identity is! Map ||
+            identity['id']?.toString() != accessId;
+      }).toList();
+      if (retained.length == items.length) continue;
+      await store.putProjection(
+        kind: page.kind,
+        resourceKey: page.resourceKey,
+        schemaVersion: page.schemaVersion,
+        payload: {...page.payload, 'items': retained},
+        receivedAt: page.receivedAt,
+        sourceGeneratedAt: page.sourceGeneratedAt,
+        sourceUpdatedAt: page.sourceUpdatedAt,
+        lastVerifiedOnlineAt: page.lastVerifiedOnlineAt,
+        freshUntil: page.freshUntil,
+        expiresAt: page.expiresAt,
+        freshnessPolicyId: page.freshnessPolicyId,
+      );
+    }
+  }
+
+  /// A successful collection cannot resurrect a detail withdrawn by an
+  /// explicit owner 403/404. A fresh keyed-detail owner response may later
+  /// clear that exact tombstone and restore the resource.
+  Future<AcquiredProjection> _withoutRevokedAccessRows(
+    AcquiredProjection acquired,
+  ) async {
+    final items = acquired.payload['items'];
+    if (items is! List) return acquired;
+    final denied = await (database.select(database.syncSources)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    final deniedIds = <String>{
+      for (final row in denied)
+        if (row.sourceKey.startsWith('access:') &&
+            row.invalidated &&
+            _deniedOwnerState(row.lastErrorCode))
+          row.sourceKey.substring('access:'.length),
+    };
+    if (deniedIds.isEmpty) return acquired;
+    final retained = items.where((row) {
+      if (row is! Map) return true;
+      final identity = row['identity'];
+      return identity is! Map ||
+          !deniedIds.contains(identity['id']?.toString());
+    }).toList();
+    if (retained.length == items.length) return acquired;
+    return AcquiredProjection(
+      schemaVersion: acquired.schemaVersion,
+      payload: {...acquired.payload, 'items': retained},
+      sourceGeneratedAt: acquired.sourceGeneratedAt,
+      sourceUpdatedAt: acquired.sourceUpdatedAt,
+      freshUntil: acquired.freshUntil,
+      expiresAt: acquired.expiresAt,
+    );
+  }
+
+  /// A collection 403/404 is scoped to the relationship, not every Access.
+  /// In particular, a buyer's purchased_for_other list cannot revoke their
+  /// independent beneficiary QR presentations.
+  Future<void> _withdrawAccessCollectionRelationship(
+    SyncSourceDefinition source,
+    String code,
+  ) async {
+    final key = source.resourceKey;
+    final relationship = key.split(':').first;
+    if (relationship != 'beneficiary' &&
+        relationship != 'purchased_for_other') {
+      return;
+    }
+    final pages = await store.readProjections('personal.accesses');
+    for (final page in pages) {
+      if (page.resourceKey.startsWith('$relationship:')) {
+        await store.deleteProjection(
+          page.kind,
+          resourceKey: page.resourceKey,
+        );
+      }
+    }
+    final sources = await (database.select(database.syncSources)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    for (final row in sources) {
+      if (!row.sourceKey.startsWith('accesses:$relationship:')) continue;
+      await (database.update(database.syncSources)
+            ..where((item) =>
+                item.profileId.equals(profileId) &
+                item.sourceKey.equals(row.sourceKey)))
+          .write(SyncSourcesCompanion(
+            invalidated: const Value(true),
+            lastErrorCode: Value(code),
+          ));
     }
   }
 
