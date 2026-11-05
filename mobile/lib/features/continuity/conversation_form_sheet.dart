@@ -34,7 +34,7 @@ class ConversationFormSheet extends StatefulWidget {
 
 class _ConversationFormSheetState extends State<ConversationFormSheet> {
   final _title = TextEditingController();
-  final _questions = TextEditingController();
+  late final List<TextEditingController> _questionControllers;
   String? _selectedVersionId;
   String? _selectedAudienceId;
   String? _reference;
@@ -81,8 +81,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     super.initState();
     _newTemplate = _forms.isEmpty;
     _selectedAudienceId = widget.capabilities['default_audience_id']?.toString();
+    _questionControllers = [TextEditingController()];
     _title.addListener(_edited);
-    _questions.addListener(_edited);
+    for (final controller in _questionControllers) { controller.addListener(_edited); }
     unawaited(_restore());
   }
 
@@ -99,10 +100,18 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       return;
     }
     if (!mounted || data == null ||
-        _title.text.isNotEmpty || _questions.text.isNotEmpty) return;
+        _title.text.isNotEmpty || _questionControllers.any((item) => item.text.isNotEmpty)) return;
     _restoring = true;
     _title.text = data['title']?.toString() ?? '';
-    _questions.text = data['questions']?.toString() ?? '';
+    final savedQuestions = data['questions'];
+    final values = savedQuestions is List
+        ? savedQuestions.map((item) => item.toString()).toList()
+        : (savedQuestions?.toString() ?? '').split('\n').where((item) => item.trim().isNotEmpty).toList();
+    for (final controller in _questionControllers) { controller.removeListener(_edited); controller.dispose(); }
+    _questionControllers
+      ..clear()
+      ..addAll((values.isEmpty ? <String>[''] : values).map((value) => TextEditingController(text: value)));
+    for (final controller in _questionControllers) { controller.addListener(_edited); }
     _selectedVersionId = data['form_version_id']?.toString();
     _selectedAudienceId = data['audience_id']?.toString() ??
         _selectedAudienceId;
@@ -116,7 +125,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     if (delivery == null) return;
     final payload = <String, dynamic>{
       'title': _title.text,
-      'questions': _questions.text,
+      'questions': _questionControllers.map((item) => item.text).toList(),
       'new_template': _newTemplate,
       if (_selectedVersionId != null) 'form_version_id': _selectedVersionId,
       if (_selectedAudienceId != null) 'audience_id': _selectedAudienceId,
@@ -141,11 +150,13 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   void dispose() {
     _draftTimer?.cancel();
     if (!_submitted &&
-        (_title.text.isNotEmpty || _questions.text.isNotEmpty)) _saveDraft();
+        (_title.text.isNotEmpty || _questionControllers.any((item) => item.text.isNotEmpty))) _saveDraft();
     _title.removeListener(_edited);
-    _questions.removeListener(_edited);
     _title.dispose();
-    _questions.dispose();
+    for (final controller in _questionControllers) {
+      controller.removeListener(_edited);
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -198,10 +209,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       return;
     }
     final questions = _newTemplate
-        ? _questions.text.split('\n')
-            .map((value) => value.trim())
-            .where((value) => value.isNotEmpty)
-            .toList(growable: false)
+        ? _questionControllers.map((item) => item.text.trim())
+            .where((value) => value.isNotEmpty).toList(growable: false)
         : <String>[];
     if (_newTemplate && (questions.isEmpty || questions.length > 8 ||
         questions.toSet().length != questions.length)) {
@@ -353,16 +362,40 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
               ),
               if (_newTemplate) ...[
                 const SizedBox(height: 8),
-                TextField(
-                  key: const Key('conversation-form-questions'),
-                  controller: _questions,
-                  minLines: 3,
-                  maxLines: 7,
-                  decoration: const InputDecoration(
-                    labelText: 'Questions · une par ligne',
-                    border: OutlineInputBorder(),
+                Text('Questions', style: Theme.of(context).textTheme.titleSmall),
+                for (var index = 0; index < _questionControllers.length; index++)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: TextField(
+                          key: Key('conversation-form-question-' + index.toString()),
+                          controller: _questionControllers[index],
+                          minLines: 1, maxLines: 3, maxLength: 220,
+                          decoration: InputDecoration(
+                            labelText: 'Question ' + (index + 1).toString(),
+                            border: const OutlineInputBorder(), counterText: '',
+                          ),
+                        )),
+                        IconButton(
+                          tooltip: 'Supprimer cette question',
+                          onPressed: _sending || _questionControllers.length <= 1 ? null : () => setState(() {
+                            final removed = _questionControllers.removeAt(index);
+                            removed.removeListener(_edited); removed.dispose(); _edited();
+                          }),
+                          icon: const Icon(Icons.remove_circle_outline),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                  onPressed: _sending || _questionControllers.length >= 8 ? null : () => setState(() {
+                    final controller = TextEditingController();
+                    controller.addListener(_edited); _questionControllers.add(controller); _edited();
+                  }),
+                  icon: const Icon(Icons.add_rounded), label: const Text('Ajouter une question'),
+                )),
               ],
               if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
                 const SizedBox(height: 12),
