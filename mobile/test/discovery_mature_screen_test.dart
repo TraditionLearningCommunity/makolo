@@ -1515,11 +1515,13 @@ void main() {
       ),
     );
 
-    expect(find.text('8 possibilités à cet emplacement'), findsOneWidget);
+    expect(find.text('8 opportunités ici'), findsOneWidget);
     expect(find.byKey(const Key('discover-map-colocated-sheet')), findsOneWidget);
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsNothing);
     expect(find.byKey(const Key('discover-map-colocated-more')), findsOneWidget);
+    expect(find.byIcon(Icons.event_available_outlined), findsWidgets);
+    expect(find.text('Voir les 8 opportunités'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('discover-map-colocated-more')));
     await tester.pumpAndSettle();
@@ -1808,7 +1810,7 @@ void main() {
     expect(find.byKey(const Key('discover-compact-field')), findsNothing);
     expect(find.text('Voyage vers Kolwezi'), findsOneWidget);
 
-    await tester.tap(find.text('Voir le détail'));
+    await tester.tap(find.text('Voir l’opportunité'));
     await tester.pump();
     expect(opened?.candidateKey, 'activity:route');
 
@@ -1835,8 +1837,8 @@ void main() {
     );
     expect(find.byKey(const Key('discover-compact-map')), findsOneWidget);
     expect(find.byKey(const ValueKey('discover-map-empty')), findsOneWidget);
-    expect(find.text('Aucune possibilité localisée'), findsOneWidget);
-    expect(find.text('Voir le détail'), findsNothing);
+    expect(find.text('Aucune opportunité sur la carte'), findsOneWidget);
+    expect(find.text('Voir l’opportunité'), findsNothing);
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
   });
 
