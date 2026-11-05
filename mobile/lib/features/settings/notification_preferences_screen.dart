@@ -43,7 +43,7 @@ class _NotificationPreferencesScreenState
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Actualisation indisponible. Les dernières préférences connues sont conservées.',
+          () => _error = 'Impossible d’actualiser vos préférences. Les réglages enregistrés restent affichés.',
         );
       }
     } finally {
@@ -159,7 +159,7 @@ class _NotificationPreferencesScreenState
                 ),
               if (widget.repository.sync == null)
                 const Text(
-                  'Dernières préférences connues : modification hors ligne indisponible.',
+                  'Vous pouvez consulter ces réglages, mais pas les modifier pour le moment.',
                 ),
               Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.sm),
@@ -216,7 +216,7 @@ class _NotificationPreferencesScreenState
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Activer les heures calmes'),
-                subtitle: const Text('Moins d’alertes pendant vos moments de repos.'),
+                subtitle: const Text('Les alertes attendent pendant cette période.'),
                 value: values['quiet_hours_enabled'] == true,
                 onChanged: editable && quietStart != null && quietEnd != null
                     ? (value) => _change('quiet_hours_enabled', value)
@@ -252,8 +252,8 @@ class _NotificationPreferencesScreenState
                   childrenPadding: const EdgeInsets.only(
                     bottom: MakoloSpacing.md,
                   ),
-                  title: const Text('Appareils autorisés'),
-                  subtitle: const Text('Voir les appareils associés à votre compte.'),
+                  title: const Text('Appareils'),
+                  subtitle: const Text('Gérer les téléphones qui reçoivent vos alertes.'),
                   children: [
                     PushDeviceControls(
                       runtime: widget.runtime!,
