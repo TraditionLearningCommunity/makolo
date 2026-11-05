@@ -73,6 +73,20 @@ class AccessRepository {
   final MakoloApiClient? api;
   final AccessCredentialVault credentialVault;
   final Map<String, int> _credentialGenerations = {};
+  // Multiple repositories may briefly share a Profile database during
+  // runtime handoff. A 403 from either must invalidate older QR responses.
+  static final Expando<Map<String, int>> _credentialDenialEpochs =
+      Expando<Map<String, int>>('access-credential-denials-per-database');
+
+  String _credentialScopeKey(String accessId) => '$profileId|$accessId';
+  int _denialEpoch(String accessId) =>
+      _credentialDenialEpochs[database]?[_credentialScopeKey(accessId)] ?? 0;
+
+  void _advanceDenialEpoch(String accessId) {
+    final epochs = _credentialDenialEpochs[database] ??= <String, int>{};
+    final key = _credentialScopeKey(accessId);
+    epochs[key] = (epochs[key] ?? 0) + 1;
+  }
 
   String collectionResourceKey({
     required String relationship,
@@ -438,8 +452,10 @@ class AccessRepository {
     }
     final generation = (_credentialGenerations[accessId] ?? 0) + 1;
     _credentialGenerations[accessId] = generation;
+    final denialEpoch = _denialEpoch(accessId);
     bool isCurrent() =>
         _credentialGenerations[accessId] == generation &&
+        _denialEpoch(accessId) == denialEpoch &&
         sync?.isActive != false;
 
     late final Map<String, dynamic> data;
@@ -455,6 +471,7 @@ class AccessRepository {
     } on MakoloApiError catch (error) {
       if (isCurrent() &&
           (error.statusCode == 403 || error.statusCode == 404)) {
+        _advanceDenialEpoch(accessId);
         await _markCredentialRetention(accessId, denied: true);
         try {
           await credentialVault.delete(profileId, accessId);
@@ -554,6 +571,14 @@ class AccessRepository {
       }
     }
 
+    // Credential payload is never returned after a concurrent owner
+    // withdrawal, runtime switch, or stale response. Offline-retention
+    // denial alone does not prevent an owner-approved online presentation.
+    if (!isCurrent() ||
+        (await readSource(accessId)).invalidated ||
+        await _hasRevokedBeneficiaryCollection()) {
+      throw StateError('AccessCredential authority changed during request');
+    }
     return AccessCredentialData(
       accessId: accessId,
       credentialType: credentialType,
