@@ -287,3 +287,31 @@ Flutter, depuis `mobile/` : `flutter pub get` puis `dart format --output=none --
 Recette visuelle : Conversation directe, Activity/Occurrence multipoints, Space multi-audiences et Conversation longue 150+ Points ; Compact 360/430, Medium 834, Wide 1440, clair/sombre, texte 1,6, réduction des animations, clavier et retour depuis N2. Android réel : ouvrir Conversation, répondre, publier, revenir au nouveau Point, capturer/annuler/envoyer un vocal, passer en mode avion et reprendre ; recueillir captures/Goldens réels.
 
 **État de vérification :** les changements C5 et tests ciblés sont présents dans la PR #522 ; aucune exécution locale Flutter/Django sur le HEAD C5, aucun rendu Android réel ni Golden de référence nouvellement généré n'a été attesté depuis cet environnement connecté au dépôt. Ces gates restent obligatoires pour déclarer « livré, intégré et vérifié » et pour toute fusion ; ne pas les inscrire comme verts sans preuve.
+
+
+## 18. C5-UX-Liste — Lecture visuelle immédiate des Conversations (5 novembre 2026)
+
+### Problème observé
+
+La liste N1 affichait simultanément le contexte complet, un titre de préparation contenant une copie du contexte, puis de longs textes métier. Sur mobile, une seule Conversation pouvait occuper une grande partie de l'écran. Il manquait les repères visuels (type de contexte, forme de contenus, résultat et action attendue). L'objectif n'est **pas** de se différencier artificiellement d'une messagerie : il est de réduire l'effort pour reconnaître et ouvrir la Conversation utile.
+
+### Contrat de présentation dérivée
+
+La liste et la recherche gardent leurs champs API historiques (`id`, `title`, `purpose`, `context`, `attention_count`, `latest_result`, `updated_at`) et ajoutent une clé **`card`** calculée côté serveur :
+
+- `card.title` : identité courte, privilégiant le sujet contextuel en cas de titre composé comme « Préparation pratique — [sujet] » ; le titre métier original demeure intact dans la Conversation.
+- `card.context_label` : contexte secondaire, sans répéter le sujet. `card.context_kind` : famille canonique du contexte pour choisir une icône explicite.
+- `card.preview` et `card.preview_kind` : résultat autorisé, à défaut Point visible, à défaut finalité existante. Le client tronque **visuellement** le texte sans réécrire ni posséder les vérités métier.
+- `card.media_kinds` : maximum quatre signaux issus de Points visibles (`poll`, `form`, `confirmation`, `exchange`) ou de pièces jointes dont le téléchargement est réellement autorisé (`voice`, `audio`, `image`, `video`, `file`). Aucun nom de fichier, miniature privée, identité de répondant ou faux compte « non lu » dans la liste.
+- `card.context_image_url` : seulement la couverture d'un Event propriétaire déjà publié sur une Activity publique et publiée, et uniquement si l'URL de média est relative au même site. Direct, Space, Group et autres contextes utilisent leurs icônes sans exposer d'avatar ou de média dont la politique de visibilité n'est pas démontrée.
+- `card.attention_count` : nombre de Points réellement à traiter, pas nombre de messages reçus. Les archives, masquages et recherches restent scindés par viewer.
+
+### Contrat mobile et Web
+
+Chaque ligne a un élément visuel de 56 px environ, titre sur deux lignes maximum, contexte sur une ligne, résultat/aperçu sur une ligne, indices médias à faible poids visuel et badge d'action réel si nécessaire. La ligne entière est accessible et ouvre le même N1 (ou le Point issu d'une recherche). Couleurs, Typographies et espacements réutilisent les tokens Makolo. Flutter conserve la compatibilité avec les anciennes projections local-first dépourvues de `card`. L'aperçu ne devient jamais une timeline.
+
+### Validation
+
+Serveur : `python manage.py test conversations.test_c5_mature conversations.test_m9c_performance` ; inclut contexte très long, signal d'image/vocal filtré par audiences distinctes, couverture Event publiée/non publiée et lecture Web. Flutter : `flutter test test/conversation_list_tile_test.dart test/conversation_mature_repository_test.dart` et `flutter analyze`. Recette visuelle sur Android : 320/360/430 px, texte 1,6, clair/sombre ; puis tablette/large, photo de couverture publique, média privé non révélé, recherche et retour. Le budget de requêtes M9-C et les tests de permissions restent des critères de sortie.
+
+Cette correction C5 est implémentée dans la PR #522 sans nouveau modèle, migration ni API propriétaire parallèle. L'attestation d'une compilation/flutter test et la vérification visuelle sur un Android réel exigent toujours leur exécution effective.
