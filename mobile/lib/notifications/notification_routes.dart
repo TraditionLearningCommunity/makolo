@@ -3,17 +3,14 @@ import 'package:go_router/go_router.dart';
 import '../app/runtime/app_runtime.dart';
 import '../features/settings/notification_preferences_screen.dart' as settings;
 import '../navigation/secondary_screen.dart';
-import 'notification_repository.dart';
 import 'notification_screens.dart';
 
 List<RouteBase> notificationRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/settings/notifications',
     builder: (context, state) {
-      final database = runtime.database;
-      final store = runtime.store;
-      final profileId = runtime.session?.profileId;
-      if (database == null || store == null || profileId == null) {
+      final repository = runtime.notifications;
+      if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'Notifications',
           message: 'Les préférences ne sont pas disponibles dans ce contexte.',
@@ -21,34 +18,21 @@ List<RouteBase> notificationRoutes(AppRuntime runtime) => [
       }
       return settings.NotificationPreferencesScreen(
         runtime: runtime,
-        repository: NotificationRepository(
-          database: database,
-          store: store,
-          profileId: profileId,
-          sync: runtime.sync,
-        ),
+        repository: repository,
       );
     },
   ),
   GoRoute(
     path: '/notifications',
     builder: (context, state) {
-      final database = runtime.database;
-      final store = runtime.store;
-      final profileId = runtime.session?.profileId;
-      if (database == null || store == null || profileId == null) {
+      final repository = runtime.notifications;
+      if (repository == null) {
         return const MakoloSecondaryScreen(
           title: 'Notifications',
           message:
               'Les notifications ne sont pas disponibles dans ce contexte.',
         );
       }
-      final repository = NotificationRepository(
-        database: database,
-        store: store,
-        profileId: profileId,
-        sync: runtime.sync,
-      );
       return NotificationInboxScreen(
         runtime: runtime,
         repository: repository,
