@@ -6,6 +6,7 @@ import '../../features/continuity/continuity_assembly.dart';
 import '../../features/day_of/day_of_assembly.dart';
 import '../../features/live/live_repository.dart';
 import '../../features/discovery/discovery_assembly.dart';
+import '../../features/discovery/discovery_repository.dart';
 import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
@@ -139,6 +140,49 @@ Future<AppRuntime> buildAppRuntime({
     journeys: journeys,
     sync: sync,
   );
+  final discovery = buildDiscoveryRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    api: api,
+    sync: sync,
+  );
+  final accesses = buildAccessRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    api: api,
+    sync: sync,
+  );
+  final resources = ResourceRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+    api: api,
+  );
+  final space = buildWorkspaceContextRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    actorContext: actorContext,
+    sync: sync,
+  );
+
+  // A bounded personal working set is registered once at composition time.
+  // Refreshing it is owned by SyncLifecycle, not by destination widgets.
+  // All definitions reuse the exact source and parser of their repository.
+  sync
+    ?..registerPreparedSource(discovery.itemsSource(const DiscoveryQuery()))
+    ..registerPreparedSource(
+      accesses.collectionSourceFor(relationship: 'beneficiary', offset: 0),
+    )
+    ..registerPreparedSource(
+      resources.collectionSourceFor(query: '', offset: 0),
+    )
+    ..registerPreparedSource(continuity.history.sourceFor(offset: 0))
+    ..registerPreparedSource(continuity.conversations.listSource())
+    ..registerPreparedSource(space.inventorySource());
 
   return AppRuntime(
     tokens: tokens,
@@ -155,22 +199,10 @@ Future<AppRuntime> buildAppRuntime({
     store: store,
     personal: personal,
     interoperability: interoperability,
-    discovery: buildDiscoveryRepository(
-      database: database,
-      store: store,
-      profileId: profileId,
-      api: api,
-      sync: sync,
-    ),
+    discovery: discovery,
     location: locationFactory(config),
     geoSearch: geoSearch,
-    accesses: buildAccessRepository(
-      database: database,
-      store: store,
-      profileId: profileId,
-      api: api,
-      sync: sync,
-    ),
+    accesses: accesses,
     dayOf: buildDayOfRepository(
       database: database,
       store: store,
@@ -189,13 +221,7 @@ Future<AppRuntime> buildAppRuntime({
     conversations: continuity.conversations,
     requirements: preparation.requirements,
     preparationResources: preparation.resources,
-    resources: ResourceRepository(
-      database: database,
-      store: store,
-      profileId: profileId,
-      sync: sync,
-      api: api,
-    ),
+    resources: resources,
     questionnaires: questionnaires.repository,
     drafts: drafts,
     questionnaireSubmit: questionnaires.submit,
@@ -208,13 +234,7 @@ Future<AppRuntime> buildAppRuntime({
       profileId: profileId,
       sync: sync,
     ),
-    space: buildWorkspaceContextRepository(
-      database: database,
-      store: store,
-      profileId: profileId,
-      actorContext: actorContext,
-      sync: sync,
-    ),
+    space: space,
     spaceOccurrences: SpaceOccurrenceRepository(
       database: database,
       store: store,
