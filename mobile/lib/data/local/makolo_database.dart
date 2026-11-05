@@ -24,49 +24,17 @@ class MakoloDatabase extends _$MakoloDatabase {
 
   factory MakoloDatabase.memory() => MakoloDatabase(NativeDatabase.memory());
 
-  /// Canonical UUID-like Profile IDs retain their established path. Other
-  /// identities use a reversible, collision-free encoding: replacing every
-  /// punctuation character with '_' could put two Profiles in one database.
   static String profileDirectoryKey(String profileId) {
     if (profileId.isEmpty) {
       throw ArgumentError.value(profileId, 'profileId', 'must not be empty');
     }
     const prefix = '__encoded__';
-    if (RegExp(r'^[A-Za-z0-9_-]+
-    await directory.create(recursive: true);
-    return MakoloDatabase(
-      NativeDatabase.createInBackground(
-        File('${directory.path}/makolo.sqlite'),
-      ),
-    );
-  }
-
-  @override
-  int get schemaVersion => 2;
-
-  @override
-  MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) => m.createAll(),
-    onUpgrade: (m, from, to) async {
-      if (from < 2) {
-        await m.createTable(resourceIndex);
-        await m.addColumn(outboxOperations, outboxOperations.lastErrorCode);
-      }
-    },
-    beforeOpen: (details) async {
-      await customStatement('PRAGMA foreign_keys = ON');
-      await customStatement(
-        'CREATE INDEX IF NOT EXISTS outbox_profile_state '
-        'ON outbox_operations(profile_id, state, observed_at)',
-      );
-    },
-  );
-}
-).hasMatch(profileId) &&
+    if (!RegExp(r'[^A-Za-z0-9_-]').hasMatch(profileId) &&
         !profileId.startsWith(prefix)) {
       return profileId;
     }
-    return '$prefix${base64Url.encode(utf8.encode(profileId)).replaceAll('=', '')}';
+    final encoded = base64Url.encode(utf8.encode(profileId)).replaceAll('=', '');
+    return '$prefix$encoded';
   }
 
   static Future<MakoloDatabase> openForProfile(String profileId) async {
