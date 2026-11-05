@@ -345,6 +345,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                   ),
                                 );
                               }
+                              if (connectionUnavailable && hasMore) {
+                                return const SizedBox.shrink();
+                              }
                               if (_pageFailed) {
                                 return Center(
                                   child: TextButton(
