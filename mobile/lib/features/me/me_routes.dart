@@ -4,12 +4,16 @@ import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
+import '../continuity/objective_collection_screen.dart';
+import '../continuity/objective_repository.dart';
 import 'me_screen.dart';
 import 'me_passport_screen.dart';
 import 'me_profile_screen.dart';
 import 'me_saved_screen.dart';
 import 'me_considerations_screen.dart';
 import 'me_collectives_screen.dart';
+import 'me_follows_screen.dart';
+import 'me_support_screen.dart';
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -21,6 +25,26 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         onOpenDestination: (destination) {
           if (destination.kind == 'history') {
             context.push('/history');
+            return true;
+          }
+          if (destination.kind == 'project_collection') {
+            context.push('/me/projects');
+            return true;
+          }
+          if (destination.kind == 'dossier_collection') {
+            context.push('/me/dossiers');
+            return true;
+          }
+          if (destination.kind == 'watches_collection') {
+            context.push('/discover/watches');
+            return true;
+          }
+          if (destination.kind == 'follows_collection') {
+            context.push('/me/follows');
+            return true;
+          }
+          if (destination.kind == 'support_collection') {
+            context.push('/me/support');
             return true;
           }
           if (destination.kind == 'considerations') {
@@ -83,6 +107,68 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'projects',
+          builder: (context, state) => runtime.objectives == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes projets',
+                  message: 'Mes projets sont momentanément indisponibles.',
+                )
+              : ObjectiveCollectionScreen(
+                  kind: ObjectiveDepth.project,
+                  repository: runtime.objectives!,
+                  onOpenItem: (id) => context.push('/projects/$id'),
+                ),
+        ),
+        GoRoute(
+          path: 'dossiers',
+          builder: (context, state) => runtime.objectives == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes dossiers',
+                  message: 'Mes dossiers sont momentanément indisponibles.',
+                )
+              : ObjectiveCollectionScreen(
+                  kind: ObjectiveDepth.dossier,
+                  repository: runtime.objectives!,
+                  onOpenItem: (id) => context.push('/dossiers/$id'),
+                ),
+        ),
+        GoRoute(
+          path: 'follows',
+          builder: (context, state) =>
+              runtime.api == null || runtime.personal == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes suivis',
+                  message: 'Mes suivis sont momentanément indisponibles.',
+                )
+              : MeFollowsScreen(
+                  api: runtime.api!,
+                  personal: runtime.personal!,
+                  onOpenDestination: (destination) {
+                    if (destination.kind == 'profile') {
+                      context.push('/people/${destination.id}');
+                      return true;
+                    }
+                    if (destination.kind == 'space' &&
+                        destination.link != null) {
+                      context.push(
+                        '/spaces/${Uri.encodeComponent(destination.link!)}',
+                      );
+                      return true;
+                    }
+                    return false;
+                  },
+                ),
+        ),
+        GoRoute(
+          path: 'support',
+          builder: (context, state) => runtime.personal == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes appuis',
+                  message: 'Mes appuis sont momentanément indisponibles.',
+                )
+              : MeSupportScreen(personal: runtime.personal!),
+        ),
         GoRoute(
           path: 'collectives',
           builder: (context, state) =>
