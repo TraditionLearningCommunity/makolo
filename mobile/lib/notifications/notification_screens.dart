@@ -245,10 +245,23 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     ),
                     icon: const Icon(Icons.tune_rounded),
                   ),
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+                  PopupMenuButton<String>(
+                    tooltip: 'Actions des notifications',
+                    onSelected: (action) {
+                      if (action == 'read-all') unawaited(_markAllRead());
+                      if (action == 'refresh') unawaited(_refresh());
+                    },
+                    itemBuilder: (_) => [
+                      if (unread is num && unread > 0)
+                        const PopupMenuItem(
+                          value: 'read-all',
+                          child: Text('Tout marquer comme lu'),
+                        ),
+                      const PopupMenuItem(
+                        value: 'refresh',
+                        child: Text('Actualiser'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -266,31 +279,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                 onRetry: _refresh,
                 content: Column(
                   children: [
-                    if (total is num && unread is num)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          MakoloSpacing.inner,
-                          MakoloSpacing.sm,
-                          MakoloSpacing.inner,
-                          0,
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: MakoloSpacing.md,
-                            runSpacing: 4,
-                            children: [
-                              Text('${total.toInt()} notifications'),
-                              Text(
-                                '${unread.toInt()} non lues',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         MakoloSpacing.inner,
@@ -298,27 +286,28 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                         MakoloSpacing.inner,
                         MakoloSpacing.sm,
                       ),
-                      child: Wrap(
-                        spacing: MakoloSpacing.sm,
-                        runSpacing: MakoloSpacing.sm,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          ChoiceChip(
-                            label: const Text('Toutes'),
-                            selected: !_onlyUnread,
-                            onSelected: (_) => _chooseFilter(false),
-                          ),
-                          ChoiceChip(
-                            label: const Text('Non lues'),
-                            selected: _onlyUnread,
-                            onSelected: (_) => _chooseFilter(true),
-                          ),
-                          if (unread is num && unread > 0)
-                            TextButton(
-                              onPressed: _markAllRead,
-                              child: const Text('Tout marquer comme lu'),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: MakoloSpacing.sm,
+                          runSpacing: MakoloSpacing.sm,
+                          children: [
+                            ChoiceChip(
+                              showCheckmark: false,
+                              visualDensity: VisualDensity.compact,
+                              label: Text('Toutes${total is num ? ' (${total.toInt()})' : ''}'),
+                              selected: !_onlyUnread,
+                              onSelected: (_) => _chooseFilter(false),
                             ),
-                        ],
+                            ChoiceChip(
+                              showCheckmark: false,
+                              visualDensity: VisualDensity.compact,
+                              label: Text('Non lues${unread is num ? ' (${unread.toInt()})' : ''}'),
+                              selected: _onlyUnread,
+                              onSelected: (_) => _chooseFilter(true),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     Expanded(
@@ -369,7 +358,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                   child: Text(
                                     hasMore
                                         ? '${remaining} autres à afficher'
-                                        : 'Vous avez tout vu',
+                                        : 'Aucune autre notification',
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ),
@@ -471,6 +460,7 @@ class _NotificationRow {
     required this.isRead,
     this.createdAt,
     this.destinationPath,
+    this.confirmed = false,
   });
 
   final String id;
@@ -479,6 +469,7 @@ class _NotificationRow {
   final bool isRead;
   final DateTime? createdAt;
   final String? destinationPath;
+  final bool confirmed;
 
   static List<_NotificationRow> fromProjection(StoredProjection? projection) {
     final raw = projection?.payload['results'];
@@ -504,9 +495,8 @@ class _NotificationRow {
                     : rawTitle.isEmpty
                         ? 'Notification'
                         : rawTitle),
-            message: confirmed == null
-                ? rawMessage
-                : 'Votre démarche est confirmée.',
+            message: confirmed == null ? rawMessage : '',
+            confirmed: confirmed != null,
             isRead: row['is_read'] == true,
             createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
             destinationPath: path,
