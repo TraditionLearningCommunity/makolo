@@ -180,24 +180,28 @@ Future<AppRuntime> buildAppRuntime({
   // A bounded personal working set is registered once at composition time.
   // Refreshing it is owned by SyncLifecycle, not by destination widgets.
   // All definitions reuse the exact source and parser of their repository.
-  sync
-    ?..registerPreparedSource(
+  if (sync != null) {
+    sync.registerPreparedSource(
       space.inventorySource(),
       acquire: space.refreshInventory,
-    )
-    ..registerPreparedSource(
-      discovery.itemsSource(const DiscoveryQuery()),
-      acquire: () => discovery.refreshItems(const DiscoveryQuery()),
-    )
-    ..registerPreparedSource(
-      accesses.collectionSourceFor(relationship: 'beneficiary', offset: 0),
-    )
-    ..registerPreparedSource(
-      resources.collectionSourceFor(query: '', offset: 0),
-    )
-    ..registerPreparedSource(continuity.conversations.listSource())
-    ..registerPreparedSource(notifications.listSource())
-    ..registerPreparedSource(continuity.history.sourceFor(offset: 0));
+    );
+    if (discovery != null) {
+      sync.registerPreparedSource(
+        discovery.itemsSource(const DiscoveryQuery()),
+        acquire: () => discovery.refreshItems(const DiscoveryQuery()),
+      );
+    }
+    sync
+      ..registerPreparedSource(
+        accesses.collectionSourceFor(relationship: 'beneficiary', offset: 0),
+      )
+      ..registerPreparedSource(
+        resources.collectionSourceFor(query: '', offset: 0),
+      )
+      ..registerPreparedSource(continuity.conversations.listSource())
+      ..registerPreparedSource(notifications.listSource())
+      ..registerPreparedSource(continuity.history.sourceFor(offset: 0));
+  }
 
   return AppRuntime(
     tokens: tokens,
