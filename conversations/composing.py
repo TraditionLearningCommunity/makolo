@@ -166,7 +166,7 @@ def _validate_represented_context(conversation, represented_space):
 
 def publish_composed_point(
     *, actor, conversation, kind, title="", body="", options=None,
-    audience_id=None, represented_space=None, client_reference=None,
+    multiple_choice=False, audience_id=None, represented_space=None, client_reference=None,
 ):
     if kind not in COMPOSABLE_KINDS:
         raise ValidationError({"kind": "Ce type de Point n'est pas disponible."})
@@ -188,6 +188,10 @@ def publish_composed_point(
         title = _clean_text(title, "title", limit=220)
         if len(body) > MAX_TEXT_LENGTH:
             raise ValidationError({"body": "Ce texte est trop long."})
+    if not isinstance(multiple_choice, bool):
+        raise ValidationError({"multiple_choice": "Valeur de choix multiples invalide."})
+    if kind != ConversationPointKind.POLL and multiple_choice:
+        raise ValidationError({"multiple_choice": "Cette option concerne uniquement les sondages."})
     if kind == ConversationPointKind.POLL:
         if not isinstance(options, list):
             raise ValidationError({"options": "Ajoutez au moins deux choix."})
@@ -203,7 +207,10 @@ def publish_composed_point(
         ConversationPointKind.QUESTION: ConversationPointResponseMode.FREE_TEXT,
         ConversationPointKind.REQUEST: ConversationPointResponseMode.FREE_TEXT,
         ConversationPointKind.CONFIRMATION: ConversationPointResponseMode.BOOLEAN,
-        ConversationPointKind.POLL: ConversationPointResponseMode.SINGLE_CHOICE,
+        ConversationPointKind.POLL: (
+            ConversationPointResponseMode.MULTIPLE_CHOICE
+            if multiple_choice else ConversationPointResponseMode.SINGLE_CHOICE
+        ),
         ConversationPointKind.EXCHANGE: ConversationPointResponseMode.FREE_TEXT,
     }[kind]
     return create_point(
