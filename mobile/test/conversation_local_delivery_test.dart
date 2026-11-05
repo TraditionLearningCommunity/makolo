@@ -43,6 +43,14 @@ void main() {
       dio: MockClient((request) async {
         requests.add(request);
         if (!reachable) return const MockResponse('{"error":"unavailable"}', 503);
+        if (request.url.path.endsWith('/media/')) {
+          return MockResponse(
+            jsonEncode({
+              'point_id': 'point-confirmed',
+              'attachment': {'id': 'attachment-confirmed'},
+            }), 200,
+          );
+        }
         if (request.url.path.endsWith('/compose/') ||
             request.url.path.endsWith('/forms/')) {
           return MockResponse(
@@ -191,6 +199,8 @@ void main() {
     expect(fields['title'], 'Vous aimez cette photo ?');
     expect(fields['body'], 'Laquelle préférez-vous ?');
     expect(data.files.single.key, 'file');
+    final rows = await database.select(database.outboxOperations).get();
+    expect(rows.single.state, OutboxState.confirmed.wireValue);
   });
 
   test('a mismatched Profile cannot dispatch a queued owner mutation', () async {
