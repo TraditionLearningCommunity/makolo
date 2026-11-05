@@ -7,6 +7,7 @@ import '../questionnaires/questionnaire_form_screen.dart';
 import '../questionnaires/questionnaire_repository.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_screens.dart';
+import 'conversation_details_screen.dart';
 import 'conversation_history_screen.dart';
 import 'history_screen.dart';
 import 'objective_repository.dart';
@@ -56,6 +57,25 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
     },
   ),
   GoRoute(
+    path: '/conversations/:id/details',
+    builder: (context, state) {
+      final repository = runtime.conversations;
+      if (repository == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Conversation',
+          message: 'Détails indisponibles sur cet appareil.',
+        );
+      }
+      final id = state.pathParameters['id']!;
+      return ConversationDetailsScreen(
+        repository: repository,
+        conversationId: id,
+        onOpenHistory: () => context.push('/conversations/$id/history'),
+        onOpenConversation: () => context.pop(),
+      );
+    },
+  ),
+  GoRoute(
     path: '/conversations/:id',
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
@@ -72,6 +92,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         repository: repository,
         representedSpaceId: actor is SpaceActorContext ? actor.space.id : null,
         focusPointId: state.uri.queryParameters['focus'],
+        onOpenDetails: () => context.push(
+          '/conversations/${state.pathParameters['id']}/details',
+        ),
         onOpenHistory: () => context.push(
           '/conversations/${state.pathParameters['id']}/history',
         ),
