@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import FileResponse, Http404
 from uuid import UUID
@@ -570,6 +572,21 @@ class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
         declared = request.data.get("mime_type")
         if declared and upload.content_type in {"application/octet-stream", ""}:
             upload.content_type = str(declared)
+
+        def structured_list(field):
+            raw = request.data.get(field)
+            if raw is None:
+                return None
+            try:
+                parsed = json.loads(raw) if isinstance(raw, str) else raw
+            except (TypeError, ValueError, json.JSONDecodeError):
+                raise DRFValidationError({field: "Liste invalide."})
+            if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
+                raise DRFValidationError({field: "Liste invalide."})
+            return parsed
+
+        options = structured_list("options")
+        questions = structured_list("questions")
         try:
             point, attachment = upload_conversation_media(
                 actor=request.user, conversation=conversation,
@@ -579,6 +596,10 @@ class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
                 point_id=request.data.get("point_id") or None,
                 audience_id=request.data.get("audience_id") or None,
                 represented_space=_represented_space_from_request(request),
+                point_kind=request.data.get("point_kind") or None,
+                title=request.data.get("title") or "",
+                options=options, form_version_id=request.data.get("form_version_id") or None,
+                questions=questions,
             )
             return Response({
                 "point_id": str(point.pk), "attachment": serialize_attachment(attachment),
