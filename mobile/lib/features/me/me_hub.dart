@@ -727,8 +727,7 @@ class _MeDomainSymbolPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    switch (kind) {
-      case 'project_collection':
+    if (kind == 'project_collection') {
         // One living horizon: a crown, a trunk and visible roots.
         final crown = Path()
           ..moveTo(18, 5)
@@ -746,7 +745,7 @@ class _MeDomainSymbolPainter extends CustomPainter {
         canvas.drawLine(const Offset(18, 29), const Offset(10, 33), stroke);
         canvas.drawLine(const Offset(18, 29), const Offset(25, 33), stroke);
         canvas.drawLine(const Offset(18, 30), const Offset(18, 34), stroke);
-      case 'dossier_collection':
+    } else if (kind == 'dossier_collection') {
         // Papers extend above the folder, so it cannot be mistaken for assets.
         final paper = Path()
           ..moveTo(13, 13)
@@ -769,7 +768,7 @@ class _MeDomainSymbolPainter extends CustomPainter {
           ..close();
         canvas.drawPath(folder, stroke);
         canvas.drawLine(const Offset(8, 22), const Offset(28, 22), stroke);
-      case 'resource_collection':
+    } else if (kind == 'resource_collection') {
         // Three independent files, not another folder or project.
         final backFile = Path()
           ..moveTo(5, 12)
