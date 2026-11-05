@@ -36,7 +36,7 @@ class _PointDraft {
 
   final String title;
   final String body;
-  final String options;
+  final List<String> options;
   final String? audienceId;
   final String? reference;
 
@@ -50,7 +50,9 @@ class _PointDraft {
   factory _PointDraft.fromPayload(Map<String, dynamic> payload) => _PointDraft(
     title: payload['title']?.toString() ?? '',
     body: payload['body']?.toString() ?? '',
-    options: payload['options']?.toString() ?? '',
+    options: payload['options'] is List
+        ? (payload['options'] as List).map((item) => item.toString()).toList()
+        : (payload['options']?.toString() ?? '').split('\\n').where((item) => item.trim().isNotEmpty).toList(),
     audienceId: payload['audience_id']?.toString(),
   );
 }
@@ -603,7 +605,7 @@ class _ComposePointSheet extends StatefulWidget {
 class _ComposePointSheetState extends State<_ComposePointSheet> {
   late final TextEditingController _title;
   late final TextEditingController _body;
-  late final TextEditingController _options;
+  late final List<TextEditingController> _optionControllers;
   String? _reference;
   String? _audienceId;
   String? _error;
@@ -625,20 +627,20 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     final draft = widget.initialDraft;
     _title = TextEditingController(text: draft?.title ?? '');
     _body = TextEditingController(text: draft?.body ?? '');
-    _options = TextEditingController(text: draft?.options ?? '\n');
+    _optionControllers = (draft?.options.isNotEmpty == true ? draft!.options : <String>['', '']).map((value) => TextEditingController(text: value)).toList();
+    for (final controller in _optionControllers) { controller.addListener(_changed); }
     _reference = draft?.reference;
     _audienceId = draft?.audienceId ??
         widget.capabilities['default_audience_id']?.toString();
     _title.addListener(_changed);
     _body.addListener(_changed);
-    _options.addListener(_changed);
   }
 
   void _saveDraft() {
     final draft = _PointDraft(
       title: _title.text,
       body: _body.text,
-      options: _options.text,
+      options: _optionControllers.map((item) => item.text).toList(),
       audienceId: _audienceId,
       reference: _reference,
     );
@@ -657,7 +659,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   void dispose() {
     _title.dispose();
     _body.dispose();
-    _options.dispose();
+    for (final controller in _optionControllers) { controller.removeListener(_changed); controller.dispose(); }
     super.dispose();
   }
 
@@ -718,12 +720,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       setState(() => _error = 'Choisissez les destinataires.');
       return;
     }
-    final options = kind == 'poll'
-        ? _options.text.split('\n')
-            .map((item) => item.trim())
-            .where((item) => item.isNotEmpty)
-            .toList(growable: false)
-        : <String>[];
+    final options = kind == 'poll' ? _optionControllers.map((item) => item.text.trim()).where((item) => item.isNotEmpty).toList(growable: false) : <String>[];
     if (kind == 'poll' &&
         (options.length < 2 || options.length > 12 ||
             options.toSet().length != options.length)) {
@@ -844,17 +841,43 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   border: OutlineInputBorder(),
                 ),
               ),
-            if (kind == 'poll')
-              TextField(
-                key: const Key('conversation-compose-options'),
-                controller: _options,
-                minLines: 3,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Choix · un par ligne',
-                  border: OutlineInputBorder(),
+            if (kind == 'poll') ...[
+              const SizedBox(height: 12),
+              Text('Choix', style: Theme.of(context).textTheme.titleSmall),
+              for (var index = 0; index < _optionControllers.length; index++)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: TextField(
+                        key: Key('conversation-compose-option-' + index.toString()),
+                        controller: _optionControllers[index],
+                        minLines: 1, maxLines: 3, maxLength: 220,
+                        decoration: InputDecoration(
+                          labelText: 'Choix ' + (index + 1).toString(),
+                          border: const OutlineInputBorder(), counterText: '',
+                        ),
+                      )),
+                      IconButton(
+                        tooltip: 'Supprimer ce choix',
+                        onPressed: _sending || _optionControllers.length <= 2 ? null : () => setState(() {
+                          final removed = _optionControllers.removeAt(index);
+                          removed.removeListener(_changed); removed.dispose(); _changed();
+                        }),
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                onPressed: _sending || _optionControllers.length >= 12 ? null : () => setState(() {
+                  final controller = TextEditingController();
+                  controller.addListener(_changed); _optionControllers.add(controller); _changed();
+                }),
+                icon: const Icon(Icons.add_rounded), label: const Text('Ajouter un choix'),
+              )),
+            ],
             // Media are content of this structured Point, not another type
             // or an Information created next to it.
             if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
