@@ -991,9 +991,12 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     if (controller == null) return Future<void>.value();
     final generation = ++_pinGeneration;
     final locations = <String, DiscoverySpatialAnchor>{};
+    final candidatesAtLocation = <String, Set<String>>{};
     for (final anchor in anchors) {
       final key = '${anchor.latitude}:${anchor.longitude}';
       locations.putIfAbsent(key, () => anchor);
+      candidatesAtLocation.putIfAbsent(key, () => <String>{})
+          .add(anchor.candidateKey);
     }
     // MapLibre source updates are asynchronous. Serialize them to prevent a
     // stale field revision or style callback from overwriting newer points.
@@ -1008,6 +1011,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               entry.value.latitude,
               entry.value.longitude,
               locationKey: entry.key,
+              opportunityCount: candidatesAtLocation[entry.key]!.length,
             ),
         ]);
         if (!mounted ||
