@@ -1513,6 +1513,9 @@ def spatial_index_from_rows(rows) -> dict:
             },
             "representation": {
                 "title": candidate.title,
+                # Already-published owner summary, limited to recognition:
+                # full descriptions/resources remain available via N2.
+                "summary": (candidate.summary or "")[:160],
                 "kind": candidate.vertical,
                 "eyebrow": candidate.eyebrow,
                 "image_url": candidate.image_url,
