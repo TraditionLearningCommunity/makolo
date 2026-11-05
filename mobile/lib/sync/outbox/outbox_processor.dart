@@ -19,6 +19,9 @@ typedef OutboxHandler = Future<OutboxResolution> Function(
 typedef OutboxReconciler = Future<OutboxResolution> Function(
   OutboxOperation operation,
 );
+typedef OutboxDispatchGate = Future<bool> Function(
+  OutboxOperation operation,
+);
 
 class OutboxProcessor {
   static final Expando<Set<String>> _activeClaims =
@@ -29,6 +32,7 @@ class OutboxProcessor {
     this.reconcilers = const {},
     this.expectedOwners = const {},
     this.expectedReplayPolicies = const {},
+    this.canDispatch,
   });
 
   final OutboxRepository repository;
@@ -41,6 +45,9 @@ class OutboxProcessor {
   /// A modified local payload cannot quietly turn a guarded form into
   /// a "safe" blind replay.
   final Map<String, ReplayPolicy> expectedReplayPolicies;
+  /// Recheck the authenticated Profile before owner reads and mutations.
+  /// Device-owned outbox rows do not themselves authorize another actor.
+  final OutboxDispatchGate? canDispatch;
   Future<void>? _running;
   bool _active = true;
 
@@ -66,6 +73,14 @@ class OutboxProcessor {
       try {
         final handler = handlers[operation.operationKind];
         if (handler == null) continue;
+        if (!await _mayDispatch(operation)) {
+          await repository.setState(
+            operation.operationId,
+            OutboxState.awaitingConfirmation,
+            errorCode: 'profile_context_changed',
+          );
+          continue;
+        }
         final expectedOwner = expectedOwners[operation.operationKind];
         if (expectedOwner != null && operation.owner != expectedOwner) {
           await repository.setState(
@@ -179,6 +194,14 @@ class OutboxProcessor {
           expectedAttempts: operation.attempts,
           expectedState: operation.state,
         )) continue;
+        if (!await _mayDispatch(operation)) {
+          await repository.setState(
+            operation.operationId,
+            OutboxState.awaitingConfirmation,
+            errorCode: 'profile_context_changed',
+          );
+          continue;
+        }
 
         try {
           final result = await handler(operation);
@@ -226,6 +249,17 @@ class OutboxProcessor {
       } finally {
         claims.remove(claimKey);
       }
+    }
+  }
+
+  Future<bool> _mayDispatch(OutboxOperation operation) async {
+    if (!_active || operation.profileId != repository.profileId) return false;
+    final gate = canDispatch;
+    if (gate == null) return true;
+    try {
+      return await gate(operation) && _active;
+    } on Object {
+      return false;
     }
   }
 
