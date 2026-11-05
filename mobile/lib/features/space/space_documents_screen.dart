@@ -6,6 +6,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 
 /// Nous · Documents. No private document contents are cached in the UI.
 class SpaceDocumentsScreen extends StatefulWidget {
@@ -51,6 +52,17 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant SpaceDocumentsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.slug != widget.slug) {
+      oldWidget.runtime.actorContext?.removeListener(_actorChanged);
+      widget.runtime.actorContext?.addListener(_actorChanged);
+      _actorChanged();
+    }
+  }
+
+  @override
   void dispose() {
     _request++;
     widget.runtime.actorContext?.removeListener(_actorChanged);
@@ -91,10 +103,9 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
     final offset = append ? _offset : 0;
     setState(() {
       _loading = true;
-      if (!append) {
-        _documents = [];
-        _more = false;
-      }
+      // Existing owner-observed private list remains visible while a
+      // refresh is in flight. It is not a grant to upload or share.
+      if (!append && _documents.isEmpty) _more = false;
       _message = null;
     });
     try {
@@ -123,15 +134,28 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
         _canManage = payload['can_manage'] == true;
         _loading = false;
       });
-    } on Object {
+    } on Object catch (error) {
       if (!mounted || ticket != _request || _actor?.space.id != spaceId) {
         return;
       }
+      final withdrawn = error is MakoloApiError &&
+          const {401, 403, 404}.contains(error.statusCode);
       setState(() {
         _loading = false;
-        _documents = [];
+        // A definitive owner refusal withdraws even transient knowledge.
+        // A transport outage keeps the already acquired list in memory only,
+        // but never leaves management rights enabled without revalidation.
+        if (withdrawn) {
+          _documents = [];
+          _more = false;
+        }
         _canManage = false;
-        _message = 'Documents indisponibles.';
+        _message = withdrawn
+            ? 'Documents non accessibles dans ce contexte.'
+            : _documents.isEmpty
+                ? 'Documents indisponibles.'
+                : 'Actualisation indisponible. Les documents affichés '
+                  'proviennent de votre dernière consultation.';
       });
     }
   }
