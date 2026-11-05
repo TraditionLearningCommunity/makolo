@@ -431,4 +431,57 @@ void main() {
     );
   });
 
+  test('reauthentication releases only explicitly replayable 401-paused intents',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final outbox = OutboxRepository(db, 'profile-a');
+    for (final policy in [ReplayPolicy.safe, ReplayPolicy.noBlindRetry]) {
+      await outbox.enqueue(
+        operationId: 'auth-${policy.name}',
+        deviceInstanceId: 'device-a',
+        operationKind: 'owner.action',
+        owner: 'Owner',
+        payload: const {},
+        intentId: 'intent-${policy.name}',
+        replayPolicy: policy,
+      );
+    }
+    var authorized = false;
+    final worker = OutboxProcessor(
+      repository: outbox,
+      handlers: {'owner.action': (_) async {
+        if (!authorized) {
+          throw const MakoloApiError(
+            statusCode: 401,
+            code: 'authentication_required',
+            message: 'Sign in again',
+          );
+        }
+        return OutboxResolution.confirmed;
+      }},
+    );
+    await worker.run();
+    final paused = await outbox.dependencyStates([
+      'auth-safe',
+      'auth-noBlindRetry',
+    ]);
+    expect(paused.values, everyElement(OutboxState.awaitingConfirmation.wireValue));
+
+    // The application invokes this only after authenticated owner roots
+    // have succeeded. It must not quietly requeue no-blind requests.
+    authorized = true;
+    expect(await outbox.releaseAuthenticatedReplayables(), 1);
+    await worker.run();
+    final resumed = await outbox.dependencyStates([
+      'auth-safe',
+      'auth-noBlindRetry',
+    ]);
+    expect(resumed['auth-safe'], OutboxState.confirmed.wireValue);
+    expect(
+      resumed['auth-noBlindRetry'],
+      OutboxState.awaitingConfirmation.wireValue,
+    );
+  });
+
 }
