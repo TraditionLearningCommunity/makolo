@@ -77,6 +77,18 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
         "kind": point.kind,
+        # Identity only for an already-authorized Point. No account IDs,
+        # contact details or private Profile fields escape this projection.
+        "author": {
+            "label": (
+                (point.represented_space.name if point.represented_space_id else "")
+                or point.published_by.get_full_name().strip()
+                or point.published_by.username
+                or "Participant"
+            ),
+            "is_mine": point.published_by_id == profile.pk,
+            "represented_space": bool(point.represented_space_id),
+        },
         "response_mode": point.response_mode,
         "lifecycle": point.lifecycle,
         "response_status": point_personal_result(profile, point),
@@ -342,7 +354,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 raise DRFValidationError({"focus_point": "Point invalide."})
             focused = ConversationPoint.objects.filter(
                 pk=focused_id, conversation=conversation,
-            ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options", "responses").first()
+            ).select_related("published_by", "represented_space", "visibility_audience", "response_audience", "resolution_audience").prefetch_related("options", "responses").first()
             if focused and point_visible_to(request.user, focused):
                 if focused.pk not in seen:
                     focused_point = _serialize_point(focused, profile=request.user, section="focus")
