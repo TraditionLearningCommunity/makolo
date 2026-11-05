@@ -145,6 +145,59 @@ class ConversationC5MatureTests(TestCase):
         self.assertIn('voice', other_card['media_kinds'])
         self.assertNotIn('image', other_card['media_kinds'])
 
+    def test_list_does_not_signal_private_response_attachment_to_other_viewers(self):
+        from .media_models import ConversationPointAttachment
+        from .point_services import submit_point_response
+
+        point = self._point(
+            'Confirmer votre présence',
+            kind=ConversationPointKind.CONFIRMATION,
+            response_mode=ConversationPointResponseMode.BOOLEAN,
+            response_visibility='respondent_and_authorities',
+        )
+        response = submit_point_response(
+            actor=self.other, point=point, value=True,
+        )
+        ConversationPointAttachment.objects.create(
+            point=point, response=response, kind='voice',
+            uploaded_by=self.other,
+            file='conversations/tests/private-response.bin',
+            original_name='reponse-vocale.m4a',
+            mime_type='audio/mp4', size=1200, content_hash='b' * 64,
+        )
+        self.client.force_login(self.member)
+        member_card = self.client.get(
+            reverse('conversations-api:list')
+        ).json()['results'][0]['card']
+        self.assertNotIn('voice', member_card['media_kinds'])
+        self.assertNotIn('reponse-vocale', str(member_card))
+        self.client.force_login(self.manager)
+        manager_card = self.client.get(
+            reverse('conversations-api:list')
+        ).json()['results'][0]['card']
+        self.assertIn('voice', manager_card['media_kinds'])
+
+    def test_request_local_visibility_cache_cannot_transfer_other_viewers_rights(self):
+        from .point_services import point_visible_to
+
+        restricted = self._audience(self.member, 'Visible uniquement au membre')
+        point = self._point('Point réservé', visibility_audience=restricted)
+        cache = {}
+        audience_cache = {}
+        history_cache = {}
+        self.assertTrue(point_visible_to(
+            self.member, point, visibility_cache=cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ))
+        self.assertFalse(point_visible_to(
+            self.other, point, visibility_cache=cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ))
+        self.assertFalse(point_visible_to(
+            self.outside, point, visibility_cache=cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ))
+
     def test_context_cover_only_when_event_and_activity_publicly_published(self):
         from django.utils import timezone
         from events.models import Event
