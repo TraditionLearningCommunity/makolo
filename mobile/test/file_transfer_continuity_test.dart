@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/files/file_download_coordinator.dart';
 import 'package:makolo_mobile/data/files/file_transfer_coordinator.dart';
 import 'package:makolo_mobile/data/files/profile_file_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 class AwaitingOwner implements FileOwnerTransfer {
   @override
@@ -127,4 +130,78 @@ void main() {
       expect(await File(file.path).readAsBytes(), [4, 5, 6]);
     },
   );
+  test('physical cold restart retains staged bytes, draft and owner intent',
+      () async {
+    final root = await Directory.systemTemp.createTemp('makolo-c5-reboot-');
+    final dbPath = File('${root.path}/persistent.sqlite');
+    var db = MakoloDatabase(NativeDatabase(dbPath));
+    addTearDown(() async {
+      await db.close();
+      await root.delete(recursive: true);
+    });
+    ProfileFileStore files(MakoloDatabase database) => ProfileFileStore(
+      database: database,
+      profileId: 'profile-a',
+      privateDirectory: Directory('${root.path}/private'),
+      stagingDirectory: Directory('${root.path}/staging'),
+    );
+    final source = File('${root.path}/source.pdf');
+    await source.writeAsBytes([7, 8, 9], flush: true);
+    final staged = await files(db).stage(
+      fileId: 'owner-file-1',
+      owner: 'JourneyArtifact',
+      sourcePath: source.path,
+      purpose: 'submission',
+      sensitivity: 'private',
+    );
+    var outbox = OutboxRepository(db, 'profile-a');
+    var drafts = DraftRepository(
+      database: db,
+      outbox: outbox,
+      profileId: 'profile-a',
+    );
+    await drafts.saveLocal(
+      draftId: 'journey-draft',
+      owner: 'JourneyArtifact',
+      resourceKind: 'journey_artifact',
+      payload: {'attachment': {'file_id': staged.fileId}},
+    );
+    await outbox.enqueue(
+      operationId: 'pending-upload',
+      deviceInstanceId: 'device-a',
+      operationKind: 'journey.upload',
+      owner: 'JourneyArtifact',
+      payload: {'file_id': staged.fileId},
+      intentId: 'pending-upload-intent',
+      replayPolicy: ReplayPolicy.noBlindRetry,
+    );
+    await db.close();
+
+    db = MakoloDatabase(NativeDatabase(dbPath));
+    outbox = OutboxRepository(db, 'profile-a');
+    drafts = DraftRepository(
+      database: db,
+      outbox: outbox,
+      profileId: 'profile-a',
+    );
+    final recovered = await files(db).read('owner-file-1');
+    expect(recovered?.path, staged.path);
+    expect(await File(recovered!.path).readAsBytes(), [7, 8, 9]);
+    expect(
+      (await drafts.read(
+        owner: 'JourneyArtifact',
+        resourceKind: 'journey_artifact',
+      ))?.payload['attachment'],
+      {'file_id': 'owner-file-1'},
+    );
+    expect((await outbox.pending()).single.operationId, 'pending-upload');
+    expect(
+      await files(db).cleanupStaging(canRemove: (_) => true),
+      0,
+      reason: 'A still-active local intention protects its acquired bytes',
+    );
+    expect(await files(db).promoteToPrivate('owner-file-1'),
+        isA<StoredLocalFile>());
+  });
+
 }
