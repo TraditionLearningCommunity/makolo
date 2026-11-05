@@ -97,6 +97,17 @@ class ConversationC5MatureTests(TestCase):
         self.assertEqual(row['card']['context_kind'], 'activity')
         self.conversation.refresh_from_db()
         self.assertEqual(self.conversation.title_override, full_title)
+        # Web must use the exact same presentation, not a verbose duplicate.
+        page = self.client.get(reverse('conversations:list'))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Marché des coopératives')
+        self.assertNotContains(page, 'Préparation pratique — Marché')
+        self.assertContains(page, 'Lubumbashi')
+        search = self.client.get(
+            reverse('conversations:list'), {'q': 'coopératives'},
+        )
+        self.assertContains(search, 'Marché des coopératives')
+        self.assertNotContains(search, 'Préparation pratique — Marché')
 
     def test_visual_list_media_icons_require_real_visible_owner_content(self):
         from .media_models import ConversationPointAttachment
@@ -124,6 +135,9 @@ class ConversationC5MatureTests(TestCase):
         self.assertIn('image', visible_card['media_kinds'])
         self.assertNotIn('voice', visible_card['media_kinds'])
         self.assertNotIn('Vocal privé', str(visible_card))
+        page = self.client.get(reverse('conversations:list'))
+        self.assertContains(page, 'Photo')
+        self.assertNotContains(page, 'Vocal privé')
         self.client.force_login(self.other)
         other_card = self.client.get(
             reverse('conversations-api:list')
