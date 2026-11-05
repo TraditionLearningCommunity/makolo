@@ -181,8 +181,14 @@ Future<AppRuntime> buildAppRuntime({
   // Refreshing it is owned by SyncLifecycle, not by destination widgets.
   // All definitions reuse the exact source and parser of their repository.
   sync
-    ?..registerPreparedSource(space.inventorySource())
-    ..registerPreparedSource(discovery.itemsSource(const DiscoveryQuery()))
+    ?..registerPreparedSource(
+      space.inventorySource(),
+      acquire: space.refreshInventory,
+    )
+    ..registerPreparedSource(
+      discovery.itemsSource(const DiscoveryQuery()),
+      acquire: () => discovery.refreshItems(const DiscoveryQuery()),
+    )
     ..registerPreparedSource(
       accesses.collectionSourceFor(relationship: 'beneficiary', offset: 0),
     )
