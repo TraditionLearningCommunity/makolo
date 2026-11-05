@@ -271,17 +271,17 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 ### Noyau commun : changements effectifs
 
 - `mobile/lib/sync/outbox/outbox_repository.dart` : enregistrement transactionnel avec dedup par `profile_id + intent_id`, identite operationnelle immuable ; bail d'execution SQLite `next_retry_at` de deux minutes ; tentative revendiquee par compare-and-swap sur etat/attempts/lease ; retry temporaire avec backoff 10 s -> 300 s ; erreurs permanentes exclues du replay automatique ; annulation uniquement des intentions encore `queued` avec zero tentative ; status de dependances et instant du prochain retry lisibles par le cycle applicatif.
-- `mobile/lib/sync/outbox/outbox_processor.dart` : refus owner definitifs en conflit, authentification requise en attente, transport incertain traite selon la politique, `unknown policy` sans dispatch ; lien optionnel handler -> owner verifie avant execution ; dependence temporairement en echec bloquante mais non conflictuelle ; jamais de reconfirmation locale sans observation owner.
+- `mobile/lib/sync/outbox/outbox_processor.dart` : refus owner definitifs en conflit, authentification requise en attente, transport incertain traite selon la politique, `unknown policy` sans dispatch ; lien optionnel handler -> owner verifie avant execution ; dependance temporairement en echec bloquante mais non conflictuelle ; jamais de reconfirmation locale sans observation owner.
 - Une operation `refetch-before-retry` demeure soumise a son reconciler ; une operation `no-blind-retry` deja envoyee ne repart pas automatiquement. Un handler absent n'est pas remplace par un POST generique.
 - `mobile/lib/repositories/draft_repository.dart` : isolation stricte profil/owner/ressource, transaction `saveAndQueue` (brouillon et intention ensemble, rollback si echec), payload local distinct du payload de l'operation, garde optionnelle de single active intent. Draft/Outbox doivent partager la meme connexion SQLite et le meme Profil.
-- `mobile/lib/app/sync_lifecycle.dart` : reutilisation du lifecycle Flutter pour re-armer les retries durables pendant l'execution au premier plan. Android peut suspendre les timers ; au resume/reconnect, les timestamps SQLite restent l'autorite de scheduling. Pas de second daemon, ni de promesse d'heure exacte en arriere-plan.
+- `mobile/lib/app/sync_lifecycle.dart` : reutilisation du lifecycle Flutter pour re-armer les retries durables pendant l'execution au premier plan. Android peut suspendre les timers ; au resume/reconnect, les timestamps SQLite restent l'autorite de scheduling. Pas de second daemon, ni de promesse d'heure exacte en arriere-plan. Une fois les roots owners authentifies avec succes, seules les intentions 401 suspendues de politique `safe`/`idempotent` sont relancees ; `no-blind-retry` reste suspendue, et `refetch-before-retry` revalide son owner.
 
 ### Cas owner 1 — Questionnaires
 
 - `QuestionnaireSubmitCoordinator.enqueue` utilise la transaction `DraftRepository.saveAndQueue`. Les reponses du brouillon et les liens owner du message sortant sont volontairement distincts ; seule la seconde partie constitue une intention envoyable.
 - Le handler est lie explicitement a `Questionnaires`. La recuperation apres interruption continue de consulter le detail owner et ne renvoie pas aveuglement la soumission.
 - Les chemins d'API mis en outbox doivent etre relatifs et sous `api/v1/`, pas des destinations externes arbitraires.
-- `QuestionnaireFormScreen` serialize l'autosave avec l'enqueue, desactive l'edition pendant commit/attente, et n'ecrit plus un brouillon tardif apres une soumission confirmee. Les erreurs de validation owner conservent les reponses editables.
+- `QuestionnaireFormScreen` serialize l'autosave avec l'enqueue, desactive l'edition pendant commit/attente, et n'ecrit plus un brouillon tardif apres une soumission confirmee. Une intention en echec de transport avec retry programme reste active : aucune deuxieme soumission n'est proposee ; le message UX explique que la meme intention sera retentee. Les erreurs de validation owner conservent les reponses editables.
 
 ### Cas owner 2 — Creation d'Espace
 
@@ -295,7 +295,7 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 ### Tests ajoutes ou ajustes
 
 - `mobile/test/local_database_test.dart` : profil et owner pour les brouillons, rollback d'enqueue, dedup d'intent, single active form.
-- `mobile/test/outbox_processor_test.dart` : lease durable et reprise, owner 403, backoff/replay meme intent, politiques inconnues, owner mismatch, refus permanent et annulation seulement avant dispatch.
+- `mobile/test/outbox_processor_test.dart` : lease durable et reprise, owner 403, backoff/replay meme intent, politiques inconnues, owner mismatch, refus permanent, annulation seulement avant dispatch, reauthentification 401 et blocage d'un deuxieme intent tant qu'un retry est prevu.
 - `mobile/test/lf5_outbox_reconciliation_test.dart` : simulated crash avec lease echue, dependance en attente d'un prerequis temporairement indisponible.
 - `mobile/test/space_creation_draft_test.dart` : brouillon Space conserve apres reentree, incertitude avant reconciliation sans nouveau POST, retour owner cree mais autorite non encore verifiee.
 
