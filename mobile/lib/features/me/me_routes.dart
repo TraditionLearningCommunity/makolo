@@ -207,8 +207,6 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeConsiderationsScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
-                  onSaved: () => context.push('/me/saved'),
-                  onWatches: () => context.push('/discover/watches'),
                 ),
         ),
         GoRoute(
