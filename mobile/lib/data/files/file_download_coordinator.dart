@@ -15,6 +15,18 @@ class FileDownloadCoordinator {
     required String sensitivity,
     required PrivateFileDownloader downloadTo,
   }) async {
+    // The previous attempt may have downloaded every byte then been killed
+    // before private promotion. Resume from its durable FileRecord instead
+    // of refetching or overwriting a potentially user-relevant file.
+    final existing = await store.read(fileId);
+    if (existing != null) {
+      if (existing.owner != owner ||
+          existing.purpose != purpose ||
+          existing.sensitivity != sensitivity) {
+        throw StateError('Download ID belongs to another owner intent');
+      }
+      return store.promoteToPrivate(existing.fileId);
+    }
     final staged = await store.stageCopy(
       fileId: fileId,
       owner: owner,
