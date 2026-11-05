@@ -50,7 +50,9 @@ def conversation_subject_for_profile(profile, conversation, label):
             # The visibility policy decides; merely seeing a Conversation
             # does not grant access to this Profile media.
             from accounts.profile_visibility import ProfileVisibilityResolver
-            if ProfileVisibilityResolver(owner=other, viewer=profile).field("avatar"):
+            from sharing.passport import profile_has_public_passport
+            if (profile_has_public_passport(other)
+                    and ProfileVisibilityResolver(owner=other, viewer=profile).field("avatar")):
                 try:
                     image = _safe_local_image(other.avatar.url) if other.avatar else None
                 except (ValueError, OSError):
