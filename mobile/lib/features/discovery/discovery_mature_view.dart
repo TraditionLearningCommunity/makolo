@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -779,6 +780,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   String? _selectedCandidateKey;
   DiscoveryMapController? _mapController;
   final Map<Object, DiscoverySpatialAnchor> _circleAnchors = {};
+  final Map<String, DiscoverySpatialAnchor> _locationAnchors = {};
   DiscoverySpatialAnchor? _focusedAnchor;
   int _pinGeneration = 0;
   bool _initialCameraPositioned = false;
@@ -793,6 +795,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     ++_pinGeneration;
     ++_detailGeneration;
     _circleAnchors.clear();
+    _locationAnchors.clear();
     _mapController = null;
     super.dispose();
   }
@@ -915,33 +918,45 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     _mapController = controller;
     _initialCameraPositioned = widget.restoredViewport != null;
     _circleAnchors.clear();
+    _locationAnchors.clear();
+    // Annotation tap is retained only for older styles that cannot install
+    // the native clustered source. Both paths resolve the same candidates.
     controller.onPinTapped((circle) {
       final point = _circleAnchors[circle];
-      if (!mounted || point == null) return;
-      final anchors = _selector.spatialAnchorsFromCollection(
-        widget.selection.collection,
-      );
-      final keys = anchors
-          .where(
-            (anchor) =>
-                anchor.latitude == point.latitude &&
-                anchor.longitude == point.longitude,
-          )
-          .map((anchor) => anchor.candidateKey)
-          .toSet();
-      if (keys.isEmpty) return;
-      if (keys.length == 1) {
-        final actual = anchors.firstWhere(
+      if (mounted && point != null) _openMapPoint(point);
+    });
+  }
+
+  void _openMapPoint(DiscoverySpatialAnchor point) {
+    final anchors = _selector.spatialAnchorsFromCollection(
+      widget.selection.collection,
+    );
+    final matches = anchors
+        .where(
           (anchor) =>
-              anchor.candidateKey == keys.first &&
               anchor.latitude == point.latitude &&
               anchor.longitude == point.longitude,
-        );
-        _select(keys.first, anchor: actual, moveCamera: false);
-      } else {
-        unawaited(_chooseCoLocated(keys, at: point));
-      }
-    });
+        )
+        .toList();
+    final keys = matches.map((anchor) => anchor.candidateKey).toSet();
+    if (keys.isEmpty) return;
+    if (keys.length == 1) {
+      _select(keys.first, anchor: matches.first, moveCamera: false);
+    } else {
+      unawaited(_chooseCoLocated(keys, at: point));
+    }
+  }
+
+  Future<void> _onMapFeatureTap(math.Point<double> screenPoint) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final locationKey = await controller.selectRenderedPoint(screenPoint);
+    if (!mounted || _mapController != controller || locationKey == null) {
+      // Cluster taps zoom to the native expansion level in the controller.
+      return;
+    }
+    final anchor = _locationAnchors[locationKey];
+    if (anchor != null) _openMapPoint(anchor);
   }
 
   Future<void> _chooseCoLocated(
@@ -985,27 +1000,29 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final controller = _mapController;
     if (controller == null) return;
     final generation = ++_pinGeneration;
-    final seen = <String>{};
     final selected = <DiscoverySpatialAnchor>[];
+    final locations = <String, DiscoverySpatialAnchor>{};
     for (final anchor in anchors) {
-      final identity =
-          '${anchor.latitude}:${anchor.longitude}';
-      if (seen.add(identity)) selected.add(anchor);
+      final key = '${anchor.latitude}:${anchor.longitude}';
+      if (locations.containsKey(key)) continue;
+      locations[key] = anchor;
+      selected.add(anchor);
     }
     try {
-      await controller.clearPins();
-      if (!mounted ||
-          _mapController != controller ||
-          generation != _pinGeneration)
-        return;
-      final pins = await controller.addPins([
-        for (final anchor in selected)
-          DiscoveryMapPin(anchor.latitude, anchor.longitude),
+      final pins = await controller.renderPins([
+        for (final entry in locations.entries)
+          DiscoveryMapPin(
+            entry.value.latitude,
+            entry.value.longitude,
+            locationKey: entry.key,
+          ),
       ]);
       if (!mounted ||
           _mapController != controller ||
-          generation != _pinGeneration)
-        return;
+          generation != _pinGeneration) return;
+      _locationAnchors
+        ..clear()
+        ..addAll(locations);
       _circleAnchors.clear();
       for (var i = 0; i < pins.length && i < selected.length; i++) {
         _circleAnchors[pins[i]] = selected[i];
@@ -1016,7 +1033,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         await controller.showDevicePosition(latitude, longitude);
       }
     } on Object {
-      // Map rendering failure does not erase a real Discovery list entry.
+      // Map rendering failure never erases the admitted local collection.
     }
   }
 
@@ -1261,6 +1278,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               ),
               onMapCreated: (controller) =>
                   _mapCreated(DiscoveryMapController(controller)),
+              onFeatureTap: (point, _) => unawaited(_onMapFeatureTap(point)),
               onStyleReady: () => unawaited(_onStyleReady(points)),
               config: widget.mapConfig,
               onViewportChanged: widget.onViewportChanged,
