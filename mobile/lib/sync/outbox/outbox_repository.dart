@@ -256,6 +256,30 @@ class OutboxRepository {
     });
   }
 
+  /// Called only after a successful authenticated owner refresh. An HTTP
+  /// 401 suspends dispatch but must not strand safe/idempotent intentions
+  /// forever after a legitimate new session is established. Other policies
+  /// continue to require explicit owner reconciliation or human verification.
+  Future<int> releaseAuthenticatedReplayables() {
+    return (database.update(database.outboxOperations)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.state.equals(OutboxState.awaitingConfirmation.wireValue) &
+              row.lastErrorCode.equals('authentication_required') &
+              row.replayPolicy.isIn([
+                ReplayPolicy.safe.wireValue,
+                ReplayPolicy.idempotent.wireValue,
+              ]),
+        ))
+        .write(
+          const OutboxOperationsCompanion(
+            state: Value('queued'),
+            lastErrorCode: Value(null),
+            nextRetryAt: Value(null),
+          ),
+        );
+  }
+
   /// Cancel only an intention that has never been dispatched. A user cannot
   /// revoke an owner mutation simply by hiding an in-flight local record.
   /// The associated local draft remains available for editing.
