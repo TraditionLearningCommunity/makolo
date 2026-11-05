@@ -62,7 +62,19 @@ class OutboxSummary {
 }
 
 class OutboxRepository {
-  OutboxRepository(this.database, this.profileId);
+  OutboxRepository(this.database, this.profileId) {
+    if (profileId.trim().isEmpty) {
+      throw ArgumentError.value(profileId, 'profileId');
+    }
+  }
+
+  /// A claim is durable across multiple SQLite connections and a process
+  /// restart. A crashed attempt is reconsidered only when its lease expires.
+  static const attemptLease = Duration(minutes: 2);
+  static const retryableErrorCodes = <String>{
+    'transport_error',
+    'owner_temporarily_unavailable',
+  };
 
   final MakoloDatabase database;
   final String profileId;
@@ -79,8 +91,40 @@ class OutboxRepository {
     String? resourceId,
     String? ownerIdempotencyKey,
     List<String> dependencies = const [],
-  }) {
-    return database
+  }) async {
+    if (operationId.trim().isEmpty ||
+        deviceInstanceId.trim().isEmpty ||
+        operationKind.trim().isEmpty ||
+        owner.trim().isEmpty ||
+        intentId.trim().isEmpty) {
+      throw ArgumentError('Outbox identity and owner must be explicit');
+    }
+    if (dependencies.any((id) => id.trim().isEmpty)) {
+      throw ArgumentError('Outbox dependencies must have stable identities');
+    }
+    // The same user intent is not a new action after a double tap or retry.
+    // Reusing an intent with different content must fail, never overwrite
+    // an already dispatched operation.
+    final sameIntent = await (database.select(database.outboxOperations)
+          ..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.intentId.equals(intentId),
+          ))
+        .get();
+    if (sameIntent.isNotEmpty) {
+      if (sameIntent.length != 1 ||
+          sameIntent.single.operationId != operationId ||
+          sameIntent.single.owner != owner ||
+          sameIntent.single.operationKind != operationKind ||
+          sameIntent.single.payloadJson != jsonEncode(payload) ||
+          sameIntent.single.replayPolicy != replayPolicy.wireValue ||
+          sameIntent.single.ownerIdempotencyKey != ownerIdempotencyKey) {
+        throw StateError('An outbox intent cannot be changed or replayed as new');
+      }
+      return;
+    }
+    await database
         .into(database.outboxOperations)
         .insert(
           OutboxOperationsCompanion.insert(
@@ -107,12 +151,15 @@ class OutboxRepository {
               ..where(
                 (row) =>
                     row.profileId.equals(profileId) &
-                    row.state.isIn([
-                      OutboxState.queued.wireValue,
-                      OutboxState.inFlight.wireValue,
-                      OutboxState.failed.wireValue,
-                      OutboxState.awaitingConfirmation.wireValue,
-                    ]),
+                    (row.state.isIn([
+                          OutboxState.queued.wireValue,
+                          OutboxState.inFlight.wireValue,
+                          OutboxState.awaitingConfirmation.wireValue,
+                        ]) |
+                        (row.state.equals(OutboxState.failed.wireValue) &
+                            row.lastErrorCode.isIn(
+                              retryableErrorCodes.toList(),
+                            ))),
               )
               ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]))
             .get();
@@ -204,17 +251,21 @@ class OutboxRepository {
         expectedState != OutboxState.awaitingConfirmation.wireValue) {
       return false;
     }
+    final now = DateTime.now().toUtc();
     final changed = await (database.update(database.outboxOperations)..where(
           (candidate) =>
               candidate.profileId.equals(profileId) &
               candidate.operationId.equals(operationId) &
               candidate.state.equals(expectedState) &
-              candidate.attempts.equals(expectedAttempts),
+              candidate.attempts.equals(expectedAttempts) &
+              (candidate.nextRetryAt.isNull() |
+                  candidate.nextRetryAt.isSmallerOrEqualValue(now)),
         ))
         .write(
           OutboxOperationsCompanion(
             state: Value(OutboxState.inFlight.wireValue),
             attempts: Value(expectedAttempts + 1),
+            nextRetryAt: Value(now.add(attemptLease)),
             lastErrorCode: const Value(null),
           ),
         );
@@ -287,6 +338,22 @@ class OutboxRepository {
     OutboxState state, {
     String? errorCode,
   }) async {
+    DateTime? retryAt;
+    if (state == OutboxState.failed &&
+        retryableErrorCodes.contains(errorCode)) {
+      final operation = await (database.select(database.outboxOperations)
+            ..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.operationId.equals(operationId),
+            ))
+          .getSingleOrNull();
+      if (operation == null) return;
+      // Bounded exponential backoff: 10s, 20s, 40s... max 5 min.
+      final exponent = (operation.attempts - 1).clamp(0, 5);
+      final seconds = (10 * (1 << exponent)).clamp(10, 300);
+      retryAt = DateTime.now().toUtc().add(Duration(seconds: seconds));
+    }
     await (database.update(database.outboxOperations)..where(
           (row) =>
               row.profileId.equals(profileId) &
@@ -295,6 +362,7 @@ class OutboxRepository {
         .write(
           OutboxOperationsCompanion(
             state: Value(state.wireValue),
+            nextRetryAt: Value(retryAt),
             lastErrorCode: Value(errorCode),
           ),
         );
