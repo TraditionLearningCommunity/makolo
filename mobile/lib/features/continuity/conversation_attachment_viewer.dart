@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:pdfrx/pdfrx.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../platform/media/private_media_views.dart';
