@@ -138,6 +138,30 @@ void main() {
     },
   );
 
+  test('owner purge queued after a write prevents recognition resurrection',
+      () async {
+    final store = ProfileRecognitionImageStore(
+      profileId: 'profile-a',
+      rootOverride: supportRoot,
+    );
+    await store.save(imagePath, imageBytes);
+    final newer = store.save(imagePath, Uint8List.fromList([9, 8, 7]));
+    final withdraw = store.purge();
+    await newer;
+    await withdraw;
+    expect(await store.read(imagePath), isNull);
+  });
+
+  test('recognition path authorization also guards local reads', () async {
+    final store = ProfileRecognitionImageStore(
+      profileId: 'profile-a',
+      rootOverride: supportRoot,
+    );
+    await store.save(imagePath, imageBytes);
+    expect(await store.read('/api/v1/me/private/image/'), isNull);
+    expect(await store.read(imagePath), orderedEquals(imageBytes));
+  });
+
   test('empty recognition bytes cannot overwrite a durable file', () async {
     final store = ProfileRecognitionImageStore(
       profileId: 'profile-a',
