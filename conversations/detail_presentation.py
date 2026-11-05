@@ -93,6 +93,28 @@ def conversation_members_for_profile(profile, conversation):
         # A Group member or Activity participant is not automatically
         # authorized to enumerate the other viewers or authorities.
         return {"scope": "restricted", "people": []}
+    if kind == ConversationContextKind.GROUP:
+        from groups.models import GroupMembership, GroupMembershipStatus
+        memberships = GroupMembership.objects.filter(
+            group=conversation.context.group,
+            status=GroupMembershipStatus.ACTIVE,
+            profile__is_active=True,
+        )
+        total = memberships.count()
+        visible = memberships.select_related("profile").order_by(
+            "joined_at", "pk",
+        )[:30]
+        return {
+            "scope": "group",
+            "total_count": total,
+            "people": [
+                {
+                    "label": row.profile.full_name or row.profile.username,
+                    "is_me": row.profile_id == profile.pk,
+                }
+                for row in visible
+            ],
+        }
     participants = (
         ConversationParticipation.objects.filter(
             conversation=conversation,
