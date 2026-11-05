@@ -414,6 +414,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       return _empty(context, Icons.folder_outlined,
           'Aucune ressource du contexte n’est disponible ici.');
     }
+    final route = _map(data['subject'])['route']?.toString();
+    final opensJourney = route != null &&
+        route.startsWith('/journeys/') && widget.onOpenSubject != null;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
       children: [
@@ -430,6 +433,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                   : 'Disponible selon les droits du contexte',
               maxLines: 3, overflow: TextOverflow.ellipsis,
             ),
+            trailing: opensJourney
+                ? const Icon(Icons.chevron_right_rounded) : null,
+            onTap: opensJourney
+                ? () => widget.onOpenSubject!(route!) : null,
           ),
       ],
     );
