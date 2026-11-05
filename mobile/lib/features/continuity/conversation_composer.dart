@@ -327,6 +327,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
         conversationId: widget.conversationId,
         capabilities: widget.capabilities,
         representedSpaceId: widget.representedSpaceId,
+        onQueued: () => Navigator.of(sheetContext).pop(),
         onPublished: (id) {
           Navigator.of(sheetContext).pop();
           widget.onPublished(id);
