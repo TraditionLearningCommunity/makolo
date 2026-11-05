@@ -595,4 +595,52 @@ void main() {
     expect(row.lastErrorCode, 'profile_context_changed');
   });
 
+  test('Profile switch after mutation blocks owner reconciliation reads',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'await-owner',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.submit',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'await-owner-intent',
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+    );
+    var activeProfile = 'profile-a';
+    var reconciliations = 0;
+    final processor = OutboxProcessor(
+      repository: outbox,
+      handlers: {
+        'owner.submit': (_) async {
+          activeProfile = 'profile-b';
+          return OutboxResolution.awaitingConfirmation;
+        },
+      },
+      reconcilers: {
+        'owner.submit': (_) async {
+          reconciliations++;
+          return OutboxResolution.confirmed;
+        },
+      },
+      canDispatch: (op) async => activeProfile == op.profileId,
+    );
+
+    await processor.run();
+    expect(reconciliations, 0);
+    expect(
+      (await database.select(database.outboxOperations).get()).single.state,
+      OutboxState.awaitingConfirmation.wireValue,
+    );
+    activeProfile = 'profile-a';
+    await processor.run();
+    expect(reconciliations, 1);
+    expect(
+      (await database.select(database.outboxOperations).get()).single.state,
+      OutboxState.confirmed.wireValue,
+    );
+  });
+
 }
