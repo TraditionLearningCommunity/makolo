@@ -122,6 +122,10 @@ def point_resolution_visible_to(profile, point, *, at=None):
 def point_response_allowed(profile, point, *, at=None):
     if not point_visible_to(profile, point, at=at):
         return False
+    # Publishing a Point does not remove its author's right to participate.
+    # Everyone else remains constrained by the explicit response audience.
+    if point.published_by_id == getattr(profile, "pk", None):
+        return True
     return not point.response_audience_id or profile_in_audience(profile, point.response_audience, at=at)
 
 
