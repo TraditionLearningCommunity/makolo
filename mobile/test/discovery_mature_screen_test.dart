@@ -1566,7 +1566,7 @@ void main() {
       isNull,
       reason: 'Un point compact ne donne pas le droit d’enregistrer.',
     );
-    expect(find.byTooltip('Partager cette possibilité'), findsNothing);
+    expect(find.byTooltip('Partager l’opportunité'), findsNothing);
     await tester.tap(find.byKey(const Key('discover-map-open-n2')));
     await tester.pump();
     expect(opened?.candidateKey, 'activity:route');
@@ -1602,7 +1602,7 @@ void main() {
       isNull,
       reason: 'Un point compact ne donne pas le droit d’enregistrer.',
     );
-    expect(find.byTooltip('Partager cette possibilité'), findsNothing);
+    expect(find.byTooltip('Partager l’opportunité'), findsNothing);
 
     verified.complete(
       DiscoveryItemPresentation(
@@ -1635,8 +1635,16 @@ void main() {
       ).onPressed,
       isNotNull,
     );
-    expect(find.byTooltip('Partager cette possibilité'), findsOneWidget);
+    expect(find.byTooltip('Partager l’opportunité'), findsOneWidget);
     expect(find.text('Transport vérifié'), findsOneWidget);
+    // Carte presents the same Sharing choices as Découvrir without covering
+    // the short N1 card with a popup menu.
+    await tester.tap(find.byTooltip('Partager l’opportunité'));
+    await tester.pumpAndSettle();
+    expect(find.text('Copier le lien'), findsOneWidget);
+    expect(find.text('Afficher le QR'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-map-save')));
     await tester.pumpAndSettle();
     expect(saves, 1);
