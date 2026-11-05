@@ -10,8 +10,6 @@ from rest_framework.views import APIView
 from core.api.projections import projection_envelope
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
-    owned_dossiers_for_profile,
-    owned_projects_for_profile,
     active_assignments_for_dossier,
     dossiers_for_profile,
     projects_for_profile,
@@ -185,16 +183,8 @@ class _ObjectiveCollectionAPIView(APIView):
         limit, offset = args
         if self.kind == "dossier":
             visible = dossiers_for_profile(request.user)
-            owned_ids = set(
-                owned_dossiers_for_profile(request.user)
-                .values_list("pk", flat=True)
-            )
         else:
             visible = projects_for_profile(request.user)
-            owned_ids = set(
-                owned_projects_for_profile(request.user)
-                .values_list("pk", flat=True)
-            )
         page = list(
             visible.order_by("-updated_at", "id")[offset : offset + limit + 1]
         )
@@ -211,7 +201,7 @@ class _ObjectiveCollectionAPIView(APIView):
                     "state": objective.lifecycle,
                     "relation": (
                         "mine"
-                        if objective.pk in owned_ids
+                        if objective.owner_profile_id == request.user.pk
                         else "space"
                         if space is not None
                         else "shared"
