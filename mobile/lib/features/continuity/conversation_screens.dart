@@ -1803,6 +1803,14 @@ class _PointCardState extends State<_PointCard> {
       authorLabel: point.authorLabel,
       representedSpace: point.representedSpace,
       publishedAt: point.publishedAt ?? point.updatedAt,
+      // Owner-confirmed publication is known. Delivery/read receipts need
+      // separate authenticated evidence and are never inferred here.
+      statusIcon: point.isMine && point.publishedAt != null
+          ? const Tooltip(
+              message: 'Envoyé',
+              child: Icon(Icons.check_rounded, size: 15),
+            )
+          : null,
       child: body,
     );
   }
