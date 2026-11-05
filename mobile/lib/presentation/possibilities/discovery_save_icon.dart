@@ -6,10 +6,12 @@ class DiscoveryOrbitIcon extends StatelessWidget {
     super.key,
     required this.saved,
     required this.color,
+    this.size = 21,
   });
 
   final bool saved;
   final Color color;
+  final double size;
 
   static const _orbitAvailable = '''
 <svg viewBox="0 0 24 24"><path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="19.3" cy="17.6" r="1.45" fill="#000"/></svg>
@@ -22,8 +24,8 @@ class DiscoveryOrbitIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return SvgPicture.string(
       saved ? _orbitSaved : _orbitAvailable,
-      width: 21,
-      height: 21,
+      width: size,
+      height: size,
       colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
       semanticsLabel: saved ? 'Enregistré' : 'Enregistrer',
     );
