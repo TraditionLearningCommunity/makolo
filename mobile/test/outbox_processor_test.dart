@@ -517,4 +517,82 @@ void main() {
     expect(row.lastErrorCode, 'unsupported_replay_policy');
   });
 
+  test('wrong Profile cannot dispatch and safe intent resumes on reauth',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final owner = OutboxRepository(database, 'profile-a');
+    await owner.enqueue(
+      operationId: 'guarded',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.save',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'guarded-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    var session = 'profile-b';
+    var sent = 0;
+    final processor = OutboxProcessor(
+      repository: owner,
+      handlers: {
+        'owner.save': (_) async {
+          sent++;
+          return OutboxResolution.confirmed;
+        },
+      },
+      canDispatch: (operation) async => operation.profileId == session,
+    );
+
+    await processor.run();
+    expect(sent, 0);
+    final paused = (await database.select(database.outboxOperations).get()).single;
+    expect(paused.state, OutboxState.awaitingConfirmation.wireValue);
+    expect(paused.lastErrorCode, 'profile_context_changed');
+
+    session = 'profile-a';
+    expect(await owner.releaseAuthenticatedReplayables(), 1);
+    await processor.run();
+    expect(sent, 1);
+    expect(
+      (await database.select(database.outboxOperations).get()).single.state,
+      OutboxState.confirmed.wireValue,
+    );
+  });
+
+  test('a Profile switch between claim and handler blocks the mutation',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final owner = OutboxRepository(database, 'profile-a');
+    await owner.enqueue(
+      operationId: 'race',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.save',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'race-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    var gateChecks = 0;
+    var called = false;
+    final processor = OutboxProcessor(
+      repository: owner,
+      handlers: {
+        'owner.save': (_) async {
+          called = true;
+          return OutboxResolution.confirmed;
+        },
+      },
+      canDispatch: (_) async => ++gateChecks == 1,
+    );
+    await processor.run();
+    expect(gateChecks, 2);
+    expect(called, isFalse);
+    final row = (await database.select(database.outboxOperations).get()).single;
+    expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+    expect(row.attempts, 1);
+    expect(row.lastErrorCode, 'profile_context_changed');
+  });
+
 }
