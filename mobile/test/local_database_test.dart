@@ -73,6 +73,29 @@ void main() {
     },
   );
 
+  test('AccessCredential payloads cannot enter generic Profile snapshots',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    await expectLater(
+      store.putProjection(
+        kind: 'personal.access.credential',
+        resourceKey: 'access-1',
+        schemaVersion: 1,
+        payload: {'representation': {'payload': 'private-test-secret'}},
+      ),
+      throwsFormatException,
+    );
+    expect(
+      await store.readProjection(
+        'personal.access.credential',
+        resourceKey: 'access-1',
+      ),
+      isNull,
+    );
+  });
+
   test('resource references are searchable only while owner facts exist', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
