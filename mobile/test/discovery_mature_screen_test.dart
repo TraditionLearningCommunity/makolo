@@ -10,7 +10,11 @@ import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_unit.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 import 'package:makolo_mobile/platform/location/location_capability.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
 
+import 'dio_testing.dart';
+import 'fakes.dart';
 import 'support/presentation_harness.dart';
 
 DiscoveryItemPresentation item(
@@ -1654,6 +1658,71 @@ void main() {
     await tester.tap(find.byKey(const Key('discover-map-save')));
     await tester.pumpAndSettle();
     expect(saves, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Carte Sharing uses the same confirmed owner endpoint as N1', (
+    tester,
+  ) async {
+    String? postedPath;
+    Map<String, dynamic>? postedBody;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      dio: MockClient((request) async {
+        postedPath = request.url.path;
+        postedBody = request.data is Map
+            ? Map<String, dynamic>.from(request.data as Map)
+            : null;
+        return const MockResponse(
+          '{"state":"link","url":"https://makolo.invalid/share/test"}',
+          200,
+        );
+      }).dio,
+      tokenStore: MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'map-test',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      ),
+    );
+    addTearDown(() => api.close(force: true));
+    final candidate = item('route', 'Voyage vers Kolwezi', mappable: true);
+    final ownerConfirmed = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'route',
+      candidateKey: candidate.candidateKey,
+      title: candidate.title,
+      summary: '',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {
+        'web': '/discover/items/activity/route/',
+        'web_share': '/discovery/share/activity/route/',
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(390, 840),
+      child: DiscoverySpatialView(
+        selection: selection(items: [candidate]),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        initialSelectedCandidateKey: candidate.candidateKey,
+        resolveItem: (_) async => ownerConfirmed,
+        shareApi: api,
+        shareAuthenticated: true,
+        baseUri: api.baseUri,
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Partager l’opportunité'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Copier le lien'));
+    await tester.pumpAndSettle();
+    expect(postedPath, '/api/v1/sharing/possibilities/activity/route/');
+    expect(postedBody, {'intent': 'view'});
     expect(tester.takeException(), isNull);
   });
 
