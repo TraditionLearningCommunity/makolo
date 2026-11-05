@@ -1,0 +1,503 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../../navigation/destination.dart';
+import 'me_selector.dart';
+
+enum _MeLayout { list, grid }
+
+/// Moi is a compact personal index. Domain facts remain in their owner depths.
+class MeHub extends StatefulWidget {
+  const MeHub({
+    super.key,
+    required this.selection,
+    required this.profileId,
+    required this.onSelectItem,
+    required this.canNavigate,
+  });
+
+  final MeSelection selection;
+  final String? profileId;
+  final ValueChanged<MeItemPresentation> onSelectItem;
+  final bool canNavigate;
+
+  @override
+  State<MeHub> createState() => _MeHubState();
+}
+
+class _MeHubState extends State<MeHub> {
+  static const _storage = FlutterSecureStorage();
+  _MeLayout _layout = _MeLayout.list;
+
+  String? get _storageKey {
+    final id = widget.profileId;
+    return id == null || id.isEmpty ? null : 'me.layout.$id';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreLayout();
+  }
+
+  @override
+  void didUpdateWidget(covariant MeHub oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.profileId != oldWidget.profileId) {
+      _layout = _MeLayout.list;
+      _restoreLayout();
+    }
+  }
+
+  Future<void> _restoreLayout() async {
+    final key = _storageKey;
+    if (key == null) return;
+    try {
+      final saved = await _storage.read(key: key);
+      if (!mounted || key != _storageKey) return;
+      if (saved == 'grid') setState(() => _layout = _MeLayout.grid);
+    } on Object {
+      // A missing native store never blocks the personal index.
+    }
+  }
+
+  void _chooseLayout(_MeLayout next) {
+    if (_layout == next) return;
+    setState(() => _layout = next);
+    final key = _storageKey;
+    if (key != null) {
+      _storeLayout(key, next);
+    }
+  }
+
+  Future<void> _storeLayout(String key, _MeLayout value) async {
+    try {
+      await _storage.write(
+        key: key,
+        value: value == _MeLayout.grid ? 'grid' : 'list',
+      );
+    } on Object {
+      // The view stays usable even when a device preference cannot be saved.
+    }
+  }
+
+  void _open(String kind, String title) {
+    if (!widget.canNavigate) return;
+    widget.onSelectItem(
+      MeItemPresentation(
+        destination: StructuredDestination(kind: kind, id: 'mine'),
+        title: title,
+        canOpen: true,
+      ),
+    );
+  }
+
+  MeTerritorySelection? _territory(String key) {
+    for (final territory in widget.selection.territories) {
+      if (territory.presentation.key == key) return territory;
+    }
+    return null;
+  }
+
+  List<MeItemPresentation> _fromConsiderations(Set<String> kinds) {
+    final territory = _territory('considerations');
+    if (territory == null) return const [];
+    return territory.items
+        .where((item) => kinds.contains(item.destination.kind))
+        .toList(growable: false);
+  }
+
+  List<_MeEntry> _entries() {
+    final interests = _fromConsiderations({'topic', 'open_to'});
+    final watches = _fromConsiderations({'watch'});
+    final saved = _fromConsiderations({'activity'});
+    final followed = _fromConsiderations({'space', 'profile'});
+    final collectives = _territory('collectives');
+    final resources = _territory('resources');
+    final support = _territory('support');
+    return [
+      const _MeEntry(
+        kind: 'access_collection',
+        title: 'Mes accès',
+        subtitle: 'Billets, invitations et droits',
+        icon: Icons.confirmation_number_outlined,
+      ),
+      _MeEntry(
+        kind: 'considerations',
+        title: 'Ce qui compte pour moi',
+        subtitle: 'Centres d’intérêt et Ouvert à',
+        icon: Icons.interests_outlined,
+        previews: interests,
+      ),
+      _MeEntry(
+        kind: 'watches_collection',
+        title: 'Mes veilles',
+        subtitle: 'Ce que je surveille',
+        icon: Icons.notifications_active_outlined,
+        previews: watches,
+      ),
+      _MeEntry(
+        kind: 'saved_collection',
+        title: 'Mes enregistrements',
+        subtitle: 'Possibilités conservées',
+        icon: Icons.bookmark_border_rounded,
+        previews: saved,
+        count: _territory('considerations')?.savedCount,
+      ),
+      _MeEntry(
+        kind: 'follows_collection',
+        title: 'Mes suivis',
+        subtitle: 'Personnes et Espaces suivis',
+        icon: Icons.person_add_alt_1_outlined,
+        previews: followed,
+      ),
+      _MeEntry(
+        kind: 'collectives',
+        title: 'Mes collectifs',
+        subtitle: 'Espaces, équipes et groupes',
+        icon: Icons.groups_outlined,
+        previews: collectives?.items ?? const [],
+        count: collectives?.totalCount,
+      ),
+      _MeEntry(
+        kind: 'resource_collection',
+        title: 'Mes ressources',
+        subtitle: 'Documents, preuves et attestations',
+        icon: Icons.folder_copy_outlined,
+        previews: (resources?.items ?? const [])
+            .where((item) => item.destination.kind != 'resource_collection')
+            .toList(growable: false),
+        count: resources?.totalCount,
+      ),
+      if (widget.selection.canOpenHistory)
+        const _MeEntry(
+          kind: 'history',
+          title: 'Mon historique',
+          subtitle: 'Mon parcours',
+          icon: Icons.history_rounded,
+        ),
+      if (support != null)
+        _MeEntry(
+          kind: 'support_collection',
+          title: 'Mes appuis',
+          subtitle: 'Reconnaissance, fidélité et partenaires',
+          icon: Icons.handshake_outlined,
+          previews: support.items,
+        ),
+    ];
+  }
+
+  Widget _objectiveButton(
+    BuildContext context, {
+    required String title,
+    required String kind,
+    required IconData icon,
+  }) {
+    return OutlinedButton.icon(
+      key: Key('me-shortcut-$kind'),
+      onPressed: widget.canNavigate ? () => _open(kind, title) : null,
+      icon: Icon(icon, size: 20),
+      label: Text(title, maxLines: 2, textAlign: TextAlign.center),
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.center,
+        minimumSize: const Size(0, 58),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = _entries();
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _objectiveButton(
+                  context,
+                  title: 'Mes projets',
+                  kind: 'project_collection',
+                  icon: Icons.folder_special_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _objectiveButton(
+                  context,
+                  title: 'Mes dossiers',
+                  kind: 'dossier_collection',
+                  icon: Icons.snippet_folder_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Mon espace',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              SegmentedButton<_MeLayout>(
+                key: const Key('me-layout-toggle'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: _MeLayout.list,
+                    icon: Icon(Icons.view_list_outlined, size: 18),
+                    label: Text('Liste'),
+                  ),
+                  ButtonSegment(
+                    value: _MeLayout.grid,
+                    icon: Icon(Icons.grid_view_rounded, size: 18),
+                    label: Text('Grille'),
+                  ),
+                ],
+                selected: {_layout},
+                onSelectionChanged: (value) => _chooseLayout(value.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_layout == _MeLayout.list)
+            Column(
+              key: const Key('me-navigation-list'),
+              children: [
+                for (final entry in entries)
+                  _MeHubListEntry(
+                    entry: entry,
+                    scheme: scheme,
+                    canNavigate: widget.canNavigate,
+                    onOpen: () => _open(entry.kind, entry.title),
+                    onOpenPreview: widget.onSelectItem,
+                  ),
+              ],
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final twoColumns = constraints.maxWidth >= 320;
+                final itemWidth = twoColumns
+                    ? (constraints.maxWidth - 12) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  key: const Key('me-navigation-grid'),
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    for (final entry in entries)
+                      SizedBox(
+                        width: itemWidth,
+                        child: _MeHubGridEntry(
+                          entry: entry,
+                          canNavigate: widget.canNavigate,
+                          onOpen: () => _open(entry.kind, entry.title),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MeEntry {
+  const _MeEntry({
+    required this.kind,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.previews = const [],
+    this.count,
+  });
+
+  final String kind;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<MeItemPresentation> previews;
+  final int? count;
+}
+
+class _MeHubListEntry extends StatelessWidget {
+  const _MeHubListEntry({
+    required this.entry,
+    required this.scheme,
+    required this.canNavigate,
+    required this.onOpen,
+    required this.onOpenPreview,
+  });
+
+  final _MeEntry entry;
+  final ColorScheme scheme;
+  final bool canNavigate;
+  final VoidCallback onOpen;
+  final ValueChanged<MeItemPresentation> onOpenPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = entry.previews.take(3).toList(growable: false);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            InkWell(
+              key: Key('me-entry-${entry.kind}'),
+              onTap: canNavigate ? onOpen : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(entry.icon, color: scheme.primary, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.title,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            entry.subtitle,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (entry.count != null && entry.count! > 0) ...[
+                      Text(
+                        '${entry.count}',
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    if (canNavigate)
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (preview.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(48, 0, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final item in preview)
+                      InkWell(
+                        onTap: canNavigate && item.canOpen
+                            ? () => onOpenPreview(item)
+                            : null,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              if (canNavigate && item.canOpen)
+                                Icon(
+                                  Icons.arrow_outward_rounded,
+                                  size: 16,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeHubGridEntry extends StatelessWidget {
+  const _MeHubGridEntry({
+    required this.entry,
+    required this.canNavigate,
+    required this.onOpen,
+  });
+
+  final _MeEntry entry;
+  final bool canNavigate;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: Key('me-grid-${entry.kind}'),
+        onTap: canNavigate ? onOpen : null,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 106),
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(entry.icon, color: scheme.primary, size: 26),
+                const SizedBox(height: 14),
+                Text(
+                  entry.title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
