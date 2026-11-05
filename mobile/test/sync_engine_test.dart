@@ -16,6 +16,69 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
+  test('composed Me edits reuse the single canonical root reconciliation',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: 1,
+      payload: const {'actor': {'id': 'profile-a'}, 'name': 'Local'},
+    );
+    final requests = <String>[];
+    var offline = false;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      ),
+      dio: MockClient((request) async {
+        requests.add(request.url.path);
+        if (offline) {
+          return const MockResponse('{"detail":"offline"}', 503);
+        }
+        return MockResponse(
+          jsonEncode({
+            'meta': {
+              'projection': 'personal.me',
+              'schema_version': 1,
+              'scope': 'personal',
+              'generated_at': '2026-11-05T12:00:00Z',
+            },
+            'data': {
+              'actor': {'type': 'profile', 'id': 'profile-a'},
+              'name': 'Confirmed',
+            },
+          }),
+          200,
+        );
+      }).dio,
+    );
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api,
+      database: db,
+      store: store,
+      profileId: 'profile-a',
+    );
+    expect(await sync.refreshPersonalMe(), isTrue);
+    expect(requests, ['/api/v1/me/']);
+    expect((await store.readProjection('personal.me'))?.payload['name'],
+        'Confirmed');
+
+    offline = true;
+    expect(await sync.refreshPersonalMe(), isFalse);
+    expect((await store.readProjection('personal.me'))?.payload['name'],
+        'Confirmed',
+        reason: 'Transport failure never clears earlier owner knowledge');
+  });
+
+
   test(
     'sync applies owner projections locally and preserves them offline',
     () async {
