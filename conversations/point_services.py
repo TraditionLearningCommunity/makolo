@@ -44,26 +44,62 @@ POINT_POLICY_CAPABILITY = {
 }
 
 
-def point_visible_to(profile, point, *, at=None):
-    if not can_view_conversation(profile, point.conversation):
+def point_visible_to(
+    profile, point, *, at=None,
+    visibility_cache=None, audience_cache=None, history_cache=None,
+):
+    """Canonical viewer check with optional request-local memoization.
+
+    Cache keys include the Profile and object identity. Callers never supply a
+    positive authorization flag: the service fills every cache from the live
+    policy itself. Recheck on every new request/acquisition.
+    """
+    scope = (getattr(profile, "pk", None), point.conversation_id)
+    if visibility_cache is None:
+        visible = can_view_conversation(profile, point.conversation)
+    else:
+        if scope not in visibility_cache:
+            visibility_cache[scope] = can_view_conversation(profile, point.conversation)
+        visible = visibility_cache[scope]
+    if not visible:
         return False
+
     if point.lifecycle == ConversationPointLifecycle.DRAFT:
         if point.published_by_id != getattr(profile, "pk", None) and not can_manage_conversation(profile, point.conversation):
             return False
     if (
         point.published_at is not None
         and point.conversation.history_policy == ConversationHistoryPolicy.FROM_JOIN
-        and not can_manage_conversation(profile, point.conversation)
     ):
-        joined_at = ConversationParticipation.objects.filter(
-            conversation=point.conversation, profile=profile,
-            status=ConversationParticipationStatus.ACTIVE,
-        ).values_list("joined_at", flat=True).first()
-        # Derived eligibility has no historic join timestamp. Never pretend
-        # that Conversation.opened_at was this person's entry date.
-        if joined_at is None or point.published_at < joined_at:
+        if history_cache is None:
+            manager = can_manage_conversation(profile, point.conversation)
+            joined_at = None if manager else ConversationParticipation.objects.filter(
+                conversation=point.conversation, profile=profile,
+                status=ConversationParticipationStatus.ACTIVE,
+            ).values_list("joined_at", flat=True).first()
+        else:
+            if scope not in history_cache:
+                manager = can_manage_conversation(profile, point.conversation)
+                joined_at = None if manager else ConversationParticipation.objects.filter(
+                    conversation=point.conversation, profile=profile,
+                    status=ConversationParticipationStatus.ACTIVE,
+                ).values_list("joined_at", flat=True).first()
+                history_cache[scope] = (manager, joined_at)
+            manager, joined_at = history_cache[scope]
+        # Never infer an historic join from derived access.
+        if not manager and (joined_at is None or point.published_at < joined_at):
             return False
-    return not point.visibility_audience_id or profile_in_audience(profile, point.visibility_audience, at=at)
+
+    if not point.visibility_audience_id:
+        return True
+    audience_scope = (getattr(profile, "pk", None), point.visibility_audience_id, at)
+    if audience_cache is None:
+        return profile_in_audience(profile, point.visibility_audience, at=at)
+    if audience_scope not in audience_cache:
+        audience_cache[audience_scope] = profile_in_audience(
+            profile, point.visibility_audience, at=at,
+        )
+    return audience_cache[audience_scope]
 
 
 def point_resolution_visible_to(profile, point, *, at=None):
