@@ -14,6 +14,20 @@ import 'package:makolo_mobile/notifications/notification_screens.dart';
 import 'fakes.dart';
 
 void main() {
+  test('Notifications cannot alias a store from another Profile', () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    expect(
+      () => NotificationRepository(
+        database: db,
+        store: ProfileStore(db, 'profile-b'),
+        profileId: 'profile-a',
+        sync: null,
+      ),
+      throwsArgumentError,
+    );
+  });
+
   testWidgets(
     'inbox and preferences reuse one owner repository and Profile store',
     (tester) async {
