@@ -352,30 +352,58 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       return _empty(context, Icons.perm_media_outlined,
           'Aucun média accessible dans cette conversation.');
     }
-    return ListView(
-      key: const Key('conversation-details-media-list'),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
-      children: [
-        Text('Médias et documents accessibles',
-            style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        for (final attachment in media)
-          Card(
-            margin: const EdgeInsets.only(bottom: 7),
-            child: ListTile(
-              leading: Icon(ConversationListTile.mediaIcon(
-                attachment['kind']?.toString() ?? 'file',
-              )),
-              title: Text(attachment['name']?.toString() ?? 'Pièce jointe',
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              subtitle: Text(ConversationListTile.mediaLabel(
-                attachment['kind']?.toString() ?? 'file',
-              )),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => _openAttachment(attachment),
-            ),
+    final colors = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth > 580 ? 4 : 3;
+        return GridView.builder(
+          key: const Key('conversation-details-media-list'),
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 36),
+          itemCount: media.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: .8,
           ),
-      ],
+          itemBuilder: (context, index) {
+            final attachment = media[index];
+            final kind = attachment['kind']?.toString() ?? 'file';
+            final name = attachment['name']?.toString() ?? 'Pièce jointe';
+            return Semantics(
+              button: true,
+              label: 'Ouvrir ' + name,
+              child: Material(
+                color: colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(16),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => _openAttachment(attachment),
+                  child: Column(
+                    children: [
+                      Expanded(child: Center(
+                        child: Icon(
+                          ConversationListTile.mediaIcon(kind),
+                          size: 35,
+                          color: colors.primary,
+                        ),
+                      )),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 0, 6, 9),
+                        child: Text(
+                          name, maxLines: 2, textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
