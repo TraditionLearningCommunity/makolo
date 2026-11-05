@@ -1624,6 +1624,11 @@ class _PointCardState extends State<_PointCard> {
             onOpen: widget.onOpenAttachment == null
                 ? null
                 : () => widget.onOpenAttachment!(attachment),
+            preview: ConversationAttachmentViewer(
+              repository: widget.repository,
+              attachment: attachment,
+              inline: true,
+            ),
           ),
         if (point.kind == 'exchange' && widget.onOpenExchange != null)
           Align(
