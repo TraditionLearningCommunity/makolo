@@ -278,6 +278,10 @@ class MatureDiscoveryAPITests(TestCase):
             self.assertIn("kind", compact_item["representation"])
             self.assertIn("eyebrow", compact_item["representation"])
             self.assertIn("image_url", compact_item["representation"])
+            self.assertIn("summary", compact_item["representation"])
+            self.assertLessEqual(
+                len(compact_item["representation"]["summary"]), 160,
+            )
             self.assertIn("owner", compact_item)
             self.assertIn("timing", compact_item)
             # The pin is NOT a cached authorized detail; it must be enriched
