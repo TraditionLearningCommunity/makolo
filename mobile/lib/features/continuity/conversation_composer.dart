@@ -32,6 +32,7 @@ class _PointDraft {
     required this.options,
     this.audienceId,
     this.reference,
+    this.multipleChoice = false,
   });
 
   final String title;
@@ -39,11 +40,13 @@ class _PointDraft {
   final List<String> options;
   final String? audienceId;
   final String? reference;
+  final bool multipleChoice;
 
   Map<String, dynamic> toPayload() => {
     'title': title,
     'body': body,
     'options': options,
+    'multiple_choice': multipleChoice,
     if (audienceId != null) 'audience_id': audienceId,
   };
 
@@ -54,6 +57,7 @@ class _PointDraft {
         ? (payload['options'] as List).map((item) => item.toString()).toList()
         : (payload['options']?.toString() ?? '').split('\n').where((item) => item.trim().isNotEmpty).toList(),
     audienceId: payload['audience_id']?.toString(),
+    multipleChoice: payload['multiple_choice'] == true,
   );
 }
 
@@ -615,6 +619,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   String? _mediaFilename;
   String? _mediaKind;
   bool _sending = false;
+  bool _multipleChoice = false;
   Future<void> _draftWrites = Future<void>.value();
 
   String? get _representedSpace => widget.representedSpaceId != null &&
@@ -632,6 +637,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     _optionControllers = (draft?.options.isNotEmpty == true ? draft!.options : <String>['', '']).map((value) => TextEditingController(text: value)).toList();
     for (final controller in _optionControllers) { controller.addListener(_changed); }
     _reference = draft?.reference;
+    _multipleChoice = draft?.multipleChoice ?? false;
     _audienceId = draft?.audienceId ??
         widget.capabilities['default_audience_id']?.toString();
     _title.addListener(_changed);
@@ -645,6 +651,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       options: _optionControllers.map((item) => item.text).toList(),
       audienceId: _audienceId,
       reference: _reference,
+      multipleChoice: _multipleChoice,
     );
     _draftWrites = _draftWrites.catchError((Object _) {}).then(
       (_) => widget.onDraftChanged(draft),
@@ -746,6 +753,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           title: title,
           body: body,
           options: options,
+          multipleChoice: _multipleChoice,
           filePath: _mediaPath,
           filename: _mediaFilename,
           mediaKind: _mediaKind,
@@ -773,6 +781,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           title: title,
           body: body,
           options: options,
+          multipleChoice: _multipleChoice,
           audienceId: _audienceId,
           representedSpaceId: _representedSpace,
           clientReference: _reference!,
@@ -878,6 +887,16 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                     ],
                   ),
                 ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _multipleChoice,
+                onChanged: _sending ? null : (value) => setState(() {
+                  _multipleChoice = value == true;
+                  _changed();
+                }),
+                title: const Text('Plusieurs réponses possibles'),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
               Align(alignment: Alignment.centerLeft, child: TextButton.icon(
                 onPressed: _sending || _optionControllers.length >= 12 ? null : () => setState(() {
                   final controller = TextEditingController();
