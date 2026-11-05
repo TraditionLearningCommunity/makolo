@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../sync/owner_source_state.dart';
 import 'me_selector.dart';
 
@@ -279,7 +280,7 @@ class _MeHubState extends State<MeHub> {
       _MeEntry(
         kind: 'saved_collection',
         title: 'Mes enregistrements',
-        subtitle: 'Possibilités conservées',
+        subtitle: 'Opportunités enregistrées',
         icon: Icons.bookmark_rounded,
         previews: saved,
         count: _territory('considerations')?.savedCount,
@@ -698,6 +699,9 @@ class _MeHubSymbol extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kind == 'saved_collection') {
+      return DiscoveryOrbitIcon(saved: true, color: color, size: size);
+    }
     if (kind != 'project_collection' &&
         kind != 'dossier_collection' &&
         kind != 'resource_collection') {
