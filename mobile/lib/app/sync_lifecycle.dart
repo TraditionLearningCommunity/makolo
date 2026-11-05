@@ -257,7 +257,11 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       }
       // Personal owner collections are acquired independently of navigation.
       // Progress is bounded, durable and resumed on the next lifecycle cycle.
-      final workingSetSucceeded = await sync.refreshPreparedSources();
+      // C6 composes nine bounded first-page sources (including Project and
+      // Dossier). One foreground pass covers these without a separate
+      // prefetcher, media download loop or unlimited pagination.
+      final workingSetSucceeded =
+          await sync.refreshPreparedSources(maxRequests: 9);
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
       if (!mounted || !identical(runtime, widget.runtime)) return;
