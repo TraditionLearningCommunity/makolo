@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -45,6 +46,8 @@ class _OwnerApi implements MakoloApiClient {
   bool approve = true;
   String relationship = 'beneficiary';
   int requests = 0;
+  Completer<ApiResponse>? deferredResponse;
+  Completer<void>? deferredStarted;
   @override
   Uri get baseUri => Uri.parse('https://makolo.test/');
 
@@ -55,6 +58,13 @@ class _OwnerApi implements MakoloApiClient {
     MakoloCancelHandle? cancel,
   }) async {
     requests++;
+    final deferred = deferredResponse;
+    if (deferred != null) {
+      deferredResponse = null;
+      final started = deferredStarted;
+      if (started != null && !started.isCompleted) started.complete();
+      return deferred.future;
+    }
     if (offline) throw StateError('offline');
     if (deny) {
       throw const MakoloApiError(
@@ -142,6 +152,67 @@ void main() {
       ),
       throwsFormatException,
     );
+  });
+
+  test('late QR response cannot resurrect a 403 from another repository',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final vault = _Vault();
+    final owner = _OwnerApi();
+    final first = AccessRepository(
+      database: db,
+      store: ProfileStore(db, 'profile-a'),
+      profileId: 'profile-a',
+      api: owner,
+      credentialVault: vault,
+    );
+    final second = AccessRepository(
+      database: db,
+      store: ProfileStore(db, 'profile-a'),
+      profileId: 'profile-a',
+      api: owner,
+      credentialVault: vault,
+    );
+
+    // Capture an older success before an owner denial is observed.
+    final earlierResponse = await owner.get(credentialPath);
+    final delayed = Completer<ApiResponse>();
+    owner.deferredResponse = delayed;
+    owner.deferredStarted = Completer<void>();
+    final inFlight = first.fetchCredential(
+      accessId: 'access-1',
+      path: credentialPath,
+    );
+    await owner.deferredStarted!.future;
+    owner.deny = true;
+    await expectLater(
+      second.fetchCredential(accessId: 'access-1', path: credentialPath),
+      throwsA(isA<MakoloApiError>()),
+    );
+    delayed.complete(earlierResponse);
+    await expectLater(inFlight, throwsA(isA<StateError>()));
+    expect(await first.readRetainedCredential('access-1'), isNull);
+
+    owner.deny = false;
+    final reacquired = await first.fetchCredential(
+      accessId: 'access-1',
+      path: credentialPath,
+    );
+    expect(reacquired.payload, 'signed-secret-only-in-vault');
+    expect(await first.readRetainedCredential('access-1'), isNotNull);
+  });
+
+  test('Access repository rejects cross-Profile secure credential bindings',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    expect(() => AccessRepository(
+      database: db,
+      store: ProfileStore(db, 'profile-b'),
+      profileId: 'profile-a',
+      credentialVault: _Vault(),
+    ), throwsArgumentError);
   });
 
   testWidgets('cold offline QR display never claims an accepted AccessUse',
