@@ -322,6 +322,12 @@ class SyncEngine {
     return results.every((success) => success) && interoperabilityReady;
   }
 
+  /// Reconcile the canonical personal Me root after an owner-confirmed
+  /// mutation. Every feature uses the same source contract and revocation
+  /// protection; no widget should write its own competing root snapshot.
+  Future<bool> refreshPersonalMe() =>
+      _refreshSourceStatus(_rootSource(roots[2]));
+
   Future<void> refreshSource(SyncSourceDefinition source) async {
     await _refreshSourceStatus(source);
   }
