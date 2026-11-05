@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
@@ -20,8 +21,10 @@ void main() {
   late ConversationLocalDelivery delivery;
   late List<MockRequest> requests;
   late bool reachable;
+  late Directory mediaDirectory;
 
   setUp(() {
+    mediaDirectory = Directory.systemTemp.createTempSync('makolo-c3-media-');
     database = MakoloDatabase.memory();
     outbox = OutboxRepository(database, 'profile-a');
     drafts = DraftRepository(
@@ -57,11 +60,17 @@ void main() {
       api: api,
       profileId: 'profile-a',
       refreshDetail: (_, __) async {},
+      mediaMime: (filename, kind) =>
+          kind == 'image' ? 'image/png' : 'application/octet-stream',
+      mediaDirectory: () async => mediaDirectory,
     );
   });
 
   tearDown(() async {
     await database.close();
+    if (await mediaDirectory.exists()) {
+      await mediaDirectory.delete(recursive: true);
+    }
   });
 
   OutboxProcessor processor() => OutboxProcessor(
@@ -136,6 +145,27 @@ void main() {
         '/api/v1/conversations/conv-2/forms/');
     expect((requests.single.data as Map)['client_reference'], intent);
     expect((requests.single.data as Map)['questions'], ['Votre nom ?']);
+  });
+
+  test('private media is copied before sending and survives original deletion', () async {
+    final captured = File('${mediaDirectory.path}/captured.png');
+    await captured.writeAsBytes([137, 80, 78, 71, 13, 10, 26, 10, 0]);
+    final reference = await delivery.queue(
+      conversationId: 'conv-1', mode: 'media',
+      mediaKind: 'image',
+      filename: 'captured.png',
+      filePath: captured.path,
+      body: 'Voici une photo',
+    );
+    await captured.delete();
+    final outgoing = await delivery.watchOutgoing('conv-1').first;
+    expect(outgoing.single.reference, reference);
+    expect(outgoing.single.mediaKind, 'image');
+    expect(outgoing.single.filename, 'captured.png');
+    final copy = File(outgoing.single.localFilePath!);
+    expect(await copy.exists(), isTrue);
+    expect(await copy.readAsBytes(), [137, 80, 78, 71, 13, 10, 26, 10, 0]);
+    expect(requests, isEmpty);
   });
 
   test('a mismatched Profile cannot dispatch a queued owner mutation', () async {
