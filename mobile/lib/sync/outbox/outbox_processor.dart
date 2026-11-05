@@ -123,10 +123,12 @@ class OutboxProcessor {
         }
         if (dependencies.isNotEmpty) {
           final states = await repository.dependencyStates(dependencies);
+          final permanentlyFailed =
+              await repository.permanentlyFailedDependencies(dependencies);
           if (dependencies.any((id) =>
               states[id] == OutboxState.conflict.wireValue ||
               states[id] == OutboxState.cancelled.wireValue ||
-              states[id] == OutboxState.failed.wireValue)) {
+              permanentlyFailed.contains(id))) {
             await repository.setState(
               operation.operationId,
               OutboxState.conflict,
