@@ -185,25 +185,38 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement des conversations…',
-                ),
-                blockingErrorMessage: 'Impossible de charger vos conversations.',
-                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
-                preservedMessage: available
-                    ? 'Les conversations déjà disponibles restent consultables.'
-                    : null,
-                onRetry: _refresh,
-                content: _ConversationListBody(
-                  repository: widget.repository,
-                  items: items,
-                  onOpen: widget.onOpen,
-                  onOpenPoint: widget.onOpenPoint,
-                  onRetryInvitations: () => _refreshInvitationsIfNeeded(force: true),
-                ),
-              ),
+              // Network status is already represented by the thin shell cue.
+              // Never replace a cached inbox with a transport-error tutorial.
+              body: available ||
+                      (_attemptedRefresh &&
+                          !_refreshing &&
+                          source.lastErrorCode != 'permission_denied' &&
+                          source.lastErrorCode != 'not_found')
+                  ? _ConversationListBody(
+                      repository: widget.repository,
+                      items: items,
+                      onOpen: widget.onOpen,
+                      onOpenPoint: widget.onOpenPoint,
+                      onRetryInvitations: () =>
+                          _refreshInvitationsIfNeeded(force: true),
+                    )
+                  : MakoloSurfaceStateView(
+                      state: surface,
+                      initialLoading: const MakoloLoadingState(
+                        label: 'Chargement des conversations…',
+                      ),
+                      blockingErrorMessage:
+                          'Impossible de charger vos conversations.',
+                      onRetry: _refresh,
+                      content: _ConversationListBody(
+                        repository: widget.repository,
+                        items: items,
+                        onOpen: widget.onOpen,
+                        onOpenPoint: widget.onOpenPoint,
+                        onRetryInvitations: () =>
+                            _refreshInvitationsIfNeeded(force: true),
+                      ),
+                    ),
             );
           },
         );
@@ -401,8 +414,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
           stream: widget.repository.watchInvitationsSource(),
           initialData: OwnerSourceState.unknown,
           builder: (context, invitationSourceSnapshot) {
-            final invitationFailure =
-                invitationSourceSnapshot.data?.lastErrorCode != null;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 860),
@@ -468,35 +479,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                     padding: EdgeInsets.only(top: 8),
                     child: LinearProgressIndicator(minHeight: 2),
                   ),
-                if (_archiveFailed && _tab == 'archived') ...[
-                  const Padding(
-                    padding: EdgeInsets.only(top: MakoloSpacing.sm),
-                    child: Text('Mise à jour des archives indisponible.'),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: _loadArchive,
-                      child: const Text('Réessayer'),
-                    ),
-                  ),
-                ],
-                if (_searchFailed)
-                  const Padding(
-                    padding: EdgeInsets.only(top: MakoloSpacing.sm),
-                    child: Text('Recherche en ligne indisponible.'),
-                  ),
-                if (invitationFailure && _query.isEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.md),
-                  const Text('Impossible d’actualiser les invitations.'),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () => unawaited(widget.onRetryInvitations()),
-                      child: const Text('Réessayer'),
-                    ),
-                  ),
-                ],
+
                 if (invitations.isNotEmpty && _query.isEmpty) ...[
                   const SizedBox(height: MakoloSpacing.lg),
                   Text('Invitations',
