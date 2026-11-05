@@ -447,6 +447,19 @@ class AccessRepository {
       if (value != null) await credentialVault.delete(profileId, accessId);
       return null;
     }
+    // A 403 can arrive while Keychain/Keystore is being read. Recheck the
+    // durable owner tombstones before returning any sensitive bytes.
+    if (sync?.isActive == false ||
+        (await readSource(accessId)).invalidated ||
+        await _hasRevokedBeneficiaryCollection() ||
+        await _credentialRetentionDenied(accessId)) {
+      try {
+        await credentialVault.delete(profileId, accessId);
+      } on Object {
+        // Durable source tombstones still prevent future disclosure.
+      }
+      return null;
+    }
     return AccessCredentialData(
       accessId: accessId,
       credentialType: 'qr',
