@@ -4,6 +4,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -336,7 +337,31 @@ final class WorkspaceContextRepository {
 
   Future<void> refreshInventory() async {
     final engine = _requireSync();
-    await engine.pullSource(inventorySource());
+    final previous = await readInventory();
+    try {
+      await engine.pullSource(inventorySource());
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        // A denied inventory cannot validate the selected Space actor.
+        // Transport outages do not reset a valid local preference.
+        await actorContext.selectPersonal();
+      }
+      rethrow;
+    }
+    final state = await readSource(inventorySource());
+    if (state.invalidated || state.lastErrorCode != null) return;
+    final current = await readInventory();
+    final ids = current.map((item) => item.identity.id).toSet();
+    // An inventory removal is an owner-confirmed withdrawal for that Space,
+    // not a reason to erase other Spaces or device-owned drafts.
+    for (final former in previous) {
+      if (!ids.contains(former.identity.id)) {
+        await engine.revoke(
+          workspaceSource(former.identity),
+          code: 'not_found',
+        );
+      }
+    }
     await _reconcileActorContextFromInventory();
   }
 
@@ -359,7 +384,17 @@ final class WorkspaceContextRepository {
 
   Future<void> refreshWorkspace(SpaceActorIdentity space) async {
     final engine = _requireSync();
-    await engine.pullSource(workspaceSource(space));
+    try {
+      await engine.pullSource(workspaceSource(space));
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        final selected = actorContext.value;
+        if (selected is SpaceActorContext && selected.space.id == space.id) {
+          await actorContext.selectPersonal();
+        }
+      }
+      rethrow;
+    }
     await _reconcilePerspective(space);
   }
 
