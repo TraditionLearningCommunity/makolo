@@ -1424,8 +1424,6 @@ class _PointCardState extends State<_PointCard> {
     final canRespond = point.canRespond &&
         (!point.hasResponded || point.canChangeResponse ||
             widget.representedSpaceId != null);
-    final interactive = !widget.readOnly &&
-        (canRespond || point.attentionReason == 'acknowledge');
     final theme = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
