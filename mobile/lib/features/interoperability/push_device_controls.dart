@@ -127,6 +127,30 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     }
   }
 
+  Future<void> _confirmRevoke(String id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Retirer cet appareil ?'),
+        content: const Text(
+          'Il ne recevra plus les alertes Makolo. '
+          'Vous pourrez les réactiver depuis cet appareil.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Retirer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) await _revoke(id);
+  }
+
   Future<void> _revoke(String id) async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
     final ownerRuntime = widget.runtime;
@@ -260,12 +284,6 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Mes appareils',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 6),
-        const Text('Appareils qui peuvent recevoir vos alertes.'),
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (_error != null)
           TextButton.icon(
@@ -276,7 +294,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
         if (!_loading && _error == null && _devices.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Aucun appareil enregistré.'),
+            child: Text('Aucun appareil autorisé.'),
           ),
         for (final device in _devices) ...[
           Padding(
@@ -311,7 +329,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                         ),
                       if (DateTime.tryParse(device['lastSeen']!) != null)
                         Text(
-                          'Vu le ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(device['lastSeen']!).toLocal())}',
+                          'Dernière activité · ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(device['lastSeen']!).toLocal())}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                     ],
@@ -321,7 +339,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                 TextButton(
                   onPressed: _busy || !widget.mutationsEnabled
                       ? null
-                      : () => unawaited(_revoke(device['id']!)),
+                      : () => unawaited(_confirmRevoke(device['id']!)),
                   child: const Text('Retirer'),
                 ),
               ],
@@ -337,7 +355,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                 ? null
                 : () => unawaited(_enableHere()),
             icon: const Icon(Icons.add_alert_outlined),
-            label: const Text('Activer ici'),
+            label: const Text('Autoriser cet appareil'),
           ),
         if (!widget.mutationsEnabled)
           const Text('Reconnectez-vous pour modifier vos appareils.'),
