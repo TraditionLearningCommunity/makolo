@@ -97,6 +97,7 @@ class PersonalRepository {
     required MakoloApiClient api,
     required StoredProjection current,
     required String territory,
+    String? family,
   }) async {
     const families = <String, List<String>>{
       'considerations': [
@@ -113,12 +114,18 @@ class PersonalRepository {
     final names = families[territory];
     final initial = current.payload[territory];
     if (names == null || initial is! Map) return;
+    if (family != null && !names.contains(family)) {
+      throw const FormatException('Unknown Me collection family');
+    }
     final target = names.where(
-      (key) => initial[key] is Map && (initial[key] as Map)['has_more'] == true,
+      (key) =>
+          (family == null || family == key) &&
+          initial[key] is Map &&
+          (initial[key] as Map)['has_more'] == true,
     );
     if (target.isEmpty) return;
-    final family = target.first;
-    final source = initial[family] as Map;
+    final selectedFamily = target.first;
+    final source = initial[selectedFamily] as Map;
     final rows = source['items'];
     if (rows is! List) throw const FormatException('Invalid Me collection');
     final serverOffset = source['next_offset'];
@@ -129,7 +136,7 @@ class PersonalRepository {
     final response = await api.get(
       Uri(
         path: 'api/v1/me/preview/$territory/',
-        queryParameters: {'family': family, 'offset': '$offset', 'limit': '24'},
+        queryParameters: {'family': selectedFamily, 'offset': '$offset', 'limit': '24'},
       ).toString(),
     );
     final envelope = ProjectionEnvelope.parse(
@@ -143,7 +150,7 @@ class PersonalRepository {
         actor['type'] != 'profile' ||
         actor['id']?.toString() != store.profileId ||
         data['territory'] != territory ||
-        data['family'] != family ||
+        data['family'] != selectedFamily ||
         data['offset'] != offset ||
         next is! Map ||
         next['items'] is! List ||
@@ -163,9 +170,9 @@ class PersonalRepository {
       return;
     }
     final latestTerritory = latest.payload[territory];
-    if (latestTerritory is! Map || latestTerritory[family] is! Map) return;
-    final latestItems = (latestTerritory[family] as Map)['items'];
-    final latestSource = latestTerritory[family] as Map;
+    if (latestTerritory is! Map || latestTerritory[selectedFamily] is! Map) return;
+    final latestItems = (latestTerritory[selectedFamily] as Map)['items'];
+    final latestSource = latestTerritory[selectedFamily] as Map;
     if (latestItems is! List ||
         (latestSource['next_offset'] is int
             ? latestSource['next_offset'] != offset
@@ -186,7 +193,7 @@ class PersonalRepository {
       throw const FormatException('Me continuation did not advance');
     }
     final revised = Map<String, dynamic>.from(latestTerritory)
-      ..[family] = {
+      ..[selectedFamily] = {
         'items': combined,
         'count': next['count'],
         'has_more': next['has_more'],
