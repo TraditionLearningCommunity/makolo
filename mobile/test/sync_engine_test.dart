@@ -328,6 +328,121 @@ void main() {
     },
   );
 
+  test('prepared owner pages acquire progressively without a screen', () async {
+    var calls = 0;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((request) async {
+      calls++;
+      final page = int.parse(request.url.pathSegments.lastWhere(
+        (segment) => segment.isNotEmpty,
+      ));
+      final amount = page == 3 ? 40 : 10;
+      return MockResponse(
+        jsonEncode({
+          'meta': {
+            'projection': 'test.collection',
+            'schema_version': 1,
+            'generated_at': '2026-11-05T06:00:00Z',
+          },
+          'data': {
+            'results': List.generate(
+              amount,
+              (index) => {'id': 'item-$page-$index'},
+            ),
+          },
+        }),
+        200,
+      );
+    });
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final other = ProfileStore(database, 'profile-b');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: client.dio,
+        tokenStore: tokens,
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    for (var page = 1; page <= 3; page++) {
+      sync.registerPreparedSource(
+        SyncSourceDefinition.projectionEnvelope(
+          sourceKey: 'test:page:$page',
+          owner: 'Test',
+          path: 'api/v1/test/$page/',
+          projectionKind: 'test.collection',
+          resourceKey: 'page:$page',
+          category: SyncSourceCategory.collection,
+        ),
+      );
+    }
+
+    expect(await sync.refreshPreparedSources(maxRequests: 1), isTrue);
+    expect(calls, 1);
+    expect(await store.readProjections('test.collection'), hasLength(1));
+    expect(await sync.refreshPreparedSources(maxRequests: 1), isTrue);
+    expect(calls, 2);
+    expect(await sync.refreshPreparedSources(maxRequests: 1), isTrue);
+    expect(calls, 3);
+    final pages = await store.readProjections('test.collection');
+    expect(pages, hasLength(3));
+    expect(
+      pages.fold<int>(
+        0,
+        (total, projection) =>
+            total + (projection.payload['results'] as List).length,
+      ),
+      60,
+    );
+    expect(await other.readProjections('test.collection'), isEmpty);
+
+    expect(await sync.refreshPreparedSources(maxRequests: 1), isTrue);
+    expect(calls, 3, reason: 'Fresh owner sources are not fetched each cycle');
+  });
+
+  test('prepared registration rejects signed continuation replay', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: MockClient((_) async => MockResponse('{}', 200)).dio,
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            profileId: 'profile-a',
+          ),
+        ),
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    expect(
+      () => sync.registerPreparedSource(
+        SyncSourceDefinition.projectionEnvelope(
+          sourceKey: 'cursor',
+          owner: 'Discovery',
+          path: 'api/v1/discovery/items/?continuation=signed',
+          projectionKind: 'discovery.items',
+        ),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test(
     '403/404 removes only the source-scoped snapshot, not resource identity',
     () async {
