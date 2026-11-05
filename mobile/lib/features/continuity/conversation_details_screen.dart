@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../data/local/profile_store.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'conversation_attachment_viewer.dart';
-import 'conversation_list_tile.dart';
 import 'conversation_repository.dart';
 
 /// A Conversation is the coordination around an object, not a generic group.
