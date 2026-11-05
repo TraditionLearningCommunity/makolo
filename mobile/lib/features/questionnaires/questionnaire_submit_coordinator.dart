@@ -90,6 +90,9 @@ class QuestionnaireSubmitCoordinator {
     if (operation.owner != owner || operation.profileId != outbox.profileId) {
       return OutboxResolution.conflict;
     }
+    if (!await _hasOwnerSession(operation)) {
+      return OutboxResolution.awaitingConfirmation;
+    }
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
     final journeyId = payload['journey_id']?.toString().trim() ?? '';
@@ -106,6 +109,9 @@ class QuestionnaireSubmitCoordinator {
         response: saved,
       );
 
+      if (!await _hasOwnerSession(operation)) {
+        return OutboxResolution.awaitingConfirmation;
+      }
       final submitted = await api.post(_relative(links.submit!));
       await questionnaires.applyOwnerResponse(
         requestId: requestId,
@@ -150,6 +156,9 @@ class QuestionnaireSubmitCoordinator {
   Future<OutboxResolution> _reconcile(OutboxOperation operation) async {
     if (operation.owner != owner || operation.profileId != outbox.profileId) {
       return OutboxResolution.conflict;
+    }
+    if (!await _hasOwnerSession(operation)) {
+      return OutboxResolution.awaitingConfirmation;
     }
     final payload = _payload(operation);
     final requestId = _requiredString(payload, 'request_id');
@@ -229,6 +238,11 @@ class QuestionnaireSubmitCoordinator {
         'base_observed_at': DateTime.now().toUtc().toIso8601String(),
       },
     );
+  }
+
+  Future<bool> _hasOwnerSession(OutboxOperation operation) async {
+    final session = await tokens.readSession();
+    return session?.profileId == operation.profileId;
   }
 
   Map<String, dynamic> _payload(OutboxOperation operation) {
