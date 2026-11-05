@@ -40,7 +40,7 @@ void main() {
       );
       addTearDown(actor.dispose);
       await actor.selectSpace(
-        const SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
+        SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
       );
       var failure = 0;
       final tokens = MemoryTokenStore(
