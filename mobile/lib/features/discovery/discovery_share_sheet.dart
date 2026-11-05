@@ -18,6 +18,7 @@ class DiscoveryShareControl extends StatefulWidget {
     this.onSignIn,
     this.iconOnly = false,
     this.enabled = true,
+    this.showAsSheet = false,
     this.baseUri,
   });
 
@@ -29,6 +30,9 @@ class DiscoveryShareControl extends StatefulWidget {
   /// The owner has been revalidated for this N2; cached facts alone never
   /// authorize fresh sharing. N1 keeps its established behavior.
   final bool enabled;
+  /// Carte uses the same Sharing operations but places choices in a
+  /// bottom sheet rather than obscuring a short map preview with a popup.
+  final bool showAsSheet;
   final Uri? baseUri;
 
   @override
@@ -199,6 +203,72 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     );
   });
 
+  void _selectAction(String value) {
+    if (value == 'makolo') {
+      if (widget.authenticated) {
+        unawaited(_internal());
+      } else {
+        widget.onSignIn?.call();
+      }
+    } else if (value == 'external') {
+      unawaited(_external());
+    } else if (value == 'copy') {
+      unawaited(_copy());
+    } else if (value == 'qr') {
+      unawaited(_qr());
+    }
+  }
+
+  Future<void> _openOptionsSheet() async {
+    if (_busy || !widget.enabled) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        void choose(String action) {
+          Navigator.of(sheetContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _selectAction(action);
+          });
+        }
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.authenticated || widget.onSignIn != null)
+                  ListTile(
+                    leading: const Icon(Icons.people_outline_rounded),
+                    title: Text(widget.authenticated
+                        ? 'Dans Makolo'
+                        : 'Dans Makolo · connexion requise'),
+                    onTap: () => choose('makolo'),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.ios_share_rounded),
+                  title: const Text('Partager avec…'),
+                  onTap: () => choose('external'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.link_rounded),
+                  title: const Text('Copier le lien'),
+                  onTap: () => choose('copy'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.qr_code_rounded),
+                  title: const Text('Afficher le QR'),
+                  onTap: () => choose('qr'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // The owner Web share reference is the current contract for shareability.
@@ -221,24 +291,23 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
               label: const Text('Partager'),
             );
     }
+    if (widget.showAsSheet) {
+      return IconButton(
+        tooltip: 'Partager l’opportunité',
+        onPressed: _busy ? null : () => unawaited(_openOptionsSheet()),
+        icon: _busy
+            ? const SizedBox(
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.share_outlined),
+      );
+    }
     return PopupMenuButton<String>(
-      tooltip: 'Partager cette possibilité',
+      tooltip: 'Partager l’opportunité',
       enabled: widget.enabled && !_busy,
-      onSelected: (value) {
-        if (value == 'makolo') {
-          if (widget.authenticated) {
-            _internal();
-          } else {
-            widget.onSignIn?.call();
-          }
-        } else if (value == 'external') {
-          _external();
-        } else if (value == 'copy') {
-          _copy();
-        } else if (value == 'qr') {
-          _qr();
-        }
-      },
+      onSelected: _selectAction,
       itemBuilder: (_) => [
         if (widget.authenticated || widget.onSignIn != null)
           PopupMenuItem(
