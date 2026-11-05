@@ -558,9 +558,11 @@ void main() {
       () async => Future<void>.delayed(const Duration(milliseconds: 150)),
     );
     await tester.pump();
-    expect(find.text('Départ vers Kolwezi'), findsWidgets);
+    expect(find.text('Départ vers Kolwezi'), findsOneWidget);
     expect(find.text('Vous confirmez ?'), findsOneWidget);
-    expect(find.text('À vous'), findsOneWidget);
+    expect(find.byKey(const Key('conversation-detail-content')), findsOneWidget);
+    // C1_bus no longer makes users navigate through administrative sections.
+    expect(find.text('À vous'), findsNothing);
     await tester.tap(find.text('Oui'));
     await tester.runAsync(
       () async => Future<void>.delayed(const Duration(milliseconds: 150)),
@@ -570,6 +572,68 @@ void main() {
     expect(requests.any(
       (uri) => uri.queryParameters['focus_point'] == 'point-confirm',
     ), isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('C1_bus: detail keeps the composer fixed and context accessible', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(jsonEncode({
+          'id': 'conversation-1',
+          'title': 'Préparation pratique — Marché des coopératives',
+          'purpose': 'Informations sur la préparation du marché.',
+          'context': {'kind': 'activity', 'label': 'Marché des coopératives'},
+          'personal_state': {},
+          'points': [
+            for (var i = 0; i < 18; i++)
+              {
+                'id': 'point-$i',
+                'title': 'Question $i',
+                'body': 'Information de préparation $i.',
+                'kind': 'information',
+                'response_mode': 'none',
+                'can_respond': false,
+                'section': 'information',
+                'published_at': DateTime.utc(2026, 11, 4, 10, i).toIso8601String(),
+              },
+          ],
+          'essential': [],
+          'elsewhere': [],
+          'composer': {
+            'can_create': true,
+            'text_mode': 'information',
+            'allowed_kinds': ['information'],
+            'audience_selection_required': false,
+          },
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        repository: repository, id: 'conversation-1',
+      ),
+    );
+    await tester.pump();
+    final timeline = find.byKey(const Key('conversation-detail-content'));
+    final composer = find.byKey(const Key('conversation-composer'));
+    expect(timeline, findsOneWidget);
+    expect(composer, findsOneWidget);
+    expect(find.text('Préparation pratique'), findsOneWidget);
+    expect(find.text('À savoir et résultats'), findsNothing);
+    final fixedTop = tester.getTopLeft(composer).dy;
+    await tester.drag(timeline, const Offset(0, 320));
+    await tester.pump();
+    expect(tester.getTopLeft(composer).dy, closeTo(fixedTop, 1));
+
+    await tester.tap(find.byKey(const Key('conversation-context-header')));
+    await tester.pumpAndSettle();
+    expect(find.text('Informations sur la préparation du marché.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
