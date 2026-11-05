@@ -147,6 +147,166 @@ void main() {
     );
   });
 
+  test('draft ID cannot overwrite a foreign Profile or owner', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final alice = DraftRepository(
+      database: database,
+      outbox: OutboxRepository(database, 'alice'),
+      profileId: 'alice',
+    );
+    final bob = DraftRepository(
+      database: database,
+      outbox: OutboxRepository(database, 'bob'),
+      profileId: 'bob',
+    );
+    await alice.saveLocal(
+      draftId: 'space:create',
+      owner: 'Organizations',
+      resourceKind: 'space.creation',
+      resourceId: 'new',
+      payload: {'name': 'Alice'},
+    );
+    await expectLater(
+      bob.saveLocal(
+        draftId: 'space:create',
+        owner: 'Organizations',
+        resourceKind: 'space.creation',
+        resourceId: 'new',
+        payload: {'name': 'Bob'},
+      ),
+      throwsStateError,
+    );
+    expect(
+      (await alice.read(
+        owner: 'Organizations',
+        resourceKind: 'space.creation',
+        resourceId: 'new',
+      ))?.payload['name'],
+      'Alice',
+    );
+    expect(
+      await bob.read(
+        owner: 'Organizations',
+        resourceKind: 'space.creation',
+        resourceId: 'new',
+      ),
+      isNull,
+    );
+  });
+
+  test('atomic draft and queue roll back if operation cannot be inserted',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    final drafts = DraftRepository(
+      database: database,
+      outbox: outbox,
+      profileId: 'profile-a',
+    );
+    await outbox.enqueue(
+      operationId: 'occupied',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.intent',
+      owner: 'Owner',
+      payload: {'initial': true},
+      intentId: 'intent-old',
+      replayPolicy: ReplayPolicy.safe,
+    );
+
+    await expectLater(
+      drafts.saveAndQueue(
+        draftId: 'form:req-1',
+        owner: 'Questionnaires',
+        resourceKind: 'form_request',
+        resourceId: 'req-1',
+        payload: {'answers': {'question': 'A'}},
+        operationId: 'occupied',
+        deviceInstanceId: 'device-a',
+        operationKind: 'questionnaire.form.submit',
+        intentId: 'intent-new',
+        replayPolicy: ReplayPolicy.refetchBeforeRetry,
+        operationPayload: {'request_id': 'req-1'},
+      ),
+      throwsA(isA<Exception>()),
+    );
+    expect(
+      await drafts.read(
+        owner: 'Questionnaires',
+        resourceKind: 'form_request',
+        resourceId: 'req-1',
+      ),
+      isNull,
+      reason: 'A failed enqueue must roll back the draft write too',
+    );
+    expect(await database.select(database.outboxOperations).get(), hasLength(1));
+  });
+
+  test('same owner intent cannot be queued again with new payload', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    Future<void> enqueue(Map<String, dynamic> payload) => outbox.enqueue(
+      operationId: 'operation-1',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.save',
+      owner: 'Owner',
+      payload: payload,
+      intentId: 'stable-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    await enqueue({'value': 'once'});
+    await enqueue({'value': 'once'});
+    expect(await database.select(database.outboxOperations).get(), hasLength(1));
+    await expectLater(enqueue({'value': 'different'}), throwsStateError);
+  });
+
+  test('single active form intent is enforced in one transaction', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    final drafts = DraftRepository(
+      database: database,
+      outbox: outbox,
+      profileId: 'profile-a',
+    );
+    await outbox.enqueue(
+      operationId: 'pending-form',
+      deviceInstanceId: 'device-a',
+      operationKind: 'questionnaire.form.submit',
+      owner: 'Questionnaires',
+      resourceId: 'request-1',
+      payload: {'request_id': 'request-1'},
+      intentId: 'first-intent',
+      replayPolicy: ReplayPolicy.refetchBeforeRetry,
+    );
+    await expectLater(
+      drafts.saveAndQueue(
+        draftId: 'questionnaire:request-1',
+        owner: 'Questionnaires',
+        resourceKind: 'form_request',
+        resourceId: 'request-1',
+        payload: {'answers': const {}},
+        operationId: 'second-form',
+        deviceInstanceId: 'device-a',
+        operationKind: 'questionnaire.form.submit',
+        intentId: 'second-intent',
+        replayPolicy: ReplayPolicy.refetchBeforeRetry,
+        enforceSingleActive: true,
+      ),
+      throwsStateError,
+    );
+    expect(
+      await drafts.read(
+        owner: 'Questionnaires',
+        resourceKind: 'form_request',
+        resourceId: 'request-1',
+      ),
+      isNull,
+    );
+  });
+
   test('outbox survives database close and reopen', () async {
     final directory = await Directory.systemTemp.createTemp('makolo-a1-');
     addTearDown(() => directory.delete(recursive: true));
