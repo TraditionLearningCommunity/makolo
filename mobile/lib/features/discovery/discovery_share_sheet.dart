@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 
+import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'discovery_selector.dart';
@@ -145,6 +146,17 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     setState(() => _busy = true);
     try {
       await task();
+    } on MakoloApiError catch (error) {
+      if (generation == _itemGeneration) {
+        final message = switch (error.statusCode) {
+          401 => 'Connectez-vous pour partager.',
+          403 => 'Vous ne pouvez pas partager cette opportunité.',
+          404 => 'Cette opportunité n’est plus partageable.',
+          429 => 'Trop de partages. Réessayez plus tard.',
+          _ => 'Le partage n’a pas pu aboutir. Réessayez.',
+        };
+        _feedback(message);
+      }
     } on Object {
       if (generation == _itemGeneration) {
         _feedback('Le partage n’a pas pu aboutir. Réessayez.');
