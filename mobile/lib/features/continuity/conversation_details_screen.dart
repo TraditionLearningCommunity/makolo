@@ -208,7 +208,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(title, textAlign: TextAlign.center,
+            child: Text(title,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium),
           ),
         ],
@@ -223,8 +225,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ),
         ],
         const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             _heroAction(
               icon: Icons.forum_outlined,
@@ -233,23 +237,20 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                   ? () => Navigator.of(context).pop()
                   : widget.onOpenConversation!,
             ),
-            const SizedBox(width: 12),
             if (widget.onOpenHistory != null) ...[
               _heroAction(
                 icon: Icons.manage_search_rounded,
                 label: 'Rechercher',
                 onTap: widget.onOpenHistory!,
               ),
-              const SizedBox(width: 12),
-            ],
+              ],
             if (canOpenSubject) ...[
               _heroAction(
                 icon: Icons.open_in_new_rounded,
                 label: 'Voir l’objet',
                 onTap: () => widget.onOpenSubject!(subjectRoute!),
               ),
-              const SizedBox(width: 12),
-            ],
+              ],
             if (shareEnabled)
               _heroAction(
                 icon: Icons.share_outlined,
