@@ -220,7 +220,8 @@ def readable_exchange_entries(profile, point, *, cursor=None, limit=25):
 def upload_conversation_media(
     *, actor, conversation, uploaded_file, kind, client_reference,
     body="", audience_id=None, point_id=None, represented_space=None,
-    point_kind=None, title="", options=None, form_version_id=None, questions=None,
+    point_kind=None, title="", options=None, multiple_choice=False,
+    form_version_id=None, questions=None,
 ):
     """Upload a validated private attachment to an authorized Exchange or Point."""
     if kind not in ConversationAttachmentKind.values:
@@ -259,6 +260,7 @@ def upload_conversation_media(
             point = publish_composed_point(
                 actor=actor, conversation=conversation, kind=point_kind,
                 title=title, body=caption, options=options,
+                multiple_choice=multiple_choice,
                 audience_id=audience_id, represented_space=represented_space,
                 client_reference=ref,
             )
