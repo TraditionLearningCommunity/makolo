@@ -777,7 +777,7 @@ void main() {
         child: DiscoveryExplorationView(
           selection: selection(items: [item('one', 'Événement')]),
           onOpen: (_) {},
-          onMap: () {},
+          onMap: (_) {},
           onWatch: () {},
         ),
       );
