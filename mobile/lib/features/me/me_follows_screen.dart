@@ -6,6 +6,7 @@ import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
 import '../../network/makolo_api_client.dart';
 import '../../repositories/personal_repository.dart';
+import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'me_selector.dart';
