@@ -279,7 +279,7 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 ### Cas owner 1 — Questionnaires
 
 - `QuestionnaireSubmitCoordinator.enqueue` utilise la transaction `DraftRepository.saveAndQueue`. Les reponses du brouillon et les liens owner du message sortant sont volontairement distincts ; seule la seconde partie constitue une intention envoyable.
-- Le handler est lie explicitement a `Questionnaires`. La recuperation apres interruption continue de consulter le detail owner et ne renvoie pas aveuglement la soumission.
+- Le handler est lie explicitement a `Questionnaires` **et** a la politique `refetch-before-retry`, revalidee par l'OutboxProcessor avant tout dispatch. La recuperation apres interruption continue de consulter le detail owner et ne renvoie pas aveuglement la soumission. Une alteration locale vers `safe` est refusee.
 - Les chemins d'API mis en outbox doivent etre relatifs et sous `api/v1/`, pas des destinations externes arbitraires.
 - `QuestionnaireFormScreen` serialize l'autosave avec l'enqueue, desactive l'edition pendant commit/attente, et n'ecrit plus un brouillon tardif apres une soumission confirmee. Une intention en echec de transport avec retry programme reste active : aucune deuxieme soumission n'est proposee ; le message UX explique que la meme intention sera retentee. Les erreurs de validation owner conservent les reponses editables.
 
