@@ -28,7 +28,13 @@ class DraftRepository {
     required this.database,
     required this.outbox,
     required this.profileId,
-  });
+  }) {
+    if (profileId.trim().isEmpty ||
+        outbox.profileId != profileId ||
+        !identical(outbox.database, database)) {
+      throw ArgumentError('Draft and outbox must share one Profile database');
+    }
+  }
 
   final MakoloDatabase database;
   final OutboxRepository outbox;
