@@ -72,6 +72,14 @@ class OutboxProcessor {
         }
 
         final policy = _policy(operation.replayPolicy);
+        if (policy == null) {
+          await repository.setState(
+            operation.operationId,
+            OutboxState.awaitingConfirmation,
+            errorCode: 'unsupported_replay_policy',
+          );
+          continue;
+        }
         if (policy.requiresOwnerIdempotency &&
             (operation.ownerIdempotencyKey == null ||
              operation.ownerIdempotencyKey!.isEmpty)) {
@@ -241,11 +249,11 @@ class OutboxProcessor {
     }
   }
 
-  ReplayPolicy _policy(String value) {
-    return ReplayPolicy.values.firstWhere(
-      (policy) => policy.wireValue == value,
-      orElse: () => ReplayPolicy.noBlindRetry,
-    );
+  ReplayPolicy? _policy(String value) {
+    for (final policy in ReplayPolicy.values) {
+      if (policy.wireValue == value) return policy;
+    }
+    return null; // Unknown future policy must never dispatch a mutation.
   }
 
   Future<OutboxResolution> _reconcile(OutboxOperation operation) async {
