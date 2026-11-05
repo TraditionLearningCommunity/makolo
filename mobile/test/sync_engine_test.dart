@@ -308,6 +308,7 @@ void main() {
         path: 'api/v1/activities/activity-42/',
         projectionKind: 'activity.detail',
         resourceKey: 'activity-42',
+        indexedResourceKind: 'Activity',
         category: SyncSourceCategory.keyedDetail,
         freshnessPolicy: const FreshnessPolicy(id: 'contextual'),
       );
@@ -320,6 +321,10 @@ void main() {
       );
       expect(projection?.payload['title'], 'Formation');
       expect(projection?.freshnessPolicyId, 'contextual');
+      expect(
+        (await store.readKnownResources(search: 'formation')).single.id,
+        'activity-42',
+      );
       final persistedSource = await (database.select(
         database.syncSources,
       )..where((row) => row.sourceKey.equals(source.sourceKey))).getSingle();
