@@ -806,11 +806,13 @@ void main() {
     expect(find.text('Mes veilles'), findsOneWidget);
     expect(find.text('Mes suivis'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
-    await tester.tap(find.text('Grille'));
+    expect(find.text('Liste'), findsNothing);
+    expect(find.text('Grille'), findsNothing);
+    await tester.tap(find.byTooltip('Grille'));
     await tester.pump();
     expect(find.byKey(const Key('me-navigation-grid')), findsOneWidget);
     expect(find.text('Passeport.pdf'), findsNothing);
-    await tester.tap(find.text('Liste'));
+    await tester.tap(find.byTooltip('Liste'));
     await tester.pump();
     expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('me-shortcut-project_collection')));
@@ -835,7 +837,7 @@ void main() {
     );
 
     await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
-    await tester.tap(find.text('Grille'));
+    await tester.tap(find.byTooltip('Grille'));
     await tester.pump();
 
     final saved = find.byKey(const Key('me-grid-saved_collection'));
@@ -852,7 +854,7 @@ void main() {
     expect(
       find.descendant(
         of: saved,
-        matching: find.text('Opportunités enregistrées'),
+        matching: find.text('À retrouver'),
       ),
       findsOneWidget,
     );
