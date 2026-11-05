@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/design/behavior_states.dart';
 import 'package:makolo_mobile/features/continuity/conversation_screens.dart';
+import 'package:makolo_mobile/features/continuity/conversation_point_presentation.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
@@ -634,6 +635,77 @@ void main() {
     await tester.tap(find.byKey(const Key('conversation-context-header')));
     await tester.pumpAndSettle();
     expect(find.text('Informations sur la préparation du marché.'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('C2_bus: Point author, time, types and media stay in the conversation', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(jsonEncode({
+          'id': 'conversation-1',
+          'title': 'Préparation',
+          'context': {'kind': 'activity', 'label': 'Marché'},
+          'points': [
+            {
+              'id': 'photo-point',
+              'title': 'Voici le modèle',
+              'kind': 'information',
+              'response_mode': 'none',
+              'can_respond': false,
+              'author': {'label': 'Marie N.', 'is_mine': false, 'represented_space': false},
+              'published_at': '2026-11-05T09:30:00Z',
+              'attachments': [
+                {'id': 'photo-1', 'kind': 'image', 'name': 'modele.jpg',
+                 'mime_type': 'image/jpeg'},
+              ],
+            },
+            {
+              'id': 'poll-point',
+              'title': 'Quel modèle choisir ?',
+              'kind': 'poll',
+              'response_mode': 'single_choice',
+              'can_respond': false,
+              'author': {'label': 'Organisation', 'is_mine': true,
+                         'represented_space': true},
+              'published_at': '2026-11-05T09:35:00Z',
+              'options': [
+                {'id': 'a', 'label': 'Modèle A'},
+                {'id': 'b', 'label': 'Modèle B'},
+              ],
+              'response_status': {'response_count': 0},
+            },
+          ],
+          'elsewhere': [],
+          'essential': [],
+          'personal_state': {},
+          'composer': {},
+        }), 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(id: 'conversation-1', repository: repository),
+    );
+    await tester.pump();
+    final other = find.byKey(const Key('conversation-point-shell-photo-point'));
+    final mine = find.byKey(const Key('conversation-point-shell-poll-point'));
+    expect(other, findsOneWidget);
+    expect(mine, findsOneWidget);
+    expect(tester.widget<ConversationPointShell>(other).isMine, isFalse);
+    expect(tester.widget<ConversationPointShell>(mine).isMine, isTrue);
+    expect(find.text('Marie N.'), findsOneWidget);
+    expect(find.text('Vous · Organisation'), findsOneWidget);
+    expect(find.text('Sondage'), findsOneWidget);
+    expect(find.text('modele.jpg'), findsOneWidget);
+    expect(find.text('0 réponse(s)'), findsNothing);
+    expect(find.text('0 réponses'), findsNothing);
+    expect(find.byKey(const Key('conversation-point-attachment-photo-1')),
+        findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
