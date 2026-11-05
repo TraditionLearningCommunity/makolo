@@ -317,9 +317,22 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
-          child: Text('Personnes visibles',
-              style: Theme.of(context).textTheme.titleMedium),
+          child: Text(
+            scope == 'group' && members['total_count'] is num
+                ? '${members['total_count']} membres du Groupe'
+                : 'Personnes visibles',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
+        if (scope == 'group' && members['total_count'] is num &&
+            (members['total_count'] as num).toInt() > people.length)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+            child: Text(
+              'Aperçu des premières personnes. Voir le Groupe pour la liste complète.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         for (final member in people)
           ListTile(
             leading: CircleAvatar(
