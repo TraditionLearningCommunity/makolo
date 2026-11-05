@@ -683,8 +683,9 @@ class _DiscoveryMapPreview extends StatelessWidget {
                       item: resolved ?? item,
                       api: shareApi,
                       authenticated: shareAuthenticated,
-                      // The same Sharing owner control as Découvrir N1.
+                      // Same owner Sharing operation as N1, in a map-safe sheet.
                       enabled: resolved != null && !saving,
+                      showAsSheet: true,
                       baseUri: baseUri,
                       iconOnly: true,
                     ),
