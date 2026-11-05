@@ -484,4 +484,37 @@ void main() {
     );
   });
 
+  test('owner handler refuses a locally weakened replay policy', () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final outbox = OutboxRepository(db, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'form-unsafe',
+      deviceInstanceId: 'device-a',
+      operationKind: 'questionnaire.form.submit',
+      owner: 'Questionnaires',
+      payload: const {},
+      intentId: 'form-unsafe-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    var sent = false;
+    await OutboxProcessor(
+      repository: outbox,
+      handlers: {'questionnaire.form.submit': (_) async {
+        sent = true;
+        return OutboxResolution.confirmed;
+      }},
+      expectedOwners: const {
+        'questionnaire.form.submit': 'Questionnaires',
+      },
+      expectedReplayPolicies: const {
+        'questionnaire.form.submit': ReplayPolicy.refetchBeforeRetry,
+      },
+    ).run();
+    expect(sent, isFalse);
+    final row = (await db.select(db.outboxOperations).get()).single;
+    expect(row.state, OutboxState.awaitingConfirmation.wireValue);
+    expect(row.lastErrorCode, 'unsupported_replay_policy');
+  });
+
 }
