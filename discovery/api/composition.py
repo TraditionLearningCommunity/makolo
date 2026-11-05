@@ -1481,6 +1481,20 @@ def spatial_index_from_rows(rows) -> dict:
         if primary is None and not located_facts:
             continue
         place = primary["place"] if primary is not None else located_facts[0]["place"]
+        # Match the canonical N1/N2 place representation when the admitted
+        # candidate has a primary place. In particular, preserve its Place
+        # identity and server-computed distance; the small map wire must not
+        # invent or strip either fact. Fall back to already-public spatial
+        # facts only when the candidate has no primary place.
+        if candidate.place is not None:
+            place = {
+                "id": candidate.place.id,
+                "name": candidate.place.name,
+                "locality": candidate.place.locality,
+                "latitude": candidate.place.latitude,
+                "longitude": candidate.place.longitude,
+                "distance_km": candidate.distance_km,
+            }
         if not located_facts:
             located_facts = [{"role": "primary", "place": place}]
         possibilities.append({
