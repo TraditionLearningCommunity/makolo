@@ -280,7 +280,7 @@ class _MeHubState extends State<MeHub> {
         kind: 'saved_collection',
         title: 'Mes enregistrements',
         subtitle: 'Possibilités conservées',
-        icon: Icons.bookmark_border_rounded,
+        icon: Icons.bookmark_rounded,
         previews: saved,
         count: _territory('considerations')?.savedCount,
       ),
@@ -303,7 +303,7 @@ class _MeHubState extends State<MeHub> {
         kind: 'resource_collection',
         title: 'Mes ressources',
         subtitle: 'Documents, preuves et attestations',
-        icon: Icons.folder_copy_outlined,
+        icon: Icons.file_copy_outlined,
         previews: (resources?.items ?? const [])
             .where((item) => item.destination.kind != 'resource_collection')
             .toList(growable: false),
@@ -337,7 +337,7 @@ class _MeHubState extends State<MeHub> {
     return OutlinedButton.icon(
       key: Key('me-shortcut-$kind'),
       onPressed: widget.canNavigate ? () => _open(kind, title) : null,
-      icon: Icon(icon, size: 20),
+      icon: _MeHubSymbol(kind: kind, fallback: icon, size: 22, color: Theme.of(context).colorScheme.primary),
       label: Text(title, maxLines: 2, textAlign: TextAlign.center),
       style: OutlinedButton.styleFrom(
         alignment: Alignment.center,
@@ -514,7 +514,7 @@ class _MeHubListEntry extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
                 child: Row(
                   children: [
-                    Icon(entry.icon, color: scheme.primary, size: 24),
+                    _MeHubSymbol(kind: entry.kind, fallback: entry.icon, size: 24, color: scheme.primary),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -605,9 +605,21 @@ class _MeHubGridEntry extends StatelessWidget {
   final bool canNavigate;
   final VoidCallback onOpen;
 
+  String? get _countDescription {
+    final count = entry.count;
+    if (count == null || count <= 0) return null;
+    return switch (entry.kind) {
+      'saved_collection' => '$count ${count == 1 ? 'enregistrement' : 'enregistrements'}',
+      'collectives' => '$count ${count == 1 ? 'collectif' : 'collectifs'}',
+      'resource_collection' => '$count ${count == 1 ? 'ressource' : 'ressources'}',
+      _ => null,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final countDescription = _countDescription;
     return Material(
       color: scheme.surface,
       shape: RoundedRectangleBorder(
@@ -619,21 +631,48 @@ class _MeHubGridEntry extends StatelessWidget {
         key: Key('me-grid-${entry.kind}'),
         onTap: canNavigate ? onOpen : null,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 106),
+          constraints: const BoxConstraints(minHeight: 158),
           child: Padding(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(entry.icon, color: scheme.primary, size: 26),
-                const SizedBox(height: 14),
+                Center(
+                  child: _MeHubSymbol(
+                    kind: entry.kind,
+                    fallback: entry.icon,
+                    size: 32,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 11),
                 Text(
                   entry.title,
+                  textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w800),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  entry.subtitle,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+                if (countDescription != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    countDescription,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: scheme.primary),
+                  ),
+                ],
               ],
             ),
           ),
@@ -641,4 +680,124 @@ class _MeHubGridEntry extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Three recognizable owner-domain silhouettes, shared by both view modes.
+class _MeHubSymbol extends StatelessWidget {
+  const _MeHubSymbol({
+    required this.kind,
+    required this.fallback,
+    required this.size,
+    required this.color,
+  });
+
+  final String kind;
+  final IconData fallback;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (kind != 'project_collection' &&
+        kind != 'dossier_collection' &&
+        kind != 'resource_collection') {
+      return Icon(fallback, size: size, color: color);
+    }
+    return CustomPaint(
+      size: Size.square(size),
+      painter: _MeDomainSymbolPainter(kind: kind, color: color),
+    );
+  }
+}
+
+class _MeDomainSymbolPainter extends CustomPainter {
+  const _MeDomainSymbolPainter({required this.kind, required this.color});
+
+  final String kind;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / 36, size.height / 36);
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.15
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    switch (kind) {
+      case 'project_collection':
+        // One living horizon: a crown, a trunk and visible roots.
+        final crown = Path()
+          ..moveTo(18, 5)
+          ..cubicTo(15, 2, 9, 4, 9, 9)
+          ..cubicTo(4, 8, 2, 14, 6, 18)
+          ..cubicTo(9, 22, 13, 21, 18, 20)
+          ..cubicTo(23, 22, 29, 21, 31, 17)
+          ..cubicTo(34, 13, 31, 9, 26, 9)
+          ..cubicTo(25, 4, 21, 3, 18, 5)
+          ..close();
+        canvas.drawPath(crown, stroke);
+        canvas.drawLine(const Offset(18, 19), const Offset(18, 29), stroke);
+        canvas.drawLine(const Offset(18, 24), const Offset(13, 17), stroke);
+        canvas.drawLine(const Offset(18, 23), const Offset(23, 17), stroke);
+        canvas.drawLine(const Offset(18, 29), const Offset(10, 33), stroke);
+        canvas.drawLine(const Offset(18, 29), const Offset(25, 33), stroke);
+        canvas.drawLine(const Offset(18, 30), const Offset(18, 34), stroke);
+      case 'dossier_collection':
+        // Papers extend above the folder, so it cannot be mistaken for assets.
+        final paper = Path()
+          ..moveTo(13, 13)
+          ..lineTo(13, 4)
+          ..lineTo(24, 4)
+          ..lineTo(28, 8)
+          ..lineTo(28, 20);
+        canvas.drawPath(paper, stroke);
+        canvas.drawLine(const Offset(24, 4), const Offset(24, 9), stroke);
+        canvas.drawLine(const Offset(24, 9), const Offset(28, 9), stroke);
+        canvas.drawLine(const Offset(17, 12), const Offset(24, 12), stroke);
+        final folder = Path()
+          ..moveTo(3, 13)
+          ..lineTo(3, 31)
+          ..lineTo(33, 31)
+          ..lineTo(33, 15)
+          ..lineTo(19, 15)
+          ..lineTo(16, 12)
+          ..lineTo(3, 12)
+          ..close();
+        canvas.drawPath(folder, stroke);
+        canvas.drawLine(const Offset(8, 22), const Offset(28, 22), stroke);
+      case 'resource_collection':
+        // Three independent files, not another folder or project.
+        final backFile = Path()
+          ..moveTo(5, 12)
+          ..lineTo(5, 32)
+          ..lineTo(23, 32);
+        final middleFile = Path()
+          ..moveTo(10, 8)
+          ..lineTo(10, 28)
+          ..lineTo(28, 28);
+        final frontFile = Path()
+          ..moveTo(15, 4)
+          ..lineTo(27, 4)
+          ..lineTo(32, 9)
+          ..lineTo(32, 24)
+          ..lineTo(15, 24)
+          ..close();
+        canvas.drawPath(backFile, stroke);
+        canvas.drawPath(middleFile, stroke);
+        canvas.drawPath(frontFile, stroke);
+        canvas.drawLine(const Offset(27, 4), const Offset(27, 9), stroke);
+        canvas.drawLine(const Offset(27, 9), const Offset(32, 9), stroke);
+        canvas.drawLine(const Offset(19, 14), const Offset(27, 14), stroke);
+        canvas.drawLine(const Offset(19, 19), const Offset(27, 19), stroke);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MeDomainSymbolPainter oldDelegate) =>
+      oldDelegate.kind != kind || oldDelegate.color != color;
 }
