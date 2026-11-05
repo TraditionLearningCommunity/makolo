@@ -1473,6 +1473,24 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         ],
+        // Seeing a poll must not depend on being allowed to vote. Show
+        // existing owner-approved choices without fabricating results.
+        if (point.kind == 'poll' && point.options.isNotEmpty &&
+            (!canRespond || widget.readOnly)) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final option in point.options)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Icon(Icons.radio_button_unchecked_rounded,
+                      size: 18, color: muted),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(child: Text(option.label, style: theme.bodyMedium)),
+                ],
+              ),
+            ),
+        ],
         if (point.formRequest != null && widget.onOpenFormRequest != null) ...[
           const SizedBox(height: MakoloSpacing.md),
           FilledButton.tonalIcon(
