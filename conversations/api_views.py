@@ -16,6 +16,7 @@ from organizations.models import Organization
 
 from .attention import has_conversation_attention
 from .history import page_points_for_profile, point_personal_result
+from .list_presentation import conversation_list_card
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
@@ -150,6 +151,7 @@ def _serialize_conversation_row(row):
         "attention_count": row.attention_count,
         "latest_result": row.latest_result,
         "all_clear": row.all_clear,
+        "card": row.card,
         "updated_at": conversation.updated_at,
     }
 
@@ -265,6 +267,10 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
                     "context": {"kind": conversation.context.kind, "label": result.context_label},
                     "matched_point_id": str(result.point.pk) if result.point else None,
                     "attention_count": attention_by_conversation.get(conversation.pk, 0),
+                    "card": conversation_list_card(
+                        request.user, conversation, context_label=result.context_label,
+                        latest_result="", attention_count=attention_by_conversation.get(conversation.pk, 0),
+                    ),
                     "updated_at": conversation.updated_at,
                 })
                 if len(payload) >= limit:
