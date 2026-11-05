@@ -130,6 +130,52 @@ void main() {
       expect(await File(file.path).readAsBytes(), [4, 5, 6]);
     },
   );
+  test('an interrupted download resumes its private promotion without HTTP',
+      () async {
+    final (root, database, store) = await fixture();
+    addTearDown(() async {
+      await database.close();
+      await root.delete(recursive: true);
+    });
+    final staged = await store.stageCopy(
+      fileId: 'download-recover',
+      owner: 'Resource',
+      sourceFilename: 'document.pdf',
+      purpose: 'offline-use',
+      sensitivity: 'private',
+      writeTo: (path) async {
+        await File(path).writeAsBytes([1, 2, 3], flush: true);
+      },
+    );
+    var redownloaded = false;
+    final completed = await FileDownloadCoordinator(store).download(
+      fileId: staged.fileId,
+      owner: 'Resource',
+      sourceFilename: 'document.pdf',
+      purpose: 'offline-use',
+      sensitivity: 'private',
+      downloadTo: (_) async {
+        redownloaded = true;
+      },
+    );
+    expect(redownloaded, isFalse);
+    expect(completed.path, contains('/private/'));
+    expect(await File(completed.path).readAsBytes(), [1, 2, 3]);
+
+    await expectLater(
+      FileDownloadCoordinator(store).download(
+        fileId: staged.fileId,
+        owner: 'AnotherOwner',
+        sourceFilename: 'document.pdf',
+        purpose: 'offline-use',
+        sensitivity: 'private',
+        downloadTo: (_) async => redownloaded = true,
+      ),
+      throwsStateError,
+    );
+    expect(redownloaded, isFalse);
+  });
+
   test('physical cold restart retains staged bytes, draft and owner intent',
       () async {
     final root = await Directory.systemTemp.createTemp('makolo-c5-reboot-');
