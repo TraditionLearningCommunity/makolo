@@ -99,61 +99,61 @@ class OutboxRepository {
     List<String> dependencies = const [],
   }) {
     return database.transaction(() async {
-    if (operationId.trim().isEmpty ||
-        deviceInstanceId.trim().isEmpty ||
-        operationKind.trim().isEmpty ||
-        owner.trim().isEmpty ||
-        intentId.trim().isEmpty) {
-      throw ArgumentError('Outbox identity and owner must be explicit');
-    }
-    if (dependencies.any((id) => id.trim().isEmpty)) {
-      throw ArgumentError('Outbox dependencies must have stable identities');
-    }
-    // The same user intent is not a new action after a double tap or retry.
-    // Reusing an intent with different content must fail, never overwrite
-    // an already dispatched operation.
-    final sameIntent = await (database.select(database.outboxOperations)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.intentId.equals(intentId),
-          ))
-        .get();
-    if (sameIntent.isNotEmpty) {
-      if (sameIntent.length != 1 ||
-          sameIntent.single.operationId != operationId ||
-          sameIntent.single.deviceInstanceId != deviceInstanceId ||
-          sameIntent.single.owner != owner ||
-          sameIntent.single.operationKind != operationKind ||
-          sameIntent.single.resourceKind != resourceKind ||
-          sameIntent.single.resourceId != resourceId ||
-          sameIntent.single.payloadJson != jsonEncode(payload) ||
-          sameIntent.single.dependencyIdsJson != jsonEncode(dependencies) ||
-          sameIntent.single.replayPolicy != replayPolicy.wireValue ||
-          sameIntent.single.ownerIdempotencyKey != ownerIdempotencyKey) {
-        throw StateError('An outbox intent cannot be changed or replayed as new');
+      if (operationId.trim().isEmpty ||
+          deviceInstanceId.trim().isEmpty ||
+          operationKind.trim().isEmpty ||
+          owner.trim().isEmpty ||
+          intentId.trim().isEmpty) {
+        throw ArgumentError('Outbox identity and owner must be explicit');
       }
-      return;
-    }
-    await database
-        .into(database.outboxOperations)
-        .insert(
-          OutboxOperationsCompanion.insert(
-            operationId: operationId,
-            profileId: profileId,
-            deviceInstanceId: deviceInstanceId,
-            operationKind: operationKind,
-            owner: owner,
-            resourceKind: Value(resourceKind),
-            resourceId: Value(resourceId),
-            payloadJson: jsonEncode(payload),
-            dependencyIdsJson: Value(jsonEncode(dependencies)),
-            observedAt: DateTime.now().toUtc(),
-            intentId: intentId,
-            ownerIdempotencyKey: Value(ownerIdempotencyKey),
-            replayPolicy: replayPolicy.wireValue,
-          ),
-        );
+      if (dependencies.any((id) => id.trim().isEmpty)) {
+        throw ArgumentError('Outbox dependencies must have stable identities');
+      }
+      // The same user intent is not a new action after a double tap or retry.
+      // Reusing an intent with different content must fail, never overwrite
+      // an already dispatched operation.
+      final sameIntent = await (database.select(database.outboxOperations)
+            ..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.intentId.equals(intentId),
+            ))
+          .get();
+      if (sameIntent.isNotEmpty) {
+        if (sameIntent.length != 1 ||
+            sameIntent.single.operationId != operationId ||
+            sameIntent.single.deviceInstanceId != deviceInstanceId ||
+            sameIntent.single.owner != owner ||
+            sameIntent.single.operationKind != operationKind ||
+            sameIntent.single.resourceKind != resourceKind ||
+            sameIntent.single.resourceId != resourceId ||
+            sameIntent.single.payloadJson != jsonEncode(payload) ||
+            sameIntent.single.dependencyIdsJson != jsonEncode(dependencies) ||
+            sameIntent.single.replayPolicy != replayPolicy.wireValue ||
+            sameIntent.single.ownerIdempotencyKey != ownerIdempotencyKey) {
+          throw StateError('An outbox intent cannot be changed or replayed as new');
+        }
+        return;
+      }
+      await database
+          .into(database.outboxOperations)
+          .insert(
+            OutboxOperationsCompanion.insert(
+              operationId: operationId,
+              profileId: profileId,
+              deviceInstanceId: deviceInstanceId,
+              operationKind: operationKind,
+              owner: owner,
+              resourceKind: Value(resourceKind),
+              resourceId: Value(resourceId),
+              payloadJson: jsonEncode(payload),
+              dependencyIdsJson: Value(jsonEncode(dependencies)),
+              observedAt: DateTime.now().toUtc(),
+              intentId: intentId,
+              ownerIdempotencyKey: Value(ownerIdempotencyKey),
+              replayPolicy: replayPolicy.wireValue,
+            ),
+          );
     });
   }
 
