@@ -818,6 +818,68 @@ void main() {
     expect(destination, 'project_collection');
   });
 
+  testWidgets('list mode previews only locally received Access and History', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-1');
+    await store.putProjection(
+      kind: 'personal.accesses',
+      resourceKey: 'beneficiary:0:24',
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {
+            'identity': {'kind': 'access', 'id': 'right-1'},
+            'activity': {'id': 'activity-1', 'title': 'Billet de formation'},
+          },
+        ],
+        'page': {'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+    await store.putProjection(
+      kind: 'personal.history',
+      resourceKey: 'offset:0:limit:24',
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': 'journey-1'},
+            'title': 'Formation accomplie',
+          },
+        ],
+        'page': {'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+    String? opened;
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        store: store,
+        onOpenDestination: (destination) {
+          opened = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Billet de formation'), findsOneWidget);
+    await tester.ensureVisible(find.text('Billet de formation'));
+    await tester.tap(find.text('Billet de formation'));
+    expect(opened, 'access');
+    expect(find.text('Formation accomplie'), findsOneWidget);
+    await tester.ensureVisible(find.text('Formation accomplie'));
+    await tester.tap(find.text('Formation accomplie'));
+    expect(opened, 'journey');
+  });
+
   testWidgets('identity edit uses an explicit owner destination', (
     tester,
   ) async {
