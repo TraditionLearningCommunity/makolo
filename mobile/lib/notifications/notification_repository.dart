@@ -13,7 +13,18 @@ class NotificationRepository {
     required this.store,
     required this.profileId,
     required this.sync,
-  });
+  }) {
+    if (profileId.trim().isEmpty ||
+        store.profileId != profileId ||
+        !identical(store.database, database) ||
+        (sync != null &&
+            (sync!.profileId != profileId ||
+                !identical(sync!.database, database)))) {
+      throw ArgumentError(
+        'Notifications must reuse the authenticated Profile store and sync',
+      );
+    }
+  }
 
   static const listProjectionKind = 'notification.list';
   static const unreadProjectionKind = 'notification.unread';
