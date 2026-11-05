@@ -38,9 +38,15 @@ enum ReplayPolicy {
 }
 
 class OutboxResourceOperation {
-  const OutboxResourceOperation({required this.state});
+  const OutboxResourceOperation({
+    required this.state,
+    this.retryScheduled = false,
+  });
 
   final String state;
+  /// A temporary failure will be retried; submitting a second intent is
+  /// unsafe while the original owner mutation remains unresolved.
+  final bool retryScheduled;
 }
 
 class OutboxSummary {
@@ -192,7 +198,11 @@ class OutboxRepository {
       ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]);
     return query.watch().map(
       (rows) => rows
-          .map((row) => OutboxResourceOperation(state: row.state))
+          .map((row) => OutboxResourceOperation(
+                state: row.state,
+                retryScheduled: row.state == OutboxState.failed.wireValue &&
+                    retryableErrorCodes.contains(row.lastErrorCode),
+              ))
           .toList(growable: false),
     );
   }
@@ -207,11 +217,13 @@ class OutboxRepository {
             row.profileId.equals(profileId) &
             row.operationKind.equals(operationKind) &
             row.resourceId.equals(resourceId) &
-            row.state.isIn([
-              OutboxState.queued.wireValue,
-              OutboxState.inFlight.wireValue,
-              OutboxState.awaitingConfirmation.wireValue,
-            ]),
+            (row.state.isIn([
+                  OutboxState.queued.wireValue,
+                  OutboxState.inFlight.wireValue,
+                  OutboxState.awaitingConfirmation.wireValue,
+                ]) |
+                (row.state.equals(OutboxState.failed.wireValue) &
+                    row.lastErrorCode.isIn(retryableErrorCodes.toList()))),
       )
       ..orderBy([(row) => OrderingTerm.desc(row.observedAt)])
       ..limit(1);
