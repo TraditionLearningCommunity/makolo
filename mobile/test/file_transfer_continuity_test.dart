@@ -169,7 +169,9 @@ void main() {
         sourceFilename: 'document.pdf',
         purpose: 'offline-use',
         sensitivity: 'private',
-        downloadTo: (_) async => redownloaded = true,
+        downloadTo: (_) async {
+          redownloaded = true;
+        },
       ),
       throwsStateError,
     );
