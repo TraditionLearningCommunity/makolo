@@ -274,14 +274,14 @@ class _ConversationComposerState extends State<ConversationComposer> {
         capabilities: widget.capabilities,
         representedSpaceId: widget.representedSpaceId,
         initialDraft: draft,
-        onDraftChanged: (next) {
+        onDraftChanged: (next) async {
           _drafts[kind] = next;
           if (delivery != null) {
-            unawaited(delivery.saveDraft(
+            await delivery.saveDraft(
               conversationId: widget.conversationId,
               kind: kind,
               payload: next.toPayload(),
-            ).catchError((Object _) {}));
+            );
           }
         },
         onQueued: () {
@@ -574,12 +574,14 @@ class _ComposePointSheet extends StatefulWidget {
     required this.capabilities,
     required this.onPublished,
     required this.onDraftChanged,
+    required this.onQueued,
     this.initialDraft,
     this.representedSpaceId,
   });
 
   final _PointDraft? initialDraft;
-  final ValueChanged<_PointDraft> onDraftChanged;
+  final Future<void> Function(_PointDraft) onDraftChanged;
+  final VoidCallback onQueued;
   final String kind;
   final ConversationRepository repository;
   final String conversationId;
@@ -599,6 +601,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   String? _audienceId;
   String? _error;
   bool _sending = false;
+  Future<void> _draftWrites = Future<void>.value();
 
   String? get _representedSpace => widget.representedSpaceId != null &&
           widget.representedSpaceId ==
@@ -622,13 +625,16 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   }
 
   void _saveDraft() {
-    widget.onDraftChanged(_PointDraft(
+    final draft = _PointDraft(
       title: _title.text,
       body: _body.text,
       options: _options.text,
       audienceId: _audienceId,
       reference: _reference,
-    ));
+    );
+    _draftWrites = _draftWrites.catchError((Object _) {}).then(
+      (_) => widget.onDraftChanged(draft),
+    );
   }
 
   void _changed() {
@@ -670,8 +676,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
             .toList(growable: false)
         : <String>[];
     if (kind == 'poll' &&
-        (options.length < 2 || options.toSet().length != options.length)) {
-      setState(() => _error = 'Prévoyez au moins deux choix différents.');
+        (options.length < 2 || options.length > 12 ||
+            options.toSet().length != options.length)) {
+      setState(() => _error = 'Prévoyez entre 2 et 12 choix différents.');
       return;
     }
     setState(() {
@@ -679,23 +686,42 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       _error = null;
     });
     try {
-      _reference ??= _newConversationReference();
       _saveDraft();
-      final published = await widget.repository.compose(
-        conversationId: widget.conversationId,
-        mode: 'point',
-        kind: kind,
-        title: title,
-        body: body,
-        options: options,
-        audienceId: _audienceId,
-        representedSpaceId: _representedSpace,
-        clientReference: _reference!,
-      );
-      if (mounted) widget.onPublished(published);
+      await _draftWrites;
+      final delivery = widget.repository.delivery;
+      if (delivery != null) {
+        await delivery.queue(
+          conversationId: widget.conversationId,
+          mode: 'point',
+          kind: kind,
+          title: title,
+          body: body,
+          options: options,
+          audienceId: _audienceId,
+          representedSpaceId: _representedSpace,
+        );
+        await delivery.clearDraft(
+          conversationId: widget.conversationId, kind: kind,
+        );
+        if (mounted) widget.onQueued();
+      } else {
+        _reference ??= _newConversationReference();
+        final published = await widget.repository.compose(
+          conversationId: widget.conversationId,
+          mode: 'point',
+          kind: kind,
+          title: title,
+          body: body,
+          options: options,
+          audienceId: _audienceId,
+          representedSpaceId: _representedSpace,
+          clientReference: _reference!,
+        );
+        if (mounted) widget.onPublished(published);
+      }
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Publication non confirmée. Réessayer ou modifier.');
+        setState(() => _error = 'Envoi non conservé. Réessayer.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -708,10 +734,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     final audiences = _audienceRows(widget.capabilities);
     final title = switch (kind) {
       'poll' => 'Sondage',
-      'confirmation' => 'Confirmer',
+      'confirmation' => 'Confirmation',
       'question' => 'Question',
       'request' => 'Demande',
-      'exchange' => 'Nouvel échange',
+      'exchange' => 'Échange',
       _ => 'Information',
     };
     return Padding(
@@ -732,11 +758,17 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 autofocus: true,
                 maxLength: 220,
                 decoration: InputDecoration(
-                  labelText: kind == 'poll' ? 'Question' : 'Sujet',
+                  labelText: kind == 'poll' || kind == 'question'
+                      ? 'Question'
+                      : kind == 'confirmation'
+                      ? 'À confirmer'
+                      : 'Sujet',
                   border: const OutlineInputBorder(),
                 ),
               ),
-            if (kind == 'information' || kind == 'request')
+            if (kind == 'information' || kind == 'request' ||
+                kind == 'question' || kind == 'confirmation' ||
+                kind == 'poll')
               TextField(
                 key: const Key('conversation-compose-body'),
                 controller: _body,
@@ -745,7 +777,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 maxLines: 5,
                 maxLength: 5000,
                 decoration: const InputDecoration(
-                  labelText: 'Texte',
+                  labelText: kind == 'information'
+                      ? 'Texte'
+                      : 'Précisions (facultatif)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -793,7 +827,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
               child: FilledButton(
                 key: const Key('conversation-compose-publish'),
                 onPressed: _sending ? null : _publish,
-                child: Text(_sending ? 'Publication…' : 'Publier'),
+                child: Text(_sending ? 'Envoi…' : 'Envoyer'),
               ),
             ),
           ],
