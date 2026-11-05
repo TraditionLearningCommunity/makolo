@@ -116,7 +116,11 @@ class ProfileMediaCache {
     await directory.create(recursive: true);
   });
 
-  Future<void> _prune({required File protect}) async {
+  /// Safe to run at cold start or resume, without downloading anything.
+  /// It only touches reconstructible media and abandoned partials.
+  Future<void> compact() => _serialize(() => _prune(protect: null));
+
+  Future<void> _prune({File? protect}) async {
     if (!await directory.exists()) return;
     final now = DateTime.now().toUtc();
     final files = <(File, FileStat)>[];
@@ -137,7 +141,7 @@ class ProfileMediaCache {
     var bytes = 0;
     var retained = 0;
     for (final (file, stat) in files) {
-      final keep = file.path == protect.path ||
+      final keep = file.path == protect?.path ||
           (retained < maxCachedFiles &&
               bytes + stat.size <= maxCachedBytes);
       if (keep) {
