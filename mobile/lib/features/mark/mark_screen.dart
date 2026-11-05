@@ -35,7 +35,8 @@ class MarkScreen extends StatefulWidget {
 
 class _MarkScreenState extends State<MarkScreen> {
   late final TextEditingController _input;
-  late final MarkRepository _repository;
+  late MarkRepository _repository;
+  int _draftRevision = 0;
   ActorContext _actor = const PersonalActorContext();
   MarkResult? _result;
   bool _busy = false;
@@ -60,7 +61,23 @@ class _MarkScreenState extends State<MarkScreen> {
   @override
   void didUpdateWidget(covariant MarkScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.runtime.personal != widget.runtime.personal) {
+    if (!identical(oldWidget.runtime, widget.runtime)) {
+      oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
+      widget.runtime.actorContext?.addListener(_onActorChanged);
+      _draftRevision++;
+      _repository = MarkRepository(widget.runtime);
+      _files = null;
+      _actor = widget.runtime.actorContext?.value ??
+          const PersonalActorContext();
+      _result = null;
+      _attachments = const [];
+      _selectedContext = widget.selectedContext;
+      _restoring = true;
+      _busy = false;
+      _input.clear();
+      _meStream = widget.runtime.personal?.watchMe();
+      unawaited(_restoreDraft());
+    } else if (oldWidget.runtime.personal != widget.runtime.personal) {
       _meStream = widget.runtime.personal?.watchMe();
     }
   }
@@ -75,20 +92,28 @@ class _MarkScreenState extends State<MarkScreen> {
   void _onActorChanged() {
     final actor = widget.runtime.actorContext?.value;
     if (actor == null || actor == _actor) return;
+    _draftRevision++;
     setState(() {
       _actor = actor;
       _result = null;
       _attachments = const [];
       _selectedContext = widget.selectedContext;
       _restoring = true;
+      _busy = false;
     });
     _input.clear();
     _restoreDraft();
   }
 
   Future<void> _restoreDraft() async {
-    final draft = await _repository.readDraft(_actor);
-    if (!mounted) return;
+    final revision = _draftRevision;
+    final actor = _actor;
+    final repository = _repository;
+    final draft = await repository.readDraft(actor);
+    if (!mounted ||
+        revision != _draftRevision ||
+        repository != _repository ||
+        actor != _actor) return;
     if (draft != null) {
       _input.text = draft['input']?.toString() ?? '';
       final rawSelected = draft['selected'];
@@ -119,10 +144,12 @@ class _MarkScreenState extends State<MarkScreen> {
     final database = widget.runtime.database;
     final profileId = widget.runtime.session?.profileId;
     if (database == null || profileId == null) return null;
+    final runtime = widget.runtime;
     final store = await ProfileFileStore.open(
       database: database,
       profileId: profileId,
     );
+    if (!mounted || !identical(runtime, widget.runtime)) return null;
     _files = NativeFileAcquisitionCoordinator(
       store: store,
       permissions: const PermissionHandlerGateway(),
@@ -133,7 +160,9 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 
   Future<void> _pickFiles() async {
+    final revision = _draftRevision;
     final coordinator = await _fileCoordinator();
+    if (revision != _draftRevision || !mounted) return;
     if (coordinator == null) {
       _show(
         'Les pièces jointes locales ne sont pas disponibles dans cette session.',
@@ -146,7 +175,7 @@ class _MarkScreenState extends State<MarkScreen> {
       fileIdFor: (index, file) =>
           'mark-${DateTime.now().microsecondsSinceEpoch}-$index',
     );
-    if (!mounted) return;
+    if (!mounted || revision != _draftRevision) return;
     if (!result.acquired) {
       _show('Aucune pièce jointe n’a été ajoutée.');
       return;
@@ -167,7 +196,9 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 
   Future<void> _capturePhoto() async {
+    final revision = _draftRevision;
     final coordinator = await _fileCoordinator();
+    if (revision != _draftRevision || !mounted) return;
     if (coordinator == null) {
       _show('Impossible de prendre une photo.');
       return;
@@ -177,7 +208,7 @@ class _MarkScreenState extends State<MarkScreen> {
       owner: _owner,
       purpose: 'mark_intake',
     );
-    if (!mounted) return;
+    if (!mounted || revision != _draftRevision) return;
     if (!result.acquired) {
       _show('La photo n’a pas été capturée.');
       return;
@@ -216,15 +247,21 @@ class _MarkScreenState extends State<MarkScreen> {
       _show('Écrivez un message ou ajoutez un fichier.');
       return;
     }
+    final revision = _draftRevision;
+    final actor = _actor;
+    final repository = _repository;
     setState(() => _busy = true);
-    final result = await _repository.submit(
-      actor: _actor,
+    final result = await repository.submit(
+      actor: actor,
       input: input,
       inputKind: _attachments.isEmpty ? 'text' : 'document',
       attachments: _attachments,
       selected: _selectedContext,
     );
-    if (!mounted) return;
+    if (!mounted ||
+        revision != _draftRevision ||
+        repository != _repository ||
+        actor != _actor) return;
     setState(() {
       _busy = false;
       _result = result;
