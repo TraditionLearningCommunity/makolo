@@ -28,6 +28,7 @@ class OutboxProcessor {
     required this.handlers,
     this.reconcilers = const {},
     this.expectedOwners = const {},
+    this.expectedReplayPolicies = const {},
   });
 
   final OutboxRepository repository;
@@ -36,6 +37,10 @@ class OutboxProcessor {
   /// Prevent an operation of another domain from using a registered handler.
   /// The owner endpoint still rechecks authority at execution time.
   final Map<String, String> expectedOwners;
+  /// Bind an operation kind to the policy proved by its canonical owner.
+  /// A modified local payload cannot quietly turn a guarded form into
+  /// a "safe" blind replay.
+  final Map<String, ReplayPolicy> expectedReplayPolicies;
   Future<void>? _running;
   bool _active = true;
 
@@ -72,7 +77,9 @@ class OutboxProcessor {
         }
 
         final policy = _policy(operation.replayPolicy);
-        if (policy == null) {
+        if (policy == null ||
+            (expectedReplayPolicies[operation.operationKind] != null &&
+                expectedReplayPolicies[operation.operationKind] != policy)) {
           await repository.setState(
             operation.operationId,
             OutboxState.awaitingConfirmation,
