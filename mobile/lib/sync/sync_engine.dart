@@ -70,6 +70,10 @@ class SyncEngine {
     _preparedSources[source.sourceKey] = source;
   }
 
+  /// Reconnect is a new transport opportunity. It does not clear an owner
+  /// revocation or grant authority; only the in-memory retry delay resets.
+  void onConnectivityRestored() => _lastPreparedAttempt.clear();
+
   /// Progressive working-set acquisition. Sources are checked for durable
   /// freshness, bounded by a request budget, and resumed on later cycles.
   /// A transport failure stops the batch; a scoped 403/404 is not a global
@@ -372,7 +376,12 @@ class SyncEngine {
               row.profileId.equals(profileId) &
               row.sourceKey.equals(source.sourceKey),
         ))
-        .write(const SyncSourcesCompanion(invalidated: Value(true)));
+        .write(
+          const SyncSourcesCompanion(
+            invalidated: Value(true),
+            lastErrorCode: Value(null),
+          ),
+        );
   }
 
   /// Use only on an explicit owner 403/404, never on a timeout or after
