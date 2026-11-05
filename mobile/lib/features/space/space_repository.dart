@@ -348,6 +348,7 @@ final class WorkspaceContextRepository {
       }
       rethrow;
     }
+    if (!engine.isActive) return; // Superseded Profile runtime.
     final state = await readSource(inventorySource());
     if (state.invalidated || state.lastErrorCode != null) return;
     final current = await readInventory();
@@ -395,6 +396,7 @@ final class WorkspaceContextRepository {
       }
       rethrow;
     }
+    if (!engine.isActive) return;
     await _reconcilePerspective(space);
   }
 
