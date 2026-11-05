@@ -314,6 +314,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
               ),
               const SizedBox(height: MakoloSpacing.lg),
               TextFormField(
+                enabled: !_saving && !_creationAttempted,
                 controller: _name,
                 maxLength: 180,
                 textCapitalization: TextCapitalization.words,
