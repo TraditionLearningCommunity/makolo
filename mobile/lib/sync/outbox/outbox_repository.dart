@@ -317,7 +317,10 @@ class OutboxRepository {
 
   /// Next due retry/lease for the foreground lifecycle coordinator.
   /// No new OS job or background scheduler is introduced.
-  Future<DateTime?> nextAutomaticRetryAt() async {
+  Future<DateTime?> nextAutomaticRetryAt({
+    Set<String>? handledKinds,
+  }) async {
+    if (handledKinds != null && handledKinds.isEmpty) return null;
     final rows = await (database.select(database.outboxOperations)
           ..where(
             (row) =>
@@ -329,6 +332,8 @@ class OutboxRepository {
         .get();
     DateTime? next;
     for (final row in rows) {
+      if (handledKinds != null &&
+          !handledKinds.contains(row.operationKind)) continue;
       final candidate = row.nextRetryAt?.toUtc();
       if (candidate != null &&
           (next == null || candidate.isBefore(next))) {
