@@ -1,6 +1,6 @@
 # Makolo Mobile — Refondation du noyau applicatif autonome
 
-**Statut :** C0 audite ; C1-C4 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C5-C8 restent a faire.
+**Statut :** C0 audite ; C1-C5 implementes sur la PR #522 avec tests cibles ecrits. Verification Flutter/Android non executee dans cet environnement ; C6-C8 restent a faire.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
 **Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
@@ -181,7 +181,7 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 | C2 Acquisition | Code et tests ajoutes, execution non attestee | Working set, 10/10/40, erreurs, invalidation, reconnect |
 | C3 Actions | Code et tests ajoutes, execution non attestee | Drafts durables, outbox, bail, refus, recovery, Space/Questionnaires |
 | C4 Autorite | Code et tests ajoutes, execution non attestee | Profils, Space/Access 403/404, tombstones, actor, QR, expiration, outbox |
-| C5 Cycle de vie | A faire | media, stockage, resume |
+| C5 Cycle de vie | Code et tests ajoutes, execution non attestee | Stage/download durable, cache borne, maintenance, crash et horloge |
 | C6 Composition | A faire | couverture des surfaces |
 | C7 Extensibilite | A faire | guide + exemple reel + tests |
 | C8 Android/fermeture | A faire | 10 scenarios + CI verte |
@@ -360,3 +360,55 @@ La verification de fin de travail a releve un commit concurrent dans `mobile/lib
 Les changements ci-dessus sont codes, pousses et relus statiquement ; ils ne sont **pas declares testes par execution**. Le SDK Dart/Flutter n'est pas disponible dans le runtime local de cette session et les tests widget/SQLite/Android restent a executer. La CI globale n'est pas un prerequis a la poursuite de #522 conformement a la demande, mais cette absence de gate ne constitue pas un succes de validation, ni une autorisation de merger en rouge.
 
 Le modele n'invente pas de permission dans Drift. L'owner serveur doit toujours imposer les autorisations reellement en vigueur. Les verifications C5-C8 couvriront notamment suspension OS, stockage/médias, composition de toutes les surfaces et parcours Android.
+
+---
+
+## 11. Execution C5 — Cycle de vie, fichiers, medias, stockage (5 novembre 2026)
+
+**Baseline verifiee :** `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f` ; `#522@e821151ad68808e5834bab368cde523a0f28757a` au demarrage C5. Branche unique `fix/discover-a-continuation-context-20261014`. Perimetre des modifications C5 : Flutter `mobile/**` et present plan, sans modification d'API backend, domaine metier ou migration Drift v2.
+
+### Conservation des fichiers et reprise
+
+- `ProfileFileStore.stageCopy` ecrit dans un fragment `.part`, verifie qu'il existe et contient des octets avant son renommage, puis insere le `FileRecord`. Un echec ne publie jamais un fichier partiel. Le chemin physique emploie `stage-<nonce>` plutot qu'un nom utilisateur ou une representation potentiellement sensible.
+- Le `fileId` est immuable : un ID deja enregistre n'est jamais reimporte par un upsert qui ecraserait un autre Profile ou une capture encore necessaire.
+- `promoteToPrivate` copie dans un fragment prive, renomme, met a jour `FileRecords` avec condition sur le chemin original puis supprime seulement ensuite la copie staging. Un crash peut laisser un doublon temporaire, pas supprimer la derniere copie. La promotion deja achevee est idempotente.
+- `FileDownloadCoordinator` reprend un telechargement entierement stage avec le meme owner, purpose et sensitivity sans refaire un download. Un owner different ne peut pas se servir du meme fileId.
+- `ProfileFileStore.read` refuse une entree FileRecord dont le chemin sort des dossiers du Profile.
+
+### Nettoyage prudent et pression de stockage
+
+- `cleanupStaging` respecte l'accord explicite du caller `canRemove` mais conserve le fichier s'il est encore reference par un `LocalDraft` ou une `OutboxOperation` non resolue. Un payload illisible ne constitue jamais une preuve d'absence de dependance.
+- `cleanupInterruptedStaging` et `cleanupInterruptedPrivateCopies` retirent seulement les fragments/copies physiques `stage-*` non enregistres dans FileRecords et vieux d'au moins un jour. Les fichiers suivis, copies volontairement conservees et documents de l'utilisateur ne sont pas nettoyes.
+- `ProfileStore.purgeExpiredProjections` supprime les snapshots expires et les pointeurs `ResourceIndex` orphelins dans une meme transaction SQLite par Profile. Il ne touche pas les brouillons, l'outbox ou les ressources d'un autre Profile.
+- **Ne pas appliquer de quota aux octets personnels durables** sans contrat owner. En particulier, copie explicitement demandee, Reader retenu et fichier servant une demarche ne sont pas un cache evictable.
+
+### Cache reconstructible et images publiees
+
+- `ProfileMediaCache` serialise acquisition/purge par repertoire : deux requetes concurrentes sur le meme objet ne provoquent pas deux telechargements ; une purge ne peut pas etre annulee par une ancienne ecriture encore en vol.
+- Le media n'apparait comme cache valide qu'apres un download complet, non vide et dans la limite de taille. Les fichiers `.part` abandonnes et fichiers invalides sont nettoyes de maniere bornee ; les bytes de FileRecords ne sont jamais touches.
+- Budget **technique de cache uniquement** : au plus 60 fichiers, 128 Mio pour le dossier, 20 Mio par objet. Le hash du nom passe de 32 a 64 bits, sans devenir une preuve d'integrite ni une autorite metier.
+- `ProfileRecognitionImageStore` protege la copie precedente par backup durant une mise a jour ; `remove/purge` attendent les sauvegardes en cours pour eviter une resurrection apres un retrait owner. Il rejette les chemins non publies et peut restaurer la copie precedente lors d'un restart apres crash d'une operation de remplacement.
+- Aucune preacquisition de videos massives, documents prives, fichiers QR ou AccessCredentials n'est ajoutee.
+
+### Cycle de vie, horloge, OS
+
+- `SyncLifecycle` conserve son orchestrateur existant. Au lancement/reprise du Profile (au plus une fois toutes les six heures sous horloge normale), il entretient les projections expirees, les fragments orphelins, le cache media et les backups de recognition, avec des erreurs d'entretien non bloquantes pour la connaissance locale.
+- `FreshnessPolicy` ne classe plus une observation future comme `fresh` en cas de recul de l'horloge : elle demande une revalidation pour les faits sensibles, ou recommande le refresh pour les donnees ordinaires.
+- `SyncEngine.refreshPreparedSources` revalide une `lastSuccessAt` future et ne laisse plus un delai memoire lui aussi situe dans le futur bloquer l'acquisition jusqu'au rattrapage de l'horloge. Les dates restent normalisees en UTC.
+- Pas de Workmanager, daemon, garantie d'heure d'execution Android, ni de second orchestrateur de synchronisation. Les maintenances reprendront lors des cycles au premier plan.
+
+### Couverture cible ecrite
+
+- `profile_file_cleanup_test.dart` : protection drafts/outbox, IDs duplicatifs inter-Profiles, interruption de capture, vieux orphelins vs stage suivi et promotion idempotente.
+- `file_transfer_continuity_test.dart` : reprise d'un download sans transport et fermeture/reouverture d'une **vraie SQLite** avec FileRecord, bytes, draft, operation.
+- `file_media_core_test.dart` : meme media demande simultanement, erreur laissant un fragment, purge durant acquisition, limite de 60 fichiers.
+- `profile_recognition_image_store_test.dart` : backup de media publie apres interruption, purge serialisee, verification des chemins autorises.
+- `local_database_test.dart` : compactage des pointeurs Index seulement apres disparition de la projection owner, sans perte de brouillon ni de donnees d'autre Profile.
+- `freshness_test.dart` : fuseaux horaires et horloge reculee.
+- `sync_engine_test.dart` : une observation durable dans le futur n'empeche pas la reprise de l'acquisition.
+
+### Sortie et limites
+
+**Implementation et tests pousses dans #522 ; tests non executes dans cet environnement.** Le SDK Dart/Flutter et un Android reel/emule n'y sont pas disponibles. Le formatage officiel, `flutter analyze`, les tests cibles et les parcours OS devront etre executes pour une validation prouvee. L'absence de blocage par la CI globale ne signifie pas que les gates soient vertes.
+
+Les politiques metier continuent d'appartenir aux owners ; cette maintenance ne decide jamais un AccessUse, une Permission, une Proof ni une satisfaction de Requirement. C6 (composition des vues), C7 (guide d'extension) et C8 (verification Android) restent distincts.
