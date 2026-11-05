@@ -2,6 +2,7 @@ import '../../auth/token_store.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../features/access/access_repository.dart';
+import '../../notifications/notification_repository.dart';
 import '../../features/continuity/conversation_repository.dart';
 import '../../features/continuity/history_repository.dart';
 import '../../features/continuity/objective_repository.dart';
@@ -57,6 +58,7 @@ class AppRuntime {
     this.objectives,
     this.history,
     this.conversations,
+    this.notifications,
     this.requirements,
     this.preparationResources,
     this.resources,
@@ -101,6 +103,7 @@ class AppRuntime {
   final ObjectiveRepository? objectives;
   final HistoryRepository? history;
   final ConversationRepository? conversations;
+  final NotificationRepository? notifications;
   final RequirementRepository? requirements;
   final PreparationResourcesRepository? preparationResources;
   final ResourceRepository? resources;
