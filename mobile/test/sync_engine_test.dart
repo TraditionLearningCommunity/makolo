@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
@@ -380,6 +381,69 @@ void main() {
       isNull,
     );
     expect(await store.readKnownResources(), isEmpty);
+  });
+
+  test('future local clock observation cannot indefinitely freeze acquisition',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    await store.putProjection(
+      kind: 'test.known',
+      schemaVersion: 1,
+      payload: {'id': 'local-old'},
+    );
+    final source = SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'test.known',
+      owner: 'Test',
+      path: 'api/v1/test/known/',
+      projectionKind: 'test.known',
+    );
+    await database.into(database.syncSources).insert(
+      SyncSourcesCompanion.insert(
+        profileId: 'profile-a',
+        sourceKey: source.sourceKey,
+        route: source.path,
+        lastSuccessAt: Value(
+          DateTime.now().toUtc().add(const Duration(days: 3)),
+        ),
+      ),
+    );
+    var requests = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      ),
+      dio: MockClient((_) async {
+        requests++;
+        return MockResponse(
+          jsonEncode({
+            'meta': {'projection': 'test.known', 'schema_version': 1},
+            'data': {'id': 'owner-fresh'},
+          }),
+          200,
+        );
+      }).dio,
+    );
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api,
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+    );
+    sync.registerPreparedSource(source);
+    expect(await sync.refreshPreparedSources(), isTrue);
+    expect(requests, 1);
+    expect(
+      (await store.readProjection('test.known'))?.payload['id'],
+      'owner-fresh',
+    );
   });
 
   test('prepared owner pages acquire progressively without a screen', () async {
