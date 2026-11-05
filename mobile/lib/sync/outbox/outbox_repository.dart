@@ -294,6 +294,50 @@ class OutboxRepository {
     return {for (final row in rows) row.operationId: row.state};
   }
 
+  /// A retryable transport failure is not a terminal dependency refusal.
+  /// Dependents wait for its owner confirmation rather than becoming conflict.
+  Future<Set<String>> permanentlyFailedDependencies(
+    Iterable<String> operationIds,
+  ) async {
+    final ids = operationIds.toSet();
+    if (ids.isEmpty) return const <String>{};
+    final rows = await (database.select(database.outboxOperations)
+          ..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.operationId.isIn(ids) &
+                row.state.equals(OutboxState.failed.wireValue),
+          ))
+        .get();
+    return {
+      for (final row in rows)
+        if (!retryableErrorCodes.contains(row.lastErrorCode)) row.operationId,
+    };
+  }
+
+  /// Next due retry/lease for the foreground lifecycle coordinator.
+  /// No new OS job or background scheduler is introduced.
+  Future<DateTime?> nextAutomaticRetryAt() async {
+    final rows = await (database.select(database.outboxOperations)
+          ..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                (row.state.equals(OutboxState.inFlight.wireValue) |
+                    (row.state.equals(OutboxState.failed.wireValue) &
+                        row.lastErrorCode.isIn(retryableErrorCodes.toList()))),
+          ))
+        .get();
+    DateTime? next;
+    for (final row in rows) {
+      final candidate = row.nextRetryAt?.toUtc();
+      if (candidate != null &&
+          (next == null || candidate.isBefore(next))) {
+        next = candidate;
+      }
+    }
+    return next;
+  }
+
   /// Cyclic dependencies cannot be resolved by a reconnection. Never send an
   /// operation while its prerequisites can eventually depend on itself.
   Future<bool> hasDependencyCycle(
