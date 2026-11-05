@@ -298,6 +298,9 @@ class OutboxProcessor {
   }
 
   Future<OutboxResolution> _reconcile(OutboxOperation operation) async {
+    if (!await _mayDispatch(operation)) {
+      return OutboxResolution.awaitingConfirmation;
+    }
     final reconciler = reconcilers[operation.operationKind];
     if (reconciler == null) {
       return OutboxResolution.awaitingConfirmation;
