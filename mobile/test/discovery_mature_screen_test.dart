@@ -1520,7 +1520,7 @@ void main() {
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsNothing);
     expect(find.byKey(const Key('discover-map-colocated-more')), findsOneWidget);
-    expect(find.byIcon(Icons.explore_outlined), findsWidgets);
+    expect(find.byIcon(Icons.event_available_outlined), findsWidgets);
     expect(find.text('Voir les 8 opportunités'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('discover-map-colocated-more')));
@@ -1558,7 +1558,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-save')), findsNothing);
+    expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-map-save')),
+      ).onPressed,
+      isNull,
+      reason: 'Un point compact ne donne pas le droit d’enregistrer.',
+    );
     expect(find.byTooltip('Partager cette possibilité'), findsNothing);
     await tester.tap(find.byKey(const Key('discover-map-open-n2')));
     await tester.pump();
@@ -1587,7 +1594,14 @@ void main() {
         onOpen: (_) {},
       ),
     );
-    expect(find.byKey(const Key('discover-map-save')), findsNothing);
+    expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-map-save')),
+      ).onPressed,
+      isNull,
+      reason: 'Un point compact ne donne pas le droit d’enregistrer.',
+    );
     expect(find.byTooltip('Partager cette possibilité'), findsNothing);
 
     verified.complete(
@@ -1609,6 +1623,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-map-save')),
+      ).icon,
+      isA<DiscoveryOrbitIcon>(),
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-map-save')),
+      ).onPressed,
+      isNotNull,
+    );
     expect(find.byTooltip('Partager cette possibilité'), findsOneWidget);
     expect(find.text('Transport vérifié'), findsOneWidget);
     await tester.tap(find.byKey(const Key('discover-map-save')));
@@ -1810,7 +1836,7 @@ void main() {
     expect(find.byKey(const Key('discover-compact-field')), findsNothing);
     expect(find.text('Voyage vers Kolwezi'), findsOneWidget);
 
-    await tester.tap(find.text('Voir l’opportunité'));
+    await tester.tap(find.byKey(const Key('discover-map-open-n2')));
     await tester.pump();
     expect(opened?.candidateKey, 'activity:route');
 
