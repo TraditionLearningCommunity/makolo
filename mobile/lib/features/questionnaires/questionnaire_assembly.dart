@@ -67,6 +67,10 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
         QuestionnaireSubmitCoordinator.operationKind:
             QuestionnaireSubmitCoordinator.owner,
       },
+      expectedReplayPolicies: {
+        QuestionnaireSubmitCoordinator.operationKind:
+            ReplayPolicy.refetchBeforeRetry,
+      },
     ),
   );
 }
