@@ -63,6 +63,10 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
       reconcilers: {
         QuestionnaireSubmitCoordinator.operationKind: submit.reconciler,
       },
+      expectedOwners: {
+        QuestionnaireSubmitCoordinator.operationKind:
+            QuestionnaireSubmitCoordinator.owner,
+      },
     ),
   );
 }
