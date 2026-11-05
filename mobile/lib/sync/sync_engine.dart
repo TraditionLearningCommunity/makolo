@@ -408,7 +408,9 @@ class SyncEngine {
         if (!isCurrent()) return;
         final approved = source.projectionKind == 'personal.accesses'
             ? await _withoutRevokedAccessRows(acquired)
-            : acquired;
+            : source.projectionKind == 'space.inventory'
+                ? await _withoutRevokedSpaceRows(acquired)
+                : acquired;
         await source.applier(
           SyncApplyContext(
             database: database,
@@ -706,6 +708,45 @@ class SyncEngine {
         }
       }
     }
+  }
+
+  /// Inventory is a discoverability observation, not Space authority.
+  /// It cannot reintroduce a Workspace whose owner explicitly denied access.
+  Future<AcquiredProjection> _withoutRevokedSpaceRows(
+    AcquiredProjection acquired,
+  ) async {
+    final items = acquired.payload['items'];
+    if (items is! List) return acquired;
+    final rows = await (database.select(database.syncSources)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    final deniedSpaceKeys = <String>{
+      for (final row in rows)
+        if (row.sourceKey.startsWith('space:') &&
+            row.sourceKey.endsWith(':workspace') &&
+            row.invalidated &&
+            _deniedOwnerState(row.lastErrorCode))
+          row.sourceKey.substring(
+            'space:'.length,
+            row.sourceKey.length - ':workspace'.length,
+          ),
+    };
+    if (deniedSpaceKeys.isEmpty) return acquired;
+    final retained = items.where((row) {
+      if (row is! Map) return true;
+      final id = row['id'];
+      return id == null ||
+          !deniedSpaceKeys.contains(Uri.encodeComponent(id.toString()));
+    }).toList();
+    if (retained.length == items.length) return acquired;
+    return AcquiredProjection(
+      schemaVersion: acquired.schemaVersion,
+      payload: {...acquired.payload, 'items': retained},
+      sourceGeneratedAt: acquired.sourceGeneratedAt,
+      sourceUpdatedAt: acquired.sourceUpdatedAt,
+      freshUntil: acquired.freshUntil,
+      expiresAt: acquired.expiresAt,
+    );
   }
 
   /// A detail denial only withdraws this Access from cached lists.
