@@ -56,7 +56,7 @@ class DiscoveryWatchSelector {
   }
 
   DiscoveryCollectionPresentation results(StoredProjection? projection) {
-    return const DiscoverySelector().collection(projection);
+    return const DiscoverySelector().watchCollection(projection);
   }
 }
 
