@@ -153,6 +153,7 @@ class ConversationLocalDelivery {
       throw ArgumentError('Unsupported conversation composition');
     }
     final reference = _reference();
+    final deviceId = await tokens.deviceInstanceId();
     String? stagedPath;
     if (mode == 'media') {
       if (filePath == null || filename == null || mediaKind == null ||
@@ -176,7 +177,6 @@ class ConversationLocalDelivery {
       stagedPath = '${folder.path}/$reference$extension';
       await original.copy(stagedPath);
     }
-    final deviceId = await tokens.deviceInstanceId();
     final request = <String, dynamic>{
       'conversation_id': conversationId,
       'mode': mode,
@@ -220,7 +220,14 @@ class ConversationLocalDelivery {
       rethrow;
     }
     final dispatch = requestDispatch;
-    if (dispatch != null) unawaited(dispatch().catchError((Object _) {}));
+    if (dispatch != null) {
+      unawaited(() async {
+        // Another drain may already be running when this intent is queued.
+        // The second pass picks up rows added after its pending snapshot.
+        await dispatch();
+        await dispatch();
+      }().catchError((Object _) {}));
+    }
     return reference;
   }
 
