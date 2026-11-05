@@ -392,7 +392,9 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                           children: [
                             Text(
                               item.title,
-                              maxLines: 3,
+                              maxLines: item.owner == null && item.timing == null
+                                  ? 3
+                                  : 2,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
