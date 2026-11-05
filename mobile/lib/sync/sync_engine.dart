@@ -48,6 +48,93 @@ class SyncEngine {
   final MakoloDatabase database;
   final String profileId;
 
+  // Owner sources registered by the composition root, not by a widget.
+  // Registrations are ephemeral contracts; source results remain durable.
+  final Map<String, SyncSourceDefinition> _preparedSources = {};
+  final Map<String, DateTime> _lastPreparedAttempt = {};
+
+  /// Opt in stable owner sources for bounded proactive acquisition.
+  /// Never prefetch signed continuation URLs or an unverified Space context.
+  void registerPreparedSource(SyncSourceDefinition source) {
+    if (!source.actorScope.isPersonal ||
+        Uri.parse(source.path).queryParameters.containsKey('continuation')) {
+      throw ArgumentError('Prepared source requires a stable personal scope');
+    }
+    final previous = _preparedSources[source.sourceKey];
+    if (previous != null &&
+        (previous.path != source.path ||
+            previous.projectionKind != source.projectionKind ||
+            previous.resourceKey != source.resourceKey)) {
+      throw ArgumentError('Source key already identifies another owner route');
+    }
+    _preparedSources[source.sourceKey] = source;
+  }
+
+  /// Progressive working-set acquisition. Sources are checked for durable
+  /// freshness, bounded by a request budget, and resumed on later cycles.
+  /// A transport failure stops the batch; a scoped 403/404 is not a global
+  /// connectivity failure. Never treat old local observations as empty.
+  Future<bool> refreshPreparedSources({int maxRequests = 5}) async {
+    if (maxRequests < 1) {
+      throw ArgumentError.value(maxRequests, 'maxRequests');
+    }
+    if (!_active) return false;
+    var requested = 0;
+    for (final source in _preparedSources.values) {
+      if (!_active || requested >= maxRequests) break;
+      final state = await (database.select(database.syncSources)
+            ..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals(source.sourceKey),
+            ))
+          .getSingleOrNull();
+      // A confirmed owner denial is not retried automatically on every
+      // app resume. A later owner event or explicit user request can reopen it.
+      if (state?.invalidated == true &&
+          const {
+            'permission_denied',
+            'not_found',
+          }.contains(state?.lastErrorCode)) {
+        continue;
+      }
+      final snapshot = await store.readProjection(
+        source.projectionKind,
+        resourceKey: source.resourceKey,
+      );
+      final now = DateTime.now().toUtc();
+      final refreshAfter =
+          source.freshnessPolicy.refreshRecommendedAfter ??
+          const Duration(minutes: 30);
+      final lastSuccessAt = state?.lastSuccessAt?.toUtc();
+      final due = state == null ||
+          state.invalidated ||
+          snapshot == null ||
+          lastSuccessAt == null ||
+          now.difference(lastSuccessAt) >= refreshAfter;
+      if (!due) continue;
+      final attemptedAt = _lastPreparedAttempt[source.sourceKey];
+      if (attemptedAt != null &&
+          now.difference(attemptedAt) < const Duration(seconds: 30)) {
+        continue;
+      }
+      _lastPreparedAttempt[source.sourceKey] = now;
+      requested++;
+      try {
+        await pullSource(source);
+      } on MakoloApiError catch (error) {
+        if (error.statusCode == 401) rethrow;
+        if (error.statusCode == 403 || error.statusCode == 404) continue;
+        return false;
+      } on Object {
+        // A failed owner pull already records its source-specific error.
+        // Do not storm the rest of the working set with more failed requests.
+        return false;
+      }
+    }
+    return true;
+  }
+
   // Shared among SyncEngine instances bound to one SQLite connection.
   // Separate runtimes cannot resurrect a previously withdrawn Profile fact.
   _SyncCoordinator get _coordinator =>
