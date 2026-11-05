@@ -139,6 +139,51 @@ class ProfileRecognitionImageStore {
     }
   }
 
+  /// Recover the last valid image after a process kill between backing up
+  /// an older image and atomically committing the replacement. Never restore
+  /// credentials, unpublished media, or an explicitly purged directory.
+  Future<void> recoverInterruptedWrites() {
+    final work = _pendingWrites.then((_) async {
+      final root = rootOverride == null
+          ? await ProfilePaths.privateRoot(profileId)
+          : Directory(
+              '${rootOverride!.path}/profiles/'
+              '${ProfilePaths.safeProfileId(profileId)}',
+            );
+      final directory = Directory('${root.path}/recognition-images');
+      if (!await directory.exists()) return;
+      final files = await directory
+          .list(followLinks: false)
+          .where((entry) => entry is File)
+          .cast<File>()
+          .toList();
+      // Recover backups before trimming orphans.
+      for (final file in files) {
+        const backupMarker = '.image.backup-';
+        final position = file.path.lastIndexOf(backupMarker);
+        if (position < 0) continue;
+        final original = File('${file.path.substring(0, position)}.image');
+        if (!await original.exists()) {
+          await file.rename(original.path);
+        } else {
+          await file.delete();
+        }
+      }
+      final cutoff = DateTime.now().toUtc().subtract(
+        const Duration(days: 1),
+      );
+      for (final file in files) {
+        if (!file.path.contains('.image.part-') ||
+            !await file.exists()) continue;
+        final modified = (await file.stat()).modified.toUtc();
+        if (modified.isBefore(cutoff)) await file.delete();
+      }
+      await _prune(directory);
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
+  }
+
   Future<void> remove(String path) {
     if (!isPublishedRecognitionPath(path)) return Future<void>.value();
     final work = _pendingWrites.then((_) async {
