@@ -18,6 +18,7 @@ import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'me_selector.dart';
+import 'me_hub.dart';
 
 class MeScreen extends StatefulWidget {
   const MeScreen({
@@ -51,7 +52,7 @@ class _MeScreenState extends State<MeScreen> {
   void didUpdateWidget(covariant MeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
-       _bindStreams();
+      _bindStreams();
     }
   }
 
@@ -98,7 +99,7 @@ class _MeScreenState extends State<MeScreen> {
       );
     }
 
-     final selection = const MeSelector().select(
+    final selection = const MeSelector().select(
       projection: projection,
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
       reachability: _reachability(source, syncStatus),
@@ -143,7 +144,7 @@ class MeView extends StatefulWidget {
     this.mediaApi,
     this.avatarProfileId,
     this.avatarRevision,
-   });
+  });
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
@@ -294,53 +295,13 @@ class _MeField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
-    final territories = <Widget>[
-      for (final territory in selection.territories) ...[
-        if (territory.presentation.key == 'accesses' &&
-            selection.canOpenHistory)
-          _MeHistorySection(
-            edge: edge,
-            onOpen: hasOwnerNavigation
-                ? () => onSelectItem(
-                    const MeItemPresentation(
-                      destination: StructuredDestination(
-                        kind: 'history',
-                        id: 'me',
-                      ),
-                      title: 'Mon historique',
-                      canOpen: true,
-                    ),
-                  )
-                : null,
-          ),
-        _MeTerritory(
-          key: ValueKey('me-territory-${territory.presentation.key}'),
-          territory: territory,
-          onSelectItem: onSelectItem,
-          hasOwnerNavigation: hasOwnerNavigation,
-          mediaApi: mediaApi,
-          mediaProfileId: avatarProfileId,
-          edge: edge,
-        ),
-      ],
-      if (selection.canOpenHistory &&
-          !selection.territories.any((t) => t.presentation.key == 'accesses'))
-        _MeHistorySection(
-          edge: edge,
-          onOpen: hasOwnerNavigation
-              ? () => onSelectItem(
-                  const MeItemPresentation(
-                    destination: StructuredDestination(
-                      kind: 'history',
-                      id: 'me',
-                    ),
-                    title: 'Mon historique',
-                    canOpen: true,
-                  ),
-                )
-              : null,
-        ),
-    ];
+    MeTerritorySelection? passport;
+    for (final territory in selection.territories) {
+      if (territory.presentation.key == 'passport') {
+        passport = territory;
+        break;
+      }
+    }
 
     final field = ListView(
       key: const PageStorageKey<String>('me-field-scroll'),
@@ -377,42 +338,37 @@ class _MeField extends StatelessWidget {
                         kind: 'profile_self',
                         id: 'me',
                       ),
-                      title: 'Modifier mon passeport',
+                      title: 'Modifier mon profil',
                       canOpen: true,
                     ),
                   )
                 : null,
           ),
         ),
-        const SizedBox(height: MakoloSpacing.inner),
-        if (useTwoTerritories)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: edge),
-            child: MakoloAdaptiveGrid(
-              key: const Key('me-territories-wide'),
-              minUnitWidth: 320,
-              maxColumns: 2,
-              children: territories,
-            ),
-          )
-        else
-          Column(
-            key: const Key('me-territories-compact'),
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var index = 0; index < territories.length; index++) ...[
-                territories[index],
-                if (index != territories.length - 1)
-                  const SizedBox(height: MakoloSpacing.inner),
-              ],
-            ],
+        const SizedBox(height: MakoloSpacing.compact),
+        if (passport != null)
+          _MeTerritory(
+            key: const ValueKey('me-territory-passport'),
+            territory: passport,
+            onSelectItem: onSelectItem,
+            hasOwnerNavigation: hasOwnerNavigation,
+            mediaApi: mediaApi,
+            mediaProfileId: avatarProfileId,
+            edge: edge,
           ),
+        const SizedBox(height: MakoloSpacing.inner),
+        MeHub(
+          key: const Key('me-navigation-hub'),
+          selection: selection,
+          profileId: avatarProfileId,
+          onSelectItem: onSelectItem,
+          canNavigate: hasOwnerNavigation,
+        ),
       ],
     );
-    if (useTwoTerritories) {
-      return MakoloContentFrame(child: field);
-    }
-    return field;
+    return useTwoTerritories
+        ? MakoloContentFrame(child: field)
+        : field;
   }
 }
 
