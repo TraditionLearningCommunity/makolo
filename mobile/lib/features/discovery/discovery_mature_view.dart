@@ -499,7 +499,7 @@ class _DiscoveryMapThumbnail extends StatelessWidget {
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Center(
         child: Icon(
-          Icons.event_available_outlined,
+          Icons.explore_outlined,
           color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
       ),
@@ -871,7 +871,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
             content: Text(
               item.savedState == 'saved'
                   ? 'Retiré des enregistrements.'
-                  : 'Possibilité enregistrée.',
+                  : 'Opportunité enregistrée.',
             ),
           ),
         );
