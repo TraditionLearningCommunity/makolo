@@ -179,10 +179,14 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     );
   });
 
-  Future<void> _internal() async {
-    if (_busy || !widget.enabled) return;
+  Future<void> _internal() => _action(() async {
     final api = widget.api;
-    if (api == null || !widget.authenticated) return;
+    if (api == null || !widget.authenticated) {
+      throw StateError('Sharing authority unavailable');
+    }
+    // Internal sharing goes through the same guarded, owner-confirmed
+    // operation as Copy, QR and external sharing. Exceptions from the
+    // recipient sheet must not escape an unawaited popup callback.
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -193,7 +197,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
         onDelivered: () => _feedback('Partage envoyé dans Makolo.'),
       ),
     );
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
