@@ -91,7 +91,8 @@ class OutboxRepository {
     String? resourceId,
     String? ownerIdempotencyKey,
     List<String> dependencies = const [],
-  }) async {
+  }) {
+    return database.transaction(() async {
     if (operationId.trim().isEmpty ||
         deviceInstanceId.trim().isEmpty ||
         operationKind.trim().isEmpty ||
@@ -115,9 +116,13 @@ class OutboxRepository {
     if (sameIntent.isNotEmpty) {
       if (sameIntent.length != 1 ||
           sameIntent.single.operationId != operationId ||
+          sameIntent.single.deviceInstanceId != deviceInstanceId ||
           sameIntent.single.owner != owner ||
           sameIntent.single.operationKind != operationKind ||
+          sameIntent.single.resourceKind != resourceKind ||
+          sameIntent.single.resourceId != resourceId ||
           sameIntent.single.payloadJson != jsonEncode(payload) ||
+          sameIntent.single.dependencyIdsJson != jsonEncode(dependencies) ||
           sameIntent.single.replayPolicy != replayPolicy.wireValue ||
           sameIntent.single.ownerIdempotencyKey != ownerIdempotencyKey) {
         throw StateError('An outbox intent cannot be changed or replayed as new');
@@ -143,6 +148,7 @@ class OutboxRepository {
             replayPolicy: replayPolicy.wireValue,
           ),
         );
+    });
   }
 
   Future<List<OutboxOperation>> pending() async {
