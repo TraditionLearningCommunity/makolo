@@ -6,6 +6,7 @@ import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/sync_status.dart';
 import '../../sync/projection_contract.dart';
+import '../../sync/sync_engine.dart';
 import 'me_local_preview.dart';
 
 /// Full owner-backed saved collection; the Moi root presents only three rows.
@@ -14,11 +15,13 @@ class MeSavedScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.personal,
+    this.sync,
     required this.onOpen,
     required this.onDiscover,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
+  final SyncEngine? sync;
   final ValueChanged<String> onOpen;
   final VoidCallback onDiscover;
 
@@ -239,25 +242,37 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       }
       await _next(reset: true);
       // Invalidate the single personal read model, not a duplicate save store.
-      try {
-        final root = await widget.api.get('api/v1/me/');
-        final envelope = ProjectionEnvelope.parse(
-          root.jsonObject(),
-          expectedProjection: 'personal.me',
-        );
-        if (envelope.data['actor'] is Map &&
-            (envelope.data['actor'] as Map)['id']?.toString() ==
-                widget.personal.store.profileId) {
-          await widget.personal.store.putProjection(
-            kind: 'personal.me',
-            schemaVersion: envelope.schemaVersion,
-            payload: envelope.data,
-            receivedAt: DateTime.now().toUtc(),
-            sourceGeneratedAt: envelope.generatedAt,
-          );
+      // In the composed app, all Me mutations reconcile via one canonical
+      // owner source instead of re-parsing and writing a separate root in UI.
+      final sync = widget.sync;
+      if (sync != null) {
+        try {
+          await sync.refreshPersonalMe();
+        } on Object {
+          // Local confirmed facts survive owner/transport unavailability.
         }
+      } else {
+        try {
+          final root = await widget.api.get('api/v1/me/');
+          final envelope = ProjectionEnvelope.parse(
+            root.jsonObject(),
+            expectedProjection: 'personal.me',
+          );
+          if (envelope.data['actor'] is Map &&
+              (envelope.data['actor'] as Map)['id']?.toString() ==
+                  widget.personal.store.profileId) {
+            await widget.personal.store.putProjection(
+              kind: 'personal.me',
+              schemaVersion: envelope.schemaVersion,
+              payload: envelope.data,
+              receivedAt: DateTime.now().toUtc(),
+              sourceGeneratedAt: envelope.generatedAt,
+            );
+          }
+  
       } on Object {
         // The server mutation succeeded; normal sync will refresh Moi.
+      }
       }
     } on Object {
       if (mounted) {
