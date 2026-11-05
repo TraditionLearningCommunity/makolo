@@ -608,6 +608,7 @@ class DiscoveryRepository {
       path: 'api/v1/activities/$id/',
       projectionKind: activityProjectionKind,
       resourceKey: id,
+      indexedResourceKind: 'Activity',
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: detailFreshness,
     );
@@ -620,6 +621,7 @@ class DiscoveryRepository {
       path: 'api/v1/occurrences/$id/',
       projectionKind: occurrenceProjectionKind,
       resourceKey: id,
+      indexedResourceKind: 'Occurrence',
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: detailFreshness,
     );
