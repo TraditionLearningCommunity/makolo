@@ -275,6 +275,11 @@ class MatureDiscoveryAPITests(TestCase):
                 compact_item["links"]["detail"],
                 full_item["links"]["detail"],
             )
+            self.assertIn("kind", compact_item["representation"])
+            self.assertIn("eyebrow", compact_item["representation"])
+            self.assertIn("image_url", compact_item["representation"])
+            self.assertIn("owner", compact_item)
+            self.assertIn("timing", compact_item)
             # The pin is NOT a cached authorized detail; it must be enriched
             # by the canonical detail owner endpoint when it is selected.
             self.assertNotIn("detail", compact_item)
@@ -287,6 +292,12 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(
             {fact["role"] for fact in event["spatial_facts"]},
             {"primary", "meeting_point"},
+        )
+        self.assertEqual(event["representation"]["kind"], "event")
+        self.assertTrue(event["owner"]["display_name"])
+        self.assertEqual(
+            event["timing"]["start_at"],
+            self.event_occurrence.start_at.isoformat(),
         )
         owner_detail = self.client.get(event["links"]["detail"])
         self.assertEqual(owner_detail.status_code, 200)
