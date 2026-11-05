@@ -365,17 +365,38 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                               );
                             }
                             final row = visible[index];
+                            final section = _notificationSection(context, row.createdAt);
+                            final previousSection = index == 0
+                                ? null
+                                : _notificationSection(context, visible[index - 1].createdAt);
+                            final canInteract = row.destinationPath != null || !row.isRead;
                             return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                if (section != previousSection)
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      MakoloSpacing.inner, MakoloSpacing.lg,
+                                      MakoloSpacing.inner, MakoloSpacing.sm,
+                                    ),
+                                    child: Text(
+                                      section,
+                                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                                 Semantics(
-                                  button: true,
-                                  label: '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
+                                  button: canInteract,
+                                  label: '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. '
+                                      '${row.confirmed ? 'Confirmée. ' : ''}${row.message}',
                                   child: InkWell(
-                                    onTap: () => _open(row),
+                                    onTap: canInteract ? () => _open(row) : null,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: MakoloSpacing.inner,
-                                        vertical: MakoloSpacing.md,
+                                        vertical: MakoloSpacing.compact,
                                       ),
                                       child: Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,16 +431,45 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     row.message,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
                                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                     ),
                                                   ),
                                                 ],
-                                                if (row.createdAt != null) ...[
-                                                  const SizedBox(height: 6),
-                                                  Text(
-                                                    _timeLabel(row.createdAt!),
-                                                    style: Theme.of(context).textTheme.bodySmall,
+                                                if (row.confirmed || row.createdAt != null) ...[
+                                                  const SizedBox(height: MakoloSpacing.sm),
+                                                  Wrap(
+                                                    spacing: MakoloSpacing.compact,
+                                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                                    children: [
+                                                      if (row.confirmed)
+                                                        Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(
+                                                              Icons.check_circle_outline_rounded,
+                                                              color: MakoloColors.success,
+                                                              size: 15,
+                                                            ),
+                                                            const SizedBox(width: 4),
+                                                            Text(
+                                                              'Confirmée',
+                                                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                                                color: MakoloColors.success,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      if (row.createdAt != null)
+                                                        Text(
+                                                          _notificationDate(context, row.createdAt!),
+                                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                    ],
                                                   ),
                                                 ],
                                               ],
@@ -434,7 +484,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                     ),
                                   ),
                                 ),
-                                const Divider(height: 1),
+                                const Divider(height: 1, indent: 40),
                               ],
                             );
                           },
@@ -507,21 +557,26 @@ class _NotificationRow {
   }
 }
 
-String _timeLabel(DateTime value) {
+String _notificationSection(BuildContext context, DateTime? value) {
+  if (value == null) return 'Autres';
   final date = value.toLocal();
   final now = DateTime.now();
-  final elapsed = now.difference(date);
-  if (elapsed.isNegative || elapsed.inMinutes < 1) return 'À l’instant';
-  if (elapsed.inMinutes < 60) return 'Il y a ${elapsed.inMinutes} min';
-  if (elapsed.inHours < 24 && date.day == now.day) {
-    return 'Il y a ${elapsed.inHours} h';
-  }
-  final day = DateTime(date.year, date.month, date.day);
-  final today = DateTime(now.year, now.month, now.day);
-  final days = today.difference(day).inDays;
+  final currentDay = DateTime(now.year, now.month, now.day);
+  final itemDay = DateTime(date.year, date.month, date.day);
+  final days = currentDay.difference(itemDay).inDays;
+  if (days == 0) return 'Aujourd’hui';
   if (days == 1) return 'Hier';
-  if (days < 7) return 'Il y a ${days} jours';
-  if (days < 30) return 'Il y a ${(days / 7).floor()} semaines';
-  if (days < 365) return 'Il y a ${(days / 30).floor()} mois';
-  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  if (days > 1 && days < 7) return 'Cette semaine';
+  return MaterialLocalizations.of(context).formatMonthYear(date);
+}
+
+String _notificationDate(BuildContext context, DateTime value) {
+  final date = value.toLocal();
+  final now = DateTime.now();
+  if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    return MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(date),
+    );
+  }
+  return MaterialLocalizations.of(context).formatMediumDate(date);
 }
