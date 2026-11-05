@@ -335,7 +335,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 title: const Text('Présentation publique'),
                 subtitle: Text(
                   _publicProfile
-                      ? 'La présentation de cet Espace est visible par tous. Les informations privées des membres ne sont pas publiées.'
+                      ? 'La présentation de cet Espace est visible par tous. '
+                          'Les informations privées des membres ne sont pas '
+                          'publiées.'
                       : 'La présentation de cet Espace n’est pas publique.',
                 ),
               ),
