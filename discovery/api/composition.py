@@ -1520,12 +1520,10 @@ def spatial_index_from_rows(rows) -> dict:
                 "eyebrow": candidate.eyebrow,
                 "image_url": candidate.image_url,
             },
-            # The already-admitted Activity's public display name and
-            # published representation are enough for a recognizable map list.
-            # No Profile identifier, contact details, owner action or N2 fact
-            # is copied into this lightweight spatial field.
-            "owner": {"display_name": candidate.space_name}
-            if candidate.space_name else None,
+            # Owner identity belongs to the publication selector and is
+            # populated only in compact_spatial_discovery_projection after
+            # the same Profile/Space privacy gate used by N1.
+            "owner": None,
             "timing": {
                 "kind": candidate.timing_kind,
                 "start_at": candidate.start_at.isoformat()
@@ -1562,6 +1560,24 @@ def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
     its authorized owner detail on demand instead of treating the pin as N2.
     """
     spatial = spatial_index_from_rows(rows)
+    # Activity.operator_display_name may include a non-public creator name.
+    # Reuse N1's public owner selector, then disclose only the approved
+    # recognition fields; never disclose hidden Profile/Space identities.
+    activity_ids = {
+        item["identity"]["resource"]["id"] for item in spatial["results"]
+    }
+    owners, _ = _public_owner_facts(activity_ids, [])
+    for item in spatial["results"]:
+        owner = owners.get(item["identity"]["resource"]["id"], {}).get("owner")
+        if owner is not None:
+            item["owner"] = {
+                "display_name": owner["display_name"],
+                "representation": {
+                    "avatar_url": (owner.get("representation") or {}).get(
+                        "avatar_url"
+                    ),
+                },
+            }
     return {
         **spatial,
         "detail_available": False,
