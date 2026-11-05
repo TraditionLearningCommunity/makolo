@@ -633,6 +633,20 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 icon: Icons.schedule_outlined,
                 label: (resolved?.timing ?? item.timing)!,
               ),
+            if ((resolved?.summary.isNotEmpty ?? false) ||
+                item.summary.trim().isNotEmpty)
+              Padding(
+                key: const Key('discover-map-summary'),
+                padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                child: Text(
+                  resolved?.summary.trim().isNotEmpty == true
+                      ? resolved!.summary
+                      : item.summary,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
             const SizedBox(height: MakoloSpacing.xs),
             const Divider(height: 1),
             Row(
