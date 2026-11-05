@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
-import '../../design/makolo_theme.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'conversation_attachment_viewer.dart';
 import 'conversation_list_tile.dart';
@@ -18,6 +17,7 @@ class ConversationDetailsScreen extends StatefulWidget {
     required this.conversationId,
     this.onOpenHistory,
     this.onOpenConversation,
+    this.onOpenSubject,
     this.shareGateway = const SystemShareGateway(),
   });
 
@@ -25,6 +25,7 @@ class ConversationDetailsScreen extends StatefulWidget {
   final String conversationId;
   final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenConversation;
+  final ValueChanged<String>? onOpenSubject;
   final ShareGateway shareGateway;
 
   @override
@@ -59,26 +60,31 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             conversationId: widget.conversationId,
             mute: state['muted'] != true,
           );
+          break;
         case 'pin':
           await widget.repository.updatePersonalState(
             conversationId: widget.conversationId,
             pinned: state['pinned'] != true,
           );
+          break;
         case 'archive':
           await widget.repository.updatePersonalState(
             conversationId: widget.conversationId,
             archived: state['archived'] != true,
           );
+          break;
         case 'hide':
           await widget.repository.updatePersonalState(
             conversationId: widget.conversationId,
             hidden: state['hidden'] != true,
           );
+          break;
         case 'revisit':
           await widget.repository.updatePersonalState(
             conversationId: widget.conversationId,
             revisit: state['revisit'] != true,
           );
+          break;
       }
     } on Object {
       if (mounted) setState(() => _error = 'Modification non confirmée.');
@@ -174,6 +180,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final theme = Theme.of(context);
     final shareEnabled = widget.repository.sync?.api.baseUri != null &&
         data['share_path'] == '/conversations/${widget.conversationId}/';
+    final subjectRoute = subject['route']?.toString();
+    final canOpenSubject = subjectRoute != null &&
+        subjectRoute.startsWith('/') &&
+        widget.onOpenSubject != null;
     return Column(
       children: [
         const SizedBox(height: 16),
@@ -229,6 +239,14 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                 icon: Icons.manage_search_rounded,
                 label: 'Rechercher',
                 onTap: widget.onOpenHistory!,
+              ),
+              const SizedBox(width: 12),
+            ],
+            if (canOpenSubject) ...[
+              _heroAction(
+                icon: Icons.open_in_new_rounded,
+                label: 'Voir l’objet',
+                onTap: () => widget.onOpenSubject!(subjectRoute),
               ),
               const SizedBox(width: 12),
             ],
@@ -485,7 +503,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         }
         final hasResources = _maps(data['resources']).isNotEmpty;
         final sections = <(String, IconData)>[
-          ('Personnes', Icons.people_outline_rounded),
+          (data['subject'] is Map &&
+                  _map(data['subject'])['kind'] == 'group'
+                  ? 'Membres' : 'Personnes',
+              Icons.people_outline_rounded),
           ('Médias', Icons.perm_media_outlined),
           if (hasResources) ('Ressources', Icons.folder_outlined),
           ('Paramètres', Icons.tune_rounded),
