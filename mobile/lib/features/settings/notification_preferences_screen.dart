@@ -106,7 +106,7 @@ class _NotificationPreferencesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: const Text('Préférences')),
       body: StreamBuilder<StoredProjection?>(
         stream: widget.repository.watchPreferences(),
         builder: (context, snapshot) {
@@ -129,17 +129,7 @@ class _NotificationPreferencesScreenState
             );
           }
           final editable = widget.repository.sync != null && !_saving;
-          const recommended = [
-            'push_notifications',
-            'email_notifications',
-            'sms_notifications',
-            'security_notifications',
-            'event_notifications',
-            'service_notifications',
-            'opportunity_notifications',
-          ];
-          final someDisabled = recommended.any((key) => values[key] == false);
-          final quietStart = values['quiet_hours_start'];
+                    final quietStart = values['quiet_hours_start'];
           final quietEnd = values['quiet_hours_end'];
           Widget toggle(String key, String title, String detail) {
             return SwitchListTile(
@@ -171,57 +161,26 @@ class _NotificationPreferencesScreenState
                 const Text(
                   'Dernières préférences connues : modification hors ligne indisponible.',
                 ),
-              if (widget.runtime != null) ...[
-                PushDeviceControls(
-                  runtime: widget.runtime!,
-                  mutationsEnabled: widget.runtime!.isAuthenticated &&
-                      widget.runtime!.api != null &&
-                      widget.runtime!.sync != null &&
-                      !_loading &&
-                      !_saving &&
-                      _error == null,
-                  onChanged: () async {
-                    await widget.runtime!.sync?.pullInteroperability();
-                  },
-                ),
-                const SizedBox(height: MakoloSpacing.lg),
-              ],
-              if (someDisabled)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: editable
-                          ? () => _changeMany({
-                                for (final key in recommended) key: true,
-                              })
-                          : null,
-                      icon: const Icon(Icons.notifications_active_outlined),
-                      label: const Text('Activer les notifications utiles'),
-                    ),
-                  ),
-                ),
               Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.sm),
               toggle(
                 'push_notifications',
-                'Sur cet appareil',
-                'Avec l’autorisation du téléphone.',
+                'Sur vos appareils',
+                'Alertes sur les appareils autorisés.',
               ),
               toggle(
                 'email_notifications',
                 'E-mail',
-                'Recevoir les informations par e-mail.',
+                'Alertes envoyées par e-mail.',
               ),
               toggle(
                 'sms_notifications',
                 'SMS',
-                'Recevoir les informations par SMS.',
+                'Alertes envoyées par SMS.',
               ),
               const SizedBox(height: MakoloSpacing.lg),
               Text(
-                'À propos de vos activités',
+                'Types d’alertes',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               toggle(
@@ -285,6 +244,32 @@ class _NotificationPreferencesScreenState
                     ? () => _chooseTime('quiet_hours_end', quietEnd)
                     : null,
               ),
+              if (widget.runtime != null) ...[
+                const SizedBox(height: MakoloSpacing.lg),
+                const Divider(height: 1),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(
+                    bottom: MakoloSpacing.md,
+                  ),
+                  title: const Text('Appareils autorisés'),
+                  subtitle: const Text('Voir les appareils associés à votre compte.'),
+                  children: [
+                    PushDeviceControls(
+                      runtime: widget.runtime!,
+                      mutationsEnabled: widget.runtime!.isAuthenticated &&
+                          widget.runtime!.api != null &&
+                          widget.runtime!.sync != null &&
+                          !_loading &&
+                          !_saving &&
+                          _error == null,
+                      onChanged: () async {
+                        await widget.runtime!.sync?.pullInteroperability();
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ],
           );
         },
