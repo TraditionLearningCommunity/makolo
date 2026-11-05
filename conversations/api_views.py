@@ -601,7 +601,9 @@ class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
                 represented_space=_represented_space_from_request(request),
                 point_kind=request.data.get("point_kind") or None,
                 title=request.data.get("title") or "",
-                options=options, form_version_id=request.data.get("form_version_id") or None,
+                options=options,
+                multiple_choice=request.data.get("multiple_choice", False),
+                form_version_id=request.data.get("form_version_id") or None,
                 questions=questions,
             )
             return Response({
