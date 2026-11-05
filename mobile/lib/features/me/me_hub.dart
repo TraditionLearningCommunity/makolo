@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
+import '../../sync/owner_source_state.dart';
 import 'me_selector.dart';
 
 enum _MeLayout { list, grid }
@@ -35,6 +36,10 @@ class _MeHubState extends State<MeHub> {
   _MeLayout _layout = _MeLayout.list;
   StreamSubscription<List<StoredProjection>>? _accessSubscription;
   StreamSubscription<List<StoredProjection>>? _historySubscription;
+  StreamSubscription<OwnerSourceState>? _accessSourceSubscription;
+  StreamSubscription<OwnerSourceState>? _historySourceSubscription;
+  bool _accessInvalidated = false;
+  bool _historyInvalidated = false;
   List<MeItemPresentation> _accessPreviews = const [];
   List<MeItemPresentation> _historyPreviews = const [];
 
@@ -54,6 +59,8 @@ class _MeHubState extends State<MeHub> {
   void dispose() {
     unawaited(_accessSubscription?.cancel());
     unawaited(_historySubscription?.cancel());
+    unawaited(_accessSourceSubscription?.cancel());
+    unawaited(_historySourceSubscription?.cancel());
     super.dispose();
   }
 
@@ -68,8 +75,12 @@ class _MeHubState extends State<MeHub> {
         widget.profileId != oldWidget.profileId) {
       unawaited(_accessSubscription?.cancel());
       unawaited(_historySubscription?.cancel());
+      unawaited(_accessSourceSubscription?.cancel());
+      unawaited(_historySourceSubscription?.cancel());
       _accessPreviews = const [];
       _historyPreviews = const [];
+      _accessInvalidated = false;
+      _historyInvalidated = false;
       _bindLocalPreviews();
     }
   }
@@ -88,6 +99,24 @@ class _MeHubState extends State<MeHub> {
   void _bindLocalPreviews() {
     final store = widget.store;
     if (store == null) return;
+    _accessSourceSubscription = watchOwnerSourceState(
+      database: store.database,
+      profileId: store.profileId,
+      sourceKey: 'accesses:beneficiary:0:24',
+    ).listen((state) {
+      if (mounted && widget.store == store) {
+        setState(() => _accessInvalidated = state.invalidated);
+      }
+    });
+    _historySourceSubscription = watchOwnerSourceState(
+      database: store.database,
+      profileId: store.profileId,
+      sourceKey: 'history:0:24',
+    ).listen((state) {
+      if (mounted && widget.store == store) {
+        setState(() => _historyInvalidated = state.invalidated);
+      }
+    });
     _accessSubscription = store.watchProjections('personal.accesses')
         .listen((pages) {
       if (!mounted || store != widget.store) return;
@@ -229,7 +258,7 @@ class _MeHubState extends State<MeHub> {
         title: 'Mes accès',
         subtitle: 'Billets, invitations et droits',
         icon: Icons.confirmation_number_outlined,
-        previews: _accessPreviews,
+        previews: _accessInvalidated ? const [] : _accessPreviews,
       ),
       // The actual preview comes from this Profile's locally retained Access
       // collection; it is never invented from the existence of a link.
@@ -286,7 +315,7 @@ class _MeHubState extends State<MeHub> {
           title: 'Mon historique',
           subtitle: 'Mon parcours',
           icon: Icons.history_rounded,
-          previews: _historyPreviews,
+          previews: _historyInvalidated ? const [] : _historyPreviews,
         ),
       if (support != null)
         _MeEntry(
