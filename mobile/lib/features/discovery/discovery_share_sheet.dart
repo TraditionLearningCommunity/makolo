@@ -8,6 +8,24 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'discovery_selector.dart';
 
+/// Public Sharing links use HTTPS. Loopback HTTP is accepted only for the
+/// Django development server; a remote HTTP link is never shareable.
+Uri? discoverySharePublicUri(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null || !uri.hasAuthority || uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  if (uri.scheme == 'https') return uri;
+  if (uri.scheme == 'http' &&
+      (uri.host == 'localhost' || uri.host == '127.0.0.1' ||
+       uri.host == '[::1]' || uri.host == '::1')) {
+    return uri;
+  }
+  return null;
+}
+
 /// Reuses the canonical Sharing owner API; no local envelope or fake delivery.
 class DiscoveryShareControl extends StatefulWidget {
   const DiscoveryShareControl({
@@ -66,11 +84,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
 
   Uri? get _shareUrl {
     final text = _created?['url'];
-    if (text is! String) return null;
-    final uri = Uri.tryParse(text);
-    return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty
-        ? uri
-        : null;
+    return text is String ? discoverySharePublicUri(text) : null;
   }
 
   // The public item URL is projected by Discovery from its canonical Web
