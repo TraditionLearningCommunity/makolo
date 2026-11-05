@@ -1495,6 +1495,7 @@ def spatial_index_from_rows(rows) -> dict:
                     "kind": "occurrence",
                     "id": str(candidate.occurrence_id),
                 } if candidate.occurrence_id is not None else None,
+                "revision": None,
             },
             "representation": {"title": candidate.title},
             "place": place,
