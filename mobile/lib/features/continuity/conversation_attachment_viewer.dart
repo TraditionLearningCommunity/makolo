@@ -7,6 +7,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../platform/media/private_media_views.dart';
 import 'conversation_repository.dart';
 
 /// Private download and ephemeral viewer. No bearer is exposed to external
@@ -59,7 +60,7 @@ class _ConversationAttachmentViewerState
           _error = 'Lecture audio indisponible.';
         }
       } else if (kind == 'video') {
-        final player = VideoPlayerController.file(file);
+        final player = await const PrivateVideoControllerFactory().open(file.path);
         try {
           await player.initialize();
           _video = player;
@@ -100,7 +101,7 @@ class _ConversationAttachmentViewerState
       );
     }
     if (mime == 'application/pdf') {
-      return PdfViewer.file(file.path);
+      return PrivatePdfView(path: file.path);
     }
     if (kind == 'audio' || kind == 'voice') {
       final player = _audio;
