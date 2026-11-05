@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../files/profile_paths.dart';
 import 'tables.dart';
 
 part 'makolo_database.g.dart';
@@ -24,18 +24,8 @@ class MakoloDatabase extends _$MakoloDatabase {
 
   factory MakoloDatabase.memory() => MakoloDatabase(NativeDatabase.memory());
 
-  static String profileDirectoryKey(String profileId) {
-    if (profileId.isEmpty) {
-      throw ArgumentError.value(profileId, 'profileId', 'must not be empty');
-    }
-    const prefix = '__encoded__';
-    if (!RegExp(r'[^A-Za-z0-9_-]').hasMatch(profileId) &&
-        !profileId.startsWith(prefix)) {
-      return profileId;
-    }
-    final encoded = base64Url.encode(utf8.encode(profileId)).replaceAll('=', '');
-    return '$prefix$encoded';
-  }
+  static String profileDirectoryKey(String profileId) =>
+      ProfilePaths.safeProfileId(profileId);
 
   static Future<MakoloDatabase> openForProfile(String profileId) async {
     final base = await getApplicationSupportDirectory();
