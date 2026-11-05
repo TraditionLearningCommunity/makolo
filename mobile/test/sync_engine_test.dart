@@ -333,6 +333,55 @@ void main() {
     },
   );
 
+  test('keyed index rejects an owner identity mismatch atomically', () async {
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((_) async => MockResponse(
+      jsonEncode({
+        'meta': {
+          'projection': 'activity.detail',
+          'schema_version': 1,
+        },
+        'data': {'id': 'another-activity', 'title': 'Unrelated'},
+      }),
+      200,
+    ));
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: client.dio,
+        tokenStore: tokens,
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    final source = SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'activity:requested',
+      owner: 'Activities',
+      path: 'api/v1/activities/requested/',
+      projectionKind: 'activity.detail',
+      resourceKey: 'requested',
+      indexedResourceKind: 'Activity',
+      category: SyncSourceCategory.keyedDetail,
+    );
+
+    await expectLater(sync.pullSource(source), throwsFormatException);
+    expect(
+      await store.readProjection('activity.detail', resourceKey: 'requested'),
+      isNull,
+    );
+    expect(await store.readKnownResources(), isEmpty);
+  });
+
   test('prepared owner pages acquire progressively without a screen', () async {
     var calls = 0;
     final tokens = MemoryTokenStore(
