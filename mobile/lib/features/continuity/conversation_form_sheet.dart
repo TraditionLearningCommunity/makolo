@@ -235,9 +235,13 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
           audienceId: _selectedAudienceId,
           representedSpaceId: _representedSpace,
         );
-        await delivery.clearDraft(
-          conversationId: widget.conversationId, kind: 'form',
-        );
+        try {
+          await delivery.clearDraft(
+            conversationId: widget.conversationId, kind: 'form',
+          );
+        } on Object {
+          // The owner operation is already durably queued.
+        }
         _submitted = true;
         if (mounted) widget.onQueued?.call();
       } else {
