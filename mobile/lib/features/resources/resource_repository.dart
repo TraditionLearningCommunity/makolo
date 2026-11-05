@@ -111,6 +111,7 @@ class ResourceRepository {
         'api/v1/me/resources/${Uri.encodeComponent(assetId)}/?version_limit=$versionLimit',
     projectionKind: detailProjectionKind,
     resourceKey: assetId,
+    indexedResourceKind: 'PersonalAsset',
     category: SyncSourceCategory.keyedDetail,
     freshnessPolicy: freshnessPolicy,
   );
