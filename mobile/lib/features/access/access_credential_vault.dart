@@ -21,8 +21,15 @@ class RetainedAccessQr {
   final DateTime expiresAt;
   final DateTime? issuedAt;
 
-  bool displayableAt(DateTime now) =>
-      payload.isNotEmpty && now.toUtc().isBefore(expiresAt.toUtc());
+  bool displayableAt(DateTime now) {
+    final instant = now.toUtc();
+    final checked = checkedAt.toUtc();
+    final expiry = expiresAt.toUtc();
+    return payload.isNotEmpty &&
+        !checked.isAfter(instant) &&
+        checked.isBefore(expiry) &&
+        instant.isBefore(expiry);
+  }
 }
 
 abstract interface class AccessCredentialVault {
@@ -165,7 +172,14 @@ class SecureAccessCredentialVault implements AccessCredentialVault {
               decoded['path'] is String) {
             final expiry =
                 DateTime.tryParse(decoded['expiry']?.toString() ?? '');
-            usable = expiry != null && now.isBefore(expiry.toUtc());
+            final checked = DateTime.tryParse(
+              decoded['checked']?.toString() ?? '',
+            );
+            usable = checked != null &&
+                expiry != null &&
+                !checked.toUtc().isAfter(now) &&
+                checked.toUtc().isBefore(expiry.toUtc()) &&
+                now.isBefore(expiry.toUtc());
           }
         } on FormatException {
           // A malformed secure value is not an offline presentation right.
