@@ -1520,7 +1520,7 @@ void main() {
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsNothing);
     expect(find.byKey(const Key('discover-map-colocated-more')), findsOneWidget);
-    expect(find.byIcon(Icons.event_available_outlined), findsWidgets);
+    expect(find.byIcon(Icons.explore_outlined), findsWidgets);
     expect(find.text('Voir les 8 opportunités'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('discover-map-colocated-more')));
