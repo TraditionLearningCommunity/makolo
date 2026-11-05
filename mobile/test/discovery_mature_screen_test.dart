@@ -1674,7 +1674,7 @@ void main() {
             ? Map<String, dynamic>.from(request.data as Map)
             : null;
         return const MockResponse(
-          '{"state":"link","url":"http://127.0.0.1:8000/s/dev-token/"}',
+          '{"state":"link","url":"https://makolo.invalid/share/test/"}',
           200,
         );
       }).dio,
