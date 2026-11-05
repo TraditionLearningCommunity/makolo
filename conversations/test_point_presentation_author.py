@@ -56,6 +56,16 @@ class ConversationPointAuthorProjectionTests(SimpleTestCase):
         self.assertNotIn("email", str(own))
         self.assertNotIn("phone", str(own))
 
+    def test_other_author_uses_public_handle_not_private_name(self):
+        person = SimpleNamespace(
+            pk="user-1", username="marie", get_full_name=lambda: "Private Name",
+        )
+        viewer = SimpleNamespace(pk="user-2")
+        row = self._serialize(_point(author=person), viewer)
+        self.assertEqual(row["author"]["label"], "marie")
+        self.assertFalse(row["author"]["is_mine"])
+        self.assertNotIn("Private Name", str(row))
+
     def test_point_represented_space_is_not_a_global_profile(self):
         person = SimpleNamespace(
             pk="user-1", username="marie", get_full_name=lambda: "Marie N.",
