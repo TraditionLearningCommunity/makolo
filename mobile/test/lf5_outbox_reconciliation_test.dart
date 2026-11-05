@@ -160,6 +160,11 @@ void main() {
     final repo = OutboxRepository(db, 'profile-a');
     await enqueue(repo, 'ambiguous', policy: ReplayPolicy.noBlindRetry);
     await repo.beginAttempt('ambiguous');
+    // Emulate a process restart after the in-flight lease has expired.
+    await db.customStatement(
+      "UPDATE outbox_operations SET next_retry_at = 1 "
+      "WHERE operation_id = 'ambiguous'",
+    );
     var called = false;
     await OutboxProcessor(
       repository: repo,
