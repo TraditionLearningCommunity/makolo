@@ -201,7 +201,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     for (final item in spaces)
                       ListTile(
                         title: Text(item.title),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        trailing: item.canOpen
+                            ? const Icon(Icons.chevron_right_rounded)
+                            : null,
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
@@ -216,7 +218,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     for (final item in people)
                       ListTile(
                         title: Text(item.title),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        trailing: item.canOpen
+                            ? const Icon(Icons.chevron_right_rounded)
+                            : null,
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
