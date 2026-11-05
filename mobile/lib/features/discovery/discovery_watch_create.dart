@@ -90,7 +90,10 @@ class _CreateDiscoveryWatchDialogState
     if (selected != null && mounted) {
       final month = selected.month.toString().padLeft(2, '0');
       final day = selected.day.toString().padLeft(2, '0');
-      setState(() => target.text = selected.year.toString() + '-' + month + '-' + day);
+      setState(() {
+        target.text = selected.year.toString() + '-' + month + '-' + day;
+        _when = '';
+      });
     }
   }
 
@@ -177,7 +180,13 @@ class _CreateDiscoveryWatchDialogState
               DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
               DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
             ],
-            onChanged: (v) => setState(() => _when = v ?? ''),
+            onChanged: (v) => setState(() {
+              _when = v ?? '';
+              if (_when.isNotEmpty) {
+                _from.clear();
+                _to.clear();
+              }
+            }),
           ),
           DropdownButtonFormField<String>(
             value: _price,
@@ -191,23 +200,29 @@ class _CreateDiscoveryWatchDialogState
           ),
           const SizedBox(height: 8),
           const Text('Plage de dates (facultative)'),
-          Row(children: [
-            Expanded(child: TextField(
-              key: const Key('discover-watch-from'),
-              controller: _from,
-              readOnly: true,
-              onTap: () => _chooseDate(_from),
-              decoration: const InputDecoration(labelText: 'Du', hintText: 'AAAA-MM-JJ'),
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: TextField(
-              key: const Key('discover-watch-to'),
-              controller: _to,
-              readOnly: true,
-              onTap: () => _chooseDate(_to),
-              decoration: const InputDecoration(labelText: 'Au', hintText: 'AAAA-MM-JJ'),
-            )),
-          ]),
+          TextField(
+            key: const Key('discover-watch-from'),
+            controller: _from,
+            readOnly: true,
+            onTap: () => _chooseDate(_from),
+            decoration: const InputDecoration(
+              labelText: 'À partir du',
+              hintText: 'Choisir une date',
+              suffixIcon: Icon(Icons.calendar_today_outlined),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const Key('discover-watch-to'),
+            controller: _to,
+            readOnly: true,
+            onTap: () => _chooseDate(_to),
+            decoration: const InputDecoration(
+              labelText: 'Jusqu’au',
+              hintText: 'Choisir une date',
+              suffixIcon: Icon(Icons.calendar_today_outlined),
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             key: const Key('discover-watch-name'),
