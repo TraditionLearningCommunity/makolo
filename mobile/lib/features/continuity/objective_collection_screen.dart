@@ -200,7 +200,6 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
   Widget build(BuildContext context) {
     final isDossier = widget.kind == ObjectiveDepth.dossier;
     final title = isDossier ? 'Mes dossiers' : 'Mes projets';
-    final singular = isDossier ? 'dossier' : 'projet';
     final offline =
         SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
     return Scaffold(
@@ -214,7 +213,11 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
               source.reachability == ReachabilityState.unreachable;
           if (source.invalidated) {
             return Center(
-              child: Text('Ces $singular' 's ne sont plus accessibles.'),
+              child: Text(
+                isDossier
+                    ? 'Ces dossiers ne sont plus accessibles.'
+                    : 'Ces projets ne sont plus accessibles.',
+              ),
             );
           }
           return StreamBuilder<List<StoredProjection>>(
@@ -223,6 +226,7 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
               final page = _ObjectivePage.fromPages(
                 pagesSnapshot.data ?? const [],
                 widget.kind,
+                widget.repository.profileId,
               );
               _visiblePage = page;
               _hasFirst = page.hasFirst;
@@ -391,6 +395,7 @@ class _ObjectivePage {
   factory _ObjectivePage.fromPages(
     List<StoredProjection> projections,
     ObjectiveDepth kind,
+    String profileId,
   ) {
     final ordered = projections.toList()
       ..sort((a, b) => _offset(a).compareTo(_offset(b)));
@@ -406,6 +411,7 @@ class _ObjectivePage {
       final raw = data['items'];
       if (actor is! Map ||
           actor['type'] != 'profile' ||
+          actor['id']?.toString() != profileId ||
           page is! Map ||
           raw is! List ||
           page['offset'] != expected) break;
