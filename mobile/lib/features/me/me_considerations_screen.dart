@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
-import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
 import 'me_local_preview.dart';
@@ -14,13 +13,9 @@ class MeConsiderationsScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.personal,
-    required this.onSaved,
-    required this.onWatches,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
-  final VoidCallback onSaved;
-  final VoidCallback onWatches;
 
   @override
   State<MeConsiderationsScreen> createState() => _MeConsiderationsState();
@@ -497,25 +492,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                   knownCount: _openCount,
                 ),
               ],
-              const SizedBox(height: 20),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.notifications_active_outlined),
-                title: const Text('Mes veilles'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: widget.onWatches,
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: DiscoveryOrbitIcon(
-                  saved: true,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                title: const Text('Mes enregistrements'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: widget.onSaved,
-              ),
+
             ],
           ),
   );
