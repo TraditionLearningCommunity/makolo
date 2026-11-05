@@ -7,6 +7,7 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
 import '../../presentation/contracts/space_presentation.dart';
+import 'space_repository.dart';
 import 'space_work_surface.dart';
 
 /// An ephemeral continuation of the existing work projection. Every page is
@@ -39,7 +40,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
   void initState() {
     super.initState();
     widget.runtime.actorContext?.addListener(onActorChanged);
-    unawaited(loadPage());
+    unawaited(_bootstrap());
   }
 
   @override
@@ -73,7 +74,61 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
       failed = false;
       denied = false;
     });
-    if (actorValid) unawaited(loadPage());
+    if (actorValid) unawaited(_bootstrap());
+  }
+
+  /// Reuse the owner-validated Space Work snapshot already acquired by the
+  /// shell. A collection page is only a continuation; it does not own a
+  /// separate persistent copy or create an independent offline cache.
+  Future<void> _bootstrap() async {
+    final revision = ++version;
+    final repository = widget.runtime.space;
+    final store = widget.runtime.store;
+    final actor = widget.actor;
+    if (repository != null && store != null && actorValid) {
+      try {
+        final source = repository.workSource(actor.space, actor.perspective);
+        final state = await repository.readSource(source);
+        final rejected = state.invalidated &&
+            const {'permission_denied', 'not_found'}
+                .contains(state.lastErrorCode);
+        if (!rejected) {
+          final projection = await store.readProjection(
+            source.projectionKind,
+            resourceKey: source.resourceKey,
+          );
+          final expiry = projection?.expiresAt?.toUtc();
+          final value = projection?.payload;
+          final space = spaceMap(value?['space']);
+          final sections = spaceMap(value?['sections']);
+          final section = spaceMap(sections?[widget.section]);
+          if (projection != null &&
+              (expiry == null || DateTime.now().toUtc().isBefore(expiry)) &&
+              space?['id'] == actor.space.id &&
+              value?['responsibility'] ==
+                  (actor.perspective.id ?? 'all') &&
+              section?['items'] is List &&
+              mounted &&
+              revision == version &&
+              actorValid) {
+            setState(() {
+              payload = {
+                ...value!,
+                'sections': {widget.section: section},
+              };
+              // A root snapshot is not a paginated continuation. Start at
+              // owner offset zero so the server can reconcile membership.
+              nextOffset = 0;
+            });
+          }
+        }
+      } on Object {
+        // Unknown or withdrawn owner knowledge is never fabricated locally.
+      }
+    }
+    if (mounted && revision == version && actorValid) {
+      await loadPage();
+    }
   }
 
   Future<void> loadPage() async {
