@@ -55,6 +55,29 @@ class DiscoveryWatchSelector {
     return List.unmodifiable(rows);
   }
 
+  String description(DiscoveryWatchSummary watch) {
+    final criteria = watch.criteria;
+    final labels = <String>[
+      if ((criteria['q'] ?? '').isNotEmpty) criteria['q']!,
+      if ((criteria['place'] ?? '').isNotEmpty) criteria['place']!,
+      if ((criteria['vertical'] ?? '').isNotEmpty)
+        const {'event': 'Événements', 'transport': 'Transports',
+          'service': 'Services', 'other': 'Autres activités'}[criteria['vertical']] ??
+            criteria['vertical']!,
+      if ((criteria['when'] ?? '').isNotEmpty)
+        const {'today': 'Aujourd’hui', 'tomorrow': 'Demain',
+          'week': 'Cette semaine', 'weekend': 'Ce week-end'}[criteria['when']] ??
+            criteria['when']!,
+      if ((criteria['date_from'] ?? '').isNotEmpty ||
+          (criteria['date_to'] ?? '').isNotEmpty)
+        [criteria['date_from'], criteria['date_to']]
+            .whereType<String>().where((value) => value.isNotEmpty).join(' → '),
+      if ((criteria['price'] ?? '').isNotEmpty)
+        criteria['price'] == 'free' ? 'Gratuit' : 'Payant',
+    ];
+    return labels.join(' · ');
+  }
+
   DiscoveryCollectionPresentation results(StoredProjection? projection) {
     return const DiscoverySelector().watchCollection(projection);
   }
@@ -296,6 +319,8 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                         semanticLabel: 'Veille. ${watch.name}',
                         child: MakoloStatusMetadataAction(
                           title: watch.name,
+                          subtitle: _selector.description(watch).isEmpty
+                              ? null : _selector.description(watch),
                           status: watch.status == null
                               ? null
                               : MakoloStatus(label: watch.status!),
