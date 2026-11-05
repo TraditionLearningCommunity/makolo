@@ -74,7 +74,7 @@ class SyncEngine {
   /// freshness, bounded by a request budget, and resumed on later cycles.
   /// A transport failure stops the batch; a scoped 403/404 is not a global
   /// connectivity failure. Never treat old local observations as empty.
-  Future<bool> refreshPreparedSources({int maxRequests = 5}) async {
+  Future<bool> refreshPreparedSources({int maxRequests = 6}) async {
     if (maxRequests < 1) {
       throw ArgumentError.value(maxRequests, 'maxRequests');
     }
