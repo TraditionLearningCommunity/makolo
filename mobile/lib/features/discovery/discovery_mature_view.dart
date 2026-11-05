@@ -306,17 +306,6 @@ class DiscoveryCoLocatedPicker extends StatefulWidget {
 }
 
 class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
-  bool _expanded = false;
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
-  void _showAll() {
-    setState(() => _expanded = true);
-  }
-
   @override
   Widget build(BuildContext context) {
     final items = widget.items;
@@ -324,23 +313,28 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
     final commonPlace = place != null &&
         place.trim().isNotEmpty &&
         items.every((item) => item.place == place);
-    final visible = _expanded || items.length <= 2 ? items.length : 2;
     final screenHeight = MediaQuery.sizeOf(context).height;
-    // Compact selection follows its contents; all results remain scrollable.
-    final targetHeight = _expanded
-        ? screenHeight * 0.76
-        : 148.0 + visible * 112.0 + (items.length > visible ? 58.0 : 0.0);
-    return SizedBox(
+    // Four initial rows on a regular phone. Scrolling first expands the
+    // sheet, then naturally reveals all remaining admitted opportunities.
+    final initialRows = math.min(items.length, 4);
+    final requiredHeight = 100.0 + initialRows * 105.0;
+    final initialSize =
+        (requiredHeight / screenHeight).clamp(0.26, 0.80).toDouble();
+    return DraggableScrollableSheet(
       key: const Key('discover-map-colocated-sheet'),
-      height: targetHeight.clamp(0.0, screenHeight * 0.78).toDouble(),
-      child: ListView.builder(
+      expand: false,
+      initialChildSize: initialSize,
+      minChildSize: 0.26,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) => ListView.builder(
+        controller: scrollController,
         padding: const EdgeInsets.fromLTRB(
           MakoloSpacing.md,
           MakoloSpacing.sm,
           MakoloSpacing.md,
           MakoloSpacing.xl,
         ),
-        itemCount: visible + (_expanded || visible == items.length ? 1 : 2),
+        itemCount: items.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
             return Padding(
@@ -375,14 +369,6 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                     ),
                 ],
               ),
-            );
-          }
-          if (index == visible + 1) {
-            return TextButton.icon(
-              key: const Key('discover-map-colocated-more'),
-              onPressed: _showAll,
-              icon: const Icon(Icons.expand_more_rounded),
-              label: Text('Voir les ${items.length} opportunités'),
             );
           }
           final item = items[index - 1];
