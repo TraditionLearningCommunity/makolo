@@ -146,6 +146,7 @@ class ConversationLocalDelivery {
     String? filePath,
     String? filename,
     String? mediaKind,
+    String? pointKind,
   }) async {
     if (conversationId.trim().isEmpty ||
         !{'text', 'point', 'form', 'media'}.contains(mode)) {
@@ -193,6 +194,7 @@ class ConversationLocalDelivery {
       if (stagedPath != null) 'local_file_path': stagedPath,
       if (filename != null) 'filename': filename,
       if (mediaKind != null) 'media_kind': mediaKind,
+      if (pointKind != null) 'point_kind': pointKind,
     };
     // Draft identity is per intent, while the Outbox resource is the
     // Conversation: several outgoing Points can coexist safely.
@@ -246,7 +248,9 @@ class ConversationLocalDelivery {
     return ConversationOutgoing(
       reference: row.intentId,
       kind: mode == 'form' ? 'form_request'
-          : mode == 'text' || mode == 'media' ? 'information'
+          : mode == 'media'
+          ? payload['point_kind']?.toString() ?? 'information'
+          : mode == 'text' ? 'information'
           : payload['kind']?.toString() ?? 'information',
       title: payload['title']?.toString() ?? '',
       body: payload['body']?.toString() ?? '',
@@ -299,6 +303,13 @@ class ConversationLocalDelivery {
           'point_id': payload['point_id'],
           'audience_id': payload['audience_id'],
           'represented_space_id': payload['represented_space_id'],
+          'point_kind': payload['point_kind'],
+          'title': payload['title'],
+          'options': payload['options'] == null
+              ? null : jsonEncode(payload['options']),
+          'form_version_id': payload['form_version_id'],
+          'questions': payload['questions'] == null
+              ? null : jsonEncode(payload['questions']),
         },
         files: [
           MakoloUploadFile(
