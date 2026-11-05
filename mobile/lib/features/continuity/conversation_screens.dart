@@ -17,6 +17,7 @@ import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
 import 'conversation_list_tile.dart';
 import 'conversation_composer.dart';
+import 'conversation_point_presentation.dart';
 import 'conversation_attachment_viewer.dart';
 import 'conversation_exchange_sheet.dart';
 import 'conversation_media_sheet.dart';
@@ -1425,26 +1426,23 @@ class _PointCardState extends State<_PointCard> {
             widget.representedSpaceId != null);
     final interactive = !widget.readOnly &&
         (canRespond || point.attentionReason == 'acknowledge');
-    final kindLabel = switch (point.kind) {
-      'information' => 'Information',
-      'poll' => 'Sondage',
-      'confirmation' => 'Confirmation',
-      'question' => 'Question',
-      'request' => 'Demande',
-      'form_request' => 'Formulaire',
-      'exchange' => 'Échange',
-      _ => 'Point',
-    };
+    final theme = Theme.of(context).textTheme;
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(kindLabel, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: 6),
         if (point.title.isNotEmpty)
-          Text(point.title, style: Theme.of(context).textTheme.titleMedium),
-        if (point.body != null) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(point.body!),
+          Text(
+            point.title,
+            style: point.kind == 'information'
+                ? theme.bodyLarge
+                : theme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        if (point.body != null && point.body!.trim().isNotEmpty) ...[
+          if (point.title.isNotEmpty)
+            const SizedBox(height: MakoloSpacing.sm),
+          Text(point.body!, style: theme.bodyMedium),
         ],
         if (point.deadlineAt != null && point.canRespond) ...[
           const SizedBox(height: MakoloSpacing.sm),
@@ -1455,11 +1453,27 @@ class _PointCardState extends State<_PointCard> {
         ],
         if (point.exchangePreview.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.sm),
-          for (final entry in point.exchangePreview)
-            Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-              child: Text(entry),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(MakoloSpacing.sm),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final entry in point.exchangePreview.take(2))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(entry,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.bodySmall),
+                  ),
+              ],
+            ),
+          ),
         ],
         if (point.formRequest != null && widget.onOpenFormRequest != null) ...[
           const SizedBox(height: MakoloSpacing.md),
@@ -1473,14 +1487,12 @@ class _PointCardState extends State<_PointCard> {
           ),
         ],
         for (final attachment in point.attachments)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: widget.onOpenAttachment == null
-                  ? null : () => widget.onOpenAttachment!(attachment),
-              icon: const Icon(Icons.attach_file_rounded),
-              label: Text(attachment['name']?.toString() ?? 'Pièce jointe'),
-            ),
+          ConversationPointMediaTile(
+            key: Key('conversation-point-attachment-${attachment['id']}'),
+            attachment: attachment,
+            onOpen: widget.onOpenAttachment == null
+                ? null
+                : () => widget.onOpenAttachment!(attachment),
           ),
         if (point.kind == 'exchange' && widget.onOpenExchange != null)
           Align(
@@ -1495,14 +1507,26 @@ class _PointCardState extends State<_PointCard> {
         if (point.hasResponded)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-            child: Text('✓ Réponse enregistrée',
-              style: Theme.of(context).textTheme.bodySmall),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle_outline_rounded,
+                    size: 15, color: muted),
+                const SizedBox(width: 5),
+                Text('Réponse enregistrée',
+                    style: theme.bodySmall?.copyWith(color: muted)),
+              ],
+            ),
           ),
-        if (point.responseCount != null)
+        if (point.responseCount != null && point.responseCount! > 0)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-            child: Text('${point.responseCount} réponse(s)',
-              style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              point.responseCount == 1
+                  ? '1 réponse'
+                  : '${point.responseCount} réponses',
+              style: theme.bodySmall?.copyWith(color: muted),
+            ),
           ),
         if (point.replacedByPointId != null &&
             widget.onOpenRelatedPoint != null)
@@ -1636,14 +1660,13 @@ class _PointCardState extends State<_PointCard> {
 
       ],
     );
-    if (interactive || point.kind == 'poll' || point.kind == 'request') {
-      return MakoloCard(child: body);
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.sm, MakoloSpacing.md,
-        MakoloSpacing.sm, MakoloSpacing.md,
-      ),
+    return ConversationPointShell(
+      key: Key('conversation-point-shell-${point.id}'),
+      kind: point.kind ?? 'information',
+      isMine: point.isMine,
+      authorLabel: point.authorLabel,
+      representedSpace: point.representedSpace,
+      publishedAt: point.publishedAt ?? point.updatedAt,
       child: body,
     );
   }
@@ -2056,10 +2079,16 @@ class _ConversationPoint {
     this.responseStatus = const {},
     this.canChangeResponse = false,
     this.replacedByPointId,
+    this.authorLabel,
+    this.isMine = false,
+    this.representedSpace = false,
   });
 
   final String id;
   final String title;
+  final String? authorLabel;
+  final bool isMine;
+  final bool representedSpace;
   final String responseMode;
   final String? body;
   final String? lifecycle;
@@ -2112,6 +2141,9 @@ class _ConversationPoint {
     return _ConversationPoint(
       id: _string(row['id']) ?? '',
       title: _string(row['title']) ?? '',
+      authorLabel: _string(_map(row['author'])['label']),
+      isMine: _map(row['author'])['is_mine'] == true,
+      representedSpace: _map(row['author'])['represented_space'] == true,
       responseMode: _string(row['response_mode']) ?? 'none',
       body: _string(row['body']),
       lifecycle: MakoloHumanization.presentationLabel(
