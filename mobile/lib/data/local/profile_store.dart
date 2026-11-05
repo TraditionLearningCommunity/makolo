@@ -32,6 +32,22 @@ class StoredProjection {
   final String? freshnessPolicyId;
 }
 
+/// A searchable pointer to an already acquired owner-backed detail.
+/// This index never grants authority or outlives its underlying projection.
+class IndexedResource {
+  const IndexedResource({
+    required this.kind,
+    required this.id,
+    required this.projectionKind,
+    this.label,
+  });
+
+  final String kind;
+  final String id;
+  final String projectionKind;
+  final String? label;
+}
+
 class ProfileStore {
   ProfileStore(this.database, this.profileId);
 
@@ -89,6 +105,96 @@ class ProfileStore {
     final row = await query.getSingleOrNull();
     return row == null ? null : _usableProjection(row);
   }
+
+  /// References are not independent facts: only a retained, unexpired
+  /// keyed owner projection may make a resource searchable.
+  Future<void> putResourceReference({
+    required String resourceKind,
+    required String resourceId,
+    required String projectionKind,
+    String? label,
+  }) async {
+    if (resourceKind.trim().isEmpty ||
+        resourceId.trim().isEmpty ||
+        projectionKind.trim().isEmpty) {
+      throw ArgumentError('Indexed resource identity must not be empty');
+    }
+    await database.into(database.resourceIndex).insertOnConflictUpdate(
+      ResourceIndexCompanion.insert(
+        profileId: profileId,
+        resourceKind: resourceKind,
+        resourceId: resourceId,
+        projectionKind: projectionKind,
+        label: Value(label),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  /// The join prevents an index pointer from presenting a revoked, removed
+  /// or expired owner snapshot as locally available. No new business truth.
+  Selectable<QueryRow> _knownResourceQuery({
+    String search = '',
+    int limit = 100,
+  }) {
+    if (limit < 1 || limit > 500) {
+      throw ArgumentError.value(limit, 'limit', 'must be between 1 and 500');
+    }
+    final needle = search.trim();
+    return database.customSelect(
+      '''
+      SELECT r.resource_kind, r.resource_id, r.projection_kind, r.label
+      FROM resource_index AS r
+      INNER JOIN projection_snapshots AS p
+        ON p.profile_id = r.profile_id
+        AND p.projection_kind = r.projection_kind
+        AND p.resource_key = r.resource_id
+      WHERE r.profile_id = ?
+        AND (p.expires_at IS NULL OR p.expires_at > ?)
+        AND (? = '' OR instr(lower(coalesce(r.label, '')), lower(?)) > 0)
+      ORDER BY r.updated_at DESC, r.resource_kind, r.resource_id
+      LIMIT ?
+      ''',
+      variables: [
+        Variable.withString(profileId),
+        Variable.withInt(DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000),
+        Variable.withString(needle),
+        Variable.withString(needle),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {database.resourceIndex, database.projectionSnapshots},
+    );
+  }
+
+  List<IndexedResource> _readResourceRows(List<QueryRow> rows) =>
+      rows
+          .map(
+            (row) => IndexedResource(
+              kind: row.read<String>('resource_kind'),
+              id: row.read<String>('resource_id'),
+              projectionKind: row.read<String>('projection_kind'),
+              label: row.readNullable<String>('label'),
+            ),
+          )
+          .toList(growable: false);
+
+  Future<List<IndexedResource>> readKnownResources({
+    String search = '',
+    int limit = 100,
+  }) async => _readResourceRows(
+    await _knownResourceQuery(search: search, limit: limit).get(),
+  );
+
+  /// Updates when either an indexed pointer or its owner projection changes.
+  /// Time-only expiry is evaluated again when the query is resubscribed
+  /// (for example after resuming the application).
+  Stream<List<IndexedResource>> watchKnownResources({
+    String search = '',
+    int limit = 100,
+  }) => _knownResourceQuery(
+    search: search,
+    limit: limit,
+  ).watch().map(_readResourceRows);
 
   // Raw server pages and owner projections are kept intact. A bounded
   // reserve of not-yet-presented Discovery items must be maintained at item
