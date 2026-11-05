@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 
 import '../data/files/media_cache.dart';
 import '../data/files/profile_file_store.dart';
+import '../data/files/profile_recognition_image_store.dart';
 import '../features/access/access_credential_vault.dart';
 import '../network/api_error.dart';
 import '../sync/outbox/outbox_repository.dart';
@@ -211,6 +212,9 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     try {
       final cache = await ProfileMediaCache.open(profileId);
       await cache.compact();
+      await ProfileRecognitionImageStore(
+        profileId: profileId,
+      ).recoverInterruptedWrites();
     } on Object {
       // Storage pressure never causes deletion of private user bytes.
     }
