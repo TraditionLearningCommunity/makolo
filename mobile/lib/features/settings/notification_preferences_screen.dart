@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../features/interoperability/push_device_controls.dart';
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/makolo_theme.dart';
+import '../../sync/sync_status.dart';
 import '../../notifications/notification_repository.dart';
 
 /// Preferences are owned by Accounts and synchronized through Notifications.
@@ -105,9 +107,11 @@ class _NotificationPreferencesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final offline = SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
     return Scaffold(
       appBar: AppBar(title: const Text('Préférences')),
-      body: StreamBuilder<StoredProjection?>(
+      body: MakoloNetworkContextFrame(
+        child: StreamBuilder<StoredProjection?>(
         stream: widget.repository.watchPreferences(),
         builder: (context, snapshot) {
           final values = snapshot.data?.payload;
@@ -145,7 +149,7 @@ class _NotificationPreferencesScreenState
             padding: const EdgeInsets.all(MakoloSpacing.inner),
             children: [
               if (_loading || _saving) const LinearProgressIndicator(),
-              if (_error != null)
+              if (_error != null && (!offline || values == null))
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     vertical: MakoloSpacing.sm,
@@ -273,6 +277,7 @@ class _NotificationPreferencesScreenState
             ],
           );
         },
+        ),
       ),
     );
   }
