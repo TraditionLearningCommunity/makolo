@@ -197,8 +197,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                       items: items,
                       onOpen: widget.onOpen,
                       onOpenPoint: widget.onOpenPoint,
-                      onRetryInvitations: () =>
-                          _refreshInvitationsIfNeeded(force: true),
                     )
                   : MakoloSurfaceStateView(
                       state: surface,
@@ -213,8 +211,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                         items: items,
                         onOpen: widget.onOpen,
                         onOpenPoint: widget.onOpenPoint,
-                        onRetryInvitations: () =>
-                            _refreshInvitationsIfNeeded(force: true),
                       ),
                     ),
             );
@@ -249,19 +245,16 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   Timer? _debounce;
   int _searchGeneration = 0;
   bool _searching = false;
-  bool _searchFailed = false;
   List<_ConversationSummary> _remote = const [];
   List<_ConversationSummary> _archived = const [];
   String _tab = 'all';
   bool _archiveLoading = false;
-  bool _archiveFailed = false;
 
   Future<void> _loadArchive() async {
     if (_archiveLoading) return;
     final repository = widget.repository;
     setState(() {
       _archiveLoading = true;
-      _archiveFailed = false;
     });
     try {
       final local = await repository.readArchived();
@@ -279,7 +272,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     } on MakoloApiError catch (error) {
       if (mounted && widget.repository == repository) {
         setState(() {
-          _archiveFailed = true;
           if (error.statusCode == 403 || error.statusCode == 404) {
             _archived = const [];
           }
@@ -287,7 +279,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       }
     } on Object {
       if (mounted && widget.repository == repository) {
-        setState(() => _archiveFailed = true);
       }
     } finally {
       if (mounted && widget.repository == repository) {
@@ -304,7 +295,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       _tab = tab;
       _remote = const [];
       _searching = false;
-      _searchFailed = false;
     });
     if (tab == 'archived') unawaited(_loadArchive());
     if (_query.isNotEmpty) _scheduleSearch(_query);
@@ -326,9 +316,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
       _archived = const [];
       _tab = 'all';
       _archiveLoading = false;
-      _archiveFailed = false;
       _searching = false;
-      _searchFailed = false;
       if (_query.trim().isNotEmpty) _scheduleSearch(_query);
     }
   }
@@ -339,7 +327,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     setState(() {
       _query = query;
       _remote = const [];
-      _searchFailed = false;
       _searching = query.trim().isNotEmpty;
     });
     if (!_searching) return;
@@ -360,7 +347,6 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
         if (!mounted || generation != _searchGeneration) return;
         setState(() {
           _searching = false;
-          _searchFailed = true;
         });
       }
     });
