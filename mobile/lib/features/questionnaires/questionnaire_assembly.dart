@@ -71,6 +71,8 @@ QuestionnaireAssembly buildQuestionnaireAssembly({
         QuestionnaireSubmitCoordinator.operationKind:
             ReplayPolicy.refetchBeforeRetry,
       },
+      canDispatch: (operation) async =>
+          (await tokens.readSession())?.profileId == operation.profileId,
     ),
   );
 }
