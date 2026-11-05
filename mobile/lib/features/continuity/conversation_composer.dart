@@ -776,7 +776,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 minLines: 2,
                 maxLines: 5,
                 maxLength: 5000,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: kind == 'information'
                       ? 'Texte'
                       : 'Précisions (facultatif)',
