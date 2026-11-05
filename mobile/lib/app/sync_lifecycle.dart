@@ -196,6 +196,11 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       }
       final rootsSucceeded = await sync.refreshRoots();
       if (!mounted || !identical(runtime, widget.runtime)) return;
+      if (rootsSucceeded) {
+        // Re-authenticated owner reads permit safe/idempotent 401-paused
+        // intentions to resume. No-blind and refetch remain owner-gated.
+        await runtime.outbox?.releaseAuthenticatedReplayables();
+      }
       // Personal owner collections are acquired independently of navigation.
       // Progress is bounded, durable and resumed on the next lifecycle cycle.
       final workingSetSucceeded = await sync.refreshPreparedSources();
