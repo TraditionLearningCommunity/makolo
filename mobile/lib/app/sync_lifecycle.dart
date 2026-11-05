@@ -63,7 +63,9 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     unawaited(_refresh());
     _connectivity = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((result) => result != ConnectivityResult.none);
+      final restored = online && !_online;
       if (mounted) setState(() => _online = online);
+      if (restored) widget.runtime.sync?.onConnectivityRestored();
       if (online) unawaited(_refresh());
     });
   }
