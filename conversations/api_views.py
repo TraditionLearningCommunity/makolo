@@ -82,7 +82,10 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "author": {
             "label": (
                 (point.represented_space.name if point.represented_space_id else "")
-                or point.published_by.get_full_name().strip()
+                or (
+                    point.published_by.get_full_name().strip()
+                    if point.published_by_id == profile.pk else ""
+                )
                 or point.published_by.username
                 or "Participant"
             ),
