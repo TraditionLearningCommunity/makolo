@@ -415,6 +415,72 @@ void main() {
     expect(calls, 3, reason: 'Fresh owner sources are not fetched each cycle');
   });
 
+  test('owner denial stays withdrawn until explicit revalidation', () async {
+    var calls = 0;
+    var allowed = false;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((request) async {
+      calls++;
+      if (!allowed) {
+        return MockResponse(
+          jsonEncode({
+            'error': {'code': 'permission_denied', 'message': 'Denied'},
+          }),
+          403,
+        );
+      }
+      return MockResponse(
+        jsonEncode({
+          'meta': {
+            'projection': 'test.collection',
+            'schema_version': 1,
+            'generated_at': '2026-11-05T07:00:00Z',
+          },
+          'data': {'results': <Object>[]},
+        }),
+        200,
+      );
+    });
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: client.dio,
+        tokenStore: tokens,
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    final source = SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'test:owner',
+      owner: 'Test',
+      path: 'api/v1/test/',
+      projectionKind: 'test.collection',
+    );
+    sync.registerPreparedSource(source);
+
+    expect(await sync.refreshPreparedSources(), isTrue);
+    expect(calls, 1);
+    expect(await store.readProjection('test.collection'), isNull);
+    expect(await sync.refreshPreparedSources(), isTrue);
+    expect(calls, 1, reason: 'A confirmed denial is not a retry timer');
+
+    allowed = true;
+    await sync.invalidate(source);
+    expect(await sync.refreshPreparedSources(), isTrue);
+    expect(calls, 2);
+    expect(await store.readProjection('test.collection'), isNotNull);
+  });
+
   test('prepared registration rejects signed continuation replay', () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
