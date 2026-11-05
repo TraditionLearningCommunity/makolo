@@ -51,11 +51,15 @@ class SyncEngine {
   // Owner sources registered by the composition root, not by a widget.
   // Registrations are ephemeral contracts; source results remain durable.
   final Map<String, SyncSourceDefinition> _preparedSources = {};
+  final Map<String, Future<void> Function()> _preparedAcquirers = {};
   final Map<String, DateTime> _lastPreparedAttempt = {};
 
   /// Opt in stable owner sources for bounded proactive acquisition.
   /// Never prefetch signed continuation URLs or an unverified Space context.
-  void registerPreparedSource(SyncSourceDefinition source) {
+  void registerPreparedSource(
+    SyncSourceDefinition source, {
+    Future<void> Function()? acquire,
+  }) {
     if (!source.actorScope.isPersonal ||
         Uri.parse(source.path).queryParameters.containsKey('continuation')) {
       throw ArgumentError('Prepared source requires a stable personal scope');
@@ -68,6 +72,9 @@ class SyncEngine {
       throw ArgumentError('Source key already identifies another owner route');
     }
     _preparedSources[source.sourceKey] = source;
+    if (acquire != null) {
+      _preparedAcquirers[source.sourceKey] = acquire;
+    }
   }
 
   /// Reconnect is a new transport opportunity. It does not clear an owner
@@ -125,7 +132,34 @@ class SyncEngine {
       _lastPreparedAttempt[source.sourceKey] = now;
       requested++;
       try {
-        await pullSource(source);
+        final acquire = _preparedAcquirers[source.sourceKey];
+        if (acquire == null) {
+          await pullSource(source);
+        } else {
+          // Some owners do additional local maintenance after their pull,
+          // e.g. Discovery preview indexing or Space context reconciliation.
+          await acquire();
+          // Repositories using refreshSource may handle transport failures
+          // internally. Consult the durable owner state before reporting
+          // their acquisition as successful.
+          final completed = await (database.select(database.syncSources)
+                ..where(
+                  (row) =>
+                      row.profileId.equals(profileId) &
+                      row.sourceKey.equals(source.sourceKey),
+                ))
+              .getSingleOrNull();
+          if (completed?.lastErrorCode != null) {
+            if (completed!.invalidated &&
+                const {
+                  'permission_denied',
+                  'not_found',
+                }.contains(completed.lastErrorCode)) {
+              continue;
+            }
+            return false;
+          }
+        }
       } on MakoloApiError catch (error) {
         if (error.statusCode == 401) rethrow;
         if (error.statusCode == 403 || error.statusCode == 404) continue;
