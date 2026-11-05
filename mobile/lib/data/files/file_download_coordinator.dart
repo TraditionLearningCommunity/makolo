@@ -23,11 +23,9 @@ class FileDownloadCoordinator {
       sensitivity: sensitivity,
       writeTo: downloadTo,
     );
-    try {
-      return await store.promoteToPrivate(staged.fileId);
-    } on Object {
-      await store.remove(staged.fileId);
-      rethrow;
-    }
+    // A full download is already a durable FileRecord. If private
+    // promotion fails (disk pressure, process interruption), preserve the
+    // staged bytes so a later foreground retry does not fetch everything.
+    return store.promoteToPrivate(staged.fileId);
   }
 }
