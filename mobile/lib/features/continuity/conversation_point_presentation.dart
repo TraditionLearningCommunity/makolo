@@ -186,10 +186,12 @@ class ConversationPointMediaTile extends StatelessWidget {
     super.key,
     required this.attachment,
     required this.onOpen,
+    this.preview,
   });
 
   final Map<String, dynamic> attachment;
   final VoidCallback? onOpen;
+  final Widget? preview;
 
   @override
   Widget build(BuildContext context) {
@@ -217,38 +219,43 @@ class ConversationPointMediaTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(MakoloSpacing.sm),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.09),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 26, color: scheme.primary),
-                ),
-                const SizedBox(width: MakoloSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                if (preview != null)
+                  preview!
+                else
+                  Row(
                     children: [
-                      Text(title, style: theme.labelMedium),
-                      if (label != title)
-                        Text(
-                          label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.09),
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        child: Icon(icon, size: 26, color: scheme.primary),
+                      ),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(child: Text(title, style: theme.labelMedium)),
+                      if (onOpen != null)
+                        Icon(Icons.chevron_right_rounded,
+                            color: scheme.onSurfaceVariant),
                     ],
                   ),
-                ),
-                if (onOpen != null)
-                  Icon(Icons.chevron_right_rounded,
-                      color: scheme.onSurfaceVariant),
+                if (preview != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      children: [
+                        Text(title, style: theme.labelSmall),
+                        const Spacer(),
+                        if (onOpen != null)
+                          Icon(Icons.open_in_full_rounded,
+                              size: 16, color: scheme.onSurfaceVariant),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
