@@ -24,6 +24,8 @@ class SyncRoot {
 class _SyncCoordinator {
   final Map<String, int> generations = {};
   final Map<String, int> discoveryEpochs = {};
+  final Map<String, int> spaceEpochs = {};
+  final Map<String, int> spaceInventoryEpochs = {};
 }
 
 class SyncEngine {
@@ -180,6 +182,43 @@ class SyncEngine {
       '$profileId|${source.actorScope.stableKey}|${source.sourceKey}';
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
+  int _spaceEpoch(String spaceId) =>
+      _coordinator.spaceEpochs['$profileId|$spaceId'] ?? 0;
+  int get _spaceInventoryEpoch =>
+      _coordinator.spaceInventoryEpochs[profileId] ?? 0;
+  static bool _deniedOwnerState(String? code) =>
+      code == 'permission_denied' || code == 'not_found';
+
+  Future<bool> _spaceAuthorityWithdrawn(String spaceId) async {
+    final encoded = Uri.encodeComponent(spaceId);
+    final inventory = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals('space.inventory')))
+        .getSingleOrNull();
+    if (inventory?.invalidated == true &&
+        _deniedOwnerState(inventory?.lastErrorCode)) {
+      return true;
+    }
+    final workspace = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals('space:$encoded:workspace')))
+        .getSingleOrNull();
+    return workspace?.invalidated == true &&
+        _deniedOwnerState(workspace?.lastErrorCode);
+  }
+
+  Future<bool> _inventoryAuthorityWithdrawn() async {
+    final inventory = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals('space.inventory')))
+        .getSingleOrNull();
+    return inventory?.invalidated == true &&
+        _deniedOwnerState(inventory?.lastErrorCode);
+  }
+
   bool _active = true;
   bool get isActive => _active;
 
@@ -300,11 +339,25 @@ class SyncEngine {
     final generation = (coordinator.generations[key] ?? 0) + 1;
     coordinator.generations[key] = generation;
     final epoch = _discoveryRevocationEpoch;
+    final inventoryEpoch = _spaceInventoryEpoch;
+    final spaceId = source.actorScope.spaceId;
+    final spaceEpoch = spaceId == null ? 0 : _spaceEpoch(spaceId);
     bool isCurrent() =>
         _active &&
         coordinator.generations[key] == generation &&
-        (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch);
+        (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch) &&
+        (source.projectionKind != 'space.inventory' ||
+            _spaceInventoryEpoch == inventoryEpoch) &&
+        (spaceId == null ||
+            (_spaceEpoch(spaceId) == spaceEpoch &&
+                _spaceInventoryEpoch == inventoryEpoch));
     try {
+      if (spaceId != null &&
+          (source.projectionKind != 'space.workspace' ||
+              await _inventoryAuthorityWithdrawn()) &&
+          await _spaceAuthorityWithdrawn(spaceId)) {
+        throw StateError('Space owner authority must be revalidated');
+      }
       final response = await api.get(source.path);
       if (!isCurrent()) return;
       final acquired = source.parser(response);
@@ -320,6 +373,12 @@ class SyncEngine {
       }
 
       await database.transaction(() async {
+        if (spaceId != null &&
+            (source.projectionKind != 'space.workspace' ||
+                await _inventoryAuthorityWithdrawn()) &&
+            await _spaceAuthorityWithdrawn(spaceId)) {
+          return; // A denied Space cannot be restored by another view.
+        }
         // Across engine instances and process-resumed requests, a response
         // with an older owner generation cannot replace newer local facts.
         final observed = await (database.select(database.syncSources)
@@ -443,6 +502,29 @@ class SyncEngine {
     if (_isDiscoveryRelated(source)) {
       coordinator.discoveryEpochs[profileId] = _discoveryRevocationEpoch + 1;
     }
+    final deniedSpace = source.projectionKind == 'space.workspace'
+        ? source.actorScope.spaceId
+        : null;
+    final deniedInventory = source.projectionKind == 'space.inventory';
+    if (deniedSpace != null || deniedInventory) {
+      coordinator.spaceInventoryEpochs[profileId] =
+          _spaceInventoryEpoch + 1;
+      if (deniedSpace != null) {
+        coordinator.spaceEpochs['$profileId|$deniedSpace'] =
+            _spaceEpoch(deniedSpace) + 1;
+      }
+      // In-flight requests for this Space, including operations and other
+      // repository instances, are rejected before they can commit.
+      for (final activeKey in coordinator.generations.keys.toList()) {
+        final sameProfile = activeKey.startsWith('$profileId|');
+        final sameSpace = deniedSpace == null ||
+            activeKey.startsWith('$profileId|space:$deniedSpace');
+        if (sameProfile && sameSpace) {
+          coordinator.generations[activeKey] =
+              (coordinator.generations[activeKey] ?? 0) + 1;
+        }
+      }
+    }
     // A denied History owner invalidates its previously received search
     // views as a family. Older in-flight pages cannot restore them.
     if (source.owner == 'ProfileHistory') {
@@ -457,6 +539,12 @@ class SyncEngine {
         source.projectionKind,
         resourceKey: source.resourceKey,
       );
+      if (deniedSpace != null || deniedInventory) {
+        await _withdrawSpaceFacts(
+          spaceId: deniedSpace,
+          code: code,
+        );
+      }
       // The field, map, N2 and previews are a composition of owner facts.
       // Once any such owner explicitly refuses access, retaining a copy
       // elsewhere is a privacy leak. Transport errors never enter this path.
@@ -575,6 +663,87 @@ class SyncEngine {
         }
       }
     }
+  }
+
+  /// Runs inside the same SQLite transaction as the owner tombstone.
+  /// A Workspace denial removes only that Space, including operational
+  /// projections. An inventory-level denial withdraws all local Space views.
+  Future<void> _withdrawSpaceFacts({
+    required String? spaceId,
+    required String code,
+  }) async {
+    final encoded = spaceId == null ? null : Uri.encodeComponent(spaceId);
+    final snapshots = await (database.select(database.projectionSnapshots)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    for (final snapshot in snapshots) {
+      if (!snapshot.projectionKind.startsWith('space.') ||
+          snapshot.projectionKind == 'space.inventory') continue;
+      final key = snapshot.resourceKey;
+      final inScope = spaceId == null ||
+          key == encoded ||
+          key.startsWith('$encoded|') ||
+          key == spaceId ||
+          key.startsWith('$spaceId|');
+      if (!inScope) continue;
+      await store.deleteProjection(
+        snapshot.projectionKind,
+        resourceKey: key,
+      );
+    }
+    final rows = await (database.select(database.syncSources)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    for (final row in rows) {
+      final key = row.sourceKey;
+      final inScope = spaceId == null
+          ? key.startsWith('space:') ||
+              key.startsWith('space-day-of:') ||
+              key.startsWith('space-live:')
+          : key.startsWith('space:$encoded:') ||
+              key.startsWith('space-day-of:$spaceId:') ||
+              key.startsWith('space-live:$spaceId:');
+      if (!inScope) continue;
+      await (database.update(database.syncSources)
+            ..where((item) =>
+                item.profileId.equals(profileId) &
+                item.sourceKey.equals(key)))
+          .write(SyncSourcesCompanion(
+            invalidated: const Value(true),
+            lastErrorCode: Value(code),
+          ));
+    }
+    if (spaceId == null) {
+      await store.deleteProjection('space.inventory');
+      return;
+    }
+    // Redact only the withdrawn identity. Other Spaces stay discoverable,
+    // but the inventory is invalidated for its next owner reconciliation.
+    final inventory = await store.readProjection('space.inventory');
+    if (inventory == null) return;
+    final items = inventory.payload['items'];
+    if (items is! List) return;
+    final retained = items.where((row) =>
+        row is! Map || row['id']?.toString() != spaceId).toList();
+    if (retained.length == items.length) return;
+    await store.putProjection(
+      kind: inventory.kind,
+      resourceKey: inventory.resourceKey,
+      schemaVersion: inventory.schemaVersion,
+      payload: {...inventory.payload, 'items': retained},
+      receivedAt: inventory.receivedAt,
+      sourceGeneratedAt: inventory.sourceGeneratedAt,
+      sourceUpdatedAt: inventory.sourceUpdatedAt,
+      lastVerifiedOnlineAt: inventory.lastVerifiedOnlineAt,
+      freshUntil: inventory.freshUntil,
+      expiresAt: inventory.expiresAt,
+      freshnessPolicyId: inventory.freshnessPolicyId,
+    );
+    await (database.update(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals('space.inventory')))
+        .write(const SyncSourcesCompanion(invalidated: Value(true)));
   }
 
   Future<void> _recordFailure(SyncSourceDefinition source, String code) async {
