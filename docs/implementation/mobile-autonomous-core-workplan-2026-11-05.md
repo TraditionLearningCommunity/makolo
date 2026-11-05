@@ -1,6 +1,6 @@
 # Makolo Mobile — Refondation du noyau applicatif autonome
 
-**Statut :** plan d'execution transversal, non commence par ce document.
+**Statut :** C0 audite ; C1 et C2 implementes sur la PR #522, tests cibles ajoutes mais non executes dans cet environnement ; C3-C8 a faire.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
 **Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
@@ -176,9 +176,9 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 
 | Checkpoint | Etat initial | Preuve requise |
 |---|---|---|
-| C0 Baseline | A faire | HEADs, collisions, CI, matrice |
-| C1 Connaissance | A faire | tests Drift/selectors/cold start |
-| C2 Acquisition | A faire | 10/10/40, reprise, budgets |
+| C0 Baseline | Audit et cartographie realises | HEADs, collisions et matrice ci-dessous |
+| C1 Connaissance | Code et tests ajoutes, execution non attestee | Recherche indexee owner-backed, profils, expirations, detail |
+| C2 Acquisition | Code et tests ajoutes, execution non attestee | Working set, 10/10/40, erreurs, invalidation, reconnect |
 | C3 Actions | A faire | draft/outbox, replay owner |
 | C4 Autorite | A faire | revocation, profils, secrets |
 | C5 Cycle de vie | A faire | media, stockage, resume |
@@ -187,3 +187,62 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 | C8 Android/fermeture | A faire | 10 scenarios + CI verte |
 
 **Regle de fermeture globale :** le noyau est reutilisable par une nouvelle fonctionnalite sans que celle-ci doive reconstruire persistance, acquisition, lecture, brouillons, retries ni reconciliation. Les limites distantes demeurent explicites et legitimes.
+
+
+---
+
+## 8. Compte rendu d'execution C0-C2 — 5 novembre 2026
+
+### C0 — Diagnostic du runtime et decision d'architecture
+
+**Baseline observee au lancement :** `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f` ; `#522@1084370bd82947a59a80a1a796365a90c67d22c8`. La PR #522 etait ouverte/non fusionnee. La PR empilee #533 est fermee sans merge ; #527 a ete fusionnee dans #522 ; #528 est fermee sans merge. Ces statuts ne constituent pas de nouvelles branches de ce travail. Ne pas figer le HEAD au-dela du jour de la verification.
+
+**Flux identifies dans le code :**
+
+| Famille | Lecture existante | Acquisition existante | Constat initial |
+| --- | --- | --- | --- |
+| Now / En cours / Moi | `PersonalRepository.watchNow/watchOngoing/watchMe` -> `ProfileStore.watchProjection` | racines `SyncEngine.refreshRoots` | deja locales, acquisition de trois racines au lancement |
+| Discover | `DiscoveryRepository.watchItems` -> snapshots `discovery.items` par fingerprint -> selector | `itemsSource`/`refreshItems`, souvent initie par la surface | collections deja persistantes mais preacquisition de champ insuffisante |
+| Access / Resources / History | repositories owners -> snapshots collections et details | source page/detail owner, acquisition a l'ouverture | details et collections reutilisables mais absence de priorite de working set |
+| Conversations / Notifications | repositories owners -> snapshots collections | `listSource` / `refreshList` | owner sources definies mais chargement initie par leur destination |
+| Space / agir comme | `WorkspaceContextRepository` -> projection inventory + contexte acteur | `inventorySource`/`refreshInventory` | inventaire connu non prepare systematiquement au lancement personnel |
+| Actions | `DraftRepository`, `OutboxOperations`, handlers owner | transmission et reconciliation selon type | conserve pour C3, non refondu ici |
+
+**Causes communes confirmees :** (1) sources owner disponibles mais pas orchestrees dans un working set au lancement ; (2) index `ResourceIndex` defini dans Drift mais encore peu exploite en lecture transversale ; (3) acquisition encore en partie initiee par navigation et cycle de vie d'ecrans ; (4) distinguo transport, source revokee et revalidation a proteger dans la politique proactive.
+
+**Decisions :** Drift v2 et les six tables conserves ; aucune migration locale ni Django ; pas de nouveau scheduler ; pas de `SourceMembership` ou de facts index generique sans cas d'usage verifie ; snapshots owners restent uniques ; C3 (mutations) et C6 (composition de toutes les vues) ne sont pas absorbes artificiellement par C1/C2.
+
+### C1 — Noyau de lecture et identite de ressources
+
+**Code pousse :**
+
+- `mobile/lib/data/local/profile_store.dart` : `IndexedResource`, `putResourceReference`, `readKnownResources`, `watchKnownResources`.
+- L'index se joint obligatoirement au snapshot owner encore present et non expire. Une ligne d'index orpheline ne rend jamais une ressource consultable ; aucun champ Permission/Access/Readiness invente.
+- `mobile/lib/sync/sync_source.dart` : opt-in explicite `indexedResourceKind` pour des details owners **personnels et identifies**, ecriture de projection + index dans la transaction de `SyncEngine`, controle du champ `id` lorsqu'il est presente par l'owner.
+- Sources effectivement branchees : Activity, Occurrence, PersonalAsset et Access. Aucun contenu de credential ou document n'est recopie dans l'index : identite, label simple si publie, type et pointeur seulement.
+- Les snapshots de collections Discovery restent distincts des details indexes. Ils ne sont pas arbitrairement convertis en une nouvelle verite ou collection exhaustive.
+- `mobile/test/local_database_test.dart` et `mobile/test/sync_engine_test.dart` : isolation Profile, disparition/expiration de projection, index apres acquisition, rejet d'une identite owner divergente.
+
+**Statut :** code et tests cibles integres sur #522 ; verification par execution de Dart/Flutter et Android non attestee ici. Aucune nouvelle version de schema Drift.
+
+### C2 — Working set d'acquisition coordonnee
+
+**Code pousse :**
+
+- `SyncEngine.registerPreparedSource` permet au runtime de declarer des sources owner stables, sans dependance aux widgets. Les continuation URLs signees et les scopes Space non verifies sont exclus de ce registre.
+- `SyncEngine.refreshPreparedSources` prepare un maximum de **sept** sources par cycle. Sa priorite est l'ordre d'enregistrement ; les donnees sont appliquees via les parsers/appliers owners deja en production, et la lecture se fait depuis la base.
+- Sources actuellements declarees par `runtime_builder.dart`, dans cet ordre : inventaire Space pour le Profile, Discover premiere page sans criteres, Access beneficiary premiere page, Resources personnels premiere page, Conversations liste, Notifications inbox, History premiere page.
+- Les racines Now, En cours, Moi et Interoperability restent dans `refreshRoots` ; elles ne sont pas dupliquees dans la nouvelle liste.
+- Fraicheur durable lue dans `SyncSources.lastSuccessAt` et snapshots. Une source recente n'est pas redechargee a chaque ouverture ; une source absente/expiree ou explicitement invalidee est eligibile. Delai memoire de protection contre les rafales ; reconnexion le reinitialise.
+- Un refus owner explicite 403/404 retire sa representation suivant le contrat existant et n'est pas rejoue en boucle. Une invalidation explicite nettoie l'erreur pour permettre revalidation legitime. Un echec de transport preserve les donnees locales et arrete le lot.
+- `SyncLifecycle` pilote le working set sur lancement, reprise, retour reseau et changement du contexte acteur ; les widgets ne sont plus les seuls initiateurs.
+- Tests nouveaux dans `sync_engine_test.dart` : acquisition des pages 10 + 10 + 40 par cycles bornes, scope Profile, pas de rechargement intempestif des sources fraiches, refus owner suivi d'une revalidation legitime et blocage d'un cursor signe rejoue comme source stable.
+
+**Statut :** noyau et integration au cycle Flutter ecrits/pousses. Ces tests ne sont pas des resultats d'execution. Aucun travail Workmanager permanent ni acquisition illimitee n'est promis.
+
+### Frontieres et suites
+
+- C1 ne pretend pas avoir normalise tous les items de toutes les collections. Les fingerprints Discovery conservent leur signification de resultats owner contextuels ; l'index partage couvre ici les details owners avec identite stable.
+- C2 prepare un working set borne, non l'univers Makolo exhaustif. Les donnees jamais acquises demeurent inconnues. Les cursors pagines supplementaires doivent rester controles par les contrats owners (et par le futur travail de consolidation des collections si besoin).
+- C3 et C4 devront garantir operations et autorites, C5 fichiers/media, C6 l'harmonisation de toutes les experiences, C7 le guide d'extension, C8 les parcours Android.
+- **Validation non attestee dans l'environnement d'execution actuel :** Dart/Flutter SDK absent ; `dart_format.sh`, `flutter analyze`, tests cibles et tests Android n'ont pas ete executes. Une revue statique des sources a ete realisee ; elle ne remplace pas le compilateur. Le souhait de ne pas bloquer sur la CI globale est respecte, mais aucune gate rouge ne doit etre decrite comme verte.
