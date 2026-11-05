@@ -7,6 +7,9 @@ import 'package:makolo_mobile/app/router.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/features/space/space_repository.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
@@ -72,6 +75,106 @@ const _pilot = <String, dynamic>{
 };
 
 void main() {
+  testWidgets(
+    'Work continuation uses existing actor-scoped root while owner is offline',
+    (tester) async {
+      final actors = await ActorContextController.restore(
+        profileId: 'viewer',
+        store: _ActorStore(),
+      );
+      addTearDown(actors.dispose);
+      final space = SpaceActorIdentity(id: 'space-a', slug: 'atelier');
+      await actors.selectSpace(
+        space,
+        perspective: ActorPerspective.opaque('mandate:viewer'),
+      );
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'viewer');
+      final owner = WorkspaceContextRepository(
+        database: db,
+        store: store,
+        profileId: 'viewer',
+        actorContext: actors,
+        sync: null,
+      );
+      final actor = actors.value as SpaceActorContext;
+      final source = owner.workSource(space, actor.perspective);
+      await store.putProjection(
+        kind: source.projectionKind,
+        resourceKey: source.resourceKey,
+        schemaVersion: 1,
+        payload: {
+          'space': {'id': 'space-a', 'slug': 'atelier'},
+          'responsibility': 'mandate:viewer',
+          'primary_business_label': 'Créations',
+          'archetype': 'generic',
+          'presentation': {'empty_message': 'Aucune réalisation.'},
+          'sections': {
+            'preparation': {
+              'representation': 'À préparer',
+              'role': 'continuity',
+              'items': [
+                {
+                  'title': 'Œuvre déjà connue',
+                  'source': {'kind': 'activity', 'id': 'known-1'},
+                  'capabilities': ['view'],
+                },
+              ],
+            },
+          },
+        },
+      );
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'test',
+          refreshToken: 'test',
+          profileId: 'viewer',
+        ),
+      );
+      final runtime = AppRuntime(
+        tokens: tokens,
+        session: const AuthSession(
+          accessToken: 'test',
+          refreshToken: 'test',
+          profileId: 'viewer',
+        ),
+        recovery: SessionRecoveryController(),
+        actorContext: actors,
+        database: db,
+        store: store,
+        space: owner,
+        api: MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          tokenStore: tokens,
+          dio: MockClient(
+            (_) async => const MockResponse('{"detail":"offline"}', 503),
+          ).dio,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: SpaceWorkCollectionScreen(
+            runtime: runtime,
+            actor: actor,
+            section: 'preparation',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Œuvre déjà connue'), findsOneWidget);
+      expect(find.textContaining('dernière lecture réussie'), findsOneWidget);
+
+      await actors.selectPersonal();
+      await tester.pumpAndSettle();
+      expect(find.text('Œuvre déjà connue'), findsNothing);
+      expect(find.textContaining('n’est plus accessible'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      runtime.api?.close();
+    },
+  );
+
   testWidgets(
     'work continuation retries the same page and drops revoked content',
     (tester) async {
