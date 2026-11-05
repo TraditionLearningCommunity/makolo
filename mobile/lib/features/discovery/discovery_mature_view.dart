@@ -306,27 +306,15 @@ class DiscoveryCoLocatedPicker extends StatefulWidget {
 }
 
 class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
-  final DraggableScrollableController _sheetController =
-      DraggableScrollableController();
   bool _expanded = false;
 
   @override
   void dispose() {
-    _sheetController.dispose();
     super.dispose();
   }
 
   void _showAll() {
     setState(() => _expanded = true);
-    if (_sheetController.isAttached) {
-      unawaited(
-        _sheetController.animateTo(
-          0.76,
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeOutCubic,
-        ),
-      );
-    }
   }
 
   @override
@@ -337,15 +325,15 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
         place.trim().isNotEmpty &&
         items.every((item) => item.place == place);
     final visible = _expanded || items.length <= 2 ? items.length : 2;
-    return DraggableScrollableSheet(
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // Compact selection follows its contents; all results remain scrollable.
+    final targetHeight = _expanded
+        ? screenHeight * 0.76
+        : 148.0 + visible * 112.0 + (items.length > visible ? 58.0 : 0.0);
+    return SizedBox(
       key: const Key('discover-map-colocated-sheet'),
-      controller: _sheetController,
-      expand: false,
-      initialChildSize: 0.40,
-      minChildSize: 0.26,
-      maxChildSize: 0.78,
-      builder: (context, scrollController) => ListView.builder(
-        controller: scrollController,
+      height: targetHeight.clamp(0.0, screenHeight * 0.78).toDouble(),
+      child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(
           MakoloSpacing.md,
           MakoloSpacing.sm,
