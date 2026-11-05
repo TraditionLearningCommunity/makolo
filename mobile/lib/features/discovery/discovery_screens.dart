@@ -1962,13 +1962,18 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                   _visit.focusedAnchor = anchor;
                 },
                 resolveItem: _verifiedMapDetail,
+                // Same Save owner flow as Découvrir N1. An admitted location
+                // never creates its own saved state or mutation path.
                 onSave: widget.authenticated
-                    ? (item) => widget.repository.setSaved(
-                        family: item.family,
-                        id: item.id,
-                        saved: item.savedState != 'saved',
+                    ? (item) => _saveDiscoveryPossibility(
+                        widget.repository, item, _query,
                       )
                     : null,
+                allowOwnerActions:
+                    !_refreshing &&
+                    source.lastSuccessAt != null &&
+                    source.lastErrorCode == null &&
+                    !source.invalidated,
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 shareAuthenticated: widget.authenticated,
