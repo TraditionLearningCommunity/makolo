@@ -76,7 +76,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
         setState(() {
           _loading = false;
           _devices = const [];
-          _error = 'Service Notifications indisponible.';
+          _error = 'Impossible d’afficher vos appareils.';
         });
       return;
     }
@@ -122,7 +122,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       setState(() {
         _devices = const [];
         _loading = false;
-        _error = 'Impossible de vérifier les appareils de ce Profil.';
+        _error = 'Impossible d’afficher vos appareils.';
       });
     }
   }
@@ -182,7 +182,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
         SnackBar(
           content: Text(
             refreshed
-                ? 'Appareil retiré des notifications Makolo.'
+                ? 'Appareil retiré.'
                 : 'Appareil retiré. Impossible d’actualiser la liste.',
           ),
         ),
@@ -263,8 +263,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Activation non confirmée. Vérifiez la permission '
-              'de notification sur cet appareil.',
+              'Impossible d’activer les alertes. Vérifiez les autorisations du téléphone.',
             ),
           ),
         );
@@ -322,11 +321,6 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                                 : 'Appareil Apple',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
-                      if (device['appVersion']!.isNotEmpty)
-                        Text(
-                          'Makolo ${device['appVersion']}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
                       if (DateTime.tryParse(device['lastSeen']!) != null)
                         Text(
                           'Dernière activité · ${MaterialLocalizations.of(context).formatMediumDate(DateTime.parse(device['lastSeen']!).toLocal())}',
@@ -358,7 +352,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             label: const Text('Autoriser cet appareil'),
           ),
         if (!widget.mutationsEnabled)
-          const Text('Reconnectez-vous pour modifier vos appareils.'),
+          const Text('La gestion des appareils est indisponible pour le moment.'),
       ],
     );
   }
