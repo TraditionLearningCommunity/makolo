@@ -112,6 +112,7 @@ class _MeScreenState extends State<MeScreen> {
 
     return MeView(
       selection: selection,
+      store: widget.repository.store,
       mediaApi: widget.api,
       avatarProfileId: widget.repository.store.profileId,
       avatarRevision: projection.receivedAt,
@@ -140,6 +141,7 @@ class MeView extends StatefulWidget {
   const MeView({
     super.key,
     required this.selection,
+    this.store,
     this.onOpenDestination,
     this.mediaApi,
     this.avatarProfileId,
@@ -147,6 +149,7 @@ class MeView extends StatefulWidget {
   });
 
   final MeSelection selection;
+  final ProfileStore? store;
   final bool Function(StructuredDestination destination)? onOpenDestination;
   final MakoloApiClient? mediaApi;
   final String? avatarProfileId;
@@ -177,6 +180,7 @@ class _MeViewState extends State<MeView> {
           state: widget.selection.state,
           content: _MeField(
             selection: widget.selection,
+            store: widget.store,
             controller: _controller,
             mediaApi: widget.mediaApi,
             avatarProfileId: widget.avatarProfileId,
@@ -274,6 +278,7 @@ class _MeLoadingSection extends StatelessWidget {
 class _MeField extends StatelessWidget {
   const _MeField({
     required this.selection,
+    this.store,
     required this.controller,
     required this.mediaApi,
     this.avatarProfileId,
@@ -284,6 +289,7 @@ class _MeField extends StatelessWidget {
   });
 
   final MeSelection selection;
+  final ProfileStore? store;
   final ScrollController controller;
   final MakoloApiClient? mediaApi;
   final String? avatarProfileId;
@@ -360,6 +366,7 @@ class _MeField extends StatelessWidget {
         MeHub(
           key: const Key('me-navigation-hub'),
           selection: selection,
+          store: store,
           profileId: avatarProfileId,
           onSelectItem: onSelectItem,
           canNavigate: hasOwnerNavigation,
