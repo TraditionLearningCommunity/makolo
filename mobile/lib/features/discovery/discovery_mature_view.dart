@@ -594,11 +594,10 @@ class _DiscoveryMapPreview extends StatelessWidget {
         (resolved.savedState == 'saved'
             ? resolved.canUnsave
             : resolved.canSave);
-    final canShare = resolved != null &&
-        (shareAuthenticated
-            ? resolved.links['web'] != null ||
-                resolved.links['web_share'] != null
-            : resolved.links['web'] != null);
+    // Carte may know a pin before its owner's N2 has been verified.
+    // Keep the three Découvrir actions visible, but never turn a map
+    // coordinate into Save/Sharing authority.
+    final saved = resolved?.savedState == 'saved';
     return Card(
       key: const Key('discover-map-selected-preview'),
       child: SingleChildScrollView(
@@ -653,44 +652,48 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 icon: Icons.schedule_outlined,
                 label: resolved!.timing!,
               ),
-            Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: MakoloSpacing.xs,
+            const SizedBox(height: MakoloSpacing.xs),
+            const Divider(height: 1),
+            Row(
               children: [
-                if (canChangeSaved)
-                  IconButton(
+                Expanded(
+                  child: IconButton(
                     key: const Key('discover-map-save'),
-                    tooltip: resolved!.savedState == 'saved'
+                    tooltip: saving
+                        ? 'Enregistrement…'
+                        : saved
                         ? 'Retirer des enregistrements'
                         : 'Enregistrer',
-                    onPressed: saving ? null : onSave,
-                    icon: Icon(
-                      resolved!.savedState == 'saved'
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
+                    onPressed: canChangeSaved && !saving ? onSave : null,
+                    icon: DiscoveryOrbitIcon(
+                      saved: saved,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
-                if (canShare)
-                  SizedBox(
-                    width: 48,
-                    height: 48,
+                ),
+                Expanded(
+                  child: IconButton(
+                    key: const Key('discover-map-open-n2'),
+                    tooltip: 'Voir l’opportunité',
+                    onPressed: onOpen,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
                     child: DiscoveryShareControl(
                       key: ValueKey(
-                        'discover-map-share-${resolved!.candidateKey}',
+                        'discover-map-share-${(resolved ?? item).candidateKey}',
                       ),
-                      item: resolved!,
+                      item: resolved ?? item,
                       api: shareApi,
                       authenticated: shareAuthenticated,
-                      enabled: !saving,
+                      // The same Sharing owner control as Découvrir N1.
+                      enabled: resolved != null && !saving,
                       baseUri: baseUri,
                       iconOnly: true,
                     ),
                   ),
-                TextButton(
-                  key: const Key('discover-map-open-n2'),
-                  onPressed: onOpen,
-                  child: const Text('Voir l’opportunité'),
                 ),
               ],
             ),
