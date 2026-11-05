@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/local/makolo_database.dart';
+import '../../network/api_error.dart';
 import 'outbox_repository.dart';
 
 enum OutboxResolution {
@@ -26,11 +27,15 @@ class OutboxProcessor {
     required this.repository,
     required this.handlers,
     this.reconcilers = const {},
+    this.expectedOwners = const {},
   });
 
   final OutboxRepository repository;
   final Map<String, OutboxHandler> handlers;
   final Map<String, OutboxReconciler> reconcilers;
+  /// Prevent an operation of another domain from using a registered handler.
+  /// The owner endpoint still rechecks authority at execution time.
+  final Map<String, String> expectedOwners;
   Future<void>? _running;
   bool _active = true;
 
@@ -56,6 +61,15 @@ class OutboxProcessor {
       try {
         final handler = handlers[operation.operationKind];
         if (handler == null) continue;
+        final expectedOwner = expectedOwners[operation.operationKind];
+        if (expectedOwner != null && operation.owner != expectedOwner) {
+          await repository.setState(
+            operation.operationId,
+            OutboxState.conflict,
+            errorCode: 'owner_mismatch',
+          );
+          continue;
+        }
 
         final policy = _policy(operation.replayPolicy);
         if (policy.requiresOwnerIdempotency &&
@@ -157,33 +171,71 @@ class OutboxProcessor {
               operation.operationId,
               await _reconcile(operation),
             );
+          } else if (result == OutboxResolution.retryable &&
+              !policy.allowsAutomaticReplay) {
+            // Refetch and no-blind-retry are not automatic retry grants.
+            await _applyResolution(
+              operation.operationId,
+              OutboxResolution.awaitingConfirmation,
+            );
           } else {
             await _applyResolution(operation.operationId, result);
           }
-        } on Object {
-          if (policy.requiresReconciliationBeforeReplay) {
-            await _applyResolution(
+        } on MakoloApiError catch (error) {
+          // A definitive owner refusal is not a transient network error.
+          if (error.statusCode == 400 ||
+              error.statusCode == 403 ||
+              error.statusCode == 404 ||
+              error.statusCode == 409 ||
+              error.statusCode == 412 ||
+              error.statusCode == 422) {
+            await repository.setState(
               operation.operationId,
-              await _reconcile(operation),
-              errorCode: 'ambiguous_result',
+              OutboxState.conflict,
+              errorCode: 'owner_rejected',
             );
-          } else if (policy.stopsOnAmbiguousResult) {
+          } else if (error.statusCode == 401) {
             await repository.setState(
               operation.operationId,
               OutboxState.awaitingConfirmation,
-              errorCode: 'ambiguous_result',
+              errorCode: 'authentication_required',
             );
           } else {
-            await repository.setState(
-              operation.operationId,
-              OutboxState.failed,
-              errorCode: 'transport_error',
-            );
+            await _handleAmbiguous(operation, policy);
           }
+        } on Object {
+          await _handleAmbiguous(operation, policy);
         }
       } finally {
         claims.remove(claimKey);
       }
+    }
+  }
+
+  Future<void> _handleAmbiguous(
+    OutboxOperation operation,
+    ReplayPolicy policy,
+  ) async {
+    if (policy.requiresReconciliationBeforeReplay) {
+      await _applyResolution(
+        operation.operationId,
+        await _reconcile(operation),
+        errorCode: 'ambiguous_result',
+      );
+    } else if (policy.stopsOnAmbiguousResult) {
+      await repository.setState(
+        operation.operationId,
+        OutboxState.awaitingConfirmation,
+        errorCode: 'ambiguous_result',
+      );
+    } else {
+      // Only explicitly replayable operations can retry after a bounded
+      // backoff. Never invent a new owner intent or operation identity.
+      await repository.setState(
+        operation.operationId,
+        OutboxState.failed,
+        errorCode: 'transport_error',
+      );
     }
   }
 
