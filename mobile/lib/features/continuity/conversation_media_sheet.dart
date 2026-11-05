@@ -26,6 +26,7 @@ class ConversationMediaSheet extends StatefulWidget {
     required this.conversationId,
     required this.capabilities,
     required this.onPublished,
+    this.onQueued,
     this.representedSpaceId,
     this.lockedPointId,
     this.responsePointId,
@@ -36,6 +37,7 @@ class ConversationMediaSheet extends StatefulWidget {
   final String conversationId;
   final Map<String, dynamic> capabilities;
   final ValueChanged<String> onPublished;
+  final VoidCallback? onQueued;
   final String? representedSpaceId;
   final String? lockedPointId;
   final String? responsePointId;
@@ -245,9 +247,8 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         _kind = kind;
         _captureState = 'ready';
       });
-      if (!_requiresAudience && !_requiresPoint) {
-        await _send();
-      }
+      // Selection is not consent to send. Let the person preview and
+      // optionally add context before making a durable local intention.
     } on Object {
       if (mounted) setState(() {
         _captureState = 'error';
@@ -271,6 +272,22 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       _error = null;
     });
     try {
+      final delivery = widget.repository.delivery;
+      if (widget.responsePointId == null && delivery != null) {
+        await delivery.queue(
+          conversationId: widget.conversationId,
+          mode: 'media',
+          filePath: _path!,
+          filename: _filename!,
+          mediaKind: _kind!,
+          body: _caption.text.trim(),
+          pointId: _selectedPointId,
+          audienceId: _selectedAudienceId,
+          representedSpaceId: _representedSpace,
+        );
+        if (mounted) widget.onQueued?.call();
+        return;
+      }
       _reference ??= _newMediaReference();
       final result = widget.responsePointId == null
           ? await widget.repository.uploadMedia(
@@ -301,7 +318,8 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       widget.onPublished(id);
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Envoi non confirmé. Le fichier est conservé pour réessayer.');
+        setState(() => _error =
+            'Fichier non conservé pour envoi. Réessayer.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
