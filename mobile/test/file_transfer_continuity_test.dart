@@ -212,7 +212,8 @@ void main() {
       draftId: 'journey-draft',
       owner: 'JourneyArtifact',
       resourceKind: 'journey_artifact',
-      payload: {'attachment': {'file_id': staged.fileId}},
+      resourceId: 'journey-artifact-1',
+      payload: {'attachment': {'file_id': staged.fileId}}, 
     );
     await outbox.enqueue(
       operationId: 'pending-upload',
@@ -239,6 +240,7 @@ void main() {
       (await drafts.read(
         owner: 'JourneyArtifact',
         resourceKind: 'journey_artifact',
+        resourceId: 'journey-artifact-1',
       ))?.payload['attachment'],
       {'file_id': 'owner-file-1'},
     );
