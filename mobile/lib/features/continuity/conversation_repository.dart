@@ -42,6 +42,29 @@ class ConversationRepository {
     usableButOldAfter: Duration(hours: 12),
   );
 
+  /// Covers in the list are restricted to public, same-origin owner media.
+  /// Private Conversation attachments are never loaded through Image.network.
+  Uri? publicContextImageUri(String? ownerPath) {
+    final raw = ownerPath?.trim();
+    if (raw == null || !raw.startsWith('/') || raw.startsWith('//')) {
+      return null;
+    }
+    final parsed = Uri.tryParse(raw);
+    final origin = sync?.api.baseUri;
+    if (parsed == null || origin == null ||
+        parsed.hasScheme || parsed.hasAuthority || parsed.query.isNotEmpty ||
+        parsed.fragment.isNotEmpty) {
+      return null;
+    }
+    final resolved = origin.resolveUri(parsed);
+    if (resolved.host != origin.host ||
+        resolved.scheme != origin.scheme ||
+        resolved.port != origin.port) {
+      return null;
+    }
+    return resolved;
+  }
+
   final MakoloDatabase database;
   final ProfileStore store;
   final String profileId;
