@@ -1566,6 +1566,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-summary')), findsOneWidget);
+    expect(find.text('Résumé de Voyage vers Kolwezi'), findsOneWidget);
     expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
     expect(
       tester.widget<IconButton>(
