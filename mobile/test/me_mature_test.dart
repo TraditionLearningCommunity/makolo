@@ -584,10 +584,9 @@ void main() {
     expect(find.byKey(const Key('me-first-availability')), findsOneWidget);
     expect(find.text('Identité'), findsOneWidget);
     expect(find.text('Passeport Makolo'), findsOneWidget);
-    expect(find.text('Ce qui compte pour moi'), findsOneWidget);
-    expect(find.text('Mes collectifs'), findsOneWidget);
-    expect(find.text('Mes accès'), findsOneWidget);
-    expect(find.text('Mes ressources'), findsOneWidget);
+    expect(find.text('Mes projets'), findsOneWidget);
+    expect(find.text('Mes dossiers'), findsOneWidget);
+    expect(find.text('Mon espace'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
