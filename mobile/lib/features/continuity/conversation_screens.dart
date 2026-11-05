@@ -637,6 +637,11 @@ class ConversationDetailScreen extends StatefulWidget {
 
 class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
+  final ScrollController _timelineScroll = ScrollController();
+  bool _timelinePositioned = false;
+  bool _nearLatest = true;
+  String? _lastTimelinePointId;
+
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
@@ -729,7 +734,35 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _timelineScroll.addListener(_trackTimelinePosition);
     unawaited(_acquireOrRefresh());
+  }
+
+  @override
+  void dispose() {
+    _timelineScroll.dispose();
+    super.dispose();
+  }
+
+  void _trackTimelinePosition() {
+    if (_timelineScroll.hasClients) {
+      _nearLatest = _timelineScroll.position.extentAfter < 120;
+    }
+  }
+
+  void _positionTimeline(List<_ConversationTimelineEntry> entries) {
+    if (entries.isEmpty || _focusedPointId != null) return;
+    final latestId = entries.last.point.id;
+    final shouldFollow = !_timelinePositioned ||
+        (_lastTimelinePointId != latestId && _nearLatest);
+    _timelinePositioned = true;
+    _lastTimelinePointId = latestId;
+    if (!shouldFollow) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_timelineScroll.hasClients ||
+          _focusedPointId != null) return;
+      _timelineScroll.jumpTo(_timelineScroll.position.maxScrollExtent);
+    });
   }
 
   @override
@@ -738,6 +771,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     if (oldWidget.id != widget.id ||
         oldWidget.repository != widget.repository ||
         oldWidget.focusPointId != widget.focusPointId) {
+      if (oldWidget.id != widget.id ||
+          oldWidget.repository != widget.repository) {
+        _timelinePositioned = false;
+        _nearLatest = true;
+        _lastTimelinePointId = null;
+        if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
+      }
       _handledFocus = null;
       _justPublishedPointId = null;
       _requestedInitialRefresh = false;
@@ -863,26 +903,157 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     );
   }
 
-  Widget _pointSection(
-    BuildContext context,
-    String title,
-    List<_ConversationPoint> points, {
-    bool readOnly = false,
-  }) {
-    if (points.isEmpty) return const SizedBox.shrink();
+  // Preserve owner-selected read-only behavior while moving the presentation
+  // from administrative sections to one chronological conversation timeline.
+  List<_ConversationTimelineEntry> _timelineEntries(_ConversationDetail detail) {
+    final entries = <_ConversationTimelineEntry>[];
+    final seen = <String>{};
+    void add(Iterable<_ConversationPoint> points, {required bool readOnly}) {
+      for (final point in points) {
+        if (point.id.isNotEmpty && seen.add(point.id)) {
+          entries.add(_ConversationTimelineEntry(
+            point: point, readOnly: readOnly, order: entries.length,
+          ));
+        }
+      }
+    }
+
+    add(detail.points.where((point) =>
+        point.section == 'pour_moi' ||
+        point.attentionReason == 'resolve'), readOnly: false);
+    add(detail.points.where((point) =>
+        point.section != 'pour_moi' &&
+        point.attentionReason != 'resolve'), readOnly: true);
+    add(detail.essential, readOnly: true);
+    add(detail.elsewhere, readOnly: true);
+    final focus = detail.focusedPoint;
+    if (focus != null) add([focus], readOnly: false);
+
+    entries.sort((a, b) {
+      final left = a.point.publishedAt ?? a.point.updatedAt;
+      final right = b.point.publishedAt ?? b.point.updatedAt;
+      if (left != null && right != null) {
+        final dateOrder = left.compareTo(right);
+        if (dateOrder != 0) return dateOrder;
+      } else if (left != null) {
+        return 1;
+      } else if (right != null) {
+        return -1;
+      }
+      return a.order.compareTo(b.order);
+    });
+    return entries;
+  }
+
+  Widget _dayDivider(BuildContext context, DateTime date) {
+    final local = date.toLocal();
+    final now = DateTime.now();
+    final title = DateUtils.isSameDay(local, now)
+        ? "Aujourd'hui"
+        : DateUtils.isSameDay(local, now.subtract(const Duration(days: 1)))
+            ? 'Hier'
+            : MaterialLocalizations.of(context).formatMediumDate(local);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.inner, MakoloSpacing.lg,
-        MakoloSpacing.inner, 0,
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.md),
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: MakoloSpacing.md),
-          for (final point in points)
-            _pointWidget(point, readOnly: readOnly),
-        ],
+    );
+  }
+
+  Widget _timeline(BuildContext context, _ConversationDetail detail) {
+    final entries = _timelineEntries(detail);
+    _positionTimeline(entries);
+    _focusAfterLayout();
+    DateTime? previousDay;
+    final children = <Widget>[];
+    for (final entry in entries) {
+      final timestamp = entry.point.publishedAt ?? entry.point.updatedAt;
+      if (timestamp != null &&
+          (previousDay == null ||
+              !DateUtils.isSameDay(previousDay, timestamp.toLocal()))) {
+        children.add(_dayDivider(context, timestamp));
+        previousDay = timestamp.toLocal();
+      }
+      children.add(Padding(
+        padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+        child: _pointWidget(entry.point, readOnly: entry.readOnly),
+      ));
+    }
+    if (children.isEmpty) {
+      children.add(const Padding(
+        padding: EdgeInsets.all(MakoloSpacing.inner),
+        child: Center(child: Text('Aucun Point pour le moment.')),
+      ));
+    }
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 860),
+        child: ListView(
+          key: PageStorageKey<String>('conversation-detail-${widget.id}'),
+          controller: _timelineScroll,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  String _shortTitle(String title) {
+    final separator = title.indexOf(' — ');
+    return separator > 3 ? title.substring(0, separator).trim() : title;
+  }
+
+  void _showConversationContext(_ConversationDetail detail) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          MakoloSpacing.inner, MakoloSpacing.sm,
+          MakoloSpacing.inner,
+          MakoloSpacing.lg + MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (detail.contextLabel != null) ...[
+                Text(detail.contextLabel!,
+                    style: Theme.of(sheetContext).textTheme.labelLarge),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+              Text(detail.title,
+                  style: Theme.of(sheetContext).textTheme.headlineSmall),
+              if (detail.purpose != null &&
+                  detail.purpose!.trim().isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Text(detail.purpose!,
+                    style: Theme.of(sheetContext).textTheme.bodyLarge),
+              ],
+              if (detail.lifecycle != null) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                MakoloStatus(label: detail.lifecycle!),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -915,14 +1086,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
             final detail = _ConversationDetail.fromProjection(projection);
-            final freshness = projection == null
-                ? null
-                : ConversationRepository.detailFreshness.evaluate(
+            final available = projection != null;
+            final freshness = available
+                ? ConversationRepository.detailFreshness.evaluate(
                     projection,
                     now: DateTime.now(),
                     invalidated: source.invalidated,
-                  );
-            final available = projection != null;
+                  )
+                : null;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -943,17 +1114,83 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   : source.lastErrorCode == 'not_found' ||
                         (!available && source.invalidated)
                   ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
-                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
+                  : source.lastErrorCode != null ||
+                        (!available && _attemptedRefresh)
+                  ? available
+                      ? MakoloFailureCue.recoverable
+                      : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
+            final permitted = surface.failure != MakoloFailureCue.permissionDenied &&
+                surface.failure != MakoloFailureCue.blocking;
+            final capabilities = detail.composer;
+            final canCompose = capabilities['text_mode'] != null ||
+                capabilities['can_create'] == true ||
+                capabilities['can_form'] == true ||
+                (capabilities['media_kinds'] is List &&
+                    (capabilities['media_kinds'] as List).isNotEmpty);
+            _activeComposer = capabilities;
+
+            // The keyboard shrinks the body, not the conversation itself.
+            // C3_bus will provide the compact composer visuals; C1_bus keeps
+            // its existing widget reachable independently of timeline scroll.
+            final usableHeight = MediaQuery.sizeOf(context).height -
+                MediaQuery.viewInsetsOf(context).bottom;
+            final composerLimit = (usableHeight * 0.38).clamp(116.0, 280.0);
+
             return Scaffold(
+              resizeToAvoidBottomInset: true,
               appBar: AppBar(
-                title: Text(
-                  available ? detail.title : 'Conversation',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                titleSpacing: 0,
+                title: InkWell(
+                  key: const Key('conversation-context-header'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: available ? () => _showConversationContext(detail) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.forum_outlined,
+                            size: 18,
+                            color: Theme.of(context)
+                                .colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: MakoloSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                available
+                                    ? _shortTitle(detail.title)
+                                    : 'Conversation',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              if (available &&
+                                  detail.contextLabel != null &&
+                                  detail.contextLabel!.isNotEmpty)
+                                Text(
+                                  detail.contextLabel!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 actions: [
                   if (widget.onOpenHistory != null)
@@ -964,163 +1201,88 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       icon: const Icon(Icons.manage_search_rounded),
                     ),
                   PopupMenuButton<String>(
-                    tooltip: 'État personnel',
-                    onSelected: (action) =>
-                        _updatePersonalState(action, detail.personalState),
+                    tooltip: 'Options de la conversation',
+                    onSelected: (action) {
+                      if (action == 'refresh') {
+                        unawaited(_refresh());
+                      } else {
+                        unawaited(_updatePersonalState(
+                            action, detail.personalState));
+                      }
+                    },
                     itemBuilder: (context) => [
                       PopupMenuItem(
+                        value: 'refresh',
+                        enabled: !_refreshing,
+                        child: const Text('Actualiser'),
+                      ),
+                      PopupMenuItem(
                         value: 'pin',
-                        child: Text(
-                          detail.personalState.pinned
-                              ? 'Retirer l’épingle'
-                              : 'Épingler pour moi',
-                        ),
+                        child: Text(detail.personalState.pinned
+                            ? 'Retirer l’épingle' : 'Épingler pour moi'),
                       ),
                       PopupMenuItem(
                         value: 'mute',
-                        child: Text(
-                          detail.personalState.muted
-                              ? 'Réactiver les signaux'
-                              : 'Mettre les signaux en sourdine',
-                        ),
+                        child: Text(detail.personalState.muted
+                            ? 'Réactiver les signaux'
+                            : 'Mettre les signaux en sourdine'),
                       ),
                       PopupMenuItem(
                         value: 'revisit',
-                        child: Text(
-                          detail.personalState.revisit
-                              ? 'Retirer le rappel de revisite'
-                              : 'Revoir plus tard',
-                        ),
+                        child: Text(detail.personalState.revisit
+                            ? 'Retirer le rappel de revisite'
+                            : 'Revoir plus tard'),
                       ),
                       PopupMenuItem(
                         value: 'archive',
-                        child: Text(
-                          detail.personalState.archived
-                              ? 'Retirer de mes archives'
-                              : 'Archiver pour moi',
-                        ),
+                        child: Text(detail.personalState.archived
+                            ? 'Retirer de mes archives'
+                            : 'Archiver pour moi'),
                       ),
                       PopupMenuItem(
                         value: 'hide',
-                        child: Text(
-                          detail.personalState.hidden
-                              ? 'Afficher de nouveau'
-                              : 'Masquer pour moi',
-                        ),
+                        child: Text(detail.personalState.hidden
+                            ? 'Afficher de nouveau'
+                            : 'Masquer pour moi'),
                       ),
                     ],
                   ),
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de la conversation…',
-                ),
-                blockingErrorMessage: 'Cette conversation est indisponible ou n’a pas pu être chargée.',
-                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
-                preservedMessage: available
-                    ? 'La dernière version disponible reste consultable.'
-                    : null,
-                onRetry: _refresh,
-                content: Builder(
-                  builder: (context) {
-                    final seen = <String>{};
-                    List<_ConversationPoint> unique(Iterable<_ConversationPoint> points) {
-                      return [
-                        for (final point in points)
-                          if (seen.add(point.id)) point,
-                      ];
-                    }
-
-                    _activeComposer = detail.composer;
-                    final focused = detail.focusedPoint;
-                    final focusedOnly = focused != null &&
-                            !detail.points.any((p) => p.id == focused.id) &&
-                            !detail.elsewhere.any((p) => p.id == focused.id) &&
-                            !detail.essential.any((p) => p.id == focused.id)
-                        ? unique([focused])
-                        : <_ConversationPoint>[];
-                    final mine = unique(detail.points.where(
-                      (point) => point.section == 'pour_moi' ||
-                          point.attentionReason == 'resolve',
-                    ));
-                    final information = unique(detail.points.where(
-                      (point) => point.section != 'pour_moi' &&
-                          point.attentionReason != 'resolve',
-                    ));
-                    final elsewhere = unique(detail.elsewhere);
-                    final essential = unique(detail.essential);
-                    _focusAfterLayout();
-
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 860),
-                        child: ListView(
-                      key: const Key('conversation-detail-content'),
-                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            MakoloSpacing.inner, MakoloSpacing.md,
-                            MakoloSpacing.inner, 0,
-                          ),
-                          child: MakoloDetailHeader(
-                            eyebrow: detail.contextLabel,
-                            title: detail.title,
-                            subtitle: detail.purpose,
-                            status: detail.lifecycle == null
-                                ? null
-                                : MakoloStatus(label: detail.lifecycle!),
-                          ),
-                        ),
-                        _pointSection(context, 'Point recherché', focusedOnly),
-                        _pointSection(context, 'L’essentiel', essential, readOnly: true),
-                        _pointSection(context, 'À vous', mine),
-                        _pointSection(context, 'En cours ailleurs', elsewhere, readOnly: true),
-                        _pointSection(context, 'À savoir et résultats', information, readOnly: true),
-                        if (focusedOnly.isEmpty && essential.isEmpty &&
-                            mine.isEmpty && elsewhere.isEmpty &&
-                            information.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(MakoloSpacing.inner),
-                            child: Text('Tout est en ordre. ✓'),
-                          ),
-                        if (widget.onOpenHistory != null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                onPressed: widget.onOpenHistory,
-                                icon: const Icon(Icons.history_rounded),
-                                label: const Text('Retrouver un Point'),
-                              ),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: available && permitted
+                        ? _timeline(context, detail)
+                        : MakoloSurfaceStateView(
+                            state: surface,
+                            initialLoading: const MakoloLoadingState(
+                              label: 'Chargement de la conversation…',
                             ),
+                            blockingErrorMessage:
+                                'Cette conversation est indisponible ou n’a pas pu être chargée.',
+                            onRetry: _refresh,
+                            content: _timeline(context, detail),
                           ),
-                        if (detail.composer['text_mode'] != null ||
-                            detail.composer['can_create'] == true ||
-                            detail.composer['can_form'] == true ||
-                            (detail.composer['media_kinds'] is List &&
-                                (detail.composer['media_kinds'] as List).isNotEmpty))
-                          ConversationComposer(
+                  ),
+                  if (available && permitted && canCompose)
+                    SafeArea(
+                      top: false,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: composerLimit),
+                        child: SingleChildScrollView(
+                          child: ConversationComposer(
+                            key: ValueKey<String>('composer-${widget.id}'),
                             repository: widget.repository,
                             conversationId: widget.id,
-                            capabilities: detail.composer,
+                            capabilities: capabilities,
                             representedSpaceId: widget.representedSpaceId,
                             onPublished: _afterPublish,
                           ),
-                      ],
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                ],
               ),
             );
           },
@@ -1128,6 +1290,18 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       },
     );
   }
+}
+
+class _ConversationTimelineEntry {
+  const _ConversationTimelineEntry({
+    required this.point,
+    required this.readOnly,
+    required this.order,
+  });
+
+  final _ConversationPoint point;
+  final bool readOnly;
+  final int order;
 }
 
 class _PointCard extends StatefulWidget {
