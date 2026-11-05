@@ -291,10 +291,9 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
               sourceGeneratedAt: envelope.generatedAt,
             );
           }
-  
-      } on Object {
-        // Saved on the server; local source will reconcile on next refresh.
-      }
+        } on Object {
+          // Saved on the server; local source will reconcile on next refresh.
+        }
       }
     } on Object {
       if (mounted) {
