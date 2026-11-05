@@ -86,8 +86,6 @@ void main() {
         home: MeConsiderationsScreen(
           api: _OfflineApi(),
           personal: personal,
-          onSaved: () {},
-          onWatches: () {},
         ),
       ),
     );
@@ -150,8 +148,6 @@ void main() {
           home: MeConsiderationsScreen(
             api: _OfflineApi(),
             personal: personal,
-            onSaved: () {},
-            onWatches: () {},
           ),
         ),
       );
