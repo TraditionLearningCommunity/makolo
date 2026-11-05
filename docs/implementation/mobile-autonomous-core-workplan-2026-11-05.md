@@ -3,9 +3,9 @@
 **Statut :** plan d'execution transversal, non commence par ce document.
 **Date de cadrage :** 5 novembre 2026.
 **Depot :** TraditionLearningCommunity/makolo.
-**Branche unique d'execution :** \`fix/discover-a-continuation-context-20261014\` (PR #522).
-**Baseline revalidee au cadrage :** \`main@d0f0ec421c94c255fa4c0acd3509938a70c6322f\` ; \`PR #522@0795ab65f538b289f2f8c86a3c92104a53c5cf79\`.
-**Perimetre des changements de ce chantier :** \`mobile/**\` et documentation explicitement liee. Aucun backend, API, migration Django ni Web.
+**Branche unique d'execution :** `fix/discover-a-continuation-context-20261014` (PR #522).
+**Baseline revalidee au cadrage :** `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f` ; `PR #522@0795ab65f538b289f2f8c86a3c92104a53c5cf79`.
+**Perimetre des changements de ce chantier :** `mobile/**` et documentation explicitement liee. Aucun backend, API, migration Django ni Web.
 **Nature des identifiants C0-C8 :** checkpoints internes de ce chantier, pas nouveau train LF, A, M ou programme officiel.
 
 > Makolo marche pour vous. Meme lorsque le reseau ne marche pas.
@@ -19,11 +19,11 @@ Le reseau n'est pas une condition de construction de l'ecran. Le local n'est pas
 
 ## 2. Baseline verifiee et travaux existants a reutiliser
 
-- Le schema Drift v2 de \`mobile/lib/data/local/makolo_database.dart\` contient six tables : \`ProjectionSnapshots\`, \`ResourceIndex\`, \`SyncSources\`, \`OutboxOperations\`, \`LocalDrafts\`, \`FileRecords\`.
-- Il existe deja \`ProfileStore\`, \`SyncEngine\`, \`ProjectionSelector\`, des repositories, la gestion d'outbox et des tests cibles.
+- Le schema Drift v2 de `mobile/lib/data/local/makolo_database.dart` contient six tables : `ProjectionSnapshots`, `ResourceIndex`, `SyncSources`, `OutboxOperations`, `LocalDrafts`, `FileRecords`.
+- Il existe deja `ProfileStore`, `SyncEngine`, `ProjectionSelector`, des repositories, la gestion d'outbox et des tests cibles.
 - La PR #522 porte deja des changements local-first recents (Now, Discover, Moi, ressources, medias, outbox, revocations). Ne pas recommencer ou supprimer sans lecture du code courant.
 - La PR #522 comporte aussi des changements non Flutter et est volumineuse. Geler tout ajout hors mobile dans ce chantier. Une revue de collision et de CI est obligatoire avant integration finale.
-- Sources de conception a revalider sur le runtime : \`docs/architecture/mobile-local-data-kernel.md\`, \`mobile-sync-continuity-kernel.md\`, \`mobile-action-continuity-kernel.md\`, \`mobile-par1d-parallel-feature-boundaries.md\`, \`mobile-a2-acceptance-matrix.md\`, \`mobile-api-contract.md\`, \`docs/architecture/makolo-domain-blueprint.md\`, \`AGENTS.md\`, \`docs/operations/agent-orchestration.md\`, \`docs/operations/ai-development-guardrails.md\`.
+- Sources de conception a revalider sur le runtime : `docs/architecture/mobile-local-data-kernel.md`, `mobile-sync-continuity-kernel.md`, `mobile-action-continuity-kernel.md`, `mobile-par1d-parallel-feature-boundaries.md`, `mobile-a2-acceptance-matrix.md`, `mobile-api-contract.md`, `docs/architecture/makolo-domain-blueprint.md`, `AGENTS.md`, `docs/operations/agent-orchestration.md`, `docs/operations/ai-development-guardrails.md`.
 - Aucun resultat Android ou verdict global de CI n'est atteste par ce document. Relever le HEAD et les gates a chaque checkpoint.
 
 ## 3. Regle de chaque tache
@@ -36,7 +36,7 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 
 **Responsable :** integrateur. **Dependance :** aucune.
 
-- Rafraichir \`main\`, tete de #522, statut/CI, derniers commits, branches et PR en collision.
+- Rafraichir `main`, tete de #522, statut/CI, derniers commits, branches et PR en collision.
 - Inventorier les chemins acquisition -> applier -> SQLite -> selector -> repository -> UI, ainsi que UI -> operation -> reconciliation.
 - Classer les usages existants : reutilisable, mauvais niveau, manquant, doublon. Relever les dependances HTTP obligatoires dans les constructeurs/chargements de vues.
 - Identifier le commit de l'APK Android teste lorsque cette preuve est disponible.
@@ -52,7 +52,7 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 - Faire converger les identites/provenances partageables et les relations utiles dans l'index existant, si les owners publient des identites suffisantes.
 - Etablir les queries/selectors locaux reactifs reutilisables (recherche sur corpus acquis, details, temporalite autorisee).
 - Distinguer jamais acquis, connu vide, connu disponible, ancien presentable, expire, revocation explicite, echec de transport.
-- Ne pas introduire \`OccurrenceFactsIndex\` ou \`SourceMembership\` sans cas de requete, proprietaire et test prouvant leur necessite.
+- Ne pas introduire `OccurrenceFactsIndex` ou `SourceMembership` sans cas de requete, proprietaire et test prouvant leur necessite.
 
 **Sortie :** un fait acquis reutilisable par plusieurs contextes sans lecture HTTP pour la consultation ; tests Drift, migrations, deduplication, isolation et cold start.
 
@@ -60,7 +60,7 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 
 **Responsable :** developpeur A. **Dependance :** C1.
 
-- Reorganiser l'existant \`SyncEngine\`, \`SyncSource\`, appliers et orchestration lifecycle ; une source represente un contrat owner, pas un ecran.
+- Reorganiser l'existant `SyncEngine`, `SyncSource`, appliers et orchestration lifecycle ; une source represente un contrat owner, pas un ecran.
 - Declenchements : lancement/reprise, contexte, connectivite, invalidation, priorite utile, refresh demande, travail en attente. Respecter les contraintes Android/iOS.
 - Budgets : temps, octets, batterie, stockage, medias, nombre de sources ; backoff et reprise sans boucle agressive.
 - Pagination : 10 puis 10 puis 40, accumulation et deduplication autorisees, provenance du scope, curseurs invalides, sans extrapoler une exhaustivite globale.
@@ -72,7 +72,7 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 
 **Responsable :** developpeur B. **Dependance :** C0 puis contrat stable de C1 ; peut avancer en parallele de C2 sur fichiers disjoints.
 
-- Reutiliser \`LocalDrafts\`, \`OutboxOperations\`, \`DraftRepository\`, \`OutboxProcessor\` et handlers existants ; ne pas creer un moteur concurrent.
+- Reutiliser `LocalDrafts`, `OutboxOperations`, `DraftRepository`, `OutboxProcessor` et handlers existants ; ne pas creer un moteur concurrent.
 - Classer chaque action : A locale ; B locale puis synchronisee ; C preparable et confirmee par owner ; D intrinsequement distante.
 - Persistance des formulaires pendant saisie, fermeture, redemarrage, restauration ; etats transmission/reception/decision distincts.
 - Politique de replay par owner : idempotence reelle, retries, reponse ambiguë, conflits, dependances, refus, revalidation.
@@ -97,7 +97,7 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 **Responsable :** developpeur A ; B en revue des brouillons. **Dependances :** C1, C2 et C4.
 
 - Stabiliser cold start, fermeture forcee, reprise, interruption sync, quotas/retenue, nettoyage, croissance SQLite et pression stockage.
-- Reutiliser les proprietaires existants de media et \`FileRecords\`; distinguer copie durable autorisee, cache recomposable, fichier explicitement conserve, credential protege.
+- Reutiliser les proprietaires existants de media et `FileRecords`; distinguer copie durable autorisee, cache recomposable, fichier explicitement conserve, credential protege.
 - Ne jamais preacquerir massivement videos, fichiers prives ou credentials ; purger selon revocation/contrat.
 - Verifier fenetres temporelles et comportements lorsque l'appareil change de fuseau ou d'horloge.
 
@@ -118,10 +118,10 @@ Chaque checkpoint doit posseder : owner, base SHA au moment de commencer, fichie
 
 **Responsable :** integrateur, revue par A et B. **Dependances :** contrats C1-C4 stabilises ; demo apres C6.
 
-Creer un guide versionne dans \`docs/architecture/\` (nom a verifier au moment du travail), avec **un exemple reel tiré d'une feature existante** et un test de conformite architectural, sans feature fictive. Le guide doit expliquer :
+Creer un guide versionne dans `docs/architecture/` (nom a verifier au moment du travail), avec **un exemple reel tiré d'une feature existante** et un test de conformite architectural, sans feature fictive. Le guide doit expliquer :
 
 1. Identifier owner distant, scope de visibilite, source et payload autorise.
-2. Declarer/brancher une \`SyncSource\` existante, son acquisition, son applier transactionnel et sa politique d'invalidation.
+2. Declarer/brancher une `SyncSource` existante, son acquisition, son applier transactionnel et sa politique d'invalidation.
 3. Inserer l'identite partageable dans les structures deja disponibles ; reutiliser snapshots/index existants.
 4. Exposer un selector local et un repository pour la feature ; pas de GET obligatoire dans widget/route.
 5. Pour ecriture, binder un brouillon et une operation au handler owner et a une politique de replay **explicitement prouvee**.
@@ -150,7 +150,7 @@ Demonstrations obligatoires :
 
 Mesures : cold start local, latence navigation/recherche, taille SQLite, latence sync, memoire, consommation raisonnable.
 
-**Sortie :** evidence des dix scenarios, \`flutter analyze\`, tests cibles + suite pertinente, formatting canonique, CI pertinente verte, revue des diff ; merge uniquement si gates verts et reconciliation avec \`main\`.
+**Sortie :** evidence des dix scenarios, `flutter analyze`, tests cibles + suite pertinente, formatting canonique, CI pertinente verte, revue des diff ; merge uniquement si gates verts et reconciliation avec `main`.
 
 ## 5. Dependances et deux developpeurs sans creer de branche
 
@@ -162,15 +162,15 @@ C0
 
 Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer avec le contrat C1 stabilise, pendant C2.
 
-- **A — Connaissance/acquisition :** \`mobile/lib/data/local/**\`, appliers et pull sous \`mobile/lib/sync/**\`, selectors communs. Ne touche pas aux outbox handlers tenus par B.
-- **B — Continuite d'action :** brouillons, intents, outbox handlers owner, tests d'operations. Ne modifie pas le schema Drift ni \`SyncEngine\` sans validation de l'integrateur.
-- **Integrateur unique :** \`app/router.dart\`, \`app/providers.dart\`, runtime builder, bootstrap, \`pubspec.yaml\`, \`mobile/android/**\`, schema Drift/migrations, signatures communes, CI, commits integres et push de la branche.
-- **Une seule branche distante:** \`fix/discover-a-continuation-context-20261014\`. Deux espaces de travail peuvent etre crees en \`git worktree --detach\` sur le SHA approuve (sans nouvelle branche). Les contributeurs transmettent des commits SHAs ; l'integrateur les cherry-pick ou applique de facon controlee sur cette unique branche puis pousse. Personne ne force-push. Ne pas ecrire en parallele le meme fichier.
+- **A — Connaissance/acquisition :** `mobile/lib/data/local/**`, appliers et pull sous `mobile/lib/sync/**`, selectors communs. Ne touche pas aux outbox handlers tenus par B.
+- **B — Continuite d'action :** brouillons, intents, outbox handlers owner, tests d'operations. Ne modifie pas le schema Drift ni `SyncEngine` sans validation de l'integrateur.
+- **Integrateur unique :** `app/router.dart`, `app/providers.dart`, runtime builder, bootstrap, `pubspec.yaml`, `mobile/android/**`, schema Drift/migrations, signatures communes, CI, commits integres et push de la branche.
+- **Une seule branche distante:** `fix/discover-a-continuation-context-20261014`. Deux espaces de travail peuvent etre crees en `git worktree --detach` sur le SHA approuve (sans nouvelle branche). Les contributeurs transmettent des commits SHAs ; l'integrateur les cherry-pick ou applique de facon controlee sur cette unique branche puis pousse. Personne ne force-push. Ne pas ecrire en parallele le meme fichier.
 - Apres chaque integration : comparer HEAD/CI, tester le contrat touche et actualiser le checkpoint. Ne pas traiter #522 comme deja fusionnee.
 
 ## 6. Gate de qualite minimal
 
-\`cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check\`, puis \`flutter analyze\`, tests cibles, tests d'architecture et suites pertinentes. Outils canoniques dans \`AGENTS.md\` (Flutter 3.47.3 / Dart 3.13.3). Aucun test affaibli, pas de faux succes et pas de nouveau serveur/API/Web dans ce chantier.
+`cd mobile && bash tool/dart_format.sh write && bash tool/dart_format.sh check`, puis `flutter analyze`, tests cibles, tests d'architecture et suites pertinentes. Outils canoniques dans `AGENTS.md` (Flutter 3.47.3 / Dart 3.13.3). Aucun test affaibli, pas de faux succes et pas de nouveau serveur/API/Web dans ce chantier.
 
 ## 7. Etat de suivi
 
