@@ -40,10 +40,29 @@ class DraftRepository {
     required String resourceKind,
     String? resourceId,
     required Map<String, dynamic> payload,
-  }) {
-    return database
-        .into(database.localDrafts)
-        .insertOnConflictUpdate(
+  }) async {
+    if (draftId.trim().isEmpty ||
+        owner.trim().isEmpty ||
+        resourceKind.trim().isEmpty) {
+      throw ArgumentError('A draft requires a stable owner and identity');
+    }
+    // draft_id is currently the SQLite primary key. Check its scope before
+    // upsert so a shared database can never overwrite another Profile's or
+    // owner's draft with the same client-generated ID.
+    await database.transaction(() async {
+      final current = await (database.select(database.localDrafts)
+            ..where((row) => row.draftId.equals(draftId)))
+          .getSingleOrNull();
+      if (current != null &&
+          (current.profileId != profileId ||
+              current.owner != owner ||
+              current.resourceKind != resourceKind ||
+              current.resourceId != resourceId)) {
+        throw StateError('Draft identity belongs to another owner scope');
+      }
+      await database
+          .into(database.localDrafts)
+          .insertOnConflictUpdate(
           LocalDraftsCompanion.insert(
             draftId: draftId,
             profileId: profileId,
@@ -54,6 +73,7 @@ class DraftRepository {
             updatedAt: DateTime.now().toUtc(),
           ),
         );
+    });
   }
 
   Future<StoredLocalDraft?> read({
@@ -118,8 +138,20 @@ class DraftRepository {
     required String intentId,
     required ReplayPolicy replayPolicy,
     String? ownerIdempotencyKey,
+    Map<String, dynamic>? operationPayload,
+    List<String> dependencies = const [],
+    bool enforceSingleActive = false,
   }) {
     return database.transaction(() async {
+      if (enforceSingleActive && resourceId != null) {
+        final previous = await outbox.activeForResource(
+          operationKind: operationKind,
+          resourceId: resourceId,
+        );
+        if (previous != null) {
+          throw StateError('An active owner intent already exists');
+        }
+      }
       await saveLocal(
         draftId: draftId,
         owner: owner,
@@ -134,10 +166,11 @@ class DraftRepository {
         owner: owner,
         resourceKind: resourceKind,
         resourceId: resourceId,
-        payload: payload,
+        payload: operationPayload ?? payload,
         intentId: intentId,
         replayPolicy: replayPolicy,
         ownerIdempotencyKey: ownerIdempotencyKey,
+        dependencies: dependencies,
       );
     });
   }
