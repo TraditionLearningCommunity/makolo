@@ -21,6 +21,10 @@ class SyncRoot {
   final String path;
 }
 
+class _SpaceAuthorityWithheld implements Exception {
+  const _SpaceAuthorityWithheld();
+}
+
 class _SyncCoordinator {
   final Map<String, int> generations = {};
   final Map<String, int> discoveryEpochs = {};
@@ -356,7 +360,7 @@ class SyncEngine {
           (source.projectionKind != 'space.workspace' ||
               await _inventoryAuthorityWithdrawn()) &&
           await _spaceAuthorityWithdrawn(spaceId)) {
-        throw StateError('Space owner authority must be revalidated');
+        throw const _SpaceAuthorityWithheld();
       }
       final response = await api.get(source.path);
       if (!isCurrent()) return;
@@ -420,6 +424,10 @@ class SyncEngine {
               ),
             );
       });
+    } on _SpaceAuthorityWithheld {
+      // A durable owner tombstone is not a transport failure. Keep its
+      // authorization status intact until a canonical owner revalidation.
+      rethrow;
     } on TimeoutException {
       if (isCurrent()) await _recordFailure(source, 'timeout');
       rethrow;
@@ -464,17 +472,30 @@ class SyncEngine {
     final coordinator = _coordinator;
     coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
     await _ensureSource(source);
+    final existing = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals(source.sourceKey)))
+        .getSingleOrNull();
+    // Invalidating a source marks it due for refresh; it must not erase a
+    // confirmed Space authority withdrawal before workspace/inventory
+    // has actually been revalidated by its owner.
+    final protectedDenial =
+        (source.projectionKind == 'space.workspace' ||
+            source.projectionKind == 'space.inventory') &&
+        existing?.invalidated == true &&
+        _deniedOwnerState(existing?.lastErrorCode);
     await (database.update(database.syncSources)..where(
           (row) =>
               row.profileId.equals(profileId) &
               row.sourceKey.equals(source.sourceKey),
         ))
-        .write(
-          const SyncSourcesCompanion(
-            invalidated: Value(true),
-            lastErrorCode: Value(null),
-          ),
-        );
+        .write(SyncSourcesCompanion(
+          invalidated: const Value(true),
+          lastErrorCode: protectedDenial
+              ? Value(existing?.lastErrorCode)
+              : const Value(null),
+        ));
   }
 
   /// Use only on an explicit owner 403/404, never on a timeout or after
