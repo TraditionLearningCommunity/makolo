@@ -74,6 +74,89 @@ class ConversationC5MatureTests(TestCase):
             params,
         )
 
+    def test_visual_list_compacts_context_without_changing_owner_title(self):
+        self.activity.title = (
+            'Marché des coopératives — Lubumbashi — sur les démarches d’accès'
+        )
+        self.activity.save(update_fields=['title', 'updated_at'])
+        full_title = 'Préparation pratique — ' + self.activity.title
+        self.conversation.title_override = full_title
+        self.conversation.save(update_fields=['title_override', 'updated_at'])
+        self.client.force_login(self.member)
+
+        response = self.client.get(reverse('conversations-api:list'))
+        self.assertEqual(response.status_code, 200)
+        row = next(item for item in response.json()['results']
+                   if item['id'] == str(self.conversation.pk))
+        self.assertEqual(row['title'], full_title)  # legacy contract stays intact
+        self.assertEqual(row['card']['title'], 'Marché des coopératives')
+        self.assertEqual(
+            row['card']['context_label'],
+            'Lubumbashi — sur les démarches d’accès',
+        )
+        self.assertEqual(row['card']['context_kind'], 'activity')
+        self.conversation.refresh_from_db()
+        self.assertEqual(self.conversation.title_override, full_title)
+
+    def test_visual_list_media_icons_require_real_visible_owner_content(self):
+        from .media_models import ConversationPointAttachment
+
+        member_only = self._audience(self.member, 'C5 media member')
+        other_only = self._audience(self.other, 'C5 media other')
+        visible = self._point(
+            'Photo du dossier', visibility_audience=member_only,
+        )
+        private = self._point(
+            'Vocal privé', visibility_audience=other_only,
+        )
+        for point, kind in ((visible, 'image'), (private, 'voice')):
+            ConversationPointAttachment.objects.create(
+                point=point, kind=kind, uploaded_by=self.manager,
+                file='conversations/tests/c5-%s.bin' % kind,
+                original_name='media-%s.bin' % kind,
+                mime_type='image/png' if kind == 'image' else 'audio/mp4',
+                size=2048, content_hash='a' * 64,
+            )
+        self.client.force_login(self.member)
+        visible_card = self.client.get(
+            reverse('conversations-api:list')
+        ).json()['results'][0]['card']
+        self.assertIn('image', visible_card['media_kinds'])
+        self.assertNotIn('voice', visible_card['media_kinds'])
+        self.assertNotIn('Vocal privé', str(visible_card))
+        self.client.force_login(self.other)
+        other_card = self.client.get(
+            reverse('conversations-api:list')
+        ).json()['results'][0]['card']
+        self.assertIn('voice', other_card['media_kinds'])
+        self.assertNotIn('image', other_card['media_kinds'])
+
+    def test_context_cover_only_when_event_and_activity_publicly_published(self):
+        from django.utils import timezone
+        from events.models import Event
+        from activities.models import ActivityStatus, ActivityVisibility
+
+        event = Event.objects.create(
+            activity=self.activity,
+            cover_image='events/covers/public-c5-test.jpg',
+        )
+        self.activity.status = ActivityStatus.PUBLISHED
+        self.activity.visibility = ActivityVisibility.PUBLIC
+        self.activity.save(update_fields=['status', 'visibility', 'updated_at'])
+        self.client.force_login(self.member)
+        list_url = reverse('conversations-api:list')
+        draft_card = self.client.get(list_url).json()['results'][0]['card']
+        self.assertIsNone(draft_card['context_image_url'])
+        event.published_at = timezone.now()
+        event.save(update_fields=['published_at', 'updated_at'])
+        image_card = self.client.get(list_url).json()['results'][0]['card']
+        self.assertTrue(image_card['context_image_url'].startswith('/'))
+        self.assertIn('public-c5-test.jpg', image_card['context_image_url'])
+        self.activity.visibility = ActivityVisibility.PRIVATE
+        self.activity.save(update_fields=['visibility', 'updated_at'])
+        private_card = self.client.get(list_url).json()['results'][0]['card']
+        self.assertIsNone(private_card['context_image_url'])
+
     def test_long_conversation_152_points_continues_without_duplicate_or_limit_50(self):
         for i in range(152):
             self._point('Étape %03d' % i)
