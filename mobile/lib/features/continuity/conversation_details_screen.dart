@@ -158,13 +158,13 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
 
   Widget _hero(BuildContext context, Map<String, dynamic> data) {
     final subject = _map(data['subject']);
-    final context = _map(data['context']);
+    final contextData = _map(data['context']);
     final title = data['title']?.toString() ?? 'Conversation';
     final subjectLabel = subject['label']?.toString() ??
-        context['label']?.toString() ?? '';
+        contextData['label']?.toString() ?? '';
     final purpose = data['purpose']?.toString() ?? '';
     final kind = subject['kind']?.toString() ??
-        context['kind']?.toString() ?? '';
+        contextData['kind']?.toString() ?? '';
     final type = switch (kind) {
       'direct' => 'Profil',
       'space' => 'Espace',
