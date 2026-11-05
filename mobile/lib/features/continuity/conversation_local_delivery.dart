@@ -138,6 +138,7 @@ class ConversationLocalDelivery {
     String? body,
     String? title,
     List<String>? options,
+    bool multipleChoice = false,
     String? formVersionId,
     List<String>? questions,
     String? pointId,
@@ -185,6 +186,7 @@ class ConversationLocalDelivery {
       if (body != null) 'body': body,
       if (title != null) 'title': title,
       if (options != null) 'options': options,
+      if (multipleChoice) 'multiple_choice': true,
       if (formVersionId != null) 'form_version_id': formVersionId,
       if (questions != null) 'questions': questions,
       if (pointId != null) 'point_id': pointId,
@@ -313,6 +315,7 @@ class ConversationLocalDelivery {
           'title': payload['title'],
           'options': payload['options'] == null
               ? null : jsonEncode(payload['options']),
+          'multiple_choice': payload['multiple_choice'] == true,
           'form_version_id': payload['form_version_id'],
           'questions': payload['questions'] == null
               ? null : jsonEncode(payload['questions']),
