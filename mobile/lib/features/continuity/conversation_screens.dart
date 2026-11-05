@@ -1537,8 +1537,7 @@ class _PointCardState extends State<_PointCard> {
   Widget build(BuildContext context) {
     final point = widget.point;
     final canRespond = point.canRespond &&
-        (!point.hasResponded || point.canChangeResponse ||
-            widget.representedSpaceId != null);
+        (!point.hasResponded || point.canChangeResponse);
     final theme = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
@@ -1734,11 +1733,11 @@ class _PointCardState extends State<_PointCard> {
               children: [
                 OutlinedButton(
                   onPressed: _busy ? null : () => _submitResponse(true),
-                  child: const Text('Oui'),
+                  child: Text(point.kind == 'request' ? "Je m'en charge" : 'Oui'),
                 ),
                 OutlinedButton(
                   onPressed: _busy ? null : () => _submitResponse(false),
-                  child: const Text('Non'),
+                  child: Text(point.kind == 'request' ? 'Je ne peux pas' : 'Non'),
                 ),
               ],
             )
@@ -2284,6 +2283,7 @@ class _ConversationPoint {
   };
 
   String get responseActionLabel => switch (responseMode) {
+    'boolean' when kind == 'request' => "Prendre en charge",
     'boolean' => 'Confirmer',
     'single_choice' || 'multiple_choice' => 'Choisir',
     'date' || 'datetime' => 'Indiquer',
