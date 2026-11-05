@@ -149,12 +149,11 @@ class SyncEngine {
                       row.sourceKey.equals(source.sourceKey),
                 ))
               .getSingleOrNull();
-          if (completed?.lastErrorCode != null) {
-            if (completed!.invalidated &&
-                const {
-                  'permission_denied',
-                  'not_found',
-                }.contains(completed.lastErrorCode)) {
+          final errorCode = completed?.lastErrorCode;
+          if (errorCode != null) {
+            if (completed != null &&
+                completed.invalidated &&
+                const {'permission_denied', 'not_found'}.contains(errorCode)) {
               continue;
             }
             return false;
