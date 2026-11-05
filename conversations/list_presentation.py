@@ -92,7 +92,7 @@ def _public_context_image(conversation):
     return parsed.path
 
 
-def _visible_candidates(profile, conversation):
+def _visible_candidates(profile, conversation, *, visibility_cache, audience_cache, history_cache):
     seen = set()
     for field in ("m9c_active_points", "m9c_resolved_points"):
         values = getattr(conversation, field, None)
@@ -102,7 +102,12 @@ def _visible_candidates(profile, conversation):
             if point.pk in seen:
                 continue
             seen.add(point.pk)
-            if point.lifecycle == ConversationPointLifecycle.DRAFT or not point_visible_to(profile, point):
+            if point.lifecycle == ConversationPointLifecycle.DRAFT:
+                continue
+            if not point_visible_to(
+                profile, point, visibility_cache=visibility_cache,
+                audience_cache=audience_cache, history_cache=history_cache,
+            ):
                 continue
             yield point
 
@@ -113,7 +118,17 @@ def _signals_and_preview(profile, conversation):
     preview = None
     preview_kind = None
     seen = 0
-    for point in _visible_candidates(profile, conversation):
+    # Per-call caches never survive a response and are never shared across
+    # viewers. All decisions are computed by the canonical ACL services.
+    visibility_cache = {}
+    audience_cache = {}
+    history_cache = {}
+    manager_cache = {}
+    candidates = _visible_candidates(
+        profile, conversation, visibility_cache=visibility_cache,
+        audience_cache=audience_cache, history_cache=history_cache,
+    )
+    for point in candidates:
         seen += 1
         if seen > _MAX_PREVIEW_CANDIDATES:
             break
@@ -125,7 +140,11 @@ def _signals_and_preview(profile, conversation):
         for attachment in point.attachments.all():
             if attachment.kind not in _MEDIA_KINDS:
                 continue
-            if can_download_attachment(profile, attachment):
+            if can_download_attachment(
+                profile, attachment, visibility_cache=visibility_cache,
+                audience_cache=audience_cache, history_cache=history_cache,
+                manager_cache=manager_cache,
+            ):
                 signal_set.add(attachment.kind)
         if preview is None:
             candidate = (point.title or point.body or "").strip()
