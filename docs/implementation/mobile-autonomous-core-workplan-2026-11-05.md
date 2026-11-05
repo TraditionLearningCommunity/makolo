@@ -231,12 +231,13 @@ Le schema donne l'ordre logique, pas un monolithe obligatoire. C3 peut commencer
 
 - `SyncEngine.registerPreparedSource` permet au runtime de declarer des sources owner stables, sans dependance aux widgets. Les continuation URLs signees et les scopes Space non verifies sont exclus de ce registre.
 - `SyncEngine.refreshPreparedSources` prepare un maximum de **sept** sources par cycle. Sa priorite est l'ordre d'enregistrement ; les donnees sont appliquees via les parsers/appliers owners deja en production, et la lecture se fait depuis la base.
+- Quand un owner possede des traitements apres acquisition, le registre prend un executant de repository, plutot que de contourner son contrat : `DiscoveryRepository.refreshItems` conserve previews/fenetres et `WorkspaceContextRepository.refreshInventory` revalide le contexte acteur. Le moteur relit le statut durable, car certains repositories absorbent eux-memes les erreurs de transport.
 - Sources actuellements declarees par `runtime_builder.dart`, dans cet ordre : inventaire Space pour le Profile, Discover premiere page sans criteres, Access beneficiary premiere page, Resources personnels premiere page, Conversations liste, Notifications inbox, History premiere page.
 - Les racines Now, En cours, Moi et Interoperability restent dans `refreshRoots` ; elles ne sont pas dupliquees dans la nouvelle liste.
 - Fraicheur durable lue dans `SyncSources.lastSuccessAt` et snapshots. Une source recente n'est pas redechargee a chaque ouverture ; une source absente/expiree ou explicitement invalidee est eligibile. Delai memoire de protection contre les rafales ; reconnexion le reinitialise.
 - Un refus owner explicite 403/404 retire sa representation suivant le contrat existant et n'est pas rejoue en boucle. Une invalidation explicite nettoie l'erreur pour permettre revalidation legitime. Un echec de transport preserve les donnees locales et arrete le lot.
 - `SyncLifecycle` pilote le working set sur lancement, reprise, retour reseau et changement du contexte acteur ; les widgets ne sont plus les seuls initiateurs.
-- Tests nouveaux dans `sync_engine_test.dart` : acquisition des pages 10 + 10 + 40 par cycles bornes, scope Profile, pas de rechargement intempestif des sources fraiches, refus owner suivi d'une revalidation legitime et blocage d'un cursor signe rejoue comme source stable.
+- Tests nouveaux dans `sync_engine_test.dart` : acquisition des pages 10 + 10 + 40 par cycles bornes, scope Profile, pas de rechargement intempestif des sources fraiches, refus owner suivi d'une revalidation legitime, echec de transport remonte par executant owner et blocage d'un cursor signe rejoue comme source stable.
 
 **Statut :** noyau et integration au cycle Flutter ecrits/pousses. Ces tests ne sont pas des resultats d'execution. Aucun travail Workmanager permanent ni acquisition illimitee n'est promis.
 
