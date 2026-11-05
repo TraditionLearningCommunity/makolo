@@ -11,6 +11,7 @@ import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../sync/projection_contract.dart';
+import '../../sync/sync_engine.dart';
 import 'me_local_preview.dart';
 import 'me_country_choices.dart';
 import 'passport_editor_field_rules.dart';
@@ -21,12 +22,14 @@ class MeProfileScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.personal,
+    this.sync,
     this.drafts,
     this.openAvatarPicker = false,
     this.focusVisibility = false,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
+  final SyncEngine? sync;
   final DraftRepository? drafts;
   final bool openAvatarPicker;
   final bool focusVisibility;
@@ -736,6 +739,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   }
 
   Future<bool> _refreshPersonal() async {
+    // Production uses the sole SyncEngine root source (actor validation,
+    // tombstones, generatedAt monotonicity). The legacy injected-API path
+    // remains only for standalone presentation/test hosts without a runtime.
+    final engine = widget.sync;
+    if (engine != null) return engine.refreshPersonalMe();
     try {
       final response = await widget.api.get('api/v1/me/');
       final envelope = ProjectionEnvelope.parse(
