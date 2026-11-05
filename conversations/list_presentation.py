@@ -73,6 +73,14 @@ def _public_context_image(conversation):
         return None
     if activity.visibility != ActivityVisibility.PUBLIC or activity.status != ActivityStatus.PUBLISHED:
         return None
+    # A cover prepared for an unpublished event is not public media.
+    from django.core.exceptions import ObjectDoesNotExist
+    try:
+        event = activity.event_vertical
+    except (AttributeError, ObjectDoesNotExist):
+        return None
+    if not event.published_at:
+        return None
     from discovery.representation import resolve_activity_representation
     presentation = resolve_activity_representation(activity=activity, occurrence=occurrence)
     if presentation.kind != "image" or not presentation.image_url:
