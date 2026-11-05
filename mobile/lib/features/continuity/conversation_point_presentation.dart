@@ -198,7 +198,6 @@ class ConversationPointMediaTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context).textTheme;
     final kind = attachment['kind']?.toString() ?? 'file';
-    final name = attachment['name']?.toString().trim() ?? '';
     final mime = attachment['mime_type']?.toString() ?? '';
     final (IconData icon, String title) = switch (kind) {
       'image' => (Icons.image_outlined, 'Photo'),
@@ -208,7 +207,6 @@ class ConversationPointMediaTile extends StatelessWidget {
         (Icons.picture_as_pdf_outlined, 'Document PDF'),
       _ => (Icons.insert_drive_file_outlined, 'Document'),
     };
-    final label = name.isEmpty ? title : name;
     return Padding(
       padding: const EdgeInsets.only(top: MakoloSpacing.sm),
       child: Material(
