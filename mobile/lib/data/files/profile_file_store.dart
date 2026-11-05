@@ -241,6 +241,36 @@ class ProfileFileStore {
     return removed;
   }
 
+  /// Crash leftovers from a private promotion: the last durable copy
+  /// always remains in staging until FileRecords points to the destination.
+  /// Do not touch any tracked private copy or older legacy filename.
+  Future<int> cleanupInterruptedPrivateCopies({
+    Duration olderThan = const Duration(days: 1),
+  }) async {
+    if (olderThan <= Duration.zero) {
+      throw ArgumentError.value(olderThan, 'olderThan');
+    }
+    if (!await privateDirectory.exists()) return 0;
+    final records = await (database.select(database.fileRecords)
+          ..where((row) => row.profileId.equals(profileId)))
+        .get();
+    final tracked = records.map((r) => p.normalize(r.localPath)).toSet();
+    final cutoff = DateTime.now().toUtc().subtract(olderThan);
+    var removed = 0;
+    await for (final entity in privateDirectory.list(followLinks: false)) {
+      if (entity is! File ||
+          !p.basename(entity.path).startsWith('stage-') ||
+          tracked.contains(p.normalize(entity.path))) {
+        continue;
+      }
+      final modified = (await entity.stat()).modified.toUtc();
+      if (modified.isAfter(cutoff)) continue;
+      await entity.delete();
+      removed++;
+    }
+    return removed;
+  }
+
   /// Never delete files still named by a draft or unresolved outbox intent.
   /// This is a conservative technical reference check, not a business owner.
   Future<bool> _referencedByLocalWork(StoredLocalFile file) async {
@@ -308,7 +338,7 @@ class ProfileFileStore {
         await destination.delete();
       }
       await partial.rename(destination.path);
-      await (database.update(database.fileRecords)..where(
+      final changed = await (database.update(database.fileRecords)..where(
             (row) =>
                 row.profileId.equals(profileId) &
                 row.fileId.equals(fileId) &
@@ -320,6 +350,9 @@ class ProfileFileStore {
               reconstructible: const Value(false),
             ),
           );
+      if (changed != 1) {
+        throw StateError('FileRecord changed during private promotion');
+      }
     } finally {
       if (await partial.exists()) await partial.delete();
     }
