@@ -495,7 +495,13 @@ La couverture des familles mobiles (\`access, auth, commerce, continuity, day_of
 - \`mark_mature_test.dart\` : changement de runtime A → B dans le meme StatefulWidget et restauration du brouillon B, jamais celui de A.
 - Reutilisation des tests de contrats C1–C5 des Selectors, Drift, QR, outbox, autorite, media et runtime de remplacement.
 
-### 12.6 Gate de qualite et limites
+### 12.6 Conformite Behavior / Presentation Golden
+
+Le contrat `Makolo_Application_Behavior_Interaction_System_v1.1.md` distingue explicitement l'etat du contenu (`initial/loading/content/empty/success/error`) et l'etat de synchronisation (`synced/syncing/pending/offline/conflict/failed`). Les corrections C6 gardent la combinaison `content + offline` ou `content + refresh error` lorsque le contenu local est autorise et utilisable. Le message indique ce qui n'a pas marche, ce qui est conserve et quelle action est possible ; il ne transforme pas un 503 en empty, et ne transforme jamais une preparation en succes confirme.
+
+`Makolo_UX_Presentation_Golden_Specification_v1.md` impose de garder la grammaire visuelle de la surface lorsque loading/error/offline se produisent. C6 ne cree pas d'ecran « panne globale », de redesign general ou de force-navigation : Work et Documents conservent leur surface et un retry contextualise. Les tests Golden multi-breakpoints/execution Android ne sont pas attestes ici, ils restent une validation C8.
+
+### 12.7 Gate de qualite et limites
 
 Les changements C6 sont commits dans #522 et revus statiquement. **Flutter/Dart tests, analyseur, formatteur et Android n'ont pas ete executes dans l'environnement courant** : la fermeture est **implementation ecrite**, pas validation instrumentee. Les ecrans online-only critiques (Permissions, Checkout, Payments, Billing, Passport prive, gestion de documents) sont des exceptions voulues, pas des copies persistantes a inventer pour satisfaire artificiellement un critere offline. Un manque reel de contrat d'owner n'est pas transforme en API fictive.
 
