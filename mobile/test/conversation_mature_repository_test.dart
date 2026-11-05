@@ -710,6 +710,33 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('C2_bus: narrow Point bubble supports enlarged text and dark theme', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      textScale: 1.6,
+      brightness: Brightness.dark,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: ConversationPointShell(
+          kind: 'confirmation',
+          isMine: true,
+          authorLabel: 'Coopérative locale de préparation',
+          representedSpace: true,
+          publishedAt: DateTime.utc(2026, 11, 5, 10, 30),
+          child: const Text(
+            'Je confirme que les documents et les détails sont disponibles.',
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Confirmation'), findsOneWidget);
+    expect(find.textContaining('Vous ·'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   test('C3: composition sends owner commands, keeps client reference and refreshes', () async {
     final calls = <MockRequest>[];
     final repository = repositoryFor((request) async {
