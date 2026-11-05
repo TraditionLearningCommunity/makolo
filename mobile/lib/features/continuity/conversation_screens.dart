@@ -15,6 +15,7 @@ import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
+import 'conversation_local_delivery.dart';
 import 'conversation_list_tile.dart';
 import 'conversation_composer.dart';
 import 'conversation_point_presentation.dart';
@@ -751,9 +752,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
   }
 
-  void _positionTimeline(List<_ConversationTimelineEntry> entries) {
-    if (entries.isEmpty || _focusedPointId != null) return;
-    final latestId = entries.last.point.id;
+  void _positionTimeline(
+    List<_ConversationTimelineEntry> entries,
+    List<ConversationOutgoing> outgoing,
+  ) {
+    if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null) return;
+    final latestId = outgoing.isNotEmpty
+        ? outgoing.last.reference
+        : entries.last.point.id;
     final shouldFollow = !_timelinePositioned ||
         (_lastTimelinePointId != latestId && _nearLatest);
     _timelinePositioned = true;
@@ -974,9 +980,24 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     );
   }
 
-  Widget _timeline(BuildContext context, _ConversationDetail detail) {
+  Widget _timeline(
+    BuildContext context,
+    _ConversationDetail detail, {
+    List<ConversationOutgoing> outgoing = const [],
+  }) {
     final entries = _timelineEntries(detail);
-    _positionTimeline(entries);
+    final ownerReferences = <String>{
+      for (final entry in entries)
+        if (entry.point.clientReference != null)
+          entry.point.clientReference!,
+      for (final entry in entries) ...entry.point.exchangeReferences,
+    };
+    final visibleOutgoing = [
+      for (final intent in outgoing)
+        if (!(intent.isConfirmed &&
+            ownerReferences.contains(intent.reference))) intent,
+    ];
+    _positionTimeline(entries, visibleOutgoing);
     _focusAfterLayout();
     DateTime? previousDay;
     final children = <Widget>[];
@@ -991,6 +1012,59 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       children.add(Padding(
         padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
         child: _pointWidget(entry.point, readOnly: entry.readOnly),
+      ));
+    }
+    // A locally accepted intent is rendered without claiming owner delivery.
+    // It disappears only when the owner projection contains its own
+    // client_reference, not merely because an HTTP request was started.
+    for (final intent in visibleOutgoing) {
+      final date = intent.observedAt.toLocal();
+      if (previousDay == null ||
+          !DateUtils.isSameDay(previousDay, date)) {
+        children.add(_dayDivider(context, date));
+        previousDay = date;
+      }
+      final blocked = intent.isBlocked;
+      final state = intent.state;
+      final (status, icon) = switch (state) {
+        'confirmed' => ('Envoyé', Icons.check_rounded),
+        'queued' => ('En attente', Icons.schedule_rounded),
+        'in_flight' => ('Envoi en cours', Icons.schedule_rounded),
+        'failed' => ('À réessayer', Icons.error_outline_rounded),
+        'conflict' => ('Non envoyé · à vérifier', Icons.error_outline_rounded),
+        _ => ('En attente de confirmation', Icons.help_outline_rounded),
+      };
+      final color = blocked
+          ? Theme.of(context).colorScheme.error
+          : Theme.of(context).colorScheme.onSurfaceVariant;
+      children.add(Padding(
+        key: Key('conversation-outgoing-${intent.reference}'),
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
+        ),
+        child: ConversationPointShell(
+          kind: intent.kind,
+          isMine: true,
+          publishedAt: intent.observedAt,
+          statusIcon: Tooltip(
+            message: status,
+            child: Semantics(
+              label: status,
+              child: Icon(icon, size: 15, color: color),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (intent.title.trim().isNotEmpty)
+                Text(intent.title,
+                    style: Theme.of(context).textTheme.titleMedium),
+              if (intent.body.trim().isNotEmpty)
+                Text(intent.body,
+                    style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
       ));
     }
     if (children.isEmpty) {
@@ -1259,7 +1333,15 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 children: [
                   Expanded(
                     child: available && permitted
-                        ? _timeline(context, detail)
+                        ? StreamBuilder<List<ConversationOutgoing>>(
+                            stream: widget.repository.delivery
+                                ?.watchOutgoing(widget.id) ??
+                                Stream.value(const <ConversationOutgoing>[]),
+                            builder: (context, outgoingSnapshot) => _timeline(
+                              context, detail,
+                              outgoing: outgoingSnapshot.data ?? const [],
+                            ),
+                          )
                         : MakoloSurfaceStateView(
                             state: surface,
                             initialLoading: const MakoloLoadingState(
@@ -2098,6 +2180,8 @@ class _ConversationPoint {
     this.authorLabel,
     this.isMine = false,
     this.representedSpace = false,
+    this.clientReference,
+    this.exchangeReferences = const [],
   });
 
   final String id;
@@ -2105,6 +2189,8 @@ class _ConversationPoint {
   final String? authorLabel;
   final bool isMine;
   final bool representedSpace;
+  final String? clientReference;
+  final List<String> exchangeReferences;
   final String responseMode;
   final String? body;
   final String? lifecycle;
@@ -2160,6 +2246,12 @@ class _ConversationPoint {
       authorLabel: _string(_map(row['author'])['label']),
       isMine: _map(row['author'])['is_mine'] == true,
       representedSpace: _map(row['author'])['represented_space'] == true,
+      clientReference: _string(row['client_reference']),
+      exchangeReferences: [
+        for (final entry in _maps(row['exchange_preview']))
+          if (_string(entry['client_reference']) != null)
+            _string(entry['client_reference'])!,
+      ],
       responseMode: _string(row['response_mode']) ?? 'none',
       body: _string(row['body']),
       lifecycle: MakoloHumanization.presentationLabel(
