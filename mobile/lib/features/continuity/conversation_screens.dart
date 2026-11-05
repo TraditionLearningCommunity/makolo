@@ -704,9 +704,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       _justPublishedPointId = pointId;
       _handledFocus = null;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Publié')),
-    );
     // Publication was confirmed by the owner. The normal detail groups may
     // omit this Point, so explicitly reacquire its authorized focus projection.
     unawaited(_refreshPublishedFocus(pointId));
@@ -724,11 +721,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           widget.id != conversationId || _focusedPointId != pointId) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Publié · affichage du Point à actualiser.'),
-        ),
-      );
+      // The owner already accepted this Point. Keep local content readable;
+      // the next acquisition reconciles the projection silently.
     }
   }
 
