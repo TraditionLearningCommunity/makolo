@@ -215,6 +215,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeConsiderationsScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
+                  sync: runtime.sync,
                 ),
         ),
         GoRoute(
@@ -228,6 +229,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeSavedScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
+                  sync: runtime.sync,
                   onOpen: (id) => context.push('/activities/$id'),
                   onDiscover: () => context.go('/discover'),
                 ),
@@ -243,6 +245,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeProfileScreen(
                   api: runtime.api!,
                   personal: runtime.personal!,
+                  sync: runtime.sync,
                   drafts: runtime.drafts,
                   openAvatarPicker: state.uri.queryParameters['avatar'] == '1',
                   focusVisibility:
