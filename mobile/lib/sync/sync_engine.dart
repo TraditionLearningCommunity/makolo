@@ -129,10 +129,14 @@ class SyncEngine {
           state.invalidated ||
           snapshot == null ||
           lastSuccessAt == null ||
+          lastSuccessAt.isAfter(now) ||
           now.difference(lastSuccessAt) >= refreshAfter;
       if (!due) continue;
       final attemptedAt = _lastPreparedAttempt[source.sourceKey];
+      // A manual clock rollback must not suppress acquisitions until the
+      // device clock eventually catches an old in-memory attempt timestamp.
       if (attemptedAt != null &&
+          !attemptedAt.isAfter(now) &&
           now.difference(attemptedAt) < const Duration(seconds: 30)) {
         continue;
       }
