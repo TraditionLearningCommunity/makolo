@@ -220,6 +220,7 @@ def readable_exchange_entries(profile, point, *, cursor=None, limit=25):
 def upload_conversation_media(
     *, actor, conversation, uploaded_file, kind, client_reference,
     body="", audience_id=None, point_id=None, represented_space=None,
+    point_kind=None, title="", options=None, form_version_id=None, questions=None,
 ):
     """Upload a validated private attachment to an authorized Exchange or Point."""
     if kind not in ConversationAttachmentKind.values:
@@ -238,34 +239,61 @@ def upload_conversation_media(
     caption = (body or "").strip()
     if len(caption) > 5000:
         raise ValidationError({"body": "Ce texte est trop long."})
-    active = _active_exchange_points(actor, conversation)
-    if point_id:
-        selected = next((point for point in active if str(point.pk) == str(point_id)), None)
-        if selected is None:
-            raise PermissionDenied("L'échange sélectionné est indisponible.")
-    elif len(active) == 1:
-        selected = active[0]
-    elif len(active) > 1:
-        raise ValidationError({"point_id": "Choisissez l'échange."})
+    # A typed contribution and its first attachment are one owner mutation.
+    # Reuse Conversation Point, Questionnaire, and Attachment ownership:
+    # do not create a second media-Point or a detached resource.
+    if point_kind:
+        if point_id:
+            raise ValidationError({"point_id": "Choisissez un seul contexte d'envoi."})
+        if point_kind == ConversationPointKind.FORM_REQUEST:
+            point = publish_conversation_form(
+                actor=actor, conversation=conversation, title=title,
+                client_reference=ref, form_version_id=form_version_id,
+                questions=questions, audience_id=audience_id,
+                represented_space=represented_space,
+            )
+        elif point_kind in {
+            ConversationPointKind.QUESTION, ConversationPointKind.REQUEST,
+            ConversationPointKind.CONFIRMATION, ConversationPointKind.POLL,
+        }:
+            point = publish_composed_point(
+                actor=actor, conversation=conversation, kind=point_kind,
+                title=title, body=caption, options=options,
+                audience_id=audience_id, represented_space=represented_space,
+                client_reference=ref,
+            )
+        else:
+            raise ValidationError({"point_kind": "Ce type de Point n'est pas autorisé."})
+        entry = None
     else:
-        selected = None
+        active = _active_exchange_points(actor, conversation)
+        if point_id:
+            selected = next((point for point in active if str(point.pk) == str(point_id)), None)
+            if selected is None:
+                raise PermissionDenied("L'échange sélectionné est indisponible.")
+        elif len(active) == 1:
+            selected = active[0]
+        elif len(active) > 1:
+            raise ValidationError({"point_id": "Choisissez l'échange."})
+        else:
+            selected = None
 
-    entry = None
-    if selected is not None:
-        _, entry, _ = contribute_text(
-            actor=actor, conversation=conversation,
-            body=caption or raw_name,
-            point_id=str(selected.pk), represented_space=represented_space,
-            client_reference=ref,
-        )
-        point = selected
-    else:
-        point = publish_composed_point(
-            actor=actor, conversation=conversation,
-            kind=ConversationPointKind.INFORMATION, body=caption or raw_name,
-            audience_id=audience_id, represented_space=represented_space,
-            client_reference=ref,
-        )
+        entry = None
+        if selected is not None:
+            _, entry, _ = contribute_text(
+                actor=actor, conversation=conversation,
+                body=caption or raw_name,
+                point_id=str(selected.pk), represented_space=represented_space,
+                client_reference=ref,
+            )
+            point = selected
+        else:
+            point = publish_composed_point(
+                actor=actor, conversation=conversation,
+                kind=ConversationPointKind.INFORMATION, body=caption or raw_name,
+                audience_id=audience_id, represented_space=represented_space,
+                client_reference=ref,
+            )
     # A retry cannot add a second attachment or replace the bytes associated
     # with an already confirmed client reference.
     existing = point.attachments.filter(
