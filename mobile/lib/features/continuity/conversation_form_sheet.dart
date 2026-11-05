@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'conversation_repository.dart';
 
@@ -37,6 +39,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   String? _selectedAudienceId;
   String? _reference;
   String? _error;
+  String? _mediaPath;
+  String? _mediaName;
+  String? _mediaKind;
   bool _newTemplate = false;
   bool _sending = false;
   bool _restoring = false;
@@ -144,6 +149,42 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     super.dispose();
   }
 
+  Future<void> _chooseMedia(String mode) async {
+    if (_sending) return;
+    try {
+      String? path;
+      String? name;
+      final String kind;
+      if (mode == 'photo') {
+        final image = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 90,
+          maxWidth: 2200,
+        );
+        path = image?.path;
+        name = image?.name;
+        kind = 'image';
+      } else {
+        final file = await FilePicker.pickFile(
+          type: FileType.custom,
+          allowedExtensions: const ['pdf', 'txt', 'doc', 'docx'],
+        );
+        path = file?.path;
+        name = file?.name;
+        kind = 'file';
+      }
+      if (!mounted || path == null || name == null) return;
+      setState(() {
+        _mediaPath = path;
+        _mediaName = name;
+        _mediaKind = kind;
+        _error = null;
+      });
+    } on Object {
+      if (mounted) setState(() => _error = 'Pièce indisponible.');
+    }
+  }
+
   Future<void> _publish() async {
     if (_sending) return;
     final title = _title.text.trim();
@@ -183,10 +224,14 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       if (delivery != null) {
         await delivery.queue(
           conversationId: widget.conversationId,
-          mode: 'form',
+          mode: _mediaPath == null ? 'form' : 'media',
+          pointKind: _mediaPath == null ? null : 'form_request',
           title: title,
           formVersionId: _newTemplate ? null : _selectedVersionId,
           questions: _newTemplate ? questions : null,
+          filePath: _mediaPath,
+          filename: _mediaName,
+          mediaKind: _mediaKind,
           audienceId: _selectedAudienceId,
           representedSpaceId: _representedSpace,
         );
@@ -196,6 +241,10 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
         _submitted = true;
         if (mounted) widget.onQueued?.call();
       } else {
+        if (_mediaPath != null) {
+          setState(() => _error = 'Pièce indisponible sans stockage local.');
+          return;
+        }
         _reference ??= _newFormReference();
         final id = await widget.repository.publishForm(
           conversationId: widget.conversationId,
@@ -310,6 +359,42 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+              ],
+              if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if ((widget.capabilities['media_kinds'] as List).contains('image'))
+                      OutlinedButton.icon(
+                        onPressed: _sending ? null : () => _chooseMedia('photo'),
+                        icon: const Icon(Icons.image_outlined),
+                        label: const Text('Photo'),
+                      ),
+                    if ((widget.capabilities['media_kinds'] as List).contains('file'))
+                      OutlinedButton.icon(
+                        onPressed: _sending ? null : () => _chooseMedia('document'),
+                        icon: const Icon(Icons.attach_file_outlined),
+                        label: const Text('Document'),
+                      ),
+                  ],
+                ),
+                if (_mediaName != null)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.attachment_rounded),
+                    title: Text(_mediaName!, maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      tooltip: 'Retirer cette pièce',
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: _sending ? null : () => setState(() {
+                        _mediaPath = null;
+                        _mediaName = null;
+                        _mediaKind = null;
+                      }),
+                    ),
+                  ),
               ],
               if (widget.capabilities['audience_selection_required'] == true) ...[
                 const SizedBox(height: 12),
