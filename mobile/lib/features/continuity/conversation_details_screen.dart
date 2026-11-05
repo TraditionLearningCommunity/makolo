@@ -246,7 +246,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               _heroAction(
                 icon: Icons.open_in_new_rounded,
                 label: 'Voir l’objet',
-                onTap: () => widget.onOpenSubject!(subjectRoute),
+                onTap: () => widget.onOpenSubject!(subjectRoute!),
               ),
               const SizedBox(width: 12),
             ],
