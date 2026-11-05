@@ -58,12 +58,13 @@ class AccessRepository {
     this.api,
     AccessCredentialVault? credentialVault,
   }) : credentialVault = credentialVault ?? SecureAccessCredentialVault() {
+    final syncEngine = sync;
     if (profileId.trim().isEmpty ||
         store.profileId != profileId ||
         !identical(store.database, database) ||
-        (sync != null &&
-            (sync.profileId != profileId ||
-                !identical(sync.database, database)))) {
+        (syncEngine != null &&
+            (syncEngine.profileId != profileId ||
+                !identical(syncEngine.database, database)))) {
       throw ArgumentError('Access owner scope must match ProfileStore and SyncEngine');
     }
   }
