@@ -79,6 +79,21 @@ class _CreateDiscoveryWatchDialogState
     super.dispose();
   }
 
+  Future<void> _chooseDate(TextEditingController target) async {
+    final initial = DateTime.tryParse(target.text) ?? DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null && mounted) {
+      final month = selected.month.toString().padLeft(2, '0');
+      final day = selected.day.toString().padLeft(2, '0');
+      setState(() => target.text = selected.year.toString() + '-' + month + '-' + day);
+    }
+  }
+
   Future<void> _create() async {
     if (_saving) return;
     final name = _name.text.trim();
@@ -91,7 +106,7 @@ class _CreateDiscoveryWatchDialogState
       setState(() => _error = 'Ajoutez au moins un mot-clé ou un filtre.');
       return;
     }
-    if (_when.isNotEmpty && (_from.text.trim().isNotEmpty || _to.text.trim().isNotEmpty)) {
+    if ((_when.isNotEmpty || widget.query.date.isNotEmpty) && (_from.text.trim().isNotEmpty || _to.text.trim().isNotEmpty)) {
       setState(() => _error = 'Choisissez une période ou une plage de dates.');
       return;
     }
@@ -111,7 +126,7 @@ class _CreateDiscoveryWatchDialogState
       if (mounted) {
         setState(
           () => _error =
-              'Veille non confirmée. Vérifiez les critères et réessayez.',
+              'Changement non confirmé. Vérifiez la connexion et les critères.',
         );
       }
     } finally {
@@ -180,12 +195,16 @@ class _CreateDiscoveryWatchDialogState
             Expanded(child: TextField(
               key: const Key('discover-watch-from'),
               controller: _from,
+              readOnly: true,
+              onTap: () => _chooseDate(_from),
               decoration: const InputDecoration(labelText: 'Du', hintText: 'AAAA-MM-JJ'),
             )),
             const SizedBox(width: 8),
             Expanded(child: TextField(
               key: const Key('discover-watch-to'),
               controller: _to,
+              readOnly: true,
+              onTap: () => _chooseDate(_to),
               decoration: const InputDecoration(labelText: 'Au', hintText: 'AAAA-MM-JJ'),
             )),
           ]),
@@ -194,7 +213,6 @@ class _CreateDiscoveryWatchDialogState
             key: const Key('discover-watch-name'),
             controller: _name,
             maxLength: 140,
-            autofocus: true,
             decoration: const InputDecoration(labelText: 'Nom de la veille'),
             onSubmitted: (_) => _create(),
           ),
