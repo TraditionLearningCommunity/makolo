@@ -17,7 +17,13 @@ Map<String, dynamic> _candidate(String id, {bool detailed = false}) => {
     'resource': {'kind': 'activity', 'id': id},
     'occurrence': {'kind': 'occurrence', 'id': 'occ-$id'},
   },
-  'representation': {'title': 'Possibility $id'},
+  'representation': {
+    'title': 'Possibility $id',
+    'kind': 'event',
+    'eyebrow': 'Événement',
+  },
+  'owner': {'display_name': 'Espace public'},
+  'timing': {'start_at': '2026-11-09T14:00:00+00:00'},
   'place': {
     'name': 'Place $id',
     'latitude': -11.66,
@@ -96,6 +102,13 @@ void main() {
       projection: spatial,
     );
     expect(selection.collection.items, hasLength(2));
+    final compactItem = selection.collection.items.last;
+    expect(compactItem.representationKind, 'event');
+    expect(compactItem.eyebrow, 'Événement');
+    expect(compactItem.owner, 'Espace public');
+    expect(compactItem.timing, isNotNull);
+    expect(compactItem.canSave, isFalse);
+    expect(compactItem.links['detail'], isNotNull);
     final anchors = const DiscoverySelector().spatialAnchorsFromCollection(
       selection.collection,
     );
