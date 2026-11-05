@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'conversation_repository.dart';
 import 'conversation_form_sheet.dart';
@@ -601,6 +603,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   String? _reference;
   String? _audienceId;
   String? _error;
+  String? _mediaPath;
+  String? _mediaFilename;
+  String? _mediaKind;
   bool _sending = false;
   Future<void> _draftWrites = Future<void>.value();
 
@@ -652,6 +657,45 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     super.dispose();
   }
 
+  Future<void> _chooseMedia(String mode) async {
+    if (_sending) return;
+    try {
+      String? path;
+      String? name;
+      String kind;
+      if (mode == 'photo' || mode == 'camera') {
+        final picked = await ImagePicker().pickImage(
+          source: mode == 'camera'
+              ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 90, maxWidth: 2200,
+        );
+        path = picked?.path;
+        name = picked?.name;
+        kind = 'image';
+      } else {
+        final picked = await FilePicker.pickFile(
+          type: FileType.custom,
+          allowedExtensions: mode == 'voice'
+              ? const ['m4a', 'mp3', 'wav', 'ogg', 'webm']
+              : const ['pdf', 'txt', 'doc', 'docx'],
+        );
+        path = picked?.path;
+        name = picked?.name;
+        kind = mode == 'voice' ? 'voice' : 'file';
+      }
+      if (!mounted || path == null || name == null) return;
+      setState(() {
+        _mediaPath = path;
+        _mediaFilename = name;
+        _mediaKind = kind;
+        _reference = null;
+        _error = null;
+      });
+    } on Object {
+      if (mounted) setState(() => _error = 'Pièce indisponible.');
+    }
+  }
+
   Future<void> _publish() async {
     if (_sending) return;
     final kind = widget.kind;
@@ -693,11 +737,15 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       if (delivery != null) {
         await delivery.queue(
           conversationId: widget.conversationId,
-          mode: 'point',
+          mode: _mediaPath == null ? 'point' : 'media',
           kind: kind,
+          pointKind: _mediaPath == null ? null : kind,
           title: title,
           body: body,
           options: options,
+          filePath: _mediaPath,
+          filename: _mediaFilename,
+          mediaKind: _mediaKind,
           audienceId: _audienceId,
           representedSpaceId: _representedSpace,
         );
@@ -706,6 +754,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         );
         if (mounted) widget.onQueued();
       } else {
+        if (_mediaPath != null) {
+          setState(() => _error = 'Envoi de ce média indisponible sans stockage local.');
+          return;
+        }
         _reference ??= _newConversationReference();
         final published = await widget.repository.compose(
           conversationId: widget.conversationId,
@@ -795,6 +847,51 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   border: OutlineInputBorder(),
                 ),
               ),
+            // Media are content of this structured Point, not another type
+            // or an Information created next to it.
+            if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  if ((widget.capabilities['media_kinds'] as List).contains('image'))
+                    OutlinedButton.icon(
+                      onPressed: _sending ? null : () => _chooseMedia('photo'),
+                      icon: const Icon(Icons.image_outlined),
+                      label: const Text('Photo'),
+                    ),
+                  if ((widget.capabilities['media_kinds'] as List).contains('file'))
+                    OutlinedButton.icon(
+                      onPressed: _sending ? null : () => _chooseMedia('document'),
+                      icon: const Icon(Icons.attach_file_outlined),
+                      label: const Text('Document'),
+                    ),
+                  if ((widget.capabilities['media_kinds'] as List).contains('voice'))
+                    OutlinedButton.icon(
+                      onPressed: _sending ? null : () => _chooseMedia('voice'),
+                      icon: const Icon(Icons.audio_file_outlined),
+                      label: const Text('Audio'),
+                    ),
+                ],
+              ),
+              if (_mediaFilename != null)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.attachment_rounded),
+                  title: Text(_mediaFilename!, maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                  trailing: IconButton(
+                    tooltip: 'Retirer cette pièce',
+                    onPressed: _sending ? null : () => setState(() {
+                      _mediaPath = null;
+                      _mediaFilename = null;
+                      _mediaKind = null;
+                    }),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+            ],
             if (widget.capabilities['audience_selection_required'] == true)
               DropdownButtonFormField<String>(
                 value: _audienceId,
