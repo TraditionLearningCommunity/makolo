@@ -165,7 +165,14 @@ class ConversationLocalDelivery {
       final name = filename.split(RegExp(r'[/\\]')).last;
       final suffix = name.contains('.')
           ? name.substring(name.lastIndexOf('.')) : '.bin';
-      final extension = RegExp(r'^\\.[a-zA-Z0-9]{1,10}
+      final extension = RegExp(r'^\.[A-Za-z0-9]{1,10}').hasMatch(suffix)
+              && suffix.length <= 11
+          ? suffix : '.bin';
+      stagedPath = '${folder.path}/$reference$extension';
+      await original.copy(stagedPath);
+    }
+    final deviceId = await tokens.deviceInstanceId();
+    final request = <String, dynamic>{
       'conversation_id': conversationId,
       'mode': mode,
       'client_reference': reference,
