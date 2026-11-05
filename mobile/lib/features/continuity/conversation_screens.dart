@@ -18,6 +18,7 @@ import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
 import 'conversation_local_delivery.dart';
 import 'conversation_list_tile.dart';
+import 'conversation_details_screen.dart';
 import 'conversation_composer.dart';
 import 'conversation_point_presentation.dart';
 import 'conversation_attachment_viewer.dart';
@@ -622,6 +623,7 @@ class ConversationDetailScreen extends StatefulWidget {
     this.focusPointId,
     this.onOpenFormRequest,
     this.onOpenHistory,
+    this.onOpenDetails,
     this.onOpenRelatedPoint,
   });
 
@@ -631,6 +633,7 @@ class ConversationDetailScreen extends StatefulWidget {
   final String? focusPointId;
   final Future<void> Function(String requestId)? onOpenFormRequest;
   final VoidCallback? onOpenHistory;
+  final VoidCallback? onOpenDetails;
   final ValueChanged<String>? onOpenRelatedPoint;
 
   @override
@@ -1129,43 +1132,45 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return separator > 3 ? title.substring(0, separator).trim() : title;
   }
 
-  void _showConversationContext(_ConversationDetail detail) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          MakoloSpacing.inner, MakoloSpacing.sm,
-          MakoloSpacing.inner,
-          MakoloSpacing.lg + MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (detail.contextLabel != null) ...[
-                Text(detail.contextLabel!,
-                    style: Theme.of(sheetContext).textTheme.labelLarge),
-                const SizedBox(height: MakoloSpacing.sm),
-              ],
-              Text(detail.title,
-                  style: Theme.of(sheetContext).textTheme.headlineSmall),
-              if (detail.purpose != null &&
-                  detail.purpose!.trim().isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                Text(detail.purpose!,
-                    style: Theme.of(sheetContext).textTheme.bodyLarge),
-              ],
-              if (detail.lifecycle != null) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                MakoloStatus(label: detail.lifecycle!),
-              ],
-            ],
-          ),
-        ),
+  void _openDetails() {
+    final navigate = widget.onOpenDetails;
+    if (navigate != null) {
+      navigate();
+      return;
+    }
+    // Widget test and embedded-route fallback: same real page, no short
+    // informational modal and no duplicate business projection.
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (detailsContext) => ConversationDetailsScreen(
+        repository: widget.repository,
+        conversationId: widget.id,
+        onOpenHistory: widget.onOpenHistory,
+        onOpenConversation: () => Navigator.of(detailsContext).pop(),
+      ),
+    ));
+  }
+
+  Widget _contextAvatar(_ConversationDetail detail) {
+    final kind = detail.subject['kind']?.toString() ?? '';
+    final uri = widget.repository.publicContextImageUri(
+      detail.subject['image_url']?.toString(),
+    );
+    final colors = Theme.of(context).colorScheme;
+    final fallback = CircleAvatar(
+      radius: 18,
+      backgroundColor: colors.primaryContainer,
+      child: Icon(
+        ConversationListTile.contextIcon(kind),
+        size: 18,
+        color: colors.onPrimaryContainer,
+      ),
+    );
+    if (uri == null) return fallback;
+    return ClipOval(
+      child: Image.network(
+        uri.toString(), width: 36, height: 36, fit: BoxFit.cover,
+        excludeFromSemantics: true,
+        errorBuilder: (_, _, _) => fallback,
       ),
     );
   }
@@ -1258,22 +1263,12 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 title: InkWell(
                   key: const Key('conversation-context-header'),
                   borderRadius: BorderRadius.circular(12),
-                  onTap: available ? () => _showConversationContext(detail) : null,
+                  onTap: available ? _openDetails : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Theme.of(context)
-                              .colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.forum_outlined,
-                            size: 18,
-                            color: Theme.of(context)
-                                .colorScheme.onPrimaryContainer,
-                          ),
-                        ),
+                        _contextAvatar(detail),
                         const SizedBox(width: MakoloSpacing.sm),
                         Expanded(
                           child: Column(
@@ -1317,12 +1312,18 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     onSelected: (action) {
                       if (action == 'refresh') {
                         unawaited(_refresh());
+                      } else if (action == 'details') {
+                        _openDetails();
                       } else {
                         unawaited(_updatePersonalState(
                             action, detail.personalState));
                       }
                     },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'details',
+                        child: Text('Détails de la conversation'),
+                      ),
                       PopupMenuItem(
                         value: 'refresh',
                         enabled: !_refreshing,
@@ -2101,8 +2102,10 @@ class _ConversationDetail {
     this.purpose,
     this.lifecycle,
     this.contextLabel,
+    this.subject = const {},
   });
 
+  final Map<String, dynamic> subject;
   final String title;
   final String? purpose;
   final String? lifecycle;
@@ -2132,6 +2135,9 @@ class _ConversationDetail {
         _string(payload['lifecycle']),
       ),
       contextLabel: _string(context['label']),
+      subject: _map(payload['subject']).isNotEmpty
+          ? _map(payload['subject'])
+          : context,
       points: _maps(payload['points'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
