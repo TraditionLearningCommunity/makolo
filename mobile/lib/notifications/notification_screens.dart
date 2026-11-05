@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app/runtime/app_runtime.dart';
 import '../data/local/profile_store.dart';
+import '../design/behavior_primitives.dart';
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
@@ -12,6 +13,7 @@ import '../presentation/projection_surface_adapter.dart';
 import '../selectors/projection_selector.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
+import '../sync/sync_status.dart';
 import 'notification_repository.dart';
 import 'notification_router.dart';
 
@@ -183,6 +185,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
           builder: (context, sourceSnapshot) {
             final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            final syncStatus = SyncStatusScope.maybeOf(context);
+            final connectionUnavailable =
+                syncStatus?.state == SyncVisualState.offline;
             final rows = _NotificationRow.fromProjection(projection);
             final visible = _onlyUnread
                 ? rows.where((row) => !row.isRead).toList(growable: false)
@@ -212,9 +217,13 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
               failure: available
-                  ? (source.lastErrorCode != null || _loadFailed)
-                        ? MakoloFailureCue.recoverable
-                        : MakoloFailureCue.none
+                  // Cached content remains usable; the thin network cue
+                  // already communicates a disconnected device.
+                  ? (connectionUnavailable
+                      ? MakoloFailureCue.none
+                      : (source.lastErrorCode != null || _loadFailed)
+                          ? MakoloFailureCue.recoverable
+                          : MakoloFailureCue.none)
                   : (_attempted && !_refreshing)
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
@@ -265,7 +274,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
                 state: state,
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des notifications…',
@@ -490,6 +500,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                       ),
                     ),
                   ],
+                ),
                 ),
               ),
             );
