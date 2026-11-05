@@ -898,7 +898,7 @@ void main() {
         },
       ),
     );
-    await tester.tap(find.byTooltip('Modifier mon passeport'));
+    await tester.tap(find.byTooltip('Modifier mon profil'));
     await tester.pump();
     expect(kind, 'profile_self');
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
