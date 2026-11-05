@@ -288,7 +288,7 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 - `SpaceCreateScreen` persiste `name`, `public_profile` et un `submission_state` dans `LocalDrafts` sous Organizations / `space.creation`.
 - **Avant le POST**, l'etat est `verification_required` et doit etre durablement ecrit ; si ce stockage echoue, le POST n'est pas tente. Une erreur de transport ne rend pas cette demande rejouable.
 - **Apres reponse du POST**, le draft peut contenir `created_space_id` et `created_space_slug` sous `created_unverified` pour permettre de reprendre la verification du droit.
-- La fermeture/reouverture relit ces donnees, evite un second POST aveugle et propose la verification de l'inventaire et du workspace. Une identite retournee par POST ne confere ni membership ni autorite.
+- La fermeture/reouverture relit ces donnees, evite un second POST aveugle et propose la verification de l'inventaire et du workspace. Si l'identite de l'Espace n'a pas ete recue, la reprise du brouillon demande une confirmation humaine explicite apres consultation des Espaces ; elle ne declenche pas de POST automatique. Une identite retournee par POST ne confere ni membership ni autorite.
 - La suppression du draft intervient apres confirmation des lectures owners et selection explicite de l'acteur ; un echec de nettoyage local ne retire pas une autorite deja verifiee.
 - **Pas d'operation Space.create en outbox** tant que l'API Organizations ne garantit pas une idempotence/reconciliation fiable. Aucun nouvel endpoint ni faux Space local n'a ete cree.
 
@@ -297,7 +297,7 @@ La presence d'un draft, d'un intent ou d'un cache ne vaut jamais autorisation, R
 - `mobile/test/local_database_test.dart` : profil et owner pour les brouillons, rollback d'enqueue, dedup d'intent, single active form.
 - `mobile/test/outbox_processor_test.dart` : lease durable et reprise, owner 403, backoff/replay meme intent, politiques inconnues, owner mismatch, refus permanent, annulation seulement avant dispatch, reauthentification 401 et blocage d'un deuxieme intent tant qu'un retry est prevu.
 - `mobile/test/lf5_outbox_reconciliation_test.dart` : simulated crash avec lease echue, dependance en attente d'un prerequis temporairement indisponible.
-- `mobile/test/space_creation_draft_test.dart` : brouillon Space conserve apres reentree, incertitude avant reconciliation sans nouveau POST, retour owner cree mais autorite non encore verifiee.
+- `mobile/test/space_creation_draft_test.dart` : brouillon Space conserve apres reentree, incertitude avant reconciliation sans nouveau POST, confirmation humaine obligatoire pour reouvrir l'intention, retour owner cree mais autorite non encore verifiee.
 
 ### Limites et conditions de fermeture
 
