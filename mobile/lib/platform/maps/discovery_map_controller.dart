@@ -102,8 +102,15 @@ class DiscoveryMapController {
         await _controller.addCircleLayer(
           _source,
           _points,
-          const CircleLayerProperties(
-            circleRadius: 8,
+          CircleLayerProperties(
+            circleRadius: [
+              Expressions.step,
+              [Expressions.get, 'opportunity_count'],
+              8,
+              2, 16,
+              10, 20,
+              100, 24,
+            ],
             circleColor: '#5232DB',
             circleStrokeWidth: 2,
             circleStrokeColor: '#FFFFFF',
@@ -172,7 +179,7 @@ class DiscoveryMapController {
     if (!_clusterReady) return null;
     try {
       final hits = await _controller.queryRenderedFeatures(
-        point, [_clusters, _points], null,
+        point, [_clusters, _locationCounts, _points], null,
       );
       if (hits.isEmpty) return null;
       final feature = hits.first;
