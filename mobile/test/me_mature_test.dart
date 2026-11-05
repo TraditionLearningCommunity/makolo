@@ -817,6 +817,62 @@ void main() {
     expect(destination, 'project_collection');
   });
 
+  testWidgets('Moi grid centers its information and keeps Discover saved symbol', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (_) => true,
+      ),
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
+    await tester.tap(find.text('Grille'));
+    await tester.pump();
+
+    final saved = find.byKey(const Key('me-grid-saved_collection'));
+    await tester.ensureVisible(saved);
+    expect(
+      find.descendant(
+        of: saved,
+        matching: find.byIcon(Icons.bookmark_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: saved,
+        matching: find.text('Possibilités conservées'),
+      ),
+      findsOneWidget,
+    );
+
+    final resources = find.byKey(const Key('me-grid-resource_collection'));
+    await tester.ensureVisible(resources);
+    expect(
+      find.descendant(
+        of: resources,
+        matching: find.text('Documents, preuves et attestations'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: resources,
+        matching: find.text('3 ressources'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('list mode previews only locally received Access and History', (
     tester,
   ) async {
