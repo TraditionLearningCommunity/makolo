@@ -60,6 +60,20 @@ class DraftRepository {
               current.resourceId != resourceId)) {
         throw StateError('Draft identity belongs to another owner scope');
       }
+      if (resourceId != null) {
+        final sameOwnerResource = await (database.select(database.localDrafts)
+              ..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.owner.equals(owner) &
+                    row.resourceKind.equals(resourceKind) &
+                    row.resourceId.equals(resourceId),
+              ))
+            .get();
+        if (sameOwnerResource.any((row) => row.draftId != draftId)) {
+          throw StateError('Owner resource already has a different local draft');
+        }
+      }
       await database
           .into(database.localDrafts)
           .insertOnConflictUpdate(
