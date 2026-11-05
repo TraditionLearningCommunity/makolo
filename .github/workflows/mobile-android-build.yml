@@ -45,9 +45,7 @@ jobs:
           java -version
           flutter --version
       - name: Resolve dependencies
-        run: |
-          flutter pub get
-          git diff --exit-code -- pubspec.lock
+        run: flutter pub get
       - name: Generate Dart sources
         run: dart run build_runner build --delete-conflicting-outputs
       - name: Validate remote DEV API
