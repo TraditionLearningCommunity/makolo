@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/data/files/profile_paths.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/repositories/draft_repository.dart';
@@ -27,6 +28,11 @@ void main() {
     ];
     final keys = values.map(MakoloDatabase.profileDirectoryKey).toSet();
     expect(keys, hasLength(values.length));
+    expect(
+      values.map(ProfilePaths.safeProfileId).toSet(),
+      keys,
+      reason: 'SQLite, sensitive files and media must share one path boundary',
+    );
     expect(
       () => MakoloDatabase.profileDirectoryKey(''),
       throwsArgumentError,
