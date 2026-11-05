@@ -698,6 +698,33 @@ void main() {
     );
   });
 
+  test('late owner denial from a closed runtime cannot reset actor context',
+      () async {
+    final started = Completer<void>();
+    final delayed = Completer<MockResponse>();
+    final harness = await _harness(
+      handler: (_) async {
+        if (!started.isCompleted) started.complete();
+        return delayed.future;
+      },
+    );
+    addTearDown(harness.close);
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    await harness.actorContext.selectSpace(space);
+    final pending = harness.repository.refreshWorkspace(space);
+    await started.future;
+    harness.repository.sync!.deactivate();
+    delayed.complete(MockResponse(jsonEncode({
+      'error': {'code': 'permission_denied', 'message': 'Forbidden'},
+    }), 403));
+    await expectLater(pending, throwsA(isA<Exception>()));
+    expect(
+      harness.actorContext.value,
+      SpaceActorContext(space: space),
+      reason: 'Only the active runtime may alter its actor preference',
+    );
+  });
+
   test('owner inventory removal withdraws one Space without global erasure',
       () async {
     var includeX = true;
