@@ -244,6 +244,27 @@ class OutboxRepository {
     });
   }
 
+  /// Cancel only an intention that has never been dispatched. A user cannot
+  /// revoke an owner mutation simply by hiding an in-flight local record.
+  /// The associated local draft remains available for editing.
+  Future<bool> cancelUnsent(String operationId) async {
+    final changed = await (database.update(database.outboxOperations)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.operationId.equals(operationId) &
+              row.state.equals(OutboxState.queued.wireValue) &
+              row.attempts.equals(0),
+        ))
+        .write(
+          const OutboxOperationsCompanion(
+            state: Value('cancelled'),
+            nextRetryAt: Value(null),
+            lastErrorCode: Value(null),
+          ),
+        );
+    return changed == 1;
+  }
+
   /// Profile-scoped atomic claim. A second processor must never dispatch
   /// the same operation while the first handler is still in flight.
   Future<bool> claimForAttempt(
