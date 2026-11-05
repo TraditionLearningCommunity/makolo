@@ -367,6 +367,7 @@ class SyncEngine {
   }
 
   Future<void> invalidate(SyncSourceDefinition source) async {
+    _lastPreparedAttempt.remove(source.sourceKey);
     final key = _scopeKey(source);
     final coordinator = _coordinator;
     coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
