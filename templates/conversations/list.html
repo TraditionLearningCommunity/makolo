@@ -36,28 +36,16 @@
   <section aria-label="Mes conversations" class="divide-y overflow-hidden rounded-2xl border" style="border-color:var(--mk-border)">
     {% if q %}
       {% for result in search_results %}
-        <a href="{% url 'conversations:detail' result.conversation.pk %}{% if result.point %}?focus={{ result.point.pk }}#point-{{ result.point.pk }}{% endif %}" class="group flex items-start justify-between gap-4 px-5 py-4 hover:bg-black/[.03] focus-visible:outline-2">
-          <div class="min-w-0">
-            <h2 class="text-base font-bold">{% if result.point and result.point.title %}{{ result.point.title }}{% elif result.conversation.title_override %}{{ result.conversation.title_override }}{% else %}{{ result.context_label }}{% endif %}</h2>
-            <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ result.context_label }}</p>
-            {% if result.point %}
-              {% conversation_visible_resolution result.point request.user as result_summary %}
-              {% if result_summary %}<p class="mt-2 text-sm">✓ {{ result_summary }}</p>{% endif %}
-            {% endif %}
-          </div><span aria-hidden="true">›</span>
-        </a>
-      {% empty %}<p class="p-6 text-sm" style="color:var(--mk-muted)">Aucun résultat.</p>{% endfor %}
+        {% include 'conversations/_list_card.html' with conversation=result.conversation card=result.card matched_point=result.point attention_count=0 only %}
+      {% empty %}
+        <p class="p-6 text-sm" style="color:var(--mk-muted)">Aucun résultat.</p>
+      {% endfor %}
     {% else %}
       {% for row in rows %}
-        <a href="{% url 'conversations:detail' row.conversation.pk %}" class="group flex items-start justify-between gap-4 px-5 py-4 hover:bg-black/[.03] focus-visible:outline-2">
-          <div class="min-w-0">
-            <p class="text-xs font-medium" style="color:var(--mk-muted)">{{ row.context_label }}</p>
-            <h2 class="mt-1 text-base font-bold">{% if row.conversation.title_override %}{{ row.conversation.title_override }}{% else %}{{ row.context_label }}{% endif %}</h2>
-            {% if row.latest_result %}<p class="mt-2 text-sm">✓ {{ row.latest_result }}</p>{% endif %}
-          </div>
-          {% if row.attention_count %}<span class="shrink-0 rounded-full px-3 py-1 text-xs font-bold" style="background:var(--mk-brand);color:white">{{ row.attention_count }} à traiter</span>{% else %}<span class="shrink-0 text-xs" style="color:var(--mk-muted)">À jour</span>{% endif %}
-        </a>
-      {% empty %}<p class="p-6 text-sm" style="color:var(--mk-muted)">Aucune conversation ici.</p>{% endfor %}
+        {% include 'conversations/_list_card.html' with conversation=row.conversation card=row.card attention_count=row.attention_count only %}
+      {% empty %}
+        <p class="p-6 text-sm" style="color:var(--mk-muted)">Aucune conversation ici.</p>
+      {% endfor %}
     {% endif %}
   </section>
 </main>
