@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ class ConversationFormSheet extends StatefulWidget {
     required this.conversationId,
     required this.capabilities,
     required this.onPublished,
+    this.onQueued,
     this.representedSpaceId,
   });
 
@@ -21,6 +23,7 @@ class ConversationFormSheet extends StatefulWidget {
   final String conversationId;
   final Map<String, dynamic> capabilities;
   final ValueChanged<String> onPublished;
+  final VoidCallback? onQueued;
   final String? representedSpaceId;
 
   @override
@@ -36,6 +39,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   String? _error;
   bool _newTemplate = false;
   bool _sending = false;
+  bool _restoring = false;
+  Timer? _draftTimer;
+  Future<void> _draftWrites = Future<void>.value();
 
   List<Map<String, dynamic>> get _forms {
     final raw = widget.capabilities['form_options'];
@@ -71,15 +77,59 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     _selectedAudienceId = widget.capabilities['default_audience_id']?.toString();
     _title.addListener(_edited);
     _questions.addListener(_edited);
+    unawaited(_restore());
+  }
+
+  Future<void> _restore() async {
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final data = await delivery.readDraft(
+      conversationId: widget.conversationId,
+      kind: 'form',
+    );
+    if (!mounted || data == null ||
+        _title.text.isNotEmpty || _questions.text.isNotEmpty) return;
+    _restoring = true;
+    _title.text = data['title']?.toString() ?? '';
+    _questions.text = data['questions']?.toString() ?? '';
+    _selectedVersionId = data['form_version_id']?.toString();
+    _selectedAudienceId = data['audience_id']?.toString() ??
+        _selectedAudienceId;
+    _newTemplate = data['new_template'] == true;
+    _restoring = false;
+    setState(() {});
+  }
+
+  void _saveDraft() {
+    final delivery = widget.repository.delivery;
+    if (delivery == null) return;
+    final payload = <String, dynamic>{
+      'title': _title.text,
+      'questions': _questions.text,
+      'new_template': _newTemplate,
+      if (_selectedVersionId != null) 'form_version_id': _selectedVersionId,
+      if (_selectedAudienceId != null) 'audience_id': _selectedAudienceId,
+    };
+    _draftWrites = _draftWrites.catchError((Object _) {}).then((_) async =>
+        delivery.saveDraft(
+          conversationId: widget.conversationId,
+          kind: 'form',
+          payload: payload,
+        ));
   }
 
   void _edited() {
+    if (_restoring) return;
     _reference = null;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 350), _saveDraft);
     if (_error != null && mounted) setState(() => _error = null);
   }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
+    if (_title.text.isNotEmpty || _questions.text.isNotEmpty) _saveDraft();
     _title.removeListener(_edited);
     _questions.removeListener(_edited);
     _title.dispose();
@@ -119,20 +169,40 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       _error = null;
     });
     try {
-      _reference ??= _newFormReference();
-      final id = await widget.repository.publishForm(
-        conversationId: widget.conversationId,
-        title: title,
-        clientReference: _reference!,
-        formVersionId: _newTemplate ? null : _selectedVersionId,
-        questions: _newTemplate ? questions : null,
-        audienceId: _selectedAudienceId,
-        representedSpaceId: _representedSpace,
-      );
-      if (mounted) widget.onPublished(id);
+      _draftTimer?.cancel();
+      _saveDraft();
+      await _draftWrites;
+      final delivery = widget.repository.delivery;
+      if (delivery != null) {
+        await delivery.queue(
+          conversationId: widget.conversationId,
+          mode: 'form',
+          title: title,
+          formVersionId: _newTemplate ? null : _selectedVersionId,
+          questions: _newTemplate ? questions : null,
+          audienceId: _selectedAudienceId,
+          representedSpaceId: _representedSpace,
+        );
+        await delivery.clearDraft(
+          conversationId: widget.conversationId, kind: 'form',
+        );
+        if (mounted) widget.onQueued?.call();
+      } else {
+        _reference ??= _newFormReference();
+        final id = await widget.repository.publishForm(
+          conversationId: widget.conversationId,
+          title: title,
+          clientReference: _reference!,
+          formVersionId: _newTemplate ? null : _selectedVersionId,
+          questions: _newTemplate ? questions : null,
+          audienceId: _selectedAudienceId,
+          representedSpaceId: _representedSpace,
+        );
+        if (mounted) widget.onPublished(id);
+      }
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Demande non confirmée. Réessayer ou modifier.');
+        setState(() => _error = 'Envoi non conservé. Réessayer.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -165,6 +235,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                         _newTemplate = false;
                         _reference = null;
                         _error = null;
+                        _saveDraft();
                       }),
                     ),
                     ChoiceChip(
@@ -203,6 +274,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                       _title.text = selected.isEmpty
                           ? '' : selected.first['title']?.toString() ?? '';
                       _reference = null;
+                      _saveDraft();
                     });
                   },
                 ),
@@ -248,6 +320,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                   onChanged: _sending ? null : (value) => setState(() {
                     _selectedAudienceId = value;
                     _reference = null;
+                    _saveDraft();
                   }),
                 ),
               ],
@@ -263,7 +336,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                 child: FilledButton(
                   key: const Key('conversation-form-publish'),
                   onPressed: _sending ? null : _publish,
-                  child: Text(_sending ? 'Envoi…' : 'Demander'),
+                  child: Text(_sending ? 'Envoi…' : 'Envoyer'),
                 ),
               ),
             ],
