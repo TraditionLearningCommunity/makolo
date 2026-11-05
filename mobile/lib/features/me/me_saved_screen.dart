@@ -269,10 +269,9 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
               sourceGeneratedAt: envelope.generatedAt,
             );
           }
-  
-      } on Object {
-        // The server mutation succeeded; normal sync will refresh Moi.
-      }
+        } on Object {
+          // The server mutation succeeded; normal sync will refresh Moi.
+        }
       }
     } on Object {
       if (mounted) {
