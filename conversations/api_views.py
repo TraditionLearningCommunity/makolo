@@ -17,6 +17,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
+from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
@@ -399,6 +400,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 "revisit": bool(state and state.revisit_at),
             },
             "updated_at": conversation.updated_at,
+            **conversation_detail_extra_for_profile(request.user, conversation, label),
         })
 
 
