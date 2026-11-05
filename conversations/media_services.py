@@ -122,13 +122,29 @@ def create_point_attachment(*, actor, point, uploaded_file, kind=ConversationAtt
     return attachment
 
 
-def can_download_attachment(actor, attachment: ConversationPointAttachment) -> bool:
+def can_download_attachment(
+    actor, attachment: ConversationPointAttachment, *,
+    visibility_cache=None, audience_cache=None, history_cache=None,
+    manager_cache=None,
+) -> bool:
     point = attachment.point
-    if not point_visible_to(actor, point):
+    if not point_visible_to(
+        actor, point, visibility_cache=visibility_cache,
+        audience_cache=audience_cache, history_cache=history_cache,
+    ):
         return False
+
+    def _can_manage():
+        if manager_cache is None:
+            return can_manage_conversation(actor, point.conversation)
+        key = (getattr(actor, "pk", None), point.conversation_id)
+        if key not in manager_cache:
+            manager_cache[key] = can_manage_conversation(actor, point.conversation)
+        return manager_cache[key]
+
     if attachment.response_id:
         response = attachment.response
-        if can_manage_conversation(actor, point.conversation):
+        if _can_manage():
             return True
         if response.actor_id == getattr(actor, "pk", None):
             return True
@@ -138,7 +154,7 @@ def can_download_attachment(actor, attachment: ConversationPointAttachment) -> b
         return False
     if attachment.exchange_entry_id:
         entry = attachment.exchange_entry
-        manager = can_manage_conversation(actor, point.conversation)
+        manager = _can_manage()
         if entry.moderation_state != ConversationExchangeModerationState.VISIBLE:
             return bool(manager or entry.author_id == getattr(actor, "pk", None))
         if manager:
