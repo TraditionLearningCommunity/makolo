@@ -1664,15 +1664,17 @@ void main() {
   ) async {
     String? postedPath;
     Map<String, dynamic>? postedBody;
+    var shareRequests = 0;
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       dio: MockClient((request) async {
+        shareRequests++;
         postedPath = request.url.path;
         postedBody = request.data is Map
             ? Map<String, dynamic>.from(request.data as Map)
             : null;
         return const MockResponse(
-          '{"state":"link","url":"https://makolo.invalid/share/test"}',
+          '{"state":"link","url":"http://127.0.0.1:8000/s/dev-token/"}',
           200,
         );
       }).dio,
@@ -1721,6 +1723,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(postedPath, '/api/v1/sharing/possibilities/activity/route/');
     expect(postedBody, {'intent': 'view'});
+    expect(shareRequests, 1);
+    // QR must use the very same owner-generated link, not a Carte URL.
+    await tester.tap(find.byTooltip('Partager l’opportunité'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Afficher le QR'));
+    await tester.pumpAndSettle();
+    expect(find.text('QR de partage'), findsOneWidget);
+    expect(shareRequests, 1);
+    await tester.tap(find.text('Fermer'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 
