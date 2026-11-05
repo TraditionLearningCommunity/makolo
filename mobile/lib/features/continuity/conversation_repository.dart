@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'conversation_local_delivery.dart';
+
 import '../../network/makolo_api_client.dart';
 import '../../network/api_error.dart';
 
@@ -69,6 +71,9 @@ class ConversationRepository {
   final ProfileStore store;
   final String profileId;
   final SyncEngine? sync;
+
+  // Injected by the authenticated runtime; no second domain store.
+  ConversationLocalDelivery? delivery;
 
   SyncSourceDefinition listSource() => SyncSourceDefinition(
     sourceKey: 'conversations',
