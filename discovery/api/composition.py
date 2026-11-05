@@ -1511,7 +1511,28 @@ def spatial_index_from_rows(rows) -> dict:
                 } if candidate.occurrence_id is not None else None,
                 "revision": None,
             },
-            "representation": {"title": candidate.title},
+            "representation": {
+                "title": candidate.title,
+                "kind": candidate.vertical,
+                "eyebrow": candidate.eyebrow,
+                "image_url": candidate.image_url,
+            },
+            # The already-admitted Activity's public display name and
+            # published representation are enough for a recognizable map list.
+            # No Profile identifier, contact details, owner action or N2 fact
+            # is copied into this lightweight spatial field.
+            "owner": {"display_name": candidate.space_name}
+            if candidate.space_name else None,
+            "timing": {
+                "kind": candidate.timing_kind,
+                "start_at": candidate.start_at.isoformat()
+                if candidate.start_at else None,
+                "start_date": candidate.start_date.isoformat()
+                if candidate.start_date else None,
+                "start_time": candidate.start_time.isoformat()
+                if candidate.start_time else None,
+                "timezone": candidate.timezone,
+            },
             "place": place,
             "spatial_facts": located_facts,
             "capabilities": ["view"],
