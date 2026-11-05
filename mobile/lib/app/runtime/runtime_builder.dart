@@ -292,6 +292,7 @@ Future<AppRuntime> buildAppRuntime({
     objectives: continuity.objectives,
     history: continuity.history,
     conversations: continuity.conversations,
+    notifications: notifications,
     requirements: preparation.requirements,
     preparationResources: preparation.resources,
     resources: resources,
