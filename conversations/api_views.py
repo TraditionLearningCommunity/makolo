@@ -439,6 +439,7 @@ class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
                     actor=request.user, conversation=conversation,
                     kind=request.data.get("kind"), title=request.data.get("title", ""),
                     body=request.data.get("body", ""), options=request.data.get("options"),
+                    multiple_choice=request.data.get("multiple_choice", False),
                     audience_id=request.data.get("audience_id"),
                     represented_space=represented_space, client_reference=client_ref,
                 )
