@@ -96,10 +96,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('salon.jpg'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Ressources'));
     await tester.tap(find.text('Ressources'));
     await tester.pumpAndSettle();
     expect(find.text('Préparer mon badge'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Paramètres'));
     await tester.tap(find.text('Paramètres'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('conversation-detail-setting-mute')),
