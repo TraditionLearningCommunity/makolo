@@ -490,7 +490,7 @@ class _MeIdentity extends StatelessWidget {
             ),
             if (onEdit != null)
               IconButton(
-                tooltip: 'Modifier mon passeport',
+                tooltip: 'Modifier mon profil',
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit_outlined),
                 color: theme.colorScheme.primary,
