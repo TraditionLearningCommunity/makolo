@@ -10,6 +10,7 @@ import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
@@ -842,14 +843,16 @@ void main() {
     expect(
       find.descendant(
         of: saved,
-        matching: find.byIcon(Icons.bookmark_rounded),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DiscoveryOrbitIcon && widget.saved,
+        ),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: saved,
-        matching: find.text('Possibilités conservées'),
+        matching: find.text('Opportunités enregistrées'),
       ),
       findsOneWidget,
     );
