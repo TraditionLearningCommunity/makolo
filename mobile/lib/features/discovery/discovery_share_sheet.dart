@@ -8,9 +8,23 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'discovery_selector.dart';
 
-/// Public Sharing links use HTTPS. Loopback HTTP is accepted only for the
-/// Django development server; a remote HTTP link is never shareable.
-Uri? discoverySharePublicUri(String? raw) {
+/// Production Sharing links require HTTPS. Only local Django testing may
+/// use HTTP: loopback, or a private LAN address matching the configured API.
+bool _privateIpv4(String host) {
+  final segments = host.split('.');
+  if (segments.length != 4) return false;
+  final octets = segments.map(int.tryParse).toList();
+  if (octets.any((part) => part == null || part < 0 || part > 255)) {
+    return false;
+  }
+  final first = octets[0]!;
+  final second = octets[1]!;
+  return first == 10 ||
+      (first == 172 && second >= 16 && second <= 31) ||
+      (first == 192 && second == 168);
+}
+
+Uri? discoverySharePublicUri(String? raw, {Uri? trustedBaseUri}) {
   if (raw == null || raw.isEmpty) return null;
   final uri = Uri.tryParse(raw);
   if (uri == null || !uri.hasAuthority || uri.host.isEmpty ||
@@ -18,9 +32,14 @@ Uri? discoverySharePublicUri(String? raw) {
     return null;
   }
   if (uri.scheme == 'https') return uri;
-  if (uri.scheme == 'http' &&
-      (uri.host == 'localhost' || uri.host == '127.0.0.1' ||
-       uri.host == '[::1]' || uri.host == '::1')) {
+  if (uri.scheme != 'http') return null;
+  if (uri.host == 'localhost' || uri.host == '127.0.0.1' ||
+      uri.host == '[::1]' || uri.host == '::1') {
+    return uri;
+  }
+  if (_privateIpv4(uri.host) &&
+      trustedBaseUri?.scheme == 'http' &&
+      trustedBaseUri?.origin == uri.origin) {
     return uri;
   }
   return null;
@@ -84,7 +103,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
 
   Uri? get _shareUrl {
     final text = _created?['url'];
-    return text is String ? discoverySharePublicUri(text) : null;
+    return text is String
+        ? discoverySharePublicUri(text, trustedBaseUri: widget.baseUri)
+        : null;
   }
 
   // The public item URL is projected by Discovery from its canonical Web
