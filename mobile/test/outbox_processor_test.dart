@@ -347,4 +347,37 @@ void main() {
     expect(await outbox.pending(), isEmpty);
   });
 
+  test('only a never-dispatched intent can be locally cancelled', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final outbox = OutboxRepository(database, 'profile-a');
+    await outbox.enqueue(
+      operationId: 'cancel-queued',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'cancel-intent',
+      replayPolicy: ReplayPolicy.safe,
+    );
+    expect(await outbox.cancelUnsent('cancel-queued'), isTrue);
+    expect(await outbox.cancelUnsent('cancel-queued'), isFalse);
+    expect(await outbox.pending(), isEmpty);
+
+    await outbox.enqueue(
+      operationId: 'already-started',
+      deviceInstanceId: 'device-a',
+      operationKind: 'owner.action',
+      owner: 'Owner',
+      payload: const {},
+      intentId: 'started-intent',
+      replayPolicy: ReplayPolicy.idempotent,
+      ownerIdempotencyKey: 'owner-key',
+    );
+    await outbox.beginAttempt('already-started');
+    expect(await outbox.cancelUnsent('already-started'), isFalse);
+    final started = await outbox.dependencyStates(['already-started']);
+    expect(started['already-started'], OutboxState.inFlight.wireValue);
+  });
+
 }
