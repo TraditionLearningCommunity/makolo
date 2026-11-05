@@ -129,13 +129,19 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       }
       final rootsSucceeded = await sync.refreshRoots();
       if (!mounted || !identical(runtime, widget.runtime)) return;
+      // Personal owner collections are acquired independently of navigation.
+      // Progress is bounded, durable and resumed on the next lifecycle cycle.
+      final workingSetSucceeded = await sync.refreshPreparedSources();
+      if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await runtime.outboxProcessor?.run();
       if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
-          _syncFailed = !rootsSucceeded;
-          if (rootsSucceeded) _lastUpdatedAt = DateTime.now();
+          _syncFailed = !rootsSucceeded || !workingSetSucceeded;
+          if (rootsSucceeded && workingSetSucceeded) {
+            _lastUpdatedAt = DateTime.now();
+          }
         });
       }
     } on MakoloApiError catch (error) {
