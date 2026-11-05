@@ -6,6 +6,7 @@ import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 
@@ -48,6 +49,11 @@ void main() {
         ),
       ),
       dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/me/accesses/a/') {
+          return MockResponse(jsonEncode({
+            'error': {'code': 'server_unavailable', 'message': 'Retry later'},
+          }), 503);
+        }
         if (request.url.path == '/api/v1/me/accesses/' &&
             delayed) {
           if (!started.isCompleted) started.complete();
@@ -110,6 +116,13 @@ void main() {
         reason: 'A successful collection is not keyed Access reauthorization');
 
     await engine.invalidate(repository.sourceFor('a'));
+    await expectLater(
+      engine.pullSource(repository.sourceFor('a')),
+      throwsA(isA<MakoloApiError>()),
+    );
+    final denied = await repository.readSource('a');
+    expect(denied.invalidated, isTrue);
+    expect(denied.lastErrorCode, 'permission_denied');
     await engine.pullSource(list);
     expect(
       ((await repository.readCollectionPage(
