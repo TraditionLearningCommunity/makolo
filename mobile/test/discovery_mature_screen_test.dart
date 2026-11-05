@@ -1508,7 +1508,7 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
   });
 
-  testWidgets('one map coordinate previews two choices before expanding', (
+  testWidgets('co-located map opens four choices and scrolls without more action', (
     tester,
   ) async {
     final possibilities = [
@@ -1528,24 +1528,22 @@ void main() {
     expect(find.text('8 opportunités ici'), findsOneWidget);
     expect(find.byKey(const Key('discover-map-colocated-sheet')), findsOneWidget);
     expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsNothing);
-    expect(find.byKey(const Key('discover-map-colocated-more')), findsOneWidget);
-    expect(find.byIcon(Icons.event_available_outlined), findsWidgets);
-    expect(find.text('Voir les 8 opportunités'), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsOneWidget);
+    expect(find.byKey(const Key('discover-map-colocated-more')), findsNothing);
+    expect(find.byIcon(Icons.explore_outlined), findsWidgets);
 
-    await tester.tap(find.byKey(const Key('discover-map-colocated-more')));
-    await tester.pumpAndSettle();
-    final third = find.byKey(
-      const Key('discover-map-place-choice-activity:colocated-2'),
+    // No extra tap: dragging the list expands the sheet then scrolls.
+    final later = find.byKey(
+      const Key('discover-map-place-choice-activity:colocated-6'),
     );
     await tester.scrollUntilVisible(
-      third,
-      120,
+      later,
+      130,
       scrollable: find.byType(Scrollable).last,
     );
     await tester.pump();
-    await tester.tap(third);
-    expect(chosen, 'activity:colocated-2');
+    await tester.tap(later);
+    expect(chosen, 'activity:colocated-6');
     expect(tester.takeException(), isNull);
   });
 
