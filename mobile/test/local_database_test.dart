@@ -214,7 +214,7 @@ void main() {
       owner: 'JourneyArtifact',
       resourceKind: 'journey',
       resourceId: 'journey-1',
-      payload: {'text': 'not disposable'}, 
+      payload: {'text': 'not disposable'},
     );
 
     expect(await alice.purgeExpiredProjections(), 1);
