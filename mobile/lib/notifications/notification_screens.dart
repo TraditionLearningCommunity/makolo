@@ -431,8 +431,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                                   const SizedBox(height: 4),
                                                   Text(
                                                     row.message,
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
                                                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                     ),
