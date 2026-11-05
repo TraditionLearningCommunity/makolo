@@ -30,86 +30,86 @@ void main() {
   testWidgets(
     'visual C5: one recognizable title, compact preview, real media icon affordances',
     (tester) async {
-    var taps = 0;
-    await PresentationHarness.pump(tester, child: tile(onTap: () => taps++));
-    expect(find.text(longTitle), findsOneWidget);
-    expect(find.byIcon(Icons.local_activity_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.image_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.attach_file_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.poll_rounded), findsOneWidget);
-    expect(find.textContaining('2 à faire'), findsOneWidget);
+      var taps = 0;
+      await PresentationHarness.pump(tester, child: tile(onTap: () => taps++));
+      expect(find.text(longTitle), findsOneWidget);
+      expect(find.byIcon(Icons.local_activity_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.image_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.attach_file_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.poll_rounded), findsOneWidget);
+      expect(find.textContaining('2 à faire'), findsOneWidget);
 
-    final titleWidget = tester.widget<Text>(find.text(longTitle));
-    expect(titleWidget.maxLines, 2);
-    final preview = tester.widget<Text>(
-      find.text('Les documents nécessaires sont prêts pour la suite.'),
-    );
-    expect(preview.maxLines, 1);
+      final titleWidget = tester.widget<Text>(find.text(longTitle));
+      expect(titleWidget.maxLines, 2);
+      final preview = tester.widget<Text>(
+        find.text('Les documents nécessaires sont prêts pour la suite.'),
+      );
+      expect(preview.maxLines, 1);
 
-    await tester.tap(find.byType(ConversationListTile));
-    expect(taps, 1);
-    expect(tester.takeException(), isNull);
+      await tester.tap(find.byType(ConversationListTile));
+      expect(taps, 1);
+      expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
     'visual C5: no fabricated media and direct identity keeps intuitive avatar icon',
     (tester) async {
-    await PresentationHarness.pump(
-      tester,
-      child: tile(
-        onTap: () {},
-        contextKind: 'direct',
-        title: 'Mado Kalala',
-        mediaKinds: const [],
-        attentionCount: 0,
-      ),
-    );
-    expect(find.byIcon(Icons.person_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.mic_rounded), findsNothing);
-    expect(find.byIcon(Icons.image_rounded), findsNothing);
-    expect(find.textContaining('à faire'), findsNothing);
+      await PresentationHarness.pump(
+        tester,
+        child: tile(
+          onTap: () {},
+          contextKind: 'direct',
+          title: 'Mado Kalala',
+          mediaKinds: const [],
+          attentionCount: 0,
+        ),
+      );
+      expect(find.byIcon(Icons.person_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
+      expect(find.byIcon(Icons.image_rounded), findsNothing);
+      expect(find.textContaining('à faire'), findsNothing);
     },
   );
 
   testWidgets(
     'visual C5: compact, medium and wide at 1.6x do not overflow',
     (tester) async {
-    for (final size in <Size>[
-      const Size(320, 700),
-      const Size(360, 800),
-      const Size(430, 932),
-      const Size(834, 1112),
-      const Size(1440, 900),
-    ]) {
-      await PresentationHarness.pump(
-        tester,
-        viewport: size,
-        textScale: 1.6,
-        reduceMotion: true,
-        brightness: size.width > 800 ? Brightness.dark : Brightness.light,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: tile(onTap: () {}),
-        ),
-      );
-      expect(tester.takeException(), isNull, reason: 'Overflow at ${size.width}');
-      expect(find.byType(ConversationListTile), findsOneWidget);
-    }
+      for (final size in <Size>[
+        const Size(320, 700),
+        const Size(360, 800),
+        const Size(430, 932),
+        const Size(834, 1112),
+        const Size(1440, 900),
+      ]) {
+        await PresentationHarness.pump(
+          tester,
+          viewport: size,
+          textScale: 1.6,
+          reduceMotion: true,
+          brightness: size.width > 800 ? Brightness.dark : Brightness.light,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: tile(onTap: () {}),
+          ),
+        );
+        expect(tester.takeException(), isNull, reason: 'Overflow at ${size.width}');
+        expect(find.byType(ConversationListTile), findsOneWidget);
+      }
     },
   );
 
   testWidgets(
     'visual C5: semantic single action and content signal label',
     (tester) async {
-    final handle = tester.ensureSemantics();
-    await PresentationHarness.pump(tester, child: tile(onTap: () {}));
-    expect(
-      find.bySemanticsLabel(RegExp('Marché des coopératives.*Contenus :')),
-      findsOneWidget,
-    );
-    handle.dispose();
+      final handle = tester.ensureSemantics();
+      await PresentationHarness.pump(tester, child: tile(onTap: () {}));
+      expect(
+        find.bySemanticsLabel(RegExp('Marché des coopératives.*Contenus :')),
+        findsOneWidget,
+      );
+      handle.dispose();
     },
   );
 
