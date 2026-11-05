@@ -27,6 +27,7 @@ def _point(*, author, represented_space=None):
         options=SimpleNamespace(all=lambda: []),
         published_by=author,
         published_by_id=author.pk,
+        client_reference="client-owned-ref",
         represented_space=represented_space,
         represented_space_id=(represented_space.pk if represented_space else None),
         published_at=None,
@@ -65,6 +66,17 @@ class ConversationPointAuthorProjectionTests(SimpleTestCase):
         self.assertEqual(row["author"]["label"], "marie")
         self.assertFalse(row["author"]["is_mine"])
         self.assertNotIn("Private Name", str(row))
+
+    def test_idempotency_reference_is_visible_to_author_only(self):
+        person = SimpleNamespace(
+            pk="user-1", username="marie", get_full_name=lambda: "Marie N.",
+        )
+        own = self._serialize(_point(author=person), person)
+        self.assertEqual(own["client_reference"], "client-owned-ref")
+        other = self._serialize(
+            _point(author=person), SimpleNamespace(pk="user-2"),
+        )
+        self.assertIsNone(other["client_reference"])
 
     def test_point_represented_space_is_not_a_global_profile(self):
         person = SimpleNamespace(
