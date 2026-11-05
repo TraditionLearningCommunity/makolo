@@ -40,6 +40,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   bool _newTemplate = false;
   bool _sending = false;
   bool _restoring = false;
+  bool _submitted = false;
   Timer? _draftTimer;
   Future<void> _draftWrites = Future<void>.value();
 
@@ -83,10 +84,15 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   Future<void> _restore() async {
     final delivery = widget.repository.delivery;
     if (delivery == null) return;
-    final data = await delivery.readDraft(
-      conversationId: widget.conversationId,
-      kind: 'form',
-    );
+    Map<String, dynamic>? data;
+    try {
+      data = await delivery.readDraft(
+        conversationId: widget.conversationId,
+        kind: 'form',
+      );
+    } on Object {
+      return;
+    }
     if (!mounted || data == null ||
         _title.text.isNotEmpty || _questions.text.isNotEmpty) return;
     _restoring = true;
@@ -129,7 +135,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   @override
   void dispose() {
     _draftTimer?.cancel();
-    if (_title.text.isNotEmpty || _questions.text.isNotEmpty) _saveDraft();
+    if (!_submitted &&
+        (_title.text.isNotEmpty || _questions.text.isNotEmpty)) _saveDraft();
     _title.removeListener(_edited);
     _questions.removeListener(_edited);
     _title.dispose();
@@ -186,6 +193,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
         await delivery.clearDraft(
           conversationId: widget.conversationId, kind: 'form',
         );
+        _submitted = true;
         if (mounted) widget.onQueued?.call();
       } else {
         _reference ??= _newFormReference();
@@ -198,6 +206,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
           audienceId: _selectedAudienceId,
           representedSpaceId: _representedSpace,
         );
+        _submitted = true;
         if (mounted) widget.onPublished(id);
       }
     } on Object {
