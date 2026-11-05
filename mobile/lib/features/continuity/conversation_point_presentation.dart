@@ -36,7 +36,12 @@ class ConversationPointShell extends StatelessWidget {
   };
 
   String get _identity {
-    if (isMine) return 'Vous';
+    if (isMine) {
+      final space = authorLabel?.trim();
+      return representedSpace && space != null && space.isNotEmpty
+          ? 'Vous · $space'
+          : 'Vous';
+    }
     final value = authorLabel?.trim();
     return value == null || value.isEmpty ? 'Participant' : value;
   }
@@ -44,7 +49,8 @@ class ConversationPointShell extends StatelessWidget {
   String get _initials {
     final words = _identity.trim().split(RegExp(r'\s+'));
     if (words.isEmpty) return '?';
-    return words.take(2).map((part) => part.characters.first).join().toUpperCase();
+    return words.where((part) => part.isNotEmpty)
+        .take(2).map((part) => part.substring(0, 1)).join().toUpperCase();
   }
 
   @override
