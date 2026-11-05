@@ -185,7 +185,6 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         await widget.repository.deleteWatch(watch.id);
       } else if (action == 'rename') {
         await widget.repository.editWatch(watch.id, name: renamed!);
-      }
       } else {
         await widget.repository.updateWatchStatus(watch.id, action);
       }
