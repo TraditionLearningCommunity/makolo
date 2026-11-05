@@ -341,7 +341,8 @@ final class WorkspaceContextRepository {
     try {
       await engine.pullSource(inventorySource());
     } on MakoloApiError catch (error) {
-      if (error.statusCode == 403 || error.statusCode == 404) {
+      if (engine.isActive &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
         // A denied inventory cannot validate the selected Space actor.
         // Transport outages do not reset a valid local preference.
         await actorContext.selectPersonal();
@@ -388,7 +389,8 @@ final class WorkspaceContextRepository {
     try {
       await engine.pullSource(workspaceSource(space));
     } on MakoloApiError catch (error) {
-      if (error.statusCode == 403 || error.statusCode == 404) {
+      if (engine.isActive &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
         final selected = actorContext.value;
         if (selected is SpaceActorContext && selected.space.id == space.id) {
           await actorContext.selectPersonal();
