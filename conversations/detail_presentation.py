@@ -35,6 +35,7 @@ def conversation_subject_for_profile(profile, conversation, label):
     image = _public_context_image(conversation)
     identity = label
     target_id = None
+    route = None
     if kind == ConversationContextKind.DIRECT:
         other = (
             context.direct_profile_b
@@ -44,6 +45,7 @@ def conversation_subject_for_profile(profile, conversation, label):
         if other and other.is_active:
             identity = other.full_name or other.username
             target_id = str(other.pk)
+            route = f"/people/{other.pk}"
             # Profile publishes its portrait independently of Conversation.
             # The visibility policy decides; merely seeing a Conversation
             # does not grant access to this Profile media.
@@ -59,10 +61,15 @@ def conversation_subject_for_profile(profile, conversation, label):
             target = context.journey
         if target is not None:
             target_id = str(target.pk)
+        if kind == ConversationContextKind.SPACE and context.space_id:
+            route = f"/spaces/{context.space.slug}"
+        elif kind == ConversationContextKind.GROUP and context.group_id:
+            route = f"/groups/{context.group_id}"
     return {
         "kind": kind,
         "label": identity,
         "id": target_id,
+        "route": route,
         "image_url": image,
     }
 
@@ -118,10 +125,15 @@ def conversation_media_for_profile(profile, conversation, limit=24):
         "point__response_audience", "response", "exchange_entry",
     ).order_by("-created_at", "-pk")[:120]
     results = []
+    visibility_cache, audience_cache, history_cache, manager_cache = {}, {}, {}, {}
     for attachment in candidates:
-        if not point_visible_to(profile, attachment.point):
+        if not point_visible_to(profile, attachment.point,
+                visibility_cache=visibility_cache, audience_cache=audience_cache,
+                history_cache=history_cache):
             continue
-        if not can_download_attachment(profile, attachment):
+        if not can_download_attachment(profile, attachment,
+                visibility_cache=visibility_cache, audience_cache=audience_cache,
+                history_cache=history_cache, manager_cache=manager_cache):
             continue
         results.append({
             "id": str(attachment.pk),
