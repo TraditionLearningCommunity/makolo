@@ -16,10 +16,12 @@ class ConversationAttachmentViewer extends StatefulWidget {
     super.key,
     required this.repository,
     required this.attachment,
+    this.inline = false,
   });
 
   final ConversationRepository repository;
   final Map<String, dynamic> attachment;
+  final bool inline;
 
   @override
   State<ConversationAttachmentViewer> createState() =>
@@ -183,6 +185,37 @@ class _ConversationAttachmentViewerState
 
   @override
   Widget build(BuildContext context) {
+    if (widget.inline) {
+      final kind = widget.attachment['kind']?.toString() ?? 'file';
+      final mime = widget.attachment['mime_type']?.toString() ?? '';
+      final height = kind == 'image' || kind == 'video' ||
+              mime == 'application/pdf' || mime == 'text/plain'
+          ? 220.0 : 92.0;
+      return SizedBox(
+        height: height,
+        width: double.infinity,
+        child: FutureBuilder<File>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(child: Icon(Icons.broken_image_outlined));
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (kind != 'image' && kind != 'video' &&
+                kind != 'audio' && kind != 'voice' &&
+                mime != 'application/pdf' && mime != 'text/plain') {
+              return const Center(child: Icon(Icons.description_outlined, size: 42));
+            }
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _read(snapshot.data!),
+            );
+          },
+        ),
+      );
+    }
     final title = widget.attachment['name']?.toString() ?? 'Pièce jointe';
     return SafeArea(
       child: Scaffold(
