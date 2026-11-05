@@ -5,7 +5,8 @@ import 'package:makolo_mobile/features/continuity/conversation_list_tile.dart';
 import 'support/presentation_harness.dart';
 
 void main() {
-  const longTitle = 'Marché des coopératives, préparation des démarches collectives à Lubumbashi';
+  const longTitle =
+      'Marché des coopératives, préparation des démarches collectives à Lubumbashi';
   const longContext = 'Lubumbashi — modalités et conditions d’accès au marché';
 
   Widget tile({
@@ -26,7 +27,9 @@ void main() {
     onTap: onTap,
   );
 
-  testWidgets('visual C5: one recognizable title, compact preview, real media icon affordances', (tester) async {
+  testWidgets(
+    'visual C5: one recognizable title, compact preview, real media icon affordances',
+    (tester) async {
     var taps = 0;
     await PresentationHarness.pump(tester, child: tile(onTap: () => taps++));
     expect(find.text(longTitle), findsOneWidget);
@@ -47,9 +50,12 @@ void main() {
     await tester.tap(find.byType(ConversationListTile));
     expect(taps, 1);
     expect(tester.takeException(), isNull);
-  });
+    },
+  );
 
-  testWidgets('visual C5: no fabricated media and direct identity keeps intuitive avatar icon', (tester) async {
+  testWidgets(
+    'visual C5: no fabricated media and direct identity keeps intuitive avatar icon',
+    (tester) async {
     await PresentationHarness.pump(
       tester,
       child: tile(
@@ -64,9 +70,12 @@ void main() {
     expect(find.byIcon(Icons.mic_rounded), findsNothing);
     expect(find.byIcon(Icons.image_rounded), findsNothing);
     expect(find.textContaining('à faire'), findsNothing);
-  });
+    },
+  );
 
-  testWidgets('visual C5: compact, medium and wide at 1.6x do not overflow', (tester) async {
+  testWidgets(
+    'visual C5: compact, medium and wide at 1.6x do not overflow',
+    (tester) async {
     for (final size in <Size>[
       const Size(320, 700),
       const Size(360, 800),
@@ -88,9 +97,12 @@ void main() {
       expect(tester.takeException(), isNull, reason: 'Overflow at ${size.width}');
       expect(find.byType(ConversationListTile), findsOneWidget);
     }
-  });
+    },
+  );
 
-  testWidgets('visual C5: semantic single action and content signal label', (tester) async {
+  testWidgets(
+    'visual C5: semantic single action and content signal label',
+    (tester) async {
     final handle = tester.ensureSemantics();
     await PresentationHarness.pump(tester, child: tile(onTap: () {}));
     expect(
@@ -98,7 +110,8 @@ void main() {
       findsOneWidget,
     );
     handle.dispose();
-  });
+    },
+  );
 
   test('context and media icons are canonical, not message-unread cues', () {
     expect(ConversationListTile.contextIcon('space'), Icons.business_rounded);
