@@ -15,6 +15,7 @@ import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import 'conversation_repository.dart';
+import 'conversation_list_tile.dart';
 import 'conversation_composer.dart';
 import 'conversation_attachment_viewer.dart';
 import 'conversation_exchange_sheet.dart';
@@ -527,66 +528,21 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                   )
                 else
                   for (final item in filtered) ...[
-                    Material(
-                      type: MaterialType.transparency,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(MakoloRadii.medium),
-                        onTap: () => _open(item),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: MakoloSpacing.md,
-                            horizontal: MakoloSpacing.sm,
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (item.contextLabel != null)
-                                      Text(
-                                        item.contextLabel!,
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item.title,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                    if (item.latestResult != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Text('✓ ${item.latestResult!}'),
-                                      )
-                                    else if (item.purpose != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          item.purpose!,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: MakoloSpacing.sm),
-                              if (item.attentionCount > 0)
-                                Flexible(
-                                  child: Text(
-                                    '${item.attentionCount} à traiter',
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                )
-                              else
-                                const Icon(Icons.chevron_right_rounded, size: 20),
-                            ],
-                          ),
-                        ),
+                    ConversationListTile(
+                      key: Key('conversation-tile-${item.id}'),
+                      title: item.title,
+                      contextKind: item.contextKind,
+                      subtitle: item.subtitle,
+                      preview: item.preview,
+                      previewKind: item.previewKind,
+                      mediaKinds: item.mediaKinds,
+                      publicImageUri: widget.repository.publicContextImageUri(
+                        item.contextImageUrl,
                       ),
+                      updatedAt: item.updatedAt,
+                      attentionCount: item.attentionCount,
+                      archived: _tab == 'archived',
+                      onTap: () => _open(item),
                     ),
                     const Divider(height: 1),
                   ],
@@ -1721,6 +1677,12 @@ class _ConversationSummary {
     this.latestResult,
     this.updatedAt,
     this.matchedPointId,
+    this.subtitle,
+    this.preview,
+    this.previewKind,
+    this.contextKind = '',
+    this.contextImageUrl,
+    this.mediaKinds = const [],
   });
 
   final String id;
@@ -1733,12 +1695,61 @@ class _ConversationSummary {
   final String? latestResult;
   final DateTime? updatedAt;
   final String? matchedPointId;
+  final String? subtitle;
+  final String? preview;
+  final String? previewKind;
+  final String contextKind;
+  final String? contextImageUrl;
+  final List<String> mediaKinds;
+
+  static String _fallbackTitle(String original, String? context, String kind) {
+    if (kind == 'direct') return context ?? original;
+    if (context == null || !original.contains(context)) return original;
+    for (final separator in [' — ', ' – ']) {
+      if (context.contains(separator)) {
+        return context.split(separator).first.trim();
+      }
+    }
+    return context;
+  }
+
+  static String? _fallbackContext(String? context, String kind) {
+    if (kind == 'direct') return 'Conversation directe';
+    if (context != null) {
+      for (final separator in [' — ', ' – ']) {
+        final index = context.indexOf(separator);
+        if (index >= 0 && index + separator.length < context.length) {
+          return context.substring(index + separator.length).trim();
+        }
+      }
+    }
+    return switch (kind) {
+      'space' => 'Espace',
+      'group' => 'Groupe',
+      'activity' => 'Activité',
+      'occurrence' => 'Occurrence',
+      'journey' => 'Démarche',
+      'dossier' => 'Dossier',
+      'project' => 'Projet',
+      'action_proposal' => 'Proposition',
+      _ => null,
+    };
+  }
 
   factory _ConversationSummary.fromMap(Map<String, dynamic> row) {
     final context = _map(row['context']);
+    final card = _map(row['card']);
+    final contextKind = _string(card['context_kind']) ??
+        _string(context['kind']) ?? '';
+    final original = _string(row['title']) ?? 'Conversation';
+    final contextLabel = _string(context['label']);
+    final title = _string(card['title']) ??
+        _fallbackTitle(original, contextLabel, contextKind);
+    final preview = _string(card['preview']) ??
+        _string(row['latest_result']) ?? _string(row['purpose']);
     return _ConversationSummary(
       id: _string(row['id']) ?? '',
-      title: _string(row['title']) ?? 'Conversation',
+      title: title,
       lifecycle: MakoloHumanization.presentationLabel(
         _string(row['lifecycle']),
       ),
@@ -1751,6 +1762,18 @@ class _ConversationSummary {
       latestResult: _string(row['latest_result']),
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
       matchedPointId: _string(row['matched_point_id']),
+      subtitle: _string(card['context_label']) ??
+          _fallbackContext(contextLabel, contextKind),
+      preview: preview == title ? null : preview,
+      previewKind: _string(card['preview_kind']) ??
+          (row['latest_result'] != null ? 'result' : 'purpose'),
+      contextKind: contextKind,
+      contextImageUrl: _string(card['context_image_url']),
+      mediaKinds: row['card'] is Map && card['media_kinds'] is List
+          ? (card['media_kinds'] as List)
+              .whereType<String>()
+              .toList(growable: false)
+          : const [],
     );
   }
 
