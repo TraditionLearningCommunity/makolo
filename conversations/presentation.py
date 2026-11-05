@@ -16,6 +16,8 @@ from .core_models import (
     ConversationUserState,
 )
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle, ConversationResponseVisibility
+from .media_models import ConversationPointAttachment
+from .list_presentation import conversation_list_card
 from .point_services import point_visible_to, point_resolution_visible_to
 from .services import can_manage_conversation, can_view_conversation
 
@@ -27,6 +29,7 @@ class ConversationRow:
     attention_count: int
     latest_result: str
     all_clear: bool
+    card: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -116,15 +119,25 @@ def conversation_context_label(conversation, profile=None):
 def _list_projection_queryset(profile):
     active_points = ConversationPoint.objects.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}
-    ).select_related("visibility_audience", "response_audience", "expected_action_audience", "resolution_audience")
+    ).select_related(
+        "conversation", "visibility_audience", "response_audience",
+        "expected_action_audience", "resolution_audience",
+    ).prefetch_related(
+        Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
+    )
     resolved_points = ConversationPoint.objects.filter(
         lifecycle=ConversationPointLifecycle.RESOLVED
-    ).select_related("resolution", "visibility_audience").order_by("-resolved_at")
+    ).select_related(
+        "conversation", "resolution", "visibility_audience", "resolution_audience",
+    ).prefetch_related(
+        Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
+    ).order_by("-resolved_at")
     return (
         Conversation.objects.select_related(
             "context__space", "context__group", "context__activity", "context__occurrence__activity",
             "context__dossier", "context__project", "context__journey__activity",
             "context__action_proposal__need", "context__direct_profile_a", "context__direct_profile_b",
+            "context__activity__event_vertical", "context__occurrence__activity__event_vertical",
         )
         .prefetch_related(
             Prefetch(
@@ -205,13 +218,19 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
                 attention += 1
         if only_attention and not attention:
             continue
+        context_label = conversation_context_label(conversation, profile)
+        latest_result = _latest_resolution_summary(conversation, profile)
         rows.append(
             ConversationRow(
                 conversation=conversation,
-                context_label=conversation_context_label(conversation, profile),
+                context_label=context_label,
                 attention_count=attention,
-                latest_result=_latest_resolution_summary(conversation, profile),
+                latest_result=latest_result,
                 all_clear=attention == 0,
+                card=conversation_list_card(
+                    profile, conversation, context_label=context_label,
+                    latest_result=latest_result, attention_count=attention,
+                ),
             )
         )
         if len(rows) >= limit:
