@@ -9,6 +9,7 @@ import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
 import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_unit.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
+import 'package:makolo_mobile/platform/location/location_capability.dart';
 
 import 'support/presentation_harness.dart';
 
@@ -94,6 +95,11 @@ DiscoveryFieldSelection selection({
     ),
     states: states,
   );
+}
+
+class _MapLocationStub implements LocationCapability {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -1814,6 +1820,38 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Carte location control stays bottom-right above preview', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: true, style: null),
+        location: _MapLocationStub(),
+        showMapOnCompact: true,
+        initialSelectedCandidateKey: 'activity:route',
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    final locate = find.byTooltip('Me localiser');
+    final preview = find.byKey(const Key('discover-map-selected-preview'));
+    expect(locate, findsOneWidget);
+    expect(preview, findsOneWidget);
+    final initial = tester.getRect(locate);
+    expect(initial.right, lessThanOrEqualTo(360));
+    expect(initial.left, greaterThan(250));
+    expect(initial.bottom, lessThan(tester.getRect(preview).top));
+
+    await tester.tap(find.byTooltip('Fermer l’aperçu'));
+    await tester.pump();
+    expect(preview, findsNothing);
+    expect(tester.getRect(locate).top, greaterThan(initial.top));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Carte stays immersive and opens the same possibility detail', (
     tester,
