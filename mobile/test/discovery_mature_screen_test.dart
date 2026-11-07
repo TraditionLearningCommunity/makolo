@@ -10,6 +10,7 @@ import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_unit.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 import 'package:makolo_mobile/platform/location/location_capability.dart';
+import 'package:makolo_mobile/platform/location/location_service.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
@@ -104,6 +105,15 @@ DiscoveryFieldSelection selection({
 class _MapLocationStub implements LocationCapability {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnavailableMapLocationStub extends _MapLocationStub {
+  @override
+  Future<LocationCapabilityResult> current({
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  }) async => const LocationCapabilityResult(
+    status: LocationCapabilityStatus.serviceUnavailable,
+  );
 }
 
 void main() {
@@ -1931,6 +1941,28 @@ void main() {
     await tester.pump();
     expect(preview, findsNothing);
     expect(tester.getRect(locate).top, greaterThan(initial.top));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Carte explains disabled device GPS without a tutorial', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: true, style: null),
+        location: _UnavailableMapLocationStub(),
+        showMapOnCompact: true,
+        onOpen: (_) {},
+      ),
+    );
+    await tester.tap(find.byTooltip('Me localiser'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Activez la localisation du téléphone.'), findsOneWidget);
+    expect(find.text('Position indisponible'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
