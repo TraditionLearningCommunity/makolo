@@ -1157,6 +1157,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
 
   Future<void> _startDeviceWatch() async {
     final location = widget.location;
+    if (_deviceWatch?.stopped == true) _deviceWatch = null;
     if (!_trackingRequested ||
         location == null ||
         _deviceWatch != null ||
@@ -1171,12 +1172,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
           if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
               fix.latitude < -90 || fix.latitude > 90 ||
               fix.longitude < -180 || fix.longitude > 180) return;
+          if (_deviceLatitude == fix.latitude &&
+              _deviceLongitude == fix.longitude) return;
           _deviceLatitude = fix.latitude;
           _deviceLongitude = fix.longitude;
           unawaited(_paintDevicePosition());
         },
         onError: (_) {
           if (!mounted || generation != _trackingGeneration) return;
+          _trackingRequested = false;
           _stopDeviceWatch();
           _showLocationAlert(LocationCapabilityStatus.failed);
         },
@@ -1188,15 +1192,24 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         await result.handle?.stop();
         if (mounted && generation == _trackingGeneration &&
             result.status != LocationCapabilityStatus.ready) {
+          _trackingRequested = false;
           _showLocationAlert(result.status);
         }
       }
     } on Object {
       if (mounted && generation == _trackingGeneration) {
+        _trackingRequested = false;
         _showLocationAlert(LocationCapabilityStatus.failed);
       }
     } finally {
       _deviceWatchStarting = false;
+      // A pause/resume during permission acquisition must not lose the
+      // foreground session; a failed session never auto-retries indefinitely.
+      if (mounted && _trackingRequested &&
+          generation != _trackingGeneration && _deviceWatch == null &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        unawaited(_startDeviceWatch());
+      }
     }
   }
 
