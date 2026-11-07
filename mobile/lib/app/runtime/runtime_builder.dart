@@ -21,7 +21,6 @@ import '../../network/makolo_api_client.dart';
 import '../../navigation/destination.dart';
 import '../../notifications/notification_repository.dart';
 import '../../platform/location/location_capability.dart';
-import '../../platform/location/geo_search_gateway.dart';
 import '../../platform/location/geo_search_gateway_factory.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
