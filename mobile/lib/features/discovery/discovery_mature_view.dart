@@ -1011,13 +1011,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         item.candidateKey: item,
     };
     final selectedCandidate = _selectedCandidateKey;
-    final selectedLocations = <String>{};
+    final focused = _focusedAnchor;
+    String? selectedLocation;
     for (final anchor in anchors) {
       final key = '${anchor.latitude}:${anchor.longitude}';
       locations.putIfAbsent(key, () => anchor);
       candidatesAtLocation.putIfAbsent(key, () => <String>{})
           .add(anchor.candidateKey);
-      if (anchor.candidateKey == selectedCandidate) selectedLocations.add(key);
+      if (anchor.candidateKey == selectedCandidate &&
+          (selectedLocation == null ||
+              (focused?.candidateKey == selectedCandidate &&
+               focused?.latitude == anchor.latitude &&
+               focused?.longitude == anchor.longitude))) {
+        selectedLocation = key;
+      }
     }
     // MapLibre source updates are asynchronous. Serialize them to prevent a
     // stale field revision or style callback from overwriting newer points.
@@ -1033,7 +1040,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
               entry.value.longitude,
               locationKey: entry.key,
               opportunityCount: candidatesAtLocation[entry.key]!.length,
-              selected: selectedLocations.contains(entry.key),
+              selected: selectedLocation == entry.key,
               symbol: _glyphForLocation(
                 entry.value,
                 candidatesAtLocation[entry.key]!.length,
