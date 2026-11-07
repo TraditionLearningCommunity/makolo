@@ -41,7 +41,7 @@ Pour une surcharge locale ou CI non canonique, copier le fichier de base vers `c
 - `MAKOLO_ENVIRONMENT` : `dev`, `beta` ou `prod`.
 - `MAKOLO_API_BASE_URL` : URL HTTP(S) Makolo ; optionnelle en DEV/BETA, obligatoire en PROD.
 - `MAKOLO_MAPS_ENABLED` + `MAKOLO_MAP_STYLE` : activation et URL de style au format compatible MapLibre Style Specification. Le moteur de rendu reste MapLibre ; le fournisseur de tuiles/style se change en remplaçant cette valeur, sans toucher aux features.
-- `MAKOLO_GEOCODING_ENABLED` + `MAKOLO_GEOCODING_PROVIDER` + `MAKOLO_GEOCODING_API_KEY` + `MAKOLO_GEOCODING_ENDPOINT` : activation, adaptateur, credential client et endpoint HTTPS optionnel du géocodage. Les adaptateurs actuellement disponibles sont `maptiler` et `google_maps`. L'endpoint vide sélectionne l'endpoint public par défaut de l'adaptateur.
+- `MAKOLO_GEOCODING_ENABLED` + `MAKOLO_GEOCODING_PROVIDER` + `MAKOLO_GEOCODING_API_KEY` + `MAKOLO_GEOCODING_ENDPOINT` : activation, adaptateur, credential client et endpoint HTTPS optionnel du géocodage. Les adaptateurs actuellement disponibles sont `maptiler` et `google_maps`. Lorsque le géocodage est activé, la clé et l'endpoint HTTPS doivent être fournis explicitement ; aucun endpoint fournisseur n'est implicite.
 - `MAKOLO_FIREBASE_ENABLED` : déclaration d'activation. PAR-1A n'appelle pas `Firebase.initializeApp`.
 - `MAKOLO_SENTRY_ENABLED` + `MAKOLO_SENTRY_DSN` : sélection future entre `SentryCrashReporter` et `NoopCrashReporter`. PAR-1A ne fait pas le bootstrap.
 - `MAKOLO_APP_LINKS_ENABLED` + `MAKOLO_APP_LINKS_SCHEME` + `MAKOLO_APP_LINKS_HOST` : contrat runtime. Aucun domaine n'est inventé et aucun intent-filter App Links n'est ajouté tant que la valeur canonique n'existe pas.
@@ -103,7 +103,7 @@ Aucune URL OpenFreeMap, MapLibre, OSM ou autre provider n'est ajoutée dans `mob
 
 ## Géocodage
 
-`GeoSearchGateway` est le contrat consommé par le runtime. `createGeoSearchGateway` sélectionne l'adaptateur à partir de `MakoloGeocodingConfig`; les features ne connaissent ni le fournisseur, ni son endpoint, ni le format réseau. `maptiler` et `google_maps` sont disponibles. Un endpoint personnalisé doit rester en HTTPS et respecter le contrat HTTP du fournisseur sélectionné. Le géocodage est indépendant de l'activation des cartes.
+`GeoSearchGateway` est le contrat consommé par le runtime. `createGeoSearchGateway` sélectionne l'adaptateur à partir de `MakoloGeocodingConfig`; les features ne connaissent ni le fournisseur, ni son endpoint, ni le format réseau. `maptiler` et `google_maps` sont disponibles. L'endpoint HTTPS est toujours injecté depuis la configuration ; aucun host fournisseur n'est codé en dur dans les adaptateurs. Le géocodage est indépendant de l'activation des cartes.
 
 Les clés utilisées dans une application mobile sont des identifiants client extractibles : elles doivent être limitées aux APIs nécessaires et surveillées dans la console du fournisseur. Aucun credential administratif ou secret serveur ne doit être utilisé ici.
 
