@@ -1178,7 +1178,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     final generation = ++_trackingGeneration;
     try {
       final result = await location.foregroundWatch(
-        profile: LocationTrackingProfile.balanced,
+        profile: LocationTrackingProfile.active,
         onFix: (fix) {
           if (!mounted || generation != _trackingGeneration) return;
           if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
