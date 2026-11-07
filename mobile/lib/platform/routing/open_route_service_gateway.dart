@@ -30,6 +30,9 @@ class OpenRouteServiceGateway implements RoutingGateway {
   final Dio _dio;
 
   @override
+  void close() => _dio.close(force: true);
+
+  @override
   Future<RoutingPath> directions(
     RoutingPoint origin,
     RoutingPoint destination, {
