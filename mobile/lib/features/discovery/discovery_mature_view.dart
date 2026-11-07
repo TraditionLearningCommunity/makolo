@@ -1247,10 +1247,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
       _deviceLongitude = fix.longitude;
       // The native circle is independent of all Discovery sources/clusters.
       await _paintDevicePosition();
-      await controller.moveTo(fix.latitude, fix.longitude);
       _trackingRequested = true;
       // Foreground-only stream; camera remains under the explorer's control.
       unawaited(_startDeviceWatch());
+      await controller.moveTo(fix.latitude, fix.longitude);
     } on Object {
       _showLocationAlert(LocationCapabilityStatus.failed);
     } finally {
