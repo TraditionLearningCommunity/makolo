@@ -22,6 +22,7 @@ import '../../navigation/destination.dart';
 import '../../notifications/notification_repository.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/geo_search_gateway.dart';
+import '../../platform/location/geo_search_gateway_factory.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -62,9 +63,12 @@ Future<AppRuntime> buildAppRuntime({
   final api = baseUri == null
       ? null
       : MakoloApiClient(baseUri: baseUri, tokenStore: tokens);
-  final geoSearch = config.geocoding.enabled
-      ? MapTilerGeoSearchGateway(apiKey: config.geocoding.apiKey!)
-      : null;
+  final geoSearch = createGeoSearchGateway(
+    enabled: config.geocoding.enabled,
+    provider: config.geocoding.provider,
+    apiKey: config.geocoding.apiKey,
+    endpoint: config.geocoding.endpoint,
+  );
 
   final profileId = session?.profileId;
   if (profileId == null) {
