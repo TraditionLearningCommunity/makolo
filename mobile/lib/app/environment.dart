@@ -218,6 +218,11 @@ class MakoloRuntimeConfig {
         'MAKOLO_GEOCODING_ENDPOINT must use https.',
       );
     }
+    if (geocodingEnabled && geocodingEndpoint == null) {
+      throw const MakoloConfigurationException(
+        'MAKOLO_GEOCODING_ENABLED=true requires MAKOLO_GEOCODING_ENDPOINT.',
+      );
+    }
     if (geocodingEnabled && geocodingKey == null) {
       throw const MakoloConfigurationException(
         'MAKOLO_GEOCODING_ENABLED=true requires MAKOLO_GEOCODING_API_KEY.',
