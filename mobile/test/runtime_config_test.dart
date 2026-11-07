@@ -77,6 +77,13 @@ void main() {
         }),
         throwsA(isA<MakoloConfigurationException>()),
       );
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_GEOCODING_ENABLED': 'true',
+          'MAKOLO_GEOCODING_ENDPOINT': 'https://geo.example.test/geocoding',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
       expect(config.geocoding.enabled, isTrue);
       expect(config.geocoding.apiKey, 'test-only');
       expect(config.geocoding.provider, 'google_maps');
