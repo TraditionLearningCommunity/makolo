@@ -46,8 +46,8 @@ class GeoSearchException implements Exception {
   String toString() => 'GeoSearchException: $message';
 }
 
-/// MapTiler forward geocoding adapter, opt-in until the account authorizes it.
-/// The token is injected from approved client runtime configuration only.
+/// MapTiler-compatible geocoding adapter. Endpoint and key are injected by
+/// runtime configuration; no provider URL or credential is assumed here.
 class MapTilerGeoSearchGateway implements GeoSearchGateway {
   MapTilerGeoSearchGateway({
     required String apiKey,
@@ -55,7 +55,7 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     Dio? dio,
   }) : _key = apiKey,
        _endpoint = endpoint,
-      _dio =
+       _dio =
           dio ??
           Dio(
             BaseOptions(
@@ -157,14 +157,14 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
   }
 }
 /// Google Maps Geocoding adapter. Endpoint and credential are injected by
-/// runtime configuration. This adapter does not initialize or render Google Maps.
+/// runtime configuration. It does not initialize or render a map widget.
 class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
   GoogleMapsGeoSearchGateway({
     required String apiKey,
     Dio? dio,
     required Uri endpoint,
-  })  : _key = apiKey,
-        _endpoint = endpoint,
+  }) : _key = apiKey,
+       _endpoint = endpoint,
         _dio =
             dio ??
             Dio(
