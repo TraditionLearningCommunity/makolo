@@ -35,10 +35,17 @@ class MakoloApiConfig {
 }
 
 class MakoloGeocodingConfig {
-  const MakoloGeocodingConfig({required this.enabled, required this.apiKey});
+  const MakoloGeocodingConfig({
+    required this.enabled,
+    required this.apiKey,
+    this.provider = 'maptiler',
+    this.endpoint,
+  });
 
   final bool enabled;
   final String? apiKey;
+  final String provider;
+  final Uri? endpoint;
 }
 
 class MakoloFirebaseConfig {
@@ -108,6 +115,13 @@ class MakoloRuntimeConfig {
   static const _geocodingKey = String.fromEnvironment(
     'MAKOLO_GEOCODING_API_KEY',
   );
+  static const _geocodingProvider = String.fromEnvironment(
+    'MAKOLO_GEOCODING_PROVIDER',
+    defaultValue: 'maptiler',
+  );
+  static const _geocodingEndpoint = String.fromEnvironment(
+    'MAKOLO_GEOCODING_ENDPOINT',
+  );
   static const _firebaseEnabled = String.fromEnvironment(
     'MAKOLO_FIREBASE_ENABLED',
     defaultValue: 'false',
@@ -148,6 +162,8 @@ class MakoloRuntimeConfig {
       'MAKOLO_MAP_STYLE': _mapStyle,
       'MAKOLO_GEOCODING_ENABLED': _geocodingEnabled,
       'MAKOLO_GEOCODING_API_KEY': _geocodingKey,
+      'MAKOLO_GEOCODING_PROVIDER': _geocodingProvider,
+      'MAKOLO_GEOCODING_ENDPOINT': _geocodingEndpoint,
       'MAKOLO_FIREBASE_ENABLED': _firebaseEnabled,
       'MAKOLO_SENTRY_ENABLED': _sentryEnabled,
       'MAKOLO_SENTRY_DSN': _sentryDsn,
@@ -185,6 +201,23 @@ class MakoloRuntimeConfig {
       name: 'MAKOLO_GEOCODING_ENABLED',
     );
     final geocodingKey = _optional(values['MAKOLO_GEOCODING_API_KEY']);
+    final geocodingProvider =
+        (_optional(values['MAKOLO_GEOCODING_PROVIDER']) ?? 'maptiler')
+            .toLowerCase();
+    if (!const {'maptiler', 'google_maps'}.contains(geocodingProvider)) {
+      throw const MakoloConfigurationException(
+        'MAKOLO_GEOCODING_PROVIDER must be maptiler or google_maps.',
+      );
+    }
+    final geocodingEndpoint = _optionalHttpUri(
+      values['MAKOLO_GEOCODING_ENDPOINT'],
+      name: 'MAKOLO_GEOCODING_ENDPOINT',
+    );
+    if (geocodingEndpoint != null && geocodingEndpoint.scheme != 'https') {
+      throw const MakoloConfigurationException(
+        'MAKOLO_GEOCODING_ENDPOINT must use https.',
+      );
+    }
     if (geocodingEnabled && geocodingKey == null) {
       throw const MakoloConfigurationException(
         'MAKOLO_GEOCODING_ENABLED=true requires MAKOLO_GEOCODING_API_KEY.',
@@ -263,6 +296,8 @@ class MakoloRuntimeConfig {
       geocoding: MakoloGeocodingConfig(
         enabled: geocodingEnabled,
         apiKey: geocodingKey,
+        provider: geocodingProvider,
+        endpoint: geocodingEndpoint,
       ),
       firebase: MakoloFirebaseConfig(enabled: firebaseEnabled),
       sentry: MakoloSentryConfig(
