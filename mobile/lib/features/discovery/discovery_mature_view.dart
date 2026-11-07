@@ -1132,15 +1132,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
       action: status == LocationCapabilityStatus.settingsRequired
           ? SnackBarAction(
               label: 'Paramètres',
-              onPressed: () {
-                final location = widget.location;
-                if (location != null) {
-                  unawaited(location.permissions.openSettings());
-                }
-              },
+              onPressed: () => unawaited(_openLocationSettings()),
             )
           : null,
     ));
+  }
+
+  Future<void> _openLocationSettings() async {
+    final location = widget.location;
+    if (location == null) return;
+    try {
+      await location.permissions.openSettings();
+    } on Object {
+      // The system controls settings navigation; the map stays usable.
+    }
   }
 
   Future<void> _paintDevicePosition() {
