@@ -156,6 +156,7 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     }
   }
 }
+
 /// Google Maps Geocoding adapter. Endpoint and credential are injected by
 /// runtime configuration. It does not initialize or render a map widget.
 class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
@@ -165,7 +166,7 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
     required Uri endpoint,
   }) : _key = apiKey,
        _endpoint = endpoint,
-        _dio =
+       _dio =
             dio ??
             Dio(
               BaseOptions(
