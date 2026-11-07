@@ -13,6 +13,7 @@ void main() {
     var calls = 0;
     final gateway = MapTilerGeoSearchGateway(
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
       dio: MockClient((_) async {
         calls++;
         return const MockResponse('{}', 200);
@@ -25,6 +26,7 @@ void main() {
   test('MapTiler adapter parses valid suggestions and sends no GPS', () async {
     final gateway = MapTilerGeoSearchGateway(
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
       dio: MockClient((request) async {
         expect(request.url.scheme, 'https');
         expect(request.url.path, '/geocoding/Ko.json');
@@ -65,6 +67,7 @@ void main() {
     () async {
       final gateway = MapTilerGeoSearchGateway(
         apiKey: 'test-only',
+        endpoint: Uri.parse('https://geo.example.test/geocoding/'),
         dio: MockClient((_) async => const MockResponse('{"bad":[]}', 200)).dio,
       );
       await expectLater(
@@ -79,6 +82,7 @@ void main() {
     final release = Completer<MockResponse>();
     final gateway = MapTilerGeoSearchGateway(
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
       dio: MockClient((_) {
         requestStarted.complete();
         return release.future;
@@ -96,6 +100,7 @@ void main() {
   test('Google Maps adapter parses geocoding results', () async {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
       dio: MockClient((request) async {
         expect(request.url.scheme, 'https');
         expect(request.url.path, '/maps/api/geocode/json');
@@ -130,6 +135,7 @@ void main() {
   test('Google Maps ZERO_RESULTS is an empty result, not an error', () async {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
       dio: MockClient((_) async =>
           const MockResponse('{"status":"ZERO_RESULTS","results":[]}', 200)).dio,
     );
@@ -160,6 +166,12 @@ void main() {
   });
 
   test('missing provider configuration is rejected', () {
-    expect(() => MapTilerGeoSearchGateway(apiKey: ''), throwsArgumentError);
+    expect(
+      () => MapTilerGeoSearchGateway(
+        apiKey: '',
+        endpoint: Uri.parse('https://geo.example.test/geocoding/'),
+      ),
+      throwsArgumentError,
+    );
   });
 }
