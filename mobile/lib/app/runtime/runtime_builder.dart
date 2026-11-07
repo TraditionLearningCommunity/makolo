@@ -22,6 +22,7 @@ import '../../navigation/destination.dart';
 import '../../notifications/notification_repository.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/geo_search_gateway_factory.dart';
+import '../../platform/routing/routing_gateway_factory.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -69,6 +70,13 @@ Future<AppRuntime> buildAppRuntime({
     endpoint: config.geocoding.endpoint,
   );
 
+  final routing = createRoutingGateway(
+    enabled: config.routing.enabled,
+    provider: config.routing.provider,
+    apiKey: config.routing.apiKey,
+    endpoint: config.routing.endpoint,
+  );
+
   final profileId = session?.profileId;
   if (profileId == null) {
     return AppRuntime(
@@ -84,6 +92,7 @@ Future<AppRuntime> buildAppRuntime({
       api: api,
       location: locationFactory(config),
       geoSearch: geoSearch,
+      routing: routing,
     );
   }
 
@@ -293,6 +302,7 @@ Future<AppRuntime> buildAppRuntime({
     discovery: discovery,
     location: locationFactory(config),
     geoSearch: geoSearch,
+    routing: routing,
     accesses: accesses,
     dayOf: buildDayOfRepository(
       database: database,
