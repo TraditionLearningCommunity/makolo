@@ -68,7 +68,15 @@ class DiscoveryMapController {
     final data = geoJsonForPins(pins);
     try {
       if (_clusterReady) {
-        await _controller.setGeoJsonSource(_source, data);
+        try {
+          await _controller.setGeoJsonSource(_source, data);
+        } on Object {
+          // A native style reload drops app-owned layers and sources.
+          // Restore the same clustering recipe before using annotations.
+          _clusterReady = false;
+          await _removeClusterLayers();
+          return renderPins(pins);
+        }
       } else {
         await _controller.addSource(
           _source,
@@ -154,22 +162,26 @@ class DiscoveryMapController {
         );
         // A glyph is shown only for one opportunity with an admitted type.
         // The native clusters and exact-location counts retain their own layers.
-        await _controller.addSymbolLayer(
-          _source,
-          _pointIcons,
-          SymbolLayerProperties(
-            textField: [Expressions.get, 'symbol'],
-            textSize: 14,
-            textColor: '#FFFFFF',
-            textAllowOverlap: true,
-          ),
-          filter: [
-            'all',
-            ['!', ['has', 'point_count']],
-            ['==', [Expressions.get, 'opportunity_count'], 1],
-            ['!=', [Expressions.get, 'symbol'], ''],
-          ],
-        );
+        try {
+          await _controller.addSymbolLayer(
+            _source,
+            _pointIcons,
+            SymbolLayerProperties(
+              textField: [Expressions.get, 'symbol'],
+              textSize: 14,
+              textColor: '#FFFFFF',
+              textAllowOverlap: true,
+            ),
+            filter: [
+              'all',
+              ['!', ['has', 'point_count']],
+              ['==', [Expressions.get, 'opportunity_count'], 1],
+              ['!=', [Expressions.get, 'symbol'], ''],
+            ],
+          );
+        } on Object {
+          // A missing glyph/font must NEVER disable native clustering.
+        }
         _clusterReady = true;
       }
       if (_fallbackPinsActive) {
