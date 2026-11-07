@@ -8,12 +8,17 @@ class DiscoveryMapPin {
     this.longitude, {
     this.locationKey,
     this.opportunityCount = 1,
+    this.selected = false,
+    this.symbol = '',
   });
 
   final double latitude;
   final double longitude;
   final String? locationKey;
   final int opportunityCount;
+  final bool selected;
+  /// Short, public category glyph only; never an inferred business fact.
+  final String symbol;
 }
 
 class DiscoveryMapController {
@@ -25,6 +30,7 @@ class DiscoveryMapController {
   static const _counts = 'makolo-discovery-counts';
   static const _points = 'makolo-discovery-points';
   static const _locationCounts = 'makolo-discovery-location-counts';
+  static const _pointIcons = 'makolo-discovery-point-icons';
 
   bool _clusterReady = false;
   bool _fallbackPinsActive = false;
@@ -45,6 +51,8 @@ class DiscoveryMapController {
             'location_key':
                 pin.locationKey ?? '${pin.latitude}:${pin.longitude}',
             'opportunity_count': pin.opportunityCount,
+            'selected': pin.selected,
+            'symbol': pin.symbol,
           },
           'geometry': {
             'type': 'Point',
@@ -104,16 +112,26 @@ class DiscoveryMapController {
           _points,
           CircleLayerProperties(
             circleRadius: [
-              Expressions.step,
-              [Expressions.get, 'opportunity_count'],
-              8,
-              2, 16,
-              10, 20,
-              100, 24,
+              'case', ['==', [Expressions.get, 'selected'], true], 26,
+              [Expressions.step,
+                [Expressions.get, 'opportunity_count'],
+                8,
+                2, 16,
+                10, 20,
+                100, 24,
+              ],
             ],
-            circleColor: '#5232DB',
-            circleStrokeWidth: 2,
-            circleStrokeColor: '#FFFFFF',
+            circleColor: [
+              'case', ['==', [Expressions.get, 'selected'], true],
+              '#2B176E', '#5232DB',
+            ],
+            circleStrokeWidth: [
+              'case', ['==', [Expressions.get, 'selected'], true], 4, 2,
+            ],
+            circleStrokeColor: [
+              'case', ['==', [Expressions.get, 'selected'], true],
+              '#FF704D', '#FFFFFF',
+            ],
           ),
           filter: ['!', ['has', 'point_count']],
         );
@@ -132,6 +150,24 @@ class DiscoveryMapController {
             'all',
             ['!', ['has', 'point_count']],
             ['>', [Expressions.get, 'opportunity_count'], 1],
+          ],
+        );
+        // A glyph is shown only for one opportunity with an admitted type.
+        // The native clusters and exact-location counts retain their own layers.
+        await _controller.addSymbolLayer(
+          _source,
+          _pointIcons,
+          SymbolLayerProperties(
+            textField: [Expressions.get, 'symbol'],
+            textSize: 14,
+            textColor: '#FFFFFF',
+            textAllowOverlap: true,
+          ),
+          filter: [
+            'all',
+            ['!', ['has', 'point_count']],
+            ['==', [Expressions.get, 'opportunity_count'], 1],
+            ['!=', [Expressions.get, 'symbol'], ''],
           ],
         );
         _clusterReady = true;
@@ -163,7 +199,7 @@ class DiscoveryMapController {
   }
 
   Future<void> _removeClusterLayers() async {
-    for (final layer in [_locationCounts, _points, _counts, _clusters]) {
+    for (final layer in [_pointIcons, _locationCounts, _points, _counts, _clusters]) {
       try {
         await _controller.removeLayer(layer);
       } on Object {}
@@ -289,10 +325,10 @@ class DiscoveryMapController {
       for (final pin in pins)
         CircleOptions(
           geometry: LatLng(pin.latitude, pin.longitude),
-          circleRadius: pin.opportunityCount > 1 ? 12 : 8,
-          circleColor: '#6741D9',
-          circleStrokeWidth: 2,
-          circleStrokeColor: '#FFFFFF',
+          circleRadius: pin.selected ? 26 : (pin.opportunityCount > 1 ? 12 : 8),
+          circleColor: pin.selected ? '#2B176E' : '#5232DB',
+          circleStrokeWidth: pin.selected ? 4 : 2,
+          circleStrokeColor: pin.selected ? '#FF704D' : '#FFFFFF',
         ),
     ]);
     return circles;
