@@ -23,7 +23,7 @@
 ## 2. Localisation
 
 - L'écran ne demande pas le GPS spontanément. L'utilisateur déclenche `Me localiser`.
-- `LocationCapability.current()` fournit le premier fix, puis `foregroundWatch(profile: balanced)` entretient le point bleu tant que la carte est active et que la session est valable.
+- `LocationCapability.current()` fournit le premier fix, puis `foregroundWatch(profile: active)` entretient le point bleu tant que la carte est active et que la session est valable.
 - Le contrôleur met à jour **uniquement** le point utilisateur ; un fix ne re-génère pas les clusters Discovery.
 - Le bouton recentre la caméra en respectant le niveau de zoom courant. Ensuite la position suit les déplacements, **sans forcer la caméra** lorsque l'utilisateur explore la carte.
 - Le suivi est stoppé hors premier plan et à la destruction de la vue ; reprise seulement après un choix de localisation préalable. Les démarrages concurrents et les streams en échec sont bornés.
