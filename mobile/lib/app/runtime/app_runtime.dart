@@ -128,6 +128,7 @@ class AppRuntime {
     sync?.deactivate();
     outboxProcessor?.deactivate();
     api?.close();
+    routing?.close();
     preferences?.dispose();
     actorContext?.dispose();
     await database?.close();
