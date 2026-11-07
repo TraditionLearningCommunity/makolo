@@ -96,7 +96,6 @@ void main() {
     release.complete(const MockResponse('{"features":[]}', 200));
   });
 
-
   test('Google Maps adapter parses geocoding results', () async {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
@@ -136,8 +135,10 @@ void main() {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
       endpoint: Uri.parse('https://geo.example.test/maps/api/geocode/json'),
-      dio: MockClient((_) async =>
-          const MockResponse('{"status":"ZERO_RESULTS","results":[]}', 200)).dio,
+      dio: MockClient((_) async => const MockResponse(
+        '{"status":"ZERO_RESULTS","results":[]}',
+        200,
+      )).dio,
     );
     expect(await gateway.suggest('unknown place'), isEmpty);
   });
