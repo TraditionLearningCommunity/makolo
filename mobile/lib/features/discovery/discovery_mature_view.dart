@@ -766,7 +766,8 @@ class DiscoverySpatialView extends StatefulWidget {
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
 }
 
-class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
+class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
+    with WidgetsBindingObserver {
   static const _selector = DiscoverySelector();
   String? _selectedCandidateKey;
   DiscoveryMapController? _mapController;
@@ -778,12 +779,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   bool _initialCameraPositioned = false;
   double? _deviceLatitude;
   double? _deviceLongitude;
+  LocationWatchHandle? _deviceWatch;
+  bool _deviceWatchStarting = false;
+  bool _trackingRequested = false;
+  bool _locationBusy = false;
+  int _trackingGeneration = 0;
+  Future<void> _deviceRender = Future<void>.value();
   DiscoveryItemPresentation? _confirmedDetail;
   int _detailGeneration = 0;
   bool _savingSelected = false;
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopDeviceWatch();
     ++_pinGeneration;
     ++_detailGeneration;
     _circleAnchors.clear();
@@ -806,6 +815,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     widget.onSelectionChanged?.call(key);
     widget.onFocusedAnchorChanged?.call(anchor);
     if (changed) unawaited(_resolveSelected());
+    unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
     if (!moveCamera) return;
     final anchors = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
@@ -830,6 +840,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     });
     widget.onSelectionChanged?.call(null);
     widget.onFocusedAnchorChanged?.call(null);
+    unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
   }
 
   Future<void> _resolveSelected() async {
@@ -994,11 +1005,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final generation = ++_pinGeneration;
     final locations = <String, DiscoverySpatialAnchor>{};
     final candidatesAtLocation = <String, Set<String>>{};
+    final itemByCandidate = {
+      for (final item in widget.selection.collection.items)
+        item.candidateKey: item,
+    };
+    final selectedCandidate = _selectedCandidateKey;
+    final selectedLocations = <String>{};
     for (final anchor in anchors) {
       final key = '${anchor.latitude}:${anchor.longitude}';
       locations.putIfAbsent(key, () => anchor);
       candidatesAtLocation.putIfAbsent(key, () => <String>{})
           .add(anchor.candidateKey);
+      if (anchor.candidateKey == selectedCandidate) selectedLocations.add(key);
     }
     // MapLibre source updates are asynchronous. Serialize them to prevent a
     // stale field revision or style callback from overwriting newer points.
@@ -1014,6 +1032,12 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               entry.value.longitude,
               locationKey: entry.key,
               opportunityCount: candidatesAtLocation[entry.key]!.length,
+              selected: selectedLocations.contains(entry.key),
+              symbol: _glyphForLocation(
+                entry.value,
+                candidatesAtLocation[entry.key]!.length,
+                itemByCandidate,
+              ),
             ),
         ]);
         if (!mounted ||
@@ -1040,35 +1064,171 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     return operation;
   }
 
+  /// Only a single admitted, published vertical gets a marker pictogram.
+  /// A shared coordinate retains its numeric opportunity count instead.
+  static String _glyphForLocation(
+    DiscoverySpatialAnchor anchor,
+    int count,
+    Map<String, DiscoveryItemPresentation> items,
+  ) {
+    if (count != 1) return '';
+    final item = items[anchor.candidateKey];
+    return switch (item?.representationKind ?? item?.family) {
+      'event' => '★',
+      'transport' || 'route' => '➜',
+      'service' || 'service_activity' => '✦',
+      'funding' || 'funding_activity' => '◆',
+      'opportunity' => '✧',
+      _ => '',
+    };
+  }
+
+  void _stopDeviceWatch() {
+    ++_trackingGeneration;
+    final watch = _deviceWatch;
+    _deviceWatch = null;
+    if (watch != null) unawaited(watch.stop());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_trackingRequested) unawaited(_startDeviceWatch());
+    } else {
+      _stopDeviceWatch();
+    }
+  }
+
+  void _showLocationAlert(LocationCapabilityStatus status) {
+    if (!mounted) return;
+    final message = switch (status) {
+      LocationCapabilityStatus.permissionDenied =>
+        'Accès à la position refusé.',
+      LocationCapabilityStatus.settingsRequired =>
+        'Autorisez la position dans les paramètres de l’application.',
+      LocationCapabilityStatus.restricted =>
+        'Localisation limitée par cet appareil.',
+      LocationCapabilityStatus.serviceUnavailable =>
+        'Activez la localisation du téléphone.',
+      LocationCapabilityStatus.disabledByConfiguration =>
+        'Localisation indisponible dans cette version.',
+      LocationCapabilityStatus.failed =>
+        'Impossible de mettre à jour votre position.',
+      LocationCapabilityStatus.ready => 'Position disponible.',
+    };
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(message),
+      action: status == LocationCapabilityStatus.settingsRequired
+          ? SnackBarAction(
+              label: 'Paramètres',
+              onPressed: () {
+                final location = widget.location;
+                if (location != null) {
+                  unawaited(location.permissions.openSettings());
+                }
+              },
+            )
+          : null,
+    ));
+  }
+
+  Future<void> _paintDevicePosition() {
+    final controller = _mapController;
+    final latitude = _deviceLatitude;
+    final longitude = _deviceLongitude;
+    if (controller == null || latitude == null || longitude == null) {
+      return Future<void>.value();
+    }
+    final next = _deviceRender.then((_) async {
+      if (!mounted || _mapController != controller) return;
+      try {
+        await controller.showDevicePosition(latitude, longitude);
+      } on Object {
+        // The already-admitted Discovery field remains usable.
+      }
+    });
+    _deviceRender = next;
+    return next;
+  }
+
+  Future<void> _startDeviceWatch() async {
+    final location = widget.location;
+    if (!_trackingRequested ||
+        location == null ||
+        _deviceWatch != null ||
+        _deviceWatchStarting) return;
+    _deviceWatchStarting = true;
+    final generation = ++_trackingGeneration;
+    try {
+      final result = await location.foregroundWatch(
+        profile: LocationTrackingProfile.balanced,
+        onFix: (fix) {
+          if (!mounted || generation != _trackingGeneration) return;
+          if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
+              fix.latitude < -90 || fix.latitude > 90 ||
+              fix.longitude < -180 || fix.longitude > 180) return;
+          _deviceLatitude = fix.latitude;
+          _deviceLongitude = fix.longitude;
+          unawaited(_paintDevicePosition());
+        },
+        onError: (_) {
+          if (!mounted || generation != _trackingGeneration) return;
+          _stopDeviceWatch();
+          _showLocationAlert(LocationCapabilityStatus.failed);
+        },
+      );
+      if (mounted && generation == _trackingGeneration &&
+          _trackingRequested && result.started) {
+        _deviceWatch = result.handle;
+      } else {
+        await result.handle?.stop();
+        if (mounted && generation == _trackingGeneration &&
+            result.status != LocationCapabilityStatus.ready) {
+          _showLocationAlert(result.status);
+        }
+      }
+    } on Object {
+      if (mounted && generation == _trackingGeneration) {
+        _showLocationAlert(LocationCapabilityStatus.failed);
+      }
+    } finally {
+      _deviceWatchStarting = false;
+    }
+  }
+
   Future<void> _recenterOnDevice() async {
     final location = widget.location;
-    if (location == null) return;
-    final result = await location.current();
-    if (!mounted) return;
-    final fix = result.fix;
-    if (!result.available || fix == null || _mapController == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Position indisponible')),
-      );
-      return;
-    }
-    _clearSelection();
-    setState(() {
+    if (location == null || _locationBusy) return;
+    setState(() => _locationBusy = true);
+    try {
+      final result = await location.current();
+      if (!mounted) return;
+      final fix = result.fix;
+      if (!result.available || fix == null) {
+        _showLocationAlert(result.status);
+        return;
+      }
+      final controller = _mapController;
+      if (controller == null) {
+        _showLocationAlert(LocationCapabilityStatus.failed);
+        return;
+      }
+      _clearSelection();
       _deviceLatitude = fix.latitude;
       _deviceLongitude = fix.longitude;
-    });
-    try {
-      // The marker is local-only and has no candidate identity or N2.
-      await _displayPins(
-        _selector.spatialAnchorsFromCollection(widget.selection.collection),
-      );
-      await _mapController!.moveTo(fix.latitude, fix.longitude);
+      // The native circle is independent of all Discovery sources/clusters.
+      await _paintDevicePosition();
+      await controller.moveTo(fix.latitude, fix.longitude);
+      _trackingRequested = true;
+      // Foreground-only stream; camera remains under the explorer's control.
+      unawaited(_startDeviceWatch());
     } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de se recentrer')),
-        );
-      }
+      _showLocationAlert(LocationCapabilityStatus.failed);
+    } finally {
+      if (mounted) setState(() => _locationBusy = false);
     }
   }
 
@@ -1102,6 +1262,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (widget.initialFocusedAnchor?.candidateKey == _selectedCandidateKey) {
       _focusedAnchor = widget.initialFocusedAnchor;
@@ -1116,6 +1277,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.location != widget.location) {
+      _stopDeviceWatch();
+      _trackingRequested = false;
+    }
     if (oldWidget.detailRefreshRevision != widget.detailRefreshRevision &&
         _selectedCandidateKey != null) {
       ++_detailGeneration;
@@ -1135,8 +1300,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           : null;
       _confirmedDetail = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _selectedCandidateKey != null) {
-          unawaited(_resolveSelected());
+        if (mounted) {
+          if (_selectedCandidateKey != null) unawaited(_resolveSelected());
+          unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
         }
       });
     }
@@ -1178,6 +1344,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       _confirmedDetail = null;
       widget.onSelectionChanged?.call(null);
       widget.onFocusedAnchorChanged?.call(null);
+      unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
     }
   }
 
@@ -1368,8 +1535,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                             color: Theme.of(context).colorScheme.surface,
                             child: IconButton(
                               tooltip: 'Me localiser',
-                              onPressed: () => unawaited(_recenterOnDevice()),
-                              icon: const Icon(Icons.my_location_rounded),
+                              onPressed: _locationBusy
+                                  ? null
+                                  : () => unawaited(_recenterOnDevice()),
+                              icon: _locationBusy
+                                  ? const SizedBox(
+                                      width: 20, height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.my_location_rounded),
                             ),
                           ),
                         if (selected != null) ...[
