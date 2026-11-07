@@ -9,6 +9,7 @@ import '../../design/presentation_layout.dart';
 import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/location_service.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../platform/maps/discovery_map_controller.dart';
