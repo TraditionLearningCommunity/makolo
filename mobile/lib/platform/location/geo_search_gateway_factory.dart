@@ -12,7 +12,8 @@ GeoSearchGateway? createGeoSearchGateway({
   if (key == null || key.isEmpty) {
     throw ArgumentError('Enabled geocoding requires an API key.');
   }
-  if (endpoint == null || endpoint.scheme != 'https') {
+  final configuredEndpoint = endpoint;
+  if (configuredEndpoint == null || configuredEndpoint.scheme != 'https') {
     throw ArgumentError(
       'Enabled geocoding requires a configured HTTPS endpoint.',
     );
@@ -20,11 +21,11 @@ GeoSearchGateway? createGeoSearchGateway({
   return switch (provider.trim().toLowerCase()) {
     'maptiler' => MapTilerGeoSearchGateway(
         apiKey: key,
-        endpoint: endpoint,
+        endpoint: configuredEndpoint,
       ),
     'google_maps' => GoogleMapsGeoSearchGateway(
         apiKey: key,
-        endpoint: endpoint,
+        endpoint: configuredEndpoint,
       ),
     _ => throw ArgumentError.value(
         provider,
