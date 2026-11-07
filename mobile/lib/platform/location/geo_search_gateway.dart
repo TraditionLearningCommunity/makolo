@@ -153,3 +153,110 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     }
   }
 }
+/// Google Maps Geocoding adapter. Endpoint and credential are injected by
+/// runtime configuration. This adapter does not initialize or render Google Maps.
+class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
+  GoogleMapsGeoSearchGateway({
+    required String apiKey,
+    Dio? dio,
+    Uri? endpoint,
+  })  : _key = apiKey,
+        _endpoint = endpoint ??
+            Uri.parse('https://maps.googleapis.com/maps/api/geocode/json'),
+        _dio = dio ??
+            Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 5),
+              receiveTimeout: const Duration(seconds: 7),
+            )) {
+    if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
+      throw ArgumentError(
+        'Google Maps geocoding requires approved HTTPS configuration.',
+      );
+    }
+  }
+
+  final String _key;
+  final Uri _endpoint;
+  final Dio _dio;
+
+  @override
+  Future<List<GeoSuggestion>> suggest(
+    String query, {
+    String language = 'fr',
+    int limit = 5,
+    GeoSearchCancellation? cancelToken,
+  }) async {
+    final text = query.trim();
+    if (text.isEmpty) return const [];
+    final uri = _endpoint.replace(queryParameters: {
+      ..._endpoint.queryParameters,
+      'address': text,
+      'key': _key,
+      'language': language,
+    });
+    try {
+      final response = await _dio.getUri<Map<String, dynamic>>(
+        uri,
+        cancelToken: cancelToken?._token,
+      );
+      final status = response.data?['status'];
+      if (status == 'ZERO_RESULTS') return const [];
+      if (status != 'OK') {
+        throw const GeoSearchException(
+          'Geographic suggestions are temporarily unavailable.',
+        );
+      }
+      final results = response.data?['results'];
+      if (results is! List) throw const FormatException('Missing results');
+      final output = <GeoSuggestion>[];
+      for (final raw in results.take(limit.clamp(1, 10))) {
+        if (raw is! Map) continue;
+        final item = Map<String, dynamic>.from(raw);
+        final geometry = item['geometry'];
+        final location = geometry is Map ? geometry['location'] : null;
+        final label = item['formatted_address'];
+        final id = item['place_id'];
+        if (location is! Map ||
+            location['lat'] is! num ||
+            location['lng'] is! num ||
+            label is! String ||
+            label.trim().isEmpty ||
+            id is! String ||
+            id.isEmpty) {
+          continue;
+        }
+        final latitude = (location['lat'] as num).toDouble();
+        final longitude = (location['lng'] as num).toDouble();
+        if (!latitude.isFinite ||
+            !longitude.isFinite ||
+            longitude < -180 ||
+            longitude > 180 ||
+            latitude < -90 ||
+            latitude > 90) {
+          continue;
+        }
+        final types = item['types'];
+        output.add(GeoSuggestion(
+          id: id,
+          label: label,
+          longitude: longitude,
+          latitude: latitude,
+          source: 'google_maps',
+          kind: types is List && types.isNotEmpty
+              ? types.first.toString()
+              : null,
+        ));
+      }
+      return List.unmodifiable(output);
+    } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) rethrow;
+      throw const GeoSearchException(
+        'Geographic suggestions are temporarily unavailable.',
+      );
+    } on FormatException {
+      throw const GeoSearchException('Invalid geographic search response.');
+    } on TypeError {
+      throw const GeoSearchException('Invalid geographic search response.');
+    }
+  }
+}
