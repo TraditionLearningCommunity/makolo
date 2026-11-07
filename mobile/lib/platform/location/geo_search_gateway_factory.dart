@@ -13,7 +13,9 @@ GeoSearchGateway? createGeoSearchGateway({
     throw ArgumentError('Enabled geocoding requires an API key.');
   }
   if (endpoint == null || endpoint.scheme != 'https') {
-    throw ArgumentError('Enabled geocoding requires a configured HTTPS endpoint.');
+    throw ArgumentError(
+      'Enabled geocoding requires a configured HTTPS endpoint.',
+    );
   }
   return switch (provider.trim().toLowerCase()) {
     'maptiler' => MapTilerGeoSearchGateway(
