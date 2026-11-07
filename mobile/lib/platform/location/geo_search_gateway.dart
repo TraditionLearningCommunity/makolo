@@ -49,9 +49,12 @@ class GeoSearchException implements Exception {
 /// MapTiler forward geocoding adapter, opt-in until the account authorizes it.
 /// The token is injected from approved client runtime configuration only.
 class MapTilerGeoSearchGateway implements GeoSearchGateway {
-  MapTilerGeoSearchGateway({required String apiKey, Dio? dio, Uri? endpoint})
-    : _key = apiKey,
-      _endpoint = endpoint ?? Uri.parse('https://api.maptiler.com/geocoding/'),
+  MapTilerGeoSearchGateway({
+    required String apiKey,
+    required Uri endpoint,
+    Dio? dio,
+  }) : _key = apiKey,
+       _endpoint = endpoint,
       _dio =
           dio ??
           Dio(
@@ -159,10 +162,9 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
   GoogleMapsGeoSearchGateway({
     required String apiKey,
     Dio? dio,
-    Uri? endpoint,
+    required Uri endpoint,
   })  : _key = apiKey,
-        _endpoint =
-            endpoint ?? Uri.parse('https://maps.googleapis.com/maps/api/geocode/json'),
+        _endpoint = endpoint,
         _dio =
             dio ??
             Dio(
