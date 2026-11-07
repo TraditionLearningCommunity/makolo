@@ -48,6 +48,22 @@ class MakoloGeocodingConfig {
   final Uri? endpoint;
 }
 
+/// Routing is opt-in. A free provider still requires an approved, limited
+/// credential. Never enable an unrestricted server credential in Flutter.
+class MakoloRoutingConfig {
+  const MakoloRoutingConfig({
+    required this.enabled,
+    required this.apiKey,
+    this.provider = 'openrouteservice',
+    this.endpoint,
+  });
+
+  final bool enabled;
+  final String? apiKey;
+  final String provider;
+  final Uri? endpoint;
+}
+
 class MakoloFirebaseConfig {
   const MakoloFirebaseConfig({required this.enabled});
 
@@ -92,6 +108,7 @@ class MakoloRuntimeConfig {
     required this.api,
     required this.maps,
     this.geocoding = const MakoloGeocodingConfig(enabled: false, apiKey: null),
+    this.routing = const MakoloRoutingConfig(enabled: false, apiKey: null),
     required this.firebase,
     required this.sentry,
     required this.appLinks,
@@ -122,6 +139,14 @@ class MakoloRuntimeConfig {
   static const _geocodingEndpoint = String.fromEnvironment(
     'MAKOLO_GEOCODING_ENDPOINT',
   );
+  static const _routingEnabled = String.fromEnvironment(
+    'MAKOLO_ROUTING_ENABLED', defaultValue: 'false',
+  );
+  static const _routingKey = String.fromEnvironment('MAKOLO_ROUTING_API_KEY');
+  static const _routingProvider = String.fromEnvironment(
+    'MAKOLO_ROUTING_PROVIDER', defaultValue: 'openrouteservice',
+  );
+  static const _routingEndpoint = String.fromEnvironment('MAKOLO_ROUTING_ENDPOINT');
   static const _firebaseEnabled = String.fromEnvironment(
     'MAKOLO_FIREBASE_ENABLED',
     defaultValue: 'false',
@@ -149,6 +174,7 @@ class MakoloRuntimeConfig {
   final MakoloApiConfig api;
   final MakoloMapsConfig maps;
   final MakoloGeocodingConfig geocoding;
+  final MakoloRoutingConfig routing;
   final MakoloFirebaseConfig firebase;
   final MakoloSentryConfig sentry;
   final MakoloAppLinksConfig appLinks;
@@ -164,6 +190,10 @@ class MakoloRuntimeConfig {
       'MAKOLO_GEOCODING_API_KEY': _geocodingKey,
       'MAKOLO_GEOCODING_PROVIDER': _geocodingProvider,
       'MAKOLO_GEOCODING_ENDPOINT': _geocodingEndpoint,
+      'MAKOLO_ROUTING_ENABLED': _routingEnabled,
+      'MAKOLO_ROUTING_API_KEY': _routingKey,
+      'MAKOLO_ROUTING_PROVIDER': _routingProvider,
+      'MAKOLO_ROUTING_ENDPOINT': _routingEndpoint,
       'MAKOLO_FIREBASE_ENABLED': _firebaseEnabled,
       'MAKOLO_SENTRY_ENABLED': _sentryEnabled,
       'MAKOLO_SENTRY_DSN': _sentryDsn,
@@ -226,6 +256,40 @@ class MakoloRuntimeConfig {
     if (geocodingEnabled && geocodingKey == null) {
       throw const MakoloConfigurationException(
         'MAKOLO_GEOCODING_ENABLED=true requires MAKOLO_GEOCODING_API_KEY.',
+      );
+    }
+
+    // No routing service is silently enabled, even in DEV.
+    final routingEnabled = _bool(
+      values['MAKOLO_ROUTING_ENABLED'],
+      name: 'MAKOLO_ROUTING_ENABLED',
+    );
+    final routingKey = _optional(values['MAKOLO_ROUTING_API_KEY']);
+    final routingProvider =
+        (_optional(values['MAKOLO_ROUTING_PROVIDER']) ?? 'openrouteservice')
+            .toLowerCase();
+    final routingEndpoint = _optionalHttpUri(
+      values['MAKOLO_ROUTING_ENDPOINT'],
+      name: 'MAKOLO_ROUTING_ENDPOINT',
+    );
+    if (routingEnabled && routingProvider != 'openrouteservice') {
+      throw const MakoloConfigurationException(
+        'MAKOLO_ROUTING_PROVIDER must be openrouteservice.',
+      );
+    }
+    if (routingEndpoint != null && routingEndpoint.scheme != 'https') {
+      throw const MakoloConfigurationException(
+        'MAKOLO_ROUTING_ENDPOINT must use https.',
+      );
+    }
+    if (routingEnabled && routingKey == null) {
+      throw const MakoloConfigurationException(
+        'MAKOLO_ROUTING_ENABLED=true requires MAKOLO_ROUTING_API_KEY.',
+      );
+    }
+    if (routingEnabled && environment != MakoloRuntimeEnvironment.dev) {
+      throw const MakoloConfigurationException(
+        'Routing requires reviewed credentials before BETA or PROD activation.',
       );
     }
 
@@ -303,6 +367,12 @@ class MakoloRuntimeConfig {
         apiKey: geocodingKey,
         provider: geocodingProvider,
         endpoint: geocodingEndpoint,
+      ),
+      routing: MakoloRoutingConfig(
+        enabled: routingEnabled,
+        apiKey: routingKey,
+        provider: routingProvider,
+        endpoint: routingEndpoint,
       ),
       firebase: MakoloFirebaseConfig(enabled: firebaseEnabled),
       sentry: MakoloSentryConfig(
