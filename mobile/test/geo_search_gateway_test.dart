@@ -100,7 +100,7 @@ void main() {
   test('Google Maps adapter parses geocoding results', () async {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
-      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
+      endpoint: Uri.parse('https://geo.example.test/maps/api/geocode/json'),
       dio: MockClient((request) async {
         expect(request.url.scheme, 'https');
         expect(request.url.path, '/maps/api/geocode/json');
@@ -135,7 +135,7 @@ void main() {
   test('Google Maps ZERO_RESULTS is an empty result, not an error', () async {
     final gateway = GoogleMapsGeoSearchGateway(
       apiKey: 'test-only',
-      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
+      endpoint: Uri.parse('https://geo.example.test/maps/api/geocode/json'),
       dio: MockClient((_) async =>
           const MockResponse('{"status":"ZERO_RESULTS","results":[]}', 200)).dio,
     );
@@ -147,11 +147,13 @@ void main() {
       enabled: true,
       provider: 'maptiler',
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/geocoding/'),
     );
     final google = createGeoSearchGateway(
       enabled: true,
       provider: 'google_maps',
       apiKey: 'test-only',
+      endpoint: Uri.parse('https://geo.example.test/maps/api/geocode/json'),
     );
     expect(mapTiler, isA<MapTilerGeoSearchGateway>());
     expect(google, isA<GoogleMapsGeoSearchGateway>());
