@@ -56,7 +56,7 @@ void main() {
       expect(config.maps.enabled, isFalse);
     });
 
-    test('geocoding requires an explicit key only when enabled', () {
+    test('geocoding requires explicit key and endpoint when enabled', () {
       expect(
         () => MakoloRuntimeConfig.fromValues(const {
           'MAKOLO_GEOCODING_ENABLED': 'true',
@@ -86,7 +86,6 @@ void main() {
       );
       expect(config.maps.enabled, isFalse);
     });
-
 
     test('rejects unsupported geocoding providers', () {
       expect(
