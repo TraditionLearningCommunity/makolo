@@ -161,13 +161,16 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
     Dio? dio,
     Uri? endpoint,
   })  : _key = apiKey,
-        _endpoint = endpoint ??
-            Uri.parse('https://maps.googleapis.com/maps/api/geocode/json'),
-        _dio = dio ??
-            Dio(BaseOptions(
-              connectTimeout: const Duration(seconds: 5),
-              receiveTimeout: const Duration(seconds: 7),
-            )) {
+        _endpoint =
+            endpoint ?? Uri.parse('https://maps.googleapis.com/maps/api/geocode/json'),
+        _dio =
+            dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 5),
+                receiveTimeout: const Duration(seconds: 7),
+              ),
+            ) {
     if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
       throw ArgumentError(
         'Google Maps geocoding requires approved HTTPS configuration.',
@@ -188,12 +191,14 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
   }) async {
     final text = query.trim();
     if (text.isEmpty) return const [];
-    final uri = _endpoint.replace(queryParameters: {
-      ..._endpoint.queryParameters,
-      'address': text,
-      'key': _key,
-      'language': language,
-    });
+    final uri = _endpoint.replace(
+      queryParameters: {
+        ..._endpoint.queryParameters,
+        'address': text,
+        'key': _key,
+        'language': language,
+      },
+    );
     try {
       final response = await _dio.getUri<Map<String, dynamic>>(
         uri,
@@ -209,7 +214,8 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
       final results = response.data?['results'];
       if (results is! List) throw const FormatException('Missing results');
       final output = <GeoSuggestion>[];
-      for (final raw in results.take(limit.clamp(1, 10))) {
+      final effectiveLimit = limit.clamp(1, 10).toInt();
+      for (final raw in results.take(effectiveLimit)) {
         if (raw is! Map) continue;
         final item = Map<String, dynamic>.from(raw);
         final geometry = item['geometry'];
@@ -236,16 +242,18 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
           continue;
         }
         final types = item['types'];
-        output.add(GeoSuggestion(
-          id: id,
-          label: label,
-          longitude: longitude,
-          latitude: latitude,
-          source: 'google_maps',
-          kind: types is List && types.isNotEmpty
-              ? types.first.toString()
-              : null,
-        ));
+        output.add(
+          GeoSuggestion(
+            id: id,
+            label: label,
+            longitude: longitude,
+            latitude: latitude,
+            source: 'google_maps',
+            kind: types is List && types.isNotEmpty
+                ? types.first.toString()
+                : null,
+          ),
+        );
       }
       return List.unmodifiable(output);
     } on DioException catch (error) {
