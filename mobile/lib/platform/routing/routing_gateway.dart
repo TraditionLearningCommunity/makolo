@@ -37,6 +37,8 @@ abstract interface class RoutingGateway {
     RoutingPoint destination, {
     RoutingMode mode = RoutingMode.walking,
   });
+
+  void close();
 }
 
 class RoutingUnavailable implements Exception {
