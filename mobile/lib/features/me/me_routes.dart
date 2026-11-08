@@ -356,10 +356,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                       '/me/resources/documents/$id',
                     );
                     if (changed == true) {
-                      await repository.refreshCollectionPage(
-                        query: '',
-                        offset: 0,
-                      );
+                      try {
+                        await repository.refreshCollectionPage(
+                          query: '',
+                          offset: 0,
+                        );
+                      } on Object {
+                        // A confirmed mutation must still return to the user.
+                      }
                     }
                   },
                   onAddDocument: () async {
@@ -367,10 +371,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                       '/me/resources/documents/add',
                     );
                     if (id == null) return;
-                    await repository.refreshCollectionPage(
-                      query: '',
-                      offset: 0,
-                    );
+                    try {
+                      await repository.refreshCollectionPage(
+                        query: '',
+                        offset: 0,
+                      );
+                    } on Object {
+                      // The create response already confirmed the new document.
+                    }
                     if (context.mounted) {
                       await context.push('/me/resources/documents/$id');
                     }
@@ -417,7 +425,11 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                           '/me/resources/documents/$id/version',
                         );
                         if (changed == true) {
-                          await repository.refreshDetail(id);
+                          try {
+                            await repository.refreshDetail(id);
+                          } on Object {
+                            // The new version is already confirmed.
+                          }
                         }
                       },
                       onArchived: () => context.pop(true),
