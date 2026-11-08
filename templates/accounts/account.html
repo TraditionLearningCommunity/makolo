@@ -14,8 +14,8 @@
       <div><dt class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Adresse e-mail</dt><dd class="mt-1 font-bold">{{ request.user.email|default:"Non ajoutée" }}</dd></div>
     </dl>
     <div class="mt-5 flex flex-wrap gap-2">
-      <a href="{% url 'account:password-change' %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Changer le mot de passe</a>
-      <a href="{% url 'account:switcher' %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Comptes mémorisés</a>
+      <a href="{% url 'account:password-change' %}" class="mk-action-button" data-variant="secondary">Changer le mot de passe</a>
+      <a href="{% url 'account:switcher' %}" class="mk-action-button" data-variant="secondary">Comptes mémorisés</a>
     </div>
   </section>
   <section class="grid gap-4 md:grid-cols-2">
@@ -31,7 +31,7 @@
     <h2 class="text-lg font-extrabold">Suppression du compte</h2>
     {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}
     <p class="mt-4 text-sm" style="color:var(--mk-muted)">La suppression est distincte de la déconnexion et peut être bloquée par des responsabilités encore actives.</p>
-    <a href="{% url 'account:delete' %}" class="mk-action-button mk-action-button-ghost mt-4" data-variant="ghost" style="color:var(--mk-danger)">Supprimer le compte</a>
+    <a href="{% url 'account:delete' %}" class="mk-action-button mt-4" data-variant="ghost" style="color:var(--mk-danger)">Supprimer le compte</a>
   </section>
 </div>
 {% endblock %}
