@@ -31,11 +31,11 @@ class Q2LibraryViewTests(TestCase):
 
     def test_list_and_detail_are_controller_scoped(self):
         self.client.force_login(self.owner)
-        response = self.client.get(reverse("personal_assets:list"))
+        response = self.client.get(reverse("personal_assets:documents"))
         self.assertContains(response, "Mon CV")
         self.assertEqual(self.client.get(reverse("personal_assets:detail", args=[self.asset.pk])).status_code, 200)
         self.client.force_login(self.other)
-        self.assertNotContains(self.client.get(reverse("personal_assets:list")), "Mon CV")
+        self.assertNotContains(self.client.get(reverse("personal_assets:documents")), "Mon CV")
         self.assertEqual(self.client.get(reverse("personal_assets:detail", args=[self.asset.pk])).status_code, 404)
 
     def test_upload_and_new_version_endpoints_preserve_history(self):
@@ -111,4 +111,4 @@ class Q2LibraryViewTests(TestCase):
         self.asset.refresh_from_db()
         self.assertIsNotNone(self.asset.archived_at)
         self.assertTrue(self.asset.versions.filter(pk=self.version.pk).exists())
-        self.assertNotContains(self.client.get(reverse("personal_assets:list")), "Mon CV")
+        self.assertNotContains(self.client.get(reverse("personal_assets:documents")), "Mon CV")
