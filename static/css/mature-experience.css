@@ -275,7 +275,8 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-now-n2-focus{min-width:0;background:var(--mk-surface-solid);border:1px solid var(--mk-border);border-radius:28px;padding:clamp(20px,3vw,32px);box-shadow:var(--mk-shadow-sm)}
 .mk-now-n2-close{display:inline-flex;align-items:center;min-height:44px;margin-bottom:20px;padding:0 6px;color:var(--mk-brand);font-weight:750;font-size:.86rem}
 .mk-now-n2-close:focus-visible,.mk-now-n2-trigger:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:10px}
-.mk-now-n2-trigger{display:inline-flex;align-items:center;align-self:flex-start;gap:8px;min-height:44px;padding:7px 12px;margin-top:6px;border:1px solid var(--mk-border);border-radius:999px;background:var(--mk-surface-solid);color:var(--mk-brand);font-size:.86rem;font-weight:780;cursor:pointer}
+.mk-now-n2-trigger{align-self:flex-start;margin-top:6px}
+.mk-now-n2-trigger:not(.mk-action-button){display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:7px 12px;border:1px solid var(--mk-border);border-radius:999px;background:var(--mk-surface-solid);color:var(--mk-brand);font-size:.86rem;font-weight:780;cursor:pointer}
 .mk-now-n2-trigger[aria-expanded="true"]{border-color:var(--mk-brand);background:color-mix(in srgb,var(--mk-brand) 8%,var(--mk-surface-solid))}
 .mk-now-n2-pane{display:grid;gap:clamp(16px,2vw,24px);align-content:start}
 .mk-now-n2-header h2{font-size:clamp(1.45rem,3vw,1.95rem);font-weight:850;letter-spacing:-.04em;color:var(--mk-text);margin:10px 0 8px}
@@ -317,7 +318,8 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 
 /* En cours N2 — no wide empty preview, native focus only after selection. */
 #ongoing-detail[hidden]{display:none!important}
-.mk-ongoing-n2-trigger{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 13px;margin:8px 0;border:1px solid var(--mk-border);border-radius:999px;color:var(--mk-brand);background:var(--mk-surface-solid);font-size:.84rem;font-weight:790}
+.mk-ongoing-n2-trigger{margin:8px 0}
+.mk-ongoing-n2-trigger:not(.mk-action-button){display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 13px;border:1px solid var(--mk-border);border-radius:999px;color:var(--mk-brand);background:var(--mk-surface-solid);font-size:.84rem;font-weight:790}
 .mk-ongoing-n2-trigger[aria-expanded="true"]{border-color:var(--mk-brand);background:color-mix(in srgb,var(--mk-brand) 8%,var(--mk-surface-solid))}
 .mk-ongoing-n2-trigger:focus-visible,.mk-ongoing-n2-close:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:9px}
 .mk-ongoing-n2-close{display:inline-flex;align-items:center;min-height:44px;color:var(--mk-brand);font-weight:780;font-size:.8rem;text-align:right}
