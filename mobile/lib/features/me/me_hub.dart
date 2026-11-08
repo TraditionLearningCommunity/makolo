@@ -334,30 +334,51 @@ class _MeHubState extends State<MeHub> {
     ];
   }
 
-  Widget _objectiveButton(
-    BuildContext context, {
-    required String title,
-    required String kind,
-    required IconData icon,
-  }) {
-    return OutlinedButton.icon(
-      key: Key('me-shortcut-$kind'),
-      onPressed: widget.canNavigate ? () => _open(kind, title) : null,
-      icon: _MeHubSymbol(
-        kind: kind,
-        fallback: icon,
-        size: 22,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      label: Text(title, maxLines: 2, textAlign: TextAlign.center),
-      style: OutlinedButton.styleFrom(
-        alignment: Alignment.center,
-        minimumSize: const Size(0, 58),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+  Widget _organizerEntry(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        key: const Key('me-shortcut-organizer'),
+        borderRadius: BorderRadius.circular(18),
+        onTap: widget.canNavigate
+            ? () => _open('organizer_collection', 'Mes démarches') : null,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 94),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: scheme.primary.withValues(alpha: .25)),
+          ),
+          child: Row(children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: .085),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(Icons.folder_copy_outlined,
+                color: scheme.primary, size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Mes démarches',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text('Projets, dossiers et démarches',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant)),
+              ],
+            )),
+            Icon(Icons.arrow_forward_rounded, color: scheme.primary),
+          ]),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
     );
   }
@@ -371,27 +392,7 @@ class _MeHubState extends State<MeHub> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _objectiveButton(
-                  context,
-                  title: 'Mes projets',
-                  kind: 'project_collection',
-                  icon: Icons.folder_special_outlined,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _objectiveButton(
-                  context,
-                  title: 'Mes dossiers',
-                  kind: 'dossier_collection',
-                  icon: Icons.snippet_folder_outlined,
-                ),
-              ),
-            ],
-          ),
+          _organizerEntry(context),
           const SizedBox(height: 18),
           Row(
             children: [
