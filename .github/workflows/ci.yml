@@ -522,6 +522,12 @@ jobs:
         env:
           E2E_SKIP_PREP: "1"
         run: npm run test:e2e
+      - name: Summarize Django errors on failed E2E
+        if: failure()
+        run: |
+          if [[ -f /tmp/makolo-e2e-server.log ]]; then
+            grep -A 24 -m 5 -E 'Internal Server Error: /me/ongoing/|Traceback \(most recent call last\)' /tmp/makolo-e2e-server.log | head -n 140 || true
+          fi
       - name: Upload Playwright diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
