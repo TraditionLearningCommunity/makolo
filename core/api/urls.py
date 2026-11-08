@@ -35,7 +35,10 @@ from .now_media_views import PersonalNowJourneyArtifactMediaAPIView
 from .z9_views import PersonalPartnerDetailAPIView
 from .z8_views import (
     PersonalGroupDetailAPIView,
+    PersonalResourceArchiveAPIView,
+    PersonalResourceCreateAPIView,
     PersonalResourceDetailAPIView,
+    PersonalResourceVersionCreateAPIView,
     PersonalResourceVersionDownloadAPIView,
     PersonalResourceVersionReuseAPIView,
 )
@@ -105,6 +108,21 @@ urlpatterns = [
         "resources/",
         PersonalResourcesAPIView.as_view(),
         name="resources",
+    ),
+    path(
+        "resources/create/",
+        PersonalResourceCreateAPIView.as_view(),
+        name="resource-create",
+    ),
+    path(
+        "resources/<uuid:pk>/versions/",
+        PersonalResourceVersionCreateAPIView.as_view(),
+        name="resource-version-create",
+    ),
+    path(
+        "resources/<uuid:pk>/archive/",
+        PersonalResourceArchiveAPIView.as_view(),
+        name="resource-archive",
     ),
     path(
         "resources/<uuid:pk>/",
