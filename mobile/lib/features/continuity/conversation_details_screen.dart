@@ -393,7 +393,6 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ),
           itemBuilder: (context, index) {
             final attachment = media[index];
-            final kind = attachment['kind']?.toString() ?? 'file';
             final name = attachment['name']?.toString() ?? 'Pièce jointe';
             return Semantics(
               button: true,
