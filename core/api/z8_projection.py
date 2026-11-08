@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db.models import F, OuterRef, Subquery
 from django.urls import reverse
 from django.utils import timezone
@@ -183,7 +185,7 @@ def build_personal_resources_depth_data(
         today = timezone.localdate(observed_at)
         assets = assets.filter(
             current_version_expires_at__gte=today,
-            current_version_expires_at__lte=today + timezone.timedelta(days=30),
+            current_version_expires_at__lte=today + timedelta(days=30),
         )
 
     if sort == "oldest":
