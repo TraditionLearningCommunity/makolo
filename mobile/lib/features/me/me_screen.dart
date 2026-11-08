@@ -495,65 +495,6 @@ class _MeIdentity extends StatelessWidget {
   }
 }
 
-class _MeHistorySection extends StatelessWidget {
-  const _MeHistorySection({required this.edge}) : onOpen = null;
-  final double edge;
-  final VoidCallback? onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            edge,
-            MakoloSpacing.sm,
-            edge,
-            MakoloSpacing.compact,
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.history_rounded, color: colors.primary, size: 23),
-              const SizedBox(width: MakoloSpacing.compact),
-              Text(
-                'Mon historique',
-                style: Theme.of(context).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-        Material(
-          color: colors.surface,
-          child: InkWell(
-            onTap: onOpen,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: edge, vertical: 15),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Retrouver mon parcours',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                  if (onOpen != null)
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: colors.onSurfaceVariant,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _MeAvatar extends StatelessWidget {
   const _MeAvatar({
     required this.name,
