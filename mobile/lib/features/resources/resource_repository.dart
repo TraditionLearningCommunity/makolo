@@ -441,7 +441,11 @@ class ResourceRepository {
       issuedAt: issuedAt,
       expiresAt: expiresAt,
     );
-    await refreshDetail(assetId);
+    try {
+      await refreshDetail(assetId);
+    } on Object {
+      // The owner mutation is already confirmed; refresh is best-effort.
+    }
     return id;
   }
 
