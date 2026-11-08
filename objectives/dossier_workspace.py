@@ -112,7 +112,9 @@ def dossier_workspace(viewer, dossier):
             "dependent_link_id": str(dependency.dependent_link_id),
             "required_link_id": str(dependency.required_link_id),
             "dependent_journey_id": str(dependency.dependent_link.journey_id),
+            "dependent_label": dependency.dependent_link.journey.activity.title,
             "required_journey_id": str(dependency.required_link.journey_id),
+            "required_label": dependency.required_link.journey.activity.title,
             "state": dependency.state,
             "satisfied": dependency_is_satisfied(dependency) if active else False,
             "effective": (not active or dependency_is_satisfied(dependency)),
@@ -239,14 +241,39 @@ def dossier_workspace(viewer, dossier):
             "hidden_signal": readiness.hidden_signal,
             "next_action": next_action,
         },
-        # All authorized links, not the alert-only readiness.visible_items.
-        "visible_items": journeys,
+        # Preserve the historical Readiness-only fields for existing clients.
+        "visible_items": [
+            {
+                "journey_id": str(item.journey_id),
+                "label": item.label,
+                "state": item.status.value,
+                "hidden_dependency": bool(item.hidden_dependency),
+                "next": (
+                    {"state": item.next_action.reason_code or "action_required",
+                     "label": item.next_action.label}
+                    if item.next_action is not None else None
+                ),
+            }
+            for item in readiness.visible_items
+        ],
+        # This new field includes ALL viewer-visible linked Journeys.
+        "visible_journeys": journeys,
         "visible_dependencies": dependencies,
-        "visible_items_complete": True,
+        "visible_journeys_complete": True,
         "graph_partial": bool(readiness.is_partial),
         "personal_responsibilities": [
-            item for item in assignments if item["self"]
+            {"kind": "assignment", "id": str(item.pk),
+             "state": item.status, "assigned_at": _iso(item.assigned_at)}
+            for item in active_assignments if item.assignee_id == viewer.pk
         ],
+        "actor_interventions": [
+            {"state": next_action["state"], "label": next_action["label"],
+             "journey_id": next_action["journey_id"],
+             "link": (
+                 f"/api/v1/me/journeys/{next_action['journey_id']}/"
+                 if next_action["journey_id"] else None
+             )}
+        ] if next_action else [],
         "assignments": assignments,
         "mandates": mandates,
         "allowed_transitions": sorted(ALLOWED_LIFECYCLE_TRANSITIONS[dossier.lifecycle])
