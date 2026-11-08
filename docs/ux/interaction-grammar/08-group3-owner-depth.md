@@ -49,3 +49,11 @@ La voie d'annulation est représentée comme `danger` lorsque cela correspond à
 ## Reliquat identifié
 
 Poursuivre l'inventaire des vues `templates/organizations/console/*`, `templates/organizations/space/*` non encore harmonisées, des écrans Flutter Dossier/Projet et des commandes métier à forte densité. Ne pas remplacer leurs composants spécialisés ou leur autorité par un bouton ou un moteur générique pour maximiser un taux de migration.
+
+## Complément : consoles Space et Passeport
+
+La seconde passe du Groupe 3 a harmonisé les contrôles owner des consoles `organizations/console/{team,payments,operations,activities,settings,orders,requests}.html` : création, navigation de niveau, recherches, filtrage et retraits. L'appartenance à une équipe ne donne toujours aucun droit de Mandat par elle-même ; les formulaires de retrait sont inchangés. Les filtres restent GET et les actions autoritatives restent des POST propriétaires.
+
+L'écran Flutter `features/space/space_passport_screen.dart` réutilise maintenant les mêmes actions du thème pour publication/partage, export, confidentialité, recherche et révocation, en respectant le périmètre Espace, les capacités projetées et les confirmations existantes. Aucun jeton ni détail privé n'est ajouté dans une URL publique.
+
+Un seul socle de contrôle ne signifie pas une surface unique : les panneaux Space, les documents et le scanner gardent leur composition et leurs éléments dédiés.
