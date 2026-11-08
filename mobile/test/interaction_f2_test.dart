@@ -148,4 +148,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Projet choisi'), findsNothing);
   });
+
+testWidgets('F2 undo is available only with a true owner inverse',
+    (tester) async {
+  var calls = 0;
+  await tester.pumpWidget(MaterialApp(
+    theme: buildMakoloTheme(),
+    home: Scaffold(
+      body: MakoloOwnerUndoButton(
+        available: true,
+        onRequestUndo: () async {
+          calls++;
+          return calls == 2;
+        },
+      ),
+    ),
+  ));
+  await tester.tap(find.text('Annuler cette action'));
+  await tester.pumpAndSettle();
+  expect(find.text('Annulation non confirmée.'), findsOneWidget);
+  await tester.tap(find.text('Annuler cette action'));
+  await tester.pumpAndSettle();
+  expect(calls, 2);
+  expect(find.text('Annuler cette action'), findsNothing);
+});
+
+testWidgets('F2 long-press and visible menu share the same owner action',
+    (tester) async {
+  final selected = <String>[];
+  await tester.pumpWidget(MaterialApp(
+    theme: buildMakoloTheme(),
+    home: Scaffold(
+      body: MakoloContextActionRow(
+        actions: const [
+          MakoloInteractionAction(
+            id: 'inspect',
+            label: 'Inspecter',
+            intent: MakoloActionIntent.inspect,
+          ),
+        ],
+        onSelected: (action) => selected.add(action.id),
+        child: const Text('Objet'),
+      ),
+    ),
+  ));
+  expect(find.byTooltip('Actions'), findsOneWidget);
+  await tester.longPress(find.text('Objet'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Inspecter'));
+  await tester.pumpAndSettle();
+  expect(selected, ['inspect']);
+});
+
 }
