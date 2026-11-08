@@ -38,7 +38,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
   String _variant = 'complete';
   String? _topic;
   final Set<String> _sections = {};
-  Set<String> _activities = {}, _proofs = {}, _credentials = {};
+  final Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
   bool _exporting = false;
   bool _onlineReady = false;
@@ -825,14 +825,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       );
     }
   }
-
-  static String _variantLabel(Object? variant) => switch (variant) {
-    'complete' => 'Complet',
-    'public' => 'Public',
-    'thematic' => 'Thématique',
-    'custom' => 'Personnalisé',
-    _ => 'Passeport',
-  };
 
   Future<void> _saveDatedVersionPdf(
     String snapshotId,
