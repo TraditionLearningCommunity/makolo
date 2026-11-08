@@ -9,7 +9,7 @@
       <input type="hidden" name="tab" value="{{ tab }}">
       <label class="sr-only" for="conversation-search">Rechercher</label>
       <input id="conversation-search" class="mk-input min-w-0 flex-1" name="q" value="{{ q }}" placeholder="Rechercher une conversation…">
-      <button type="submit" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Rechercher</button>
+      <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
     </form>
   </header>
   <nav class="mb-5 flex gap-4 border-b pb-3 text-sm" style="border-color:var(--mk-border)" aria-label="Conversations">
@@ -25,8 +25,8 @@
           <article class="mk-panel flex flex-wrap items-center justify-between gap-4 px-5 py-4">
             <div><p class="font-semibold">Invitation à une conversation</p>{% if invitation.expires_at %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">Jusqu’au {{ invitation.expires_at|date:'d/m/Y à H:i' }}</p>{% endif %}</div>
             <form method="post" action="{% url 'conversations:invitation-respond' invitation.pk %}" class="flex gap-2">{% csrf_token %}
-              <button class="mk-action-button mk-action-button-secondary" data-variant="secondary" name="decision" value="decline" type="submit">Refuser</button>
-              <button class="mk-action-button mk-action-button-primary" data-variant="primary" name="decision" value="accept" type="submit">Accepter</button>
+              <button class="mk-action-button" data-variant="secondary" name="decision" value="decline" type="submit">Refuser</button>
+              <button class="mk-action-button" data-variant="primary" name="decision" value="accept" type="submit">Accepter</button>
             </form>
           </article>
         {% endfor %}
