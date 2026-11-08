@@ -11,17 +11,17 @@
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">Ce que Makolo a voulu vous signaler récemment, avec un passage direct vers la vérité propriétaire lorsqu’une suite existe.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'notifications:preferences' %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Préférences</a>
+            <a href="{% url 'notifications:preferences' %}" class="mk-action-button" data-variant="secondary">Préférences</a>
             {% if unread_count %}
             <form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="primary">Tout marquer comme lu</button></form>
             {% endif %}
         </div>
     </div>
 
-    <div class="flex gap-2">
-        <a href="{% url 'notifications:list' %}" class="rounded-full px-4 py-2 text-sm font-bold {% if active_filter != 'unread' %}bg-zinc-900 text-white dark:bg-white dark:text-zinc-900{% else %}bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">Toutes</a>
-        <a href="{% url 'notifications:list' %}?filter=unread" class="rounded-full px-4 py-2 text-sm font-bold {% if active_filter == 'unread' %}bg-zinc-900 text-white dark:bg-white dark:text-zinc-900{% else %}bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300{% endif %}">Non lues{% if unread_count %} · {{ unread_count }}{% endif %}</a>
-    </div>
+    <nav class="mk-interaction-tabs" aria-label="Filtrer les notifications">
+        <a href="{% url 'notifications:list' %}" {% if active_filter != 'unread' %}aria-current="page"{% endif %}>Toutes</a>
+        <a href="{% url 'notifications:list' %}?filter=unread" {% if active_filter == 'unread' %}aria-current="page"{% endif %}>Non lues{% if unread_count %} · {{ unread_count }}{% endif %}</a>
+    </nav>
 
     <div class="space-y-3">
         {% for notification in notifications %}
@@ -52,7 +52,7 @@
 
     {% if is_paginated %}
     <div class="flex items-center justify-center gap-3 text-sm font-semibold">
-        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Précédent</a>{% endif %}
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="mk-action-button" data-variant="ghost">Précédent</a>{% endif %}
         <span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Suivant</a>{% endif %}
     </div>
