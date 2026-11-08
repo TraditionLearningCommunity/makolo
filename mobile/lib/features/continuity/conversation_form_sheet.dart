@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -454,7 +455,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                   ),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
+                  child: MakoloActionButton(
+                    label: 'Ajouter une question',
                     onPressed: _sending || _questionControllers.length >= 8
                         ? null
                         : () => setState(() {
@@ -463,8 +465,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                             _questionControllers.add(controller);
                             _edited();
                           }),
-                    icon: const Icon(Icons.add_rounded),
-                    label: const Text('Ajouter une question'),
+                    icon: Icons.add_rounded,
+                    appearance: MakoloActionAppearance.quiet,
                   ),
                 ),
               ],
@@ -477,22 +479,20 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                     if ((widget.capabilities['media_kinds'] as List).contains(
                       'image',
                     ))
-                      OutlinedButton.icon(
-                        onPressed: _sending
-                            ? null
-                            : () => _chooseMedia('photo'),
-                        icon: const Icon(Icons.image_outlined),
-                        label: const Text('Photo'),
+                      MakoloActionButton(
+                        label: 'Photo',
+                        onPressed: _sending ? null : () => _chooseMedia('photo'),
+                        icon: Icons.image_outlined,
+                        appearance: MakoloActionAppearance.secondary,
                       ),
                     if ((widget.capabilities['media_kinds'] as List).contains(
                       'file',
                     ))
-                      OutlinedButton.icon(
-                        onPressed: _sending
-                            ? null
-                            : () => _chooseMedia('document'),
-                        icon: const Icon(Icons.attach_file_outlined),
-                        label: const Text('Document'),
+                      MakoloActionButton(
+                        label: 'Document',
+                        onPressed: _sending ? null : () => _chooseMedia('document'),
+                        icon: Icons.attach_file_outlined,
+                        appearance: MakoloActionAppearance.secondary,
                       ),
                   ],
                 ),
@@ -556,10 +556,12 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerRight,
-                child: FilledButton(
+                child: MakoloActionButton(
                   key: const Key('conversation-form-publish'),
+                  label: _sending ? 'Envoi…' : 'Envoyer',
                   onPressed: _sending ? null : _publish,
-                  child: Text(_sending ? 'Envoi…' : 'Envoyer'),
+                  appearance: MakoloActionAppearance.primary,
+                  busy: _sending,
                 ),
               ),
             ],
