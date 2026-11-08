@@ -1,5 +1,10 @@
 from django.urls import path
 
+from .project_api import (
+    ProjectDossiersAPIView, ProjectDossierActionAPIView,
+    ProjectLifecycleAPIView,
+)
+
 from .api_views import (
     DossierCollectionAPIView,
     DossierDetailAPIView,
@@ -16,4 +21,7 @@ urlpatterns = [
     path("projects/", ProjectCollectionAPIView.as_view(), name="project-list"),
     path("dossiers/<uuid:pk>/", DossierDetailAPIView.as_view(), name="dossier-detail"),
     path("projects/<uuid:pk>/", ProjectDetailAPIView.as_view(), name="project-detail"),
+    path("projects/<uuid:pk>/dossiers/", ProjectDossiersAPIView.as_view(), name="project-dossiers"),
+    path("projects/<uuid:pk>/dossiers/<uuid:dossier_id>/", ProjectDossierActionAPIView.as_view(), name="project-dossier-action"),
+    path("projects/<uuid:pk>/lifecycle/", ProjectLifecycleAPIView.as_view(), name="project-lifecycle"),
 ]
