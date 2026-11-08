@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../network/api_error.dart';
 import 'conversation_repository.dart';
@@ -345,11 +346,12 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 if (_nextCursor != null && !_loading && _error == null)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
+                    child: MakoloActionButton(
                       key: const Key('conversation-history-more'),
+                      label: 'Voir les Points suivants',
                       onPressed: () => _load(),
-                      icon: const Icon(Icons.expand_more_rounded),
-                      label: const Text('Voir les Points suivants'),
+                      icon: Icons.expand_more_rounded,
+                      appearance: MakoloActionAppearance.quiet,
                     ),
                   ),
                 if (_loading && _rows.isNotEmpty)
