@@ -43,11 +43,14 @@ class MakoloUploadFile {
     required this.fieldName,
     required this.path,
     this.filename,
+    this.contentType,
   });
 
   final String fieldName;
   final String path;
   final String? filename;
+  /// Explicit MIME type for owners that validate the multipart part.
+  final String? contentType;
 }
 
 class MakoloApiClient {
@@ -267,7 +270,13 @@ class MakoloApiClient {
           data.files.add(
             MapEntry(
               file.fieldName,
-              await MultipartFile.fromFile(file.path, filename: file.filename),
+              await MultipartFile.fromFile(
+                file.path,
+                filename: file.filename,
+                contentType: file.contentType == null
+                    ? null
+                    : DioMediaType.parse(file.contentType!),
+              ),
             ),
           );
         }
