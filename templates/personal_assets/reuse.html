@@ -3,7 +3,7 @@
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-4">
   <header class="flex items-center gap-2">
-    <a href="{% url 'personal_assets:detail' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Retour">←</a>
+    <a href="{% url 'personal_assets:detail' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Retour"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
     <div class="min-w-0">
       <span class="mk-kicker">Mes documents</span>
       <h1 class="truncate text-2xl font-extrabold">{{ asset.title }}</h1>
@@ -23,7 +23,7 @@
           </label>
         {% endfor %}
         <div class="flex justify-end pt-2">
-          <button type="submit" class="mk-action-button" data-variant="primary" aria-label="Ajouter à la démarche">✓</button>
+          <button type="submit" class="mk-action-button" data-variant="primary" aria-label="Ajouter à la démarche"><i data-lucide="circle-check" class="h-4 w-4" aria-hidden="true"></i></button>
         </div>
       </form>
     {% else %}
