@@ -114,3 +114,16 @@ Après `git pull --ff-only`, recharger l'application Web PythonAnywhere
 pour prendre en compte le backend. **La nouvelle apparence des marqueurs
 nécessite également un nouveau build Flutter installé sur le téléphone.**
 Le code poussé n'établit pas, à lui seul, qu'une APK déjà installée l'utilise.
+
+
+### Harmonisation Carte publique
+
+La surface `PublicDiscoveryMapScreen` demande elle aussi la première page
+`include_spatial_index=compact` et lit les positions complètes de cet index
+sans poursuivre la pagination de N1. `PublicDiscoveryPointsMap` réutilise
+désormais `DiscoveryMapController` et son regroupement MapLibre natif,
+au lieu d'ajouter une annotation `Circle` par résultat. La liste publique
+reste disponible via des éléments construits paresseusement ; les points
+visuellement multiples réutilisent `DiscoveryCoLocatedPicker` et les
+marqueurs uniques ouvrent leur détail canonique. Aucun nouveau rendu
+cartographique indépendant n'est entretenu.
