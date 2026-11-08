@@ -330,6 +330,38 @@ def move_dossier_to_project(*, actor, dossier, target_project):
     return new_link
 
 
+
+@transaction.atomic
+def update_project(*, actor, project, title, description, starts_on, ends_on):
+    """Edit Project-owned horizon facts, never lifecycle or child facts."""
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project(actor, project):
+        raise PermissionDenied("Autorité de gestion du Projet requise.")
+    previous = (project.title, project.description, project.starts_on, project.ends_on)
+    project.title = title
+    project.description = description
+    project.starts_on = starts_on
+    project.ends_on = ends_on
+    # Project.save() invokes full_clean, preserving the horizon check.
+    updated = (project.title, project.description, project.starts_on, project.ends_on)
+    if previous == updated:
+        return project
+    project.save(update_fields=["title", "description", "starts_on", "ends_on", "updated_at"])
+    _emit_project(
+        event_type=DomainEventType.PROJECT_UPDATED,
+        project=project,
+        idempotency_key=f"project:{project.pk}:updated:{project.updated_at.isoformat()}",
+        payload={"project_id": str(project.pk), "changed_fields": [
+            name for name, before, after in zip(
+                ("title", "description", "starts_on", "ends_on"),
+                previous, updated,
+            ) if before != after
+        ]},
+    )
+    return project
+
+
 @transaction.atomic
 def set_project_lifecycle(*, actor, project, lifecycle):
     _require_authenticated(actor); project = _locked_project(project)
