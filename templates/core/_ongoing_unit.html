@@ -28,7 +28,7 @@
     </details>
   {% endif %}
 
-  <button type="button" class="mk-ongoing-n2-trigger" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <button type="button" class="mk-ongoing-n2-trigger" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-label="{{ item.focus_title }}" data-ongoing-focus-title="{{ item.focus_title }}" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
   <template data-ongoing-focus="{{ item.id }}">
     {% include "core/_ongoing_n2_focus.html" with item=item %}
   </template>
@@ -53,21 +53,13 @@
         </button>
         <span class="sr-only" role="status" aria-live="polite" data-ongoing-save-feedback></span>
       </form>
-    {% else %}
-      <span class="mk-ongoing-unit__action-disabled" title="Enregistrement non disponible pour cette continuité">
-        <span class="sr-only">Enregistrement indisponible</span>
-      </span>
     {% endif %}
 
     {% if item.url %}
       <a class="mk-ongoing-unit__primary" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
-        <i data-lucide="circle-play" aria-hidden="true"></i>
+        <i data-lucide="{{ item.primary_icon|default:'arrow-right' }}" aria-hidden="true"></i>
         <span class="sr-only">{{ item.primary_label }}</span>
       </a>
-    {% else %}
-      <span class="mk-ongoing-unit__action-disabled" title="Aucune action directe disponible">
-        Voir la suite
-      </span>
     {% endif %}
 
     {% if item.can_share and item.possibility.links.share %}
@@ -91,10 +83,6 @@
           </div>
         </details>
       </div>
-    {% else %}
-      <span class="mk-ongoing-unit__action-disabled" title="Cette continuité n’est pas partageable">
-        <i data-lucide="share-2" aria-hidden="true"></i> Partager
-      </span>
     {% endif %}
   </div>
   {% endif %}
