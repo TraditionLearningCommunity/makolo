@@ -85,8 +85,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   void _startSearch() => setState(() => _searchOpen = true);
 
   void _stopSearch() {
+    // Hiding the field does not remove the keyword from the local filters.
+    // The clear icon or "Tout effacer" explicitly resets it.
     FocusScope.of(context).unfocus();
-    _search.clear();
     setState(() => _searchOpen = false);
   }
 
@@ -674,7 +675,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 330) {
+            if (constraints.maxWidth < 345 ||
+                MediaQuery.textScalerOf(context).scale(14) > 15) {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(children: [
@@ -697,6 +699,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      titleSpacing: 4,
+      leadingWidth: 48,
       title: _searchOpen
           ? TextField(
               key: const Key('organizer-search'),
@@ -709,10 +713,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 isDense: true,
               ),
             )
-          : const Text(
+          : Text(
               'Mes démarches',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
       actions: _searchOpen
           ? [
@@ -730,9 +737,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             ]
           : [
               MakoloIconActionButton(
-                tooltip: 'Rechercher',
+                tooltip: _search.text.trim().isNotEmpty
+                    ? 'Recherche active'
+                    : 'Rechercher',
                 onPressed: _startSearch,
                 icon: Icons.search_rounded,
+                color: _search.text.trim().isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
               ),
               MakoloIconActionButton(
                 tooltip: _kind != 'all' ||
