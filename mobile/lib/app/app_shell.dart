@@ -45,6 +45,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   Stream<StoredProjection?>? _meStream;
   ActorContextController? _actorController;
   String? _rememberedPath;
+  bool _refreshingShellSignals = false;
 
   @override
   void initState() {
@@ -122,6 +123,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   }
 
   Future<void> _refreshShellSignals() async {
+    // Resume and secondary-screen callbacks can overlap on slow transports.
+    // Presence is advisory: keep at most one pair of requests in flight.
+    if (_refreshingShellSignals) return;
+    _refreshingShellSignals = true;
+    try {
+      await _loadShellSignals();
+    } finally {
+      _refreshingShellSignals = false;
+    }
+  }
+
+  Future<void> _loadShellSignals() async {
     final api = widget.runtime.api;
     if (api == null) {
       if (!mounted) return;
@@ -137,23 +150,27 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         'api/v1/conversations/attention-presence/',
       );
       final value = response.jsonObject()['has_attention'];
-      if (mounted) {
+      if (mounted && identical(api, widget.runtime.api)) {
         setState(
           () => _hasConversationAttention = value is bool ? value : null,
         );
       }
     } on Object {
-      if (mounted) setState(() => _hasConversationAttention = null);
+      if (mounted && identical(api, widget.runtime.api)) {
+        setState(() => _hasConversationAttention = null);
+      }
     }
 
     try {
       final response = await api.get('api/v1/notifications/unread-presence/');
       final value = response.jsonObject()['has_unread'];
-      if (mounted) {
+      if (mounted && identical(api, widget.runtime.api)) {
         setState(() => _hasUnreadNotifications = value is bool ? value : null);
       }
     } on Object {
-      if (mounted) setState(() => _hasUnreadNotifications = null);
+      if (mounted && identical(api, widget.runtime.api)) {
+        setState(() => _hasUnreadNotifications = null);
+      }
     }
   }
 
