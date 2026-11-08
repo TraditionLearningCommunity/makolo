@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 ///
 /// Domain owners select the action and callback. This widget owns only
 /// presentation and touch semantics, never access checks or mutation state.
-enum MakoloActionAppearance { primary, secondary, quiet }
+enum MakoloActionAppearance { primary, secondary, quiet, danger }
 
 class MakoloActionButton extends StatelessWidget {
   const MakoloActionButton({
@@ -51,6 +51,29 @@ class MakoloActionButton extends StatelessWidget {
             ? TextButton(onPressed: handler, child: labelWidget)
             : TextButton.icon(
                 onPressed: handler,
+                icon: Icon(visibleIcon),
+                label: labelWidget,
+              ),
+      MakoloActionAppearance.danger =>
+        visibleIcon == null
+            ? OutlinedButton(
+                onPressed: handler,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                child: labelWidget,
+              )
+            : OutlinedButton.icon(
+                onPressed: handler,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
                 icon: Icon(visibleIcon),
                 label: labelWidget,
               ),
