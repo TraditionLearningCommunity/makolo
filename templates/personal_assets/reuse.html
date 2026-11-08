@@ -2,7 +2,7 @@
 {% block title %}Réutiliser {{ asset.title }} | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-2xl space-y-5">
-  <a href="{% url 'personal_assets:detail' asset.pk %}" class="mk-btn mk-btn-ghost">← {{ asset.title }}</a>
+  <a href="{% url 'personal_assets:detail' asset.pk %}" class="mk-action-button mk-action-button-ghost" data-variant="ghost">← {{ asset.title }}</a>
   <section class="mk-panel p-5 sm:p-7">
     <span class="mk-kicker">Réutiliser une ressource</span>
     <h1 class="mt-2 text-2xl font-extrabold">{{ asset.title }}</h1>
@@ -20,7 +20,7 @@
             <span class="block ml-6 text-sm" style="color:var(--mk-muted)">{{ journey.get_status_display }}</span>
           </label>
         {% endfor %}
-        <button type="submit" class="mk-btn mk-btn-primary">Ajouter à la démarche</button>
+        <button type="submit" class="mk-action-button mk-action-button-primary" data-variant="primary">Ajouter à la démarche</button>
       </form>
     {% else %}
       <p class="mt-4">Aucune démarche admissible n’est disponible pour le moment.</p>
