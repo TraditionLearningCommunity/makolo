@@ -33,6 +33,7 @@ class PublicSpacesScreen extends StatefulWidget {
 class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   final _search = TextEditingController();
   final _city = TextEditingController();
+  final _filterRevision = ValueNotifier<int>(0);
   String? _selectedCity;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   String _category = '';
@@ -58,6 +59,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     _searchCoordinator.dispose();
     _search.dispose();
     _city.dispose();
+    _filterRevision.dispose();
     super.dispose();
   }
 
@@ -232,6 +234,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       _loading = true;
       _error = null;
     });
+    _filterRevision.value++;
     _searchCoordinator.changed(immediate: immediate);
   }
 
@@ -320,7 +323,9 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 filterPanelKey: const Key('guest-spaces-filters'),
                 hasActiveFilters:
                     _category.isNotEmpty || _city.text.trim().isNotEmpty,
-                filters: Column(
+                filters: const SizedBox.shrink(),
+                filtersRefresh: _filterRevision,
+                filtersBuilder: (_) => Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     KeyedSubtree(
