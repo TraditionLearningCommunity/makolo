@@ -52,7 +52,7 @@
             <li class="py-4 flex flex-wrap items-center justify-between gap-3">
               <div><p class="font-extrabold">{{ row.title }}</p>
                 <p class="text-sm" style="color:var(--mk-muted)">{{ row.state }}{% if row.timing.start_date %} · {{ row.timing.start_date|date:"DATE_FORMAT" }}{% endif %}</p></div>
-              {% if row.url %}<a class="mk-btn mk-btn-secondary" href="{{ row.url }}">Ouvrir</a>
+              {% if row.url %}<a class="mk-action-button" data-variant="secondary" href="{{ row.url }}">Ouvrir</a>
               {% else %}<span class="text-sm">Date non ouvrable dans cet état</span>{% endif %}
             </li>
           {% endfor %}
@@ -61,8 +61,8 @@
         <p class="mk-panel p-5">Aucune date liée pour le moment. {% if work_g4.creative %}La création{% else %}La production{% endif %} reste disponible.</p>
       {% endif %}
       <nav aria-label="Pages des réalisations" class="flex flex-wrap justify-between gap-3">
-        {% if work_g4.previous %}<a class="mk-btn mk-btn-secondary" href="{{ work_g4.previous }}">Précédentes</a>{% endif %}
-        {% if work_g4.next %}<a class="mk-btn mk-btn-secondary" href="{{ work_g4.next }}">Voir les suivantes</a>{% endif %}
+        {% if work_g4.previous %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g4.previous }}">Précédentes</a>{% endif %}
+        {% if work_g4.next %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g4.next }}">Voir les suivantes</a>{% endif %}
       </nav>
     </section>
   {% endif %}
@@ -70,10 +70,10 @@
     <section class="mk-panel p-5 space-y-3" aria-labelledby="mt6-actions">
       <h3 id="mt6-actions" class="font-extrabold">Actions autorisées</h3>
       <div class="flex flex-wrap gap-2">
-      {% for action in work_g4.actions %}<a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+      {% for action in work_g4.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
       </div>
     </section>
   {% endif %}
-  <footer><a class="mk-btn mk-btn-secondary" href="{{ work_g4.back_url }}">{{ work_g4.back_label }}</a></footer>
+  <footer><a class="mk-action-button" data-variant="secondary" href="{{ work_g4.back_url }}">{{ work_g4.back_label }}</a></footer>
 </main>
 {% endblock %}
