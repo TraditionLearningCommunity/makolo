@@ -11,6 +11,7 @@ import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_u
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 import 'package:makolo_mobile/platform/location/location_capability.dart';
 import 'package:makolo_mobile/platform/location/location_service.dart';
+import 'package:makolo_mobile/platform/permissions/permission_gateway.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
@@ -114,6 +115,63 @@ class _UnavailableMapLocationStub extends _MapLocationStub {
   }) async => const LocationCapabilityResult(
     status: LocationCapabilityStatus.serviceUnavailable,
   );
+}
+
+class _LocationPermissionFixture implements PermissionGateway {
+  _LocationPermissionFixture(this.decision);
+
+  final PermissionDecision decision;
+  int statusReads = 0;
+  int requests = 0;
+
+  @override
+  Future<PermissionDecision> status(MakoloPermission _) async {
+    statusReads++;
+    return decision;
+  }
+
+  @override
+  Future<PermissionDecision> request(MakoloPermission _) async {
+    requests++;
+    return decision;
+  }
+
+  @override
+  Future<bool> openSettings() async => false;
+}
+
+class _LocationStreamFixture implements LocationService {
+  final controller = StreamController<LocationFix>.broadcast();
+  int watchCount = 0;
+  int currentCount = 0;
+
+  @override
+  Future<bool> isServiceEnabled() async => true;
+
+  @override
+  Future<LocationFix> current({
+    MakoloLocationAccuracy accuracy = MakoloLocationAccuracy.balanced,
+  }) async {
+    currentCount++;
+    return LocationFix(
+      latitude: -11.66,
+      longitude: 27.48,
+      accuracyMeters: 12,
+      observedAt: DateTime.utc(2026, 11, 8),
+    );
+  }
+
+  @override
+  Stream<LocationFix> watch({
+    LocationTrackingProfile profile = LocationTrackingProfile.balanced,
+    bool background = false,
+    int? distanceFilterMeters,
+    MakoloLocationAccuracy? accuracy,
+    Duration? intervalDuration,
+  }) {
+    watchCount++;
+    return controller.stream;
+  }
 }
 
 void main() {
@@ -1959,6 +2017,60 @@ void main() {
     await tester.pump();
     expect(preview, findsNothing);
     expect(tester.getRect(locate).top, greaterThan(initial.top));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Carte follows an existing GPS grant without a new prompt', (
+    tester,
+  ) async {
+    final permissions = _LocationPermissionFixture(PermissionDecision.granted);
+    final service = _LocationStreamFixture();
+    addTearDown(service.controller.close);
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: true, style: null),
+        location: LocationCapability(permissions: permissions, service: service),
+        showMapOnCompact: true,
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(permissions.statusReads, greaterThan(0));
+    expect(permissions.requests, 0);
+    expect(service.watchCount, 1);
+    expect(service.currentCount, 0);
+    expect(find.byTooltip('Me localiser'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Carte never requests GPS permission on first opening', (
+    tester,
+  ) async {
+    final permissions = _LocationPermissionFixture(PermissionDecision.denied);
+    final service = _LocationStreamFixture();
+    addTearDown(service.controller.close);
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: true, style: null),
+        location: LocationCapability(permissions: permissions, service: service),
+        showMapOnCompact: true,
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(permissions.statusReads, greaterThan(0));
+    expect(permissions.requests, 0);
+    expect(service.watchCount, 0);
+    expect(service.currentCount, 0);
+    expect(find.byTooltip('Me localiser'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
