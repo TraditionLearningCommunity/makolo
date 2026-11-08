@@ -72,3 +72,13 @@ Prochaine famille : Groupe 3 (N1/N2/N3, Space métier, Jour J), avec audit de pr
 La lecture des templates du Groupe 2 confirme l'absence de l'ancienne classe `mk-btn` dans les listes personnelles Journey/Access/History/Search, les écrans secondaires de veilles et les principales pages Conversation inspectées. Les boutons d'icône `mk-icon-btn` de retrait des enregistrements sont **conservés** : c'est déjà un contrôle global avec son libellé accessible, pas une duplication propre à Bookmarks. Les écrans Dossier/Projet conservent des boutons de vues (`aria-pressed`) et des formulaires owner : ne pas confondre leur présentation spécialisée avec de nouveaux droits.
 
 La lecture statique vérifie des classes et chemins réellement modifiés, **pas** l'exécution des tests, les captures d'écran, la validation de permissions serveur, ni l'état de production. Les styles de composition locaux sont légitimes tant qu'ils ne redéfinissent pas les primitives partagées.
+
+
+## 8. Normalisation complémentaire des contrôles secondaires
+
+- Les filtres de l'Historique personnel, de la Bibliothèque et de la liste des Conversations utilisent maintenant la barre d'onglets partagée avec `aria-current="page"`. Ces onglets restent des liens vers les vues serveur : ils ne trient ni ne filtrent artificiellement le corpus.
+- Les suppressions de veilles et de compte utilisent la variante destructive commune ; la requête est toujours propriétaire et protégée côté serveur.
+- Le sélecteur de comptes a été ajouté au périmètre : composition extraite de `templates/accounts/account_switcher.html` vers `static/css/account-switcher-layout.css`, chargée dans le head. Le retour et l'ajout de compte utilisent la variante partagée `inverse` sur fond violet, avec focus à contraste élevé. Aucun CSS inline de bouton propre à ce template ne subsiste.
+- Le test Web transversal de Groupe 2 inclut les filtres GET liés à Historique/Bibliothèque/Conversations et le sélecteur de comptes avec son formulaire POST/CSRF.
+
+La variante Web `data-variant="inverse"` est définie dans `makolo-interactions.css` pour toute surface de marque à fond sombre. Elle n'appartient pas au Sélecteur de comptes. Le responsive et les compositions de cette page restent locaux, sans redéfinition des boutons.
