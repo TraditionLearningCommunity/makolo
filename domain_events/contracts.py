@@ -80,6 +80,7 @@ class DomainEventType:
     JOURNEY_ARTIFACT_REVIEW_COMPLETED = "journey.artifact.review_completed"
 
     DOSSIER_CREATED = "dossier.created"
+    DOSSIER_UPDATED = "dossier.updated"
     DOSSIER_JOURNEY_LINKED = "dossier.journey_linked"
     DOSSIER_JOURNEY_UNLINKED = "dossier.journey_unlinked"
     DOSSIER_LIFECYCLE_CHANGED = "dossier.lifecycle_changed"
