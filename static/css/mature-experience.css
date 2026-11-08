@@ -236,6 +236,14 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-ongoing-unit__more summary svg{width:16px;height:16px;transition:transform .16s ease}
 .mk-ongoing-unit__more[open] summary svg{transform:rotate(180deg)}
 .mk-ongoing-unit__actions{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:8px;align-items:stretch;padding:10px 4px;border-bottom:1px solid var(--mk-border)}
+/* Only actions allowed by the owner are rendered. A one- or two-action
+   continuity retains the balanced Discover rhythm without empty controls. */
+.mk-ongoing-unit__actions:has(> :only-child){grid-template-columns:minmax(0,1fr)}
+.mk-ongoing-unit__actions:has(> :first-child:nth-last-child(2)){grid-template-columns:repeat(2,minmax(0,1fr))}
+.mk-ongoing-unit__primary-caption{display:none}
+.mk-ongoing-unit__actions:has(> .mk-ongoing-unit__primary:only-child) .mk-ongoing-unit__primary-caption{display:inline;font-size:.78rem;line-height:1.35;font-weight:760}
+.mk-ongoing-n2 .mk-now-cta{gap:.5rem}
+.mk-ongoing-n2 .mk-now-cta svg{width:18px;height:18px;flex:none}
 .mk-ongoing-unit__actions button,.mk-ongoing-unit__actions a,.mk-ongoing-unit__actions .mk-ongoing-unit__action-disabled,.mk-ongoing-unit__actions .mk-ongoing-unit__share>details>summary{display:flex;min-height:46px;gap:7px;align-items:center;justify-content:center;min-width:0;padding:8px 9px;border-radius:14px;font-size:.78rem;font-weight:760;text-align:center;line-height:1.3;cursor:pointer;white-space:normal}
 .mk-ongoing-unit__actions svg{flex:0 0 16px;width:16px;height:16px}
 .mk-ongoing-unit__primary{background:var(--mk-brand);color:#fff}
