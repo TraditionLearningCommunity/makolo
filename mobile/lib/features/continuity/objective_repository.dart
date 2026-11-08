@@ -71,6 +71,55 @@ class ObjectiveRepository {
         sourceKey: sourceKey(kind, id),
       );
 
+  // One owner-scoped three-kind window shared by Cartes, Liste and Explorateur.
+  // Separate from the historic shallow Project/Dossier collection sources.
+  static const organizerLimit = 50;
+  static const organizerProjectionKind = 'objective.organizer.collection';
+
+  String organizerResourceKey(int offset) => 'offset:$offset:limit:$organizerLimit';
+  String organizerSourceKey(int offset) =>
+      '$organizerProjectionKind:$offset:$organizerLimit';
+
+  SyncSourceDefinition organizerSourceFor(int offset) =>
+      SyncSourceDefinition.projectionEnvelope(
+        sourceKey: organizerSourceKey(offset),
+        owner: 'Objectives',
+        path: 'api/v1/objectives/organizer/?limit=$organizerLimit&offset=$offset',
+        projectionKind: organizerProjectionKind,
+        resourceKey: organizerResourceKey(offset),
+        category: SyncSourceCategory.collection,
+        freshnessPolicy: freshnessPolicy,
+      );
+
+  Stream<List<StoredProjection>> watchOrganizer() =>
+      store.watchProjections(organizerProjectionKind);
+
+  Future<StoredProjection?> readOrganizerPage(int offset) =>
+      store.readProjection(
+        organizerProjectionKind,
+        resourceKey: organizerResourceKey(offset),
+      );
+
+  Stream<OwnerSourceState> watchOrganizerSource() => watchOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: organizerSourceKey(0),
+  );
+
+  Future<OwnerSourceState> readOrganizerSource() => readOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: organizerSourceKey(0),
+  );
+
+  Future<void> refreshOrganizerPage(int offset) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Objectives owner is not configured.');
+    }
+    await engine.refreshSource(organizerSourceFor(offset));
+  }
+
   static const collectionLimit = 24;
 
   String collectionKind(ObjectiveDepth kind) => switch (kind) {
