@@ -48,7 +48,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final ScrollController _scroll = ScrollController();
   bool _requestedInitialRefresh = false;
   bool _preparingOffline = false;
-  int _preparedPages = 0;
   String? _preparationMessage;
 
   @override
