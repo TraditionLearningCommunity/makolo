@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../features/interoperability/push_device_controls.dart';
@@ -127,9 +128,10 @@ class _NotificationPreferencesScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Préférences non disponibles sur cet appareil.'),
-                    TextButton(
+                    MakoloActionButton(
+                      label: 'Réessayer',
                       onPressed: _refresh,
-                      child: const Text('Réessayer'),
+                      appearance: MakoloActionAppearance.quiet,
                     ),
                   ],
                 ),
