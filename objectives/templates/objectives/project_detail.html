@@ -24,11 +24,11 @@
       </div>
     </div>
     <div class="mk-project__hero-actions">
-      <a class="mk-project__quiet" href="{% url 'conversations:by-context' 'project' project.pk %}">
+      <a class="mk-project__quiet mk-action-button" data-variant="ghost" href="{% url 'conversations:by-context' 'project' project.pk %}">
         <i data-lucide="messages-square" aria-hidden="true"></i> Échanges
       </a>
       {% if can_manage %}
-      <button type="button" class="mk-project__quiet" data-dialog-open="project-edit">
+      <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost" data-dialog-open="project-edit">
         <i data-lucide="pencil" aria-hidden="true"></i> Modifier
       </button>
       {% endif %}
@@ -37,15 +37,15 @@
   {% if can_manage %}
   <div class="mk-project__commands" aria-label="Actions du Projet">
     {% if child_form %}
-      <button type="button" class="mk-project__action mk-project__action--primary"
+      <button type="button" class="mk-project__action mk-project__action--primary mk-action-button" data-variant="primary"
               data-dialog-open="project-create"><i data-lucide="folder-plus"></i> Créer un dossier</button>
     {% endif %}
     {% if link_form %}
-      <button type="button" class="mk-project__action" data-dialog-open="project-link">
+      <button type="button" class="mk-project__action mk-action-button" data-variant="secondary" data-dialog-open="project-link">
         <i data-lucide="link"></i> Rattacher un dossier
       </button>
     {% endif %}
-    <button type="button" class="mk-project__action" data-dialog-open="project-lifecycle">
+    <button type="button" class="mk-project__action mk-action-button" data-variant="secondary" data-dialog-open="project-lifecycle">
       <i data-lucide="circle-dot"></i> Changer l’état
     </button>
   </div>
@@ -72,7 +72,7 @@
     </div>
     <div class="mk-project__more" data-project-more hidden>
       <p>La collection de dossiers visibles est partielle. La recherche et les tris s’appliquent aux éléments acquis.</p>
-      <button type="button" data-project-more-button>Charger d’autres dossiers</button>
+      <button type="button" class="mk-action-button" data-variant="secondary" data-project-more-button>Charger d’autres dossiers</button>
       <p data-project-more-error hidden>Chargement impossible. Réessayez.</p>
     </div>
   </section>
@@ -89,8 +89,8 @@
               {{ field }}</div>
           {% endfor %}
           <div class="mk-project__dialog-actions">
-            <button type="button" data-dialog-close>Annuler</button>
-            <button type="submit" class="mk-project__submit">Créer et rattacher</button>
+            <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+            <button type="submit" class="mk-project__submit mk-action-button" data-variant="primary">Créer et rattacher</button>
           </div>
         </form>
       </dialog>
@@ -106,8 +106,8 @@
               {{ field }}</div>
           {% endfor %}
           <div class="mk-project__dialog-actions">
-            <button type="button" data-dialog-close>Annuler</button>
-            <button type="submit" class="mk-project__submit">Rattacher</button>
+            <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+            <button type="submit" class="mk-project__submit mk-action-button" data-variant="primary">Rattacher</button>
           </div>
         </form>
       </dialog>
@@ -123,8 +123,8 @@
               {{ field }}</div>
           {% endfor %}
           <div class="mk-project__dialog-actions">
-            <button type="button" data-dialog-close>Annuler</button>
-            <button type="submit" class="mk-project__submit">Enregistrer</button>
+            <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+            <button type="submit" class="mk-project__submit mk-action-button" data-variant="primary">Enregistrer</button>
           </div>
         </form>
       </dialog>
@@ -140,8 +140,8 @@
               {{ field }}</div>
           {% endfor %}
           <div class="mk-project__dialog-actions">
-            <button type="button" data-dialog-close>Annuler</button>
-            <button type="submit" class="mk-project__submit">Confirmer la transition</button>
+            <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+            <button type="submit" class="mk-project__submit mk-action-button" data-variant="primary">Confirmer la transition</button>
           </div>
         </form>
       </dialog>
