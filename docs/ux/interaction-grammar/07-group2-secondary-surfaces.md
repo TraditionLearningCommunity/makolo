@@ -82,3 +82,22 @@ La lecture statique vérifie des classes et chemins réellement modifiés, **pas
 - Le test Web transversal de Groupe 2 inclut les filtres GET liés à Historique/Bibliothèque/Conversations et le sélecteur de comptes avec son formulaire POST/CSRF.
 
 La variante Web `data-variant="inverse"` est définie dans `makolo-interactions.css` pour toute surface de marque à fond sombre. Elle n'appartient pas au Sélecteur de comptes. Le responsive et les compositions de cette page restent locaux, sans redéfinition des boutons.
+
+## 9. Derniers reliquats clôturés après revue
+
+La vérification des écrans actuels de #522 a conduit à achever les usages communs sans déplacer dans ce groupe les profondeurs N1/N2/N3 du Groupe 3.
+
+- **Groupes personnels Web :** la page de détail utilise maintenant les actions globales pour navigation, adhésion, demande, éligibilité Activity et archivage. Les conditions de rôle et les formulaires POST/CSRF demeurent propriétaires.
+- **Billetterie Web :** la page de commande applique les variantes communes aux actions réservation, paiement, annulation et code promotionnel, en conservant Commerce et Payment comme propriétaires.
+- **Passeport émis Web :** les pages HTML autonomes d'historique et de lien émis chargent explicitement les styles communs. Création/copie/révocation adoptent les mêmes contrôles ; les révocations conservent POST et CSRF. Le Passeport de document imprimable conserve volontairement sa présentation de sortie spécifique.
+- **Notifications Web :** pagination complétée, onglets natifs et actions de lecture maintenus.
+- **Flutter profil et Passeport :** recherche de personnes, confirmation, reprise, barre d'outils et édition utilisent les actions communes, sans toucher à la confidentialité.
+- **Flutter historique et recherche :** les commandes retry/search/pagination/inspection adoptent les contrôles globaux ; les recherches restent owner-backed.
+- **Flutter conversations et veilles :** les réponses simples, l'édition et les confirmations destructives réutilisent les composants communs sans modifier les callbacks, la sélection ou les services.
+- **Flutter Journey et création :** les handoffs propriétaires sont harmonisés ; les contrôles de dates et les actions d'édition ne créent aucune mutation métier générique.
+
+Les interactions spécialisées (orbit de sauvegarde, champs à choix multiples, médias, QR, calendrier et document imprimable) demeurent spécialisées et ne constituent pas une deuxième bibliothèque de boutons. Le Groupe 3 garde les profondeurs métier, consoles Space et Jour J.
+
+Les parcours complémentaires Groups/Tickets et l'historique privé des émissions de Passeport sont ajoutés aux tests E2E du Groupe 2. Ces tests ne sont pas déclarés exécutés.
+
+**Sortie d'implémentation :** la migration commune du Groupe 2 est intégrée et documentée sur la branche de #522, sans merge. La prochaine étape est le Groupe 3.
