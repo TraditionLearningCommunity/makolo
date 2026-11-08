@@ -9,7 +9,7 @@
 .mk-cx-filters { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 16px; white-space: nowrap; }
 .mk-cx-list { border-top: 1px solid var(--mk-border); }
 .mk-cx-row { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 15px; padding: 15px 2px; border-bottom: 1px solid var(--mk-border); min-height: 84px; }
-.mk-cx-row:hover { background: var(--mk-brand)08; }
+.mk-cx-row:hover { background: color-mix(in srgb, var(--mk-brand) 8%, transparent); }
 .mk-cx-symbol { flex: 0 0 52px; width: 52px; height: 52px; border-radius: 15px; background: var(--mk-brand-soft); color: var(--mk-brand); display: inline-flex; align-items: center; justify-content: center; font-size: 1.35rem; font-weight: 800; }
 .mk-cx-row-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .mk-cx-row-text strong { font-size: 1.05rem; line-height: 1.35; overflow-wrap: anywhere; }
