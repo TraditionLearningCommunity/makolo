@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
 import 'objective_repository.dart';
@@ -282,16 +283,12 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  FilledButton.icon(
+                  MakoloActionButton(
+                    label: _submitting ? 'Confirmation…' : title,
                     onPressed: _submitting ? null : _submit,
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 17,
-                            height: 17,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(_submitting ? 'Confirmation…' : title),
+                    busy: _submitting,
+                    icon: Icons.check_rounded,
+                    appearance: MakoloActionAppearance.primary,
                   ),
                   const SizedBox(height: 12),
                   Text(
