@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
@@ -2335,12 +2336,13 @@ class _DiscoveryPagination extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Précédent',
+          appearance: MakoloActionAppearance.secondary,
           onPressed: collection.page > 1 && onPage != null
               ? () => onPage!(collection.page - 1)
               : null,
-          icon: const Icon(Icons.chevron_left_rounded),
-          label: const Text('Précédent'),
+          icon: Icons.chevron_left_rounded,
         ),
         const Spacer(),
         Text(
@@ -2348,12 +2350,13 @@ class _DiscoveryPagination extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const Spacer(),
-        FilledButton.icon(
+        MakoloActionButton(
+          label: 'Suivant',
+          appearance: MakoloActionAppearance.primary,
           onPressed: collection.hasNext && onPage != null
               ? () => onPage!(collection.page + 1)
               : null,
-          icon: const Icon(Icons.chevron_right_rounded),
-          label: const Text('Suivant'),
+          icon: Icons.chevron_right_rounded,
         ),
       ],
     );
