@@ -272,7 +272,7 @@
     activeDrag = { scope, id: item.dataset.mkReorderId };
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', activeDrag.id);
+      event.dataTransfer.setData('text/plain', 'makolo-reorder');
     }
   });
   document.addEventListener('dragover', (event) => {
@@ -312,7 +312,7 @@
     activeMove = { scope, sourceId: source.dataset.mkMoveId };
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', activeMove.sourceId);
+      event.dataTransfer.setData('text/plain', 'makolo-move');
     }
   });
   document.addEventListener('dragover', (event) => {
