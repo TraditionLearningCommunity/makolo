@@ -2,7 +2,7 @@
 {% block space_content %}
 <section class="space-y-5" aria-label="{{ space_page_title }}">
   <header class="space-y-2"><p class="mk-kicker">Espace · {{ space.name }}</p><h2 class="mk-page-title">{{ space_page_title }}</h2><p class="mk-page-copy">{% if is_history %}Retrouvez les séances terminées et les commandes annulées, datées et visibles avec votre autorité actuelle.{% else %}Retrouvez les activités, séances, commandes et relations connues dans cet Espace.{% endif %}</p></header>
-  <nav class="flex flex-wrap gap-2" aria-label="Retrouver dans cet Espace"><a class="mk-btn mk-btn-secondary" href="{% url 'organizations:space-search' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Recherche</a><a class="mk-btn mk-btn-secondary" href="{% url 'organizations:space-history' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Historique</a></nav>
+  <nav class="flex flex-wrap gap-2" aria-label="Retrouver dans cet Espace"><a class="mk-action-button mk-action-button-secondary" data-variant="secondary" href="{% url 'organizations:space-search' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Recherche</a><a class="mk-action-button mk-action-button-secondary" data-variant="secondary" href="{% url 'organizations:space-history' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Historique</a></nav>
   <form class="mk-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-end" method="get" role="search">
     <input type="hidden" name="responsibility" value="{{ selected_responsibility.key }}">
     <div class="flex-1"><label class="block font-semibold mb-2" for="space-retrieval-query">Rechercher dans cet Espace</label><input class="mk-input" name="q" id="space-retrieval-query" value="{{ q }}" maxlength="120" placeholder="Activité, séance"></div>
@@ -11,7 +11,7 @@
     <div><label for="history-from" class="block font-semibold">Depuis</label><input id="history-from" class="mk-input" type="date" name="from" value="{{ history_from }}"></div>
     <div><label for="history-to" class="block font-semibold">Jusqu’au</label><input id="history-to" class="mk-input" type="date" name="to" value="{{ history_to }}"></div>
     {% endif %}
-    <button class="mk-btn mk-btn-primary" type="submit">Rechercher</button>
+    <button class="mk-action-button mk-action-button-primary" data-variant="primary" type="submit">Rechercher</button>
   </form>
   <section class="mk-panel p-5" aria-live="polite" aria-atomic="false">
     {% if not is_history and not q %}<p>Recherchez parmi les éléments de cet espace.</p>
@@ -39,7 +39,7 @@
         <h4 class="font-bold">{{ selected_item.title }}</h4>
         <p>{% if is_history %}{{ selected_item.outcome.label }}{% else %}{{ selected_item.human_type }} · {{ selected_item.relation }}{% endif %}</p>
         {% if selected_destination %}
-        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_destination }}">Voir le détail</a>
+        <a class="mk-action-button mk-action-button-secondary mt-4" data-variant="secondary" href="{{ selected_destination }}">Voir le détail</a>
         {% endif %}
       </aside>
       {% endif %}
@@ -50,6 +50,6 @@
     {% endif %}
     <p class="text-sm mt-4" style="color:var(--mk-muted)">Recherche parmi {% if is_history %}les séances terminées et les commandes annulées{% else %}les activités, séances, commandes et relations{% endif %} accessibles.</p>
   </section>
-  <nav class="flex gap-3" aria-label="Pagination">{% if page > 1 %}<a class="mk-btn mk-btn-ghost" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:-1 }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}">Précédent</a>{% endif %}{% if retrieval.page.has_more %}<a class="mk-btn mk-btn-secondary" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:1 }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}">Afficher la suite</a>{% endif %}</nav>
+  <nav class="flex gap-3" aria-label="Pagination">{% if page > 1 %}<a class="mk-action-button mk-action-button-ghost" data-variant="ghost" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:-1 }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}">Précédent</a>{% endif %}{% if retrieval.page.has_more %}<a class="mk-action-button mk-action-button-secondary" data-variant="secondary" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:1 }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}">Afficher la suite</a>{% endif %}</nav>
 </section>
 {% endblock %}
