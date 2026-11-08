@@ -521,9 +521,72 @@ class DiscoveryMapController {
   Future<void> moveTo(double latitude, double longitude) => _controller
       .animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
 
+  /// A selected possibility should be readable even when the previous map
+  /// viewport covered multiple continents. Pan alone retains the old zoom.
+  Future<void> focusLocation(
+    double latitude,
+    double longitude, {
+    double zoom = 11,
+  }) => _controller.animateCamera(
+    CameraUpdate.newLatLngZoom(LatLng(latitude, longitude), zoom),
+  );
+
+  /// Choose a useful first neighbourhood when remote, unrelated places
+  /// would otherwise force a whole-world camera fit. This is *presentation*
+  /// only: it never removes candidates, ranks Discovery or changes the
+  /// canonical MapLibre source. All pins remain accessible by panning.
+  ///
+  /// Returns only public geographic points. This does not use device
+  /// coordinates or require location permission.
+  static List<DiscoveryMapPin> initialFocusPins(
+    List<DiscoveryMapPin> pins,
+  ) {
+    if (pins.length < 2) return pins;
+    final minLat = pins.map((pin) => pin.latitude).reduce(math.min);
+    final maxLat = pins.map((pin) => pin.latitude).reduce(math.max);
+    final minLon = pins.map((pin) => pin.longitude).reduce(math.min);
+    final maxLon = pins.map((pin) => pin.longitude).reduce(math.max);
+    // One country-sized field keeps the existing inclusive bounds fit.
+    if (maxLat - minLat < 12 && maxLon - minLon < 12) return pins;
+    const radiusKm = 250.0;
+    var bestWeight = -1;
+    var bestCount = -1;
+    var best = <DiscoveryMapPin>[];
+    for (final center in pins) {
+      final group = <DiscoveryMapPin>[];
+      var weight = 0;
+      for (final point in pins) {
+        if (_distanceKm(center, point) > radiusKm) continue;
+        group.add(point);
+        weight += math.max(1, point.opportunityCount);
+      }
+      if (weight > bestWeight || (weight == bestWeight &&
+          group.length > bestCount)) {
+        bestWeight = weight;
+        bestCount = group.length;
+        best = group;
+      }
+    }
+    return best.isNotEmpty ? best : pins;
+  }
+
+  static double _distanceKm(DiscoveryMapPin a, DiscoveryMapPin b) {
+    const rad = math.pi / 180;
+    final dLat = (b.latitude - a.latitude) * rad;
+    final dLon = (b.longitude - a.longitude) * rad;
+    final h = math.pow(math.sin(dLat / 2), 2) +
+        math.cos(a.latitude * rad) *
+            math.cos(b.latitude * rad) *
+            math.pow(math.sin(dLon / 2), 2);
+    return 12742 * math.asin(math.sqrt(h.clamp(0.0, 1.0)));
+  }
+
   /// One camera fit on initial style load. MapLibre owns pan/zoom afterward.
   Future<void> fitPins(List<DiscoveryMapPin> pins) async {
     if (pins.isEmpty) return;
+    // Initial camera uses a dense local region, not a transcontinental
+    // bounding box that makes every marker too small to inspect.
+    pins = initialFocusPins(pins);
     if (pins.length == 1) {
       await _controller.animateCamera(
         CameraUpdate.newLatLngZoom(
