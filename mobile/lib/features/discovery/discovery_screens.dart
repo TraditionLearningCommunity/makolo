@@ -27,6 +27,8 @@ import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_map_visit_state.dart';
+import 'discovery_map_place_search.dart';
+import 'discovery_directions_sheet.dart';
 import 'discovery_selector.dart';
 import 'discovery_unseen_reserve.dart';
 import 'discovery_wire.dart';
@@ -1678,6 +1680,7 @@ class DiscoveryMapScreen extends StatefulWidget {
     required this.repository,
     required this.mapConfig,
     this.location,
+    this.geoSearch,
     required this.onOpenOccurrence,
     this.onOpenItem,
     this.query = const DiscoveryQuery(),
@@ -1688,6 +1691,7 @@ class DiscoveryMapScreen extends StatefulWidget {
   final DiscoveryRepository repository;
   final MakoloMapsConfig mapConfig;
   final LocationCapability? location;
+  final GeoSearchGateway? geoSearch;
   final ValueChanged<String> onOpenOccurrence;
   final Future<void> Function(String family, String id)? onOpenItem;
   final bool authenticated;
@@ -1851,6 +1855,36 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     }
   }
 
+  Future<void> _searchPlaceOnMap() async {
+    final gateway = widget.geoSearch;
+    if (gateway == null) {
+      // Existing generic search remains available without a geo provider.
+      if (mounted) {
+        context.push(_query.routeLocation('/discover/search'));
+      }
+      return;
+    }
+    final place = await chooseDiscoveryMapPlace(context, gateway: gateway);
+    if (!mounted || place == null) return;
+    if (!place.latitude.isFinite || !place.longitude.isFinite ||
+        place.latitude < -90 || place.latitude > 90 ||
+        place.longitude < -180 || place.longitude > 180) {
+      return;
+    }
+    // A selected geocoder location is an ephemeral search center, not a
+    // canonical Makolo Place. Reuse the same Discovery query and spatial
+    // projection, constrained to opportunities in its vicinity.
+    final query = _query.copyWith(clearLocation: true).copyWith(
+      place: '',
+      latitude: place.latitude,
+      longitude: place.longitude,
+      radiusKm: 25,
+      page: 1,
+      clearContinuation: true,
+    );
+    context.push(query.routeLocation('/discover/map'));
+  }
+
   Future<void> _openDetail(DiscoveryItemPresentation item) async {
     final open = widget.onOpenItem;
     if (open == null) {
@@ -1944,6 +1978,17 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                     selection: selection,
                     mapConfig: widget.mapConfig,
                     location: widget.location,
+                    initialMapFocus: _query.latitude != null &&
+                            _query.longitude != null
+                        ? MapCoordinate(_query.latitude!, _query.longitude!)
+                        : null,
+                    onDirections: (anchor) => unawaited(
+                      showDiscoveryDirections(
+                        context,
+                        latitude: anchor.latitude,
+                        longitude: anchor.longitude,
+                      ),
+                    ),
                     showMapOnCompact: true,
                     fieldKey: _query.mapFingerprint,
                     initialSelectedCandidateKey: _restoredSelectedCandidateKey,
@@ -2009,23 +2054,46 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                         onPressed: () => context.pop(),
                         icon: const Icon(Icons.arrow_back_rounded),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Carte',
+                          _query.latitude == null
+                              ? 'Carte'
+                              : 'Carte · autour du lieu',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (_query.latitude != null)
+                        IconButton(
+                          key: const Key('discover-map-clear-place'),
+                          tooltip: 'Retirer la zone recherchée',
+                          onPressed: () {
+                            final next = _query.copyWith(
+                              clearLocation: true,
+                              place: '',
+                              page: 1,
+                              clearContinuation: true,
+                            );
+                            context.push(next.routeLocation('/discover/map'));
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      IconButton(
+                        key: const Key('discover-map-open-place-search'),
+                        tooltip: 'Chercher un lieu',
+                        onPressed: () => unawaited(_searchPlaceOnMap()),
+                        icon: const Icon(Icons.place_outlined),
+                      ),
                       IconButton(
                         key: const Key('discover-map-open-search'),
-                        tooltip: 'Rechercher',
+                        tooltip: 'Rechercher des possibilités',
                         onPressed: () => context.push(
                           _query.routeLocation(
                             '/discover/search',
                             selectedCandidateKey: _selectedCandidateKey,
                           ),
                         ),
-                        icon: const Icon(Icons.search_rounded),
+                        icon: const Icon(Icons.tune_rounded),
                       ),
                       IconButton(
                         tooltip: 'Actualiser',
