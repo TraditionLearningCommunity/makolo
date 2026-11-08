@@ -12,7 +12,7 @@
       <a href="{% url 'conversations:history' conversation.pk %}" class="min-h-11 inline-flex items-center focus-visible:outline-2" style="color:var(--mk-brand)">Rechercher · Historique</a>
     </div>
     <details class="mt-4 text-sm">
-      <summary class="inline-flex min-h-11 cursor-pointer items-center rounded-lg font-semibold focus-visible:outline-2" style="color:var(--mk-brand)">Pour moi · Options</summary>
+      <summary class="mk-disclosure-trigger">Pour moi · Options</summary>
       <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mon état de Conversation">
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
           <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="pin">{% if personal_state and personal_state.pinned_at %}Désépingler{% else %}Épingler{% endif %}</button>
