@@ -108,6 +108,8 @@ jobs:
           test ! -s /tmp/frontend-status.txt
       - name: Reject critical runtime CDN and inline-script regressions
         run: npm run check:runtime-deps
+      - name: Enforce shared Group 1 interaction components
+        run: python scripts/check_group1_interactions.py
       - name: Run Django system checks
         run: python manage.py check
       - name: Check production security settings
