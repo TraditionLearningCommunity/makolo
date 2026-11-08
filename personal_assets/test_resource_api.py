@@ -116,6 +116,7 @@ class PersonalResourceApiTests(APITestCase):
         self.assertEqual(documents["filters"]["kind"], "identity_document")
         self.assertEqual(documents["filters"]["sensitivity"], "normal")
         self.assertEqual(documents["sort"], "title")
+        self.assertIn("create", documents["links"])
         self.assertEqual(documents["items"][0]["title"], "Z identité")
 
     def test_other_profile_cannot_read_or_mutate_document(self):
