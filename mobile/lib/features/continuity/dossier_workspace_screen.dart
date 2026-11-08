@@ -158,6 +158,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (!_canMutate) return false;
     setState(() => _busy = true);
     try {
+      final before = await widget.repository.read(ObjectiveDepth.dossier, widget.id);
+      final oldParent = _text(_map(before?.payload['parent_project'])['id']);
       if (edit) {
         await widget.api!.patch(_path, body: fields);
       } else {
@@ -168,6 +170,19 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       try {
         await widget.repository.refresh(ObjectiveDepth.dossier, widget.id);
         await widget.repository.refreshOrganizerPage(0);
+        final refreshed = await widget.repository.read(
+          ObjectiveDepth.dossier, widget.id,
+        );
+        final newParent = _text(_map(refreshed?.payload['parent_project'])['id']);
+        for (final parentId in {oldParent, newParent}) {
+          if (parentId.isEmpty) continue;
+          try {
+            await widget.repository.refresh(ObjectiveDepth.project, parentId);
+          } on Object {
+            // The Dossier mutation is already confirmed; a hidden or
+            // unreachable Project must not turn it into a second mutation.
+          }
+        }
       } on Object {
         _notice('Action confirmée ; actualisez vos données pour voir le nouvel état.');
         return true;
