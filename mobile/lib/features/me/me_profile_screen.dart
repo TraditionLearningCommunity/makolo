@@ -698,6 +698,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             fieldName: 'avatar',
             path: image.path,
             filename: image.name,
+            contentType: image.name.toLowerCase().endsWith('.png')
+                ? 'image/png'
+                : image.name.toLowerCase().endsWith('.webp')
+                    ? 'image/webp'
+                    : 'image/jpeg',
           ),
         ],
       );
