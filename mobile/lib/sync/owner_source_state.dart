@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+
 import '../data/local/makolo_database.dart';
 import 'freshness.dart';
 
