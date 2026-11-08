@@ -315,6 +315,136 @@ class MatureDiscoveryAPITests(TestCase):
         )["data"]
         self.assertNotIn("spatial_index", second)
 
+    def test_spatial_index_includes_service_places_beyond_the_n1_page(self):
+        # A Service is admitted as service_activity, not the Activity family.
+        # Its public future OccurrencePlace is nevertheless canonical geography.
+        service_occurrence = self._occurrence(self.service_activity)
+        service_place = Place.objects.create(
+            name="Service cartographique Maseru",
+            locality="Maseru",
+            latitude="-29.315000",
+            longitude="27.483000",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=service_occurrence,
+            place=service_place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        event_place = Place.objects.create(
+            name="Concert cartographique Lubumbashi",
+            locality="Lubumbashi",
+            latitude="-11.664700",
+            longitude="27.479400",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=event_place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        # The N1 page remains one result, while Carte receives all admitted
+        # mappable candidates for the same query and viewer.
+        for viewer in (None, self.participant):
+            if viewer is None:
+                self.client.logout()
+            else:
+                self.client.force_login(viewer)
+            first = self._items(
+                q="Z3", page_size=1, include_spatial_index="compact",
+            )["data"]
+            self.assertEqual(len(first["results"]), 1)
+            index = first["spatial_index"]
+            self.assertEqual(index["total_results"], first["count"])
+            self.assertEqual(index["count"], 2)
+            by_family = {
+                item["identity"]["family"]: item
+                for item in index["results"]
+            }
+            self.assertEqual(set(by_family), {"activity", "service_activity"})
+            service = by_family["service_activity"]
+            self.assertEqual(service["identity"]["resource"]["id"], str(self.service_activity.pk))
+            self.assertEqual(service["identity"]["occurrence"], None)
+            self.assertEqual(service["place"]["id"], str(service_place.pk))
+            self.assertEqual(
+                [fact["occurrence"]["id"] for fact in service["spatial_facts"]],
+                [str(service_occurrence.pk)],
+            )
+            self.assertEqual(service["spatial_facts"][0]["role"], "primary")
+            self.assertEqual(service["representation"]["kind"], "service")
+            self.assertNotIn("engagement", service)
+            self.assertNotIn("detail", service)
+            self.assertNotIn("resources", service)
+            owner_detail = self.client.get(service["links"]["detail"])
+            self.assertEqual(owner_detail.status_code, 200)
+            self.assertEqual(
+                owner_detail.json()["data"]["item"]["identity"],
+                service["identity"],
+            )
+            second = self._items(
+                q="Z3", page_size=1, page=2,
+                continuation=first["continuation"]["token"],
+            )["data"]
+            self.assertNotIn("spatial_index", second)
+
+    def test_spatial_service_excludes_private_and_expired_occurrence_places(self):
+        live = self._occurrence(self.service_activity)
+        private = Place.objects.create(
+            name="Service domicile privé", locality="Maseru",
+            latitude="-29.310000", longitude="27.480000",
+        )
+        public = Place.objects.create(
+            name="Service place publique", locality="Maseru",
+            latitude="-29.315000", longitude="27.483000",
+        )
+        SpacePlace.objects.create(
+            organization=self.space, place=private, is_public=False,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=live, place=private,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=live, place=public,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
+        expired = self._occurrence(
+            self.service_activity, start=self.now - timedelta(days=5),
+        )
+        historical = Place.objects.create(
+            name="Service lieu ancien", locality="Maseru",
+            latitude="-29.550000", longitude="27.100000",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=expired, place=historical,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        for spatial in ("compact", "1"):
+            data = self._items(
+                q="Z3 accompagnement", page_size=1,
+                include_spatial_index=spatial,
+            )["data"]["spatial_index"]
+            service = next(
+                item for item in data["results"]
+                if item["identity"]["family"] == "service_activity"
+            )
+            self.assertEqual(
+                [fact["place"]["id"] for fact in service["spatial_facts"]],
+                [str(public.pk)],
+            )
+            self.assertEqual(service["place"]["id"], str(public.pk))
+            self.assertNotIn(str(private.pk), str(data))
+            self.assertNotIn(str(historical.pk), str(data))
+
+    def test_spatial_service_without_published_occurrence_is_not_invented(self):
+        # N1 can advertise the Service itself; no map coordinate is inferred
+        # from an Organization or private Place when it has no Occurrence.
+        data = self._items(
+            q="Z3 accompagnement", page_size=1,
+            include_spatial_index="compact",
+        )["data"]
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(data["spatial_index"]["count"], 0)
+        self.assertEqual(data["spatial_index"]["results"], [])
+
     def test_collection_includes_existing_detail_description(self):
         for profile in (None, self.participant):
             if profile is None:
