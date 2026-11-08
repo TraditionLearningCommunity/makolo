@@ -13,7 +13,7 @@ import 'conversation_repository.dart';
 import 'objective_repository.dart';
 
 enum _DossierMode { overview, list, timeline, dependencies }
-enum _ListSort { recent, name, state, action }
+enum _ListSort { recent, name, state, action, created, started, fulfilled, expiry }
 enum _TimeScale { week, month, quarter }
 
 Map<String, dynamic> _map(Object? raw) =>
@@ -808,16 +808,26 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         _ListSort.name => _fold(_text(a['label'])),
         _ListSort.state => _text(a['state']),
         _ListSort.action => a['readiness_state'] == 'action_required' ? '0' : '1',
+        _ListSort.created => _text(a['created_at']),
+        _ListSort.started => _text(a['started_at']),
+        _ListSort.fulfilled => _text(a['fulfilled_at']),
+        _ListSort.expiry => _text(a['expires_at']),
         _ => _text(a['updated_at']),
       };
       final second = switch (_sort) {
         _ListSort.name => _fold(_text(b['label'])),
         _ListSort.state => _text(b['state']),
         _ListSort.action => b['readiness_state'] == 'action_required' ? '0' : '1',
+        _ListSort.created => _text(b['created_at']),
+        _ListSort.started => _text(b['started_at']),
+        _ListSort.fulfilled => _text(b['fulfilled_at']),
+        _ListSort.expiry => _text(b['expires_at']),
         _ => _text(b['updated_at']),
       };
-      return _sort == _ListSort.recent ? second.compareTo(first)
-          : first.compareTo(second);
+      if (first.isEmpty != second.isEmpty) return first.isEmpty ? 1 : -1;
+      if (_sort == _ListSort.recent || _sort == _ListSort.created ||
+          _sort == _ListSort.fulfilled) return second.compareTo(first);
+      return first.compareTo(second);
     });
     return next;
   }
@@ -866,6 +876,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         _popup('Tri', _sort.name, const {
           'recent': 'Modification récente', 'name': 'Nom',
           'state': 'État', 'action': 'Action utile',
+          'created': 'Date de création', 'started': 'Date de début',
+          'fulfilled': 'Date de réalisation', 'expiry': 'Expiration indiquée',
         }, (v) => setState(() => _sort =
             _ListSort.values.firstWhere((row) => row.name == v))),
       ]),
