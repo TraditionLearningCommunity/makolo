@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:maplibre_gl/maplibre_gl.dart';
 
@@ -31,8 +33,15 @@ class DiscoveryMapController {
   static const _points = 'makolo-discovery-points';
   static const _locationCounts = 'makolo-discovery-location-counts';
   static const _pointIcons = 'makolo-discovery-point-icons';
+  static const _singlePins = 'makolo-discovery-single-pins';
+  static const _multiPlaces = 'makolo-discovery-multi-places';
+  static const _pinImage = 'makolo-discovery-pin-image';
+  static const _pinSelectedImage = 'makolo-discovery-pin-selected-image';
+  static const _placeImage = 'makolo-discovery-multi-image';
+  static const _placeSelectedImage = 'makolo-discovery-multi-selected-image';
 
   bool _clusterReady = false;
+  bool _symbolPinsReady = false;
   bool _fallbackPinsActive = false;
   Circle? _deviceCircle;
 
@@ -74,6 +83,7 @@ class DiscoveryMapController {
           // A native style reload drops app-owned layers and sources.
           // Restore the same clustering recipe before using annotations.
           _clusterReady = false;
+          _symbolPinsReady = false;
           await _removeClusterLayers();
           return renderPins(pins);
         }
@@ -115,34 +125,61 @@ class DiscoveryMapController {
           ),
           filter: ['has', 'point_count'],
         );
-        await _controller.addCircleLayer(
-          _source,
-          _points,
-          CircleLayerProperties(
-            circleRadius: [
-              'case', ['==', [Expressions.get, 'selected'], true], 26,
-              [Expressions.step,
-                [Expressions.get, 'opportunity_count'],
-                8,
-                2, 16,
-                10, 20,
-                100, 24,
+
+        // MapLibre owns the clustering, while our *unclustered* locations
+        // have two distinct visual vocabularies: pins (one possibility) and
+        // rounded-count badges (several at one exact public coordinate).
+        try {
+          await _registerMarkerImages();
+          await _controller.addSymbolLayer(
+            _source,
+            _singlePins,
+            SymbolLayerProperties(
+              iconImage: [
+                'case', ['==', [Expressions.get, 'selected'], true],
+                _pinSelectedImage, _pinImage,
               ],
+              iconSize: 1,
+              iconAnchor: 'bottom',
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+            ),
+            filter: [
+              'all',
+              ['!', ['has', 'point_count']],
+              ['==', [Expressions.get, 'opportunity_count'], 1],
             ],
-            circleColor: [
-              'case', ['==', [Expressions.get, 'selected'], true],
-              '#2B176E', '#5232DB',
+          );
+          await _controller.addSymbolLayer(
+            _source,
+            _multiPlaces,
+            SymbolLayerProperties(
+              iconImage: [
+                'case', ['==', [Expressions.get, 'selected'], true],
+                _placeSelectedImage, _placeImage,
+              ],
+              iconSize: 1,
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+            ),
+            filter: [
+              'all',
+              ['!', ['has', 'point_count']],
+              ['>', [Expressions.get, 'opportunity_count'], 1],
             ],
-            circleStrokeWidth: [
-              'case', ['==', [Expressions.get, 'selected'], true], 4, 2,
-            ],
-            circleStrokeColor: [
-              'case', ['==', [Expressions.get, 'selected'], true],
-              '#FF704D', '#FFFFFF',
-            ],
-          ),
-          filter: ['!', ['has', 'point_count']],
-        );
+          );
+          _symbolPinsReady = true;
+        } on Object {
+          // A missing sprite or unsupported symbol must never remove native
+          // clustering. Keep the old circles as the visible fallback.
+          _symbolPinsReady = false;
+          for (final layer in [_multiPlaces, _singlePins]) {
+            try {
+              await _controller.removeLayer(layer);
+            } on Object {}
+          }
+          await _addUnclusteredCircleFallback();
+        }
         // Exact-location multiplicity is different from a zoom cluster.
         // A pin can represent many admitted opportunities at one Place.
         await _controller.addSymbolLayer(
@@ -162,14 +199,15 @@ class DiscoveryMapController {
         );
         // A glyph is shown only for one opportunity with an admitted type.
         // The native clusters and exact-location counts retain their own layers.
-        try {
+        if (_symbolPinsReady) try {
           await _controller.addSymbolLayer(
             _source,
             _pointIcons,
             SymbolLayerProperties(
               textField: [Expressions.get, 'symbol'],
-              textSize: 14,
+              textSize: 15,
               textColor: '#FFFFFF',
+              textOffset: [0, -1.9],
               textAllowOverlap: true,
             ),
             filter: [
@@ -197,6 +235,7 @@ class DiscoveryMapController {
       // Keep the geographic field usable if a platform or style rejects
       // source/layer clustering. Uncluttered annotations are the fallback.
       _clusterReady = false;
+      _symbolPinsReady = false;
       await _removeClusterLayers();
       try {
         await _controller.clearCircles();
@@ -210,8 +249,107 @@ class DiscoveryMapController {
     }
   }
 
+  /// Native circle fallback only: the original cluster source, grouping,
+  /// expansion and counters remain unchanged.
+  Future<void> _addUnclusteredCircleFallback() => _controller.addCircleLayer(
+    _source,
+    _points,
+    CircleLayerProperties(
+      circleRadius: [
+        'case', ['==', [Expressions.get, 'selected'], true], 26,
+        [Expressions.step, [Expressions.get, 'opportunity_count'],
+          8, 2, 16, 10, 20, 100, 24],
+      ],
+      circleColor: [
+        'case', ['==', [Expressions.get, 'selected'], true],
+        '#2B176E', '#5232DB',
+      ],
+      circleStrokeWidth: [
+        'case', ['==', [Expressions.get, 'selected'], true], 4, 2,
+      ],
+      circleStrokeColor: [
+        'case', ['==', [Expressions.get, 'selected'], true],
+        '#FF704D', '#FFFFFF',
+      ],
+    ),
+    filter: ['!', ['has', 'point_count']],
+  );
+
+  // Rendered once per MapLibre style, never per point or camera movement.
+  // 2x icon resolution keeps labels/pins sharp without a new asset package.
+  Future<void> _registerMarkerImages() async {
+    await _controller.addImage(_pinImage, await _drawPin(false), false, 2);
+    await _controller.addImage(
+      _pinSelectedImage, await _drawPin(true), false, 2,
+    );
+    await _controller.addImage(_placeImage, await _drawPlaceBadge(false), false, 2);
+    await _controller.addImage(
+      _placeSelectedImage, await _drawPlaceBadge(true), false, 2,
+    );
+  }
+
+  static Future<Uint8List> _png(ui.PictureRecorder recorder, int width, int height) async {
+    final picture = recorder.endRecording();
+    try {
+      final image = await picture.toImage(width, height);
+      try {
+        final data = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (data == null) throw StateError('Map marker PNG unavailable');
+        return data.buffer.asUint8List();
+      } finally {
+        image.dispose();
+      }
+    } finally {
+      picture.dispose();
+    }
+  }
+
+  static Future<Uint8List> _drawPin(bool selected) {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final shape = ui.Path()
+      ..moveTo(48, 108)
+      ..cubicTo(35, 90, 15, 69, 15, 44)
+      ..cubicTo(15, 25, 29, 10, 48, 10)
+      ..cubicTo(67, 10, 81, 25, 81, 44)
+      ..cubicTo(81, 69, 61, 90, 48, 108)
+      ..close();
+    canvas.drawPath(
+      shape, ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
+    );
+    canvas.drawPath(shape, ui.Paint()
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = selected ? 8 : 6
+      ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF));
+    canvas.drawCircle(
+      const ui.Offset(48, 43), 13,
+      ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+    );
+    return _png(recorder, 96, 112);
+  }
+
+  static Future<Uint8List> _drawPlaceBadge(bool selected) {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final rounded = ui.RRect.fromRectAndRadius(
+      const ui.Rect.fromLTWH(4, 6, 100, 52),
+      const ui.Radius.circular(24),
+    );
+    canvas.drawRRect(
+      rounded, ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
+    );
+    canvas.drawRRect(rounded, ui.Paint()
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = selected ? 7 : 5
+      ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF));
+    return _png(recorder, 108, 64);
+  }
+
   Future<void> _removeClusterLayers() async {
-    for (final layer in [_pointIcons, _locationCounts, _points, _counts, _clusters]) {
+    for (final layer in [
+      _pointIcons, _locationCounts, _multiPlaces, _singlePins,
+      _points, _counts, _clusters,
+    ]) {
       try {
         await _controller.removeLayer(layer);
       } on Object {}
@@ -227,7 +365,14 @@ class DiscoveryMapController {
     if (!_clusterReady) return null;
     try {
       final hits = await _controller.queryRenderedFeatures(
-        point, [_clusters, _locationCounts, _points], null,
+        point,
+        [
+          _clusters,
+          _locationCounts,
+          if (_symbolPinsReady) ...[_multiPlaces, _singlePins]
+          else _points,
+        ],
+        null,
       );
       if (hits.isEmpty) return null;
       final feature = hits.first;
