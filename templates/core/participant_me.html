@@ -1,8 +1,8 @@
 {% extends 'base/app.html' %}
 {% load static %}
 {% block title %}Moi | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
 <main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
   <header class="mk-me-n1-identity">
     <a class="mk-me-n1-avatar mk-me-n1-avatar-action" href="{% url 'account:profile' %}" aria-label="Modifier ma photo">
