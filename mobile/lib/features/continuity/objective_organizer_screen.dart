@@ -641,22 +641,18 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         const SizedBox(height: 5),
         Row(
           children: [
-            TextButton.icon(
+            MakoloActionButton(
+              label: _hasExtraFilters ? 'Dates et tri · actifs' : 'Dates et tri',
               onPressed: _advancedFilters,
-              icon: Icon(
-                Icons.calendar_month_outlined,
-                color: _hasExtraFilters ? scheme.primary : null,
-              ),
-              label: Text(
-                _hasExtraFilters ? 'Dates et tri · actifs' : 'Dates et tri',
-              ),
+              icon: Icons.calendar_month_outlined,
+              appearance: MakoloActionAppearance.quiet,
             ),
             const Spacer(),
             if (_hasAnyFilters)
-              IconButton(
+              MakoloIconActionButton(
                 tooltip: 'Tout effacer',
                 onPressed: _clearFilters,
-                icon: const Icon(Icons.filter_alt_off_outlined),
+                icon: Icons.filter_alt_off_outlined,
               ),
           ],
         ),
@@ -815,10 +811,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                       ),
 
                       if (_hasAnyFilters)
-                        TextButton.icon(
+                        MakoloActionButton(
+                          label: 'Effacer les filtres',
                           onPressed: _clearFilters,
-                          icon: const Icon(Icons.filter_alt_off_outlined),
-                          label: const Text('Effacer les filtres'),
+                          icon: Icons.filter_alt_off_outlined,
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                     ],
                   ),
@@ -857,10 +854,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     appBar: AppBar(
       title: const Text('Mes démarches'),
       actions: [
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Actualiser',
           onPressed: _refreshing ? null : _refresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icons.refresh_rounded,
         ),
       ],
     ),
@@ -1036,10 +1033,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                           : 'Touchez Réessayer pour les retrouver.',
                                       textAlign: TextAlign.center,
                                     ),
-                                    TextButton.icon(
+                                    MakoloActionButton(
+                                      label: 'Réessayer',
                                       onPressed: _refreshing ? null : _refresh,
-                                      icon: const Icon(Icons.refresh_rounded),
-                                      label: const Text('Réessayer'),
+                                      icon: Icons.refresh_rounded,
+                                      appearance: MakoloActionAppearance.quiet,
                                     ),
                                   ],
                                 ),
