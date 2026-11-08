@@ -686,6 +686,7 @@ void main() {
       });
       final gateway = MapTilerGeoSearchGateway(
         apiKey: 'test-only',
+        endpoint: Uri.parse('https://maps.example.test/geocoding/'),
         dio: MockClient(
           (request) async => MockResponse(
             _mockResponseJson({
