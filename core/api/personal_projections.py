@@ -1230,17 +1230,93 @@ def _ongoing_n1_when(timing):
         return None
 
 
+# Presentation vocabulary, not canonical authority or a new business domain.
+# UI action icons are semantic tokens with a finite allowlist in each client.
+_ONGOING_KIND_PRESENTATION = {
+    "journey": ("Démarche", "route", "Comprendre la démarche"),
+    "dossier": ("Dossier", "folder-open", "Comprendre le dossier"),
+    "project": ("Projet", "folder-kanban", "Explorer le projet"),
+    "access": ("Accès", "ticket", "Comprendre mon accès"),
+    "waitlist": ("Liste d’attente", "hourglass", "Suivre ma liste d’attente"),
+    "transfer": ("Transfert", "arrow-left-right", "Comprendre le transfert"),
+    "payment": ("Paiement", "credit-card", "Comprendre le paiement"),
+    "funding": ("Financement", "hand-coins", "Comprendre le financement"),
+}
+
+
+def _ongoing_primary_action(item):
+    """Describe an owner-backed handoff, never a mutation inside En cours.
+
+    'intent' is presentation only. Owner routing and permissions are resolved
+    independently on each client and revalidated by the owner endpoint.
+    """
+    kind = item.get("kind")
+    capabilities = set(item.get("capabilities") or [])
+    links = item.get("links") or {}
+    if kind == "waitlist" and "accept" in capabilities:
+        return {"label": "Répondre à l’offre", "icon": "mail-check",
+                "intent": "respond_in_now"}
+    if kind == "transfer" and "accept" in capabilities:
+        return {"label": "Répondre au transfert", "icon": "mail-check",
+                "intent": "respond_in_now"}
+    if kind == "journey" and "open_detail" in capabilities:
+        label = ("Reprendre la démarche" if item.get("actor_interventions")
+                 else "Voir la démarche")
+        return {"label": label, "icon": "route", "intent": "open_owner"}
+    if kind == "dossier" and "open_detail" in capabilities:
+        label = ("Voir les étapes du dossier" if item.get("actor_interventions")
+                 else "Ouvrir le dossier")
+        return {"label": label, "icon": "folder-open", "intent": "open_owner"}
+    if kind == "project" and "open_detail" in capabilities:
+        return {"label": "Explorer le projet", "icon": "folder-kanban",
+                "intent": "open_owner"}
+    if kind == "access" and "open_access" in capabilities:
+        return {"label": "Voir mon accès", "icon": "ticket",
+                "intent": "open_owner"}
+    # Web can open some owner pages even when there is no native owner route.
+    # Never invite a mutation or fabricate an actionable Flutter destination.
+    if not links.get("web"):
+        return None
+    return {
+        "waitlist": {"label": "Suivre ma liste d’attente", "icon": "hourglass",
+                     "intent": "open_owner"},
+        "transfer": {"label": "Suivre le transfert", "icon": "arrow-left-right",
+                     "intent": "open_owner"},
+        "payment": {"label": "Suivre le paiement", "icon": "credit-card",
+                    "intent": "open_owner"},
+        "funding": {"label": "Voir le financement", "icon": "hand-coins",
+                    "intent": "open_owner"},
+    }.get(kind)
+
+
 def _ongoing_n1(item):
     """A small, additive display projection shared by Web and mobile."""
     blocker = item.get("blocker")
     interventions = item.get("actor_interventions") or []
     continuation = item.get("continuation") or {}
+    kind = item.get("kind")
     if blocker:
-        cue, tone = "Une étape bloquée", "attention"
+        cue = {
+            "journey": "Démarche bloquée",
+            "dossier": "Dossier à débloquer",
+        }.get(kind, "Une étape bloquée")
+        tone = "attention"
     elif interventions:
-        cue, tone = "De votre côté", "action"
+        cue = {
+            "waitlist": "Offre à confirmer",
+            "transfer": "Réponse attendue",
+            "dossier": "Une étape demande votre attention",
+        }.get(kind, "De votre côté")
+        tone = "action"
     elif continuation.get("state") == "waiting":
-        cue, tone = "En attente", "calm"
+        cue = {
+            "journey": "Démarche en attente",
+            "dossier": "Dossier en attente",
+            "waitlist": "En liste d’attente",
+            "transfer": "Transfert en attente",
+            "payment": "Paiement en attente",
+        }.get(kind, "En attente")
+        tone = "calm"
     elif item.get("state") == "available":
         cue, tone = "Accès disponible", "ready"
     else:
@@ -1254,9 +1330,16 @@ def _ongoing_n1(item):
     }:
         supporting = None
     place = item.get("place") or {}
+    presentation = _ONGOING_KIND_PRESENTATION.get(kind)
     return {
         "cue": cue,
         "tone": tone,
+        "kind_badge": (
+            {"label": presentation[0], "icon": presentation[1]}
+            if presentation else None
+        ),
+        "focus_title": presentation[2] if presentation else "Comprendre cet élément",
+        "primary_action": _ongoing_primary_action(item),
         "supporting": supporting,
         "when_label": _ongoing_n1_when(item.get("timing") or {}),
         "place_label": place.get("name") or place.get("locality"),
