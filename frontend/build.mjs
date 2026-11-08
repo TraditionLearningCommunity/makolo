@@ -54,6 +54,7 @@ const INTERACTION_ICONS = [
   'ellipsis', 'grip-vertical', 'arrow-down-up', 'folder-input',
   'link-2', 'unlink', 'panel-right-open', 'square-check',
   'undo-2', 'search', 'filter', 'chevron-down', 'x',
+  'external-link', 'arrow-left-right', 'pencil',
 ];
 for (const name of INTERACTION_ICONS) iconNames.add(toPascalCase(name));
 const sortedIcons = [...iconNames].sort();
