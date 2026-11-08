@@ -122,42 +122,23 @@ class ProjectDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        observed_at = timezone.now()
+        from objectives.project_workspace import project_workspace
+
         project = get_object_or_404(projects_for_profile(request.user), pk=pk)
-        dossiers = visible_dossiers_for_project(request.user, project)
-        data = {
-            "identity": {"kind": "project", "id": str(project.pk)},
-            "horizon": {
-                "title": project.title,
-                "description": project.description or None,
-                "starts_on": _date(project.starts_on),
-                "ends_on": _date(project.ends_on),
-            },
-            "state": {"code": project.lifecycle},
-            "visible_dossiers": [
-                {
-                    "kind": "dossier",
-                    "id": str(dossier.pk),
-                    "title": dossier.title,
-                    "state": dossier.lifecycle,
-                    "deadline": _date(dossier.deadline),
-                    "link": f"/api/v1/objectives/dossiers/{dossier.pk}/",
-                }
-                for dossier in dossiers
-            ],
-            "capabilities": [],
-            "links": {
-                "self": f"/api/v1/objectives/projects/{project.pk}/",
-            },
-        }
         return Response(
             projection_envelope(
                 projection="objective.project.detail",
-                data=data,
-                generated_at=observed_at,
+                data=project_workspace(request.user, project),
+                generated_at=timezone.now(),
                 scope="authorized",
             )
         )
+
+    def patch(self, request, pk):
+        from objectives.project_api import edit_project
+
+        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        return edit_project(request, project)
 
 
 def _page_args(query):
