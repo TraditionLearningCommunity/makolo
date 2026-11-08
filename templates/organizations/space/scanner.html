@@ -9,7 +9,7 @@
         <h2 id="scanner-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
         <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ activity.title }}</p>
       </div>
-      <a class="mk-btn mk-btn-secondary" href="{{ day_of_url }}">Retour au Jour J</a>
+      <a class="mk-action-button" data-variant="secondary" href="{{ day_of_url }}">Retour au Jour J</a>
     </div>
   </div>
 
@@ -37,13 +37,13 @@
         <h3 id="result-title" class="mt-4 text-2xl font-black">Prêt à scanner</h3>
         <p id="result-message" class="mt-2 text-sm" style="color:var(--mk-muted)">Présentez un QR Makolo devant la caméra.</p>
         <div id="ticket-info" class="mt-5 hidden rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border)"></div>
-        <button id="scan-next" type="button" class="mk-btn mk-btn-primary mt-5 hidden w-full">Scanner le suivant</button>
+        <button id="scan-next" type="button" class="mk-action-button mt-5 hidden w-full" data-variant="primary">Scanner le suivant</button>
       </div>
 
       <div class="mk-panel p-5">
         <label for="qr-image" class="block text-sm font-bold">Lire un QR depuis une image</label>
         <p class="mt-1 text-xs" style="color:var(--mk-muted)">L’accès à la caméra vous sera demandé lorsque vous la démarrerez.</p>
-        <label for="qr-image" class="mk-btn mk-btn-secondary mt-4 cursor-pointer">Choisir une image</label>
+        <label for="qr-image" class="mk-action-button mt-4 cursor-pointer" data-variant="secondary">Choisir une image</label>
         <input id="qr-image" type="file" accept="image/*" capture="environment" class="sr-only">
       </div>
 
@@ -51,7 +51,7 @@
         {% csrf_token %}
         <label for="manual-token" class="text-sm font-bold">Code de l’accès</label>
         <textarea id="manual-token" name="token" rows="3" class="mt-3 w-full rounded-2xl border px-4 py-3 text-sm" style="border-color:var(--mk-border);background:var(--mk-surface-solid)" autocomplete="off"></textarea>
-        <button type="submit" class="mk-btn mk-btn-primary mt-3 w-full">Vérifier l’accès</button>
+        <button type="submit" class="mk-action-button mt-3 w-full" data-variant="primary">Vérifier l’accès</button>
       </form>
     </aside>
   </div>
