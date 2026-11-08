@@ -78,7 +78,7 @@
   <section class="mk-dossier__body">
     <div data-dossier-content aria-live="polite">
       <h2>Démarches liées visibles</h2>
-      {% for item in workspace.visible_items %}
+      {% for item in workspace.visible_journeys %}
         <p><a href="{{ item.web_url }}">{{ item.label }}</a></p>
       {% empty %}
         <p>Aucune démarche visible liée à ce Dossier.</p>
