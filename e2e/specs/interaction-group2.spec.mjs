@@ -10,6 +10,7 @@ const SECONDARY = [
   '/discover/watches/',
   '/account/settings/',
   '/library/',
+  '/library/documents/',
   '/conversations/',
   '/objectives/',
   '/objectives/projects/',
@@ -28,6 +29,20 @@ test('Group 2 secondary screens consume the same global interaction foundation',
   }
 });
 
+test('Mes ressources exposes the three personal resource families without mixing their lists', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/library/');
+  await expect(page.getByRole('heading', { name: 'Mes ressources' })).toBeVisible();
+  await expect(page.getByText('Mes documents', { exact: true })).toBeVisible();
+  await expect(page.getByText('Mes preuves', { exact: true })).toBeVisible();
+  await expect(page.getByText('Mes titres', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Mes documents/i })).toHaveAttribute(
+    'href',
+    /\/library\/documents\/$/,
+  );
+  await expect(page.locator('#library-search')).toHaveCount(0);
+});
+
 test('Group 2 owner-backed search uses common fields without client-only ranking', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
 
@@ -40,7 +55,7 @@ test('Group 2 owner-backed search uses common fields without client-only ranking
   await expect(page.locator('#access-search')).toHaveClass(/mk-interaction-field/);
   await expect(page.locator('#access-search').locator('xpath=ancestor::form[1]')).toHaveAttribute('method', 'get');
 
-  await page.goto('/library/');
+  await page.goto('/library/documents/');
   await expect(page.locator('#library-search')).toHaveClass(/mk-interaction-field/);
   await expect(page.locator('#library-search').locator('xpath=ancestor::form[1]')).toHaveAttribute('method', 'get');
   await expect(page.locator('[data-mk-query-local="true"]')).toHaveCount(0);
@@ -82,7 +97,7 @@ test('Group 2 secondary controls remain usable in compact browser @mobile', asyn
   await login(page, 'participant@e2e.makolo.test');
   for (const [path,selector] of [
     ['/account/settings/', '#appearance button[type="submit"]'],
-    ['/library/', 'form[role="search"] button[type="submit"]'],
+    ['/library/documents/', 'form[role="search"] button[type="submit"]'],
     ['/objectives/organizer/', '.mk-organizer__create .mk-action-button'],
   ]) {
     await page.goto(path);
@@ -128,12 +143,12 @@ test('Group 2 secondary Me choices reuse shared link controls', async ({ page })
 });
 
 
-test('Group 2 History, Library and Conversations reuse native owner-backed tabs', async ({ page }) => {
+test('Group 2 History, Documents and Conversations reuse native owner-backed tabs', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
 
   for (const [path, label, firstOption] of [
     ['/me/history/', 'Filtrer l’historique', 'Tout'],
-    ['/library/', 'Filtrer la bibliothèque', 'Tous'],
+    ['/library/documents/', 'Vue des documents', 'Tous'],
     ['/conversations/', 'Conversations', 'Toutes'],
   ]) {
     await page.goto(path);
