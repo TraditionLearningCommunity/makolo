@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../platform/maps/discovery_map_controller.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/public_discovery_points_map.dart';
+import '../discovery/discovery_mature_view.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../discovery/discovery_wire.dart';
@@ -35,6 +37,7 @@ class PublicDiscoveryMapScreen extends StatefulWidget {
 class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
   List<_MappedPossibility> _points = const [];
+  List<DiscoveryMapPin> _mapPins = const [];
   bool _loading = true;
   String? _error;
   int _requestRevision = 0;
@@ -56,6 +59,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.mapCanonicalQuery != widget.query.mapCanonicalQuery) {
       _points = const [];
+      _mapPins = const [];
       unawaited(_load());
     }
   }
@@ -102,12 +106,32 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         for (final item in spatial.items) item.candidateKey: item,
       };
       final anchors = _selector.spatialAnchorsFromCollection(spatial);
+      final mapped = <_MappedPossibility>[
+        for (final anchor in anchors)
+          if (items[anchor.candidateKey] != null)
+            (anchor: anchor, item: items[anchor.candidateKey]!),
+      ];
+      final locationAnchors = <String, DiscoverySpatialAnchor>{};
+      final candidatesAtLocation = <String, Set<String>>{};
+      for (final point in mapped) {
+        final key = _locationKey(point.anchor);
+        locationAnchors.putIfAbsent(key, () => point.anchor);
+        candidatesAtLocation
+            .putIfAbsent(key, () => <String>{})
+            .add(point.item.candidateKey);
+      }
+      final pins = <DiscoveryMapPin>[
+        for (final entry in locationAnchors.entries)
+          DiscoveryMapPin(
+            entry.value.latitude,
+            entry.value.longitude,
+            locationKey: entry.key,
+            opportunityCount: candidatesAtLocation[entry.key]!.length,
+          ),
+      ];
       setState(() {
-        _points = [
-          for (final anchor in anchors)
-            if (items[anchor.candidateKey] != null)
-              (anchor: anchor, item: items[anchor.candidateKey]!),
-        ];
+        _points = mapped;
+        _mapPins = pins;
         _loading = false;
       });
     } on Object {
@@ -117,6 +141,37 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         _error = 'Impossible de charger les lieux.';
       });
     }
+  }
+
+  static String _locationKey(DiscoverySpatialAnchor anchor) =>
+      '${anchor.latitude}:${anchor.longitude}';
+
+  void _openMapLocation(String key) {
+    final choices = <String, DiscoveryItemPresentation>{};
+    for (final point in _points) {
+      if (_locationKey(point.anchor) == key) {
+        choices[point.item.candidateKey] = point.item;
+      }
+    }
+    if (choices.isEmpty) return;
+    if (choices.length == 1) {
+      _open(choices.values.single);
+      return;
+    }
+    // Reuse the same chooser as authenticated Discovery for co-located items.
+    unawaited(showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (sheetContext) => DiscoveryCoLocatedPicker(
+        items: choices.values.toList(),
+        onChoose: (item) {
+          Navigator.of(sheetContext).pop();
+          if (mounted) _open(item);
+        },
+      ),
+    ));
   }
 
   void _open(DiscoveryItemPresentation item) {
@@ -187,13 +242,8 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                   height: 320,
                   child: PublicDiscoveryPointsMap(
                     config: widget.runtime.mapConfig,
-                    points: [
-                      for (final point in _points)
-                        MapCoordinate(
-                          point.anchor.latitude,
-                          point.anchor.longitude,
-                        ),
-                    ],
+                    pins: _mapPins,
+                    onLocationTap: _openMapLocation,
                     fallbackBuilder: (context, state, retry) => Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
