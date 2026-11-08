@@ -202,22 +202,22 @@ class DiscoveryMapController {
         // The native clusters and exact-location counts retain their own layers.
         if (_symbolPinsReady) {
           try {
-          await _controller.addSymbolLayer(
-            _source,
-            _pointIcons,
-            SymbolLayerProperties(
-              textField: [Expressions.get, 'symbol'],
-              textSize: 15,
-              textColor: '#2B176E',
-              textOffset: [0, -2.1],
-              textAllowOverlap: true,
-            ),
-            filter: [
-              'all',
-              ['!', ['has', 'point_count']],
-              ['==', [Expressions.get, 'opportunity_count'], 1],
-              ['!=', [Expressions.get, 'symbol'], ''],
-            ],
+            await _controller.addSymbolLayer(
+              _source,
+              _pointIcons,
+              SymbolLayerProperties(
+                textField: [Expressions.get, 'symbol'],
+                textSize: 15,
+                textColor: '#2B176E',
+                textOffset: [0, -2.1],
+                textAllowOverlap: true,
+              ),
+              filter: [
+                'all',
+                ['!', ['has', 'point_count']],
+                ['==', [Expressions.get, 'opportunity_count'], 1],
+                ['!=', [Expressions.get, 'symbol'], ''],
+              ],
             );
           } on Object {
             // A missing glyph/font must NEVER disable native clustering.
@@ -291,7 +291,11 @@ class DiscoveryMapController {
     );
   }
 
-  static Future<Uint8List> _png(ui.PictureRecorder recorder, int width, int height) async {
+  static Future<Uint8List> _png(
+    ui.PictureRecorder recorder,
+    int width,
+    int height,
+  ) async {
     final picture = recorder.endRecording();
     try {
       final image = await picture.toImage(width, height);
