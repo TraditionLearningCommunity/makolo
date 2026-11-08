@@ -5,11 +5,8 @@
 (() => {
   'use strict';
 
-  const isField = (node) => node && node.matches('input, select, textarea');
   const rootFor = (node, selector) => node && node.closest(selector);
   const safeText = (node) => (node.textContent || '').trim();
-  const firstEnabled = (scope, selector) =>
-    scope.querySelector(selector + ':not([disabled])');
 
   // SELECT: DOM-local, identity-stable, never a generic bulk mutation.
   function updateSelection(scope) {
@@ -44,6 +41,7 @@
     const container = scope.querySelector('[data-mk-query-items]');
     if (!container) return;
     const all = [...container.querySelectorAll(':scope > [data-mk-query-item]')];
+    all.forEach((item, i) => acquireIndex(item, i));
     const searchField = scope.querySelector('[data-mk-query-search]');
     const filterField = scope.querySelector('[data-mk-query-filter]');
     const sortField = scope.querySelector('[data-mk-query-sort]');
@@ -106,7 +104,7 @@
     if (!view || !form) return;
     view.hidden = true;
     form.hidden = false;
-    const field = firstEnabled(form, 'input, textarea, select');
+    const field = form.querySelector('input:not([disabled]), textarea:not([disabled]), select:not([disabled])');
     if (field) field.focus();
   }
   function cancelEditor(scope) {
@@ -123,6 +121,7 @@
   // REORDER: presentation proposes a requested order to an owner adapter.
   // It never moves DOM nodes before the owner confirms the request.
   const reorderAdapters = new WeakMap();
+  let activeDrag = null;
   const reorderBusy = new WeakSet();
   function reorderScope(scope) {
     const container = scope.querySelector('[data-mk-reorder-items]');
@@ -207,6 +206,47 @@
     }
   }
 
+  // Drag is optional, only from an explicit handle and registered owner adapter.
+  // Touch/keyboard users have the same operation via Up/Down buttons.
+  document.addEventListener('dragstart', (event) => {
+    const handle = rootFor(event.target, '[data-mk-reorder-handle]');
+    const scope = handle && rootFor(handle, '[data-mk-reorder-scope]');
+    const item = handle && rootFor(handle, '[data-mk-reorder-item]');
+    if (!scope || !item || !reorderAdapters.has(scope) || reorderBusy.has(scope)) {
+      if (handle) event.preventDefault();
+      return;
+    }
+    const state = reorderScope(scope);
+    if (!state || !state.list.includes(item)) { event.preventDefault(); return; }
+    activeDrag = { scope, id: item.dataset.mkReorderId };
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', activeDrag.id);
+    }
+  });
+  document.addEventListener('dragover', (event) => {
+    const target = rootFor(event.target, '[data-mk-reorder-item]');
+    if (!target || !activeDrag) return;
+    const scope = rootFor(target, '[data-mk-reorder-scope]');
+    if (scope !== activeDrag.scope || reorderBusy.has(scope)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  });
+  document.addEventListener('drop', (event) => {
+    const target = rootFor(event.target, '[data-mk-reorder-item]');
+    const current = activeDrag;
+    activeDrag = null;
+    if (!target || !current) return;
+    const scope = rootFor(target, '[data-mk-reorder-scope]');
+    if (scope !== current.scope) return;
+    const state = reorderScope(scope);
+    if (!state) return;
+    event.preventDefault();
+    const from = state.ids.indexOf(current.id);
+    const to = state.list.indexOf(target);
+    void requestReorder(scope, from, to);
+  });
+  document.addEventListener('dragend', () => { activeDrag = null; });
   document.addEventListener('click', handleClick);
   document.addEventListener('change', (event) => {
     if (event.target.matches('[data-mk-select-item]')) {
