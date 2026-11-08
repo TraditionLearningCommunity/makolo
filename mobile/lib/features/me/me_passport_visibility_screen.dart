@@ -336,12 +336,13 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
         ? const Center(child: CircularProgressIndicator())
         : _data == null
         ? Center(
-            child: TextButton(
+            child: MakoloActionButton(
+              label: 'Réessayer avec une connexion',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () {
                 setState(() => _loading = true);
                 _refresh();
               },
-              child: const Text('Réessayer avec une connexion'),
             ),
           )
         : ListView(
