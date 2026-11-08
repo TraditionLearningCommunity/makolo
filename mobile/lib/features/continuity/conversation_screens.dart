@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
@@ -1715,11 +1716,12 @@ class _PointCardState extends State<_PointCard> {
         if (point.kind == 'exchange' && widget.onOpenExchange != null)
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton.icon(
+            child: MakoloActionButton(
               key: Key('conversation-exchange-open-${point.id}'),
+              label: 'Voir l’échange',
               onPressed: widget.onOpenExchange,
-              icon: const Icon(Icons.forum_outlined),
-              label: const Text('Voir l’échange'),
+              icon: Icons.forum_outlined,
+              appearance: MakoloActionAppearance.quiet,
             ),
           ),
         if (point.hasResponded)
@@ -1755,11 +1757,12 @@ class _PointCardState extends State<_PointCard> {
             widget.onOpenRelatedPoint != null)
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton.icon(
+            child: MakoloActionButton(
+              label: 'Voir le Point actuel',
               onPressed: () =>
                   widget.onOpenRelatedPoint!(point.replacedByPointId!),
-              icon: const Icon(Icons.call_made_rounded),
-              label: const Text('Voir le Point actuel'),
+              icon: Icons.call_made_rounded,
+              appearance: MakoloActionAppearance.quiet,
             ),
           ),
         if (point.resolutionSummary != null) ...[
@@ -1774,9 +1777,11 @@ class _PointCardState extends State<_PointCard> {
             point.attentionReason == 'acknowledge' &&
             !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.md),
-          FilledButton(
+          MakoloActionButton(
+            label: _busy ? 'En cours…' : 'Bien reçu',
             onPressed: _busy ? null : _acknowledge,
-            child: Text(_busy ? 'En cours…' : 'Bien reçu'),
+            busy: _busy,
+            appearance: MakoloActionAppearance.primary,
           ),
         ],
         if (canRespond &&
