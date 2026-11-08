@@ -254,6 +254,87 @@ void main() {
   );
 
   testWidgets(
+    'sensitive document keeps explicit download but no offline retention promise',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final repository = ResourceRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await store.putProjection(
+        kind: ResourceRepository.detailProjectionKind,
+        resourceKey: 'asset-sensitive',
+        schemaVersion: 1,
+        payload: {
+          'id': 'asset-sensitive',
+          'title': 'Pièce sensible',
+          'asset_kind_label': 'Document d’identité',
+          'sensitivity': 'sensitive',
+          'sensitivity_label': 'Sensible',
+          'status': 'active',
+          'current_version': {
+            'id': 'version-sensitive',
+            'version': 1,
+            'current': true,
+            'mime_type': 'application/pdf',
+            'validity': {'state': 'current'},
+            'provenance': {'kind': 'unknown'},
+            'links': {
+              'download':
+                  '/api/v1/me/resources/versions/'
+                  '00000000-0000-0000-0000-000000000001/download/',
+            },
+          },
+          'versions': {
+            'items': [
+              {
+                'id': 'version-sensitive',
+                'version': 1,
+                'current': true,
+                'mime_type': 'application/pdf',
+                'validity': {'state': 'current'},
+                'provenance': {'kind': 'unknown'},
+                'links': {
+                  'download':
+                      '/api/v1/me/resources/versions/'
+                      '00000000-0000-0000-0000-000000000001/download/',
+                },
+              },
+            ],
+          },
+          'links': {
+            'download':
+                '/api/v1/me/resources/versions/'
+                '00000000-0000-0000-0000-000000000001/download/',
+          },
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: ResourceDetailScreen(
+            assetId: 'asset-sensitive',
+            repository: repository,
+            personal: PersonalRepository(store),
+            onOpenJourney: (_) {},
+            onAddVersion: () {},
+            onArchived: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byTooltip('Télécharger'), findsWidgets);
+      expect(find.text('Disponible hors connexion'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'PersonalAsset detail keeps provenance honest and copy concise',
     (tester) async {
       final database = MakoloDatabase.memory();
