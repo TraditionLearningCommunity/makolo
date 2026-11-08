@@ -149,7 +149,7 @@ def _list_projection_queryset(profile):
         "conversation", "resolution", "visibility_audience", "resolution_audience",
     ).prefetch_related(
         Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
-    ).order_by("-resolved_at")
+    ).order_by("-resolved_at")[:20]
     return (
         Conversation.objects.select_related(
             "context__space", "context__group", "context__activity", "context__occurrence__activity",
@@ -266,18 +266,30 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
     return rows
 
 
-def now_points_for_profile(profile, conversation, *, limit=100):
+def now_points_for_profile(profile, conversation, *, limit=100, visibility_cache=None, audience_cache=None, history_cache=None, attention_caches=None):
     if not can_view_conversation(profile, conversation):
         return []
     now = timezone.now()
     rows = []
+    visibility_cache = visibility_cache if visibility_cache is not None else {}
+    audience_cache = audience_cache if audience_cache is not None else {}
+    history_cache = history_cache if history_cache is not None else {}
+    attention_caches = attention_caches if attention_caches is not None else ({}, {}, {})
     points = conversation.points.filter(lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}).select_related(
         "published_by", "represented_space", "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
     ).prefetch_related("options", "responses").order_by("deadline_at", "-importance", "published_at")[: max(limit * 3, 100)]
     for point in points:
-        if not point_visible_to(profile, point, at=now):
+        if not point_visible_to(
+            profile, point, at=now, visibility_cache=visibility_cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ):
             continue
-        reason = point_attention_reason(profile, point, at=now)
+        reason = point_attention_reason(
+            profile, point, at=now,
+            audience_membership_cache=attention_caches[0],
+            conversation_visibility_cache=attention_caches[1],
+            conversation_manage_cache=attention_caches[2],
+        )
         if reason is None and point.kind != ConversationPointKind.INFORMATION:
             continue
         section = "pour_moi" if reason in {"respond", "acknowledge", "form", "revisit"} else "a_regler" if reason == "resolve" else "a_savoir"
@@ -287,11 +299,14 @@ def now_points_for_profile(profile, conversation, *, limit=100):
     return rows
 
 
-def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), limit=50):
+def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), limit=50, visibility_cache=None, audience_cache=None, history_cache=None):
     """Visible open Points outside the owner's attention/essential selection."""
     if not can_view_conversation(profile, conversation):
         return []
     excluded = set(excluded_ids)
+    visibility_cache = visibility_cache if visibility_cache is not None else {}
+    audience_cache = audience_cache if audience_cache is not None else {}
+    history_cache = history_cache if history_cache is not None else {}
     candidates = conversation.points.filter(
         lifecycle__in={ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED},
     ).select_related(
@@ -300,7 +315,10 @@ def other_visible_points_for_profile(profile, conversation, *, excluded_ids=(), 
     ).prefetch_related("options", "responses").order_by("published_at", "pk")[: max(limit * 4, 100)]
     result = []
     for point in candidates:
-        if point.pk in excluded or not point_visible_to(profile, point):
+        if point.pk in excluded or not point_visible_to(
+            profile, point, visibility_cache=visibility_cache,
+            audience_cache=audience_cache, history_cache=history_cache,
+        ):
             continue
         result.append(point)
         if len(result) >= limit:
