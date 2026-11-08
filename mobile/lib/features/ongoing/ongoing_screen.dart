@@ -872,11 +872,11 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
                 ),
               if (route != null)
                 Expanded(
-                  child: IconButton(
+                  child: MakoloIconActionButton(
                     key: const Key('ongoing-n1-primary'),
                     onPressed: () => context.push(route),
                     tooltip: label,
-                    icon: Icon(_ongoingPrimaryIcon(widget.item)),
+                    icon: _ongoingPrimaryIcon(widget.item),
                   ),
                 ),
               if (sharedItem != null)
