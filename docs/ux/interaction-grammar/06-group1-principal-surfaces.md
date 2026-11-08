@@ -73,3 +73,13 @@ Les actions comportant un composant spécialisé (`DiscoveryOrbitIcon`, share co
 La **migration de présentation du Groupe 1 est réalisée** sans convertir les surfaces en tableaux de bord et sans dupliquer les styles applicatifs. La sortie définitive du lot exige néanmoins les gates runtime : aucune régression de l'identité actor, des URL/retours, du rendu compact, des outils de recherche, des autorisations et des parcours de confirmation. En cas de CI rouge, corriger l'origine, jamais les assertions de couverture pour obtenir du vert.
 
 Le Groupe 2 concerne ensuite les **pages secondaires** et le Groupe 3 les **profondeurs N1/N2/N3/Space**, sur **la même branche #522** selon la décision du projet.
+
+
+## 7. Garde-fou continu et verrouillage des dépendances
+
+- `scripts/check_group1_interactions.py` vérifie statiquement que les huit templates du Groupe 1 utilisent les commandes communes, que les six fichiers Flutter principaux consomment `action_controls.dart`, que les deux shells Web chargent F1/F2 et que le CSS spécifique Moi ne redéfinit pas les boutons partagés.
+- Le job `django` de `.github/workflows/ci.yml` exécute ce garde-fou **avant npm ci et le build**, pour fournir une preuve indépendante de la génération des assets.
+- Le blocage Flutter `flutter pub get` identifié avant le Groupe 1 provenait d'un `mobile/pubspec.lock` non synchronisé avec les dépendances déjà déclarées dans `mobile/pubspec.yaml`. Le verrouillage a été synchronisé **à partir du diff exact** de Flutter 3.47.3 (cinq hunks, 104 lignes ajoutées, aucune version déclarée modifiée). Le blob résultant correspond au SHA du verrouillage généré dans le runner.
+- Cette correction de lockfile permet de dépasser le premier gate Flutter, mais **ne garantit pas** que l'analyseur, le formatage Dart, les tests et les goldens soient verts. Le contrôle de la CI réelle reste obligatoire.
+
+Le garde-fou interdit la réintroduction de styles locaux de boutons sur les cinq entrées ; il ne remplace pas les tests fonctionnels des propriétaires et n'étend pas son champ aux groupes secondaires.
