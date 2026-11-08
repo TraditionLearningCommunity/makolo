@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -234,11 +236,12 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           if (_authorized && !_denied && _accessConfirmed)
             Padding(
               padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-              child: OutlinedButton.icon(
+              child: MakoloActionButton(
+                label: 'Documents de l’Espace',
+                appearance: MakoloActionAppearance.secondary,
                 onPressed: () =>
                     context.push('/space/${widget.slug}/us/documents'),
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Documents de l’Espace'),
+                icon: Icons.folder_open_outlined,
               ),
             ),
           Wrap(
@@ -260,10 +263,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
             const Text('Vous n’avez pas accès à ces ressources.')
           else if (_error != null) ...[
             Text(_error!),
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Réessayer',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => _load(reset: true),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              icon: Icons.refresh_rounded,
             ),
           ] else if (_loading && _items.isEmpty)
             const Center(child: CircularProgressIndicator())
@@ -294,10 +298,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           if (_loading && _items.isNotEmpty)
             const Center(child: CircularProgressIndicator()),
           if (_more && !_loading)
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Voir les ressources suivantes',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => _load(reset: false),
-              icon: const Icon(Icons.expand_more_rounded),
-              label: const Text('Voir les ressources suivantes'),
+              icon: Icons.expand_more_rounded,
             ),
         ],
       ),
