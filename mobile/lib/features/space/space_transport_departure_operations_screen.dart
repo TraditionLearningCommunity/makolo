@@ -331,20 +331,22 @@ class _SpaceTransportDepartureOperationsScreenState
                         spacing: 8,
                         children: [
                           if (offset > 0)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: _posting
                                   ? null
                                   : () => _pageVehicles(
                                       offset > limit ? offset - limit : 0,
                                     ),
-                              child: const Text('Véhicules précédents'),
+                              label: 'Véhicules précédents',
                             ),
                           if (vehicles?['has_more'] == true)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: _posting
                                   ? null
                                   : () => _pageVehicles(offset + limit),
-                              child: const Text('Véhicules suivants'),
+                              label: 'Véhicules suivants',
                             ),
                         ],
                       ),
