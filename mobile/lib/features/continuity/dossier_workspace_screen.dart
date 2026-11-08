@@ -776,10 +776,21 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     ]),
   );
 
-  List<Map<String, dynamic>> _filtered(List<Map<String, dynamic>> raw) {
-    final term = _search.text.trim().toLowerCase();
+  static String _fold(String input) {
+    const accented = 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ';
+    const plain = 'aaaaaaceeeeiiiinooooouuuuyy';
+    return input.trim().toLowerCase().split('').map((letter) {
+      final index = accented.indexOf(letter);
+      return index < 0 ? letter : plain[index];
+    }).join();
+  }
+
+  List<Map<String, dynamic>> _filtered(
+      List<Map<String, dynamic>> raw, Map<String, dynamic> dossier) {
+    final term = _fold(_search.text);
+    final nextAction = _map(_map(dossier['readiness'])['next_action']);
     final next = raw.where((r) {
-      if (term.isNotEmpty && !_text(r['label']).toLowerCase().contains(term)) {
+      if (term.isNotEmpty && !_fold(_text(r['label'])).contains(term)) {
         return false;
       }
       return switch (_filter) {
@@ -788,18 +799,19 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         'blocked' => r['readiness_state'] == 'blocked',
         'fulfilled' => r['state'] == 'fulfilled',
         'undated' => _undated(r),
+        'mine' => nextAction['journey_id'] == r['id'],
         _ => true,
       };
     }).toList();
     next.sort((a, b) {
       final first = switch (_sort) {
-        _ListSort.name => _text(a['label']).toLowerCase(),
+        _ListSort.name => _fold(_text(a['label'])),
         _ListSort.state => _text(a['state']),
         _ListSort.action => a['readiness_state'] == 'action_required' ? '0' : '1',
         _ => _text(a['updated_at']),
       };
       final second = switch (_sort) {
-        _ListSort.name => _text(b['label']).toLowerCase(),
+        _ListSort.name => _fold(_text(b['label'])),
         _ListSort.state => _text(b['state']),
         _ListSort.action => b['readiness_state'] == 'action_required' ? '0' : '1',
         _ => _text(b['updated_at']),
@@ -825,7 +837,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   Widget _journeyList(Map<String, dynamic> data) {
     final all = _rows(data['visible_journeys']);
-    final items = _filtered(all);
+    final items = _filtered(all, data);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Toutes les démarches', style: Theme.of(context).textTheme.titleLarge
           ?.copyWith(fontWeight: FontWeight.w800)),
@@ -849,6 +861,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           'all': 'Toutes', 'action': 'Action requise',
           'waiting': 'En attente', 'blocked': 'Bloquées',
           'fulfilled': 'Réalisées', 'undated': 'Sans date de parcours',
+          'mine': 'Prochaine intervention personnelle',
         }, (v) => setState(() => _filter = v)),
         _popup('Tri', _sort.name, const {
           'recent': 'Modification récente', 'name': 'Nom',
