@@ -561,9 +561,10 @@ class _JourneyContent extends StatelessWidget {
     }
     final matchedForm = form;
     if (matchedForm != null) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenForm(matchedForm),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
@@ -576,51 +577,58 @@ class _JourneyContent extends StatelessWidget {
     }
     final matchedRequirement = requirement;
     if (matchedRequirement != null) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenRequirement(matchedRequirement),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
     if (presentation.resourcesLink == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenResources(link),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
     if (presentation.activity?.link == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenActivity(presentation.activity!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
     if (presentation.occurrence?.link == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenOccurrence(presentation.occurrence!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
     if (presentation.access?.link == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenAccess(presentation.access!),
-        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
 
     if (presentation.liveLink == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenLive(link),
-        child: Text(presentation.nextActionLabel ?? 'Ouvrir Makolo Live'),
+        label: presentation.nextActionLabel ?? 'Ouvrir Makolo Live',
       );
     }
 
     if (presentation.dayOfLink == link) {
-      return FilledButton(
+      return MakoloActionButton(
+        appearance: MakoloActionAppearance.primary,
         onPressed: () => onOpenDayOf(link),
-        child: Text(presentation.nextActionLabel ?? 'Ouvrir Jour J'),
+        label: presentation.nextActionLabel ?? 'Ouvrir Jour J',
       );
     }
 
