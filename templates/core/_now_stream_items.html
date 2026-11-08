@@ -32,15 +32,15 @@
       {% for action in item.direct_actions %}
       <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
         {% csrf_token %}
-        <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+        <button type="submit"{% if forloop.first %} class="mk-now-cta mk-action-button" data-variant="primary"{% endif %}>{{ action.label }}</button>
         <output aria-live="polite" role="status"></output>
       </form>
       {% endfor %}
     </div>
   {% elif item.url %}
-    <a class="mk-now-cta" href="{{ item.url }}">{{ item.action_label }}</a>
+    <a class="mk-now-cta mk-action-button" data-variant="primary" href="{{ item.url }}">{{ item.action_label }}</a>
   {% endif %}
-  <button type="button" class="mk-now-n2-trigger" data-now-focus-trigger="{{ item.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <button type="button" class="mk-now-n2-trigger mk-action-button" data-variant="secondary" data-now-focus-trigger="{{ item.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
   <template data-now-focus="{{ item.identity }}">
     {% include "core/_now_n2_focus.html" with item=item %}
   </template>
