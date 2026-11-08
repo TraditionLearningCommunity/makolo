@@ -139,7 +139,7 @@ class DiscoveryMapController {
                 'case', ['==', [Expressions.get, 'selected'], true],
                 _pinSelectedImage, _pinImage,
               ],
-              iconSize: 1,
+              iconSize: 0.5,
               iconAnchor: 'bottom',
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
@@ -158,7 +158,7 @@ class DiscoveryMapController {
                 'case', ['==', [Expressions.get, 'selected'], true],
                 _placeSelectedImage, _placeImage,
               ],
-              iconSize: 1,
+              iconSize: 0.5,
               iconAnchor: 'center',
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
@@ -279,16 +279,13 @@ class DiscoveryMapController {
   );
 
   // Rendered once per MapLibre style, never per point or camera movement.
-  // 2x icon resolution keeps labels/pins sharp without a new asset package.
+  // Draw twice the display size and use iconSize=0.5 (maplibre_gl 0.27.1).
+  // Do not use addImage(pixelRatio), introduced only in later plugin versions.
   Future<void> _registerMarkerImages() async {
-    await _controller.addImage(_pinImage, await _drawPin(false), false, 2);
-    await _controller.addImage(
-      _pinSelectedImage, await _drawPin(true), false, 2,
-    );
-    await _controller.addImage(_placeImage, await _drawPlaceBadge(false), false, 2);
-    await _controller.addImage(
-      _placeSelectedImage, await _drawPlaceBadge(true), false, 2,
-    );
+    await _controller.addImage(_pinImage, await _drawPin(false));
+    await _controller.addImage(_pinSelectedImage, await _drawPin(true));
+    await _controller.addImage(_placeImage, await _drawPlaceBadge(false));
+    await _controller.addImage(_placeSelectedImage, await _drawPlaceBadge(true));
   }
 
   static Future<Uint8List> _png(
