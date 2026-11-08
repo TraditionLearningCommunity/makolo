@@ -530,9 +530,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   const SizedBox(height: 18),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: FilledButton(
+                    child: MakoloActionButton(
+                      label: 'Appliquer',
+                      appearance: MakoloActionAppearance.primary,
                       onPressed: () => Navigator.pop(sheet),
-                      child: const Text('Appliquer'),
                     ),
                   ),
                 ],
