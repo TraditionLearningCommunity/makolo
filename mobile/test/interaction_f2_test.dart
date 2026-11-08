@@ -15,6 +15,21 @@ void main() {
     controller.clear();
     expect(controller.count, 0);
     controller.dispose();
+    final records = [
+      (label: 'Service Matadi', category: 'transport'),
+      (label: 'Atelier Kinshasa', category: 'formation'),
+      (label: 'Service Goma', category: 'transport'),
+    ];
+    expect(
+      makoloFilterLocal(
+        records,
+        query: 'service',
+        textOf: (item) => item.label,
+        category: 'transport',
+        categoryOf: (item) => item.category,
+      ).map((item) => item.label).toList(),
+      ['Service Matadi', 'Service Goma'],
+    );
     expect(
       makoloFilterLocal(
         ['Dossier Matadi', 'Projet Goma', 'Dossier Kinshasa'],
