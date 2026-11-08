@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from django.urls import reverse
 
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+from organizations.models import Organization
 from core.participant_selectors import participant_journeys
 from objectives.models import DossierJourneyLink, ProjectDossierLink
 from objectives.selectors import dossiers_for_profile, projects_for_profile
@@ -107,7 +110,18 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             "web_url": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
         })
 
+    # The create form must not infer an Espace authority from membership alone.
+    # The same server-side services revalidate the selected owner at POST time.
+    manageable = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
+    spaces = Organization.objects.order_by("name", "id")
+    if manageable is not None:
+        spaces = spaces.filter(pk__in=manageable)
+
     return {
+        "manageable_spaces": [
+            {"id": str(space.pk), "name": space.name}
+            for space in spaces[:50]
+        ] if offset == 0 else [],
         "actor": {"type": "profile", "id": str(profile.pk)},
         "items": items,
         "page": {
