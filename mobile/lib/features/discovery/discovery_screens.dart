@@ -19,6 +19,7 @@ import '../../platform/location/geo_search_gateway.dart';
 import '../../platform/location/location_capability.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 import '../../platform/maps/map_runtime_config.dart';
+import '../../platform/maps/makolo_map_view.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
 import '../continuity/conversation_context_screen.dart';
