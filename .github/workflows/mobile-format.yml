@@ -1,6 +1,11 @@
 name: Mobile Format
 
 on:
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
