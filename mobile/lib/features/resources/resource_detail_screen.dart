@@ -225,7 +225,11 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     setState(() => _archiving = true);
     try {
       await widget.repository.archiveDocument(path: path);
-      await widget.repository.refreshDetail(widget.assetId);
+      try {
+        await widget.repository.refreshDetail(widget.assetId);
+      } on Object {
+        // The archive is already confirmed by the owner.
+      }
       if (!mounted) return;
       _message('Document archivé.');
       widget.onArchived();
