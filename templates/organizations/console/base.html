@@ -16,9 +16,9 @@
         {% if space_console.limited_to_activities %}<p class="mt-3 text-sm" style="color:var(--mk-muted)">Vous pouvez gérer uniquement les activités qui vous sont attribuées dans cet Espace.</p>{% endif %}
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <a href="{% url 'organizations:console-entry' space.slug %}" class="mk-btn mk-btn-secondary">Revenir à l’expérience Space</a>
+        <a href="{% url 'organizations:console-entry' space.slug %}" class="mk-action-button" data-variant="secondary">Revenir à l’expérience Space</a>
       {% if space_console.switcher_items %}<details class="relative">
-        <summary class="mk-btn mk-btn-secondary cursor-pointer">Changer d’Espace</summary>
+        <summary class="mk-disclosure-trigger">Changer d’Espace</summary>
         <div class="absolute right-0 z-30 mt-2 w-64 max-w-[260px] rounded-2xl border p-2 shadow-2xl" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
           {% for item in space_console.switcher_items %}
             <a href="{{ item.url }}" class="block min-h-11 rounded-xl px-3 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/5"><span class="font-bold">{{ item.name }}</span>{% if item.limited %}<span class="block text-xs" style="color:var(--mk-muted)">Certaines activités uniquement</span>{% endif %}</a>
