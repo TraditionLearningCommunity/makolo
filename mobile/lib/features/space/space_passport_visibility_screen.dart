@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -192,9 +194,10 @@ class _SpacePassportVisibilityScreenState
         ? const Center(child: CircularProgressIndicator.adaptive())
         : !authorized
         ? Center(
-            child: TextButton(
+            child: MakoloActionButton(
+              label: error ?? 'Réessayer',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: load,
-              child: Text(error ?? 'Réessayer'),
             ),
           )
         : ListView(
@@ -239,11 +242,12 @@ class _SpacePassportVisibilityScreenState
                 ),
               ],
               const SizedBox(height: 24),
-              OutlinedButton.icon(
+              MakoloActionButton(
+                label: 'Modifier les informations',
+                appearance: MakoloActionAppearance.secondary,
                 onPressed: () =>
                     context.push('/space/${widget.slug}/us/settings'),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Modifier les informations'),
+                icon: Icons.edit_outlined,
               ),
             ],
           ),
