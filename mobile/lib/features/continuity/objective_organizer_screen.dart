@@ -366,7 +366,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             // Horizontal scrolling preserves their labels on small screens.
             Row(
               children: [
-          _dropdown('Type', _kind, const {
+                _dropdown('Type', _kind, const {
             'all': 'Tous les types',
             'project': 'Projets',
             'dossier': 'Dossiers',
@@ -467,10 +467,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < 470) {
-            return Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
                 ChoiceChip(
                   avatar: const Icon(Icons.grid_view_rounded, size: 17),
                   label: const Text('Cartes'),
@@ -489,7 +489,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   selected: _mode == OrganizerMode.explorer,
                   onSelected: (_) => _setMode(OrganizerMode.explorer),
                 ),
+                const SizedBox(width: 6),
               ],
+              ),
             );
           }
           return SegmentedButton<OrganizerMode>(
