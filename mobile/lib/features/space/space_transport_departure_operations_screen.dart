@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -180,13 +182,15 @@ class _SpaceTransportDepartureOperationsScreenState
           _ => 'Ce départ sera annulé.',
         }),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Retour',
+            appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Retour'),
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Confirmer',
+            appearance: MakoloActionAppearance.primary,
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Confirmer'),
           ),
         ],
       ),
@@ -270,9 +274,10 @@ class _SpaceTransportDepartureOperationsScreenState
                       ),
                     ),
                   if (data == null)
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Actualiser les autorisations',
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: _loading || _posting ? null : _read,
-                      child: const Text('Actualiser les autorisations'),
                     ),
                   if (data != null) ...[
                     Text(
@@ -371,31 +376,36 @@ class _SpaceTransportDepartureOperationsScreenState
                           labelText: 'Arrivée ISO 8601 (facultative)',
                         ),
                       ),
-                      FilledButton(
+                      MakoloActionButton(
+                        label: 'Confirmer la reprogrammation',
+                        appearance: MakoloActionAppearance.primary,
+                        busy: _posting,
                         onPressed: _posting || _requiresVerification
                             ? null
                             : () => _command('reschedule'),
-                        child: const Text('Confirmer la reprogrammation'),
                       ),
                     ],
                     if (flags?['can_cancel'] == true) ...[
                       const SizedBox(height: 20),
-                      OutlinedButton.icon(
+                      MakoloActionButton(
+                        label: 'Annuler ce départ',
+                        appearance: MakoloActionAppearance.danger,
+                        icon: Icons.cancel_outlined,
                         onPressed: _posting || _requiresVerification
                             ? null
                             : () => _command('cancel'),
-                        icon: const Icon(Icons.cancel_outlined),
-                        label: const Text('Annuler ce départ'),
                       ),
                     ],
                     const SizedBox(height: 18),
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Relire le départ',
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: _loading || _posting ? null : _read,
-                      child: const Text('Relire le départ'),
                     ),
-                    TextButton(
+                    MakoloActionButton(
+                      label: 'Retour au départ',
+                      appearance: MakoloActionAppearance.quiet,
                       onPressed: () => context.pop(),
-                      child: const Text('Retour au départ'),
                     ),
                   ],
                 ],
