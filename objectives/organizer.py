@@ -47,8 +47,8 @@ def build_organizer_page(profile, *, limit=50, offset=0):
     dossier_ids = [obj.pk for obj in dossiers]
     journey_ids = [obj.pk for obj in journeys]
     # Keep permission scope as SQL subqueries instead of materializing all IDs.
-    allowed_project_ids = visible_projects.values_list("pk", flat=True)
-    allowed_dossier_ids = visible_dossiers.values_list("pk", flat=True)
+    allowed_project_ids = visible_projects.order_by().values_list("pk", flat=True)
+    allowed_dossier_ids = visible_dossiers.order_by().values_list("pk", flat=True)
 
     project_parent = {}
     for relation in ProjectDossierLink.objects.filter(
