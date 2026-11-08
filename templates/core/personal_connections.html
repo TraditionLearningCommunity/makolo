@@ -1,5 +1,7 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Connexions | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/personal-connections-layout.css' %}">{% endblock %}
 {% block content %}
 {% include 'interoperability/connection_experience.html' %}
 {% endblock %}
