@@ -258,6 +258,18 @@
         const second = b.readiness_state === 'action_required' ? 0 : 1;
         return first - second;
       }
+      const fields = {
+        created: 'created_at', started: 'started_at',
+        fulfilled: 'fulfilled_at', expiry: 'expires_at',
+      };
+      if (fields[state.sort]) {
+        const first = a[fields[state.sort]] || '';
+        const second = b[fields[state.sort]] || '';
+        if (!first && second) return 1;
+        if (!second && first) return -1;
+        return state.sort === 'created' || state.sort === 'fulfilled'
+          ? second.localeCompare(first) : first.localeCompare(second);
+      }
       return sortDate(b).localeCompare(sortDate(a));
     });
   }
@@ -288,6 +300,8 @@
     append(controls, dropdown('Trier', [
       ['recent', 'Modification récente'], ['name', 'Nom A–Z'],
       ['status', 'État'], ['action', 'Action utile'],
+      ['created', 'Date de création'], ['started', 'Date de début'],
+      ['fulfilled', 'Date de réalisation'], ['expiry', 'Expiration indiquée'],
     ], state.sort, (value) => { state.sort = value; }));
     append(stage, controls);
     const list = el('div', 'mk-dossier__journeys');
