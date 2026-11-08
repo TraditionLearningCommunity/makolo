@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../navigation/profile_portrait_store.dart';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:flutter/services.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -1017,10 +1018,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _birthDatePicker(),
                 _genderSelector(),
                 _field('À propos', _bio, lines: 3),
-                OutlinedButton.icon(
+                MakoloActionButton(
+                  label: 'Modifier la photo',
                   onPressed: _saving ? null : _changeAvatar,
-                  icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Modifier la photo'),
+                  appearance: MakoloActionAppearance.secondary,
+                  icon: Icons.photo_camera_outlined,
                 ),
                 if (_fieldErrors['avatar'] != null)
                   Padding(
