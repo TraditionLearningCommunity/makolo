@@ -21,7 +21,7 @@
       {% endif %}
       {% if me_projection.identity.bio %}<p class="mk-me-n1-bio">{{ me_projection.identity.bio }}</p>{% endif %}
     </div>
-    <a class="mk-me-n1-edit" href="{% url 'account:profile' %}">Modifier mon passeport <span aria-hidden="true">↗</span></a>
+    <a class="mk-me-n1-edit mk-action-button" data-variant="ghost" href="{% url 'account:profile' %}">Modifier mon passeport <span aria-hidden="true">↗</span></a>
   </header>
 
   <div class="mk-me-grid mk-me-n1-grid">
@@ -57,7 +57,7 @@
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◇</span>
         <h2 id="me-considerations"><a href="{% url 'core:participant-me-choices' %}">Ce qui compte pour moi</a></h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'core:participant-me-choices' %}" aria-label="Gérer ce qui compte pour moi">Gérer</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="ghost" href="{% url 'core:participant-me-choices' %}" aria-label="Gérer ce qui compte pour moi">Gérer</a>
       </div>
       <div class="mk-me-n1-panel mk-me-n1-families">
         <div class="mk-me-n1-direct-links">
@@ -197,7 +197,7 @@
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">▤</span>
         <h2 id="me-resources">Mes ressources</h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'personal_assets:list' %}">Voir tout</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="ghost" href="{% url 'personal_assets:list' %}">Voir tout</a>
       </div>
       <div class="mk-me-n1-panel">
         {% if me_projection.resources.documents.items %}
