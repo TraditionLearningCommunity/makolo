@@ -6,6 +6,8 @@ locally; it must never infer a hidden parent from an inaccessible relation.
 """
 from __future__ import annotations
 
+from django.urls import reverse
+
 from core.participant_selectors import participant_journeys
 from objectives.models import DossierJourneyLink, ProjectDossierLink
 from objectives.selectors import dossiers_for_profile, projects_for_profile
@@ -72,7 +74,7 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             "updated_at": _iso(project.updated_at),
             "starts_on": _iso(project.starts_on),
             "ends_on": _iso(project.ends_on),
-            "web_url": f"/objectives/projects/{project.pk}/",
+            "web_url": reverse("objectives:project-detail", kwargs={"project_id": project.pk}),
         })
     for dossier in dossiers:
         space = dossier.owning_space
@@ -89,7 +91,7 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             "created_at": _iso(dossier.created_at),
             "updated_at": _iso(dossier.updated_at),
             "deadline": _iso(dossier.deadline),
-            "web_url": f"/objectives/{dossier.pk}/",
+            "web_url": reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
         })
     for journey in journeys:
         items.append({
@@ -102,7 +104,7 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             "started_at": _iso(journey.started_at),
             "fulfilled_at": _iso(journey.fulfilled_at),
             "expires_at": _iso(journey.expires_at),
-            "web_url": f"/participant/journeys/{journey.pk}/",
+            "web_url": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
         })
 
     return {
