@@ -25,6 +25,7 @@ from objectives.services import (
     ALLOWED_LIFECYCLE_TRANSITIONS, can_manage_dossier,
     can_manage_dossier_authority, can_manage_project,
     can_use_journey_for_dossier, dependency_is_satisfied,
+    PROJECT_LINKABLE_LIFECYCLES,
 )
 
 
@@ -143,23 +144,20 @@ def dossier_workspace(viewer, dossier):
         )
         candidates["journeys"] = choices
         candidates["journeys_partial"] = partial
-        responsible, partial = _choices(
-            collaboration_candidates_for_dossier(dossier),
-            label=_person,
-        )
-        # Assignments are authorized by the domain service, not membership.
+        people = list(collaboration_candidates_for_dossier(dossier)[:51])
+        # An Assignment does not grant Dossier authority; the service verifies it.
         candidates["assignees"] = [
-            item for item in responsible
-            if can_manage_dossier(
-                next(profile for profile in collaboration_candidates_for_dossier(dossier)
-                     if str(profile.pk) == item["id"]), dossier
-            )
+            {"id": str(person.pk), "label": _person(person)}
+            for person in people[:50] if can_manage_dossier(person, dossier)
         ]
-        candidates["assignees_partial"] = partial
+        candidates["assignees_partial"] = len(people) > 50
     if project_manage:
         # Only Projects the viewer can manage are valid destinations.
-        eligible = list(projects_for_profile(viewer).select_related(
-            "owning_space").order_by("title", "pk")[:101])
+        eligible = list(projects_for_profile(viewer).filter(
+            lifecycle__in=PROJECT_LINKABLE_LIFECYCLES,
+        ).exclude(
+            pk=current_project.pk if current_project is not None else None,
+        ).select_related("owning_space").order_by("title", "pk")[:101])
         manageable = [
             item for item in eligible if can_manage_project(viewer, item)
         ]
