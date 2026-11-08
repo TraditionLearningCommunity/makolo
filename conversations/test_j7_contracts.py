@@ -299,6 +299,37 @@ class ConversationJ7ContractsTests(TestCase):
         self.assertEqual(invitation.status, ConversationInvitationStatus.ACCEPTED)
         self.assertEqual(self.client.get(detail_url).status_code, 200)
 
+    def test_detail_viewer_caches_preserve_point_selection(self):
+        point = self._question(client_reference="j7-detail-cache-selection")
+        from .presentation import now_points_for_profile, other_visible_points_for_profile
+
+        baseline = now_points_for_profile(self.member, self.conversation, limit=20)
+        cached = now_points_for_profile(
+            self.member, self.conversation, limit=20,
+            visibility_cache={}, audience_cache={}, history_cache={},
+            attention_caches=({}, {}, {}),
+        )
+        self.assertEqual(
+            [(row["point"].pk, row["reason"], row["section"]) for row in cached],
+            [(row["point"].pk, row["reason"], row["section"]) for row in baseline],
+        )
+        self.assertIn(point.pk, [row["point"].pk for row in cached])
+
+        baseline_other = other_visible_points_for_profile(
+            self.member, self.conversation, limit=20,
+        )
+        cached_other = other_visible_points_for_profile(
+            self.member, self.conversation, limit=20,
+            visibility_cache={}, audience_cache={}, history_cache={},
+        )
+        self.assertEqual(
+            [row.pk for row in cached_other], [row.pk for row in baseline_other],
+        )
+        self.assertEqual(
+            now_points_for_profile(self.outsider, self.conversation),
+            [],
+        )
+
     def test_attention_presence_tracks_real_point_attention_not_unread_activity(self):
         point = self._question(client_reference="j7-presence-question")
         self.client.force_login(self.member)
