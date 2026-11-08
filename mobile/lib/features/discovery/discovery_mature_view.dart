@@ -563,6 +563,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
     required this.onClose,
     required this.onOpen,
     required this.onSave,
+    this.onDirections,
     this.shareApi,
     this.shareAuthenticated = false,
     this.baseUri,
@@ -575,6 +576,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onOpen;
   final VoidCallback? onSave;
+  final VoidCallback? onDirections;
   final MakoloApiClient? shareApi;
   final bool shareAuthenticated;
   final Uri? baseUri;
@@ -656,6 +658,16 @@ class _DiscoveryMapPreview extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
+            if (onDirections != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const Key('discover-map-directions'),
+                  onPressed: onDirections,
+                  icon: const Icon(Icons.directions_outlined),
+                  label: const Text('Itinéraire'),
+                ),
+              ),
             const SizedBox(height: MakoloSpacing.xs),
             const Divider(height: 1),
             Row(
@@ -717,6 +729,7 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.onOpen,
     this.location,
     this.onSave,
+    this.onDirections,
     this.resolveItem,
     this.baseUri,
     this.shareApi,
@@ -745,6 +758,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryOpenItem onOpen;
   final LocationCapability? location;
   final DiscoverySaveItem? onSave;
+  /// Only the selected public spatial fact is passed to navigation.
+  final ValueChanged<DiscoverySpatialAnchor>? onDirections;
   final DiscoveryResolveItem? resolveItem;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
@@ -1723,6 +1738,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
                         saving: _savingSelected,
                         onClose: _clearSelection,
                         onOpen: () => widget.onOpen(selected),
+                        onDirections: selectedPoint == null ||
+                                widget.onDirections == null
+                            ? null
+                            : () => widget.onDirections!(selectedPoint!),
                         onSave: widget.onSave == null
                             ? null
                             : () => unawaited(_saveSelected()),
