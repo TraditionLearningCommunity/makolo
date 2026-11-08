@@ -250,8 +250,7 @@ class OngoingContinuityPresentation {
       outcome: Map.unmodifiable(_map(item['outcome'])),
       rawState: rawState,
       composition: List.unmodifiable([
-        for (final fact in _maps(item['composition']))
-          ?_text(fact['label']),
+        for (final fact in _maps(item['composition'])) ?_text(fact['label']),
       ]),
       kindBadge: OngoingContextAffordance.fromMap(n1['kind_badge']),
       primaryAction: OngoingContextAffordance.fromMap(n1['primary_action']),
