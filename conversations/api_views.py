@@ -359,7 +359,13 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
     def get(self, request, pk):
         conversation = _visible_conversation_or_404(request.user, pk)
         limit = _bounded_limit(request)
-        rows = now_points_for_profile(request.user, conversation, limit=limit)
+        visibility_cache, audience_cache, history_cache = {}, {}, {}
+        attention_caches = ({}, {}, {})
+        rows = now_points_for_profile(
+            request.user, conversation, limit=limit,
+            visibility_cache=visibility_cache, audience_cache=audience_cache,
+            history_cache=history_cache, attention_caches=attention_caches,
+        )
         active_ids = {item["point"].pk for item in rows}
         essential = [
             point for point in essential_points_for_profile(request.user, conversation, limit=limit)
@@ -368,6 +374,8 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
         seen = active_ids | {point.pk for point in essential}
         elsewhere = other_visible_points_for_profile(
             request.user, conversation, excluded_ids=seen, limit=limit,
+            visibility_cache=visibility_cache, audience_cache=audience_cache,
+            history_cache=history_cache,
         )
         seen.update(point.pk for point in elsewhere)
         focused_point = None
