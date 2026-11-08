@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -739,7 +740,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            OutlinedButton(
+                            MakoloActionButton(
                               onPressed: () async {
                                 final date = await showDatePicker(
                                   context: context,
@@ -751,13 +752,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _startDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(
-                                _startDate == null
-                                    ? 'Depuis'
-                                    : 'Depuis ${_dateString(_startDate!)}',
-                              ),
+                              label: _startDate == null
+                                  ? 'Depuis'
+                                  : 'Depuis ${_dateString(_startDate!)}',
+                              appearance: MakoloActionAppearance.secondary,
                             ),
-                            OutlinedButton(
+                            MakoloActionButton(
                               onPressed: () async {
                                 final date = await showDatePicker(
                                   context: context,
@@ -769,14 +769,13 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _endDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(
-                                _endDate == null
-                                    ? 'Jusqu’au'
-                                    : 'Jusqu’au ${_dateString(_endDate!)}',
-                              ),
+                              label: _endDate == null
+                                  ? 'Jusqu’au'
+                                  : 'Jusqu’au ${_dateString(_endDate!)}',
+                              appearance: MakoloActionAppearance.secondary,
                             ),
                             if (_startDate != null || _endDate != null)
-                              TextButton(
+                              MakoloActionButton(
                                 onPressed: () {
                                   setState(() {
                                     _startDate = null;
@@ -784,7 +783,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                   });
                                   unawaited(_submit());
                                 },
-                                child: const Text('Effacer la période'),
+                                label: 'Effacer la période',
+                                appearance: MakoloActionAppearance.quiet,
                               ),
                           ],
                         ),
