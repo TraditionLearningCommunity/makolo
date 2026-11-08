@@ -6,12 +6,13 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierJourneyLinkForm, DossierLifecycleForm, DossierProjectForm, ProjectCreateForm, ProjectDossierLinkForm, ProjectLifecycleForm, ProjectEditForm, ProjectChildDossierForm
+from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierEditForm, DossierJourneyLinkForm, DossierLifecycleForm, DossierProjectForm, ProjectCreateForm, ProjectDossierLinkForm, ProjectLifecycleForm, ProjectEditForm, ProjectChildDossierForm
 from .models import DossierAssignment, DossierJourneyDependencyState
 from .readiness import resolve_dossier_readiness
+from .dossier_workspace import dossier_workspace
 from .project_workspace import project_workspace
 from .selectors import active_assignments_for_dossier, active_project_for_dossier, current_dossier_authority_mandates, dossier_for_profile, dossiers_for_profile, project_for_profile, projects_for_profile, visible_dependencies_for_profile, visible_dossiers_for_project, visible_linked_journeys, visible_project_for_dossier
-from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, set_project_lifecycle, update_project, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
+from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, set_project_lifecycle, update_project, update_dossier, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
 
 
 login_required = django_login_required(login_url="core:login")
@@ -91,24 +92,46 @@ def project_detail(request, project_id):
 
 @login_required
 def dossier_detail(request, dossier_id):
-    dossier = _visible_dossier_or_404(request.user, dossier_id); can_manage = can_manage_dossier(request.user, dossier); can_manage_authority = can_manage_dossier_authority(request.user, dossier)
-    links = visible_linked_journeys(request.user, dossier); dependencies = list(visible_dependencies_for_profile(request.user, dossier))
-    for dependency in dependencies: dependency.is_satisfied = dependency_is_satisfied(dependency)
-    visible_project = visible_project_for_dossier(request.user, dossier); current_project = active_project_for_dossier(dossier) if can_manage else None
-    can_manage_project_context = can_manage and (current_project is None or can_manage_project(request.user, current_project))
+    dossier = _visible_dossier_or_404(request.user, dossier_id)
+    can_manage = can_manage_dossier(request.user, dossier)
+    can_manage_authority = can_manage_dossier_authority(request.user, dossier)
+    current_project = active_project_for_dossier(dossier) if can_manage else None
+    can_manage_project_context = can_manage and (
+        current_project is None or can_manage_project(request.user, current_project)
+    )
+    workspace = dossier_workspace(request.user, dossier)
     return render(request, "objectives/dossier_detail.html", {
-        "dossier": dossier, "links": links, "dependencies": dependencies, "assignments": active_assignments_for_dossier(dossier),
-        "collective_readiness": resolve_dossier_readiness(dossier, viewer=request.user), "project": visible_project,
-        "authority_mandates": current_dossier_authority_mandates(dossier) if can_manage_authority else None,
-        "dependency_active_state": DossierJourneyDependencyState.ACTIVE, "dependency_waived_state": DossierJourneyDependencyState.WAIVED,
-        "can_manage": can_manage, "can_manage_authority": can_manage_authority, "can_manage_project_context": can_manage_project_context,
-        "project_form": DossierProjectForm(actor=request.user, current_project=current_project) if can_manage_project_context else None,
-        "link_form": DossierJourneyLinkForm(actor=request.user, dossier=dossier) if can_manage else None,
-        "dependency_form": DossierDependencyForm(actor=request.user, dossier=dossier) if can_manage else None,
+        "dossier": dossier,
+        "workspace": workspace,
+        "project": visible_project_for_dossier(request.user, dossier),
+        "can_manage": can_manage,
+        "can_manage_authority": can_manage_authority,
+        "can_manage_project_context": can_manage_project_context,
+        "project_form": DossierProjectForm(
+            actor=request.user, current_project=current_project
+        ) if can_manage_project_context else None,
+        "edit_form": DossierEditForm(dossier=dossier) if can_manage else None,
+        "link_form": DossierJourneyLinkForm(
+            actor=request.user, dossier=dossier
+        ) if can_manage else None,
+        "dependency_form": DossierDependencyForm(
+            actor=request.user, dossier=dossier
+        ) if can_manage else None,
         "waiver_form": DossierDependencyWaiverForm() if can_manage else None,
-        "lifecycle_form": DossierLifecycleForm(dossier=dossier) if can_manage else None,
-        "assignment_form": DossierAssignmentForm(dossier=dossier) if can_manage else None,
-        "authority_form": DossierAuthorityGrantForm(dossier=dossier) if can_manage_authority else None,
+        "lifecycle_form": DossierLifecycleForm(
+            dossier=dossier
+        ) if can_manage else None,
+        "assignment_form": DossierAssignmentForm(
+            dossier=dossier
+        ) if can_manage else None,
+        "authority_form": DossierAuthorityGrantForm(
+            dossier=dossier
+        ) if can_manage_authority else None,
+        "assignments": active_assignments_for_dossier(dossier)
+                       if can_manage else active_assignments_for_dossier(dossier).filter(
+                           assignee=request.user),
+        "authority_mandates": current_dossier_authority_mandates(dossier)
+                              if can_manage_authority else None,
     })
 
 
@@ -217,6 +240,26 @@ def project_lifecycle(request, project_id):
         try: set_project_lifecycle(actor=request.user, project=project, lifecycle=form.cleaned_data["lifecycle"])
         except ValidationError as exc: messages.error(request, exc.messages[0])
     return redirect("objectives:project-detail", project_id=project.pk)
+
+
+@login_required
+@require_POST
+def dossier_edit(request, dossier_id):
+    dossier = _visible_dossier_or_404(request.user, dossier_id)
+    if not can_manage_dossier(request.user, dossier):
+        raise Http404
+    form = DossierEditForm(request.POST, dossier=dossier)
+    if form.is_valid():
+        try:
+            update_dossier(
+                actor=request.user, dossier=dossier, **form.cleaned_data,
+            )
+            messages.success(request, "Informations du Dossier mises à jour.")
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+    else:
+        messages.error(request, "Vérifiez le titre et l’échéance du Dossier.")
+    return redirect("objectives:dossier-detail", dossier_id=dossier.pk)
 
 
 @login_required
