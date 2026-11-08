@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../sync/freshness.dart';
@@ -239,9 +240,10 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
               }
               if (!_hasFirst && _failed) {
                 return Center(
-                  child: TextButton(
+                  child: MakoloActionButton(
+                    label: 'Réessayer',
                     onPressed: _retry,
-                    child: const Text('Réessayer'),
+                    appearance: MakoloActionAppearance.quiet,
                   ),
                 );
               }
@@ -313,9 +315,10 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
                       ),
                     if (_failed && _hasFirst)
                       Center(
-                        child: TextButton(
+                        child: MakoloActionButton(
+                          label: 'Réessayer',
                           onPressed: _retry,
-                          child: const Text('Réessayer'),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                       ),
                     if (_hasFirst &&
