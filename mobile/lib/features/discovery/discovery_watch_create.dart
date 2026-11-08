@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import 'discovery_repository.dart';
 
@@ -289,9 +290,10 @@ class _CreateDiscoveryWatchDialogState
         ),
       ),
       actions: [
-        TextButton(
+        MakoloActionButton(
+          label: 'Annuler',
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Annuler'),
+          appearance: MakoloActionAppearance.quiet,
         ),
         FilledButton(
           key: const Key('discover-watch-confirm'),
