@@ -49,6 +49,47 @@ class ProjectCreateForm(forms.Form):
         return cleaned
 
 
+
+class ProjectEditForm(forms.Form):
+    title = forms.CharField(label="Nom du Projet", max_length=220)
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+    starts_on = forms.DateField(
+        label="Début de l’horizon", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    ends_on = forms.DateField(
+        label="Fin de l’horizon", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    def __init__(self, *args, project, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key in ("title", "description", "starts_on", "ends_on"):
+            self.fields[key].initial = getattr(project, key)
+
+    def clean(self):
+        cleaned = super().clean()
+        if (cleaned.get("starts_on") and cleaned.get("ends_on") and
+                cleaned["starts_on"] > cleaned["ends_on"]):
+            self.add_error("ends_on", "La fin ne peut pas précéder le début.")
+        return cleaned
+
+
+class ProjectChildDossierForm(forms.Form):
+    title = forms.CharField(label="Objectif du Dossier", max_length=220)
+    description = forms.CharField(
+        label="Contexte", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+
 class ProjectDossierLinkForm(forms.Form):
     dossier = forms.ModelChoiceField(label="Dossier", queryset=User.objects.none())
 
