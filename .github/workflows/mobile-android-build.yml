@@ -15,11 +15,10 @@ on:
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
-# Only PR/manual builds: avoid duplicate push + PR builds for each commit.
-# Preserve an in-flight APK build while Github retains just the newest pending run.
+# The latest PR head owns the APK. Cancel superseded builds to save runners.
 concurrency:
   group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
