@@ -73,4 +73,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add mobile/lib mobile/test
           git commit -m "Format mobile Dart sources"
+          # Workflow and source changes can land after checkout. Rebase the
+          # generated formatting commit; never force-push a protected PR.
+          git fetch origin "$TARGET_REF"
+          git rebase "origin/$TARGET_REF"
           git push origin "HEAD:$TARGET_REF"
