@@ -224,7 +224,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
             ),
-            // Keep existing journeys visible without an additional banner.
+            // Keep previously acquired continuities visible without an extra banner.
             recoverableErrorMessage: null,
             preservedMessage: '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
@@ -815,18 +815,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
   Widget build(BuildContext context) {
     final possibility = widget.item.possibility;
     final route = _OngoingN1Details.routeFor(widget.item);
-    final label = switch (widget.item.kind) {
-      'waitlist' when widget.item.capabilities.contains('accept') => 'Répondre',
-      'transfer' when widget.item.capabilities.contains('accept') => 'Répondre',
-      'access' => 'Voir mon accès',
-      'dossier' => 'Ouvrir le dossier',
-      'project' => 'Voir le projet',
-      'waitlist' => 'Suivre ma liste',
-      'payment' => 'Suivre le paiement',
-      'transfer' => 'Voir le transfert',
-      'funding' => 'Gérer',
-      _ => 'Voir le détail',
-    };
+    final label = _ongoingPrimaryLabel(widget.item);
     final canShare = possibility?.canShare == true && widget.api != null;
     final sharedItem = canShare
         ? DiscoveryItemPresentation(
@@ -885,7 +874,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
                     key: const Key('ongoing-n1-primary'),
                     onPressed: () => context.push(route),
                     tooltip: label,
-                    icon: const Icon(Icons.play_circle_outline_rounded),
+                    icon: Icon(_ongoingPrimaryIcon(widget.item)),
                   ),
                 ),
               if (sharedItem != null)
@@ -1116,27 +1105,72 @@ void _openOngoingProtectedMedia(
 
 /// G06 mobile: the same open, vertical reading rhythm as Discover.
 /// A recognition image gets the available width; text never sits beside it.
-IconData? _ongoingKindIcon(String kind) => switch (kind) {
-  'journey' => Icons.route_outlined,
-  'dossier' => Icons.folder_open_outlined,
-  'project' => Icons.folder_special_outlined,
+// A single icon vocabulary is shared with the additive server N1 contract.
+// Unknown or old cached tokens fall back to the canonical owner kind.
+IconData? _ongoingSemanticIcon(String? token) => switch (token) {
+  'route' => Icons.route_outlined,
+  'folder-open' => Icons.folder_open_outlined,
+  'folder-kanban' => Icons.folder_special_outlined,
+  'ticket' => Icons.confirmation_number_outlined,
+  'hourglass' => Icons.hourglass_empty_rounded,
+  'arrow-left-right' => Icons.swap_horiz_rounded,
+  'credit-card' => Icons.credit_card_outlined,
+  'hand-coins' => Icons.volunteer_activism_outlined,
+  'mail-check' => Icons.mark_email_read_outlined,
   _ => null,
 };
+
+IconData? _ongoingKindIcon(String kind) => _ongoingSemanticIcon(
+  switch (kind) {
+    'journey' => 'route',
+    'dossier' => 'folder-open',
+    'project' => 'folder-kanban',
+    'access' => 'ticket',
+    'waitlist' => 'hourglass',
+    'transfer' => 'arrow-left-right',
+    'payment' => 'credit-card',
+    'funding' => 'hand-coins',
+    _ => null,
+  },
+);
 
 String? _ongoingKindLabel(String kind) => switch (kind) {
   'journey' => 'Démarche',
   'dossier' => 'Dossier',
   'project' => 'Projet',
+  'access' => 'Accès',
+  'waitlist' => 'Liste d’attente',
+  'transfer' => 'Transfert',
+  'payment' => 'Paiement',
+  'funding' => 'Financement',
   _ => null,
 };
 
 String _ongoingOpenLabel(String kind) => switch (kind) {
-  'journey' => 'Ouvrir la démarche',
+  'journey' => 'Voir la démarche',
   'dossier' => 'Ouvrir le dossier',
-  'project' => 'Ouvrir le projet',
+  'project' => 'Explorer le projet',
   'access' => 'Voir mon accès',
+  'waitlist' => 'Suivre ma liste d’attente',
+  'transfer' => 'Suivre le transfert',
+  'payment' => 'Suivre le paiement',
+  'funding' => 'Voir le financement',
   _ => 'Ouvrir les détails',
 };
+
+String _ongoingPrimaryLabel(OngoingContinuityPresentation item) =>
+    item.primaryAction?.label ?? _ongoingOpenLabel(item.kind);
+
+IconData _ongoingPrimaryIcon(OngoingContinuityPresentation item) =>
+    _ongoingSemanticIcon(item.primaryAction?.icon) ??
+    _ongoingKindIcon(item.kind) ??
+    Icons.arrow_forward_rounded;
+
+IconData? _ongoingBadgeIcon(OngoingContinuityPresentation item) =>
+    _ongoingSemanticIcon(item.kindBadge?.icon) ?? _ongoingKindIcon(item.kind);
+
+String? _ongoingBadgeLabel(OngoingContinuityPresentation item) =>
+    item.kindBadge?.label ?? _ongoingKindLabel(item.kind);
 
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
@@ -1256,14 +1290,14 @@ class _OngoingRow extends StatelessWidget {
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
                   ],
-                  if (_ongoingKindIcon(item.kind) case final kindIcon?) ...[
+                  if (_ongoingBadgeIcon(item) case final kindIcon?) ...[
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(kindIcon, size: 17, color: colors.brand),
                         const SizedBox(width: MakoloSpacing.xs),
                         Text(
-                          _ongoingKindLabel(item.kind)!,
+                          _ongoingBadgeLabel(item) ?? '',
                           style: textTheme.labelMedium?.copyWith(
                             color: colors.brand,
                             fontWeight: FontWeight.w700,
@@ -1389,7 +1423,7 @@ class _OngoingFocusPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) => const MakoloFocusPane(
     child: Padding(
       padding: EdgeInsets.all(MakoloSpacing.lg),
-      child: Text('Choisissez une démarche.'),
+      child: Text('Sélectionnez un élément pour comprendre sa continuité.'),
     ),
   );
 }
@@ -1674,14 +1708,14 @@ class _OngoingFocus extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('En cours'),
               ),
-            if (_ongoingKindIcon(item.kind) case final kindIcon?)
+            if (_ongoingBadgeIcon(item) case final kindIcon?)
               Padding(
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: Row(
                   children: [
                     Icon(kindIcon, color: Theme.of(context).colorScheme.primary, size: 18),
                     const SizedBox(width: MakoloSpacing.xs),
-                    Text(_ongoingKindLabel(item.kind)!),
+                    Text(_ongoingBadgeLabel(item) ?? ''),
                   ],
                 ),
               ),
@@ -1722,9 +1756,10 @@ class _OngoingFocus extends StatelessWidget {
             _resources(),
             if (nativeOwnerRoute != null) ...[
               const SizedBox(height: MakoloSpacing.xl),
-              FilledButton(
+              FilledButton.icon(
                 onPressed: () => context.push(nativeOwnerRoute),
-                child: Text(_ongoingOpenLabel(item.kind)),
+                icon: Icon(_ongoingPrimaryIcon(item)),
+                label: Text(_ongoingPrimaryLabel(item)),
               ),
             ],
             if (metadata.isNotEmpty)
