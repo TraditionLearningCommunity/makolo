@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from django.test import TestCase
 from django.urls import reverse
 
@@ -329,6 +332,33 @@ class ConversationJ7ContractsTests(TestCase):
             now_points_for_profile(self.outsider, self.conversation),
             [],
         )
+
+    def test_future_question_does_not_count_as_action_before_opening(self):
+        from .attention import point_attention_reason
+
+        future_point = create_point(
+            actor=self.owner,
+            conversation=self.conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Question programmée",
+            visibility_audience=self.audience,
+            response_audience=self.audience,
+            expected_action_audience=self.audience,
+            opens_at=timezone.now() + timedelta(days=1),
+        )
+        self.assertIsNone(point_attention_reason(self.member, future_point))
+        self.client.force_login(self.member)
+        presence = self.client.get(reverse("conversations-api:attention-presence"))
+        self.assertEqual(presence.status_code, 200)
+        self.assertEqual(presence.json(), {"has_attention": False})
+        listing = self.client.get(reverse("conversations-api:list"))
+        self.assertEqual(listing.status_code, 200)
+        row = next(
+            item for item in listing.json()["results"]
+            if item["id"] == str(self.conversation.pk)
+        )
+        self.assertEqual(row["attention_count"], 0)
 
     def test_attention_presence_tracks_real_point_attention_not_unread_activity(self):
         point = self._question(client_reference="j7-presence-question")
