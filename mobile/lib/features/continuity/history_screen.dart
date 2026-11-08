@@ -180,15 +180,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (_preparingOffline) return;
     setState(() {
       _preparingOffline = true;
-      _preparedPages = 0;
       _preparationMessage = null;
     });
     try {
       final complete = await widget.repository.prepareHistoryOffline(
         shouldContinue: () => mounted,
-        onProgress: (known) {
-          if (mounted) setState(() => _preparedPages = known);
-        },
       );
       if (!mounted) return;
       setState(
