@@ -32,6 +32,16 @@ def _visible_dependency_or_404(profile, dossier, dependency_id):
 
 
 @login_required
+def organizer(request):
+    """One personal organizer; browser interactions operate on the acquired page."""
+    from .organizer import build_organizer_page
+
+    return render(request, "objectives/organizer.html", {
+        "organizer_data": build_organizer_page(request.user, limit=50, offset=0),
+    })
+
+
+@login_required
 def dossier_list(request): return render(request, "objectives/dossier_list.html", {"dossiers": dossiers_for_profile(request.user)})
 
 
