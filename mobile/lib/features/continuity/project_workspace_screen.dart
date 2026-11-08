@@ -297,9 +297,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       },
                     ),
                     if (deadline != null)
-                      TextButton(
+                      MakoloActionButton(
+                        label: 'Effacer l’échéance',
+                        appearance: MakoloActionAppearance.quiet,
                         onPressed: () => update(() => deadline = null),
-                        child: const Text('Effacer l’échéance'),
                       ),
                   ],
                 ),
@@ -307,9 +308,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
-              child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () {
@@ -549,9 +551,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
-              child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () {
@@ -757,10 +760,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             ),
             if (_has(project, 'project.edit'))
-              IconButton(
+              MakoloIconActionButton(
                 tooltip: 'Modifier ce Projet',
                 onPressed: _enabled ? () => _edit(project) : null,
-                icon: const Icon(Icons.edit_outlined),
+                icon: Icons.edit_outlined,
               ),
           ],
         ),
@@ -1344,10 +1347,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     appBar: AppBar(
       title: const Text('Projet'),
       actions: [
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Actualiser',
           onPressed: _refreshing ? null : _refresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icons.refresh_rounded,
         ),
       ],
     ),
