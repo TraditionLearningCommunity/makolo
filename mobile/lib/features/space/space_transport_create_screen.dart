@@ -727,7 +727,14 @@ class _SpaceTransportCreateScreenState
                           ),
                         ],
                         const SizedBox(height: 20),
-                        FilledButton(
+                        MakoloActionButton(
+                          label: _submitting
+                              ? 'Enregistrement…'
+                              : _kind == 'departure' && !_publish
+                              ? 'Créer en brouillon'
+                              : 'Confirmer la création',
+                          appearance: MakoloActionAppearance.primary,
+                          busy: _submitting,
                           onPressed:
                               _attempted ||
                                   _submitting ||
@@ -735,13 +742,6 @@ class _SpaceTransportCreateScreenState
                                   (_kind == 'departure' && !_canCreateDeparture)
                               ? null
                               : _submit,
-                          child: Text(
-                            _submitting
-                                ? 'Enregistrement…'
-                                : _kind == 'departure' && !_publish
-                                ? 'Créer en brouillon'
-                                : 'Confirmer la création',
-                          ),
                         ),
                       ],
                     ),
