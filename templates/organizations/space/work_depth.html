@@ -78,7 +78,7 @@
             </span>
           </span>
           {% if occurrence.openable %}
-          <span class="mk-btn mk-btn-secondary">Ouvrir</span>
+          <span class="mk-action-hint">Ouvrir</span>
           {% else %}
           <span class="text-xs" style="color:var(--mk-muted)">Date passée · état à actualiser</span>
           {% endif %}
@@ -87,8 +87,8 @@
       {% endfor %}
     </ol>
     <nav class="flex flex-wrap items-center justify-between gap-3" aria-label="Pages des réalisations">
-      <div>{% if work_depth.previous_page_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_depth.previous_page_url }}">Précédentes</a>{% endif %}</div>
-      <div>{% if work_depth.next_page_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_depth.next_page_url }}">Voir les suivantes</a>{% endif %}</div>
+      <div>{% if work_depth.previous_page_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_depth.previous_page_url }}">Précédentes</a>{% endif %}</div>
+      <div>{% if work_depth.next_page_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_depth.next_page_url }}">Voir les suivantes</a>{% endif %}</div>
     </nav>
     {% else %}
     <div class="mk-panel p-5 sm:p-6">
@@ -106,14 +106,14 @@
     </div>
     <div class="flex flex-wrap gap-2">
       {% for action in work_depth.actions %}
-      <a href="{{ action.url }}" class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">{{ action.label }}</a>
+      <a href="{{ action.url }}" class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}">{{ action.label }}</a>
       {% endfor %}
     </div>
   </section>
   {% endif %}
 
   <footer class="pb-4">
-    <a class="mk-btn mk-btn-secondary" href="{{ work_depth.back_url }}">{{ work_depth.back_label }}</a>
+    <a class="mk-action-button" data-variant="secondary" href="{{ work_depth.back_url }}">{{ work_depth.back_label }}</a>
   </footer>
 </main>
 {% endblock %}
