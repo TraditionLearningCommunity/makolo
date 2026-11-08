@@ -22,14 +22,6 @@ class ExternalDirections {
     });
   }
 
-  static Uri waze(double latitude, double longitude) {
-    _requireValid(latitude, longitude);
-    return Uri.https('waze.com', '/ul', {
-      'll': '${latitude.toString()},${longitude.toString()}',
-      'navigate': 'yes',
-    });
-  }
-
   static void _requireValid(double latitude, double longitude) {
     if (!valid(latitude, longitude)) {
       throw ArgumentError('Invalid public destination coordinates');
