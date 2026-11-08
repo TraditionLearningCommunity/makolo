@@ -92,3 +92,37 @@ test('Group 2 secondary controls remain usable in compact browser @mobile', asyn
     expect(height, path).toBeGreaterThanOrEqual(44);
   }
 });
+
+
+test('Group 2 Connections uses external layout CSS and shared owner-backed actions', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/me/connections/');
+  await expect(page.locator('head link[href*="personal-connections-layout.css"]')).toHaveCount(1);
+  await expect(page.locator('[data-mk-surface="connections"]')).toBeVisible();
+  await expect(page.locator('[data-mk-surface="connections"] style')).toHaveCount(0);
+  await expect(page.locator('.mk-cx-tabs.mk-interaction-tabs')).toHaveCount(1);
+  await expect(page.locator('[data-mk-surface="connections"] [data-mk-query-local="true"]')).toHaveCount(0);
+});
+
+test('Group 2 Notifications filters are shared tabs while read commands stay POST', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/notifications/?filter=unread');
+  const filters = page.getByRole('navigation', { name: 'Filtrer les notifications' });
+  await expect(filters).toHaveClass(/mk-interaction-tabs/);
+  await expect(filters.getByRole('link', { name: /Non lues/ })).toHaveAttribute('aria-current', 'page');
+  const markAll = page.getByRole('button', { name: 'Tout marquer comme lu' });
+  if (await markAll.count()) {
+    await expect(markAll).toHaveAttribute('data-variant', 'primary');
+    const form = markAll.locator('xpath=ancestor::form[1]');
+    await expect(form).toHaveAttribute('method', 'post');
+    await expect(form.locator('input[name="csrfmiddlewaretoken"]')).toHaveCount(1);
+  }
+});
+
+test('Group 2 secondary Me choices reuse shared link controls', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/me/moi/choix/');
+  await expect(page.locator('head link[href*="me-n1.css"]')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Modifier' }).first()).toHaveClass(/mk-action-button/);
+  await expect(page.locator('.mk-me-choices .mk-action-button[data-variant="link"]').first()).toBeVisible();
+});
