@@ -55,3 +55,62 @@ flutter test test/discovery_map_clusters_test.dart test/discovery_mature_screen_
 Sur Android DEV réel : clusters à faible zoom et expansion ; marqueur sélectionné ; plusieurs opportunités exactes ; recherche MapTiler ; permission accordée/refusée/bloquée ; service GPS désactivé puis réactivé ; déplacement du point bleu ; bouton de recentrage ; app en arrière-plan puis retour ; carte indisponible/rechargement de style ; retour N2 avec contexte intact. Tester la lisibilité des glyphes sur le style MapTiler actif.
 
 **État de validation :** changements écrits sur GitHub ; ni `dart format`, ni `flutter analyze`, ni `flutter test`, ni essai Android réel n'ont été exécutés depuis ce connecteur. Ne pas présenter ces validations comme réussies. Aucun merge effectué.
+
+
+## Correctif #522 — index spatial complet et marqueurs lisibles (8 novembre 2026)
+
+### Cause racine constatée avec `db.sqlite3`
+
+Les cinq services de démonstration sont publiés, chacun admis par
+`public_service_discovery_item` et lié à un `OccurrencePlace` public.
+Cependant `spatial_index_from_rows` écartait toute famille autre que
+`activity`. Cette exclusion empêchait leur affichage sur la carte,
+malgré une admission correcte par le propriétaire Service.
+
+### Solution
+
+- L'index compact traite désormais `service_activity` uniquement si une
+  occurrence future et publique de l'activité est admise par le sélecteur
+  canonique `public_occurrences_for_activities`. La géographie provient
+  de la relation canonique `OccurrencePlace`, filtrée par la même règle
+  de publication `SpacePlace` que pour Activity. Les lieux privés,
+  occurrences expirées et services sans lieu public ne créent aucun pin.
+- Une `Activity` de Service peut apparaître aussi dans la famille générique
+  `activity` lorsque l'occurrence est admise. Sa représentation spatiale
+  est dédupliquée au niveau de l'identité Activity si la représentation
+  `service_activity` est géolocalisable, sans supprimer de candidats N1.
+- **Discovery N1 conserve ses pages et continuations signées.** La carte
+  personnelle réutilise l'index spatial compact du premier chargement de
+  cette même projection, construit sur tous les candidats du champ
+  admis, sans faire défiler les pages N1. La carte visiteur utilise
+  maintenant ce même index en une acquisition, avec des lignes de lieux
+  rendues paresseusement par `ListView.builder`. La limite de sécurité
+  et de coût du sélecteur par famille reste en vigueur : ceci ne crée
+  pas un chargement infini ni un API de recherche parallèle.
+- MapLibre conserve la source GeoJSON `cluster=true`, `clusterRadius=56`,
+  `clusterMaxZoom=13`, les compteurs et l'expansion native. Un lieu
+  avec **une** possibilité utilise une épingle native, un lieu exact avec
+  **plusieurs** possibilités utilise un badge arrondi numéroté, et un
+  véritable cluster conserve son cercle numéroté. Les états sélectionnés
+  se différencient par la bordure corail, sans recalcul de clustering.
+  Ces images vectorielles sont produites depuis le Canvas Flutter et
+  enregistrées par `MapLibreMapController.addImage`, sans nouveau package
+  ni asset externe. Si les images ne peuvent pas être enregistrées,
+  la couche de cercles existante reste le repli.
+- Aucun changement de modèle, migration, seed, de `db.sqlite3`, de
+  configuration MapTiler ou du backend PythonAnywhere directement.
+
+### Validation à réaliser (non exécutée ici)
+
+```text
+python manage.py test discovery.api.test_mature_discovery
+cd mobile
+dart format --output=none --set-exit-if-changed lib/platform/maps/discovery_map_controller.dart lib/features/guest/public_discovery_map_screen.dart test/discovery_compact_spatial_test.dart test/discovery_map_pin_counts_test.dart
+flutter analyze
+flutter test test/discovery_compact_spatial_test.dart test/discovery_map_clusters_test.dart test/discovery_map_pin_counts_test.dart
+```
+
+Après `git pull --ff-only`, recharger l'application Web PythonAnywhere
+pour prendre en compte le backend. **La nouvelle apparence des marqueurs
+nécessite également un nouveau build Flutter installé sur le téléphone.**
+Le code poussé n'établit pas, à lui seul, qu'une APK déjà installée l'utilise.
