@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
@@ -462,40 +463,46 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   Widget _controls(Map<String, dynamic> data) => Wrap(
     spacing: 9, runSpacing: 9, children: [
       if (_cap(data, 'dossier.journey.link'))
-        FilledButton.icon(
+        MakoloActionButton(
+          label: 'Lier une démarche',
           onPressed: _canMutate ? () => _link(data) : null,
-          icon: const Icon(Icons.link_rounded),
-          label: const Text('Lier une démarche'),
+          icon: Icons.link_rounded,
+          appearance: MakoloActionAppearance.primary,
         ),
       if (_cap(data, 'dossier.dependency.add'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Dépendance',
           onPressed: _canMutate ? () => _newDependency(data) : null,
-          icon: const Icon(Icons.account_tree_outlined),
-          label: const Text('Dépendance'),
+          icon: Icons.account_tree_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
       if (_cap(data, 'dossier.project.manage'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Projet',
           onPressed: _canMutate ? () => _projectAction(data) : null,
-          icon: const Icon(Icons.drive_file_move_outlined),
-          label: const Text('Projet'),
+          icon: Icons.drive_file_move_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
       if (_cap(data, 'dossier.lifecycle'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Changer l’état',
           onPressed: _canMutate ? () => _lifecycle(data) : null,
-          icon: const Icon(Icons.change_circle_outlined),
-          label: const Text('Changer l’état'),
+          icon: Icons.change_circle_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
       if (_cap(data, 'dossier.assignment.manage'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Responsabilité',
           onPressed: _canMutate ? () => _assign(data) : null,
-          icon: const Icon(Icons.person_add_alt_outlined),
-          label: const Text('Responsabilité'),
+          icon: Icons.person_add_alt_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
       if (_cap(data, 'dossier.authority.manage'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Mandat',
           onPressed: _canMutate ? () => _grant(data) : null,
-          icon: const Icon(Icons.shield_outlined),
-          label: const Text('Mandat'),
+          icon: Icons.shield_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
     ],
   );
