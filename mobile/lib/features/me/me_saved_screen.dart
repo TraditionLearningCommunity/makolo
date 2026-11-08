@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
@@ -296,10 +297,10 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
     appBar: AppBar(
       title: const Text('Mes enregistrements'),
       actions: [
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Découvrir d’autres possibilités',
           onPressed: widget.onDiscover,
-          icon: const Icon(Icons.add_rounded),
+          icon: Icons.add_rounded,
         ),
       ],
     ),
@@ -345,12 +346,13 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
             ),
           if (_failed)
             Center(
-              child: TextButton(
+              child: MakoloActionButton(
+                label: 'Réessayer',
                 onPressed: () {
                   setState(() => _failed = false);
                   unawaited(_next());
                 },
-                child: const Text('Réessayer'),
+                appearance: MakoloActionAppearance.quiet,
               ),
             ),
           if (!_loading &&
