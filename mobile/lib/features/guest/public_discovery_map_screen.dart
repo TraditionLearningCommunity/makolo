@@ -34,8 +34,6 @@ class PublicDiscoveryMapScreen extends StatefulWidget {
 
 class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
-  DiscoveryCollectionPresentation _collection =
-      DiscoveryCollectionPresentation.empty;
   List<_MappedPossibility> _points = const [];
   bool _loading = true;
   String? _error;
@@ -57,7 +55,6 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
   void didUpdateWidget(covariant PublicDiscoveryMapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.mapCanonicalQuery != widget.query.mapCanonicalQuery) {
-      _collection = DiscoveryCollectionPresentation.empty;
       _points = const [];
       unawaited(_load());
     }
@@ -106,7 +103,6 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
       };
       final anchors = _selector.spatialAnchorsFromCollection(spatial);
       setState(() {
-        _collection = spatial;
         _points = [
           for (final anchor in anchors)
             if (items[anchor.candidateKey] != null)
