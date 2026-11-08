@@ -76,8 +76,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
         _outboxRetryTimer?.cancel();
         _retryRevision++;
       }
-      if (restored) widget.runtime.sync?.onConnectivityRestored();
-      if (online) {
+      if (restored) {
+        widget.runtime.sync?.onConnectivityRestored();
         unawaited(_armOutboxRetry(widget.runtime));
         unawaited(_refresh());
       }
