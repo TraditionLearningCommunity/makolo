@@ -53,7 +53,9 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_loadOptions());
+    if (!widget.isVersion) {
+      unawaited(_loadOptions());
+    }
   }
 
   @override
