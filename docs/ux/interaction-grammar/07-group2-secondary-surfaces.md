@@ -65,3 +65,10 @@ Les tests de domaine existants demeurent inchangés. Ce chantier ne supprime ni 
 La migration de **présentation commune des surfaces secondaires** est distincte de l'implémentation d'une nouvelle capacité métier. Les commandes métier ne sont branchées que si elles existent déjà et sont autorisées. Les styles de composition par écran restent permis : une architecture sans tout CSS local n'est pas le but ; le but est **zéro duplicat des composants communs**.
 
 Prochaine famille : Groupe 3 (N1/N2/N3, Space métier, Jour J), avec audit de profondeur, densité et rôle pour chaque surface, **sur la même branche de la PR #522** selon la décision du projet. Aucun nouveau chantier de groupe ne doit écraser les modifications existantes.
+
+
+## 7. Contrôle statique final du périmètre
+
+La lecture des templates du Groupe 2 confirme l'absence de l'ancienne classe `mk-btn` dans les listes personnelles Journey/Access/History/Search, les écrans secondaires de veilles et les principales pages Conversation inspectées. Les boutons d'icône `mk-icon-btn` de retrait des enregistrements sont **conservés** : c'est déjà un contrôle global avec son libellé accessible, pas une duplication propre à Bookmarks. Les écrans Dossier/Projet conservent des boutons de vues (`aria-pressed`) et des formulaires owner : ne pas confondre leur présentation spécialisée avec de nouveaux droits.
+
+La lecture statique vérifie des classes et chemins réellement modifiés, **pas** l'exécution des tests, les captures d'écran, la validation de permissions serveur, ni l'état de production. Les styles de composition locaux sont légitimes tant qu'ils ne redéfinissent pas les primitives partagées.
