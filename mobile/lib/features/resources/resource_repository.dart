@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'dart:io';
 
 import '../../data/files/resource_download_destination.dart';
