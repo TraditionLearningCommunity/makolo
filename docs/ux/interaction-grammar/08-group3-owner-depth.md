@@ -57,3 +57,11 @@ La seconde passe du Groupe 3 a harmonisé les contrôles owner des consoles `org
 L'écran Flutter `features/space/space_passport_screen.dart` réutilise maintenant les mêmes actions du thème pour publication/partage, export, confidentialité, recherche et révocation, en respectant le périmètre Espace, les capacités projetées et les confirmations existantes. Aucun jeton ni détail privé n'est ajouté dans une URL publique.
 
 Un seul socle de contrôle ne signifie pas une surface unique : les panneaux Space, les documents et le scanner gardent leur composition et leurs éléments dédiés.
+
+## Complément — retrieval Space et contrat Flutter
+
+- `templates/organizations/space/{discover,retrieval,retrieval_owner_detail}.html` réutilise les contrôles de navigation, recherche, retour et pagination. Le formulaire de recherche transverse reste responsable de son classement et de son périmètre d'accès ; aucun tri local F2 n'est forcé sur ces résultats.
+- `templates/organizations/console/team.html` possède désormais des variantes de contrôle communes pour gérer les équipes, inviter, rechercher, naviguer et retirer. La variante danger marque un retrait sans bypass des formulaires POST ni des validations du propriétaire.
+- `mobile/test/interaction_group3_depth_test.dart` confirme à l'échelle widget que l'action owner d'une offre n'apparaît qu'avec la capacité correspondante et que la pagination G3 utilise la commande partagée tout en transmettant le bon offset au propriétaire.
+
+Ces éléments complètent l'intégration sans signifier que toutes les consoles et les profondeurs spécialisées sont déjà migrées.
