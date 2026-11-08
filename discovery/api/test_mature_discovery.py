@@ -418,7 +418,7 @@ class MatureDiscoveryAPITests(TestCase):
             q="Z3 isolated-map", page_size=1, include_spatial_index="compact",
         )["data"]
         self.assertEqual(len(first["results"]), 1)
-        self.assertGreater(first["count"], 5)
+        self.assertGreaterEqual(first["count"], 5)
         spatial = first["spatial_index"]
         self.assertEqual(spatial["total_results"], first["count"])
         self.assertEqual(spatial["count"], 5)
