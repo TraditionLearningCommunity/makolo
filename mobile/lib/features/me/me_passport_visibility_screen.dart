@@ -219,9 +219,10 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                                 controller: searchInput,
                                 decoration: InputDecoration(
                                   labelText: 'Rechercher une personne Makolo',
-                                  suffixIcon: IconButton(
+                                  suffixIcon: MakoloIconActionButton(
+                                    tooltip: 'Rechercher une personne Makolo',
                                     onPressed: working ? null : search,
-                                    icon: const Icon(Icons.search),
+                                    icon: Icons.search,
                                   ),
                                 ),
                                 onSubmitted: (_) => search(),
