@@ -339,8 +339,8 @@ def update_project(*, actor, project, title, description, starts_on, ends_on):
     if not can_manage_project(actor, project):
         raise PermissionDenied("Autorité de gestion du Projet requise.")
     previous = (project.title, project.description, project.starts_on, project.ends_on)
-    project.title = title
-    project.description = description
+    project.title = (title or "").strip()
+    project.description = (description or "").strip()
     project.starts_on = starts_on
     project.ends_on = ends_on
     # Project.save() invokes full_clean, preserving the horizon check.
