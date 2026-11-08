@@ -928,7 +928,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     DiscoverySpatialAnchor anchor,
   ) async {
     try {
-      await controller.moveTo(anchor.latitude, anchor.longitude);
+      await controller.focusLocation(anchor.latitude, anchor.longitude);
     } on Object {
       // The list selection remains usable while the map is unavailable.
     }
@@ -1310,14 +1310,33 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         (anchor) => anchor.candidateKey == _selectedCandidateKey,
       );
       if (selected.isNotEmpty) {
-        await controller.moveTo(
+        await controller.focusLocation(
           selected.first.latitude,
           selected.first.longitude,
         );
       } else {
+        // One point per actual location, with admitted possibility counts.
+        // A dense neighbourhood should win the first camera viewport over
+        // a distant outlier, without removing any points from the map.
+        final byLocation = <String, DiscoveryMapPin>{};
+        final countByLocation = <String, Set<String>>{};
+        for (final anchor in anchors) {
+          final key = '${anchor.latitude}:${anchor.longitude}';
+          byLocation.putIfAbsent(
+            key,
+            () => DiscoveryMapPin(anchor.latitude, anchor.longitude),
+          );
+          countByLocation
+              .putIfAbsent(key, () => <String>{})
+              .add(anchor.candidateKey);
+        }
         await controller.fitPins([
-          for (final anchor in anchors)
-            DiscoveryMapPin(anchor.latitude, anchor.longitude),
+          for (final entry in byLocation.entries)
+            DiscoveryMapPin(
+              entry.value.latitude,
+              entry.value.longitude,
+              opportunityCount: countByLocation[entry.key]!.length,
+            ),
         ]);
       }
     } on Object {
