@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
 
@@ -361,17 +362,19 @@ class _JourneyContent extends StatelessWidget {
                       spacing: 12,
                       runSpacing: 8,
                       children: [
-                        FilledButton(
+                        MakoloActionButton(
+                          label: 'Accepter',
                           onPressed: invitationEnabled
                               ? () => onInvitationDecision('accept')
                               : null,
-                          child: const Text('Accepter'),
+                          appearance: MakoloActionAppearance.primary,
                         ),
-                        OutlinedButton(
+                        MakoloActionButton(
+                          label: 'Refuser',
                           onPressed: invitationEnabled
                               ? () => onInvitationDecision('decline')
                               : null,
-                          child: const Text('Refuser'),
+                          appearance: MakoloActionAppearance.secondary,
                         ),
                       ],
                     ),
