@@ -55,6 +55,16 @@
   color: var(--mk-brand-hover, var(--mk-brand-strong));
   background: var(--mk-brand-soft);
 }
+/* Inverse actions are shared by branded, dark or image-backed surfaces. */
+.mk-action-button[data-variant="inverse"] {
+  color: #fff;
+  border-color: rgb(255 255 255 / .72);
+  background: rgb(255 255 255 / .08);
+}
+.mk-action-button[data-variant="inverse"]:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(255 255 255 / .18);
+}
 .mk-action-button[data-variant="danger"] {
   border-color: var(--mk-danger);
   color: var(--mk-danger);
