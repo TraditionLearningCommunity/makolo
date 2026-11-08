@@ -1118,9 +1118,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                         }),
                 ),
                 const SizedBox(height: 20),
-                FilledButton(
+                MakoloActionButton(
+                  label: _saving ? 'Enregistrement…' : 'Enregistrer',
                   onPressed: _saving ? null : _save,
-                  child: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
+                  busy: _saving,
+                  appearance: MakoloActionAppearance.primary,
                 ),
               ],
             ),
