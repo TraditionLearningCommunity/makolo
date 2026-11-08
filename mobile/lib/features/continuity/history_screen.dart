@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
@@ -502,15 +503,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ],
                           ),
                           const SizedBox(height: MakoloSpacing.sm),
-                          OutlinedButton.icon(
+                          MakoloActionButton(
+                            label: 'Préparer mon historique hors connexion',
                             onPressed: _preparingOffline
                                 ? null
                                 : () => unawaited(_prepareOffline()),
-                            icon: const Icon(
-                              Icons.download_for_offline_outlined,
-                            ),
-                            label: const Text(
-                              'Préparer mon historique hors connexion',
+                            icon: Icons.download_for_offline_outlined,
+                            appearance: MakoloActionAppearance.secondary,
                             ),
                           ),
                           if (_preparingOffline) ...[
