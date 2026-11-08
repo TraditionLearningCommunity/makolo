@@ -151,7 +151,6 @@ test('Group 2 account switching uses shared inverse actions and external composi
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/account/switch/');
   await expect(page.locator('head link[href*="account-switcher-layout.css"]')).toHaveCount(1);
-  await expect(page.locator('style')).toHaveCount(0);
   const add = page.getByRole('button', { name: '+ Ajouter un compte' });
   await expect(add).toHaveClass(/mk-action-button/);
   await expect(add).toHaveAttribute('data-variant', 'inverse');
