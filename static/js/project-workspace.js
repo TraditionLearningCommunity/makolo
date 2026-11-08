@@ -42,6 +42,9 @@
     blocked: 'Bloqué', action_required: 'Action requise',
     waiting: 'En attente', ready: 'Prêt', complete: 'Terminé',
   })[code] || 'Situation non disponible';
+  const localDay = (date) => date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0');
   const parse = (value) => typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : null;
   const when = (value) => {
@@ -206,7 +209,7 @@
     add(stats, metric(rows.filter((x) => x.state === 'draft').length, 'En préparation · acquis'));
     add(stats, metric(rows.filter((x) => x.state === 'completed').length, 'Terminés · acquis'));
     add(area, stats);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDay(new Date());
     const deadlines = rows.filter((row) => parse(row.deadline) &&
       parse(row.deadline) >= today)
       .sort((a, b) => parse(a.deadline).localeCompare(parse(b.deadline)));
@@ -356,8 +359,8 @@
     });
     add(control, today); add(area, control);
     const now = new Date(), day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayDate = day.toISOString().slice(0, 10);
-    const in30 = new Date(day.getTime() + 30 * 86400000).toISOString().slice(0, 10);
+    const todayDate = localDay(day);
+    const in30 = localDay(new Date(day.getTime() + 30 * 86400000));
     const dates = rows.filter((row) => {
       const d = parse(row.deadline);
       switch (state.calendar) {
