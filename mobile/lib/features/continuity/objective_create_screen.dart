@@ -85,9 +85,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     if (date == null || !mounted) return;
     setState(() {
       switch (field) {
-        case 'start': _start = date;
-        case 'end': _end = date;
-        default: _deadline = date;
+        case 'start': _start = date; break;
+        case 'end': _end = date; break;
+        default: _deadline = date; break;
       }
     });
   }
@@ -105,9 +105,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           tooltip: 'Effacer la date',
           onPressed: _submitting ? null : () => setState(() {
             switch (field) {
-              case 'start': _start = null;
-              case 'end': _end = null;
-              default: _deadline = null;
+              case 'start': _start = null; break;
+              case 'end': _end = null; break;
+              default: _deadline = null; break;
             }
           }),
           icon: const Icon(Icons.close_rounded, size: 17),
