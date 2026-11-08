@@ -5,6 +5,8 @@ authorized readiness facts are projected; no hidden Dossier totals are inferred.
 """
 from __future__ import annotations
 
+from django.urls import reverse
+
 from objectives.models import ProjectLifecycle
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
@@ -44,6 +46,17 @@ def _dossier_row(dossier, *, actor, can_manage_parent):
         },
         "capabilities": ["unlink", "move"] if manageable else [],
         "link": f"/api/v1/objectives/dossiers/{dossier.pk}/",
+        "web_url": reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
+        "web_actions": ({
+            "unlink": reverse("objectives:project-unlink-dossier", kwargs={
+                "project_id": dossier.project_links.filter(is_active=True).values_list("project_id", flat=True).first(),
+                "dossier_id": dossier.pk,
+            }),
+            "move": reverse("objectives:project-move-dossier", kwargs={
+                "project_id": dossier.project_links.filter(is_active=True).values_list("project_id", flat=True).first(),
+                "dossier_id": dossier.pk,
+            }),
+        } if manageable else {}),
     }
 
 
