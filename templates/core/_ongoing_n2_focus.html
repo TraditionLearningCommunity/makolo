@@ -58,5 +58,10 @@
       {% endfor %}
     </section>
   {% endif %}
-  {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">{{ item.primary_label|default:"Ouvrir la démarche" }}</a>{% endif %}
+  {% if item.url and item.primary_label %}
+    <a class="mk-now-cta" href="{{ item.url }}">
+      <i data-lucide="{{ item.primary_icon|default:'arrow-right' }}" aria-hidden="true"></i>
+      {{ item.primary_label }}
+    </a>
+  {% endif %}
 </section>
