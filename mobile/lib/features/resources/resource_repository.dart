@@ -465,8 +465,24 @@ class ResourceRepository {
     if (client == null) {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
+
+    var collection = await readCollectionPage(query: '', offset: 0);
+    var createPath = _string(
+      _map(_map(collection?.payload['documents'])['links'])['create'],
+    );
+    if (createPath == null && sync != null) {
+      await refreshCollectionPage(query: '', offset: 0);
+      collection = await readCollectionPage(query: '', offset: 0);
+      createPath = _string(
+        _map(_map(collection?.payload['documents'])['links'])['create'],
+      );
+    }
+    if (createPath == null) {
+      throw StateError('Document creation is not available.');
+    }
+
     final response = await client.upload(
-      'api/v1/me/resources/create/',
+      _createMutationPath(createPath),
       fields: {
         'title': title.trim(),
         'kind': kind,
@@ -670,6 +686,14 @@ class ResourceRepository {
     );
     if (!ownerRoute.hasMatch(relative) || !relative.endsWith('/$action/')) {
       throw const FormatException('PersonalAsset action path mismatch');
+    }
+    return relative;
+  }
+
+  String _createMutationPath(String path) {
+    final relative = _sameOriginRelative(path);
+    if (relative != 'api/v1/me/resources/create/') {
+      throw const FormatException('PersonalAsset create path mismatch');
     }
     return relative;
   }
