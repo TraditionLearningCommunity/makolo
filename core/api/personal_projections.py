@@ -1545,6 +1545,67 @@ def _attach_ongoing_private_journey_resources(items, *, viewer):
             item["resources"].extend(grouped.get(item["source"]["id"], []))
 
 
+
+def _attach_ongoing_group_context(entries, items, *, viewer):
+    """Add bounded, viewer-visible composition facts; never infer importance.
+
+    Counts describe only resources visible to this viewer. These are display
+    facts, not a rank, progress percentage, or a replacement for owner state.
+    """
+    from collections import Counter
+
+    from objectives.models import DossierJourneyDependencyState
+    from objectives.selectors import (
+        visible_dossiers_for_project,
+        visible_dependencies_for_profile,
+        visible_linked_journey_pairs,
+    )
+
+    dossiers = {str(entry.value.pk): entry.value
+                for entry in entries if entry.kind == "dossier"}
+    projects = {str(entry.value.pk): entry.value
+                for entry in entries if entry.kind == "project"}
+    if not dossiers and not projects:
+        return
+
+    journey_counts = Counter()
+    if dossiers:
+        visible_pairs = visible_linked_journey_pairs(
+            viewer, tuple(dossier.pk for dossier in dossiers.values())
+        )
+        for dossier_id, journey_id in visible_pairs:
+            journey_counts[str(dossier_id)] += 1
+
+    for item in items:
+        source = item.get("source") or {}
+        owner_id = source.get("id")
+        if item.get("kind") == "dossier" and owner_id in dossiers:
+            dossier = dossiers[owner_id]
+            count = journey_counts[owner_id]
+            active_dependencies = visible_dependencies_for_profile(
+                viewer, dossier
+            ).filter(state=DossierJourneyDependencyState.ACTIVE).count()
+            facts = [
+                {"kind": "journey", "count": count,
+                 "label": f"{count} démarche{'s' if count != 1 else ''} liée{'s' if count != 1 else ''} visible{'s' if count != 1 else ''}"},
+            ]
+            if active_dependencies:
+                facts.append({
+                    "kind": "dependency", "count": active_dependencies,
+                    "label": f"{active_dependencies} prérequis visible{'s' if active_dependencies != 1 else ''}",
+                })
+            item["composition"] = facts
+        elif item.get("kind") == "project" and owner_id in projects:
+            count = visible_dossiers_for_project(
+                viewer, projects[owner_id]
+            ).count()
+            item["composition"] = [{
+                "kind": "dossier", "count": count,
+                "label": f"{count} dossier{'s' if count != 1 else ''} visible{'s' if count != 1 else ''}",
+            }]
+
+
+
 def _decorate_ongoing_semantics(item, *, observed_at):
     """Add Mature continuity semantics without becoming an owner domain."""
 
@@ -1707,6 +1768,7 @@ def build_personal_ongoing_projection(
     for item in items:
         _decorate_ongoing_semantics(item, observed_at=observed_at)
 
+    _attach_ongoing_group_context(entries, items, viewer=profile)
     _attach_ongoing_recognition_media(entries, items, viewer=profile)
     _attach_ongoing_private_journey_resources(items, viewer=profile)
 
