@@ -17,10 +17,10 @@
       {% if active_filter != 'all' %}<input type="hidden" name="filter" value="{{ active_filter }}">{% endif %}
       <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
     </form>
-    <div class="mt-4 flex flex-wrap gap-2">
-      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="mk-action-button" data-variant="{% if active_filter == 'all' %}primary{% else %}ghost{% endif %}">Tous</a>
-      <a href="?filter=expiring{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="mk-action-button" data-variant="{% if active_filter == 'expiring' %}primary{% else %}ghost{% endif %}">Expirent bientôt</a>
-    </div>
+    <nav class="mt-4 mk-interaction-tabs" aria-label="Filtrer la bibliothèque">
+      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" {% if active_filter == 'all' %}aria-current="page"{% endif %}>Tous</a>
+      <a href="?filter=expiring{% if query %}&amp;q={{ query|urlencode }}{% endif %}" {% if active_filter == 'expiring' %}aria-current="page"{% endif %}>Expirent bientôt</a>
+    </nav>
   </section>
 
   <section class="space-y-3" aria-label="Bibliothèque">
