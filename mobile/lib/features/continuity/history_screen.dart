@@ -421,15 +421,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
               appBar: AppBar(
                 title: const Text('Historique'),
                 actions: [
-                  IconButton(
+                  MakoloIconActionButton(
                     tooltip: 'Rechercher dans Makolo',
                     onPressed: () => context.push('/search'),
-                    icon: const Icon(Icons.search),
+                    icon: Icons.search,
                   ),
-                  IconButton(
+                  MakoloIconActionButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refreshFirst,
-                    icon: const Icon(Icons.refresh_rounded),
+                    icon: Icons.refresh_rounded,
                   ),
                 ],
               ),
@@ -522,10 +522,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerRight,
-                            child: IconButton(
+                            child: MakoloIconActionButton(
                               tooltip: 'Rechercher dans l’historique',
                               onPressed: _searching ? null : _remoteSearch,
-                              icon: const Icon(Icons.search),
+                              icon: Icons.search,
                             ),
                           ),
                           if (_searching) const LinearProgressIndicator(),
@@ -624,12 +624,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               Text(chosen.occurredAt ?? 'Date non précisée'),
                               const SizedBox(height: 20),
                               if (chosen.id != null)
-                                OutlinedButton(
+                                MakoloActionButton(
+                                  label: 'Voir les détails',
+                                  appearance: MakoloActionAppearance.secondary,
                                   onPressed: () => widget.onOpenResource(
                                     chosen.kind,
                                     chosen.id!,
                                   ),
-                                  child: const Text('Voir les détails'),
                                 ),
                             ],
                           ),
