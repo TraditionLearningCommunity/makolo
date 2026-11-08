@@ -6,7 +6,7 @@
 
 ## 1. Règle d'architecture
 
-Le même composant et la même sémantique servent dans Maintenant, Découvrir, En cours, Moi, Space métier et les profondeurs N1/N2/N3. Une page peut avoir sa mise en page propre, jamais sa propre définition de bouton, menu, état, poignée ou commande commune.
+Le même composant et la même sémantique **ont vocation à servir** dans Maintenant, Découvrir, En cours, Moi, Space métier et les profondeurs N1/N2/N3. Une page peut avoir sa mise en page propre, jamais sa propre définition de bouton, menu, état, poignée ou commande commune.
 
 **Le Web et Flutter restent deux implémentations appropriées :** les contrats d'intention, de feedback, de permissions et d'accessibilité sont partagés ; les gestes et les surfaces adaptent leur rendu. La fondation ne possède **aucune** règle d'Activity, Journey, Project, Dossier, Payment, Access, Capacity, Mandate ou Readiness.
 
@@ -20,13 +20,13 @@ Le même composant et la même sémantique servent dans Maintenant, Découvrir, 
 | Web | static/js/makolo-interactions.js | Menus ⋯, focus, clavier, fermeture externe (F1) |
 | Web | static/js/makolo-interactions-f2.js | Sélection, tri/filtre local, preview, édition, reorder/move owner-bound, context restore, clic droit |
 | Web | templates/base/app.html | Scripts/styles communs chargés dans la shell, avant extra_css |
-| Web | frontend/build.mjs | Inclusion explicite des icônes d'intentions utilisées dynamiquement |
+| Web | window.MakoloInteractionIcons (makolo-interactions-f2.js) | Registre sémantique ; les glyphes Lucide seront inclus lors de l'adoption réelle par les templates |
 | Flutter | mobile/lib/design/interaction_primitives.dart | Intentions, icônes, menu, barre de sélection (F1) |
 | Flutter | mobile/lib/design/interaction_f2.dart | Sélection, recherche/tri/filtre, preview, edit, reorder, move, Undo et long press |
 | Tests Web | e2e/specs/interaction-foundation.spec.mjs ; interaction-f2.spec.mjs | Menus et scénarios F2 y compris refus de confirmation |
 | Tests Flutter | mobile/test/interaction_primitives_test.dart ; interaction_f2_test.dart | États, commandes owner simulées et alternatives de gestes |
 
-Les nouvelles classes/contrôleurs sont **opt-in** ; les pages actuelles restent fonctionnelles sans ces attributs/widgets. Pas de framework JS, routeur, nouvelle outbox ni modèle canonique.
+Les nouvelles classes/contrôleurs sont **opt-in** ; les pages actuelles restent fonctionnelles sans ces attributs/widgets. Pas de framework JS, routeur, nouvelle outbox ni modèle canonique. Le builder Lucide existant recense les icônes réellement présentes dans les templates HTML : la mise en production d'un nouveau glyphe se fera avec le premier template consommateur et la synchronisation du bundle généré, pas par ajout anticipé qui rendrait les artefacts incohérents.
 
 ## 3. Primitives et statut réel
 
@@ -42,7 +42,7 @@ Les nouvelles classes/contrôleurs sont **opt-in** ; les pages actuelles restent
 | P08 InlineEditor | data-mk-inline-edit, form propriétaire, Escape/Annuler | MakoloInlineEditor / MakoloInlineSaveResult | Pas de sauvegarde fantôme |
 | P09 UndoAction | Présentation via vrai formulaire/commande inverse du propriétaire, pas de faux bouton générique | MakoloOwnerUndoButton disponible uniquement sur commande inverse réelle | Aucune réversibilité présumée |
 | P10 ActionCapabilityAdapter | Menu reçoit HTML autorisé du serveur, callback owner explicitement inscrit | MakoloInteractionAction fourni après résolution owner | Pas de resolver global de permissions dans Presentation |
-| P11 InteractionIconRegistry | frontend/build.mjs assure inclusion des glyphes dynamiques du contrat | MakoloInteractionIcons | Signification stable et labels accessibles |
+| P11 InteractionIconRegistry | window.MakoloInteractionIcons traduit les 15 intentions en noms Lucide ; l'inclusion des glyphes dans le bundle attend les premiers templates consommateurs | MakoloInteractionIcons | Signification stable et labels accessibles |
 | P12 ContextRestore | captureContext et restoreContext (mémoire caller seulement, clé de contexte opaque) | Sélection contrôlée + ResumableInteractionStore existant ; état tri/filtre caller-controlled | Ne traverse jamais le scope acteur sans vérification |
 
 **Attention :** un composant ou callback disponible n'implique pas que l'endpoint métier ou le tri manuel existe. Les cas de MOVE/REORDER/UNDO ne sont exposés sur un écran que lorsque le propriétaire possède vraiment les commandes correspondantes. F2 ne fabrique **aucun** endpoint de mutation.
