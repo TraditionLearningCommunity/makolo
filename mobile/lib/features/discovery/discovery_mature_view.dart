@@ -728,6 +728,7 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.mapConfig,
     required this.onOpen,
     this.location,
+    this.initialMapFocus,
     this.onSave,
     this.onDirections,
     this.resolveItem,
@@ -757,6 +758,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final MakoloMapsConfig mapConfig;
   final DiscoveryOpenItem onOpen;
   final LocationCapability? location;
+  /// Search-center only; not the user's GPS or a canonical Makolo Place.
+  final MapCoordinate? initialMapFocus;
   final DiscoverySaveItem? onSave;
   /// Only the selected public spatial fact is passed to navigation.
   final ValueChanged<DiscoverySpatialAnchor>? onDirections;
@@ -1367,10 +1370,13 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     }
     _initialCameraPositioned = true;
     try {
+      final focus = widget.initialMapFocus;
       final selected = anchors.where(
         (anchor) => anchor.candidateKey == _selectedCandidateKey,
       );
-      if (selected.isNotEmpty) {
+      if (focus != null) {
+        await controller.focusLocation(focus.latitude, focus.longitude);
+      } else if (selected.isNotEmpty) {
         await controller.focusLocation(
           selected.first.latitude,
           selected.first.longitude,
@@ -1626,10 +1632,13 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
               initialViewport:
                   widget.restoredViewport ??
                   MapViewport(
-                    center: anchor == null
-                        ? const MapCoordinate(0, 0)
-                        : MapCoordinate(anchor.latitude, anchor.longitude),
-                    zoom: anchor == null ? 1 : 11,
+                    center: widget.initialMapFocus ??
+                        (anchor == null
+                            ? const MapCoordinate(0, 0)
+                            : MapCoordinate(anchor.latitude, anchor.longitude)),
+                    zoom: widget.initialMapFocus != null || anchor != null
+                        ? 11
+                        : 1,
                   ),
               fallbackBuilder: (context, state, retry) {
                 final retryable = state == MakoloMapRuntimeState.error;
