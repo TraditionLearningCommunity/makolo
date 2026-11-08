@@ -48,7 +48,10 @@
     const search = (searchField ? searchField.value : '').trim().toLocaleLowerCase();
     const filter = filterField ? filterField.value : '';
     const sort = sortField ? sortField.value : '';
-    if (sortField && sort) {
+    if (!sortField || !sort) {
+      all.sort((a, b) => stableIndex.get(a) - stableIndex.get(b));
+      all.forEach((node) => container.append(node));
+    } else {
       const allowed = (scope.dataset.mkSortKeys || '').split(',').map((key) => key.trim());
       if (allowed.includes(sort)) {
         const order = scope.dataset.mkSortDescending === 'true' ? -1 : 1;
@@ -122,6 +125,9 @@
   // It never moves DOM nodes before the owner confirms the request.
   const reorderAdapters = new WeakMap();
   let activeDrag = null;
+  const moveAdapters = new WeakMap();
+  const moveBusy = new WeakSet();
+  let activeMove = null;
   const reorderBusy = new WeakSet();
   function reorderScope(scope) {
     const container = scope.querySelector('[data-mk-reorder-items]');
@@ -165,6 +171,40 @@
       }));
     } finally {
       reorderBusy.delete(scope);
+      scope.removeAttribute('aria-busy');
+    }
+  }
+
+
+  // MOVE: distinct from REORDER. The owner must provide a real transport
+  // AND a visible native-form alternative before a drag is enabled.
+  async function requestMove(scope, sourceId, destinationId) {
+    const adapter = moveAdapters.get(scope);
+    const status = scope.querySelector('[data-mk-move-status]');
+    if (!adapter || moveBusy.has(scope) || !sourceId || !destinationId) return;
+    moveBusy.add(scope);
+    scope.setAttribute('aria-busy', 'true');
+    if (status) status.textContent = 'Déplacement en cours…';
+    try {
+      const confirmed = await adapter(Object.freeze({ sourceId, destinationId }));
+      if (confirmed === true) {
+        if (status) status.textContent = 'Déplacement confirmé.';
+        scope.dispatchEvent(new CustomEvent('makolo:move-confirmed', {
+          bubbles: true, detail: { sourceId, destinationId }
+        }));
+      } else {
+        if (status) status.textContent = 'Déplacement non confirmé.';
+        scope.dispatchEvent(new CustomEvent('makolo:move-failed', {
+          bubbles: true, detail: { sourceId, destinationId }
+        }));
+      }
+    } catch (_) {
+      if (status) status.textContent = 'Déplacement non confirmé.';
+      scope.dispatchEvent(new CustomEvent('makolo:move-failed', {
+        bubbles: true, detail: { sourceId, destinationId }
+      }));
+    } finally {
+      moveBusy.delete(scope);
       scope.removeAttribute('aria-busy');
     }
   }
@@ -247,6 +287,59 @@
     void requestReorder(scope, from, to);
   });
   document.addEventListener('dragend', () => { activeDrag = null; });
+
+  document.addEventListener('dragstart', (event) => {
+    const handle = rootFor(event.target, '[data-mk-move-handle]');
+    if (!handle) return;
+    const scope = rootFor(handle, '[data-mk-move-scope]');
+    const source = rootFor(handle, '[data-mk-move-source]');
+    if (!scope || !source || !moveAdapters.has(scope) || moveBusy.has(scope) ||
+        !source.dataset.mkMoveId) {
+      event.preventDefault();
+      return;
+    }
+    activeMove = { scope, sourceId: source.dataset.mkMoveId };
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', activeMove.sourceId);
+    }
+  });
+  document.addEventListener('dragover', (event) => {
+    const target = rootFor(event.target, '[data-mk-move-destination]');
+    if (!target || !activeMove) return;
+    const scope = rootFor(target, '[data-mk-move-scope]');
+    if (scope !== activeMove.scope || moveBusy.has(scope) ||
+        !target.dataset.mkDestinationId) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    target.setAttribute('data-mk-drop-active', 'true');
+  });
+  document.addEventListener('dragleave', (event) => {
+    const target = rootFor(event.target, '[data-mk-move-destination]');
+    if (target && !target.contains(event.relatedTarget)) {
+      target.removeAttribute('data-mk-drop-active');
+    }
+  });
+  document.addEventListener('drop', (event) => {
+    const target = rootFor(event.target, '[data-mk-move-destination]');
+    const request = activeMove;
+    activeMove = null;
+    document.querySelectorAll('[data-mk-drop-active]').forEach(
+      (element) => element.removeAttribute('data-mk-drop-active')
+    );
+    if (!target || !request) return;
+    const scope = rootFor(target, '[data-mk-move-scope]');
+    if (scope !== request.scope || !target.dataset.mkDestinationId) return;
+    event.preventDefault();
+    void requestMove(scope, request.sourceId, target.dataset.mkDestinationId);
+  });
+  document.addEventListener('dragend', () => {
+    activeMove = null;
+    document.querySelectorAll('[data-mk-drop-active]').forEach(
+      (element) => element.removeAttribute('data-mk-drop-active')
+    );
+  });
+
   document.addEventListener('click', handleClick);
   document.addEventListener('change', (event) => {
     if (event.target.matches('[data-mk-select-item]')) {
@@ -288,6 +381,14 @@
       return true;
     },
     unregisterReorder(scope) { reorderAdapters.delete(scope); },
+    // Require an actual fallback form; never make drag the only route.
+    registerMove(scope, adapter) {
+      if (!(scope instanceof Element) || typeof adapter !== 'function' ||
+          !scope.querySelector('form[data-mk-move-form]')) return false;
+      moveAdapters.set(scope, adapter);
+      return true;
+    },
+    unregisterMove(scope) { moveAdapters.delete(scope); },
     selectedIds(scope) {
       if (!(scope instanceof Element)) return [];
       return [...scope.querySelectorAll('[data-mk-select-item]')]
