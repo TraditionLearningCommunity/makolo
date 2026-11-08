@@ -380,9 +380,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                       },
                     ),
                     if (deadline != null)
-                      TextButton(
+                      MakoloActionButton(
+                        label: 'Effacer l’échéance',
+                        appearance: MakoloActionAppearance.quiet,
                         onPressed: () => update(() => deadline = null),
-                        child: const Text('Effacer l’échéance'),
                       ),
                   ],
                 ),
@@ -390,9 +391,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
-              child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () {
@@ -508,9 +510,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
-              child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: () {
@@ -716,10 +719,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               ),
             ),
             if (_cap(data, 'dossier.edit'))
-              IconButton(
+              MakoloIconActionButton(
                 tooltip: 'Modifier le Dossier',
                 onPressed: _canMutate ? () => _edit(data) : null,
-                icon: const Icon(Icons.edit_outlined),
+                icon: Icons.edit_outlined,
               ),
           ],
         ),
@@ -1710,9 +1713,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     appBar: AppBar(
       title: const Text('Dossier'),
       actions: [
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Actualiser',
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icons.refresh_rounded,
           onPressed: _refreshing ? null : _refresh,
         ),
       ],
