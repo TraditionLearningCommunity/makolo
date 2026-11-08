@@ -103,7 +103,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   String get _base => 'api/v1/objectives/projects/${widget.id}/';
 
   Future<void> _acquire() async {
-    final repo = widget.repository, id = widget.id;
+    final repo = widget.repository;
+    final id = widget.id;
     try {
       final snapshot = await repo.read(ObjectiveDepth.project, id);
       final source = await repo.readSource(ObjectiveDepth.project, id);
@@ -119,7 +120,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
   Future<void> _refresh() async {
     if (_refreshing) return;
-    final id = widget.id, repo = widget.repository;
+    final id = widget.id;
+    final repo = widget.repository;
     setState(() { _refreshing = true; _failed = false; });
     try {
       await repo.refresh(ObjectiveDepth.project, id);
