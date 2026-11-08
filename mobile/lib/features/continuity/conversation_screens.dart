@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/interaction_primitives.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
@@ -606,17 +607,18 @@ class _ConversationInvitationCardState
           Wrap(
             spacing: MakoloSpacing.sm,
             children: [
-              OutlinedButton(
+              MakoloActionButton(
+                label: 'Refuser',
                 onPressed: _busy || widget.invitation.expired
-                    ? null
-                    : () => _respond(false),
-                child: const Text('Refuser'),
+                    ? null : () => _respond(false),
+                appearance: MakoloActionAppearance.secondary,
               ),
-              FilledButton(
+              MakoloActionButton(
+                label: _busy ? 'En cours…' : 'Accepter',
                 onPressed: _busy || widget.invitation.expired
-                    ? null
-                    : () => _respond(true),
-                child: Text(_busy ? 'En cours…' : 'Accepter'),
+                    ? null : () => _respond(true),
+                appearance: MakoloActionAppearance.primary,
+                busy: _busy,
               ),
             ],
           ),
@@ -1361,15 +1363,16 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 ),
                 actions: [
                   if (widget.onOpenHistory != null)
-                    IconButton(
+                    MakoloIconActionButton(
                       key: const Key('conversation-open-history'),
                       tooltip: 'Rechercher · Historique',
                       onPressed: widget.onOpenHistory,
-                      icon: const Icon(Icons.manage_search_rounded),
+                      icon: Icons.manage_search_rounded,
                     ),
-                  PopupMenuButton<String>(
+                  MakoloActionMenu(
                     tooltip: 'Options de la conversation',
-                    onSelected: (action) {
+                    onSelected: (selected) {
+                      final action = selected.id;
                       if (action == 'refresh') {
                         unawaited(_refresh());
                       } else if (action == 'details') {
@@ -1380,55 +1383,48 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                         );
                       }
                     },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'details',
-                        child: Text('Détails de la conversation'),
+                    actions: [
+                      const MakoloInteractionAction(
+                        id: 'details',
+                        label: 'Détails de la conversation',
+                        intent: MakoloActionIntent.inspect,
                       ),
-                      PopupMenuItem(
-                        value: 'refresh',
+                      MakoloInteractionAction(
+                        id: 'refresh',
+                        label: 'Actualiser',
+                        intent: MakoloActionIntent.transition,
                         enabled: !_refreshing,
-                        child: const Text('Actualiser'),
                       ),
-                      PopupMenuItem(
-                        value: 'pin',
-                        child: Text(
-                          detail.personalState.pinned
-                              ? 'Retirer l’épingle'
-                              : 'Épingler pour moi',
-                        ),
+                      MakoloInteractionAction(
+                        id: 'pin',
+                        label: detail.personalState.pinned
+                            ? 'Retirer l’épingle' : 'Épingler pour moi',
+                        intent: MakoloActionIntent.select,
                       ),
-                      PopupMenuItem(
-                        value: 'mute',
-                        child: Text(
-                          detail.personalState.muted
-                              ? 'Réactiver les signaux'
-                              : 'Mettre les signaux en sourdine',
-                        ),
+                      MakoloInteractionAction(
+                        id: 'mute',
+                        label: detail.personalState.muted
+                            ? 'Réactiver les signaux'
+                            : 'Mettre les signaux en sourdine',
+                        intent: MakoloActionIntent.transition,
                       ),
-                      PopupMenuItem(
-                        value: 'revisit',
-                        child: Text(
-                          detail.personalState.revisit
-                              ? 'Retirer le rappel de revisite'
-                              : 'Revoir plus tard',
-                        ),
+                      MakoloInteractionAction(
+                        id: 'revisit',
+                        label: detail.personalState.revisit
+                            ? 'Retirer le rappel de revisite' : 'Revoir plus tard',
+                        intent: MakoloActionIntent.transition,
                       ),
-                      PopupMenuItem(
-                        value: 'archive',
-                        child: Text(
-                          detail.personalState.archived
-                              ? 'Retirer de mes archives'
-                              : 'Archiver pour moi',
-                        ),
+                      MakoloInteractionAction(
+                        id: 'archive',
+                        label: detail.personalState.archived
+                            ? 'Retirer de mes archives' : 'Archiver pour moi',
+                        intent: MakoloActionIntent.transition,
                       ),
-                      PopupMenuItem(
-                        value: 'hide',
-                        child: Text(
-                          detail.personalState.hidden
-                              ? 'Afficher de nouveau'
-                              : 'Masquer pour moi',
-                        ),
+                      MakoloInteractionAction(
+                        id: 'hide',
+                        label: detail.personalState.hidden
+                            ? 'Afficher de nouveau' : 'Masquer pour moi',
+                        intent: MakoloActionIntent.transition,
                       ),
                     ],
                   ),
