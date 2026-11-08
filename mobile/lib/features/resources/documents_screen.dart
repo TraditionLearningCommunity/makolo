@@ -721,9 +721,12 @@ class _DocumentsView {
             return false;
           }
           final documents = _map(page.payload['documents']);
+          final filters = _map(documents['filters']);
           return (_string(documents['query']) ?? '').isEmpty &&
               (_string(documents['view']) ?? 'current') == 'current' &&
-              (_string(documents['sort']) ?? 'recent') == 'recent';
+              (_string(documents['sort']) ?? 'recent') == 'recent' &&
+              (_string(filters['kind']) ?? '').isEmpty &&
+              (_string(filters['sensitivity']) ?? '').isEmpty;
         }),
       );
       selected.sort((a, b) => _offset(a).compareTo(_offset(b)));
