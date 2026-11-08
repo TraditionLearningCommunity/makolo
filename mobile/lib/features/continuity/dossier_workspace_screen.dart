@@ -124,7 +124,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       final cached = await repo.read(ObjectiveDepth.dossier, id);
       final source = await repo.readSource(ObjectiveDepth.dossier, id);
       if (!mounted || widget.id != id || widget.repository != repo) return;
-      if (cached == null || cached.payload['visible_items_complete'] != true ||
+      if (cached == null || cached.payload['visible_journeys_complete'] != true ||
           ObjectiveRepository.freshnessPolicy.evaluate(
             cached, now: DateTime.now().toUtc(), invalidated: source.invalidated,
           ) != FreshnessState.fresh) {
@@ -333,7 +333,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     }
   }
   Future<void> _newDependency(Map<String, dynamic> payload) async {
-    final choices = _rows(payload['visible_items']).map((row) => {
+    final choices = _rows(payload['visible_journeys']).map((row) => {
       'id': row['link_id'], 'label': row['label'],
     }).toList();
     if (choices.length < 2) {
@@ -704,7 +704,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _overview(Map<String, dynamic> data) {
-    final items = _rows(data['visible_items']);
+    final items = _rows(data['visible_journeys']);
     final deps = _rows(data['visible_dependencies']);
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
@@ -824,7 +824,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   );
 
   Widget _journeyList(Map<String, dynamic> data) {
-    final all = _rows(data['visible_items']);
+    final all = _rows(data['visible_journeys']);
     final items = _filtered(all);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Toutes les démarches', style: Theme.of(context).textTheme.titleLarge
@@ -877,7 +877,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       .where((item) => item.$3).any((field) => _parse(row[field.$1]) != null);
 
   Widget _timeline(Map<String, dynamic> data) {
-    final journeys = _rows(data['visible_items']);
+    final journeys = _rows(data['visible_journeys']);
     final events = <_JourneyMoment>[];
     for (final row in journeys) {
       for (final field in _momentFields) {
@@ -990,7 +990,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _dependencyView(Map<String, dynamic> data) {
-    final journeys = _rows(data['visible_items']);
+    final journeys = _rows(data['visible_journeys']);
     final deps = _rows(data['visible_dependencies']);
     final model = _GraphLayout.build(journeys, deps);
     final byId = {for (final row in journeys) _text(row['id']): row};
