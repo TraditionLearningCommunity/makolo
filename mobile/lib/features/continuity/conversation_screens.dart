@@ -610,13 +610,15 @@ class _ConversationInvitationCardState
               MakoloActionButton(
                 label: 'Refuser',
                 onPressed: _busy || widget.invitation.expired
-                    ? null : () => _respond(false),
+                    ? null
+                    : () => _respond(false),
                 appearance: MakoloActionAppearance.secondary,
               ),
               MakoloActionButton(
                 label: _busy ? 'En cours…' : 'Accepter',
                 onPressed: _busy || widget.invitation.expired
-                    ? null : () => _respond(true),
+                    ? null
+                    : () => _respond(true),
                 appearance: MakoloActionAppearance.primary,
                 busy: _busy,
               ),
@@ -1398,7 +1400,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       MakoloInteractionAction(
                         id: 'pin',
                         label: detail.personalState.pinned
-                            ? 'Retirer l’épingle' : 'Épingler pour moi',
+                            ? 'Retirer l’épingle'
+                            : 'Épingler pour moi',
                         intent: MakoloActionIntent.select,
                       ),
                       MakoloInteractionAction(
@@ -1411,19 +1414,22 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       MakoloInteractionAction(
                         id: 'revisit',
                         label: detail.personalState.revisit
-                            ? 'Retirer le rappel de revisite' : 'Revoir plus tard',
+                            ? 'Retirer le rappel de revisite'
+                            : 'Revoir plus tard',
                         intent: MakoloActionIntent.transition,
                       ),
                       MakoloInteractionAction(
                         id: 'archive',
                         label: detail.personalState.archived
-                            ? 'Retirer de mes archives' : 'Archiver pour moi',
+                            ? 'Retirer de mes archives'
+                            : 'Archiver pour moi',
                         intent: MakoloActionIntent.transition,
                       ),
                       MakoloInteractionAction(
                         id: 'hide',
                         label: detail.personalState.hidden
-                            ? 'Afficher de nouveau' : 'Masquer pour moi',
+                            ? 'Afficher de nouveau'
+                            : 'Masquer pour moi',
                         intent: MakoloActionIntent.transition,
                       ),
                     ],

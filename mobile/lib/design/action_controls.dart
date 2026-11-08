@@ -60,9 +60,7 @@ class MakoloActionButton extends StatelessWidget {
                 onPressed: handler,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
                 child: labelWidget,
               )
@@ -70,9 +68,7 @@ class MakoloActionButton extends StatelessWidget {
                 onPressed: handler,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Theme.of(context).colorScheme.error,
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
                 icon: Icon(visibleIcon),
                 label: labelWidget,

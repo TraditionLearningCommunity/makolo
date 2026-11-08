@@ -642,7 +642,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         Row(
           children: [
             MakoloActionButton(
-              label: _hasExtraFilters ? 'Dates et tri · actifs' : 'Dates et tri',
+              label: _hasExtraFilters
+                  ? 'Dates et tri · actifs'
+                  : 'Dates et tri',
               onPressed: _advancedFilters,
               icon: Icons.calendar_month_outlined,
               appearance: MakoloActionAppearance.quiet,

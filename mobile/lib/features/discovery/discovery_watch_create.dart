@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../design/action_controls.dart';
 
 import 'discovery_repository.dart';
@@ -299,7 +300,9 @@ class _CreateDiscoveryWatchDialogState
           key: const Key('discover-watch-confirm'),
           label: _saving
               ? 'Enregistrement…'
-              : widget.watchId == null ? 'Créer la veille' : 'Enregistrer',
+              : widget.watchId == null
+              ? 'Créer la veille'
+              : 'Enregistrer',
           onPressed: _saving ? null : _create,
           appearance: MakoloActionAppearance.primary,
           busy: _saving,

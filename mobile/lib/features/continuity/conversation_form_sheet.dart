@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+
 import '../../design/action_controls.dart';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -481,7 +483,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                     ))
                       MakoloActionButton(
                         label: 'Photo',
-                        onPressed: _sending ? null : () => _chooseMedia('photo'),
+                        onPressed: _sending
+                            ? null
+                            : () => _chooseMedia('photo'),
                         icon: Icons.image_outlined,
                         appearance: MakoloActionAppearance.secondary,
                       ),
@@ -490,7 +494,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                     ))
                       MakoloActionButton(
                         label: 'Document',
-                        onPressed: _sending ? null : () => _chooseMedia('document'),
+                        onPressed: _sending
+                            ? null
+                            : () => _chooseMedia('document'),
                         icon: Icons.attach_file_outlined,
                         appearance: MakoloActionAppearance.secondary,
                       ),

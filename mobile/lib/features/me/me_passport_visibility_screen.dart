@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -259,7 +260,9 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                       children: [
                         MakoloActionButton(
                           label: 'Annuler',
-                          onPressed: working ? null : () => Navigator.pop(sheet),
+                          onPressed: working
+                              ? null
+                              : () => Navigator.pop(sheet),
                           appearance: MakoloActionAppearance.quiet,
                         ),
                         const Spacer(),
