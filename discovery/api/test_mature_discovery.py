@@ -385,6 +385,57 @@ class MatureDiscoveryAPITests(TestCase):
             )["data"]
             self.assertNotIn("spatial_index", second)
 
+    def test_five_isolated_services_are_five_pins_not_ten_or_a_page(self):
+        locations = (
+            ("Maseru", "-29.315000", "27.483000"),
+            ("Leribe", "-28.875000", "28.050000"),
+            ("Mafeteng", "-29.824000", "27.238000"),
+            ("Mohale", "-30.151000", "27.476000"),
+            ("Qacha", "-30.116000", "28.686000"),
+        )
+        expected = set()
+        for name, latitude, longitude in locations:
+            activity = self._activity(f"Z3 isolated-map {name}")
+            ServiceDetails.objects.create(
+                activity=activity, service_kind=ServiceKind.APPLICATION_SUPPORT,
+                opportunity_policy=OpportunityPolicy.NONE,
+            )
+            occurrence = self._occurrence(activity)
+            place = Place.objects.create(
+                name=f"Z3 carte {name}",
+                locality=name,
+                latitude=latitude,
+                longitude=longitude,
+            )
+            OccurrencePlace.objects.create(
+                occurrence=occurrence,
+                place=place,
+                role=OccurrencePlaceRole.PRIMARY,
+            )
+            expected.add(str(place.pk))
+
+        first = self._items(
+            q="Z3 isolated-map", page_size=1, include_spatial_index="compact",
+        )["data"]
+        self.assertEqual(len(first["results"]), 1)
+        self.assertGreater(first["count"], 5)
+        spatial = first["spatial_index"]
+        self.assertEqual(spatial["total_results"], first["count"])
+        self.assertEqual(spatial["count"], 5)
+        self.assertEqual(
+            {item["identity"]["family"] for item in spatial["results"]},
+            {"service_activity"},
+        )
+        self.assertEqual(
+            {item["place"]["id"] for item in spatial["results"]},
+            expected,
+        )
+        self.assertEqual(
+            len({item["identity"]["candidate_key"] for item in spatial["results"]}),
+            5,
+        )
+        self.assertTrue(first["has_next"])
+
     def test_spatial_service_excludes_private_and_expired_occurrence_places(self):
         live = self._occurrence(self.service_activity)
         private = Place.objects.create(
