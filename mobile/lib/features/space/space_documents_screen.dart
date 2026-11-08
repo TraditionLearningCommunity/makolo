@@ -1,5 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -205,11 +207,14 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Déposer',
+              appearance: MakoloActionAppearance.primary,
               onPressed: () {
                 if (controller.text.trim().isNotEmpty) {
                   Navigator.pop(dialogContext, {
@@ -218,7 +223,6 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   });
                 }
               },
-              child: const Text('Déposer'),
             ),
           ],
         ),
@@ -284,10 +288,10 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
             decoration: InputDecoration(
               hintText: 'Rechercher',
               prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: IconButton(
+              suffixIcon: MakoloIconActionButton(
                 tooltip: 'Rechercher',
                 onPressed: () => _load(),
-                icon: const Icon(Icons.arrow_forward_rounded),
+                icon: Icons.arrow_forward_rounded,
               ),
               border: const OutlineInputBorder(),
             ),
@@ -296,10 +300,11 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
           if (_message != null) ...[
             Text(_message!),
             const SizedBox(height: MakoloSpacing.sm),
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Réessayer',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => _load(),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              icon: Icons.refresh_rounded,
             ),
           ] else if (_loading && _documents.isEmpty)
             const Center(child: CircularProgressIndicator())
@@ -337,10 +342,11 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
           if (_loading && _documents.isNotEmpty)
             const Center(child: CircularProgressIndicator()),
           if (_more && !_loading)
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Voir plus',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => _load(append: true),
-              icon: const Icon(Icons.expand_more_rounded),
-              label: const Text('Voir plus'),
+              icon: Icons.expand_more_rounded,
             ),
           const SizedBox(height: 90),
         ],
