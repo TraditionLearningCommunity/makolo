@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from django.urls import reverse
 
-from objectives.models import ProjectLifecycle
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
     manageable_dossiers_for_profile,
@@ -53,7 +52,7 @@ def _dossier_row(dossier, *, actor, project_id, can_manage_parent):
                 "dossier_id": dossier.pk,
             }),
             "move": reverse("objectives:project-move-dossier", kwargs={
-                "project_id": dossier.project_links.filter(is_active=True).values_list("project_id", flat=True).first(),
+                "project_id": project_id,
                 "dossier_id": dossier.pk,
             }),
         } if manageable else {}),
