@@ -12,7 +12,7 @@
   if (data.identity?.id !== root.dataset.dossierId) return;
 
   const stage = root.querySelector('[data-dossier-content]');
-  const rows = Array.isArray(data.visible_items) ? data.visible_items : [];
+  const rows = Array.isArray(data.visible_journeys) ? data.visible_journeys : [];
   const dependencies = Array.isArray(data.visible_dependencies)
     ? data.visible_dependencies : [];
   const byId = new Map(rows.map((r) => [r.id, r]));
