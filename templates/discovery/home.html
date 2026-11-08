@@ -9,8 +9,8 @@
     <div class="mb-2 block text-xs font-bold"></div>
     <div class="relative"><span class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"></span></div>
     <div class="!min-h-[50px] !pl-12"></div>
-    <div class="flex items-end"><span class="mk-btn mk-btn-primary min-h-[50px] w-full justify-center px-6"></span></div>
-    <div class="flex flex-wrap items-center gap-2"><span class="mk-btn mk-btn-secondary !w-auto"></span><span class="sr-only"></span></div>
+    <div class="flex items-end"><span class="mk-action-button min-h-[50px] w-full justify-center px-6" data-variant="primary"></span></div>
+    <div class="flex flex-wrap items-center gap-2"><span class="mk-action-button !w-auto" data-variant="secondary"></span><span class="sr-only"></span></div>
     <div class="group rounded-2xl border"><span class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold"></span><span class="h-4 w-4 transition group-open:rotate-180"></span></div>
     <div class="grid gap-3 border-t p-4 sm:grid-cols-3"><span class="mb-1 block text-xs font-semibold"></span></div>
     <div class="flex flex-wrap items-start justify-between gap-3 ml-2"></div>
@@ -22,7 +22,7 @@
     {% include 'discovery/_participant_nav.html' %}
 
     {% if request.user.is_authenticated %}
-    <div class="flex"><a href="{% url 'core:participant-home' %}" class="mk-btn mk-btn-ghost" aria-label="Revenir à Mon espace"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Mon espace</a></div>
+    <div class="flex"><a href="{% url 'core:participant-home' %}" class="mk-action-button" data-variant="ghost" aria-label="Revenir à Mon espace"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Mon espace</a></div>
     {% endif %}
 
     <section class="mk-participant-hero px-5 py-7 sm:px-7 sm:py-9 lg:px-10 lg:py-11">
@@ -39,16 +39,16 @@
                     <i data-lucide="sparkles" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-brand)"></i>
                     <input id="discover-query" name="q" value="{{ discovery_intent.raw_text|default:'' }}" maxlength="120" placeholder="Ex. Je veux voyager à Kolwezi demain matin" class="!min-h-[50px] !pl-12" autocomplete="off">
                 </div>
-                <div class="flex items-end"><button class="mk-btn mk-btn-primary min-h-[50px] w-full justify-center px-6" type="submit"><i data-lucide="arrow-right" class="h-4 w-4"></i>Découvrir</button></div>
+                <div class="flex items-end"><button class="mk-action-button min-h-[50px] w-full justify-center px-6" data-variant="primary" type="submit"><i data-lucide="arrow-right" class="h-4 w-4"></i>Découvrir</button></div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2" aria-label="Suggestions rapides">
                 <span class="text-xs font-bold" style="color:var(--mk-muted)">Choisir :</span>
-                <button id="discover-near-me" type="button" class="mk-btn mk-btn-secondary"><i data-lucide="locate-fixed" class="h-4 w-4"></i>Autour de moi</button>
-                <a href="?when=today&period=evening" class="mk-btn mk-btn-secondary"><i data-lucide="moon-star" class="h-4 w-4"></i>Ce soir</a>
-                <a href="?vertical=transport" class="mk-btn mk-btn-secondary"><i data-lucide="bus-front" class="h-4 w-4"></i>Voyager</a>
-                <a href="?vertical=event" class="mk-btn mk-btn-secondary"><i data-lucide="calendar-days" class="h-4 w-4"></i>Événements</a>
-                <a href="?vertical=service" class="mk-btn mk-btn-secondary"><i data-lucide="hand-heart" class="h-4 w-4"></i>Être accompagné</a>
+                <button id="discover-near-me" type="button" class="mk-action-button" data-variant="secondary"><i data-lucide="locate-fixed" class="h-4 w-4"></i>Autour de moi</button>
+                <a href="?when=today&period=evening" class="mk-action-button" data-variant="secondary"><i data-lucide="moon-star" class="h-4 w-4"></i>Ce soir</a>
+                <a href="?vertical=transport" class="mk-action-button" data-variant="secondary"><i data-lucide="bus-front" class="h-4 w-4"></i>Voyager</a>
+                <a href="?vertical=event" class="mk-action-button" data-variant="secondary"><i data-lucide="calendar-days" class="h-4 w-4"></i>Événements</a>
+                <a href="?vertical=service" class="mk-action-button" data-variant="secondary"><i data-lucide="hand-heart" class="h-4 w-4"></i>Être accompagné</a>
             </div>
 
             {% if applied_constraints %}
@@ -77,9 +77,9 @@
                     <div><label for="discover-date" class="mb-1 block text-xs font-semibold">Date précise</label><input id="discover-date" type="date" name="date" value="{{ filters.date|default:'' }}"></div>
                     <div><label for="discover-date-from" class="mb-1 block text-xs font-semibold">Du</label><input id="discover-date-from" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div>
                     <div><label for="discover-date-to" class="mb-1 block text-xs font-semibold">Au</label><input id="discover-date-to" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div>
-                    <div class="flex items-end"><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-ghost">Réinitialiser</a><button type="submit" class="mk-btn mk-btn-secondary">Appliquer</button></div>
+                    <div class="flex items-end"><a href="{% url 'discovery:home' %}" class="mk-action-button" data-variant="ghost">Réinitialiser</a><button type="submit" class="mk-action-button" data-variant="secondary">Appliquer</button></div>
                     {% if filters.q or filters.place or filters.city or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}
-                    <a href="{% url 'discovery:watch-create' %}?{{ request.GET.urlencode }}" class="mk-btn mk-btn-secondary">Enregistrer comme veille</a>
+                    <a href="{% url 'discovery:watch-create' %}?{{ request.GET.urlencode }}" class="mk-action-button" data-variant="secondary">Enregistrer comme veille</a>
                     {% endif %}
                 </div>
             </details>
@@ -93,7 +93,7 @@
                     <input type="hidden" name="{{ key }}" value="{{ value }}">
                 {% endif %}
             {% endfor %}
-            <button type="submit" class="mk-btn mk-btn-secondary">
+            <button type="submit" class="mk-action-button" data-variant="secondary">
                 <i data-lucide="sparkles" class="h-4 w-4" aria-hidden="true"></i>
                 Clarifier cette recherche
             </button>
@@ -104,7 +104,7 @@
         <form method="post" action="{% url 'discovery:research' %}" class="mt-2 flex flex-wrap items-center gap-3">
             {% csrf_token %}
             <input type="hidden" name="q" value="{{ discovery_intent.raw_text }}">
-            <button type="submit" class="mk-btn mk-btn-ghost">
+            <button type="submit" class="mk-action-button" data-variant="ghost">
                 <i data-lucide="book-open" class="h-4 w-4" aria-hidden="true"></i>
                 Chercher des sources externes
             </button>
@@ -122,7 +122,7 @@
     <section class="space-y-3" aria-label="Contexte géographique de la recherche">
         <div class="flex flex-wrap items-end justify-between gap-3">
             <div><span class="mk-kicker">Autour de vous</span><p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">Rayon {{ filters.radius_km|default:'10' }} km · {{ mappable_result_count }} résultat{{ mappable_result_count|pluralize }} sur la carte, sur {{ result_count }} au total</p></div>
-            <div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>
+            <div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-action-button" data-variant="secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-action-button" data-variant="ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>
         </div>
         <section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="position:static;border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(220px,30vw,340px);min-height:0" aria-label="Carte des résultats localisés"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">Impossible d’afficher la carte.</p></div></section>
     </section>
@@ -133,8 +133,8 @@
         <section id="discovery-list-panel" aria-label="Résultats de découverte" class="mk-discovery-results space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
             {% for card in discovery_cards %}{% include 'discovery/_universal_card.html' with card=card %}{% endfor %}
 
-            {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucune possibilité ne correspond à cette recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Élargissez le lieu ou la date, retirez une contrainte, ou essayez une autre recherche.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Explorer sans filtre</a></div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Fin des résultats</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Pour voir d’autres résultats, modifiez votre recherche ou vos filtres.</p><a href="#discovery-search-form" class="mk-btn mk-btn-secondary mt-4">Modifier ma recherche</a></div>{% endif %}
-            {% if page_obj.has_next %}<nav class="flex justify-center pt-2" aria-label="Continuer l’exploration"><a class="mk-btn mk-btn-secondary" rel="next" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>Voir plus de possibilités</a></nav>{% endif %}
+            {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucune possibilité ne correspond à cette recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Élargissez le lieu ou la date, retirez une contrainte, ou essayez une autre recherche.</p><a href="{% url 'discovery:home' %}" class="mk-action-button mt-4" data-variant="secondary">Explorer sans filtre</a></div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Fin des résultats</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Pour voir d’autres résultats, modifiez votre recherche ou vos filtres.</p><a href="#discovery-search-form" class="mk-action-button mt-4" data-variant="secondary">Modifier ma recherche</a></div>{% endif %}
+            {% if page_obj.has_next %}<nav class="flex justify-center pt-2" aria-label="Continuer l’exploration"><a class="mk-action-button" data-variant="secondary" rel="next" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>Voir plus de possibilités</a></nav>{% endif %}
         </section>
     </div>
 </div>
