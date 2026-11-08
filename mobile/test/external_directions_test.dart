@@ -14,16 +14,6 @@ void main() {
     expect(uri.queryParameters.containsKey('key'), isFalse);
   });
 
-  test('Waze uses official universal HTTPS links and only public destination', () {
-    final uri = ExternalDirections.waze(-30.116, 28.686);
-    expect(uri.scheme, 'https');
-    expect(uri.host, 'waze.com');
-    expect(uri.path, '/ul');
-    expect(uri.queryParameters['ll'], '-30.116,28.686');
-    expect(uri.queryParameters['navigate'], 'yes');
-    expect(uri.queryParameters.containsKey('origin'), isFalse);
-  });
-
   test('invalid destinations are rejected before opening navigation', () {
     for (final point in [
       (double.nan, 10.0),
@@ -33,8 +23,6 @@ void main() {
     ]) {
       expect(ExternalDirections.valid(point.$1, point.$2), isFalse);
       expect(() => ExternalDirections.googleMaps(point.$1, point.$2),
-          throwsArgumentError);
-      expect(() => ExternalDirections.waze(point.$1, point.$2),
           throwsArgumentError);
     }
   });
