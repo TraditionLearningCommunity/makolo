@@ -84,7 +84,7 @@ class DiscoveryMapController {
           _clusterReady = false;
           _symbolPinsReady = false;
           await _removeClusterLayers();
-          return renderPins(pins);
+          return await renderPins(pins);
         }
       } else {
         await _controller.addSource(
@@ -204,7 +204,9 @@ class DiscoveryMapController {
           for (final layer in [_multiPlaces, _singlePins]) {
             try {
               await _controller.removeLayer(layer);
-            } on Object {}
+            } on Object {
+              // A native style reload may already have removed this layer.
+            }
           }
           await _addUnclusteredCircleFallback();
         }
@@ -458,11 +460,15 @@ class DiscoveryMapController {
     ]) {
       try {
         await _controller.removeLayer(layer);
-      } on Object {}
+      } on Object {
+              // A native style reload may already have removed this layer.
+            }
     }
     try {
       await _controller.removeSource(_source);
-    } on Object {}
+    } on Object {
+              // A native style reload may already have removed this layer.
+            }
   }
 
   /// A cluster zooms to its real expansion level; an individual point
