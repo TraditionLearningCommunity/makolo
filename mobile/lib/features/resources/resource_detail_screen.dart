@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../data/files/resource_download_destination.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../design/makolo_components.dart';
