@@ -1,7 +1,7 @@
 {% extends 'base/app.html' %}
 {% block title %}Makolo | Mark{% endblock %}
 {% block content %}
-<div class="mk-mark-page">
+<div class="mk-mark-page" data-mk-surface="mark">
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
     <h1>Qu’est-ce que vous avez en tête ?</h1>
@@ -12,7 +12,7 @@
     <label for="mark-intent" class="sr-only">Votre demande</label>
     <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
-    <button type="submit" class="mk-now-cta">Continuer</button>
+    <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
   </form>
 
   {% if mark_needs_clarification %}
