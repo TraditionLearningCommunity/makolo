@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-3xl space-y-4">
   <header class="flex items-center justify-between gap-3">
     <div class="flex min-w-0 items-center gap-2">
-      <a href="{% url 'personal_assets:documents' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes documents">←</a>
+      <a href="{% url 'personal_assets:documents' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes documents"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
       <div class="min-w-0">
         <span class="mk-kicker">{{ asset.get_kind_display }}</span>
         <h1 class="truncate text-2xl font-extrabold">{{ asset.title }}</h1>
@@ -12,9 +12,9 @@
     </div>
     {% if latest and not asset.archived_at %}
     <div class="flex items-center gap-1">
-      <a href="{% url 'personal_assets:download' latest.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Télécharger" title="Télécharger">⇩</a>
-      <a href="{% url 'personal_assets:reuse' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Utiliser dans une démarche" title="Utiliser dans une démarche">↗</a>
-      <a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Nouvelle version" title="Nouvelle version">↻</a>
+      <a href="{% url 'personal_assets:download' latest.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Télécharger" title="Télécharger"><svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg></a>
+      <a href="{% url 'personal_assets:reuse' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Utiliser dans une démarche" title="Utiliser dans une démarche"><i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i></a>
+      <a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Nouvelle version" title="Nouvelle version"><i data-lucide="history" class="h-4 w-4" aria-hidden="true"></i></a>
     </div>
     {% endif %}
   </header>
@@ -38,7 +38,7 @@
     {% if not asset.archived_at %}
     <form method="post" action="{% url 'personal_assets:archive' asset.pk %}" class="mt-5 flex justify-end">
       {% csrf_token %}
-      <button type="submit" class="mk-action-button" data-variant="danger" aria-label="Archiver" title="Archiver">⌫</button>
+      <button type="submit" class="mk-action-button" data-variant="danger" aria-label="Archiver" title="Archiver"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i></button>
     </form>
     {% endif %}
   </section>
@@ -55,7 +55,7 @@
           <p class="font-bold">v{{ version.version }}{% if latest and version.pk == latest.pk %} · actuelle{% endif %}</p>
           <p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ version.created_at|date:'d/m/Y H:i' }}{% if version.expires_at %} · {{ version.expires_at|date:'d/m/Y' }}{% endif %}</p>
         </div>
-        {% if not asset.archived_at %}<a href="{% url 'personal_assets:download' version.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Télécharger la version {{ version.version }}">⇩</a>{% endif %}
+        {% if not asset.archived_at %}<a href="{% url 'personal_assets:download' version.pk %}" class="mk-action-button" data-variant="ghost" aria-label="Télécharger la version {{ version.version }}"><svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg></a>{% endif %}
       </div>
       {% empty %}
       <p class="py-3">Aucune version</p>
