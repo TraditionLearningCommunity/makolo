@@ -1273,6 +1273,9 @@ def _ongoing_primary_action(item):
     if kind == "access" and "open_access" in capabilities:
         return {"label": "Voir mon accès", "icon": "ticket",
                 "intent": "open_owner"}
+    if kind == "funding" and "open_detail" in capabilities:
+        return {"label": "Voir le financement", "icon": "hand-coins",
+                "intent": "open_owner"}
     # Web can open some owner pages even when there is no native owner route.
     # Never invite a mutation or fabricate an actionable Flutter destination.
     if not links.get("web"):
