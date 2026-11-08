@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -260,10 +262,11 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
               padding: const EdgeInsets.all(MakoloSpacing.lg),
               children: [
                 Text(error ?? 'Cette modification est indisponible.'),
-                TextButton.icon(
+                MakoloActionButton(
+                  label: 'Réessayer',
+                  appearance: MakoloActionAppearance.quiet,
                   onPressed: load,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Réessayer'),
+                  icon: Icons.refresh,
                 ),
               ],
             )
@@ -430,16 +433,14 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     ),
                   ],
                   const SizedBox(height: MakoloSpacing.md),
-                  FilledButton.icon(
+                  MakoloActionButton(
+                    label: saving
+                        ? 'Enregistrement…'
+                        : 'Enregistrer les modifications',
+                    appearance: MakoloActionAppearance.primary,
+                    busy: saving,
                     onPressed: saving ? null : save,
-                    icon: saving
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: const Text('Enregistrer les modifications'),
+                    icon: Icons.save_outlined,
                   ),
                 ],
               ),
