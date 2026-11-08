@@ -26,7 +26,7 @@ def _date(value):
     return value.isoformat() if value is not None else None
 
 
-def _dossier_row(dossier, *, actor, can_manage_parent):
+def _dossier_row(dossier, *, actor, project_id, can_manage_parent):
     readiness = resolve_dossier_readiness(dossier, viewer=actor)
     manageable = can_manage_parent and can_manage_dossier(actor, dossier)
     return {
@@ -49,7 +49,7 @@ def _dossier_row(dossier, *, actor, can_manage_parent):
         "web_url": reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
         "web_actions": ({
             "unlink": reverse("objectives:project-unlink-dossier", kwargs={
-                "project_id": dossier.project_links.filter(is_active=True).values_list("project_id", flat=True).first(),
+                "project_id": project_id,
                 "dossier_id": dossier.pk,
             }),
             "move": reverse("objectives:project-move-dossier", kwargs={
@@ -67,7 +67,7 @@ def project_dossier_page(actor, project, *, offset=0, limit=50):
     more = len(chunk) > limit
     manageable = can_manage_project(actor, project)
     items = [
-        _dossier_row(dossier, actor=actor, can_manage_parent=manageable)
+        _dossier_row(dossier, actor=actor, project_id=project.pk, can_manage_parent=manageable)
         for dossier in chunk[:limit]
     ]
     return {
