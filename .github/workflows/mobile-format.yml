@@ -1,11 +1,6 @@
 name: Mobile Format
 
 on:
-  push:
-    branches:
-      - fix/discover-a-continuation-context-20261014
-    paths:
-      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
@@ -49,14 +44,6 @@ jobs:
 
       - name: Toolchain
         run: flutter --version
-
-      - name: Resolve Dart dependencies for analyzer fixes
-        working-directory: mobile
-        run: flutter pub get
-
-      - name: Apply supported Dart analyzer fixes
-        working-directory: mobile
-        run: dart fix --apply
 
       - name: Format Dart sources
         working-directory: mobile
