@@ -199,6 +199,12 @@ class _ResourceCounts {
       final documents = _map(page.payload['documents']);
       if ((_string(documents['view']) ?? 'current') != 'current') continue;
       if ((_string(documents['query']) ?? '').isNotEmpty) continue;
+      if ((_string(documents['sort']) ?? 'recent') != 'recent') continue;
+      final filters = _map(documents['filters']);
+      if ((_string(filters['kind']) ?? '').isNotEmpty ||
+          (_string(filters['sensitivity']) ?? '').isNotEmpty) {
+        continue;
+      }
       final documentCount = _int(documents['count']);
       final proofs = _map(page.payload['proofs']);
       final credentials = _map(page.payload['credentials']);
