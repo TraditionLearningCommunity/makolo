@@ -418,7 +418,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
 
   (List<Map<String, dynamic>>, bool, int) _dossiers(
-      Map<String, dynamic> project, List<StoredProjection> cached) {
+      Map<String, dynamic> project,
+      List<StoredProjection> cached,
+      DateTime projectReceivedAt) {
     final first = _list(project['visible_dossiers']);
     final page = _map(project['dossiers_page']);
     final rows = <Map<String, dynamic>>[...first];
@@ -426,7 +428,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     var offset = page['next_offset'] is int ? page['next_offset'] as int : first.length;
     var more = page['has_more'] == true;
     if (!_ignoreOlderPages && more) {
+      // A refreshed owner detail supersedes older continuation windows.
+      // Never merge cached Dossiers from before a possible permission change.
       final fragments = cached.where((item) =>
+          !item.receivedAt.isBefore(projectReceivedAt) &&
           item.payload['project_id']?.toString() == widget.id &&
           _map(item.payload['actor'])['id']?.toString() ==
               widget.repository.profileId).toList()
@@ -904,7 +909,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               builder: (context, pageSnapshot) {
                 final project = detail.payload;
                 final (rows, more, offset) =
-                    _dossiers(project, pageSnapshot.data ?? const []);
+                    _dossiers(project, pageSnapshot.data ?? const [], detail.receivedAt);
                 return RefreshIndicator(
                   onRefresh: _refresh,
                   child: ListView(
