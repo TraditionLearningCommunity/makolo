@@ -133,7 +133,8 @@ class ObjectiveRepository {
       SyncSourceDefinition.projectionEnvelope(
         sourceKey: 'project:dossiers:$projectId:$offset:$projectDossierLimit',
         owner: 'Objectives',
-        path: 'api/v1/objectives/projects/$projectId/dossiers/'
+        path:
+            'api/v1/objectives/projects/$projectId/dossiers/'
             '?limit=$projectDossierLimit&offset=$offset',
         projectionKind: projectDossierProjectionKind,
         resourceKey: projectDossierResourceKey(projectId, offset),
