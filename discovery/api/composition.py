@@ -1498,12 +1498,26 @@ def spatial_index_from_rows(rows) -> dict:
     facts_by_activity, _ = _public_occurrence_facts_for_rows(
         located_rows, additional_occurrence_ids=service_occurrences,
     )
+    # A canonical Activity can be in both the generic Occurrence field and
+    # its admitted Service vertical. Map it ONCE when Service has a public
+    # location; N1 keeps both candidate identities and its own pagination.
+    mappable_service_ids = {
+        activity_id
+        for activity_id in service_activity_ids
+        if any(
+            fact.get("place", {}).get("latitude") is not None
+            and fact.get("place", {}).get("longitude") is not None
+            for fact in facts_by_activity.get(activity_id, [])
+        )
+    }
     possibilities = []
     for family, key, candidate in located_rows:
         activity_id = str(
             candidate.activity_id if family == "activity"
             else candidate["activity_id"]
         )
+        if family == "activity" and activity_id in mappable_service_ids:
+            continue
         facts = facts_by_activity.get(activity_id, [])
         located_facts = [
             fact for fact in facts
