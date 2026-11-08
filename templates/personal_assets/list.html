@@ -5,20 +5,20 @@
   <header class="mk-panel p-4 sm:p-5">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <a href="{% url 'personal_assets:list' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes ressources">←</a>
+        <a href="{% url 'personal_assets:list' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes ressources"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
         <div>
           <span class="mk-kicker">Mes ressources</span>
           <h1 class="text-2xl font-extrabold">Mes documents</h1>
         </div>
       </div>
-      <a href="{% url 'personal_assets:add' %}" class="mk-action-button" data-variant="primary" aria-label="Ajouter un document">＋</a>
+      <a href="{% url 'personal_assets:add' %}" class="mk-action-button" data-variant="primary" aria-label="Ajouter un document"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i></a>
     </div>
 
     <form method="get" role="search" class="mt-4 space-y-3">
       <div class="flex gap-2">
         <label for="library-search" class="sr-only">Rechercher</label>
         <input id="library-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher" class="mk-interaction-field min-w-0 flex-1">
-        <button type="submit" class="mk-action-button" data-variant="secondary" aria-label="Rechercher">⌕</button>
+        <button type="submit" class="mk-action-button" data-variant="secondary" aria-label="Rechercher"><i data-lucide="search" class="h-4 w-4" aria-hidden="true"></i></button>
       </div>
 
       <nav class="mk-interaction-tabs" aria-label="Vue des documents">
@@ -58,7 +58,7 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-3">
               <p class="font-extrabold">{{ item.asset.title }}</p>
-              <span aria-hidden="true">›</span>
+              <i data-lucide="chevron-right" class="h-4 w-4" aria-hidden="true"></i>
             </div>
             <p class="mt-1 text-sm" style="color:var(--mk-muted)">
               {{ item.asset.get_kind_display }}
@@ -73,7 +73,7 @@
     {% empty %}
       <div class="mk-panel p-8 text-center">
         <p class="font-bold">{% if query %}Aucun résultat{% elif active_view == 'archived' %}Aucun document archivé{% else %}Aucun document{% endif %}</p>
-        {% if active_view != 'archived' and not query %}<a href="{% url 'personal_assets:add' %}" class="mk-action-button mt-4" data-variant="primary">＋</a>{% endif %}
+        {% if active_view != 'archived' and not query %}<a href="{% url 'personal_assets:add' %}" class="mk-action-button mt-4" data-variant="primary"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i></a>{% endif %}
       </div>
     {% endfor %}
   </section>
@@ -81,11 +81,11 @@
   {% if page.paginator.num_pages > 1 %}
   <nav class="flex items-center justify-between gap-3" aria-label="Pagination">
     {% if page.has_previous %}
-      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.previous_page_number }}&amp;view={{ active_view }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if kind %}&amp;kind={{ kind }}{% endif %}{% if sensitivity %}&amp;sensitivity={{ sensitivity }}{% endif %}" aria-label="Page précédente">‹</a>
+      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.previous_page_number }}&amp;view={{ active_view }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if kind %}&amp;kind={{ kind }}{% endif %}{% if sensitivity %}&amp;sensitivity={{ sensitivity }}{% endif %}" aria-label="Page précédente"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
     {% else %}<span></span>{% endif %}
     <span class="text-sm" style="color:var(--mk-muted)">{{ page.number }} / {{ page.paginator.num_pages }}</span>
     {% if page.has_next %}
-      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.next_page_number }}&amp;view={{ active_view }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if kind %}&amp;kind={{ kind }}{% endif %}{% if sensitivity %}&amp;sensitivity={{ sensitivity }}{% endif %}" aria-label="Page suivante">›</a>
+      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.next_page_number }}&amp;view={{ active_view }}&amp;sort={{ active_sort }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if kind %}&amp;kind={{ kind }}{% endif %}{% if sensitivity %}&amp;sensitivity={{ sensitivity }}{% endif %}" aria-label="Page suivante"><i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i></a>
     {% endif %}
   </nav>
   {% endif %}
