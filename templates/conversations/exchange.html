@@ -16,7 +16,7 @@
           <p class="whitespace-pre-line text-sm leading-6">{{ entry.body }}</p>
           {% conversation_exchange_attachments entry request.user as entry_files %}
           {% if entry_files %}<div class="mt-3 space-y-2">{% for attachment in entry_files %}
-            <a class="mk-action-button mk-action-button-secondary" data-variant="secondary" href="{% url 'conversations:attachment' attachment.pk %}">{{ attachment.original_name }}</a>
+            <a class="mk-action-button" data-variant="secondary" href="{% url 'conversations:attachment' attachment.pk %}">{{ attachment.original_name }}</a>
             {% if attachment.kind == 'voice' or attachment.kind == 'audio' %}
               <audio controls class="w-full" preload="none" src="{% url 'conversations:attachment-inline' attachment.pk %}" aria-label="{{ attachment.original_name }}"></audio>
             {% elif attachment.kind == 'image' %}
@@ -31,14 +31,14 @@
     <p class="text-sm" style="color:var(--mk-muted)">Aucune contribution accessible.</p>
   {% endif %}
   {% if next_cursor %}
-    <a href="?cursor={{ next_cursor }}" class="mk-action-button mk-action-button-secondary mt-5" data-variant="secondary">Voir la suite</a>
+    <a href="?cursor={{ next_cursor }}" class="mk-action-button mt-5" data-variant="secondary">Voir la suite</a>
   {% endif %}
   {% if can_contribute %}
     <form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-8 space-y-3 border-t pt-5" style="border-color:var(--mk-border)">{% csrf_token %}
       <input type="hidden" name="client_reference" value="{{ client_reference }}">
       <label for="exchange-reply" class="sr-only">Répondre</label>
       <textarea name="body" id="exchange-reply" class="mk-input w-full" rows="3" required maxlength="5000" placeholder="Écrire…"></textarea>
-      <button class="mk-action-button mk-action-button-primary" data-variant="primary" type="submit">Envoyer</button>
+      <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
     </form>
   {% endif %}
 </main>
