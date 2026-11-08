@@ -9,13 +9,13 @@
         <h1 class="mt-2 text-2xl font-extrabold">Bibliothèque</h1>
         <p class="mt-2 text-sm" style="color:var(--mk-muted)">Vos documents personnels, versionnés et privés. Un document présent ici n’est ni une Proof ni une exigence satisfaite.</p>
       </div>
-      <a href="{% url 'personal_assets:add' %}" class="mk-action-button mk-action-button-primary" data-variant="primary">Ajouter un document</a>
+      <a href="{% url 'personal_assets:add' %}" class="mk-action-button" data-variant="primary">Ajouter un document</a>
     </div>
     <form method="get" role="search" class="mt-5 flex flex-col gap-2 sm:flex-row">
       <label for="library-search" class="sr-only">Rechercher dans mes documents</label>
       <input id="library-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher dans mes documents" class="min-w-0 flex-1 rounded-xl border px-4 py-2" style="border-color:var(--mk-border)">
       {% if active_filter != 'all' %}<input type="hidden" name="filter" value="{{ active_filter }}">{% endif %}
-      <button type="submit" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Rechercher</button>
+      <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
     </form>
     <div class="mt-4 flex flex-wrap gap-2">
       <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="mk-action-button" data-variant="{% if active_filter == 'all' %}primary{% else %}ghost{% endif %}">Tous</a>
@@ -46,11 +46,11 @@
   {% if page.paginator.num_pages > 1 %}
   <nav class="flex items-center justify-between gap-3" aria-label="Pagination Bibliothèque">
     {% if page.has_previous %}
-      <a class="mk-action-button mk-action-button-ghost" data-variant="ghost" href="?page={{ page.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Précédent</a>
+      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Précédent</a>
     {% else %}<span></span>{% endif %}
     <span class="text-sm" style="color:var(--mk-muted)">Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
     {% if page.has_next %}
-      <a class="mk-action-button mk-action-button-ghost" data-variant="ghost" href="?page={{ page.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Suivant</a>
+      <a class="mk-action-button" data-variant="ghost" href="?page={{ page.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Suivant</a>
     {% endif %}
   </nav>
   {% endif %}
