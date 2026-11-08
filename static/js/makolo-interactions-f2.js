@@ -451,7 +451,7 @@
 
 
   // Central Web equivalent of MakoloInteractionIcons in Flutter.
-  // The frontend builder explicitly bundles every glyph in this registry.
+  // Glyphs join the existing frontend bundle when real templates reference them.
   const icons = Object.freeze({
     open: 'external-link',
     inspect: 'panel-right-open',
