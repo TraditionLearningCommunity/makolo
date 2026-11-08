@@ -78,8 +78,8 @@
             </div>
             <p class="mk-account-switcher__status">{% if account.pk == request.user.pk %}Compte actuel{% else %}Mot de passe requis{% endif %}</p>
             <div class="mk-account-switcher__actions">
-              {% if account.pk != request.user.pk %}<form method="post" action="{% url 'account:switch-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-primary" type="submit">Continuer</button></form>{% endif %}
-              <form method="post" action="{% url 'account:remove-account' account.pk %}">{% csrf_token %}<button class="mk-btn mk-btn-ghost mk-account-switcher__remove" type="submit">Retirer de cet appareil</button></form>
+              {% if account.pk != request.user.pk %}<form method="post" action="{% url 'account:switch-account' account.pk %}">{% csrf_token %}<button class="mk-action-button" data-variant="primary" type="submit">Continuer</button></form>{% endif %}
+              <form method="post" action="{% url 'account:remove-account' account.pk %}">{% csrf_token %}<button class="mk-action-button mk-account-switcher__remove" data-variant="ghost" type="submit">Retirer de cet appareil</button></form>
             </div>
           </section>
         {% empty %}
