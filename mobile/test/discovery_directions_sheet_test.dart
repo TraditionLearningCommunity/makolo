@@ -64,7 +64,7 @@ void main() {
     expect(discoveryDirectionsDestinations(item), isEmpty);
   });
 
-  testWidgets('Itinerary offers Google Maps and Waze without an internal router',
+  testWidgets('Itinerary opens Google Maps without provider chooser',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(
@@ -79,10 +79,10 @@ void main() {
       )),
     ));
     await tester.tap(find.text('Itinéraire'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('discover-directions-google')), findsOneWidget);
-    expect(find.byKey(const Key('discover-directions-waze')), findsOneWidget);
-    await tester.pageBack();
+    await tester.pump();
+    expect(find.text('Comment y aller ?'), findsNothing);
+    expect(find.text('Waze'), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
