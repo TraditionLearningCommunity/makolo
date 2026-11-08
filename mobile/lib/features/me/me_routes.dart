@@ -2,6 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
+import '../resources/document_form_screen.dart';
+import '../resources/documents_screen.dart';
 import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
 import '../continuity/objective_collection_screen.dart';
@@ -114,7 +116,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             return true;
           }
           if (destination.kind == 'personal_asset') {
-            context.push('/me/resources/${destination.id}');
+            context.push('/me/resources/documents/${destination.id}');
             return true;
           }
           return false;
@@ -328,34 +330,120 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             if (repository == null) {
               return const MakoloSecondaryScreen(
                 title: 'Mes ressources',
-                message:
-                    'Vos ressources ne sont pas disponibles sur cet appareil.',
+                message: 'Vos ressources ne sont pas disponibles sur cet appareil.',
               );
             }
             return ResourcesScreen(
               repository: repository,
-              onOpenResource: (id) => context.push('/me/resources/$id'),
+              onOpenDocuments: () => context.push('/me/resources/documents'),
             );
           },
           routes: [
             GoRoute(
-              path: ':id',
+              path: 'documents',
               builder: (context, state) {
                 final repository = runtime.resources;
-                final personal = runtime.personal;
-                if (repository == null || personal == null) {
+                if (repository == null) {
                   return const MakoloSecondaryScreen(
-                    title: 'Ressource',
-                    message: 'Cette ressource n’est pas disponible sur cet appareil.',
+                    title: 'Mes documents',
+                    message: 'Vos documents ne sont pas disponibles sur cet appareil.',
                   );
                 }
-                return ResourceDetailScreen(
-                  assetId: state.pathParameters['id']!,
+                return DocumentsScreen(
                   repository: repository,
-                  personal: personal,
-                  onOpenJourney: (id) => context.push('/journeys/$id'),
+                  onOpenDocument: (id) async {
+                    final changed = await context.push<bool>(
+                      '/me/resources/documents/$id',
+                    );
+                    if (changed == true) {
+                      await repository.refreshCollectionPage(
+                        query: '',
+                        offset: 0,
+                      );
+                    }
+                  },
+                  onAddDocument: () async {
+                    final id = await context.push<String>(
+                      '/me/resources/documents/add',
+                    );
+                    if (id == null) return;
+                    await repository.refreshCollectionPage(
+                      query: '',
+                      offset: 0,
+                    );
+                    if (context.mounted) {
+                      await context.push('/me/resources/documents/$id');
+                    }
+                  },
                 );
               },
+              routes: [
+                GoRoute(
+                  path: 'add',
+                  builder: (context, state) {
+                    final repository = runtime.resources;
+                    if (repository == null) {
+                      return const MakoloSecondaryScreen(
+                        title: 'Nouveau document',
+                        message: 'Ajout indisponible sur cet appareil.',
+                      );
+                    }
+                    return DocumentFormScreen.create(
+                      repository: repository,
+                      onSaved: (id) => context.pop(id),
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final repository = runtime.resources;
+                    final personal = runtime.personal;
+                    if (repository == null || personal == null) {
+                      return const MakoloSecondaryScreen(
+                        title: 'Document',
+                        message: 'Ce document n’est pas disponible sur cet appareil.',
+                      );
+                    }
+                    final id = state.pathParameters['id']!;
+                    return ResourceDetailScreen(
+                      assetId: id,
+                      repository: repository,
+                      personal: personal,
+                      onOpenJourney: (journeyId) =>
+                          context.push('/journeys/$journeyId'),
+                      onAddVersion: () async {
+                        final changed = await context.push<bool>(
+                          '/me/resources/documents/$id/version',
+                        );
+                        if (changed == true) {
+                          await repository.refreshDetail(id);
+                        }
+                      },
+                      onArchived: () => context.pop(true),
+                    );
+                  },
+                  routes: [
+                    GoRoute(
+                      path: 'version',
+                      builder: (context, state) {
+                        final repository = runtime.resources;
+                        if (repository == null) {
+                          return const MakoloSecondaryScreen(
+                            title: 'Nouvelle version',
+                            message: 'Action indisponible sur cet appareil.',
+                          );
+                        }
+                        return DocumentFormScreen.version(
+                          repository: repository,
+                          assetId: state.pathParameters['id']!,
+                          onSaved: (_) => context.pop(true),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
