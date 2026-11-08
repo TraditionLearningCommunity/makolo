@@ -514,13 +514,23 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
           if (_error != null)
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           if (_busy) const LinearProgressIndicator(),
-          for (final destination in widget.destinations)
-            ListTile(
-              enabled: !_busy,
-              title: Text(destination.label),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _busy ? null : () => _move(destination.id),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.55,
             ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final destination in widget.destinations)
+                  ListTile(
+                    enabled: !_busy,
+                    title: Text(destination.label),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _busy ? null : () => _move(destination.id),
+                  ),
+              ],
+            ),
+          ),
           TextButton(
             onPressed: _busy ? null : () => Navigator.of(context).pop(),
             child: const Text('Annuler'),
@@ -529,4 +539,74 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
       ),
     ),
   );
+}
+
+
+/// Undo is only displayed if the owner truly exposes an inverse command.
+/// The callback returns true only after the inverse has been confirmed.
+class MakoloOwnerUndoButton extends StatefulWidget {
+  const MakoloOwnerUndoButton({
+    super.key,
+    required this.available,
+    required this.onRequestUndo,
+    this.label = 'Annuler cette action',
+  });
+
+  final bool available;
+  final Future<bool> Function() onRequestUndo;
+  final String label;
+
+  @override
+  State<MakoloOwnerUndoButton> createState() => _MakoloOwnerUndoButtonState();
+}
+
+class _MakoloOwnerUndoButtonState extends State<MakoloOwnerUndoButton> {
+  bool _busy = false;
+  bool _confirmed = false;
+  String? _error;
+
+  Future<void> _undo() async {
+    if (!widget.available || _busy || _confirmed) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      final confirmed = await widget.onRequestUndo();
+      if (!mounted) return;
+      setState(() {
+        _confirmed = confirmed;
+        if (!confirmed) _error = 'Annulation non confirmée.';
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Annulation non confirmée.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.available || _confirmed) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _undo,
+          icon: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.undo),
+          label: Text(widget.label),
+        ),
+        if (_error != null)
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+      ],
+    );
+  }
 }
