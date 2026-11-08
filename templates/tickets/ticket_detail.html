@@ -41,7 +41,7 @@
         {% if pending_transfer.sender_id == request.user.pk %}
         <form method="post" action="{% url 'tickets:transfer-cancel' pending_transfer.pk %}" class="mt-4">
             {% csrf_token %}
-            <button class="rounded-2xl border border-amber-400 px-4 py-2 text-sm font-bold text-amber-900 dark:text-amber-200">Annuler le transfert</button>
+            <button class="mk-action-button" data-variant="secondary">Annuler le transfert</button>
         </form>
         {% endif %}
     </section>
@@ -53,7 +53,7 @@
         <form method="post" action="{% url 'tickets:transfer-create' ticket.pk %}" class="mt-5 flex flex-col gap-3 sm:flex-row">
             {% csrf_token %}
             <input type="email" name="recipient_email" required placeholder="destinataire@example.com" class="min-w-0 flex-1 rounded-2xl border border-zinc-300 bg-transparent px-4 py-3 dark:border-zinc-600">
-            <button class="rounded-2xl bg-violet-800 px-5 py-3 font-bold text-white hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-600">Proposer le transfert</button>
+            <button class="mk-action-button" data-variant="primary">Proposer le transfert</button>
         </form>
     </section>
     {% endif %}
