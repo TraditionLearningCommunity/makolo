@@ -135,7 +135,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
   Future<void> _refresh() async {
     if (_refreshing) return;
-    final repo = widget.repository, id = widget.id;
+    final repo = widget.repository;
+    final id = widget.id;
     setState(() { _refreshing = true; _failed = false; });
     try {
       await repo.refresh(ObjectiveDepth.dossier, id);
@@ -459,7 +460,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (_cap(data, 'dossier.project.manage'))
         OutlinedButton.icon(
           onPressed: _canMutate ? () => _projectAction(data) : null,
-          icon: const Icon(Icons.folder_input_outlined),
+          icon: const Icon(Icons.drive_file_move_outlined),
           label: const Text('Projet'),
         ),
       if (_cap(data, 'dossier.lifecycle'))
@@ -873,7 +874,42 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     events.sort((a, b) => a.when.compareTo(b.when));
     final undated = journeys.where(_undated).toList();
     final today = DateTime.now();
-    var wroteToday = false;
+    final widgets = <Widget>[];
+    var previousGroup = '';
+    var todayInserted = false;
+    for (final event in events) {
+      final local = event.when.toLocal();
+      final String key;
+      final String caption;
+      switch (_timeScale) {
+        case _TimeScale.week:
+          final monday = DateTime(local.year, local.month, local.day)
+              .subtract(Duration(days: local.weekday - 1));
+          key = 'week-${monday.toIso8601String()}';
+          caption = 'Semaine du ${_dateLabel(context, monday)}';
+        case _TimeScale.month:
+          key = 'month-${local.year}-${local.month}';
+          caption = _dateLabel(context, DateTime(local.year, local.month));
+        case _TimeScale.quarter:
+          final quarter = ((local.month - 1) ~/ 3) + 1;
+          key = 'quarter-${local.year}-$quarter';
+          caption = 'Trimestre $quarter · ${local.year}';
+      }
+      if (key != previousGroup) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.fromLTRB(9, 19, 9, 9),
+          child: Text(caption, style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w800)),
+        ));
+        previousGroup = key;
+      }
+      if (!todayInserted && !event.when.isBefore(today)) {
+        widgets.add(_todayMarker(today));
+        todayInserted = true;
+      }
+      widgets.add(_momentTile(event));
+    }
+    if (!todayInserted) widgets.add(_todayMarker(today));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text('Chronologie', style: Theme.of(context).textTheme.titleLarge
           ?.copyWith(fontWeight: FontWeight.w800)),
@@ -883,39 +919,24 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       const SizedBox(height: 10),
       Wrap(spacing: 7, runSpacing: 7, children: [
         _popup('Échelle', _timeScale.name, const {
-          'week':'Semaine','month':'Mois','quarter':'Trimestre',
+          'week': 'Semaine', 'month': 'Mois', 'quarter': 'Trimestre',
         }, (v) => setState(() => _timeScale =
             _TimeScale.values.firstWhere((row) => row.name == v))),
-        ActionChip(
-          avatar: const Icon(Icons.today_outlined, size: 17),
-          label: const Text('Aujourd’hui'),
-          onPressed: () => _notice(
-            'La date d’aujourd’hui est repérée dans la chronologie.'),
-        ),
       ]),
       const SizedBox(height: 15),
       if (events.isEmpty) _empty('Aucun jalon temporel connu.')
-      else ...[
-        for (final event in events) ...[
-          if (!wroteToday && event.when.isAfter(today)) ...[
-            _todayMarker(today),
-          ],
-          _momentTile(event),
-        ],
-        if (!events.any((moment) => moment.when.isAfter(today)))
-          _todayMarker(today),
-      ],
+      else ...widgets,
       if (undated.isNotEmpty) ...[
         const SizedBox(height: 20),
-        Text('Sans autre date de parcours', style:
-            Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            )),
+        Text('Sans autre date de parcours',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         for (final row in undated) _journeyTile(row, compact: true),
       ],
     ]);
   }
+
   Widget _todayMarker(DateTime today) => Container(
     margin: const EdgeInsets.symmetric(vertical: 10),
     padding: const EdgeInsets.all(11),
