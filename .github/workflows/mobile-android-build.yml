@@ -28,9 +28,11 @@ on:
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
+# Keep the running APK build alive while feature commits continue to land.
+# GitHub retains only the newest pending run for this concurrency group.
 concurrency:
   group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
