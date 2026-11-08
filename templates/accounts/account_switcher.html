@@ -1,65 +1,13 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Changer de compte | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/account-switcher-layout.css' %}">{% endblock %}
 {% block content %}
-<style>
-  .mk-account-switcher {
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-    border-radius: 28px;
-    background: linear-gradient(155deg, #5232DB 0%, #4123B9 58%, #2B176E 100%);
-    color: #fff;
-    padding: clamp(24px, 5vw, 48px) clamp(16px, 5vw, 44px);
-    min-height: min(620px, 78vh);
-    box-shadow: 0 16px 48px rgba(43, 23, 110, .12);
-  }
-  .mk-account-switcher::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    width: 390px;
-    height: 390px;
-    right: -220px;
-    top: -220px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.07);
-    pointer-events: none;
-  }
-  .mk-account-switcher__inner { width: 100%; max-width: 460px; margin: 0 auto; }
-  .mk-account-switcher__top { display: flex; justify-content: flex-end; align-items: center; }
-  .mk-account-switcher__back { color: #fff; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.26); border-radius: 16px; background: rgba(255,255,255,.12); font-size: 24px; text-decoration: none; } .mk-account-switcher__back:hover { background: rgba(255,255,255,.22); }
-  .mk-account-switcher__back:focus-visible, .mk-account-switcher button:focus-visible { outline: 3px solid #FFBEAC; outline-offset: 3px; }
-  .mk-account-switcher__identity { text-align: center; padding: 26px 0 22px; }
-  .mk-account-switcher__mark { width: fit-content; min-height: 44px; padding: 0 15px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid rgba(255,255,255,.32); border-radius: 16px; font-size: 17px; font-weight: 800; letter-spacing: -.04em; }
-  .mk-account-switcher__identity h1 { color: #fff; font-size: clamp(24px, 4vw, 30px); line-height: 1.15; font-weight: 800; letter-spacing: -.025em; }
-  .mk-account-switcher__identity p { color: rgba(255,255,255,.84); font-size: 14px; margin-top: 9px; }
-  .mk-account-switcher__accounts { display: grid; gap: 12px; }
-  .mk-account-switcher__card { background: #fff; color: #0F172A; border-radius: 20px; padding: 18px; box-shadow: 0 8px 22px rgba(28,15,82,.13); }
-  .mk-account-switcher__person { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .mk-account-switcher__initial { width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%; background: #EEE9FF; color: #5232DB; font-weight: 800; display: grid; place-items: center; }
-  .mk-account-switcher__names { min-width: 0; flex: 1; }
-  .mk-account-switcher__names strong, .mk-account-switcher__names small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .mk-account-switcher__names small { color: #64748B; margin-top: 2px; font-size: 12px; }
-  .mk-account-switcher__status { font-size: 12px; font-weight: 650; color: #5232DB; margin-top: 10px; }
-  .mk-account-switcher__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-  .mk-account-switcher__actions .mk-btn { min-height: 42px; }
-  .mk-account-switcher__remove { color: #475569; }
-  .mk-account-switcher__add { margin-top: 18px; }
-  .mk-account-switcher__add button { width: 100%; min-height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,.72); color: #fff; background: rgba(255,255,255,.08); font-weight: 700; transition: background .16s ease; }
-  .mk-account-switcher__add button:hover { background: rgba(255,255,255,.17); }
-  @media (max-width: 600px) {
-    .mk-account-switcher { border-radius: 20px; min-height: 0; padding: 20px 16px 28px; }
-    .mk-account-switcher__identity { padding: 18px 0 22px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .mk-account-switcher__add button { transition: none; }
-  }
-</style>
 <div class="mx-auto max-w-3xl pb-10">
   <section class="mk-account-switcher" aria-labelledby="mk-switcher-title">
     <div class="mk-account-switcher__inner">
       <div class="mk-account-switcher__top">
-        <a class="mk-account-switcher__back" href="{% url 'account:profile' %}" aria-label="Fermer et revenir à Makolo" title="Fermer">×</a>
+        <a class="mk-account-switcher__back mk-action-button" data-variant="inverse" data-size="icon" href="{% url 'account:profile' %}" aria-label="Fermer et revenir à Makolo" title="Fermer">×</a>
       </div>
       <header class="mk-account-switcher__identity">
         <div class="mk-account-switcher__mark" aria-hidden="true">Makolo</div>
@@ -88,7 +36,7 @@
       </div>
       <form class="mk-account-switcher__add" method="post" action="{% url 'account:add-account' %}">
         {% csrf_token %}
-        <button type="submit">+ Ajouter un compte</button>
+        <button type="submit" class="mk-action-button" data-variant="inverse">+ Ajouter un compte</button>
       </form>
     </div>
   </section>
