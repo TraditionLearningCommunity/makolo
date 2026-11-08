@@ -615,6 +615,10 @@ class ResourceRepository {
       );
     }
 
+    if (sync?.isActive == false ||
+        (await readDetailSource(assetId)).invalidated) {
+      throw StateError('Resource owner permission withdrawn');
+    }
     final staging = await ProfilePaths.stagingFiles(profileId);
     final destination = p.join(
       staging.path,
@@ -627,6 +631,12 @@ class ResourceRepository {
         destinationPath: destination,
         onProgress: onProgress,
       );
+      if (sync?.isActive == false ||
+          (await readDetailSource(assetId)).invalidated) {
+        final withdrawn = File(destination);
+        if (await withdrawn.exists()) await withdrawn.delete();
+        throw StateError('Resource owner permission withdrawn during transfer');
+      }
       return destination;
     } on Object {
       final partial = File(destination);
