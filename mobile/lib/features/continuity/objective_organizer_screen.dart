@@ -706,10 +706,18 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       initialData: OwnerSourceState.unknown,
       builder: (context, ownerSnapshot) {
         final source = ownerSnapshot.data ?? OwnerSourceState.unknown;
+        // An unavailable Objectives route or projection error is not proof
+        // that this device is offline: other Makolo surfaces may still work.
+        final networkFailure = const {
+          'timeout',
+          'makolo_unreachable',
+          'secure_connection_failed',
+          'transport_error',
+        }.contains(source.lastErrorCode);
         final offline =
             SyncStatusScope.maybeOf(context)?.state ==
                 SyncVisualState.offline ||
-            source.reachability == ReachabilityState.unreachable;
+            networkFailure;
         return StreamBuilder<List<StoredProjection>>(
           stream: _pages,
           builder: (context, projectionSnapshot) {
@@ -843,16 +851,22 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                 child: Column(
                                   children: [
                                     Text(
-                                      _failed
-                                          ? 'Impossible d’afficher vos démarches pour le moment.'
-                                          : 'Retrouvez vos projets, dossiers et démarches ici.',
+                                      source.lastErrorCode == 'endpoint_unavailable' ||
+                                              source.lastErrorCode == 'not_found'
+                                          ? 'Vos démarches ne sont pas encore disponibles ici.'
+                                          : _failed
+                                              ? 'Impossible d’afficher vos démarches pour le moment.'
+                                              : 'Retrouvez vos projets, dossiers et démarches ici.',
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
                                       offline
                                           ? 'Réessayez lorsque la connexion revient.'
-                                          : 'Touchez Réessayer pour les retrouver.',
+                                          : source.lastErrorCode == 'endpoint_unavailable' ||
+                                                  source.lastErrorCode == 'not_found'
+                                              ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
+                                              : 'Touchez Réessayer pour les retrouver.',
                                       textAlign: TextAlign.center,
                                     ),
                                     TextButton.icon(
