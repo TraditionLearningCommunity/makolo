@@ -92,7 +92,21 @@ jobs:
           ' config/dev.json > /dev/null
           echo "DEV maps and geographic suggestions configured."
       - name: Build Android debug
-        run: flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
+        shell: bash
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json 2>&1 | tee /tmp/makolo-apk-build.log; then
+              exit 0
+            fi
+            # Retry only a known transient download outage. Compilation,
+            # analysis and dependency failures must remain red immediately.
+            if ! grep -q 'Failed to download PDFium: HTTP 504' /tmp/makolo-apk-build.log || [[ "$attempt" -eq 3 ]]; then
+              exit 1
+            fi
+            echo "PDFium upstream returned HTTP 504; retrying build ($attempt/3)."
+            sleep $((attempt * 5))
+          done
       - name: Upload DEV APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
