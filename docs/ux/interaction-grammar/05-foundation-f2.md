@@ -83,13 +83,13 @@ Racine data-mk-reorder-scope ; conteneur data-mk-reorder-items ; enfants directs
 
 **L'écran doit enregistrer son transport propriétaire** via :
 
-\`\`\`js
+```js
 const scope = document.querySelector('[data-mk-reorder-scope]');
 window.MakoloInteractions.registerReorder(scope, async (order, movedId) => {
   // Retourner true uniquement après confirmation et réconciliation owner.
   return await ownerConfirmedReorder(order, movedId);
 });
-\`\`\`
+```
 
 Sans adaptateur, les boutons/drag ne modifient pas la collection. Confirmation : makolo:reorder-confirmed ; refus : makolo:reorder-failed ; aria-busy durant attente ; option data-mk-reorder-status role=status.
 
@@ -103,7 +103,7 @@ Enregistrer un adaptateur réel avec registerMove(scope, async ({sourceId,destin
 
 ### 4.7 Context restore
 
-\`captureContext(scope)\` renvoie un snapshot éphémère de query, sort, filter, selectedIds, scrollTop et focusId. \`restoreContext(scope, snapshot)\` exige la même valeur opaque **data-mk-context-key** ; l'application doit inclure les frontières acteur/conteneur dans cette clé. **Aucun stockage global ou localStorage par cette primitive.**
+`captureContext(scope)` renvoie un snapshot éphémère de query, sort, filter, selectedIds, scrollTop et focusId. `restoreContext(scope, snapshot)` exige la même valeur opaque **data-mk-context-key** ; l'application doit inclure les frontières acteur/conteneur dans cette clé. **Aucun stockage global ou localStorage par cette primitive.**
 
 Appeler avant/après un swap compatible avec le contrat HTMX, seulement lorsque la même personne et le même scope restent autorisés. Un changement d'acteur invalide le snapshot.
 
@@ -115,28 +115,28 @@ Le menu visible ⋯ reste la voie principale. Ajouter data-mk-context-shortcut a
 
 Les écrans importent :
 
-\`\`\`dart
+```dart
 import 'package:makolo_mobile/design/interaction_primitives.dart';
 import 'package:makolo_mobile/design/interaction_f2.dart';
-\`\`\`
+```
 
-- \`MakoloSelectionController\` : état d'identités UI, \`retainVisible\` pour nettoyer les éléments devenus invisibles, \`clear\` sur changement acteur.
-- \`MakoloSortFilterBar\` : valeurs search/sort/filter externes ; seulement les critères autorisés fournis par caller. \`makoloFilterLocal\` n'est pas moteur de Discovery.
-- \`MakoloContextPreviewButton\` : compose la feuille existante, aucun fetch caché.
-- \`MakoloInlineEditor\` : Future<MakoloInlineSaveResult>, confirmed **avec valeur canonique**, rejected/conflict conservent le brouillon.
-- \`MakoloOwnerReorderList\` : Future<bool> onRequestReorder(order), poignée native et commandes Monter/Descendre ; parent actualise la collection canonique après réponse.
-- \`MakoloMoveDestinationButton\` : destinations visibles filtrées upstream ; Future<bool> onRequestMove(id), la sheet se ferme seulement sur true.
-- \`MakoloOwnerUndoButton\` : visible seulement si owner offre une vraie commande inverse, disparition après confirmation.
-- \`MakoloContextActionRow\` : appui long vers sheet + MakoloActionMenu permanent avec mêmes actions disponibles.
+- `MakoloSelectionController` : état d'identités UI, `retainVisible` pour nettoyer les éléments devenus invisibles, `clear` sur changement acteur.
+- `MakoloSortFilterBar` : valeurs search/sort/filter externes ; seulement les critères autorisés fournis par caller. `makoloFilterLocal` n'est pas moteur de Discovery.
+- `MakoloContextPreviewButton` : compose la feuille existante, aucun fetch caché.
+- `MakoloInlineEditor` : Future<MakoloInlineSaveResult>, confirmed **avec valeur canonique**, rejected/conflict conservent le brouillon.
+- `MakoloOwnerReorderList` : Future<bool> onRequestReorder(order), poignée native et commandes Monter/Descendre ; parent actualise la collection canonique après réponse.
+- `MakoloMoveDestinationButton` : destinations visibles filtrées upstream ; Future<bool> onRequestMove(id), la sheet se ferme seulement sur true.
+- `MakoloOwnerUndoButton` : visible seulement si owner offre une vraie commande inverse, disparition après confirmation.
+- `MakoloContextActionRow` : appui long vers sheet + MakoloActionMenu permanent avec mêmes actions disponibles.
 - Les états persistés/resumables et les fonds adaptatifs restent ceux du socle natif existant, pas un nouveau routeur ou second moteur sync.
 
 ## 6. Tests et limites de validation
 
 Web E2E : clavier/focus F1 ; F2 sélection+effacement, local corpus/tri stable, preview, editor cancel, reorder refus/confirmation, move sans fallback/refus/confirmation, snapshot isolé entre acteurs et clic droit opt-in. Flutter : sélection, filtre local, preview, save pending/confirmed/conflict, reorder refus, move refus/confirmation, Undo réel et appui long.
 
-**Validation statique déjà réalisée :** parsing JS des contrôleurs F1/F2 et des tests Web ; HEAD GitHub et absence de changement main. **Validation non affirmée :** \`flutter analyze\`, \`dart format\`, flutter test ciblés, E2E Playwright et captures visuelles sur appareils ; les jobs CI du grand chantier #522 peuvent être rouges pour des causes hors F2.
+**Validation statique déjà réalisée :** parsing JS des contrôleurs F1/F2 et des tests Web ; HEAD GitHub et absence de changement main. **Validation non affirmée :** `flutter analyze`, `dart format`, flutter test ciblés, E2E Playwright et captures visuelles sur appareils ; les jobs CI du grand chantier #522 peuvent être rouges pour des causes hors F2.
 
-Le dépôt prescrit **\`mobile/tool/dart_format.sh\` avec Dart 3.13.3/Flutter 3.47.3 ou workflow GitHub "Mobile Format" sur la branche de travail** ; ne pas contourner le formatter en reformattant à la main ou en affaiblissant les tests. Les seuls outils GitHub de cette session ne disposent pas d'action workflow_dispatch, donc ne pas déclarer ce gate validé avant exécution effective.
+Le dépôt prescrit **`mobile/tool/dart_format.sh` avec Dart 3.13.3/Flutter 3.47.3 ou workflow GitHub "Mobile Format" sur la branche de travail** ; ne pas contourner le formatter en reformattant à la main ou en affaiblissant les tests. Les seuls outils GitHub de cette session ne disposent pas d'action workflow_dispatch, donc ne pas déclarer ce gate validé avant exécution effective.
 
 ## 7. Garde-fous pour le futur groupe de pages
 
