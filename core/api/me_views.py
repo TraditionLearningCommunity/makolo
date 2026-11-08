@@ -37,8 +37,12 @@ from topics.services import replace_profile_interests, replace_profile_open_to
 from django.core.exceptions import ValidationError as DomainValidationError
 from core.api.z8_projection import (
     RESOURCE_DEFAULT_LIMIT,
+    RESOURCE_KIND_VALUES,
     RESOURCE_MAX_LIMIT,
     RESOURCE_SEARCH_MAX_LENGTH,
+    RESOURCE_SENSITIVITY_VALUES,
+    RESOURCE_SORT_VALUES,
+    RESOURCE_VIEW_VALUES,
     build_personal_passport_depth_data,
     build_personal_resources_depth_data,
 )
@@ -652,6 +656,18 @@ class PersonalResourcesAPIView(PersonalProjectionAPIView):
                     )
                 }
             )
+        view = request.query_params.get("view", "current")
+        sort = request.query_params.get("sort", "recent")
+        kind = request.query_params.get("kind", "")
+        sensitivity = request.query_params.get("sensitivity", "")
+        if view not in RESOURCE_VIEW_VALUES:
+            raise ValidationError({"view": "Vue de documents inconnue."})
+        if sort not in RESOURCE_SORT_VALUES:
+            raise ValidationError({"sort": "Tri de documents inconnu."})
+        if kind and kind not in RESOURCE_KIND_VALUES:
+            raise ValidationError({"kind": "Type de document inconnu."})
+        if sensitivity and sensitivity not in RESOURCE_SENSITIVITY_VALUES:
+            raise ValidationError({"sensitivity": "Sensibilité inconnue."})
         try:
             limit = int(request.query_params.get("limit", RESOURCE_DEFAULT_LIMIT))
             offset = int(request.query_params.get("offset", 0))
@@ -672,6 +688,10 @@ class PersonalResourcesAPIView(PersonalProjectionAPIView):
                 request.user,
                 observed_at=observed_at,
                 query=query,
+                view=view,
+                kind=kind,
+                sensitivity=sensitivity,
+                sort=sort,
                 limit=limit,
                 offset=offset,
             ),
