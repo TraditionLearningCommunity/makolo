@@ -36,7 +36,7 @@
           {% endfor %}
         </select>
       </label>
-      <button class="mk-btn mk-btn-primary" type="submit">Vérifier et affecter</button>
+      <button class="mk-action-button" data-variant="primary" type="submit">Vérifier et affecter</button>
     </form>
   </section>
   {% endif %}
@@ -55,7 +55,7 @@
       <label class="block text-sm font-bold">Fuseau horaire
         <input name="timezone" required maxlength="100" value="{{ mt5_departure.occurrence.timezone }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
       </label>
-      <button class="mk-btn mk-btn-primary" type="submit">Confirmer le nouvel horaire</button>
+      <button class="mk-action-button" data-variant="primary" type="submit">Confirmer le nouvel horaire</button>
     </form>
   </section>
   {% endif %}
@@ -69,7 +69,7 @@
     <form method="post" class="flex flex-wrap items-center gap-3">
       {% csrf_token %}<input type="hidden" name="action" value="cancel">
       <label class="text-sm"><input type="checkbox" name="confirmed" value="yes" required> Je confirme l’annulation de ce départ.</label>
-      <button type="submit" class="mk-btn mk-btn-secondary">Annuler le départ</button>
+      <button type="submit" class="mk-action-button" data-variant="secondary">Annuler le départ</button>
     </form>
   </section>
   {% endif %}
@@ -80,6 +80,6 @@
       <p class="mt-1 text-sm" style="color:var(--mk-muted)">Aucune nouvelle modification n'est disponible ici.</p>
     </section>
   {% endif %}
-  <footer><a href="{{ mt5_back_url }}" class="mk-btn mk-btn-secondary">Retour au départ</a></footer>
+  <footer><a href="{{ mt5_back_url }}" class="mk-action-button" data-variant="secondary">Retour au départ</a></footer>
 </main>
 {% endblock %}
