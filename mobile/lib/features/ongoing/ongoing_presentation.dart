@@ -32,6 +32,7 @@ class OngoingContinuityPresentation {
     required this.horizon,
     required this.outcome,
     required this.rawState,
+    required this.composition,
     this.cue,
     this.cueTone = 'calm',
     this.supporting,
@@ -73,6 +74,8 @@ class OngoingContinuityPresentation {
   final Map<String, dynamic> horizon;
   final Map<String, dynamic> outcome;
   final String rawState;
+  /// Server-projected, viewer-visible group facts; never a progress metric.
+  final List<String> composition;
   final String? cue;
   final String cueTone;
   final String? supporting;
@@ -239,6 +242,10 @@ class OngoingContinuityPresentation {
       horizon: Map.unmodifiable(_map(item['horizon'])),
       outcome: Map.unmodifiable(_map(item['outcome'])),
       rawState: rawState,
+      composition: List.unmodifiable([
+        for (final fact in _maps(item['composition']))
+          if (_text(fact['label']) case final label?) label,
+      ]),
       cue:
           _text(n1['cue']) ??
           _fallbackCue(
