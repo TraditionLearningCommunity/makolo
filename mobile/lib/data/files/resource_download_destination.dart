@@ -33,13 +33,15 @@ Future<void> removeLocallyRetainedResourceVersions({
   required String assetId,
 }) async {
   final root = await getApplicationDocumentsDirectory();
-  final directory = Directory(p.join(
-    root.path,
-    'makolo',
-    'resources',
-    ProfilePaths.safeProfileId(profileId),
-    ProfilePaths.safeProfileId(assetId),
-  ));
+  final directory = Directory(
+    p.join(
+      root.path,
+      'makolo',
+      'resources',
+      ProfilePaths.safeProfileId(profileId),
+      ProfilePaths.safeProfileId(assetId),
+    ),
+  );
   if (await directory.exists()) await directory.delete(recursive: true);
 }
 
@@ -48,11 +50,13 @@ Future<void> removeLocallyRetainedResourceVersions({
 /// remains a separate user-controlled copy.
 Future<void> removeAllLocallyRetainedResources(String profileId) async {
   final root = await getApplicationDocumentsDirectory();
-  final directory = Directory(p.join(
-    root.path,
-    'makolo',
-    'resources',
-    ProfilePaths.safeProfileId(profileId),
-  ));
+  final directory = Directory(
+    p.join(
+      root.path,
+      'makolo',
+      'resources',
+      ProfilePaths.safeProfileId(profileId),
+    ),
+  );
   if (await directory.exists()) await directory.delete(recursive: true);
 }

@@ -71,7 +71,9 @@ class SpaceWorkG4Depth extends StatelessWidget {
     final limit = related?['limit'] is int ? related!['limit'] as int : 12;
     final hasMore = related?['has_more'] == true;
     final mediaUri = _publishedImageUri();
-    final title = _creative ? 'Présentations et réalisations' : 'Éditions et réalisations';
+    final title = _creative
+        ? 'Présentations et réalisations'
+        : 'Éditions et réalisations';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -79,7 +81,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Semantics(
-              label: spaceText(spaceMap(mediaBindings.first)?['label']) ??
+              label:
+                  spaceText(spaceMap(mediaBindings.first)?['label']) ??
                   'Visuel publié de reconnaissance',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -111,7 +114,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
               [
                 if (spaceText(nextOccurrence?['label']) case final String label)
                   label,
-                if (spaceText(nextOccurrence?['start_date']) case final String date)
+                if (spaceText(nextOccurrence?['start_date'])
+                    case final String date)
                   date,
               ].join(' · '),
             ),
@@ -125,8 +129,7 @@ class SpaceWorkG4Depth extends StatelessWidget {
                   ? 'Aucune présentation prévue.'
                   : 'Aucune édition prévue.',
             ),
-          if (rows.isEmpty && offset > 0)
-            const Text('Fin des résultats.'),
+          if (rows.isEmpty && offset > 0) const Text('Fin des résultats.'),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
               _G4OccurrenceRow(
@@ -190,12 +193,14 @@ class _G4OccurrenceRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(spaceText(row['title']) ?? 'Réalisation'),
-      subtitle: Text([
-        if (spaceText(timing?['start_date']) case final String date) date,
-        if (spaceText(row['state']) case final String state)
-          spaceStateLabel(state),
-        if (route == null) 'Date non ouvrable dans cet état',
-      ].join(' · ')),
+      subtitle: Text(
+        [
+          if (spaceText(timing?['start_date']) case final String date) date,
+          if (spaceText(row['state']) case final String state)
+            spaceStateLabel(state),
+          if (route == null) 'Date non ouvrable dans cet état',
+        ].join(' · '),
+      ),
       trailing: route == null ? null : const Icon(Icons.chevron_right),
       onTap: route == null ? null : () => context.push(route),
     );

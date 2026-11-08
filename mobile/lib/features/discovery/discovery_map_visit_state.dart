@@ -8,6 +8,7 @@ import 'discovery_selector.dart';
 class DiscoveryMapVisitState {
   MapViewport? viewport;
   String? selectedCandidateKey;
+
   /// UX-only hint for an exact departure/stopover/arrival selection.
   /// Never grants a right or replaces the owner's geographic facts.
   DiscoverySpatialAnchor? focusedAnchor;

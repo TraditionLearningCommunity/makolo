@@ -71,7 +71,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _loadFailed ||
         _loadingMore ||
         view == null ||
-        !view.hasMore) return;
+        !view.hasMore)
+      return;
     unawaited(_loadMore(view));
   }
 
@@ -136,7 +137,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         _loadFailed ||
         !_canLoadNext ||
         !view.hasMore ||
-        _completedRequest == requestKey) return;
+        _completedRequest == requestKey)
+      return;
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshCollectionPage(

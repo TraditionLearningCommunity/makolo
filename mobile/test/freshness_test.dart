@@ -87,10 +87,7 @@ void main() {
     );
     final stored = projection();
     final nowInOtherZone = DateTime.parse('2026-09-30T08:10:00+02:00');
-    expect(
-      swr.evaluate(stored, now: nowInOtherZone),
-      FreshnessState.fresh,
-    );
+    expect(swr.evaluate(stored, now: nowInOtherZone), FreshnessState.fresh);
     final rolledBack = observedAt.subtract(const Duration(minutes: 5));
     expect(
       swr.evaluate(stored, now: rolledBack),

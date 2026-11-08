@@ -33,66 +33,68 @@ class _ActorPreferences implements ActorContextStore {
 }
 
 void main() {
-  testWidgets('Avatar sheet shows active Space and connected Profile separately',
-      (tester) async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    await store.putProjection(
-      kind: 'personal.me',
-      schemaVersion: 1,
-      payload: {
-        'identity': {
-          'display_name': 'Grace',
-          'username': 'grace',
-          'activation': {'percentage': 42, 'is_complete': false},
+  testWidgets(
+    'Avatar sheet shows active Space and connected Profile separately',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      await store.putProjection(
+        kind: 'personal.me',
+        schemaVersion: 1,
+        payload: {
+          'identity': {
+            'display_name': 'Grace',
+            'username': 'grace',
+            'activation': {'percentage': 42, 'is_complete': false},
+          },
         },
-      },
-    );
-    final controller = await ActorContextController.restore(
-      profileId: 'profile-a',
-      store: _ActorPreferences(),
-    );
-    await controller.selectSpace(
-      SpaceActorIdentity(id: 'space-e', slug: 'orchestre-e'),
-    );
-    final runtime = AppRuntime(
-      tokens: MemoryTokenStore(),
-      session: null,
-      recovery: SessionRecoveryController(),
-      database: database,
-      store: store,
-      personal: PersonalRepository(store),
-      actorContext: controller,
-      space: WorkspaceContextRepository(
+      );
+      final controller = await ActorContextController.restore(
+        profileId: 'profile-a',
+        store: _ActorPreferences(),
+      );
+      await controller.selectSpace(
+        SpaceActorIdentity(id: 'space-e', slug: 'orchestre-e'),
+      );
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
         database: database,
         store: store,
-        profileId: 'profile-a',
+        personal: PersonalRepository(store),
         actorContext: controller,
-      ),
-    );
-    await tester.pumpWidget(MaterialApp(
-      theme: buildMakoloTheme(),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () => showMakoloAvatarSheet(
-              context,
-              runtime: runtime,
+        space: WorkspaceContextRepository(
+          database: database,
+          store: store,
+          profileId: 'profile-a',
+          actorContext: controller,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloAvatarSheet(context, runtime: runtime),
+                child: const Text('Avatar'),
+              ),
             ),
-            child: const Text('Avatar'),
           ),
         ),
-      ),
-    ));
-    await tester.tap(find.text('Avatar'));
-    await tester.pumpAndSettle();
-    expect(find.text('Espace actif'), findsOneWidget);
-    expect(find.text('orchestre-e'), findsWidgets);
-    expect(find.text('Compte connecté : Grace'), findsOneWidget);
-    expect(find.byType(ProfileAvatarImage), findsNothing);
-    expect(find.text('42 % renseigné'), findsNothing);
+      );
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Espace actif'), findsOneWidget);
+      expect(find.text('orchestre-e'), findsWidgets);
+      expect(find.text('Compte connecté : Grace'), findsOneWidget);
+      expect(find.byType(ProfileAvatarImage), findsNothing);
+      expect(find.text('42 % renseigné'), findsNothing);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

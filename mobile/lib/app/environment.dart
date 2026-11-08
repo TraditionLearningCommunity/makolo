@@ -140,13 +140,17 @@ class MakoloRuntimeConfig {
     'MAKOLO_GEOCODING_ENDPOINT',
   );
   static const _routingEnabled = String.fromEnvironment(
-    'MAKOLO_ROUTING_ENABLED', defaultValue: 'false',
+    'MAKOLO_ROUTING_ENABLED',
+    defaultValue: 'false',
   );
   static const _routingKey = String.fromEnvironment('MAKOLO_ROUTING_API_KEY');
   static const _routingProvider = String.fromEnvironment(
-    'MAKOLO_ROUTING_PROVIDER', defaultValue: 'openrouteservice',
+    'MAKOLO_ROUTING_PROVIDER',
+    defaultValue: 'openrouteservice',
   );
-  static const _routingEndpoint = String.fromEnvironment('MAKOLO_ROUTING_ENDPOINT');
+  static const _routingEndpoint = String.fromEnvironment(
+    'MAKOLO_ROUTING_ENDPOINT',
+  );
   static const _firebaseEnabled = String.fromEnvironment(
     'MAKOLO_FIREBASE_ENABLED',
     defaultValue: 'false',

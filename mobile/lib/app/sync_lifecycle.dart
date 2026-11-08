@@ -129,9 +129,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       return;
     }
     final remaining = next.difference(DateTime.now().toUtc());
-    final delay = remaining.isNegative
-        ? const Duration(seconds: 2)
-        : remaining;
+    final delay = remaining.isNegative ? const Duration(seconds: 2) : remaining;
     _outboxRetryTimer = Timer(delay, () {
       _outboxRetryTimer = null;
       unawaited(_runDueOutbox(runtime));
@@ -212,9 +210,8 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     try {
       final cache = await ProfileMediaCache.open(profileId);
       await cache.compact();
-      await ProfileRecognitionImageStore(
-        profileId: profileId,
-      ).recoverInterruptedWrites();
+      await ProfileRecognitionImageStore(profileId: profileId)
+          .recoverInterruptedWrites();
     } on Object {
       // Storage pressure never causes deletion of private user bytes.
     }
@@ -260,8 +257,9 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       // C6 composes nine bounded first-page sources (including Project and
       // Dossier). One foreground pass covers these without a separate
       // prefetcher, media download loop or unlimited pagination.
-      final workingSetSucceeded =
-          await sync.refreshPreparedSources(maxRequests: 9);
+      final workingSetSucceeded = await sync.refreshPreparedSources(
+        maxRequests: 9,
+      );
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
       if (!mounted || !identical(runtime, widget.runtime)) return;

@@ -243,11 +243,14 @@ class ConversationListTile extends StatelessWidget {
                           DecoratedBox(
                             decoration: BoxDecoration(
                               color: colors.primary,
-                              borderRadius: BorderRadius.circular(MakoloRadii.pill),
+                              borderRadius: BorderRadius.circular(
+                                MakoloRadii.pill,
+                              ),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4,
+                                horizontal: 8,
+                                vertical: 4,
                               ),
                               child: Text(
                                 '$attentionCount à faire',

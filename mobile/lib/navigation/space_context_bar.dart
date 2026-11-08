@@ -223,11 +223,7 @@ class _ContextButton extends StatelessWidget {
       icon: Icon(icon, size: 18),
       label: Align(
         alignment: Alignment.centerLeft,
-        child: Text(
-          label,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
       ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),

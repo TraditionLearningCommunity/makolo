@@ -47,7 +47,11 @@ class DiscoveryWatchSelector {
           status: MakoloHumanization.presentationLabel(_text(row['status'])),
           statusCode: _text(row['status']),
           criteria: row['criteria'] is Map
-              ? Map<String, String>.from((row['criteria'] as Map).map((key, value) => MapEntry(key.toString(), value.toString())))
+              ? Map<String, String>.from(
+                  (row['criteria'] as Map).map(
+                    (key, value) => MapEntry(key.toString(), value.toString()),
+                  ),
+                )
               : const {},
         ),
       );
@@ -61,17 +65,27 @@ class DiscoveryWatchSelector {
       if ((criteria['q'] ?? '').isNotEmpty) criteria['q']!,
       if ((criteria['place'] ?? '').isNotEmpty) criteria['place']!,
       if ((criteria['vertical'] ?? '').isNotEmpty)
-        const {'event': 'Événements', 'transport': 'Transports',
-          'service': 'Services', 'other': 'Autres activités'}[criteria['vertical']] ??
+        const {
+              'event': 'Événements',
+              'transport': 'Transports',
+              'service': 'Services',
+              'other': 'Autres activités',
+            }[criteria['vertical']] ??
             criteria['vertical']!,
       if ((criteria['when'] ?? '').isNotEmpty)
-        const {'today': 'Aujourd’hui', 'tomorrow': 'Demain',
-          'week': 'Cette semaine', 'weekend': 'Ce week-end'}[criteria['when']] ??
+        const {
+              'today': 'Aujourd’hui',
+              'tomorrow': 'Demain',
+              'week': 'Cette semaine',
+              'weekend': 'Ce week-end',
+            }[criteria['when']] ??
             criteria['when']!,
       if ((criteria['date_from'] ?? '').isNotEmpty ||
           (criteria['date_to'] ?? '').isNotEmpty)
-        [criteria['date_from'], criteria['date_to']]
-            .whereType<String>().where((value) => value.isNotEmpty).join(' → '),
+        [
+          criteria['date_from'],
+          criteria['date_to'],
+        ].whereType<String>().where((value) => value.isNotEmpty).join(' → '),
       if ((criteria['price'] ?? '').isNotEmpty)
         criteria['price'] == 'free' ? 'Gratuit' : 'Payant',
     ];
@@ -173,9 +187,8 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         initialName: watch.name,
       );
       if (id != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veille modifiée.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Veille modifiée.')));
       }
       return;
     }
@@ -214,15 +227,13 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              switch (action) {
-                'delete' => 'Veille supprimée.',
-                'rename' => 'Veille renommée.',
-                'paused' => 'Veille mise en pause.',
-                'active' => 'Veille réactivée.',
-                _ => 'Veille mise à jour.',
-              },
-            ),
+            content: Text(switch (action) {
+              'delete' => 'Veille supprimée.',
+              'rename' => 'Veille renommée.',
+              'paused' => 'Veille mise en pause.',
+              'active' => 'Veille réactivée.',
+              _ => 'Veille mise à jour.',
+            }),
           ),
         );
       }
@@ -230,9 +241,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Impossible de modifier cette veille. Réessayez.',
-            ),
+            content: Text('Impossible de modifier cette veille. Réessayez.'),
           ),
         );
       }
@@ -293,11 +302,13 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Center(child: FilledButton.icon(
-                    onPressed: _create,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Créer une veille'),
-                  )),
+                  Center(
+                    child: FilledButton.icon(
+                      onPressed: _create,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Créer une veille'),
+                    ),
+                  ),
                 ],
               ),
             );
@@ -320,7 +331,8 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                         child: MakoloStatusMetadataAction(
                           title: watch.name,
                           subtitle: _selector.description(watch).isEmpty
-                              ? null : _selector.description(watch),
+                              ? null
+                              : _selector.description(watch),
                           status: watch.status == null
                               ? null
                               : MakoloStatus(label: watch.status!),

@@ -38,9 +38,13 @@ class SpaceUsSurface extends StatelessWidget {
     final ownership = _map(payload['ownership']);
     final relations = _map(payload['relationships']);
     final relationSections = _map(relations?['sections']) ?? {};
-    final displayedRelations = relationSections.entries.where((entry) =>
-        entry.key != 'team' &&
-        _rows(_map(entry.value)?['items']).isNotEmpty).toList();
+    final displayedRelations = relationSections.entries
+        .where(
+          (entry) =>
+              entry.key != 'team' &&
+              _rows(_map(entry.value)?['items']).isNotEmpty,
+        )
+        .toList();
     final responsibilities = _rows(_map(payload['responsibilities'])?['items'])
         .where((item) => item['combined'] != true)
         .toList(growable: false);
@@ -68,8 +72,8 @@ class SpaceUsSurface extends StatelessWidget {
     final passportTarget = limited ? null : route('passport');
     final resourcesTarget = limited ? null : route('resources');
     final resources = _map(payload['resources']);
-    final resourcesVisible = resourcesTarget != null &&
-        resources?['visibility'] == 'visible';
+    final resourcesVisible =
+        resourcesTarget != null && resources?['visibility'] == 'visible';
     final resourceRows = resourcesVisible
         ? _rows(resources?['items'])
         : const <Map<String, dynamic>>[];
@@ -229,10 +233,7 @@ class SpaceUsSurface extends StatelessWidget {
                       'Vos rôles autorisés, distincts des tâches confiées.',
                     ),
                     if (responsibilities.isEmpty)
-                      _quiet(
-                        context,
-                        'Aucun autre rôle visible.',
-                      )
+                      _quiet(context, 'Aucun autre rôle visible.')
                     else
                       _panel(
                         context,
@@ -248,12 +249,7 @@ class SpaceUsSurface extends StatelessWidget {
                         ],
                       ),
                     if (route('responsibilities') case final target?) ...[
-                      _action(
-                        context,
-                        'Comprendre mes rôles',
-                        target,
-                        open,
-                      ),
+                      _action(context, 'Comprendre mes rôles', target, open),
                     ],
                     if (!limited) ...[
                       const SizedBox(height: MakoloSpacing.xl),
@@ -277,7 +273,8 @@ class SpaceUsSurface extends StatelessWidget {
                                       'Membre',
                                   'Équipe principale',
                                 ),
-                            if (team?['has_more'] == true || teamRows.length > 3)
+                            if (team?['has_more'] == true ||
+                                teamRows.length > 3)
                               _quiet(
                                 context,
                                 'D’autres personnes sont à retrouver dans l’équipe.',
@@ -365,7 +362,7 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         'Gouvernance',
-'Les personnes qui représentent et gouvernent cet Espace.',
+                        'Les personnes qui représentent et gouvernent cet Espace.',
                       ),
                       _panel(
                         context,
@@ -410,7 +407,8 @@ class SpaceUsSurface extends StatelessWidget {
                         pilotTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.xl),
                       _sectionTitle(
-                        context, 'Informations et gestion',
+                        context,
+                        'Informations et gestion',
                         'Les autres fonctions de cet Espace.',
                       ),
                     ],
@@ -493,9 +491,8 @@ class SpaceUsSurface extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Présenter notre collectif avec les faits disponibles',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.onPrimary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colors.onPrimary),
                     ),
                   ],
                 ),
@@ -595,9 +592,8 @@ class SpaceUsSurface extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -606,9 +602,8 @@ class SpaceUsSurface extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
         ],
@@ -718,5 +713,4 @@ class SpaceUsSurface extends StatelessWidget {
       ),
     ),
   );
-
 }

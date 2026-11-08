@@ -107,8 +107,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
 
     if (state.failure == MakoloFailureCue.blocking) {
       return MakoloErrorState(
-        message:
-            blockingErrorMessage ?? 'Impossible de continuer.',
+        message: blockingErrorMessage ?? 'Impossible de continuer.',
         preservedMessage: preservedMessage,
         onRetry: onRetry,
       );
@@ -128,8 +127,7 @@ class MakoloSurfaceStateView extends StatelessWidget {
         case MakoloAvailabilityCue.loading:
           return initialLoading ?? const MakoloSkeleton(lines: 5);
         case MakoloAvailabilityCue.empty:
-          return empty ??
-              const MakoloEmptyState(title: 'Rien à afficher');
+          return empty ?? const MakoloEmptyState(title: 'Rien à afficher');
         case MakoloAvailabilityCue.content:
           break;
       }

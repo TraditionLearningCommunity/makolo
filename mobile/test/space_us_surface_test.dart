@@ -182,27 +182,29 @@ void main() {
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
 
-  testWidgets('archived Space identity is explained without hiding the portrait', (
-    tester,
-  ) async {
-    final projection = _projection();
-    (projection['identity'] as Map<String, dynamic>)['lifecycle'] = 'archived';
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: SpaceUsSurface(
-            payload: projection,
-            fallbackSpaceName: 'Fallback',
-            onOpen: (_) {},
+  testWidgets(
+    'archived Space identity is explained without hiding the portrait',
+    (tester) async {
+      final projection = _projection();
+      (projection['identity'] as Map<String, dynamic>)['lifecycle'] =
+          'archived';
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            body: SpaceUsSurface(
+              payload: projection,
+              fallbackSpaceName: 'Fallback',
+              onOpen: (_) {},
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Atelier collectif'), findsOneWidget);
-    expect(find.text('Cet Espace est archivé.'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Atelier collectif'), findsOneWidget);
+      expect(find.text('Cet Espace est archivé.'), findsOneWidget);
+    },
+  );
 
   testWidgets('restricted Team section never exposes cached member rows', (
     tester,

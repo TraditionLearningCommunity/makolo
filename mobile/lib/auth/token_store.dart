@@ -109,7 +109,8 @@ class FlutterSecureTokenStore implements TokenStore {
   static Future<void> _accountWrites = Future<void>.value();
 
   Future<T> _serialAccounts<T>(Future<T> Function() action) {
-    final result = _accountWrites.catchError((Object _) {})
+    final result = _accountWrites
+        .catchError((Object _) {})
         .then((_) => action());
     _accountWrites = result.then<void>((_) {}).catchError((Object _) {});
     return result;
@@ -236,16 +237,15 @@ class FlutterSecureTokenStore implements TokenStore {
   @override
   Future<void> clearAccountSession(String profileId) =>
       _serialAccounts(() async {
-    final accounts = await _readAccountRecords();
-    final record = accounts[profileId];
-    if (record == null) return;
-    record['session'] = null;
-    await _writeAccountRecords(accounts);
-  });
+        final accounts = await _readAccountRecords();
+        final record = accounts[profileId];
+        if (record == null) return;
+        record['session'] = null;
+        await _writeAccountRecords(accounts);
+      });
 
   @override
-  Future<void> removeAccount(String profileId) =>
-      _serialAccounts(() async {
+  Future<void> removeAccount(String profileId) => _serialAccounts(() async {
     final active = await readSession();
     if (active?.profileId == profileId) {
       await _storage.delete(key: _sessionKey);
@@ -259,23 +259,23 @@ class FlutterSecureTokenStore implements TokenStore {
   @override
   Future<AuthSession> activateAccount(String profileId) =>
       _serialAccounts(() async {
-    final record = (await _readAccountRecords())[profileId];
-    final raw = record?['session'];
-    if (raw is! Map) {
-      throw StateError('quick access unavailable for this Profile');
-    }
-    final AuthSession session;
-    try {
-      session = AuthSession.fromJson(Map<String, dynamic>.from(raw));
-    } on Object {
-      throw StateError('quick access unavailable for this Profile');
-    }
-    if (session.profileId != profileId) {
-      throw StateError('quick access belongs to a different Profile');
-    }
-    await _writeSessionDirect(session);
-    return session;
-  });
+        final record = (await _readAccountRecords())[profileId];
+        final raw = record?['session'];
+        if (raw is! Map) {
+          throw StateError('quick access unavailable for this Profile');
+        }
+        final AuthSession session;
+        try {
+          session = AuthSession.fromJson(Map<String, dynamic>.from(raw));
+        } on Object {
+          throw StateError('quick access unavailable for this Profile');
+        }
+        if (session.profileId != profileId) {
+          throw StateError('quick access belongs to a different Profile');
+        }
+        await _writeSessionDirect(session);
+        return session;
+      });
 
   Future<Map<String, Map<String, dynamic>>> _readAccountRecords() async {
     final raw = await _storage.read(key: _accountsKey);

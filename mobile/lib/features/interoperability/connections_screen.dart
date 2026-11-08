@@ -143,9 +143,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   bool _mutationsAllowed(SyncStatus? status) {
-    if (!_initialLoadComplete || _refreshing || _refreshFailed ||
-        !widget.runtime.isAuthenticated || widget.runtime.api == null ||
-        widget.runtime.sync == null) return false;
+    if (!_initialLoadComplete ||
+        _refreshing ||
+        _refreshFailed ||
+        !widget.runtime.isAuthenticated ||
+        widget.runtime.api == null ||
+        widget.runtime.sync == null)
+      return false;
     return status?.state != SyncVisualState.offline &&
         status?.state != SyncVisualState.failed &&
         status?.state != SyncVisualState.stale &&

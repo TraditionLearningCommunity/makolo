@@ -69,8 +69,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _draftRevision++;
       _repository = MarkRepository(widget.runtime);
       _files = null;
-      _actor = widget.runtime.actorContext?.value ??
-          const PersonalActorContext();
+      _actor =
+          widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _result = null;
       _attachments = const [];
       _selectedContext = widget.selectedContext;
@@ -115,7 +115,8 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor) return;
+        actor != _actor)
+      return;
     if (draft != null) {
       _input.text = draft['input']?.toString() ?? '';
       final rawSelected = draft['selected'];
@@ -263,7 +264,8 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor) return;
+        actor != _actor)
+      return;
     setState(() {
       _busy = false;
       _result = result;
@@ -284,10 +286,12 @@ class _MarkScreenState extends State<MarkScreen> {
       onEditProfile: () => context.push('/me/profile'),
       onBilling: () => context.push(subscriptionRouteForActor(_actor)),
       onSettings: () => context.push('/settings'),
-      onSwitchAccount: widget.onSwitchAccount ?? () {
-        widget.runtime.recovery.markAccountSwitch();
-        context.push('/accounts');
-      },
+      onSwitchAccount:
+          widget.onSwitchAccount ??
+          () {
+            widget.runtime.recovery.markAccountSwitch();
+            context.push('/accounts');
+          },
       onLogout: widget.onLogout,
     );
   }
@@ -305,10 +309,12 @@ class _MarkScreenState extends State<MarkScreen> {
             final name = identity is Map ? identity['display_name'] : null;
             final avatarUrl = identity is Map ? identity['avatar_url'] : null;
             final baseUri = widget.runtime.api?.baseUri;
-            final resolved = avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
+            final resolved =
+                avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
                 ? baseUri.resolve(avatarUrl)
                 : null;
-            final safeAvatar = resolved != null &&
+            final safeAvatar =
+                resolved != null &&
                 (resolved.scheme == 'https' || resolved.scheme == 'http') &&
                 resolved.host == baseUri!.host;
             return MakoloPrimaryHeader(

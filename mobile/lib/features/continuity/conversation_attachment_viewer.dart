@@ -43,33 +43,37 @@ class _ConversationAttachmentViewerState
   }
 
   void _download() {
-    _future = widget.repository.downloadAttachment(
-      attachmentId: widget.attachment['id']?.toString() ?? '',
-      filename: widget.attachment['name']?.toString() ?? 'fichier',
-    ).then((file) async {
-      _file = file;
-      final kind = widget.attachment['kind']?.toString();
-      if (kind == 'audio' || kind == 'voice') {
-        final player = AudioPlayer();
-        try {
-          await player.setFilePath(file.path);
-          _audio = player;
-        } on Object {
-          await player.dispose();
-          _error = 'Lecture audio indisponible.';
-        }
-      } else if (kind == 'video') {
-        final player = await const PrivateVideoControllerFactory().open(file.path);
-        try {
-          await player.initialize();
-          _video = player;
-        } on Object {
-          await player.dispose();
-          _error = 'Lecture vidéo indisponible.';
-        }
-      }
-      return file;
-    });
+    _future = widget.repository
+        .downloadAttachment(
+          attachmentId: widget.attachment['id']?.toString() ?? '',
+          filename: widget.attachment['name']?.toString() ?? 'fichier',
+        )
+        .then((file) async {
+          _file = file;
+          final kind = widget.attachment['kind']?.toString();
+          if (kind == 'audio' || kind == 'voice') {
+            final player = AudioPlayer();
+            try {
+              await player.setFilePath(file.path);
+              _audio = player;
+            } on Object {
+              await player.dispose();
+              _error = 'Lecture audio indisponible.';
+            }
+          } else if (kind == 'video') {
+            final player = await const PrivateVideoControllerFactory().open(
+              file.path,
+            );
+            try {
+              await player.initialize();
+              _video = player;
+            } on Object {
+              await player.dispose();
+              _error = 'Lecture vidéo indisponible.';
+            }
+          }
+          return file;
+        });
   }
 
   void _retry() => setState(() {
@@ -95,7 +99,8 @@ class _ConversationAttachmentViewerState
     final mime = widget.attachment['mime_type']?.toString() ?? '';
     if (kind == 'image') {
       return InteractiveViewer(
-        minScale: 1, maxScale: 5,
+        minScale: 1,
+        maxScale: 5,
         child: Center(child: Image.file(file, fit: BoxFit.contain)),
       );
     }
@@ -119,8 +124,9 @@ class _ConversationAttachmentViewerState
                   unawaited(player.play());
                 }
               },
-              icon: Icon(playing
-                  ? Icons.pause_rounded : Icons.play_arrow_rounded),
+              icon: Icon(
+                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              ),
               label: Text(playing ? 'Pause' : 'Écouter'),
             );
           },
@@ -146,8 +152,11 @@ class _ConversationAttachmentViewerState
                   player.play();
                 }
               }),
-              icon: Icon(player.value.isPlaying
-                  ? Icons.pause_rounded : Icons.play_arrow_rounded),
+              icon: Icon(
+                player.value.isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+              ),
               label: Text(player.value.isPlaying ? 'Pause' : 'Lire'),
             ),
           ],
@@ -159,7 +168,8 @@ class _ConversationAttachmentViewerState
         future: file.readAsString(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const Text('Texte indisponible.');
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData)
+            return const Center(child: CircularProgressIndicator());
           return SingleChildScrollView(
             padding: const EdgeInsets.all(18),
             child: SelectableText(snapshot.data!),
@@ -174,7 +184,9 @@ class _ConversationAttachmentViewerState
         onPressed: () async {
           final result = await OpenFilex.open(file.path);
           if (result.type != ResultType.done && mounted) {
-            setState(() => _error = 'Aucune application ne peut ouvrir ce document.');
+            setState(
+              () => _error = 'Aucune application ne peut ouvrir ce document.',
+            );
           }
         },
         icon: const Icon(Icons.open_in_new_rounded),
@@ -188,9 +200,13 @@ class _ConversationAttachmentViewerState
     if (widget.inline) {
       final kind = widget.attachment['kind']?.toString() ?? 'file';
       final mime = widget.attachment['mime_type']?.toString() ?? '';
-      final height = kind == 'image' || kind == 'video' ||
-              mime == 'application/pdf' || mime == 'text/plain'
-          ? 220.0 : 92.0;
+      final height =
+          kind == 'image' ||
+              kind == 'video' ||
+              mime == 'application/pdf' ||
+              mime == 'text/plain'
+          ? 220.0
+          : 92.0;
       return SizedBox(
         height: height,
         width: double.infinity,
@@ -203,10 +219,15 @@ class _ConversationAttachmentViewerState
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (kind != 'image' && kind != 'video' &&
-                kind != 'audio' && kind != 'voice' &&
-                mime != 'application/pdf' && mime != 'text/plain') {
-              return const Center(child: Icon(Icons.description_outlined, size: 42));
+            if (kind != 'image' &&
+                kind != 'video' &&
+                kind != 'audio' &&
+                kind != 'voice' &&
+                mime != 'application/pdf' &&
+                mime != 'text/plain') {
+              return const Center(
+                child: Icon(Icons.description_outlined, size: 42),
+              );
             }
             return ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -238,7 +259,10 @@ class _ConversationAttachmentViewerState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Pièce inaccessible ou connexion indisponible.'),
-                    TextButton(onPressed: _retry, child: const Text('Réessayer')),
+                    TextButton(
+                      onPressed: _retry,
+                      child: const Text('Réessayer'),
+                    ),
                   ],
                 ),
               );
@@ -251,9 +275,12 @@ class _ConversationAttachmentViewerState
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Text(_error!, style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    )),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 Expanded(child: _read(snapshot.data!)),
               ],

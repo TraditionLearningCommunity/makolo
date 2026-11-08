@@ -105,10 +105,14 @@ String? spaceWorkOwnerRoute({
   final route = spaceOwnerRoute(slug: slug, kind: kind, id: id);
   if (route == null) return null;
   if (!spaceWorkSectionKeys.contains(section)) return route;
-  return Uri.parse(route).replace(queryParameters: {
-    'work_section': section!,
-    if (fromCollection) 'work_collection': '1',
-  }).toString();
+  return Uri.parse(route)
+      .replace(
+        queryParameters: {
+          'work_section': section!,
+          if (fromCollection) 'work_collection': '1',
+        },
+      )
+      .toString();
 }
 
 String spaceWorkReturnRoute({

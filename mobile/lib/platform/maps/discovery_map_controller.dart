@@ -19,6 +19,7 @@ class DiscoveryMapPin {
   final String? locationKey;
   final int opportunityCount;
   final bool selected;
+
   /// Short, public category glyph only; never an inferred business fact.
   final String symbol;
 }
@@ -48,9 +49,7 @@ class DiscoveryMapController {
   /// Only public geographic facts from the admitted Discovery field reach
   /// the map renderer. No second data owner, no candidate scoring and no
   /// client-side geocoding.
-  static Map<String, dynamic> geoJsonForPins(
-    List<DiscoveryMapPin> pins,
-  ) => {
+  static Map<String, dynamic> geoJsonForPins(List<DiscoveryMapPin> pins) => {
     'type': 'FeatureCollection',
     'features': [
       for (final pin in pins)
@@ -105,8 +104,10 @@ class DiscoveryMapController {
               Expressions.step,
               [Expressions.get, 'point_count'],
               19,
-              10, 25,
-              50, 32,
+              10,
+              25,
+              50,
+              32,
             ],
             circleColor: '#5232DB',
             circleStrokeWidth: 2,
@@ -136,8 +137,14 @@ class DiscoveryMapController {
             _singlePins,
             SymbolLayerProperties(
               iconImage: [
-                'case', ['==', [Expressions.get, 'selected'], true],
-                _pinSelectedImage, _pinImage,
+                'case',
+                [
+                  '==',
+                  [Expressions.get, 'selected'],
+                  true,
+                ],
+                _pinSelectedImage,
+                _pinImage,
               ],
               iconSize: 0.5,
               iconAnchor: 'bottom',
@@ -146,8 +153,15 @@ class DiscoveryMapController {
             ),
             filter: [
               'all',
-              ['!', ['has', 'point_count']],
-              ['==', [Expressions.get, 'opportunity_count'], 1],
+              [
+                '!',
+                ['has', 'point_count'],
+              ],
+              [
+                '==',
+                [Expressions.get, 'opportunity_count'],
+                1,
+              ],
             ],
           );
           await _controller.addSymbolLayer(
@@ -155,8 +169,14 @@ class DiscoveryMapController {
             _multiPlaces,
             SymbolLayerProperties(
               iconImage: [
-                'case', ['==', [Expressions.get, 'selected'], true],
-                _placeSelectedImage, _placeImage,
+                'case',
+                [
+                  '==',
+                  [Expressions.get, 'selected'],
+                  true,
+                ],
+                _placeSelectedImage,
+                _placeImage,
               ],
               iconSize: 0.5,
               iconAnchor: 'center',
@@ -165,8 +185,15 @@ class DiscoveryMapController {
             ),
             filter: [
               'all',
-              ['!', ['has', 'point_count']],
-              ['>', [Expressions.get, 'opportunity_count'], 1],
+              [
+                '!',
+                ['has', 'point_count'],
+              ],
+              [
+                '>',
+                [Expressions.get, 'opportunity_count'],
+                1,
+              ],
             ],
           );
           _symbolPinsReady = true;
@@ -187,15 +214,25 @@ class DiscoveryMapController {
           _source,
           _locationCounts,
           SymbolLayerProperties(
-            textField: ['to-string', [Expressions.get, 'opportunity_count']],
+            textField: [
+              'to-string',
+              [Expressions.get, 'opportunity_count'],
+            ],
             textSize: 12,
             textColor: '#FFFFFF',
             textAllowOverlap: true,
           ),
           filter: [
             'all',
-            ['!', ['has', 'point_count']],
-            ['>', [Expressions.get, 'opportunity_count'], 1],
+            [
+              '!',
+              ['has', 'point_count'],
+            ],
+            [
+              '>',
+              [Expressions.get, 'opportunity_count'],
+              1,
+            ],
           ],
         );
         // A glyph is shown only for one opportunity with an admitted type.
@@ -214,9 +251,20 @@ class DiscoveryMapController {
               ),
               filter: [
                 'all',
-                ['!', ['has', 'point_count']],
-                ['==', [Expressions.get, 'opportunity_count'], 1],
-                ['!=', [Expressions.get, 'symbol'], ''],
+                [
+                  '!',
+                  ['has', 'point_count'],
+                ],
+                [
+                  '==',
+                  [Expressions.get, 'opportunity_count'],
+                  1,
+                ],
+                [
+                  '!=',
+                  [Expressions.get, 'symbol'],
+                  '',
+                ],
               ],
             );
           } on Object {
@@ -259,23 +307,60 @@ class DiscoveryMapController {
     _points,
     CircleLayerProperties(
       circleRadius: [
-        'case', ['==', [Expressions.get, 'selected'], true], 26,
-        [Expressions.step, [Expressions.get, 'opportunity_count'],
-          8, 2, 16, 10, 20, 100, 24],
+        'case',
+        [
+          '==',
+          [Expressions.get, 'selected'],
+          true,
+        ],
+        26,
+        [
+          Expressions.step,
+          [Expressions.get, 'opportunity_count'],
+          8,
+          2,
+          16,
+          10,
+          20,
+          100,
+          24,
+        ],
       ],
       circleColor: [
-        'case', ['==', [Expressions.get, 'selected'], true],
-        '#2B176E', '#5232DB',
+        'case',
+        [
+          '==',
+          [Expressions.get, 'selected'],
+          true,
+        ],
+        '#2B176E',
+        '#5232DB',
       ],
       circleStrokeWidth: [
-        'case', ['==', [Expressions.get, 'selected'], true], 4, 2,
+        'case',
+        [
+          '==',
+          [Expressions.get, 'selected'],
+          true,
+        ],
+        4,
+        2,
       ],
       circleStrokeColor: [
-        'case', ['==', [Expressions.get, 'selected'], true],
-        '#FF704D', '#FFFFFF',
+        'case',
+        [
+          '==',
+          [Expressions.get, 'selected'],
+          true,
+        ],
+        '#FF704D',
+        '#FFFFFF',
       ],
     ),
-    filter: ['!', ['has', 'point_count']],
+    filter: [
+      '!',
+      ['has', 'point_count'],
+    ],
   );
 
   // Rendered once per MapLibre style, never per point or camera movement.
@@ -285,7 +370,10 @@ class DiscoveryMapController {
     await _controller.addImage(_pinImage, await _drawPin(false));
     await _controller.addImage(_pinSelectedImage, await _drawPin(true));
     await _controller.addImage(_placeImage, await _drawPlaceBadge(false));
-    await _controller.addImage(_placeSelectedImage, await _drawPlaceBadge(true));
+    await _controller.addImage(
+      _placeSelectedImage,
+      await _drawPlaceBadge(true),
+    );
   }
 
   static Future<Uint8List> _png(
@@ -319,14 +407,19 @@ class DiscoveryMapController {
       ..cubicTo(81, 69, 61, 90, 48, 108)
       ..close();
     canvas.drawPath(
-      shape, ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
+      shape,
+      ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
     );
-    canvas.drawPath(shape, ui.Paint()
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = selected ? 8 : 6
-      ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF));
+    canvas.drawPath(
+      shape,
+      ui.Paint()
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = selected ? 8 : 6
+        ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF),
+    );
     canvas.drawCircle(
-      const ui.Offset(48, 43), 13,
+      const ui.Offset(48, 43),
+      13,
       ui.Paint()..color = const ui.Color(0xFFFFFFFF),
     );
     return _png(recorder, 96, 112);
@@ -340,19 +433,28 @@ class DiscoveryMapController {
       const ui.Radius.circular(24),
     );
     canvas.drawRRect(
-      rounded, ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
+      rounded,
+      ui.Paint()..color = ui.Color(selected ? 0xFF2B176E : 0xFF5232DB),
     );
-    canvas.drawRRect(rounded, ui.Paint()
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = selected ? 7 : 5
-      ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF));
+    canvas.drawRRect(
+      rounded,
+      ui.Paint()
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = selected ? 7 : 5
+        ..color = ui.Color(selected ? 0xFFFF704D : 0xFFFFFFFF),
+    );
     return _png(recorder, 108, 64);
   }
 
   Future<void> _removeClusterLayers() async {
     for (final layer in [
-      _pointIcons, _locationCounts, _multiPlaces, _singlePins,
-      _points, _counts, _clusters,
+      _pointIcons,
+      _locationCounts,
+      _multiPlaces,
+      _singlePins,
+      _points,
+      _counts,
+      _clusters,
     ]) {
       try {
         await _controller.removeLayer(layer);
@@ -368,16 +470,11 @@ class DiscoveryMapController {
   Future<String?> selectRenderedPoint(math.Point<double> point) async {
     if (!_clusterReady) return null;
     try {
-      final hits = await _controller.queryRenderedFeatures(
-        point,
-        [
-          _clusters,
-          _locationCounts,
-          if (_symbolPinsReady) ...[_multiPlaces, _singlePins]
-          else _points,
-        ],
-        null,
-      );
+      final hits = await _controller.queryRenderedFeatures(point, [
+        _clusters,
+        _locationCounts,
+        if (_symbolPinsReady) ...[_multiPlaces, _singlePins] else _points,
+      ], null);
       if (hits.isEmpty) return null;
       final feature = hits.first;
       if (feature is! Map) return null;
@@ -386,12 +483,15 @@ class DiscoveryMapController {
       final clusterId = properties['cluster_id'];
       if (clusterId is num) {
         final zoom = await _controller.getClusterExpansionZoom(
-          _source, clusterId.toInt(),
+          _source,
+          clusterId.toInt(),
         );
         final geometry = feature['geometry'];
         final coords = geometry is Map ? geometry['coordinates'] : null;
-        if (coords is List && coords.length == 2 &&
-            coords[0] is num && coords[1] is num) {
+        if (coords is List &&
+            coords.length == 2 &&
+            coords[0] is num &&
+            coords[1] is num) {
           await _controller.animateCamera(
             CameraUpdate.newLatLngZoom(
               LatLng(
@@ -411,7 +511,6 @@ class DiscoveryMapController {
       return null;
     }
   }
-
 
   Future<void> moveTo(double latitude, double longitude) => _controller
       .animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));

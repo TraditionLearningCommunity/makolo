@@ -20,14 +20,18 @@ class MeSupportScreen extends StatelessWidget {
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
           if (sourceSnapshot.data?.invalidated == true) {
-            return const Center(child: Text('Mes appuis ne sont plus accessibles.'));
+            return const Center(
+              child: Text('Mes appuis ne sont plus accessibles.'),
+            );
           }
           return StreamBuilder<StoredProjection?>(
             stream: personal.watchMe(),
             builder: (context, snapshot) {
               final raw = snapshot.data?.payload['support'];
               if (raw is! Map) {
-                return const Center(child: Text('Mes appuis sont indisponibles.'));
+                return const Center(
+                  child: Text('Mes appuis sont indisponibles.'),
+                );
               }
               final rows = <Widget>[];
               for (final family in ['recognition', 'loyalty', 'partners']) {
@@ -48,14 +52,11 @@ class MeSupportScreen extends StatelessWidget {
                 rows.add(
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      switch (family) {
-                        'recognition' => Icons.workspace_premium_outlined,
-                        'loyalty' => Icons.card_giftcard_outlined,
-                        _ => Icons.handshake_outlined,
-                      },
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    leading: Icon(switch (family) {
+                      'recognition' => Icons.workspace_premium_outlined,
+                      'loyalty' => Icons.card_giftcard_outlined,
+                      _ => Icons.handshake_outlined,
+                    }, color: Theme.of(context).colorScheme.primary),
                     title: Text(title),
                     subtitle: Text(subtitle),
                   ),
@@ -68,7 +69,9 @@ class MeSupportScreen extends StatelessWidget {
                         Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: Center(
-                            child: Text('Aucun appui disponible pour le moment.'),
+                            child: Text(
+                              'Aucun appui disponible pour le moment.',
+                            ),
                           ),
                         ),
                       ]

@@ -20,17 +20,17 @@ GeoSearchGateway? createGeoSearchGateway({
   }
   return switch (provider.trim().toLowerCase()) {
     'maptiler' => MapTilerGeoSearchGateway(
-        apiKey: key,
-        endpoint: configuredEndpoint,
-      ),
+      apiKey: key,
+      endpoint: configuredEndpoint,
+    ),
     'google_maps' => GoogleMapsGeoSearchGateway(
-        apiKey: key,
-        endpoint: configuredEndpoint,
-      ),
+      apiKey: key,
+      endpoint: configuredEndpoint,
+    ),
     _ => throw ArgumentError.value(
-        provider,
-        'provider',
-        'Unsupported geocoding provider',
-      ),
+      provider,
+      'provider',
+      'Unsupported geocoding provider',
+    ),
   };
 }

@@ -311,7 +311,8 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
   Widget build(BuildContext context) {
     final items = widget.items;
     final place = items.isEmpty ? null : items.first.place;
-    final commonPlace = place != null &&
+    final commonPlace =
+        place != null &&
         place.trim().isNotEmpty &&
         items.every((item) => item.place == place);
     final screenHeight = MediaQuery.sizeOf(context).height;
@@ -319,8 +320,9 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
     // sheet, then naturally reveals all remaining admitted opportunities.
     final initialRows = math.min(items.length, 4);
     final requiredHeight = 100.0 + initialRows * 105.0;
-    final initialSize =
-        (requiredHeight / screenHeight).clamp(0.26, 0.80).toDouble();
+    final initialSize = (requiredHeight / screenHeight)
+        .clamp(0.26, 0.80)
+        .toDouble();
     return DraggableScrollableSheet(
       key: const Key('discover-map-colocated-sheet'),
       expand: false,
@@ -385,7 +387,10 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                   padding: const EdgeInsets.all(MakoloSpacing.sm),
                   child: Row(
                     children: [
-                      _DiscoveryMapThumbnail(item: item, baseUri: widget.baseUri),
+                      _DiscoveryMapThumbnail(
+                        item: item,
+                        baseUri: widget.baseUri,
+                      ),
                       const SizedBox(width: MakoloSpacing.sm),
                       Expanded(
                         child: Column(
@@ -393,7 +398,8 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                           children: [
                             Text(
                               item.title,
-                              maxLines: item.owner == null && item.timing == null
+                              maxLines:
+                                  item.owner == null && item.timing == null
                                   ? 3
                                   : 2,
                               overflow: TextOverflow.ellipsis,
@@ -416,7 +422,9 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                                       item.timing!,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
                                     ),
                                   ),
                                 ],
@@ -462,37 +470,36 @@ class _DiscoveryMapThumbnail extends StatelessWidget {
     // Prefer the opportunity's published media. The publisher avatar is a
     // valid fallback only when it is already in the admitted presentation.
     final owner = item.wire['owner'];
-    final representation =
-        owner is Map ? owner['representation'] : null;
-    final avatar = representation is Map &&
-            representation['avatar_url'] is String
+    final representation = owner is Map ? owner['representation'] : null;
+    final avatar =
+        representation is Map && representation['avatar_url'] is String
         ? representation['avatar_url'] as String
         : null;
     final mediaUrl = item.imageUrl ?? avatar;
     final uri = mediaUrl == null ? null : Uri.tryParse(mediaUrl);
     final resolved = uri == null
         ? null
-        : uri.hasScheme ? uri : baseUri?.resolveUri(uri);
+        : uri.hasScheme
+        ? uri
+        : baseUri?.resolveUri(uri);
     final placeholder = ColoredBox(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Center(
-        child: Icon(
-          switch (item.representationKind ?? item.family) {
-            'event' => Icons.event_available_outlined,
-            'transport' || 'route' => Icons.directions_bus_outlined,
-            'service' || 'service_activity' => Icons.handshake_outlined,
-            'funding' || 'funding_activity' => Icons.account_balance_outlined,
-            'opportunity' => Icons.school_outlined,
-            _ => Icons.explore_outlined,
-          },
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
-        ),
+        child: Icon(switch (item.representationKind ?? item.family) {
+          'event' => Icons.event_available_outlined,
+          'transport' || 'route' => Icons.directions_bus_outlined,
+          'service' || 'service_activity' => Icons.handshake_outlined,
+          'funding' || 'funding_activity' => Icons.account_balance_outlined,
+          'opportunity' => Icons.school_outlined,
+          _ => Icons.explore_outlined,
+        }, color: Theme.of(context).colorScheme.onPrimaryContainer),
       ),
     );
     Widget content = placeholder;
     if (resolved != null &&
         (resolved.scheme == 'https' || resolved.scheme == 'http')) {
-      final trusted = baseUri != null &&
+      final trusted =
+          baseUri != null &&
           resolved.origin == baseUri!.origin &&
           DiscoveryOfflineStore.isPublishedRecognitionUri(
             resolved,
@@ -574,7 +581,8 @@ class _DiscoveryMapPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = detail;
-    final canChangeSaved = onSave != null &&
+    final canChangeSaved =
+        onSave != null &&
         resolved != null &&
         (resolved.savedState == 'saved'
             ? resolved.canUnsave
@@ -622,10 +630,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelMedium,
               ),
             if (place != null && place!.trim().isNotEmpty)
-              _DiscoveryMapFact(
-                icon: Icons.place_outlined,
-                label: place!,
-              ),
+              _DiscoveryMapFact(icon: Icons.place_outlined, label: place!),
             if ((resolved?.owner ?? item.owner) != null)
               _DiscoveryMapFact(
                 icon: Icons.business_outlined,
@@ -756,8 +761,10 @@ class DiscoverySpatialView extends StatefulWidget {
   final ValueChanged<String?>? onSelectionChanged;
   final ValueChanged<DiscoverySpatialAnchor?>? onFocusedAnchorChanged;
   final DiscoverySpatialAnchor? initialFocusedAnchor;
+
   /// N2 returned; refresh owner-confirmed actions, never the map's camera.
   final int detailRefreshRevision;
+
   /// Stable owner snapshot revision, independent from widget rebuilds.
   final DateTime? spatialRevision;
   final MapViewport? restoredViewport;
@@ -816,7 +823,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     widget.onSelectionChanged?.call(key);
     widget.onFocusedAnchorChanged?.call(anchor);
     if (changed) unawaited(_resolveSelected());
-    unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+    unawaited(
+      _displayPins(
+        _selector.spatialAnchorsFromCollection(widget.selection.collection),
+      ),
+    );
     if (!moveCamera) return;
     final anchors = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
@@ -841,15 +852,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     });
     widget.onSelectionChanged?.call(null);
     widget.onFocusedAnchorChanged?.call(null);
-    unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+    unawaited(
+      _displayPins(
+        _selector.spatialAnchorsFromCollection(widget.selection.collection),
+      ),
+    );
   }
 
   Future<void> _resolveSelected() async {
     final resolver = widget.resolveItem;
     final key = _selectedCandidateKey;
     if (resolver == null || key == null) return;
-    final candidates = widget.selection.collection.items
-        .where((item) => item.candidateKey == key);
+    final candidates = widget.selection.collection.items.where(
+      (item) => item.candidateKey == key,
+    );
     if (candidates.isEmpty) return;
     final generation = ++_detailGeneration;
     try {
@@ -1016,13 +1032,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     for (final anchor in anchors) {
       final key = '${anchor.latitude}:${anchor.longitude}';
       locations.putIfAbsent(key, () => anchor);
-      candidatesAtLocation.putIfAbsent(key, () => <String>{})
+      candidatesAtLocation
+          .putIfAbsent(key, () => <String>{})
           .add(anchor.candidateKey);
       if (anchor.candidateKey == selectedCandidate &&
           (selectedLocation == null ||
               (focused?.candidateKey == selectedCandidate &&
-               focused?.latitude == anchor.latitude &&
-               focused?.longitude == anchor.longitude))) {
+                  focused?.latitude == anchor.latitude &&
+                  focused?.longitude == anchor.longitude))) {
         selectedLocation = key;
       }
     }
@@ -1031,7 +1048,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     final operation = _pinRender.then((_) async {
       if (!mounted ||
           _mapController != controller ||
-          generation != _pinGeneration) return;
+          generation != _pinGeneration)
+        return;
       try {
         final pins = await controller.renderPins([
           for (final entry in locations.entries)
@@ -1050,7 +1068,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         ]);
         if (!mounted ||
             _mapController != controller ||
-            generation != _pinGeneration) return;
+            generation != _pinGeneration)
+          return;
         _locationAnchors
           ..clear()
           ..addAll(locations);
@@ -1126,16 +1145,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     };
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(message),
-      action: status == LocationCapabilityStatus.settingsRequired
-          ? SnackBarAction(
-              label: 'Paramètres',
-              onPressed: () => unawaited(_openLocationSettings()),
-            )
-          : null,
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(message),
+        action: status == LocationCapabilityStatus.settingsRequired
+            ? SnackBarAction(
+                label: 'Paramètres',
+                onPressed: () => unawaited(_openLocationSettings()),
+              )
+            : null,
+      ),
+    );
   }
 
   Future<void> _openLocationSettings() async {
@@ -1173,7 +1194,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     if (!_trackingRequested ||
         location == null ||
         _deviceWatch != null ||
-        _deviceWatchStarting) return;
+        _deviceWatchStarting)
+      return;
     _deviceWatchStarting = true;
     final generation = ++_trackingGeneration;
     try {
@@ -1181,11 +1203,16 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         profile: LocationTrackingProfile.active,
         onFix: (fix) {
           if (!mounted || generation != _trackingGeneration) return;
-          if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
-              fix.latitude < -90 || fix.latitude > 90 ||
-              fix.longitude < -180 || fix.longitude > 180) return;
+          if (!fix.latitude.isFinite ||
+              !fix.longitude.isFinite ||
+              fix.latitude < -90 ||
+              fix.latitude > 90 ||
+              fix.longitude < -180 ||
+              fix.longitude > 180)
+            return;
           if (_deviceLatitude == fix.latitude &&
-              _deviceLongitude == fix.longitude) return;
+              _deviceLongitude == fix.longitude)
+            return;
           _deviceLatitude = fix.latitude;
           _deviceLongitude = fix.longitude;
           unawaited(_paintDevicePosition());
@@ -1197,12 +1224,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
           _showLocationAlert(LocationCapabilityStatus.failed);
         },
       );
-      if (mounted && generation == _trackingGeneration &&
-          _trackingRequested && result.started) {
+      if (mounted &&
+          generation == _trackingGeneration &&
+          _trackingRequested &&
+          result.started) {
         _deviceWatch = result.handle;
       } else {
         await result.handle?.stop();
-        if (mounted && generation == _trackingGeneration &&
+        if (mounted &&
+            generation == _trackingGeneration &&
             result.status != LocationCapabilityStatus.ready) {
           _trackingRequested = false;
           _showLocationAlert(result.status);
@@ -1217,8 +1247,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
       _deviceWatchStarting = false;
       // A pause/resume during permission acquisition must not lose the
       // foreground session; a failed session never auto-retries indefinitely.
-      if (mounted && _trackingRequested &&
-          generation != _trackingGeneration && _deviceWatch == null &&
+      if (mounted &&
+          _trackingRequested &&
+          generation != _trackingGeneration &&
+          _deviceWatch == null &&
           WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
         unawaited(_startDeviceWatch());
       }
@@ -1273,7 +1305,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         (anchor) => anchor.candidateKey == _selectedCandidateKey,
       );
       if (selected.isNotEmpty) {
-        await controller.moveTo(selected.first.latitude, selected.first.longitude);
+        await controller.moveTo(
+          selected.first.latitude,
+          selected.first.longitude,
+        );
       } else {
         await controller.fitPins([
           for (final anchor in anchors)
@@ -1321,14 +1356,21 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         widget.initialSelectedCandidateKey) {
       ++_detailGeneration;
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
-      _focusedAnchor = widget.initialFocusedAnchor?.candidateKey == _selectedCandidateKey
+      _focusedAnchor =
+          widget.initialFocusedAnchor?.candidateKey == _selectedCandidateKey
           ? widget.initialFocusedAnchor
           : null;
       _confirmedDetail = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           if (_selectedCandidateKey != null) unawaited(_resolveSelected());
-          unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+          unawaited(
+            _displayPins(
+              _selector.spatialAnchorsFromCollection(
+                widget.selection.collection,
+              ),
+            ),
+          );
         }
       });
     }
@@ -1337,9 +1379,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         .toSet();
     final spatialChanged =
         widget.showMapOnCompact && widget.spatialRevision != null
-            ? oldWidget.spatialRevision != widget.spatialRevision
-            : oldWidget.selection.collection.items !=
-                widget.selection.collection.items;
+        ? oldWidget.spatialRevision != widget.spatialRevision
+        : oldWidget.selection.collection.items !=
+              widget.selection.collection.items;
     if (spatialChanged) {
       ++_detailGeneration;
       _confirmedDetail = null;
@@ -1370,7 +1412,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
       _confirmedDetail = null;
       widget.onSelectionChanged?.call(null);
       widget.onFocusedAnchorChanged?.call(null);
-      unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+      unawaited(
+        _displayPins(
+          _selector.spatialAnchorsFromCollection(widget.selection.collection),
+        ),
+      );
     }
   }
 
@@ -1406,8 +1452,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     if (key != null) {
       for (final item in items) {
         if (item.candidateKey == key &&
-            _selector.spatialAnchorsFromCollection(widget.selection.collection)
-                .any((anchor) => anchor.candidateKey == key)) return item;
+            _selector
+                .spatialAnchorsFromCollection(widget.selection.collection)
+                .any((anchor) => anchor.candidateKey == key))
+          return item;
       }
     }
     return null;
@@ -1478,12 +1526,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
               onStyleReady: () => unawaited(_onStyleReady(points)),
               config: widget.mapConfig,
               onViewportChanged: widget.onViewportChanged,
-              initialViewport: widget.restoredViewport ?? MapViewport(
-                center: anchor == null
-                    ? const MapCoordinate(0, 0)
-                    : MapCoordinate(anchor.latitude, anchor.longitude),
-                zoom: anchor == null ? 1 : 11,
-              ),
+              initialViewport:
+                  widget.restoredViewport ??
+                  MapViewport(
+                    center: anchor == null
+                        ? const MapCoordinate(0, 0)
+                        : MapCoordinate(anchor.latitude, anchor.longitude),
+                    zoom: anchor == null ? 1 : 11,
+                  ),
               fallbackBuilder: (context, state, retry) {
                 final retryable = state == MakoloMapRuntimeState.error;
                 return Center(
@@ -1520,89 +1570,91 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
 
     if (widget.showMapOnCompact) {
       return Stack(
-              key: const Key('discover-compact-map'),
-              fit: StackFit.expand,
-              children: [
-                spatial,
-                if (points.isEmpty &&
-                    widget.selection.hasSnapshot &&
-                    widget.selection.surface.availability == MakoloAvailabilityCue.empty)
-                  Positioned(
-                    top: 72,
-                    left: MakoloSpacing.sm,
-                    right: MakoloSpacing.sm,
-                    child: Center(
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(MakoloSpacing.sm),
-                          child: Text(
-                            'Aucune opportunité sur la carte',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
+        key: const Key('discover-compact-map'),
+        fit: StackFit.expand,
+        children: [
+          spatial,
+          if (points.isEmpty &&
+              widget.selection.hasSnapshot &&
+              widget.selection.surface.availability ==
+                  MakoloAvailabilityCue.empty)
+            Positioned(
+              top: 72,
+              left: MakoloSpacing.sm,
+              right: MakoloSpacing.sm,
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(MakoloSpacing.sm),
+                    child: Text(
+                      'Aucune opportunité sur la carte',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (selected != null ||
+              (widget.location != null && widget.mapConfig.enabled))
+            Positioned(
+              left: MakoloSpacing.sm,
+              right: MakoloSpacing.sm,
+              bottom: MediaQuery.paddingOf(context).bottom + MakoloSpacing.sm,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (widget.location != null && widget.mapConfig.enabled)
+                    Material(
+                      elevation: 2,
+                      shape: const CircleBorder(),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: IconButton(
+                        tooltip: 'Me localiser',
+                        onPressed: _locationBusy
+                            ? null
+                            : () => unawaited(_recenterOnDevice()),
+                        icon: _locationBusy
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.my_location_rounded),
                       ),
                     ),
-                  ),
-                if (selected != null ||
-                    (widget.location != null && widget.mapConfig.enabled))
-                  Positioned(
-                    left: MakoloSpacing.sm,
-                    right: MakoloSpacing.sm,
-                    bottom: MediaQuery.paddingOf(context).bottom +
-                        MakoloSpacing.sm,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (widget.location != null && widget.mapConfig.enabled)
-                          Material(
-                            elevation: 2,
-                            shape: const CircleBorder(),
-                            color: Theme.of(context).colorScheme.surface,
-                            child: IconButton(
-                              tooltip: 'Me localiser',
-                              onPressed: _locationBusy
-                                  ? null
-                                  : () => unawaited(_recenterOnDevice()),
-                              icon: _locationBusy
-                                  ? const SizedBox(
-                                      width: 20, height: 20,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.my_location_rounded),
-                            ),
-                          ),
-                        if (selected != null) ...[
-                          if (widget.location != null && widget.mapConfig.enabled)
-                            const SizedBox(height: MakoloSpacing.sm),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight:
-                                  MediaQuery.sizeOf(context).height * 0.38,
-                            ),
-                            child: _DiscoveryMapPreview(
-                              item: selected,
-                              place: _placeForSelection(selected, selectedPoint),
-                              detail: widget.allowOwnerActions
-                                  ? _confirmedDetail
-                                  : null,
-                              saving: _savingSelected,
-                              onClose: _clearSelection,
-                              onOpen: () => widget.onOpen(selected),
-                              onSave: widget.onSave == null
-                                  ? null
-                                  : () => unawaited(_saveSelected()),
-                              shareApi: widget.shareApi,
-                              shareAuthenticated: widget.shareAuthenticated,
-                              baseUri: widget.baseUri,
-                            ),
-                          ),
-                        ],
-                      ],
+                  if (selected != null) ...[
+                    if (widget.location != null && widget.mapConfig.enabled)
+                      const SizedBox(height: MakoloSpacing.sm),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.38,
+                      ),
+                      child: _DiscoveryMapPreview(
+                        item: selected,
+                        place: _placeForSelection(selected, selectedPoint),
+                        detail: widget.allowOwnerActions
+                            ? _confirmedDetail
+                            : null,
+                        saving: _savingSelected,
+                        onClose: _clearSelection,
+                        onOpen: () => widget.onOpen(selected),
+                        onSave: widget.onSave == null
+                            ? null
+                            : () => unawaited(_saveSelected()),
+                        shareApi: widget.shareApi,
+                        shareAuthenticated: widget.shareAuthenticated,
+                        baseUri: widget.baseUri,
+                      ),
                     ),
-                  ),
-              ],
-            );
+                  ],
+                ],
+              ),
+            ),
+        ],
+      );
     }
 
     return MakoloAdaptiveSplit(

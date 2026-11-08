@@ -162,7 +162,7 @@ class MeView extends StatefulWidget {
 class _MeViewState extends State<MeView> {
   final ScrollController _controller = ScrollController();
 
-   @override
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -368,9 +368,7 @@ class _MeField extends StatelessWidget {
         ),
       ],
     );
-    return useTwoTerritories
-        ? MakoloContentFrame(child: field)
-        : field;
+    return useTwoTerritories ? MakoloContentFrame(child: field) : field;
   }
 }
 
@@ -649,7 +647,8 @@ class _MeTerritory extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
-              onTap: hasOwnerNavigation &&
+              onTap:
+                  hasOwnerNavigation &&
                       (presentation.key == 'considerations' ||
                           presentation.key == 'collectives')
                   ? () => onSelectItem(

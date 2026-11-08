@@ -65,62 +65,62 @@ NowSelection contentSelection({
 }
 
 void main() {
-  test('identical Now owner cursor can recover known pages after re-receipt', () {
-    StoredProjection root(
-      String actor,
-      String cursor,
-      List<String> keys,
-    ) => StoredProjection(
-      kind: 'personal.now',
-      schemaVersion: 1,
-      receivedAt: DateTime.utc(2026, 11, 4, 12),
-      payload: {
-        'actor': {'id': actor},
+  test(
+    'identical Now owner cursor can recover known pages after re-receipt',
+    () {
+      StoredProjection root(String actor, String cursor, List<String> keys) =>
+          StoredProjection(
+            kind: 'personal.now',
+            schemaVersion: 1,
+            receivedAt: DateTime.utc(2026, 11, 4, 12),
+            payload: {
+              'actor': {'id': actor},
+              'items': [
+                for (final key in keys) {'continuity_identity': key},
+              ],
+              'continuation': {'state': 'more', 'token': cursor},
+            },
+          );
+      final saved = <String, dynamic>{
+        'actor_id': 'profile-a',
+        'base_received_at': '2026-11-03T12:00:00.000Z',
+        'root_token': 'opaque-one',
+        'first_keys': ['now:a', 'now:b'],
         'items': [
-          for (final key in keys) {'continuity_identity': key},
+          {'continuity_identity': 'now:c'},
         ],
-        'continuation': {'state': 'more', 'token': cursor},
-      },
-    );
-    final saved = <String, dynamic>{
-      'actor_id': 'profile-a',
-      'base_received_at': '2026-11-03T12:00:00.000Z',
-      'root_token': 'opaque-one',
-      'first_keys': ['now:a', 'now:b'],
-      'items': [
-        {'continuity_identity': 'now:c'},
-      ],
-      'continuation': {'state': 'end'},
-    };
-    expect(
-      nowContinuationCanRebase(
-        root('profile-a', 'opaque-one', ['now:a', 'now:b']),
-        saved,
-      ),
-      isTrue,
-    );
-    expect(
-      nowContinuationCanRebase(
-        root('profile-b', 'opaque-one', ['now:a', 'now:b']),
-        saved,
-      ),
-      isFalse,
-    );
-    expect(
-      nowContinuationCanRebase(
-        root('profile-a', 'new-cursor', ['now:a', 'now:b']),
-        saved,
-      ),
-      isFalse,
-    );
-    expect(
-      nowContinuationCanRebase(
-        root('profile-a', 'opaque-one', ['now:new', 'now:b']),
-        saved,
-      ),
-      isFalse,
-    );
-  });
+        'continuation': {'state': 'end'},
+      };
+      expect(
+        nowContinuationCanRebase(
+          root('profile-a', 'opaque-one', ['now:a', 'now:b']),
+          saved,
+        ),
+        isTrue,
+      );
+      expect(
+        nowContinuationCanRebase(
+          root('profile-b', 'opaque-one', ['now:a', 'now:b']),
+          saved,
+        ),
+        isFalse,
+      );
+      expect(
+        nowContinuationCanRebase(
+          root('profile-a', 'new-cursor', ['now:a', 'now:b']),
+          saved,
+        ),
+        isFalse,
+      );
+      expect(
+        nowContinuationCanRebase(
+          root('profile-a', 'opaque-one', ['now:new', 'now:b']),
+          saved,
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'Now continuation is recovered only for the same Profile and root revision',

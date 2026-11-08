@@ -28,14 +28,18 @@ bool _privateIpv4(String host) {
 Uri? discoverySharePublicUri(String? raw, {Uri? trustedBaseUri}) {
   if (raw == null || raw.isEmpty) return null;
   final uri = Uri.tryParse(raw);
-  if (uri == null || !uri.hasAuthority || uri.host.isEmpty ||
+  if (uri == null ||
+      !uri.hasAuthority ||
+      uri.host.isEmpty ||
       uri.userInfo.isNotEmpty) {
     return null;
   }
   if (uri.scheme == 'https') return uri;
   if (uri.scheme != 'http') return null;
-  if (uri.host == 'localhost' || uri.host == '127.0.0.1' ||
-      uri.host == '[::1]' || uri.host == '::1') {
+  if (uri.host == 'localhost' ||
+      uri.host == '127.0.0.1' ||
+      uri.host == '[::1]' ||
+      uri.host == '::1') {
     return uri;
   }
   if (_privateIpv4(uri.host) &&
@@ -65,9 +69,11 @@ class DiscoveryShareControl extends StatefulWidget {
   final bool authenticated;
   final VoidCallback? onSignIn;
   final bool iconOnly;
+
   /// The owner has been revalidated for this N2; cached facts alone never
   /// authorize fresh sharing. N1 keeps its established behavior.
   final bool enabled;
+
   /// Carte uses the same Sharing operations but places choices in a
   /// bottom sheet rather than obscuring a short map preview with a popup.
   final bool showAsSheet;
@@ -279,6 +285,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
             if (mounted) _selectAction(action);
           });
         }
+
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -288,9 +295,11 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
                 if (widget.authenticated || widget.onSignIn != null)
                   ListTile(
                     leading: const Icon(Icons.people_outline_rounded),
-                    title: Text(widget.authenticated
-                        ? 'Dans Makolo'
-                        : 'Dans Makolo · connexion requise'),
+                    title: Text(
+                      widget.authenticated
+                          ? 'Dans Makolo'
+                          : 'Dans Makolo · connexion requise',
+                    ),
                     onTap: () => choose('makolo'),
                   ),
                 ListTile(

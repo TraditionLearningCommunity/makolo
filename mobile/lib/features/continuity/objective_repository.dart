@@ -78,7 +78,8 @@ class ObjectiveRepository {
     ObjectiveDepth.project => 'objective.project.collection',
   };
 
-  String collectionResourceKey(int offset) => 'offset:$offset:limit:$collectionLimit';
+  String collectionResourceKey(int offset) =>
+      'offset:$offset:limit:$collectionLimit';
 
   String collectionSourceKey(ObjectiveDepth kind, int offset) =>
       '${collectionKind(kind)}:$offset:$collectionLimit';
@@ -91,8 +92,7 @@ class ObjectiveRepository {
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: collectionSourceKey(kind, offset),
       owner: 'Objectives',
-      path:
-          'api/v1/objectives/$segment/?limit=$collectionLimit&offset=$offset',
+      path: 'api/v1/objectives/$segment/?limit=$collectionLimit&offset=$offset',
       projectionKind: collectionKind(kind),
       resourceKey: collectionResourceKey(offset),
       category: SyncSourceCategory.collection,

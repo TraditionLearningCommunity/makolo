@@ -83,7 +83,8 @@ class MakoloAvatarSheet extends StatelessWidget {
         stream: _identityStream,
         builder: (context, snapshot) {
           final identity = _identity(snapshot.data);
-          final actor = runtime.actorContext?.value ?? const PersonalActorContext();
+          final actor =
+              runtime.actorContext?.value ?? const PersonalActorContext();
           final activationValue = identity?['activation'];
           final activation = activationValue is Map ? activationValue : null;
           final completionPercentage = activation?['percentage'];
@@ -132,8 +133,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                           actor: actor,
                           size: 48,
                           personalLetter: firstLetter,
-                          personalUrl:
-                              safeAvatar ? avatarUri.toString() : null,
+                          personalUrl: safeAvatar ? avatarUri.toString() : null,
                           personalRevision: snapshot.data?.receivedAt,
                         ),
                       ),
@@ -144,8 +144,10 @@ class MakoloAvatarSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (actor is SpaceActorContext) ...[
-                            Text('Espace actif',
-                                style: Theme.of(context).textTheme.labelMedium),
+                            Text(
+                              'Espace actif',
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
                             StreamBuilder(
                               stream: runtime.space?.watchInventory(),
                               builder: (context, spaces) => Text(
@@ -180,17 +182,19 @@ class MakoloAvatarSheet extends StatelessWidget {
                                 children: [
                                   Text(
                                     '$completionPercentage % renseigné',
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
                                   ),
                                   if (onEditProfile != null) ...[
                                     const SizedBox(width: MakoloSpacing.xs),
                                     Flexible(
                                       child: TextButton(
-                                        key: const Key('avatar-complete-profile'),
-                                        onPressed: () => _closeThen(
-                                          context,
-                                          onEditProfile!,
+                                        key: const Key(
+                                          'avatar-complete-profile',
                                         ),
+                                        onPressed: () =>
+                                            _closeThen(context, onEditProfile!),
                                         style: TextButton.styleFrom(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: MakoloSpacing.xs,

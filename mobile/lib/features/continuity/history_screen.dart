@@ -73,8 +73,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _loadingMore ||
         _searching ||
         current == null ||
-        !current.hasMore) return;
-    final key = '${_query}:${_filter}:${current.nextOffset}:${_remoteHistory != null}';
+        !current.hasMore)
+      return;
+    final key =
+        '${_query}:${_filter}:${current.nextOffset}:${_remoteHistory != null}';
     if (_lastRequested == key) return;
     _lastRequested = key;
     if (_remoteHistory == null) {
@@ -123,8 +125,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshPage(offset: view.nextOffset);
-      final received =
-          await widget.repository.readPage(offset: view.nextOffset);
+      final received = await widget.repository.readPage(
+        offset: view.nextOffset,
+      );
       if (received == null) {
         throw StateError('History continuation unavailable');
       }
@@ -155,8 +158,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       query: query,
       type: _serverFilter(filter),
     );
-    if (!mounted || generation != _searchGeneration ||
-        query != _query || filter != _filter) return;
+    if (!mounted ||
+        generation != _searchGeneration ||
+        query != _query ||
+        filter != _filter)
+      return;
     setState(() {
       _remotePages = rows;
       _remoteHistory = rows.isEmpty ? null : _HistoryView.fromPages(rows);
@@ -184,16 +190,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         },
       );
       if (!mounted) return;
-      setState(() => _preparationMessage = complete
-          ? 'Les éléments d’historique actuellement disponibles '
-              'ont été enregistrés sur cet appareil.'
-          : 'Les éléments déjà enregistrés restent accessibles hors connexion. '
-              'Reconnectez-vous pour terminer la préparation.');
+      setState(
+        () => _preparationMessage = complete
+            ? 'Les éléments d’historique actuellement disponibles '
+                  'ont été enregistrés sur cet appareil.'
+            : 'Les éléments déjà enregistrés restent accessibles hors connexion. '
+                  'Reconnectez-vous pour terminer la préparation.',
+      );
     } on Object {
       if (mounted) {
-        setState(() => _preparationMessage =
-            'Les événements déjà reçus restent disponibles. '
-            'La préparation complète n’a pas abouti.');
+        setState(
+          () => _preparationMessage =
+              'Les événements déjà reçus restent disponibles. '
+              'La préparation complète n’a pas abouti.',
+        );
       }
     } finally {
       if (mounted) setState(() => _preparingOffline = false);
@@ -277,7 +287,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.title, style: Theme.of(sheetContext).textTheme.titleLarge),
+              Text(
+                item.title,
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
               const SizedBox(height: MakoloSpacing.sm),
               if (item.occurredAt != null) Text(item.occurredAt!),
               if (item.outcome != null) Text(item.outcome!),
@@ -319,9 +332,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return Scaffold(
                 appBar: AppBar(title: const Text('Historique')),
                 body: const Center(
-                  child: Text(
-                    'Cet historique n’est plus accessible.',
-                  ),
+                  child: Text('Cet historique n’est plus accessible.'),
                 ),
               );
             }
@@ -335,13 +346,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
             final seen = <String>{};
             void collect(_HistoryItem item) {
               if (_filter != 'all' && item.kind != _filter) return;
-              final key = '${item.kind}:${item.id ?? item.title}:'
+              final key =
+                  '${item.kind}:${item.id ?? item.title}:'
                   '${item.occurredAt ?? ''}';
               if (seen.add(key)) visible.add(item);
             }
+
             // A specifically searched owner result wins over an older
             // unfiltered snapshot of the same event.
-            for (final item in _remoteHistory?.items ?? const <_HistoryItem>[]) {
+            for (final item
+                in _remoteHistory?.items ?? const <_HistoryItem>[]) {
               collect(item);
             }
             for (final item in view.items) {
@@ -356,7 +370,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 !source.invalidated &&
                 source.lastErrorCode == null &&
                 source.reachability != ReachabilityState.unreachable &&
-                ((_query.isEmpty && _filter == 'all') || _remoteHistory != null);
+                ((_query.isEmpty && _filter == 'all') ||
+                    _remoteHistory != null);
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _checkEnd();
             });
@@ -437,8 +452,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         children: [
                           TextField(
                             decoration: const InputDecoration(
-                              labelText:
-                                  'Rechercher dans mon historique',
+                              labelText: 'Rechercher dans mon historique',
                               prefixIcon: Icon(Icons.search),
                             ),
                             onChanged: (value) {
@@ -449,8 +463,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 _remoteHistory = null;
                                 _remotePages = [];
                                 _selectedHistoryKey = null;
-                                  _lastRequested = null;
-                                  _loadFailed = false;
+                                _lastRequested = null;
+                                _loadFailed = false;
                               });
                               unawaited(_restoreCachedSearch());
                             },
@@ -482,8 +496,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       _remoteHistory = null;
                                       _remotePages = [];
                                       _selectedHistoryKey = null;
-                                  _lastRequested = null;
-                                  _loadFailed = false;
+                                      _lastRequested = null;
+                                      _loadFailed = false;
                                     });
                                     unawaited(_restoreCachedSearch());
                                   },
@@ -495,7 +509,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             onPressed: _preparingOffline
                                 ? null
                                 : () => unawaited(_prepareOffline()),
-                            icon: const Icon(Icons.download_for_offline_outlined),
+                            icon: const Icon(
+                              Icons.download_for_offline_outlined,
+                            ),
                             label: const Text(
                               'Préparer mon historique hors connexion',
                             ),
@@ -549,45 +565,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             if (index < visible.length - 1)
                               const SizedBox(height: MakoloSpacing.sm),
                           ],
-                          if (effectiveView.hasMore && (_loadingMore || _searching))
-                             const Center(
-                               child: Padding(
-                                 padding: EdgeInsets.all(MakoloSpacing.md),
-                                 child: CircularProgressIndicator.adaptive(),
-                               ),
-                             ),
-                           if (_loadFailed)
-                             Center(
-                               child: TextButton(
-                                 onPressed: () {
-                                   setState(() {
-                                     _loadFailed = false;
-                                     _lastRequested = null;
-                                   });
-                                   if (_remoteHistory == null) {
-                                     unawaited(_loadMore(view));
-                                   } else {
-                                     unawaited(_remoteSearch(more: true));
-                                   }
-                                 },
-                                 child: const Text('Réessayer'),
-                               ),
-                             ),
-                           if (!_loadFailed &&
-                               !_loadingMore &&
-                               !_searching &&
-                               !effectiveView.hasMore &&
-                               visible.isNotEmpty &&
-                               source.lastErrorCode == null &&
-                               source.reachability != ReachabilityState.unreachable &&
-                               ((_query.isEmpty && _filter == 'all') ||
-                                   _remoteHistory != null))
-                             const Center(
-                               child: Padding(
-                                 padding: EdgeInsets.all(MakoloSpacing.md),
-                                 child: Text('Vous avez tout vu'),
-                               ),
-                             ),
+                          if (effectiveView.hasMore &&
+                              (_loadingMore || _searching))
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(MakoloSpacing.md),
+                                child: CircularProgressIndicator.adaptive(),
+                              ),
+                            ),
+                          if (_loadFailed)
+                            Center(
+                              child: TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _loadFailed = false;
+                                    _lastRequested = null;
+                                  });
+                                  if (_remoteHistory == null) {
+                                    unawaited(_loadMore(view));
+                                  } else {
+                                    unawaited(_remoteSearch(more: true));
+                                  }
+                                },
+                                child: const Text('Réessayer'),
+                              ),
+                            ),
+                          if (!_loadFailed &&
+                              !_loadingMore &&
+                              !_searching &&
+                              !effectiveView.hasMore &&
+                              visible.isNotEmpty &&
+                              source.lastErrorCode == null &&
+                              source.reachability !=
+                                  ReachabilityState.unreachable &&
+                              ((_query.isEmpty && _filter == 'all') ||
+                                  _remoteHistory != null))
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(MakoloSpacing.md),
+                                child: Text('Vous avez tout vu'),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -614,9 +632,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     chosen.kind,
                                     chosen.id!,
                                   ),
-                                  child: const Text(
-                                    'Voir les détails',
-                                  ),
+                                  child: const Text('Voir les détails'),
                                 ),
                             ],
                           ),

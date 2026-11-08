@@ -102,9 +102,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         'has_next': false,
       });
       if (!mounted || revision != _requestRevision) return;
-      final items = {
-        for (final item in spatial.items) item.candidateKey: item,
-      };
+      final items = {for (final item in spatial.items) item.candidateKey: item};
       final anchors = _selector.spatialAnchorsFromCollection(spatial);
       final mapped = <_MappedPossibility>[
         for (final anchor in anchors)
@@ -162,9 +160,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     unawaited(_chooseCoLocated(choices.values.toList()));
   }
 
-  Future<void> _chooseCoLocated(
-    List<DiscoveryItemPresentation> items,
-  ) async {
+  Future<void> _chooseCoLocated(List<DiscoveryItemPresentation> items) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -207,7 +203,8 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                 subtitle: Text(
                   (point.anchor.fact['place'] is Map
                               ? (point.anchor.fact['place'] as Map)['name']
-                              : null)?.toString() ??
+                              : null)
+                          ?.toString() ??
                       point.item.place ??
                       '',
                 ),
@@ -231,7 +228,10 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                 label: const Text('Retour aux résultats'),
               ),
               const SizedBox(height: MakoloSpacing.sm),
-              Text('Explorer sur la carte', style: theme.textTheme.headlineSmall),
+              Text(
+                'Explorer sur la carte',
+                style: theme.textTheme.headlineSmall,
+              ),
               const SizedBox(height: MakoloSpacing.md),
               if (_loading && !hasPoints)
                 const Center(child: CircularProgressIndicator())

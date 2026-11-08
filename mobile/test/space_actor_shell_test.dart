@@ -415,7 +415,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.'),
+      find.text(
+        'Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.',
+      ),
       findsOneWidget,
     );
     expect(harness.actorContext.value, const PersonalActorContext());
@@ -433,29 +435,36 @@ void main() {
       await tester.tap(find.text('Agir en tant que'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Impossible de vérifier vos Espaces'), findsOneWidget);
+      expect(
+        find.textContaining('Impossible de vérifier vos Espaces'),
+        findsOneWidget,
+      );
       expect(find.text('Aucun Espace accessible.'), findsNothing);
       expect(harness.actorContext.value, const PersonalActorContext());
       await _disposeUi(tester);
     },
   );
 
-  testWidgets('Agir en tant que cannot select a Space from unverified offline data', (
-    tester,
-  ) async {
-    final harness = await _harness();
-    addTearDown(harness.close);
-    await _pump(tester, harness);
-    await tester.tap(find.byTooltip('Avatar'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Agir en tant que'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Space X'));
-    await tester.pumpAndSettle();
-    expect(harness.actorContext.value, const PersonalActorContext());
-    expect(find.textContaining('Une connexion est nécessaire'), findsOneWidget);
-    await _disposeUi(tester);
-  });
+  testWidgets(
+    'Agir en tant que cannot select a Space from unverified offline data',
+    (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.close);
+      await _pump(tester, harness);
+      await tester.tap(find.byTooltip('Avatar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Agir en tant que'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Space X'));
+      await tester.pumpAndSettle();
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(
+        find.textContaining('Une connexion est nécessaire'),
+        findsOneWidget,
+      );
+      await _disposeUi(tester);
+    },
+  );
 
   testWidgets(
     'validated actor transition switches the shell from personal to Space',

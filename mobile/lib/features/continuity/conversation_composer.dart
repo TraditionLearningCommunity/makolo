@@ -20,8 +20,7 @@ List<Map<String, dynamic>> _audienceRows(Map<String, dynamic> capabilities) {
   if (rows is! List) return const [];
   return [
     for (final row in rows)
-      if (row is Map)
-        row.map((key, value) => MapEntry(key.toString(), value)),
+      if (row is Map) row.map((key, value) => MapEntry(key.toString(), value)),
   ];
 }
 
@@ -55,7 +54,10 @@ class _PointDraft {
     body: payload['body']?.toString() ?? '',
     options: payload['options'] is List
         ? (payload['options'] as List).map((item) => item.toString()).toList()
-        : (payload['options']?.toString() ?? '').split('\n').where((item) => item.trim().isNotEmpty).toList(),
+        : (payload['options']?.toString() ?? '')
+              .split('\n')
+              .where((item) => item.trim().isNotEmpty)
+              .toList(),
     audienceId: payload['audience_id']?.toString(),
     multipleChoice: payload['multiple_choice'] == true,
   );
@@ -95,7 +97,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
   String? _exchangeTargetId;
   String _selectedType = 'information';
 
-  String? get _representedSpace => widget.representedSpaceId != null &&
+  String? get _representedSpace =>
+      widget.representedSpaceId != null &&
           widget.representedSpaceId ==
               widget.capabilities['representable_space_id']?.toString()
       ? widget.representedSpaceId
@@ -105,7 +108,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
   void initState() {
     super.initState();
     _audienceId = widget.capabilities['default_audience_id']?.toString();
-    _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
+    _exchangeTargetId = widget.capabilities['default_exchange_point_id']
+        ?.toString();
     _text.addListener(_edited);
     unawaited(_restoreDraft());
   }
@@ -117,11 +121,15 @@ class _ConversationComposerState extends State<ConversationComposer> {
     final conversationId = widget.conversationId;
     try {
       final draft = await delivery.readDraft(
-        conversationId: conversationId, kind: 'information',
+        conversationId: conversationId,
+        kind: 'information',
       );
-      if (!mounted || repository != widget.repository ||
+      if (!mounted ||
+          repository != widget.repository ||
           conversationId != widget.conversationId ||
-          _text.text.isNotEmpty || draft == null) return;
+          _text.text.isNotEmpty ||
+          draft == null)
+        return;
       _editingProgrammatically = true;
       _text.text = draft['body']?.toString() ?? '';
       _editingProgrammatically = false;
@@ -167,7 +175,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
       _error = null;
       _selectedType = 'information';
       _audienceId = widget.capabilities['default_audience_id']?.toString();
-      _exchangeTargetId = widget.capabilities['default_exchange_point_id']?.toString();
+      _exchangeTargetId = widget.capabilities['default_exchange_point_id']
+          ?.toString();
       unawaited(_restoreDraft());
     } else if (oldWidget.capabilities['default_audience_id'] !=
         widget.capabilities['default_audience_id']) {
@@ -197,18 +206,24 @@ class _ConversationComposerState extends State<ConversationComposer> {
     if (body.isEmpty || _sending) return;
     final mode = widget.capabilities['text_mode']?.toString();
     if (mode == 'exchange_select' && _exchangeTargetId == null) {
-      setState(() => _error = 'Choisissez une conversation à laquelle répondre.');
+      setState(
+        () => _error = 'Choisissez une conversation à laquelle répondre.',
+      );
       return;
     }
     if (_needsAudience && _audienceId == null && mode == 'information') {
       setState(() => _error = 'Choisissez les destinataires.');
       return;
     }
-    setState(() { _sending = true; _error = null; });
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
     try {
       final delivery = widget.repository.delivery;
       final pointId = mode == 'exchange' || mode == 'exchange_select'
-          ? _exchangeTargetId : null;
+          ? _exchangeTargetId
+          : null;
       if (delivery != null) {
         _draftTimer?.cancel();
         await delivery.queue(
@@ -227,7 +242,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
         await _draftWrites.catchError((Object _) {});
         try {
           await delivery.clearDraft(
-            conversationId: widget.conversationId, kind: 'information',
+            conversationId: widget.conversationId,
+            kind: 'information',
           );
         } on Object {
           // A confirmed durable enqueue is never undone by draft cleanup.
@@ -266,7 +282,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
     if (delivery != null) {
       try {
         final stored = await delivery.readDraft(
-          conversationId: widget.conversationId, kind: kind,
+          conversationId: widget.conversationId,
+          kind: kind,
         );
         if (stored != null) draft = _PointDraft.fromPayload(stored);
       } on Object {
@@ -312,8 +329,10 @@ class _ConversationComposerState extends State<ConversationComposer> {
 
   Future<void> _openForm() async {
     await showModalBottomSheet<void>(
-      context: context, isScrollControlled: true,
-      useSafeArea: true, showDragHandle: true,
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (sheetContext) => ConversationFormSheet(
         repository: widget.repository,
         conversationId: widget.conversationId,
@@ -331,8 +350,10 @@ class _ConversationComposerState extends State<ConversationComposer> {
 
   Future<void> _openMedia(String mode) async {
     await showModalBottomSheet<void>(
-      context: context, isScrollControlled: true,
-      useSafeArea: true, showDragHandle: true,
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       builder: (sheetContext) => ConversationMediaSheet(
         mode: mode,
         repository: widget.repository,
@@ -377,7 +398,10 @@ class _ConversationComposerState extends State<ConversationComposer> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-              child: Text('Type', style: Theme.of(sheetContext).textTheme.titleLarge),
+              child: Text(
+                'Type',
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
             ),
             for (final (id, label, icon) in entries)
               ListTile(
@@ -407,11 +431,13 @@ class _ConversationComposerState extends State<ConversationComposer> {
   Widget build(BuildContext context) {
     final textMode = widget.capabilities['text_mode']?.toString();
     final kinds = _kinds;
-    final mediaKinds = (widget.capabilities['media_kinds'] as List?)
-            ?.map((item) => item.toString()).toSet() ?? <String>{};
+    final mediaKinds =
+        (widget.capabilities['media_kinds'] as List?)
+            ?.map((item) => item.toString())
+            .toSet() ??
+        <String>{};
     final canForm = widget.capabilities['can_form'] == true;
-    if (textMode == null && kinds.isEmpty &&
-        mediaKinds.isEmpty && !canForm) {
+    if (textMode == null && kinds.isEmpty && mediaKinds.isEmpty && !canForm) {
       return const SizedBox.shrink();
     }
     final scheme = Theme.of(context).colorScheme;
@@ -426,30 +452,37 @@ class _ConversationComposerState extends State<ConversationComposer> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (textMode == 'exchange_select' &&
-                _exchangeTargetId == null)
+            if (textMode == 'exchange_select' && _exchangeTargetId == null)
               TextButton.icon(
-                onPressed: _sending ? null : () async {
-                  final selection = await showModalBottomSheet<String>(
-                    context: context, showDragHandle: true,
-                    builder: (sheetContext) => ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final target in _audienceRows({
-                          'audiences': widget.capabilities['exchange_targets'],
-                        }))
-                          ListTile(
-                            title: Text(target['title']?.toString() ?? 'Sujet'),
-                            onTap: () => Navigator.pop(
-                                sheetContext, target['id']?.toString()),
+                onPressed: _sending
+                    ? null
+                    : () async {
+                        final selection = await showModalBottomSheet<String>(
+                          context: context,
+                          showDragHandle: true,
+                          builder: (sheetContext) => ListView(
+                            shrinkWrap: true,
+                            children: [
+                              for (final target in _audienceRows({
+                                'audiences':
+                                    widget.capabilities['exchange_targets'],
+                              }))
+                                ListTile(
+                                  title: Text(
+                                    target['title']?.toString() ?? 'Sujet',
+                                  ),
+                                  onTap: () => Navigator.pop(
+                                    sheetContext,
+                                    target['id']?.toString(),
+                                  ),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                  );
-                  if (selection != null && mounted) {
-                    setState(() => _exchangeTargetId = selection);
-                  }
-                },
+                        );
+                        if (selection != null && mounted) {
+                          setState(() => _exchangeTargetId = selection);
+                        }
+                      },
                 icon: const Icon(Icons.forum_outlined),
                 label: const Text('Choisir le sujet'),
               ),
@@ -458,20 +491,25 @@ class _ConversationComposerState extends State<ConversationComposer> {
                 value: _audienceId,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                  labelText: 'Destinataires', isDense: true,
+                  labelText: 'Destinataires',
+                  isDense: true,
                   border: OutlineInputBorder(),
                 ),
                 items: [
                   for (final audience in audiences)
                     DropdownMenuItem(
                       value: audience['id']?.toString(),
-                      child: Text(audience['label']?.toString() ?? 'Destinataires'),
+                      child: Text(
+                        audience['label']?.toString() ?? 'Destinataires',
+                      ),
                     ),
                 ],
-                onChanged: _sending ? null : (value) => setState(() {
-                  _audienceId = value;
-                  _reference = null;
-                }),
+                onChanged: _sending
+                    ? null
+                    : (value) => setState(() {
+                        _audienceId = value;
+                        _reference = null;
+                      }),
               ),
             if (textMode != null) ...[
               Row(
@@ -506,7 +544,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
                     tooltip: 'Envoyer',
                     icon: _sending
                         ? const SizedBox(
-                            width: 18, height: 18,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.arrow_upward_rounded),
@@ -520,17 +559,19 @@ class _ConversationComposerState extends State<ConversationComposer> {
                   key: const Key('conversation-compose-type'),
                   onPressed: _sending ? null : _selectType,
                   icon: const Icon(Icons.tune_rounded, size: 19),
-                  label: Text('Type · ${_selectedType == 'information'
-                      ? 'Information'
-                      : _selectedType == 'form'
-                      ? 'Formulaire'
-                      : _selectedType == 'poll'
-                      ? 'Sondage'
-                      : _selectedType == 'request'
-                      ? 'Demande'
-                      : _selectedType == 'confirmation'
-                      ? 'Confirmation'
-                      : 'Question'}'),
+                  label: Text(
+                    'Type · ${_selectedType == 'information'
+                        ? 'Information'
+                        : _selectedType == 'form'
+                        ? 'Formulaire'
+                        : _selectedType == 'poll'
+                        ? 'Sondage'
+                        : _selectedType == 'request'
+                        ? 'Demande'
+                        : _selectedType == 'confirmation'
+                        ? 'Confirmation'
+                        : 'Question'}',
+                  ),
                 ),
                 const Spacer(),
                 if (mediaKinds.contains('voice'))
@@ -540,8 +581,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
                     onPressed: _sending ? null : () => _openMedia('voice'),
                     icon: const Icon(Icons.mic_none_rounded),
                   ),
-                if (mediaKinds.contains('image') ||
-                    mediaKinds.contains('file'))
+                if (mediaKinds.contains('image') || mediaKinds.contains('file'))
                   PopupMenuButton<String>(
                     key: const Key('conversation-compose-attachment'),
                     tooltip: 'Joindre',
@@ -550,15 +590,18 @@ class _ConversationComposerState extends State<ConversationComposer> {
                     itemBuilder: (context) => [
                       if (mediaKinds.contains('image')) ...[
                         const PopupMenuItem(
-                          value: 'photo', child: Text('Photo'),
+                          value: 'photo',
+                          child: Text('Photo'),
                         ),
                         const PopupMenuItem(
-                          value: 'camera', child: Text('Caméra'),
+                          value: 'camera',
+                          child: Text('Caméra'),
                         ),
                       ],
                       if (mediaKinds.contains('file'))
                         const PopupMenuItem(
-                          value: 'document', child: Text('Document'),
+                          value: 'document',
+                          child: Text('Document'),
                         ),
                     ],
                   ),
@@ -569,9 +612,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   _error!,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: scheme.error,
-                  ),
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: scheme.error),
                 ),
               ),
           ],
@@ -622,7 +664,8 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   bool _multipleChoice = false;
   Future<void> _draftWrites = Future<void>.value();
 
-  String? get _representedSpace => widget.representedSpaceId != null &&
+  String? get _representedSpace =>
+      widget.representedSpaceId != null &&
           widget.representedSpaceId ==
               widget.capabilities['representable_space_id']?.toString()
       ? widget.representedSpaceId
@@ -634,11 +677,17 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     final draft = widget.initialDraft;
     _title = TextEditingController(text: draft?.title ?? '');
     _body = TextEditingController(text: draft?.body ?? '');
-    _optionControllers = (draft?.options.isNotEmpty == true ? draft!.options : <String>['', '']).map((value) => TextEditingController(text: value)).toList();
-    for (final controller in _optionControllers) { controller.addListener(_changed); }
+    _optionControllers =
+        (draft?.options.isNotEmpty == true ? draft!.options : <String>['', ''])
+            .map((value) => TextEditingController(text: value))
+            .toList();
+    for (final controller in _optionControllers) {
+      controller.addListener(_changed);
+    }
     _reference = draft?.reference;
     _multipleChoice = draft?.multipleChoice ?? false;
-    _audienceId = draft?.audienceId ??
+    _audienceId =
+        draft?.audienceId ??
         widget.capabilities['default_audience_id']?.toString();
     _title.addListener(_changed);
     _body.addListener(_changed);
@@ -653,9 +702,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       reference: _reference,
       multipleChoice: _multipleChoice,
     );
-    _draftWrites = _draftWrites.catchError((Object _) {}).then(
-      (_) => widget.onDraftChanged(draft),
-    );
+    _draftWrites = _draftWrites
+        .catchError((Object _) {})
+        .then((_) => widget.onDraftChanged(draft));
   }
 
   void _changed() {
@@ -668,7 +717,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   void dispose() {
     _title.dispose();
     _body.dispose();
-    for (final controller in _optionControllers) { controller.removeListener(_changed); controller.dispose(); }
+    for (final controller in _optionControllers) {
+      controller.removeListener(_changed);
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -680,9 +732,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       String kind;
       if (mode == 'photo' || mode == 'camera') {
         final picked = await ImagePicker().pickImage(
-          source: mode == 'camera'
-              ? ImageSource.camera : ImageSource.gallery,
-          imageQuality: 90, maxWidth: 2200,
+          source: mode == 'camera' ? ImageSource.camera : ImageSource.gallery,
+          imageQuality: 90,
+          maxWidth: 2200,
         );
         path = picked?.path;
         name = picked?.name;
@@ -729,9 +781,15 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       setState(() => _error = 'Choisissez les destinataires.');
       return;
     }
-    final options = kind == 'poll' ? _optionControllers.map((item) => item.text.trim()).where((item) => item.isNotEmpty).toList(growable: false) : <String>[];
+    final options = kind == 'poll'
+        ? _optionControllers
+              .map((item) => item.text.trim())
+              .where((item) => item.isNotEmpty)
+              .toList(growable: false)
+        : <String>[];
     if (kind == 'poll' &&
-        (options.length < 2 || options.length > 12 ||
+        (options.length < 2 ||
+            options.length > 12 ||
             options.toSet().length != options.length)) {
       setState(() => _error = 'Prévoyez entre 2 et 12 choix différents.');
       return;
@@ -762,7 +820,8 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         );
         try {
           await delivery.clearDraft(
-            conversationId: widget.conversationId, kind: kind,
+            conversationId: widget.conversationId,
+            kind: kind,
           );
         } on Object {
           // Queued intent already belongs to Outbox.
@@ -770,7 +829,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         if (mounted) widget.onQueued();
       } else {
         if (_mediaPath != null) {
-          setState(() => _error = 'Envoi de ce média indisponible sans stockage local.');
+          setState(
+            () =>
+                _error = 'Envoi de ce média indisponible sans stockage local.',
+          );
           return;
         }
         _reference ??= _newConversationReference();
@@ -811,7 +873,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     };
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20, 6, 20, MediaQuery.viewInsetsOf(context).bottom + 24,
+        20,
+        6,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -837,9 +902,12 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   border: const OutlineInputBorder(),
                 ),
               ),
-            if (kind == 'information' || kind == 'request' ||
-                kind == 'question' || kind == 'confirmation' ||
-                kind == 'poll' || kind == 'exchange')
+            if (kind == 'information' ||
+                kind == 'request' ||
+                kind == 'question' ||
+                kind == 'confirmation' ||
+                kind == 'poll' ||
+                kind == 'exchange')
               TextField(
                 key: const Key('conversation-compose-body'),
                 controller: _body,
@@ -867,21 +935,34 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(child: TextField(
-                        key: Key('conversation-compose-option-' + index.toString()),
-                        controller: _optionControllers[index],
-                        minLines: 1, maxLines: 3, maxLength: 220,
-                        decoration: InputDecoration(
-                          labelText: 'Choix ' + (index + 1).toString(),
-                          border: const OutlineInputBorder(), counterText: '',
+                      Expanded(
+                        child: TextField(
+                          key: Key(
+                            'conversation-compose-option-' + index.toString(),
+                          ),
+                          controller: _optionControllers[index],
+                          minLines: 1,
+                          maxLines: 3,
+                          maxLength: 220,
+                          decoration: InputDecoration(
+                            labelText: 'Choix ' + (index + 1).toString(),
+                            border: const OutlineInputBorder(),
+                            counterText: '',
+                          ),
                         ),
-                      )),
+                      ),
                       IconButton(
                         tooltip: 'Supprimer ce choix',
-                        onPressed: _sending || _optionControllers.length <= 2 ? null : () => setState(() {
-                          final removed = _optionControllers.removeAt(index);
-                          removed.removeListener(_changed); removed.dispose(); _changed();
-                        }),
+                        onPressed: _sending || _optionControllers.length <= 2
+                            ? null
+                            : () => setState(() {
+                                final removed = _optionControllers.removeAt(
+                                  index,
+                                );
+                                removed.removeListener(_changed);
+                                removed.dispose();
+                                _changed();
+                              }),
                         icon: const Icon(Icons.remove_circle_outline),
                       ),
                     ],
@@ -890,42 +971,61 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _multipleChoice,
-                onChanged: _sending ? null : (value) => setState(() {
-                  _multipleChoice = value == true;
-                  _changed();
-                }),
+                onChanged: _sending
+                    ? null
+                    : (value) => setState(() {
+                        _multipleChoice = value == true;
+                        _changed();
+                      }),
                 title: const Text('Plusieurs réponses possibles'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
-              Align(alignment: Alignment.centerLeft, child: TextButton.icon(
-                onPressed: _sending || _optionControllers.length >= 12 ? null : () => setState(() {
-                  final controller = TextEditingController();
-                  controller.addListener(_changed); _optionControllers.add(controller); _changed();
-                }),
-                icon: const Icon(Icons.add_rounded), label: const Text('Ajouter un choix'),
-              )),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _sending || _optionControllers.length >= 12
+                      ? null
+                      : () => setState(() {
+                          final controller = TextEditingController();
+                          controller.addListener(_changed);
+                          _optionControllers.add(controller);
+                          _changed();
+                        }),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Ajouter un choix'),
+                ),
+              ),
             ],
             // Media are content of this structured Point, not another type
             // or an Information created next to it.
-            if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
+            if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty ==
+                true) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  if ((widget.capabilities['media_kinds'] as List).contains('image'))
+                  if ((widget.capabilities['media_kinds'] as List).contains(
+                    'image',
+                  ))
                     OutlinedButton.icon(
                       onPressed: _sending ? null : () => _chooseMedia('photo'),
                       icon: const Icon(Icons.image_outlined),
                       label: const Text('Photo'),
                     ),
-                  if ((widget.capabilities['media_kinds'] as List).contains('file'))
+                  if ((widget.capabilities['media_kinds'] as List).contains(
+                    'file',
+                  ))
                     OutlinedButton.icon(
-                      onPressed: _sending ? null : () => _chooseMedia('document'),
+                      onPressed: _sending
+                          ? null
+                          : () => _chooseMedia('document'),
                       icon: const Icon(Icons.attach_file_outlined),
                       label: const Text('Document'),
                     ),
-                  if ((widget.capabilities['media_kinds'] as List).contains('voice'))
+                  if ((widget.capabilities['media_kinds'] as List).contains(
+                    'voice',
+                  ))
                     OutlinedButton.icon(
                       onPressed: _sending ? null : () => _chooseMedia('voice'),
                       icon: const Icon(Icons.audio_file_outlined),
@@ -937,15 +1037,20 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                 ListTile(
                   dense: true,
                   leading: const Icon(Icons.attachment_rounded),
-                  title: Text(_mediaFilename!, maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                  title: Text(
+                    _mediaFilename!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   trailing: IconButton(
                     tooltip: 'Retirer cette pièce',
-                    onPressed: _sending ? null : () => setState(() {
-                      _mediaPath = null;
-                      _mediaFilename = null;
-                      _mediaKind = null;
-                    }),
+                    onPressed: _sending
+                        ? null
+                        : () => setState(() {
+                            _mediaPath = null;
+                            _mediaFilename = null;
+                            _mediaKind = null;
+                          }),
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ),
@@ -964,11 +1069,13 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                       child: Text(audience['label']?.toString() ?? 'Audience'),
                     ),
                 ],
-                onChanged: _sending ? null : (value) => setState(() {
-                  _audienceId = value;
-                  _reference = null;
-                  _saveDraft();
-                }),
+                onChanged: _sending
+                    ? null
+                    : (value) => setState(() {
+                        _audienceId = value;
+                        _reference = null;
+                        _saveDraft();
+                      }),
               ),
             if (_error != null) ...[
               const SizedBox(height: 8),

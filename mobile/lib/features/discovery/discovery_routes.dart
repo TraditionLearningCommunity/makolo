@@ -186,9 +186,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         repository: discovery,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
-        onOpenOccurrence: (id) => context.push(
-          '/occurrences/${Uri.encodeComponent(id)}',
-        ),
+        onOpenOccurrence: (id) =>
+            context.push('/occurrences/${Uri.encodeComponent(id)}'),
       );
     },
   ),
@@ -210,9 +209,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         repository: discovery,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
-        onOpenActivity: (id) => context.push(
-          '/activities/${Uri.encodeComponent(id)}',
-        ),
+        onOpenActivity: (id) =>
+            context.push('/activities/${Uri.encodeComponent(id)}'),
         onOpenDayOf: () => context.push(
           '/occurrences/${Uri.encodeComponent(occurrenceId)}/day-of',
         ),

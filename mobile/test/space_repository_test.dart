@@ -567,283 +567,332 @@ void main() {
     expect(harness.actorContext.value, SpaceActorContext(space: space));
   });
 
-  test('workspace denial removes only its Space, actor and late responses',
-      () async {
-    var denyWorkspace = false;
-    final lateStarted = Completer<void>();
-    final lateResponse = Completer<MockResponse>();
-    var delayNow = false;
-    final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
-    final harness = await _harness(
-      handler: (request) async {
-        final path = request.url.path;
-        if (path == '/api/v1/organizations/workspaces/') {
-          return MockResponse(jsonEncode([
-            _inventoryRow(),
-            _inventoryRow(id: 'space-y', slug: 'space-y'),
-          ]), 200);
-        }
-        if (path == '/api/v1/organizations/workspaces/space-x/' ||
-            path == '/api/v1/organizations/workspaces/space-y/') {
-          if (denyWorkspace && path.contains('space-x')) {
-            return MockResponse(jsonEncode({
-              'error': {'code': 'permission_denied', 'message': 'Forbidden'},
-            }), 403);
+  test(
+    'workspace denial removes only its Space, actor and late responses',
+    () async {
+      var denyWorkspace = false;
+      final lateStarted = Completer<void>();
+      final lateResponse = Completer<MockResponse>();
+      var delayNow = false;
+      final spaceX = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final spaceY = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+      final harness = await _harness(
+        handler: (request) async {
+          final path = request.url.path;
+          if (path == '/api/v1/organizations/workspaces/') {
+            return MockResponse(
+              jsonEncode([
+                _inventoryRow(),
+                _inventoryRow(id: 'space-y', slug: 'space-y'),
+              ]),
+              200,
+            );
           }
-          return MockResponse(jsonEncode(_workspace(
-            id: path.contains('space-y') ? 'space-y' : 'space-x',
-            slug: path.contains('space-y') ? 'space-y' : 'space-x',
-          )), 200);
-        }
-        if (path.endsWith('/now/')) {
-          if (delayNow && path.contains('space-x')) {
-            if (!lateStarted.isCompleted) lateStarted.complete();
-            return lateResponse.future;
+          if (path == '/api/v1/organizations/workspaces/space-x/' ||
+              path == '/api/v1/organizations/workspaces/space-y/') {
+            if (denyWorkspace && path.contains('space-x')) {
+              return MockResponse(
+                jsonEncode({
+                  'error': {
+                    'code': 'permission_denied',
+                    'message': 'Forbidden',
+                  },
+                }),
+                403,
+              );
+            }
+            return MockResponse(
+              jsonEncode(
+                _workspace(
+                  id: path.contains('space-y') ? 'space-y' : 'space-x',
+                  slug: path.contains('space-y') ? 'space-y' : 'space-x',
+                ),
+              ),
+              200,
+            );
           }
-          return MockResponse(jsonEncode(_now(
-            id: path.contains('space-y') ? 'space-y' : 'space-x',
-            slug: path.contains('space-y') ? 'space-y' : 'space-x',
-          )), 200);
-        }
-        throw StateError('Unexpected route $path');
-      },
-    );
-    addTearDown(harness.close);
-    final repository = harness.repository;
-    await repository.refreshInventory();
-    await repository.refreshWorkspace(spaceX);
-    await repository.refreshWorkspace(spaceY);
-    await repository.refreshNow(spaceX, const ActorPerspective.all());
-    await repository.refreshNow(spaceY, const ActorPerspective.all());
-    final operational = SpaceOccurrenceRepository(
-      database: harness.database,
-      store: harness.store,
-      profileId: 'profile-a',
-      sync: repository.sync,
-    );
-    await harness.store.putProjection(
-      kind: SpaceOccurrenceRepository.liveProjection,
-      resourceKey: operational.resourceKey(spaceX, 'occ-1'),
-      schemaVersion: 1,
-      payload: {'state': 'stale'},
-    );
-    await harness.actorContext.selectSpace(spaceX);
-
-    delayNow = true;
-    final inFlight = repository.sync!.pullSource(
-      repository.nowSource(spaceX, const ActorPerspective.all()),
-    );
-    await lateStarted.future;
-    denyWorkspace = true;
-    await expectLater(
-      repository.refreshWorkspace(spaceX),
-      throwsA(isA<Exception>()),
-    );
-    expect(harness.actorContext.value, const PersonalActorContext());
-    expect(await repository.readWorkspace(spaceX), isNull);
-    expect(await repository.readWorkspace(spaceY), isNotNull);
-    expect(
-      await harness.store.readProjection(
-        SpaceOccurrenceRepository.liveProjection,
-        resourceKey: operational.resourceKey(spaceX, 'occ-1'),
-      ),
-      isNull,
-    );
-    expect((await repository.readInventory()).map(
-      (space) => space.identity.id,
-    ), ['space-y']);
-
-    // A later inventory 200 may know the Space exists as membership, but
-    // cannot regrant previously denied workspace authority.
-    await repository.refreshInventory();
-    expect((await repository.readInventory()).map(
-      (space) => space.identity.id,
-    ), ['space-y']);
-
-    lateResponse.complete(MockResponse(jsonEncode(_now()), 200));
-    await inFlight;
-    expect(
-      await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(
-          spaceX.id,
-          perspective: const ActorPerspective.all(),
-        ),
-      ),
-      isNull,
-    );
-    await expectLater(
-      repository.sync!.pullSource(
-        repository.nowSource(spaceX, const ActorPerspective.all()),
-      ),
-      throwsA(isA<Exception>()),
-    );
-    await repository.sync!.invalidate(repository.workspaceSource(spaceX));
-    await expectLater(
-      repository.sync!.pullSource(
-        repository.nowSource(spaceX, const ActorPerspective.all()),
-      ),
-      throwsA(isA<Exception>()),
-    );
-    expect(
-      await harness.store.readProjection(
-        SpaceProjectionKind.now.wireValue,
-        resourceKey: SpaceSyncKeys.resourceKey(
-          spaceY.id,
-          perspective: const ActorPerspective.all(),
-        ),
-      ),
-      isNotNull,
-    );
-  });
-
-  test('late owner denial from a closed runtime cannot reset actor context',
-      () async {
-    final started = Completer<void>();
-    final delayed = Completer<MockResponse>();
-    final harness = await _harness(
-      handler: (_) async {
-        if (!started.isCompleted) started.complete();
-        return delayed.future;
-      },
-    );
-    addTearDown(harness.close);
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    await harness.actorContext.selectSpace(space);
-    final pending = harness.repository.refreshWorkspace(space);
-    await started.future;
-    harness.repository.sync!.deactivate();
-    delayed.complete(MockResponse(jsonEncode({
-      'error': {'code': 'permission_denied', 'message': 'Forbidden'},
-    }), 403));
-    await expectLater(pending, throwsA(isA<Exception>()));
-    expect(
-      harness.actorContext.value,
-      SpaceActorContext(space: space),
-      reason: 'Only the active runtime may alter its actor preference',
-    );
-  });
-
-  test('owner inventory removal withdraws one Space without global erasure',
-      () async {
-    var includeX = true;
-    final x = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    final y = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
-    final harness = await _harness(
-      handler: (request) async {
-        final path = request.url.path;
-        if (path == '/api/v1/organizations/workspaces/') {
-          return MockResponse(jsonEncode([
-            if (includeX) _inventoryRow(),
-            _inventoryRow(id: 'space-y', slug: 'space-y'),
-          ]), 200);
-        }
-        if (path.endsWith('/space-x/')) {
-          return MockResponse(jsonEncode(_workspace()), 200);
-        }
-        if (path.endsWith('/space-y/')) {
-          return MockResponse(jsonEncode(_workspace(
-            id: 'space-y', slug: 'space-y',
-          )), 200);
-        }
-        throw StateError('Unexpected path $path');
-      },
-    );
-    addTearDown(harness.close);
-    final repo = harness.repository;
-    await repo.refreshInventory();
-    await repo.refreshWorkspace(x);
-    await repo.refreshWorkspace(y);
-    includeX = false;
-    await repo.refreshInventory();
-    expect(await repo.readWorkspace(x), isNull);
-    expect(await repo.readWorkspace(y), isNotNull);
-    expect((await repo.readInventory()).map(
-      (item) => item.identity.id,
-    ), ['space-y']);
-    expect((await repo.readSource(repo.workspaceSource(x))).invalidated, true);
-  });
-
-  test('transport failure cannot erase a Workspace authority tombstone',
-      () async {
-    var denied = true;
-    final harness = await _harness(
-      handler: (_) async => MockResponse(jsonEncode({
-        'error': {
-          'code': denied ? 'permission_denied' : 'server_unavailable',
-          'message': 'Unable to verify Workspace',
+          if (path.endsWith('/now/')) {
+            if (delayNow && path.contains('space-x')) {
+              if (!lateStarted.isCompleted) lateStarted.complete();
+              return lateResponse.future;
+            }
+            return MockResponse(
+              jsonEncode(
+                _now(
+                  id: path.contains('space-y') ? 'space-y' : 'space-x',
+                  slug: path.contains('space-y') ? 'space-y' : 'space-x',
+                ),
+              ),
+              200,
+            );
+          }
+          throw StateError('Unexpected route $path');
         },
-      }), denied ? 403 : 503),
-    );
-    addTearDown(harness.close);
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    await expectLater(
-      harness.repository.refreshWorkspace(space),
-      throwsA(isA<Exception>()),
-    );
-    denied = false;
-    await expectLater(
-      harness.repository.refreshWorkspace(space),
-      throwsA(isA<Exception>()),
-    );
-    final source = await harness.repository.readSource(
-      harness.repository.workspaceSource(space),
-    );
-    expect(source.invalidated, isTrue);
-    expect(source.lastErrorCode, 'permission_denied');
-    await expectLater(
-      harness.repository.sync!.pullSource(
-        harness.repository.nowSource(space, const ActorPerspective.all()),
-      ),
-      throwsA(isA<Exception>()),
-    );
-  });
+      );
+      addTearDown(harness.close);
+      final repository = harness.repository;
+      await repository.refreshInventory();
+      await repository.refreshWorkspace(spaceX);
+      await repository.refreshWorkspace(spaceY);
+      await repository.refreshNow(spaceX, const ActorPerspective.all());
+      await repository.refreshNow(spaceY, const ActorPerspective.all());
+      final operational = SpaceOccurrenceRepository(
+        database: harness.database,
+        store: harness.store,
+        profileId: 'profile-a',
+        sync: repository.sync,
+      );
+      await harness.store.putProjection(
+        kind: SpaceOccurrenceRepository.liveProjection,
+        resourceKey: operational.resourceKey(spaceX, 'occ-1'),
+        schemaVersion: 1,
+        payload: {'state': 'stale'},
+      );
+      await harness.actorContext.selectSpace(spaceX);
 
-  test('inventory 403 withdraws all Space projections but no other Profile',
-      () async {
-    var deny = false;
-    final harness = await _harness(
-      handler: (request) async {
-        if (deny) {
-          return MockResponse(jsonEncode({
+      delayNow = true;
+      final inFlight = repository.sync!.pullSource(
+        repository.nowSource(spaceX, const ActorPerspective.all()),
+      );
+      await lateStarted.future;
+      denyWorkspace = true;
+      await expectLater(
+        repository.refreshWorkspace(spaceX),
+        throwsA(isA<Exception>()),
+      );
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(await repository.readWorkspace(spaceX), isNull);
+      expect(await repository.readWorkspace(spaceY), isNotNull);
+      expect(
+        await harness.store.readProjection(
+          SpaceOccurrenceRepository.liveProjection,
+          resourceKey: operational.resourceKey(spaceX, 'occ-1'),
+        ),
+        isNull,
+      );
+      expect(
+        (await repository.readInventory()).map((space) => space.identity.id),
+        ['space-y'],
+      );
+
+      // A later inventory 200 may know the Space exists as membership, but
+      // cannot regrant previously denied workspace authority.
+      await repository.refreshInventory();
+      expect(
+        (await repository.readInventory()).map((space) => space.identity.id),
+        ['space-y'],
+      );
+
+      lateResponse.complete(MockResponse(jsonEncode(_now()), 200));
+      await inFlight;
+      expect(
+        await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(
+            spaceX.id,
+            perspective: const ActorPerspective.all(),
+          ),
+        ),
+        isNull,
+      );
+      await expectLater(
+        repository.sync!.pullSource(
+          repository.nowSource(spaceX, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      await repository.sync!.invalidate(repository.workspaceSource(spaceX));
+      await expectLater(
+        repository.sync!.pullSource(
+          repository.nowSource(spaceX, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        await harness.store.readProjection(
+          SpaceProjectionKind.now.wireValue,
+          resourceKey: SpaceSyncKeys.resourceKey(
+            spaceY.id,
+            perspective: const ActorPerspective.all(),
+          ),
+        ),
+        isNotNull,
+      );
+    },
+  );
+
+  test(
+    'late owner denial from a closed runtime cannot reset actor context',
+    () async {
+      final started = Completer<void>();
+      final delayed = Completer<MockResponse>();
+      final harness = await _harness(
+        handler: (_) async {
+          if (!started.isCompleted) started.complete();
+          return delayed.future;
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.actorContext.selectSpace(space);
+      final pending = harness.repository.refreshWorkspace(space);
+      await started.future;
+      harness.repository.sync!.deactivate();
+      delayed.complete(
+        MockResponse(
+          jsonEncode({
             'error': {'code': 'permission_denied', 'message': 'Forbidden'},
-          }), 403);
-        }
-        if (request.url.path.endsWith('/space-x/')) {
-          return MockResponse(jsonEncode(_workspace()), 200);
-        }
-        return MockResponse(jsonEncode([_inventoryRow()]), 200);
-      },
-    );
-    addTearDown(harness.close);
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-    await harness.repository.refreshInventory();
-    await harness.repository.refreshWorkspace(space);
-    await harness.actorContext.selectSpace(space);
-    final another = ProfileStore(harness.database, 'profile-b');
-    await another.putProjection(
-      kind: SpaceProjectionKind.workspace.wireValue,
-      resourceKey: 'space-x',
-      schemaVersion: 1,
-      payload: {'profile': 'B'},
-    );
-    deny = true;
-    await expectLater(
-      harness.repository.refreshInventory(),
-      throwsA(isA<Exception>()),
-    );
-    expect(harness.actorContext.value, const PersonalActorContext());
-    expect(await harness.repository.readWorkspace(space), isNull);
-    expect(await harness.repository.readInventory(), isEmpty);
-    expect(
-      (await another.readProjection(
-        SpaceProjectionKind.workspace.wireValue,
+          }),
+          403,
+        ),
+      );
+      await expectLater(pending, throwsA(isA<Exception>()));
+      expect(
+        harness.actorContext.value,
+        SpaceActorContext(space: space),
+        reason: 'Only the active runtime may alter its actor preference',
+      );
+    },
+  );
+
+  test(
+    'owner inventory removal withdraws one Space without global erasure',
+    () async {
+      var includeX = true;
+      final x = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final y = SpaceActorIdentity(id: 'space-y', slug: 'space-y');
+      final harness = await _harness(
+        handler: (request) async {
+          final path = request.url.path;
+          if (path == '/api/v1/organizations/workspaces/') {
+            return MockResponse(
+              jsonEncode([
+                if (includeX) _inventoryRow(),
+                _inventoryRow(id: 'space-y', slug: 'space-y'),
+              ]),
+              200,
+            );
+          }
+          if (path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          if (path.endsWith('/space-y/')) {
+            return MockResponse(
+              jsonEncode(_workspace(id: 'space-y', slug: 'space-y')),
+              200,
+            );
+          }
+          throw StateError('Unexpected path $path');
+        },
+      );
+      addTearDown(harness.close);
+      final repo = harness.repository;
+      await repo.refreshInventory();
+      await repo.refreshWorkspace(x);
+      await repo.refreshWorkspace(y);
+      includeX = false;
+      await repo.refreshInventory();
+      expect(await repo.readWorkspace(x), isNull);
+      expect(await repo.readWorkspace(y), isNotNull);
+      expect((await repo.readInventory()).map((item) => item.identity.id), [
+        'space-y',
+      ]);
+      expect(
+        (await repo.readSource(repo.workspaceSource(x))).invalidated,
+        true,
+      );
+    },
+  );
+
+  test(
+    'transport failure cannot erase a Workspace authority tombstone',
+    () async {
+      var denied = true;
+      final harness = await _harness(
+        handler: (_) async => MockResponse(
+          jsonEncode({
+            'error': {
+              'code': denied ? 'permission_denied' : 'server_unavailable',
+              'message': 'Unable to verify Workspace',
+            },
+          }),
+          denied ? 403 : 503,
+        ),
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await expectLater(
+        harness.repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      denied = false;
+      await expectLater(
+        harness.repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      final source = await harness.repository.readSource(
+        harness.repository.workspaceSource(space),
+      );
+      expect(source.invalidated, isTrue);
+      expect(source.lastErrorCode, 'permission_denied');
+      await expectLater(
+        harness.repository.sync!.pullSource(
+          harness.repository.nowSource(space, const ActorPerspective.all()),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
+
+  test(
+    'inventory 403 withdraws all Space projections but no other Profile',
+    () async {
+      var deny = false;
+      final harness = await _harness(
+        handler: (request) async {
+          if (deny) {
+            return MockResponse(
+              jsonEncode({
+                'error': {'code': 'permission_denied', 'message': 'Forbidden'},
+              }),
+              403,
+            );
+          }
+          if (request.url.path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      await harness.repository.refreshWorkspace(space);
+      await harness.actorContext.selectSpace(space);
+      final another = ProfileStore(harness.database, 'profile-b');
+      await another.putProjection(
+        kind: SpaceProjectionKind.workspace.wireValue,
         resourceKey: 'space-x',
-      ))?.payload['profile'],
-      'B',
-    );
-  });
+        schemaVersion: 1,
+        payload: {'profile': 'B'},
+      );
+      deny = true;
+      await expectLater(
+        harness.repository.refreshInventory(),
+        throwsA(isA<Exception>()),
+      );
+      expect(harness.actorContext.value, const PersonalActorContext());
+      expect(await harness.repository.readWorkspace(space), isNull);
+      expect(await harness.repository.readInventory(), isEmpty);
+      expect(
+        (await another.readProjection(
+          SpaceProjectionKind.workspace.wireValue,
+          resourceKey: 'space-x',
+        ))?.payload['profile'],
+        'B',
+      );
+    },
+  );
 
   test('Profile isolation keeps Space snapshots separate', () async {
     final database = MakoloDatabase.memory();

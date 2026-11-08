@@ -102,7 +102,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 invitations,
                 now: DateTime.now(),
                 invalidated: source.invalidated,
-              ) != FreshnessState.fresh) {
+              ) !=
+              FreshnessState.fresh) {
         await repository.refreshInvitations();
       }
     } on Object {
@@ -173,8 +174,11 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   ? MakoloFailureCue.permissionDenied
                   : source.lastErrorCode == 'not_found'
                   ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
-                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
+                  : source.lastErrorCode != null ||
+                        (!available && _attemptedRefresh)
+                  ? available
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -191,7 +195,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               ),
               // Network status is already represented by the thin shell cue.
               // Never replace a cached inbox with a transport-error tutorial.
-              body: (source.lastErrorCode != 'permission_denied' &&
+              body:
+                  (source.lastErrorCode != 'permission_denied' &&
                       source.lastErrorCode != 'not_found' &&
                       (available || (_attemptedRefresh && !_refreshing)))
                   ? _ConversationListBody(
@@ -332,7 +337,8 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     _debounce = Timer(const Duration(milliseconds: 300), () async {
       try {
         final results = await widget.repository.searchConversations(
-          query, tab: _tab,
+          query,
+          tab: _tab,
         );
         if (!mounted || generation != _searchGeneration) return;
         setState(() {
@@ -403,118 +409,123 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 860),
                 child: ListView(
-              key: const Key('conversation-list-content'),
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.inner,
-                vertical: MakoloSpacing.md,
-              ),
-              children: [
-                TextField(
-                  key: const Key('conversation-search-field'),
-                  onChanged: _scheduleSearch,
-                  maxLength: 120,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    labelText: 'Rechercher',
-                    counterText: '',
-                    hintText: 'Rechercher une conversation…',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _searching
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: Center(
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          )
-                        : null,
+                  key: const Key('conversation-list-content'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MakoloSpacing.inner,
+                    vertical: MakoloSpacing.md,
                   ),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-                Wrap(
-                  spacing: MakoloSpacing.sm,
-                  runSpacing: MakoloSpacing.xs,
                   children: [
-                    ChoiceChip(
-                      key: const Key('conversation-tab-all'),
-                      label: const Text('Toutes'),
-                      selected: _tab == 'all',
-                      onSelected: (_) => _setTab('all'),
-                    ),
-                    ChoiceChip(
-                      key: const Key('conversation-tab-for-me'),
-                      label: const Text('À traiter'),
-                      selected: _tab == 'for-me',
-                      onSelected: (_) => _setTab('for-me'),
-                    ),
-                    ChoiceChip(
-                      key: const Key('conversation-tab-archived'),
-                      label: const Text('Archives'),
-                      selected: _tab == 'archived',
-                      onSelected: (_) => _setTab('archived'),
-                    ),
-                  ],
-                ),
-                if (_archiveLoading && _tab == 'archived')
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-
-                if (invitations.isNotEmpty && _query.isEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.lg),
-                  Text('Invitations',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  for (final invitation in invitations) ...[
-                    _ConversationInvitationCard(
-                      invitation: invitation,
-                      repository: widget.repository,
-                      onOpen: widget.onOpen,
+                    TextField(
+                      key: const Key('conversation-search-field'),
+                      onChanged: _scheduleSearch,
+                      maxLength: 120,
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        labelText: 'Rechercher',
+                        counterText: '',
+                        hintText: 'Rechercher une conversation…',
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: _searching
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
-                  ],
-                ],
-                const SizedBox(height: MakoloSpacing.lg),
-                if (filtered.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-                    child: Text(
-                      _query.trim().isEmpty
-                          ? (_tab == 'archived'
-                               ? 'Aucune archive disponible.'
-                               : 'Aucune conversation à afficher.')
-                          : _searching
-                          ? 'Recherche…'
-                          : 'Aucun résultat.',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                    Wrap(
+                      spacing: MakoloSpacing.sm,
+                      runSpacing: MakoloSpacing.xs,
+                      children: [
+                        ChoiceChip(
+                          key: const Key('conversation-tab-all'),
+                          label: const Text('Toutes'),
+                          selected: _tab == 'all',
+                          onSelected: (_) => _setTab('all'),
+                        ),
+                        ChoiceChip(
+                          key: const Key('conversation-tab-for-me'),
+                          label: const Text('À traiter'),
+                          selected: _tab == 'for-me',
+                          onSelected: (_) => _setTab('for-me'),
+                        ),
+                        ChoiceChip(
+                          key: const Key('conversation-tab-archived'),
+                          label: const Text('Archives'),
+                          selected: _tab == 'archived',
+                          onSelected: (_) => _setTab('archived'),
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  for (final item in filtered) ...[
-                    ConversationListTile(
-                      key: Key('conversation-tile-${item.id}'),
-                      title: item.title,
-                      contextKind: item.contextKind,
-                      subtitle: item.subtitle,
-                      preview: item.preview,
-                      previewKind: item.previewKind,
-                      mediaKinds: item.mediaKinds,
-                      publicImageUri: widget.repository.publicContextImageUri(
-                        item.contextImageUrl,
+                    if (_archiveLoading && _tab == 'archived')
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: LinearProgressIndicator(minHeight: 2),
                       ),
-                      updatedAt: item.updatedAt,
-                      attentionCount: item.attentionCount,
-                      archived: _tab == 'archived',
-                      onTap: () => _open(item),
-                    ),
-                    const Divider(height: 1),
+
+                    if (invitations.isNotEmpty && _query.isEmpty) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      Text(
+                        'Invitations',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      for (final invitation in invitations) ...[
+                        _ConversationInvitationCard(
+                          invitation: invitation,
+                          repository: widget.repository,
+                          onOpen: widget.onOpen,
+                        ),
+                        const SizedBox(height: MakoloSpacing.sm),
+                      ],
+                    ],
+                    const SizedBox(height: MakoloSpacing.lg),
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.lg,
+                        ),
+                        child: Text(
+                          _query.trim().isEmpty
+                              ? (_tab == 'archived'
+                                    ? 'Aucune archive disponible.'
+                                    : 'Aucune conversation à afficher.')
+                              : _searching
+                              ? 'Recherche…'
+                              : 'Aucun résultat.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      )
+                    else
+                      for (final item in filtered) ...[
+                        ConversationListTile(
+                          key: Key('conversation-tile-${item.id}'),
+                          title: item.title,
+                          contextKind: item.contextKind,
+                          subtitle: item.subtitle,
+                          preview: item.preview,
+                          previewKind: item.previewKind,
+                          mediaKinds: item.mediaKinds,
+                          publicImageUri: widget.repository
+                              .publicContextImageUri(item.contextImageUrl),
+                          updatedAt: item.updatedAt,
+                          attentionCount: item.attentionCount,
+                          archived: _tab == 'archived',
+                          onTap: () => _open(item),
+                        ),
+                        const Divider(height: 1),
+                      ],
                   ],
-              ],
                 ),
               ),
             );
@@ -658,11 +669,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
 
   Future<void> _openAttachment(Map<String, dynamic> attachment) async {
     await showModalBottomSheet<void>(
-      context: context, useSafeArea: true, isScrollControlled: true,
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
       builder: (context) => FractionallySizedBox(
         heightFactor: 0.88,
         child: ConversationAttachmentViewer(
-          repository: widget.repository, attachment: attachment,
+          repository: widget.repository,
+          attachment: attachment,
         ),
       ),
     );
@@ -670,10 +684,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
 
   Future<void> _openResponseMedia(_ConversationPoint point, String mode) async {
     await showModalBottomSheet<void>(
-      context: context, useSafeArea: true, isScrollControlled: true,
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) => ConversationMediaSheet(
-        mode: mode, responsePointId: point.id,
+        mode: mode,
+        responsePointId: point.id,
         repository: widget.repository,
         conversationId: widget.id,
         capabilities: _activeComposer,
@@ -688,12 +705,17 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
 
   Future<void> _openExchange(_ConversationPoint point) async {
     await showModalBottomSheet<void>(
-      context: context, useSafeArea: true, isScrollControlled: true,
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
       builder: (context) => FractionallySizedBox(
         heightFactor: 0.92,
         child: ConversationExchangeSheet(
-          repository: widget.repository, conversationId: widget.id,
-          pointId: point.id, title: point.title, canRespond: point.canRespond,
+          repository: widget.repository,
+          conversationId: widget.id,
+          pointId: point.id,
+          title: point.title,
+          canRespond: point.canRespond,
           capabilities: _activeComposer,
           representedSpaceId: widget.representedSpaceId,
           onPublished: _afterPublish,
@@ -716,12 +738,12 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final repository = widget.repository;
     final conversationId = widget.id;
     try {
-      await repository.refreshDetail(
-        conversationId, focusPointId: pointId,
-      );
+      await repository.refreshDetail(conversationId, focusPointId: pointId);
     } on Object {
-      if (!mounted || widget.repository != repository ||
-          widget.id != conversationId || _focusedPointId != pointId) {
+      if (!mounted ||
+          widget.repository != repository ||
+          widget.id != conversationId ||
+          _focusedPointId != pointId) {
         return;
       }
       // The owner already accepted this Point. Keep local content readable;
@@ -754,18 +776,20 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     List<_ConversationTimelineEntry> entries,
     List<ConversationOutgoing> outgoing,
   ) {
-    if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null) return;
+    if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null)
+      return;
     final latestId = outgoing.isNotEmpty
         ? outgoing.last.reference
         : entries.last.point.id;
-    final shouldFollow = !_timelinePositioned ||
+    final shouldFollow =
+        !_timelinePositioned ||
         (_lastTimelinePointId != latestId && _nearLatest);
     _timelinePositioned = true;
     _lastTimelinePointId = latestId;
     if (!shouldFollow) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_timelineScroll.hasClients ||
-          _focusedPointId != null) return;
+      if (!mounted || !_timelineScroll.hasClients || _focusedPointId != null)
+        return;
       _timelineScroll.jumpTo(_timelineScroll.position.maxScrollExtent);
     });
   }
@@ -800,7 +824,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     try {
       final local = await repository.readDetail(id);
       final source = await repository.readDetailSource(id);
-      if (!mounted || repository != widget.repository || id != widget.id) return;
+      if (!mounted || repository != widget.repository || id != widget.id)
+        return;
       if (local == null) {
         await _refresh();
         return;
@@ -879,11 +904,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Modification non confirmée.',
-          ),
-        ),
+        const SnackBar(content: Text('Modification non confirmée.')),
       );
     }
   }
@@ -910,25 +931,39 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
 
   // Preserve owner-selected read-only behavior while moving the presentation
   // from administrative sections to one chronological conversation timeline.
-  List<_ConversationTimelineEntry> _timelineEntries(_ConversationDetail detail) {
+  List<_ConversationTimelineEntry> _timelineEntries(
+    _ConversationDetail detail,
+  ) {
     final entries = <_ConversationTimelineEntry>[];
     final seen = <String>{};
     void add(Iterable<_ConversationPoint> points, {required bool readOnly}) {
       for (final point in points) {
         if (point.id.isNotEmpty && seen.add(point.id)) {
-          entries.add(_ConversationTimelineEntry(
-            point: point, readOnly: readOnly, order: entries.length,
-          ));
+          entries.add(
+            _ConversationTimelineEntry(
+              point: point,
+              readOnly: readOnly,
+              order: entries.length,
+            ),
+          );
         }
       }
     }
 
-    add(detail.points.where((point) =>
-        point.section == 'pour_moi' ||
-        point.attentionReason == 'resolve'), readOnly: false);
-    add(detail.points.where((point) =>
-        point.section != 'pour_moi' &&
-        point.attentionReason != 'resolve'), readOnly: true);
+    add(
+      detail.points.where(
+        (point) =>
+            point.section == 'pour_moi' || point.attentionReason == 'resolve',
+      ),
+      readOnly: false,
+    );
+    add(
+      detail.points.where(
+        (point) =>
+            point.section != 'pour_moi' && point.attentionReason != 'resolve',
+      ),
+      readOnly: true,
+    );
     add(detail.essential, readOnly: true);
     add(detail.elsewhere, readOnly: true);
     final focus = detail.focusedPoint;
@@ -956,8 +991,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final title = DateUtils.isSameDay(local, now)
         ? "Aujourd'hui"
         : DateUtils.isSameDay(local, now.subtract(const Duration(days: 1)))
-            ? 'Hier'
-            : MaterialLocalizations.of(context).formatMediumDate(local);
+        ? 'Hier'
+        : MaterialLocalizations.of(context).formatMediumDate(local);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.md),
       child: Center(
@@ -968,10 +1003,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.labelSmall),
           ),
         ),
       ),
@@ -986,14 +1018,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final entries = _timelineEntries(detail);
     final ownerReferences = <String>{
       for (final entry in entries)
-        if (entry.point.clientReference != null)
-          entry.point.clientReference!,
+        if (entry.point.clientReference != null) entry.point.clientReference!,
       for (final entry in entries) ...entry.point.exchangeReferences,
     };
     final visibleOutgoing = [
       for (final intent in outgoing)
-        if (!(intent.isConfirmed &&
-            ownerReferences.contains(intent.reference))) intent,
+        if (!(intent.isConfirmed && ownerReferences.contains(intent.reference)))
+          intent,
     ];
     _positionTimeline(entries, visibleOutgoing);
     _focusAfterLayout();
@@ -1007,18 +1038,19 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         children.add(_dayDivider(context, timestamp));
         previousDay = timestamp.toLocal();
       }
-      children.add(Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
-        child: _pointWidget(entry.point, readOnly: entry.readOnly),
-      ));
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+          child: _pointWidget(entry.point, readOnly: entry.readOnly),
+        ),
+      );
     }
     // A locally accepted intent is rendered without claiming owner delivery.
     // It disappears only when the owner projection contains its own
     // client_reference, not merely because an HTTP request was started.
     for (final intent in visibleOutgoing) {
       final date = intent.observedAt.toLocal();
-      if (previousDay == null ||
-          !DateUtils.isSameDay(previousDay, date)) {
+      if (previousDay == null || !DateUtils.isSameDay(previousDay, date)) {
         children.add(_dayDivider(context, date));
         previousDay = date;
       }
@@ -1035,78 +1067,94 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final color = blocked
           ? Theme.of(context).colorScheme.error
           : Theme.of(context).colorScheme.onSurfaceVariant;
-      children.add(Padding(
-        key: Key('conversation-outgoing-${intent.reference}'),
-        padding: const EdgeInsets.fromLTRB(
-          MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
-        ),
-        child: ConversationPointShell(
-          kind: intent.kind,
-          isMine: true,
-          publishedAt: intent.observedAt,
-          statusIcon: Tooltip(
-            message: status,
-            child: Semantics(
-              label: status,
-              child: Icon(icon, size: 15, color: color),
+      children.add(
+        Padding(
+          key: Key('conversation-outgoing-${intent.reference}'),
+          padding: const EdgeInsets.fromLTRB(
+            MakoloSpacing.inner,
+            0,
+            MakoloSpacing.inner,
+            MakoloSpacing.sm,
+          ),
+          child: ConversationPointShell(
+            kind: intent.kind,
+            isMine: true,
+            publishedAt: intent.observedAt,
+            statusIcon: Tooltip(
+              message: status,
+              child: Semantics(
+                label: status,
+                child: Icon(icon, size: 15, color: color),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (intent.title.trim().isNotEmpty)
+                  Text(
+                    intent.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                if (intent.body.trim().isNotEmpty)
+                  Text(
+                    intent.body,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                if (intent.mediaKind != null) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  if (intent.mediaKind == 'image' &&
+                      intent.localFilePath != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(intent.localFilePath!),
+                        height: 155,
+                        width: 250,
+                        fit: BoxFit.cover,
+                        cacheWidth: 750,
+                        errorBuilder: (context, error, trace) => const Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 48,
+                        ),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Icon(
+                          intent.mediaKind == 'voice' ||
+                                  intent.mediaKind == 'audio'
+                              ? Icons.graphic_eq_rounded
+                              : intent.mediaKind == 'video'
+                              ? Icons.play_circle_outline_rounded
+                              : Icons.insert_drive_file_outlined,
+                          size: 22,
+                        ),
+                        const SizedBox(width: MakoloSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            intent.filename ?? 'Pièce jointe',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ],
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (intent.title.trim().isNotEmpty)
-                Text(intent.title,
-                    style: Theme.of(context).textTheme.titleMedium),
-              if (intent.body.trim().isNotEmpty)
-                Text(intent.body,
-                    style: Theme.of(context).textTheme.bodyMedium),
-              if (intent.mediaKind != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                if (intent.mediaKind == 'image' &&
-                    intent.localFilePath != null)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(intent.localFilePath!),
-                      height: 155,
-                      width: 250,
-                      fit: BoxFit.cover,
-                      cacheWidth: 750,
-                      errorBuilder: (context, error, trace) => const
-                          Icon(Icons.image_not_supported_outlined, size: 48),
-                    ),
-                  )
-                else
-                  Row(
-                    children: [
-                      Icon(
-                        intent.mediaKind == 'voice' || intent.mediaKind == 'audio'
-                            ? Icons.graphic_eq_rounded
-                            : intent.mediaKind == 'video'
-                            ? Icons.play_circle_outline_rounded
-                            : Icons.insert_drive_file_outlined,
-                        size: 22,
-                      ),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Expanded(child: Text(
-                        intent.filename ?? 'Pièce jointe',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      )),
-                    ],
-                  ),
-              ],
-            ],
-          ),
         ),
-      ));
+      );
     }
     if (children.isEmpty) {
-      children.add(const Padding(
-        padding: EdgeInsets.all(MakoloSpacing.inner),
-        child: Center(child: Text('Aucun Point pour le moment.')),
-      ));
+      children.add(
+        const Padding(
+          padding: EdgeInsets.all(MakoloSpacing.inner),
+          child: Center(child: Text('Aucun Point pour le moment.')),
+        ),
+      );
     }
     return Center(
       child: ConstrainedBox(
@@ -1140,14 +1188,16 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
     // Widget test and embedded-route fallback: same real page, no short
     // informational modal and no duplicate business projection.
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (detailsContext) => ConversationDetailsScreen(
-        repository: widget.repository,
-        conversationId: widget.id,
-        onOpenHistory: widget.onOpenHistory,
-        onOpenConversation: () => Navigator.of(detailsContext).pop(),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (detailsContext) => ConversationDetailsScreen(
+          repository: widget.repository,
+          conversationId: widget.id,
+          onOpenHistory: widget.onOpenHistory,
+          onOpenConversation: () => Navigator.of(detailsContext).pop(),
+        ),
       ),
-    ));
+    );
   }
 
   Widget _contextAvatar(_ConversationDetail detail) {
@@ -1168,7 +1218,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     if (uri == null) return fallback;
     return ClipOval(
       child: Image.network(
-        uri.toString(), width: 36, height: 36, fit: BoxFit.cover,
+        uri.toString(),
+        width: 36,
+        height: 36,
+        fit: BoxFit.cover,
         excludeFromSemantics: true,
         errorBuilder: (_, _, _) => fallback,
       ),
@@ -1234,15 +1287,17 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   : source.lastErrorCode != null ||
                         (!available && _attemptedRefresh)
                   ? available
-                      ? MakoloFailureCue.recoverable
-                      : MakoloFailureCue.blocking
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
-            final permitted = surface.failure != MakoloFailureCue.permissionDenied &&
+            final permitted =
+                surface.failure != MakoloFailureCue.permissionDenied &&
                 surface.failure != MakoloFailureCue.blocking;
             final capabilities = detail.composer;
-            final canCompose = capabilities['text_mode'] != null ||
+            final canCompose =
+                capabilities['text_mode'] != null ||
                 capabilities['can_create'] == true ||
                 capabilities['can_form'] == true ||
                 (capabilities['media_kinds'] is List &&
@@ -1252,7 +1307,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             // The keyboard shrinks the body, not the conversation itself.
             // C3_bus will provide the compact composer visuals; C1_bus keeps
             // its existing widget reachable independently of timeline scroll.
-            final usableHeight = MediaQuery.sizeOf(context).height -
+            final usableHeight =
+                MediaQuery.sizeOf(context).height -
                 MediaQuery.viewInsetsOf(context).bottom;
             final composerLimit = (usableHeight * 0.38).clamp(116.0, 280.0);
 
@@ -1315,8 +1371,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       } else if (action == 'details') {
                         _openDetails();
                       } else {
-                        unawaited(_updatePersonalState(
-                            action, detail.personalState));
+                        unawaited(
+                          _updatePersonalState(action, detail.personalState),
+                        );
                       }
                     },
                     itemBuilder: (context) => [
@@ -1331,32 +1388,43 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       ),
                       PopupMenuItem(
                         value: 'pin',
-                        child: Text(detail.personalState.pinned
-                            ? 'Retirer l’épingle' : 'Épingler pour moi'),
+                        child: Text(
+                          detail.personalState.pinned
+                              ? 'Retirer l’épingle'
+                              : 'Épingler pour moi',
+                        ),
                       ),
                       PopupMenuItem(
                         value: 'mute',
-                        child: Text(detail.personalState.muted
-                            ? 'Réactiver les signaux'
-                            : 'Mettre les signaux en sourdine'),
+                        child: Text(
+                          detail.personalState.muted
+                              ? 'Réactiver les signaux'
+                              : 'Mettre les signaux en sourdine',
+                        ),
                       ),
                       PopupMenuItem(
                         value: 'revisit',
-                        child: Text(detail.personalState.revisit
-                            ? 'Retirer le rappel de revisite'
-                            : 'Revoir plus tard'),
+                        child: Text(
+                          detail.personalState.revisit
+                              ? 'Retirer le rappel de revisite'
+                              : 'Revoir plus tard',
+                        ),
                       ),
                       PopupMenuItem(
                         value: 'archive',
-                        child: Text(detail.personalState.archived
-                            ? 'Retirer de mes archives'
-                            : 'Archiver pour moi'),
+                        child: Text(
+                          detail.personalState.archived
+                              ? 'Retirer de mes archives'
+                              : 'Archiver pour moi',
+                        ),
                       ),
                       PopupMenuItem(
                         value: 'hide',
-                        child: Text(detail.personalState.hidden
-                            ? 'Afficher de nouveau'
-                            : 'Masquer pour moi'),
+                        child: Text(
+                          detail.personalState.hidden
+                              ? 'Afficher de nouveau'
+                              : 'Masquer pour moi',
+                        ),
                       ),
                     ],
                   ),
@@ -1367,11 +1435,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   Expanded(
                     child: available && permitted
                         ? StreamBuilder<List<ConversationOutgoing>>(
-                            stream: widget.repository.delivery
-                                ?.watchOutgoing(widget.id) ??
+                            stream:
+                                widget.repository.delivery?.watchOutgoing(
+                                  widget.id,
+                                ) ??
                                 Stream.value(const <ConversationOutgoing>[]),
                             builder: (context, outgoingSnapshot) => _timeline(
-                              context, detail,
+                              context,
+                              detail,
                               outgoing: outgoingSnapshot.data ?? const [],
                             ),
                           )
@@ -1380,8 +1451,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                             initialLoading: const MakoloLoadingState(
                               label: 'Chargement de la conversation…',
                             ),
-                            blockingErrorMessage:
-                                'Cette conversation est indisponible ou n’a pas pu être chargée.',
+                            blockingErrorMessage: 'Cette conversation est indisponible ou n’a pas pu être chargée.',
                             onRetry: _refresh,
                             content: _timeline(context, detail),
                           ),
@@ -1445,7 +1515,8 @@ class _PointCard extends StatefulWidget {
   final String? representedSpaceId;
   final bool readOnly;
   final Future<void> Function(String requestId)? onOpenFormRequest;
-  final Future<void> Function(Map<String, dynamic> attachment)? onOpenAttachment;
+  final Future<void> Function(Map<String, dynamic> attachment)?
+  onOpenAttachment;
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
   final ValueChanged<String>? onOpenRelatedPoint;
@@ -1519,7 +1590,9 @@ class _PointCardState extends State<_PointCard> {
         // The response remains unconfirmed until the owner can be reached.
       }
       if (mounted) {
-        setState(() => _feedback = 'Envoi non confirmé. Vérifiez avant de réessayer.');
+        setState(
+          () => _feedback = 'Envoi non confirmé. Vérifiez avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1536,8 +1609,8 @@ class _PointCardState extends State<_PointCard> {
   @override
   Widget build(BuildContext context) {
     final point = widget.point;
-    final canRespond = point.canRespond &&
-        (!point.hasResponded || point.canChangeResponse);
+    final canRespond =
+        point.canRespond && (!point.hasResponded || point.canChangeResponse);
     final theme = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
@@ -1552,8 +1625,7 @@ class _PointCardState extends State<_PointCard> {
                 : theme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         if (point.body != null && point.body!.trim().isNotEmpty) ...[
-          if (point.title.isNotEmpty)
-            const SizedBox(height: MakoloSpacing.sm),
+          if (point.title.isNotEmpty) const SizedBox(height: MakoloSpacing.sm),
           Text(point.body!, style: theme.bodyMedium),
         ],
         if (point.deadlineAt != null && point.canRespond) ...[
@@ -1578,10 +1650,12 @@ class _PointCardState extends State<_PointCard> {
                 for (final entry in point.exchangePreview.take(2))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(entry,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.bodySmall),
+                    child: Text(
+                      entry,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.bodySmall,
+                    ),
                   ),
               ],
             ),
@@ -1589,7 +1663,8 @@ class _PointCardState extends State<_PointCard> {
         ],
         // Seeing a poll must not depend on being allowed to vote. Show
         // existing owner-approved choices without fabricating results.
-        if (point.kind == 'poll' && point.options.isNotEmpty &&
+        if (point.kind == 'poll' &&
+            point.options.isNotEmpty &&
             (!canRespond || widget.readOnly)) ...[
           const SizedBox(height: MakoloSpacing.sm),
           for (final option in point.options)
@@ -1597,8 +1672,11 @@ class _PointCardState extends State<_PointCard> {
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  Icon(Icons.radio_button_unchecked_rounded,
-                      size: 18, color: muted),
+                  Icon(
+                    Icons.radio_button_unchecked_rounded,
+                    size: 18,
+                    color: muted,
+                  ),
                   const SizedBox(width: MakoloSpacing.sm),
                   Expanded(child: Text(option.label, style: theme.bodyMedium)),
                 ],
@@ -1612,8 +1690,11 @@ class _PointCardState extends State<_PointCard> {
               point.formRequest!['id']?.toString() ?? '',
             ),
             icon: const Icon(Icons.assignment_outlined),
-            label: Text(point.formRequest!['status'] == 'completed'
-                ? 'Voir le formulaire' : 'Compléter le formulaire'),
+            label: Text(
+              point.formRequest!['status'] == 'completed'
+                  ? 'Voir le formulaire'
+                  : 'Compléter le formulaire',
+            ),
           ),
         ],
         for (final attachment in point.attachments)
@@ -1645,11 +1726,16 @@ class _PointCardState extends State<_PointCard> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.check_circle_outline_rounded,
-                    size: 15, color: muted),
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 15,
+                  color: muted,
+                ),
                 const SizedBox(width: 5),
-                Text('Réponse enregistrée',
-                    style: theme.bodySmall?.copyWith(color: muted)),
+                Text(
+                  'Réponse enregistrée',
+                  style: theme.bodySmall?.copyWith(color: muted),
+                ),
               ],
             ),
           ),
@@ -1668,9 +1754,8 @@ class _PointCardState extends State<_PointCard> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
-              onPressed: () => widget.onOpenRelatedPoint!(
-                point.replacedByPointId!,
-              ),
+              onPressed: () =>
+                  widget.onOpenRelatedPoint!(point.replacedByPointId!),
               icon: const Icon(Icons.call_made_rounded),
               label: const Text('Voir le Point actuel'),
             ),
@@ -1694,7 +1779,8 @@ class _PointCardState extends State<_PointCard> {
         ],
         if (canRespond &&
             (point.responseMode == 'file' || point.responseMode == 'voice') &&
-            !widget.readOnly && widget.onRespondWithMedia != null) ...[
+            !widget.readOnly &&
+            widget.onRespondWithMedia != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           if (point.responseMode == 'voice')
             FilledButton.tonalIcon(
@@ -1733,11 +1819,15 @@ class _PointCardState extends State<_PointCard> {
               children: [
                 OutlinedButton(
                   onPressed: _busy ? null : () => _submitResponse(true),
-                  child: Text(point.kind == 'request' ? "Je m'en charge" : 'Oui'),
+                  child: Text(
+                    point.kind == 'request' ? "Je m'en charge" : 'Oui',
+                  ),
                 ),
                 OutlinedButton(
                   onPressed: _busy ? null : () => _submitResponse(false),
-                  child: Text(point.kind == 'request' ? 'Je ne peux pas' : 'Non'),
+                  child: Text(
+                    point.kind == 'request' ? 'Je ne peux pas' : 'Non',
+                  ),
                 ),
               ],
             )
@@ -1792,7 +1882,6 @@ class _PointCardState extends State<_PointCard> {
               child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
             ),
         ],
-
       ],
     );
     return ConversationPointShell(
@@ -2048,14 +2137,17 @@ class _ConversationSummary {
   factory _ConversationSummary.fromMap(Map<String, dynamic> row) {
     final context = _map(row['context']);
     final card = _map(row['card']);
-    final contextKind = _string(card['context_kind']) ??
-        _string(context['kind']) ?? '';
+    final contextKind =
+        _string(card['context_kind']) ?? _string(context['kind']) ?? '';
     final original = _string(row['title']) ?? 'Conversation';
     final contextLabel = _string(context['label']);
-    final title = _string(card['title']) ??
+    final title =
+        _string(card['title']) ??
         _fallbackTitle(original, contextLabel, contextKind);
-    final preview = _string(card['preview']) ??
-        _string(row['latest_result']) ?? _string(row['purpose']);
+    final preview =
+        _string(card['preview']) ??
+        _string(row['latest_result']) ??
+        _string(row['purpose']);
     return _ConversationSummary(
       id: _string(row['id']) ?? '',
       title: title,
@@ -2071,27 +2163,30 @@ class _ConversationSummary {
       latestResult: _string(row['latest_result']),
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
       matchedPointId: _string(row['matched_point_id']),
-      subtitle: _string(card['context_label']) ??
+      subtitle:
+          _string(card['context_label']) ??
           _fallbackContext(contextLabel, contextKind),
       preview: preview == title ? null : preview,
-      previewKind: _string(card['preview_kind']) ??
+      previewKind:
+          _string(card['preview_kind']) ??
           (row['latest_result'] != null ? 'result' : 'purpose'),
       contextKind: contextKind,
       contextImageUrl: _string(card['context_image_url']),
       mediaKinds: row['card'] is Map && card['media_kinds'] is List
-          ? (card['media_kinds'] as List)
-              .whereType<String>()
-              .toList(growable: false)
+          ? (card['media_kinds'] as List).whereType<String>().toList(
+              growable: false,
+            )
           : const [],
     );
   }
 
   static List<_ConversationSummary> fromProjection(
     StoredProjection? projection,
-  ) => _maps(projection?.payload['results'])
-      .map(_ConversationSummary.fromMap)
-      .where((item) => item.id.isNotEmpty)
-      .toList(growable: false);
+  ) =>
+      _maps(projection?.payload['results'])
+          .map(_ConversationSummary.fromMap)
+          .where((item) => item.id.isNotEmpty)
+          .toList(growable: false);
 }
 
 class _ConversationDetail {
@@ -2266,10 +2361,9 @@ class _ConversationPoint {
   final String? replacedByPointId;
 
   bool get hasResponded => responseStatus['responded'] == true;
-  int? get responseCount =>
-      responseStatus['response_count'] is num
-          ? (responseStatus['response_count'] as num).toInt()
-          : null;
+  int? get responseCount => responseStatus['response_count'] is num
+      ? (responseStatus['response_count'] as num).toInt()
+      : null;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -2327,7 +2421,8 @@ class _ConversationPoint {
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
       attachments: _maps(row['attachments']),
       formRequest: _map(row['form_request']).isEmpty
-          ? null : _map(row['form_request']),
+          ? null
+          : _map(row['form_request']),
       responseStatus: _map(row['response_status']),
       canChangeResponse: row['can_change_response'] == true,
       replacedByPointId: _string(row['replaced_by_point_id']),

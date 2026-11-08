@@ -66,8 +66,12 @@ class _PassportApi implements MakoloApiClient {
               },
             },
             'public_ids': {
-              'interests': [], 'open_to': [], 'activities': [],
-              'experiences': [], 'proofs': [], 'credentials': [],
+              'interests': [],
+              'open_to': [],
+              'activities': [],
+              'experiences': [],
+              'proofs': [],
+              'credentials': [],
             },
           },
         },
@@ -77,8 +81,7 @@ class _PassportApi implements MakoloApiClient {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -86,9 +89,7 @@ void main() {
     'custom exclusions remove duplicated professional and location facts',
     (tester) async {
       final api = _PassportApi();
-      await tester.pumpWidget(MaterialApp(
-        home: MePassportScreen(api: api),
-      ));
+      await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
       await tester.pumpAndSettle();
       expect(find.text('Ingénieure'), findsOneWidget);
       expect(api.reads, 1);

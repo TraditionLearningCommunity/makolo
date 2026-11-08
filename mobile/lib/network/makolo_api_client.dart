@@ -49,6 +49,7 @@ class MakoloUploadFile {
   final String fieldName;
   final String path;
   final String? filename;
+
   /// Explicit MIME type for owners that validate the multipart part.
   final String? contentType;
 }
@@ -494,7 +495,9 @@ class MakoloApiClient {
   // A concurrent request may have rotated the credentials while this
   // request was in flight. Reuse the persisted session instead of rotating
   // the refresh token again for a late 401.
-  Future<AuthSession> _refreshAfterUnauthorized(String rejectedAccessToken) async {
+  Future<AuthSession> _refreshAfterUnauthorized(
+    String rejectedAccessToken,
+  ) async {
     final current = await _requireSession();
     if (current.accessToken != rejectedAccessToken) return current;
     return _refreshSingleFlight();

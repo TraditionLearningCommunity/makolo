@@ -50,10 +50,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   bool get _actorValid =>
       widget.runtime.actorContext?.value == widget.spaceActor;
 
-  String? get _workSection =>
-      spaceWorkSectionKeys.contains(widget.workSection)
-          ? widget.workSection
-          : null;
+  String? get _workSection => spaceWorkSectionKeys.contains(widget.workSection)
+      ? widget.workSection
+      : null;
 
   void _returnToWork() {
     if (!_actorValid) return;
@@ -339,7 +338,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                 }
                 if (!snapshot.hasData) {
                   final error = snapshot.error;
-                  final denied = error is MakoloApiError &&
+                  final denied =
+                      error is MakoloApiError &&
                       const {401, 403, 404}.contains(error.statusCode);
                   return Center(
                     child: Column(
@@ -349,7 +349,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                           denied
                               ? 'Ce détail n’est plus autorisé dans ce contexte.'
                               : 'Impossible de vérifier ce détail pour le moment. '
-                                  'Aucune ancienne copie ne sera présentée.',
+                                    'Aucune ancienne copie ne sera présentée.',
                           textAlign: TextAlign.center,
                         ),
                         TextButton(
@@ -489,14 +489,16 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         sourceId: widget.id,
                         archetype: data['space_archetype'] as String,
                         isActivity: widget.kind == 'activity',
-                        detail: spaceMap(data['g4_detail']) ??
+                        detail:
+                            spaceMap(data['g4_detail']) ??
                             const <String, dynamic>{},
                         related: spaceMap(data['related_occurrences']),
                         mediaBindings: data['media_bindings'] is List
                             ? data['media_bindings'] as List
                             : const [],
-                        nextOccurrence:
-                            spaceMap(itemContext?['next_occurrence']),
+                        nextOccurrence: spaceMap(
+                          itemContext?['next_occurrence'],
+                        ),
                         mediaBaseUri: widget.runtime.api?.baseUri,
                         workSection: _workSection,
                         fromWorkCollection: widget.fromWorkCollection,

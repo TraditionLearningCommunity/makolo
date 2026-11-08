@@ -54,13 +54,12 @@ void main() {
         baseUri: Uri.parse('https://makolo.invalid/'),
         tokenStore: tokens,
         dio: MockClient((request) async {
-          expect(request.url.path,
-              '/api/v1/organizations/workspaces/atelier/documents/');
+          expect(
+            request.url.path,
+            '/api/v1/organizations/workspaces/atelier/documents/',
+          );
           if (failure != 0) {
-            return MockResponse(
-              '{"detail":"owner unavailable"}',
-              failure,
-            );
+            return MockResponse('{"detail":"owner unavailable"}', failure);
           }
           return MockResponse(
             jsonEncode({
@@ -95,10 +94,7 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
-          home: SpaceDocumentsScreen(
-            runtime: runtime,
-            slug: 'atelier',
-          ),
+          home: SpaceDocumentsScreen(runtime: runtime, slug: 'atelier'),
         ),
       );
       await tester.pumpAndSettle();
@@ -110,8 +106,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Document déjà connu'), findsOneWidget);
       expect(find.textContaining('dernière consultation'), findsOneWidget);
-      expect(find.text('Ajouter'), findsNothing,
-          reason: 'Old list never grants fresh upload authority');
+      expect(
+        find.text('Ajouter'),
+        findsNothing,
+        reason: 'Old list never grants fresh upload authority',
+      );
 
       failure = 403;
       await tester.tap(find.byTooltip('Rechercher'));

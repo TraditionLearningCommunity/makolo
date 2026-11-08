@@ -29,7 +29,8 @@ class ConversationDetailsScreen extends StatefulWidget {
   final ShareGateway shareGateway;
 
   @override
-  State<ConversationDetailsScreen> createState() => _ConversationDetailsScreenState();
+  State<ConversationDetailsScreen> createState() =>
+      _ConversationDetailsScreenState();
 }
 
 class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
@@ -52,7 +53,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
 
   Future<void> _toggle(String action, Map<String, dynamic> state) async {
     if (_busy != null) return;
-    setState(() { _busy = action; _error = null; });
+    setState(() {
+      _busy = action;
+      _error = null;
+    });
     try {
       switch (action) {
         case 'mute':
@@ -98,8 +102,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final base = widget.repository.sync?.api.baseUri;
     // The existing login-protected Django detail route, not a permission
     // grant or a new Sharing token. No URL for an unconfigured environment.
-    if (base == null ||
-        path != '/conversations/${widget.conversationId}/') return;
+    if (base == null || path != '/conversations/${widget.conversationId}/')
+      return;
     final uri = base.resolve(path!);
     if (uri.scheme != 'https' && uri.scheme != 'http') return;
     try {
@@ -160,11 +164,11 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final subject = _map(data['subject']);
     final contextData = _map(data['context']);
     final title = data['title']?.toString() ?? 'Conversation';
-    final subjectLabel = subject['label']?.toString() ??
-        contextData['label']?.toString() ?? '';
+    final subjectLabel =
+        subject['label']?.toString() ?? contextData['label']?.toString() ?? '';
     final purpose = data['purpose']?.toString() ?? '';
-    final kind = subject['kind']?.toString() ??
-        contextData['kind']?.toString() ?? '';
+    final kind =
+        subject['kind']?.toString() ?? contextData['kind']?.toString() ?? '';
     final type = switch (kind) {
       'direct' => 'Profil',
       'space' => 'Espace',
@@ -178,10 +182,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       _ => 'Contexte',
     };
     final theme = Theme.of(context);
-    final shareEnabled = widget.repository.sync?.api.baseUri != null &&
+    final shareEnabled =
+        widget.repository.sync?.api.baseUri != null &&
         data['share_path'] == '/conversations/${widget.conversationId}/';
     final subjectRoute = subject['route']?.toString();
-    final canOpenSubject = subjectRoute != null &&
+    final canOpenSubject =
+        subjectRoute != null &&
         subjectRoute.startsWith('/') &&
         widget.onOpenSubject != null;
     return Column(
@@ -201,27 +207,35 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ),
         ),
         const SizedBox(height: 5),
-        Text(type, style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        )),
+        Text(
+          type,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         if (title.isNotEmpty && title != subjectLabel) ...[
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(title,
-                maxLines: 2, overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium),
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
           ),
         ],
         if (purpose.isNotEmpty) ...[
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(purpose,
-                maxLines: 5,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium),
+            child: Text(
+              purpose,
+              maxLines: 5,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
           ),
         ],
         const SizedBox(height: 20),
@@ -243,14 +257,14 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                 label: 'Rechercher',
                 onTap: widget.onOpenHistory!,
               ),
-              ],
+            ],
             if (canOpenSubject) ...[
               _heroAction(
                 icon: Icons.open_in_new_rounded,
                 label: 'Voir l’objet',
                 onTap: () => widget.onOpenSubject!(subjectRoute!),
               ),
-              ],
+            ],
             if (shareEnabled)
               _heroAction(
                 icon: Icons.share_outlined,
@@ -271,7 +285,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
   }) {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
-      button: true, label: label,
+      button: true,
+      label: label,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -280,7 +295,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           child: Column(
             children: [
               Container(
-                width: 60, height: 52,
+                width: 60,
+                height: 52,
                 decoration: BoxDecoration(
                   color: colors.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(18),
@@ -309,8 +325,11 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       );
     }
     if (people.isEmpty) {
-      return _empty(context, Icons.people_outline_rounded,
-          'Aucune participation explicite à afficher.');
+      return _empty(
+        context,
+        Icons.people_outline_rounded,
+        'Aucune participation explicite à afficher.',
+      );
     }
     return ListView(
       key: const Key('conversation-details-members-list'),
@@ -325,7 +344,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
-        if (scope == 'group' && members['total_count'] is num &&
+        if (scope == 'group' &&
+            members['total_count'] is num &&
             (members['total_count'] as num).toInt() > people.length)
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
@@ -350,8 +370,11 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
   Widget _media(BuildContext context, Map<String, dynamic> data) {
     final media = _maps(data['media']);
     if (media.isEmpty) {
-      return _empty(context, Icons.perm_media_outlined,
-          'Aucun média accessible dans cette conversation.');
+      return _empty(
+        context,
+        Icons.perm_media_outlined,
+        'Aucun média accessible dans cette conversation.',
+      );
     }
     final colors = Theme.of(context).colorScheme;
     return LayoutBuilder(
@@ -386,7 +409,11 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         child: Padding(
                           padding: const EdgeInsets.all(6),
                           child: ConversationAttachmentViewer(
-                            key: ValueKey('conversation-details-media-preview-' + (attachment['id']?.toString() ?? index.toString())),
+                            key: ValueKey(
+                              'conversation-details-media-preview-' +
+                                  (attachment['id']?.toString() ??
+                                      index.toString()),
+                            ),
                             repository: widget.repository,
                             attachment: attachment,
                             inline: true,
@@ -396,7 +423,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(6, 0, 6, 9),
                         child: Text(
-                          name, maxLines: 2, textAlign: TextAlign.center,
+                          name,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.labelSmall,
                         ),
@@ -415,17 +444,24 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
   Widget _resources(BuildContext context, Map<String, dynamic> data) {
     final resources = _maps(data['resources']);
     if (resources.isEmpty) {
-      return _empty(context, Icons.folder_outlined,
-          'Aucune ressource du contexte n’est disponible ici.');
+      return _empty(
+        context,
+        Icons.folder_outlined,
+        'Aucune ressource du contexte n’est disponible ici.',
+      );
     }
     final route = _map(data['subject'])['route']?.toString();
-    final opensJourney = route != null &&
-        route.startsWith('/journeys/') && widget.onOpenSubject != null;
+    final opensJourney =
+        route != null &&
+        route.startsWith('/journeys/') &&
+        widget.onOpenSubject != null;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
       children: [
-        Text('Ressources du contexte',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Ressources du contexte',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         for (final resource in resources)
           ListTile(
@@ -435,12 +471,13 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               resource['description']?.toString().isNotEmpty == true
                   ? resource['description'].toString()
                   : 'Disponible selon les droits du contexte',
-              maxLines: 3, overflow: TextOverflow.ellipsis,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
             trailing: opensJourney
-                ? const Icon(Icons.chevron_right_rounded) : null,
-            onTap: opensJourney
-                ? () => widget.onOpenSubject!(route!) : null,
+                ? const Icon(Icons.chevron_right_rounded)
+                : null,
+            onTap: opensJourney ? () => widget.onOpenSubject!(route!) : null,
           ),
       ],
     );
@@ -459,47 +496,68 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Text('Pour moi', style: Theme.of(context).textTheme.titleMedium),
+          child: Text(
+            'Pour moi',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         _setting(
-          'mute', Icons.notifications_off_outlined,
-          'Signaux', 'Couper les signaux de cette conversation',
-          state['muted'] == true, state,
+          'mute',
+          Icons.notifications_off_outlined,
+          'Signaux',
+          'Couper les signaux de cette conversation',
+          state['muted'] == true,
+          state,
         ),
         _setting(
-          'pin', Icons.push_pin_outlined,
-          'Épingler', 'Retrouver cette conversation rapidement',
-          state['pinned'] == true, state,
+          'pin',
+          Icons.push_pin_outlined,
+          'Épingler',
+          'Retrouver cette conversation rapidement',
+          state['pinned'] == true,
+          state,
         ),
         _setting(
-          'revisit', Icons.bookmark_border_rounded,
-          'Revoir plus tard', 'Conserver un repère personnel',
-          state['revisit'] == true, state,
+          'revisit',
+          Icons.bookmark_border_rounded,
+          'Revoir plus tard',
+          'Conserver un repère personnel',
+          state['revisit'] == true,
+          state,
         ),
         const Divider(),
         _setting(
-          'archive', Icons.archive_outlined,
-          'Archiver', 'Ranger pour moi, sans fermer pour les autres',
-          state['archived'] == true, state,
+          'archive',
+          Icons.archive_outlined,
+          'Archiver',
+          'Ranger pour moi, sans fermer pour les autres',
+          state['archived'] == true,
+          state,
         ),
         _setting(
-          'hide', Icons.visibility_off_outlined,
-          'Masquer', 'Retirer de ma liste personnelle',
-          state['hidden'] == true, state,
+          'hide',
+          Icons.visibility_off_outlined,
+          'Masquer',
+          'Retirer de ma liste personnelle',
+          state['hidden'] == true,
+          state,
         ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(_error!, style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            )),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         if (configuration.isNotEmpty) ...[
           const Divider(height: 32),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text('Fonctionnement de la conversation',
-                style: Theme.of(context).textTheme.titleMedium),
+            child: Text(
+              'Fonctionnement de la conversation',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ),
           for (final entry in [
             ('Mode', configuration['mode']),
@@ -508,8 +566,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             ('État', configuration['lifecycle']),
             ('Créée par', configuration['created_by']),
           ])
-            if (entry.$2 != null &&
-                entry.$2.toString().trim().isNotEmpty)
+            if (entry.$2 != null && entry.$2.toString().trim().isNotEmpty)
               ListTile(
                 dense: true,
                 title: Text(entry.$1),
@@ -519,23 +576,31 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         if (when.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
-            child: Text('Conversation créée le ' + when,
-                style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              'Conversation créée le ' + when,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
         if (data['share_requires_access'] == true)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Text('Partager son lien ne donne aucun nouveau droit '
-                'd’accès à cette conversation.',
-                style: Theme.of(context).textTheme.bodySmall),
+            child: Text(
+              'Partager son lien ne donne aucun nouveau droit '
+              'd’accès à cette conversation.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ),
       ],
     );
   }
 
   Widget _setting(
-    String action, IconData icon, String title, String subtitle,
-    bool enabled, Map<String, dynamic> state,
+    String action,
+    IconData icon,
+    String title,
+    String subtitle,
+    bool enabled,
+    Map<String, dynamic> state,
   ) => SwitchListTile(
     key: Key('conversation-detail-setting-' + action),
     value: enabled,
@@ -545,22 +610,27 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     subtitle: Text(subtitle),
   );
 
-  Widget _empty(BuildContext context, IconData icon, String message) =>
-      Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 38,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-              const SizedBox(height: 14),
-              Text(message, textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium),
-            ],
+  Widget _empty(BuildContext context, IconData icon, String message) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 38,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-        ),
-      );
+          const SizedBox(height: 14),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -583,10 +653,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         }
         final hasResources = _maps(data['resources']).isNotEmpty;
         final sections = <(String, IconData)>[
-          (data['subject'] is Map &&
-                  _map(data['subject'])['kind'] == 'group'
-                  ? 'Participants' : 'Participants',
-              Icons.people_outline_rounded),
+          (
+            data['subject'] is Map && _map(data['subject'])['kind'] == 'group'
+                ? 'Participants'
+                : 'Participants',
+            Icons.people_outline_rounded,
+          ),
           ('Médias', Icons.perm_media_outlined),
           if (hasResources) ('Ressources', Icons.folder_outlined),
           ('Paramètres', Icons.tune_rounded),
@@ -594,9 +666,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         return DefaultTabController(
           length: sections.length,
           child: Scaffold(
-            appBar: AppBar(
-              title: const Text('Détails de la conversation'),
-            ),
+            appBar: AppBar(title: const Text('Détails de la conversation')),
             body: NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverToBoxAdapter(child: _hero(context, data)),
@@ -643,9 +713,11 @@ Map<String, dynamic> _map(Object? value) {
 
 List<Map<String, dynamic>> _maps(Object? value) {
   if (value is! List) return const [];
-  return value.map(_map).where((value) => value.isNotEmpty).toList(growable: false);
+  return value
+      .map(_map)
+      .where((value) => value.isNotEmpty)
+      .toList(growable: false);
 }
-
 
 class _ConversationDetailsTabHeader extends SliverPersistentHeaderDelegate {
   const _ConversationDetailsTabHeader({required this.child});
@@ -659,8 +731,11 @@ class _ConversationDetailsTabHeader extends SliverPersistentHeaderDelegate {
   double get maxExtent => 72;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
-      child;
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
 
   @override
   bool shouldRebuild(covariant _ConversationDetailsTabHeader oldDelegate) =>

@@ -72,7 +72,8 @@ class MakoloMapView extends StatelessWidget {
           ? null
           : (point, coordinate) {
               final location = MapCoordinate(
-                coordinate.latitude, coordinate.longitude,
+                coordinate.latitude,
+                coordinate.longitude,
               );
               onTap?.call(location);
               onFeatureTap?.call(point, location);
@@ -97,10 +98,7 @@ class MakoloMapView extends StatelessWidget {
               }
               onViewportChanged!(
                 MapViewport(
-                  center: MapCoordinate(
-                    target.latitude,
-                    target.longitude,
-                  ),
+                  center: MapCoordinate(target.latitude, target.longitude),
                   zoom: camera.zoom,
                   bearing: camera.bearing,
                   tilt: camera.tilt,

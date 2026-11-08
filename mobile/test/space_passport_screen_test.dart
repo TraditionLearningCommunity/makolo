@@ -66,7 +66,9 @@ Map<String, dynamic> _source() => {
   ],
   'established': {'trust_verifications': const []},
   'issued': {'credential_summary': const []},
-  'collectives': {'space_teams': ['Équipe interne']},
+  'collectives': {
+    'space_teams': ['Équipe interne'],
+  },
   'topic_options': [
     {'code': 'culture', 'label': 'Culture'},
   ],
@@ -81,29 +83,33 @@ Map<String, dynamic> _source() => {
         {'label': 'Site web', 'url': 'https://atelier.example.test'},
       ],
     },
-    'public_ids': {'activities': ['activity-public']},
+    'public_ids': {
+      'activities': ['activity-public'],
+    },
     'public_trust': const [],
     'public_credentials': const [],
   },
 };
 
 void main() {
-  testWidgets('Space Passport uses one owner fetch for all four variants',
-      (tester) async {
+  testWidgets('Space Passport uses one owner fetch for all four variants', (
+    tester,
+  ) async {
     final store = _Store();
     final actor = await ActorContextController.restore(
-      profileId: 'profile-1', store: store,
+      profileId: 'profile-1',
+      store: store,
     );
     addTearDown(actor.dispose);
-    await actor.selectSpace(
-      SpaceActorIdentity(id: 'space-1', slug: 'atelier'),
-    );
+    await actor.selectSpace(SpaceActorIdentity(id: 'space-1', slug: 'atelier'));
     var fetches = 0;
-    final tokens = MemoryTokenStore(session: const AuthSession(
-      profileId: 'profile-1',
-      accessToken: 'access',
-      refreshToken: 'refresh',
-    ));
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-1',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       tokenStore: tokens,
@@ -111,15 +117,18 @@ void main() {
         if (request.url.path ==
             '/api/v1/organizations/workspaces/atelier/passport/') {
           fetches++;
-          return MockResponse(jsonEncode({
-            'meta': {
-              'projection': 'space.passport',
-              'schema_version': 1,
-              'scope': 'space',
-              'generated_at': '2026-11-03T08:00:00Z',
-            },
-            'data': _source(),
-          }), 200);
+          return MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'space.passport',
+                'schema_version': 1,
+                'scope': 'space',
+                'generated_at': '2026-11-03T08:00:00Z',
+              },
+              'data': _source(),
+            }),
+            200,
+          );
         }
         throw StateError('Unexpected request');
       }).dio,
@@ -133,9 +142,11 @@ void main() {
       api: api,
     );
 
-    await tester.pumpWidget(MaterialApp(
-      home: SpacePassportScreen(runtime: runtime, slug: 'atelier'),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SpacePassportScreen(runtime: runtime, slug: 'atelier'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Atelier collectif'), findsOneWidget);
     expect(find.byTooltip('Versions datées'), findsOneWidget);
@@ -165,6 +176,11 @@ void main() {
     await actor.selectPersonal();
     await tester.pumpAndSettle();
     expect(find.text('Atelier collectif'), findsNothing);
-    expect(find.text('Impossible de consulter le Passeport de cet Espace actuellement.'), findsOneWidget);
+    expect(
+      find.text(
+        'Impossible de consulter le Passeport de cet Espace actuellement.',
+      ),
+      findsOneWidget,
+    );
   });
 }

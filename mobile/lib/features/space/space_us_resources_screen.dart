@@ -98,15 +98,18 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     final api = widget.runtime.api;
     final ticket = ++_requestVersion;
     if (current is! SpaceActorContext ||
-        current.space.slug != widget.slug || api == null) {
+        current.space.slug != widget.slug ||
+        api == null) {
       if (!mounted) return;
       setState(() {
         _items = [];
         _more = false;
         _loading = false;
-        _denied = current is! SpaceActorContext ||
-            current.space.slug != widget.slug;
-        _error = _denied ? null : 'Connexion nécessaire pour consulter ces ressources.';
+        _denied =
+            current is! SpaceActorContext || current.space.slug != widget.slug;
+        _error = _denied
+            ? null
+            : 'Connexion nécessaire pour consulter ces ressources.';
       });
       return;
     }
@@ -130,12 +133,15 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       );
       final data = result.jsonObject();
       final active = widget.runtime.actorContext?.value;
-      if (!mounted || ticket != _requestVersion ||
+      if (!mounted ||
+          ticket != _requestVersion ||
           active is! SpaceActorContext ||
           active.space.id != expectedId ||
-          active.space.slug != widget.slug) return;
+          active.space.slug != widget.slug)
+        return;
       if (data['space_id'] != expectedId ||
-          data['kind'] != kind || data['items'] is! List) {
+          data['kind'] != kind ||
+          data['items'] is! List) {
         throw const FormatException('Incohérence de la projection Ressources.');
       }
       final rows = <Map<String, dynamic>>[
@@ -145,11 +151,13 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       setState(() {
         _accessConfirmed = true;
         _counts = data['counts'] is Map<String, dynamic>
-            ? data['counts'] as Map<String, dynamic> : {};
+            ? data['counts'] as Map<String, dynamic>
+            : {};
         _items = reset ? rows : [..._items, ...rows];
         _more = data['has_more'] == true;
         _nextOffset = data['next_offset'] is int
-            ? data['next_offset'] as int : _items.length;
+            ? data['next_offset'] as int
+            : _items.length;
         _loading = false;
       });
     } on MakoloApiError catch (error) {
@@ -157,8 +165,10 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       setState(() {
         _loading = false;
         _accessConfirmed = false;
-        _denied = error.statusCode == 401 ||
-            error.statusCode == 403 || error.statusCode == 404;
+        _denied =
+            error.statusCode == 401 ||
+            error.statusCode == 403 ||
+            error.statusCode == 404;
         _items = [];
         _more = false;
         _error = _denied
@@ -213,18 +223,19 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
-          Text('Ressources de cet Espace',
-              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: MakoloSpacing.sm),
-          const Text(
-            'Les ressources de notre collectif.',
+          Text(
+            'Ressources de cet Espace',
+            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
+          const SizedBox(height: MakoloSpacing.sm),
+          const Text('Les ressources de notre collectif.'),
           const SizedBox(height: MakoloSpacing.lg),
           if (_authorized && !_denied && _accessConfirmed)
             Padding(
               padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
               child: OutlinedButton.icon(
-                onPressed: () => context.push('/space/${widget.slug}/us/documents'),
+                onPressed: () =>
+                    context.push('/space/${widget.slug}/us/documents'),
                 icon: const Icon(Icons.folder_open_outlined),
                 label: const Text('Documents de l’Espace'),
               ),
@@ -235,12 +246,11 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
             children: [
               for (final entry in _families.entries)
                 ChoiceChip(
-                  label: Text(
-                    '${entry.value} (${_counts[entry.key] ?? 0})',
-                  ),
+                  label: Text('${entry.value} (${_counts[entry.key] ?? 0})'),
                   selected: _family == entry.key,
                   onSelected: _denied || !_authorized
-                      ? null : (_) => _select(entry.key),
+                      ? null
+                      : (_) => _select(entry.key),
                 ),
             ],
           ),
@@ -266,14 +276,15 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     item['kind'] == 'document'
                         ? Icons.description_outlined
                         : item['kind'] == 'passport'
-                            ? Icons.badge_outlined
-                            : Icons.layers_outlined,
+                        ? Icons.badge_outlined
+                        : Icons.layers_outlined,
                     color: colors.primary,
                   ),
                   title: Text(item['title']?.toString() ?? 'Ressource'),
                   subtitle: Text(item['detail']?.toString() ?? ''),
                   trailing: _resourceTarget(item) != null
-                      ? const Icon(Icons.chevron_right_rounded) : null,
+                      ? const Icon(Icons.chevron_right_rounded)
+                      : null,
                   onTap: _resourceTarget(item) != null
                       ? () => context.push(_resourceTarget(item)!)
                       : null,

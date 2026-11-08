@@ -77,103 +77,111 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
         stream: widget.repository.watchRevokedCollectionRelationships(),
         initialData: const <String>{},
         builder: (context, revokedSnapshot) => StreamBuilder(
-      stream: widget.repository.watchDetail(widget.accessId),
-      builder: (context, projectionSnapshot) {
-        return StreamBuilder<AccessSourceState>(
-          stream: widget.repository.watchSource(widget.accessId),
-          initialData: AccessSourceState.unknown,
-          builder: (context, sourceSnapshot) {
-            final projection = projectionSnapshot.data;
-            final source = sourceSnapshot.data ?? AccessSourceState.unknown;
-            final detail = _selector.select(
-              projection: source.invalidated ? null : projection,
-              source: source,
-              now: DateTime.now(),
-            );
-            final known = source.invalidated
-                ? null
-                : _selector.knownFromCollection(
-                    pages: (knownPagesSnapshot.data ?? const <StoredProjection>[])
-                        .where((page) {
-                          final relation = page.resourceKey.split(':').first;
-                          return !(revokedSnapshot.data ?? const <String>{})
-                              .contains(relation);
-                        }),
-                    accessId: widget.accessId,
-                    now: DateTime.now(),
-                  );
-            final presentation = detail.available ? detail : (known ?? detail);
-            final revoked = revokedSnapshot.data ?? const <String>{};
-            final credentialPath = source.invalidated ||
-                    revoked.contains('beneficiary')
-                ? null
-                : AccessRepository.credentialPathFromKnownPages(
-                    knownPagesSnapshot.data ?? const <StoredProjection>[],
-                    widget.accessId,
-                  );
-            final available = presentation.available;
-            final unavailableWithoutContent =
-                !available && source.invalidated && !_refreshing;
-            final surface = _surfaceAdapter.adapt(
-              projection: ProjectionPresentationModel(
-                available: available,
-                payload: source.invalidated ? null : projection?.payload,
-                freshness: presentation.freshness,
-                resources: const [],
-                drafts: const [],
-                pendingOperations: const [],
-              ),
-              availability: available
-                  ? MakoloAvailabilityCue.content
-                  : _refreshing
-                  ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
-              reachability: source.reachability,
-              failure: unavailableWithoutContent
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
-                  : MakoloFailureCue.none,
-              refreshing: _refreshing && available,
-            );
+          stream: widget.repository.watchDetail(widget.accessId),
+          builder: (context, projectionSnapshot) {
+            return StreamBuilder<AccessSourceState>(
+              stream: widget.repository.watchSource(widget.accessId),
+              initialData: AccessSourceState.unknown,
+              builder: (context, sourceSnapshot) {
+                final projection = projectionSnapshot.data;
+                final source = sourceSnapshot.data ?? AccessSourceState.unknown;
+                final detail = _selector.select(
+                  projection: source.invalidated ? null : projection,
+                  source: source,
+                  now: DateTime.now(),
+                );
+                final known = source.invalidated
+                    ? null
+                    : _selector.knownFromCollection(
+                        pages:
+                            (knownPagesSnapshot.data ??
+                                    const <StoredProjection>[])
+                                .where((page) {
+                                  final relation = page.resourceKey
+                                      .split(':')
+                                      .first;
+                                  return !(revokedSnapshot.data ??
+                                          const <String>{})
+                                      .contains(relation);
+                                }),
+                        accessId: widget.accessId,
+                        now: DateTime.now(),
+                      );
+                final presentation = detail.available
+                    ? detail
+                    : (known ?? detail);
+                final revoked = revokedSnapshot.data ?? const <String>{};
+                final credentialPath =
+                    source.invalidated || revoked.contains('beneficiary')
+                    ? null
+                    : AccessRepository.credentialPathFromKnownPages(
+                        knownPagesSnapshot.data ?? const <StoredProjection>[],
+                        widget.accessId,
+                      );
+                final available = presentation.available;
+                final unavailableWithoutContent =
+                    !available && source.invalidated && !_refreshing;
+                final surface = _surfaceAdapter.adapt(
+                  projection: ProjectionPresentationModel(
+                    available: available,
+                    payload: source.invalidated ? null : projection?.payload,
+                    freshness: presentation.freshness,
+                    resources: const [],
+                    drafts: const [],
+                    pendingOperations: const [],
+                  ),
+                  availability: available
+                      ? MakoloAvailabilityCue.content
+                      : _refreshing
+                      ? MakoloAvailabilityCue.loading
+                      : MakoloAvailabilityCue.initial,
+                  reachability: source.reachability,
+                  failure: unavailableWithoutContent
+                      ? MakoloFailureCue.blocking
+                      : source.lastErrorCode != null && available
+                      ? MakoloFailureCue.recoverable
+                      : MakoloFailureCue.none,
+                  refreshing: _refreshing && available,
+                );
 
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Accès'),
-                actions: [
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+                return Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Accès'),
+                    actions: [
+                      IconButton(
+                        tooltip: 'Actualiser',
+                        onPressed: _refreshing ? null : _refresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              body: MakoloNetworkContextFrame(
-                child: MakoloSurfaceStateView(
-                  state: surface,
-                  initialLoading: const MakoloLoadingState(
-                    label: 'Chargement de l’accès…',
+                  body: MakoloNetworkContextFrame(
+                    child: MakoloSurfaceStateView(
+                      state: surface,
+                      initialLoading: const MakoloLoadingState(
+                        label: 'Chargement de l’accès…',
+                      ),
+                      blockingErrorMessage: 'Cet accès n’est pas disponible dans votre contexte actuel.',
+                      onRetry: _refresh,
+                      content: _AccessContent(
+                        presentation: presentation,
+                        onOpenDayOf: widget.onOpenDayOf,
+                        onOpenJourney: widget.onOpenJourney,
+                        onOpenPresentation: widget.onOpenPresentation,
+                        onOpenCredential:
+                            credentialPath == null ||
+                                widget.onOpenCredential == null
+                            ? null
+                            : () => widget.onOpenCredential!(credentialPath),
+                      ),
+                    ),
                   ),
-                  blockingErrorMessage: 'Cet accès n’est pas disponible dans votre contexte actuel.',
-                  onRetry: _refresh,
-                  content: _AccessContent(
-                    presentation: presentation,
-                    onOpenDayOf: widget.onOpenDayOf,
-                    onOpenJourney: widget.onOpenJourney,
-                    onOpenPresentation: widget.onOpenPresentation,
-                    onOpenCredential: credentialPath == null ||
-                            widget.onOpenCredential == null
-                        ? null
-                        : () => widget.onOpenCredential!(credentialPath),
-                  ),
-                ),
-              ),
+                );
+              },
             );
           },
-        );
-      },
-    ),
-    ),
+        ),
+      ),
     );
   }
 }
@@ -207,10 +215,7 @@ class _AccessContent extends StatelessWidget {
           icon: Icons.event_outlined,
         ),
       if (presentation.placeName != null)
-        MakoloMetadataItem(
-          presentation.placeName!,
-          icon: Icons.place_outlined,
-        ),
+        MakoloMetadataItem(presentation.placeName!, icon: Icons.place_outlined),
       if (presentation.placeAddress != null)
         MakoloMetadataItem(
           presentation.placeAddress!,
@@ -273,8 +278,10 @@ class _AccessContent extends StatelessWidget {
                 horizontal: MakoloSpacing.inner,
                 vertical: MakoloSpacing.sm,
               ),
-              child: Text('État lors de la dernière réception : '
-                  '${presentation.state}'),
+              child: Text(
+                'État lors de la dernière réception : '
+                '${presentation.state}',
+              ),
             ),
           if (presentation.holderName != null)
             Padding(

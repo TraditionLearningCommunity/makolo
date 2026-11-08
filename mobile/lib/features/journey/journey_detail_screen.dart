@@ -267,7 +267,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     onOpenAccess: widget.onOpenAccess,
                     onOpenDayOf: widget.onOpenDayOf,
                     onOpenLive: widget.onOpenLive,
-                    conversationEntry: widget.conversations != null &&
+                    conversationEntry:
+                        widget.conversations != null &&
                             widget.onOpenConversation != null
                         ? ConversationContextAction(
                             repository: widget.conversations!,

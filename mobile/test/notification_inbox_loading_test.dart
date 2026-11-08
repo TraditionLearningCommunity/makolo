@@ -14,7 +14,9 @@ import 'fakes.dart';
 import 'support/presentation_harness.dart';
 
 void main() {
-  testWidgets('no cache and API failure never leave a permanent spinner', (tester) async {
+  testWidgets('no cache and API failure never leave a permanent spinner', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     final store = ProfileStore(database, 'profile-a');
     final api = MakoloApiClient(

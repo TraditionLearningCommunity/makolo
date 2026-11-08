@@ -54,8 +54,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
   @override
   void didUpdateWidget(covariant SpaceDocumentsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.runtime != widget.runtime ||
-        oldWidget.slug != widget.slug) {
+    if (oldWidget.runtime != widget.runtime || oldWidget.slug != widget.slug) {
       oldWidget.runtime.actorContext?.removeListener(_actorChanged);
       widget.runtime.actorContext?.addListener(_actorChanged);
       _actorChanged();
@@ -138,7 +137,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       if (!mounted || ticket != _request || _actor?.space.id != spaceId) {
         return;
       }
-      final withdrawn = error is MakoloApiError &&
+      final withdrawn =
+          error is MakoloApiError &&
           const {401, 403, 404}.contains(error.statusCode);
       setState(() {
         _loading = false;
@@ -153,8 +153,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
         _message = withdrawn
             ? 'Documents non accessibles dans ce contexte.'
             : _documents.isEmpty
-                ? 'Documents indisponibles.'
-                : 'Actualisation indisponible. Les documents affichés '
+            ? 'Documents indisponibles.'
+            : 'Actualisation indisponible. Les documents affichés '
                   'proviennent de votre dernière consultation.';
       });
     }
@@ -191,10 +191,12 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                 decoration: const InputDecoration(labelText: 'Accès'),
                 items: const [
                   DropdownMenuItem(
-                    value: 'restricted', child: Text('Confidentiel'),
+                    value: 'restricted',
+                    child: Text('Confidentiel'),
                   ),
                   DropdownMenuItem(
-                    value: 'internal', child: Text('Équipe autorisée'),
+                    value: 'internal',
+                    child: Text('Équipe autorisée'),
                   ),
                 ],
                 onChanged: (value) =>
@@ -234,20 +236,20 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
         fields: {...metadata, 'kind': 'other'},
         files: [
           MakoloUploadFile(
-            fieldName: 'file', path: chosen.path!, filename: chosen.name,
+            fieldName: 'file',
+            path: chosen.path!,
+            filename: chosen.name,
           ),
         ],
       );
       if (!mounted || _actor?.space.id != id) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Document ajouté.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Document ajouté.')));
       await _load();
     } on Object {
       if (mounted && _actor?.space.id == id) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dépôt impossible.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Dépôt impossible.')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -270,8 +272,10 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
-          Text('Documents de l’Espace',
-              style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            'Documents de l’Espace',
+            style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: MakoloSpacing.md),
           TextField(
             controller: _search,
@@ -300,15 +304,20 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
           ] else if (_loading && _documents.isEmpty)
             const Center(child: CircularProgressIndicator())
           else if (_documents.isEmpty)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(MakoloSpacing.xl),
-              child: Text('Aucun document pour le moment.'),
-            ))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(MakoloSpacing.xl),
+                child: Text('Aucun document pour le moment.'),
+              ),
+            )
           else
             for (final doc in _documents)
               Card(
                 child: ListTile(
-                  leading: Icon(Icons.description_outlined, color: colors.primary),
+                  leading: Icon(
+                    Icons.description_outlined,
+                    color: colors.primary,
+                  ),
                   title: Text(doc['title']?.toString() ?? 'Document'),
                   subtitle: Text(
                     doc['visibility'] == 'restricted'
@@ -318,9 +327,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () {
                     final id = doc['id']?.toString();
-                    if (id != null && RegExp(
-                      r'^[0-9a-fA-F-]{36}$',
-                    ).hasMatch(id)) {
+                    if (id != null &&
+                        RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id)) {
                       context.push('/space/${widget.slug}/us/documents/$id');
                     }
                   },

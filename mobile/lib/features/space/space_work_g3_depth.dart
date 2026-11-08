@@ -58,22 +58,30 @@ class SpaceWorkG3Depth extends StatelessWidget {
           ),
         );
       }
-      widgets.add(_fact('Prix unitaire', _money(
-        facts['unit_price'], facts['currency'],
-      )));
-      widgets.add(_fact('Mode de paiement',
-          spaceText(facts['payment_mode']) ?? 'Non établi'));
-      widgets.add(_fact(
-        'Quantité par demande',
-        '${facts['min_quantity']}'
-        '${facts['max_quantity'] == null ? ' minimum' : ' à ${facts['max_quantity']}'}',
-      ));
-      widgets.add(_fact(
-        'Disponibilité maintenant',
-        facts['currently_available'] == true
-            ? 'Disponible'
-            : 'Non disponible',
-      ));
+      widgets.add(
+        _fact('Prix unitaire', _money(facts['unit_price'], facts['currency'])),
+      );
+      widgets.add(
+        _fact(
+          'Mode de paiement',
+          spaceText(facts['payment_mode']) ?? 'Non établi',
+        ),
+      );
+      widgets.add(
+        _fact(
+          'Quantité par demande',
+          '${facts['min_quantity']}'
+              '${facts['max_quantity'] == null ? ' minimum' : ' à ${facts['max_quantity']}'}',
+        ),
+      );
+      widgets.add(
+        _fact(
+          'Disponibilité maintenant',
+          facts['currently_available'] == true
+              ? 'Disponible'
+              : 'Non disponible',
+        ),
+      );
       if (facts['available_from'] != null) {
         widgets.add(_fact('À partir du', facts['available_from'].toString()));
       }
@@ -81,44 +89,66 @@ class SpaceWorkG3Depth extends StatelessWidget {
         widgets.add(_fact('Jusqu’au', facts['available_until'].toString()));
       }
       if (facts['capacity_pool_bound'] == true) {
-        widgets.add(const Text(
-          'La quantité disponible dépend des réservations et engagements en cours.',
-        ));
+        widgets.add(
+          const Text(
+            'La quantité disponible dépend des réservations et engagements en cours.',
+          ),
+        );
       }
     } else if (kind == 'commerce_order') {
       widgets.add(_heading(context, 'Commande ${facts['reference'] ?? ''}'));
-      widgets.add(_fact('Sous-total historique',
-          _money(facts['subtotal'], facts['currency'])));
-      widgets.add(_fact('Remise historique',
-          _money(facts['discount_total'], facts['currency'])));
-      widgets.add(_fact('Total commandé',
-          _money(facts['total'], facts['currency'])));
-      widgets.add(_fact('Paiement prévu',
-          spaceText(facts['payment_mode']) ?? 'Non établi'));
-      widgets.add(const Text(
-        'Une commande confirmée ne confirme ni le paiement ni la remise.',
-      ));
+      widgets.add(
+        _fact(
+          'Sous-total historique',
+          _money(facts['subtotal'], facts['currency']),
+        ),
+      );
+      widgets.add(
+        _fact(
+          'Remise historique',
+          _money(facts['discount_total'], facts['currency']),
+        ),
+      );
+      widgets.add(
+        _fact('Total commandé', _money(facts['total'], facts['currency'])),
+      );
+      widgets.add(
+        _fact(
+          'Paiement prévu',
+          spaceText(facts['payment_mode']) ?? 'Non établi',
+        ),
+      );
+      widgets.add(
+        const Text(
+          'Une commande confirmée ne confirme ni le paiement ni la remise.',
+        ),
+      );
     } else if (kind == 'transport_route') {
       widgets.add(_heading(context, 'Route de transport'));
       if (spaceText(facts['code']) case final String code) {
         widgets.add(_fact('Code', code));
       }
-      widgets.add(_fact('État', facts['active'] == true ? 'Active' : 'Inactive'));
+      widgets.add(
+        _fact('État', facts['active'] == true ? 'Active' : 'Inactive'),
+      );
     } else if (kind == 'vehicle') {
       widgets.add(_heading(context, 'Véhicule'));
-      widgets.add(_fact(
-        'Type', spaceText(facts['vehicle_type']) ?? 'Non établi',
-      ));
+      widgets.add(
+        _fact('Type', spaceText(facts['vehicle_type']) ?? 'Non établi'),
+      );
       if (facts['passenger_capacity'] is num) {
-        widgets.add(_fact('Places physiques',
-            '${facts['passenger_capacity']}'));
+        widgets.add(
+          _fact('Places physiques', '${facts['passenger_capacity']}'),
+        );
       }
       if (spaceText(facts['registration']) case final String registration) {
         widgets.add(_fact('Immatriculation', registration));
       }
-      widgets.add(const Text(
-        'La capacité du véhicule ne correspond pas forcément aux places à vendre.',
-      ));
+      widgets.add(
+        const Text(
+          'La capacité du véhicule ne correspond pas forcément aux places à vendre.',
+        ),
+      );
     } else if (kind == 'transport_service') {
       widgets.add(_heading(context, 'Service de transport'));
       final route = spaceMap(facts['route']);
@@ -152,30 +182,38 @@ class SpaceWorkG3Depth extends StatelessWidget {
         if (vehicle == null) {
           widgets.add(_fact('Véhicule', 'Non affecté'));
         } else {
-          widgets.add(_fact(
-            'Véhicule',
-            '${spaceText(vehicle['label']) ?? 'Véhicule'} · '
-            '${vehicle['physical_capacity']} places physiques',
-          ));
+          widgets.add(
+            _fact(
+              'Véhicule',
+              '${spaceText(vehicle['label']) ?? 'Véhicule'} · '
+                  '${vehicle['physical_capacity']} places physiques',
+            ),
+          );
         }
       }
       if (spaceText(facts['boarding_instructions'])
           case final String instructions) {
         widgets.add(_fact('Embarquement', instructions));
       }
-      widgets.add(const Text(
-        'Le nombre de places disponibles ne confirme pas la présence des voyageurs.',
-      ));
+      widgets.add(
+        const Text(
+          'Le nombre de places disponibles ne confirme pas la présence des voyageurs.',
+        ),
+      );
     }
     for (final key in ['offers', 'lines', 'services', 'departures']) {
       final list = spaceMap(payload[key]);
       if (list != null) {
-        widgets.add(_collection(
-          context, key: key, data: list,
-          onChange: key == 'departures' && kind == 'transport_route'
-              ? onSecondaryPageChange
-              : onPageChange,
-        ));
+        widgets.add(
+          _collection(
+            context,
+            key: key,
+            data: list,
+            onChange: key == 'departures' && kind == 'transport_route'
+                ? onSecondaryPageChange
+                : onPageChange,
+          ),
+        );
       }
     }
     return Padding(
@@ -183,10 +221,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final widget in widgets) ...[
-            widget,
-            const SizedBox(height: 12),
-          ],
+          for (final widget in widgets) ...[widget, const SizedBox(height: 12)],
         ],
       ),
     );
@@ -265,8 +300,8 @@ class SpaceWorkG3Depth extends StatelessWidget {
             fromCollection: fromWorkCollection,
           );
     final timing = spaceMap(item['timing']);
-    final label = spaceText(item['label']) ??
-        spaceText(item['title']) ?? 'Élément réel';
+    final label =
+        spaceText(item['label']) ?? spaceText(item['title']) ?? 'Élément réel';
     final info = [
       if (item['quantity'] is num) '${item['quantity']} unité(s)',
       if (item['line_total'] != null)

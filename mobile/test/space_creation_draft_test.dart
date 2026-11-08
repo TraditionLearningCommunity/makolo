@@ -37,9 +37,12 @@ void main() {
   });
   tearDown(() async => database.close());
 
-  testWidgets('Space creation draft survives screen disposal and re-entry',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(home: SpaceCreateScreen(runtime: runtime)));
+  testWidgets('Space creation draft survives screen disposal and re-entry', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+    );
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), 'Association Makolo');
@@ -56,15 +59,18 @@ void main() {
 
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await tester.pumpAndSettle();
-    await tester.pumpWidget(MaterialApp(home: SpaceCreateScreen(runtime: runtime)));
+    await tester.pumpWidget(
+      MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Association Makolo'), findsOneWidget);
     expect(await database.select(database.outboxOperations).get(), isEmpty);
   });
 
-  testWidgets('an ambiguous Space creation is not replayed on cold entry',
-      (tester) async {
+  testWidgets('an ambiguous Space creation is not replayed on cold entry', (
+    tester,
+  ) async {
     await drafts.saveLocal(
       draftId: 'space:create',
       owner: 'Organizations',
@@ -77,14 +83,22 @@ void main() {
       },
     );
 
-    await tester.pumpWidget(MaterialApp(home: SpaceCreateScreen(runtime: runtime)));
+    await tester.pumpWidget(
+      MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Espace en verification'), findsOneWidget);
-    expect(find.textContaining('Une demande précédente est incertaine'), findsOneWidget);
+    expect(
+      find.textContaining('Une demande précédente est incertaine'),
+      findsOneWidget,
+    );
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(button.onPressed, isNull,
-        reason: 'A cold restart must never resend an ambiguous owner POST');
+    expect(
+      button.onPressed,
+      isNull,
+      reason: 'A cold restart must never resend an ambiguous owner POST',
+    );
     expect(await database.select(database.outboxOperations).get(), isEmpty);
 
     await tester.tap(find.text('Après vérification, reprendre le brouillon'));
@@ -116,26 +130,30 @@ void main() {
     expect(await database.select(database.outboxOperations).get(), isEmpty);
   });
 
-  testWidgets('owner-created Space keeps verification identity, not authority',
-      (tester) async {
-    await drafts.saveLocal(
-      draftId: 'space:create',
-      owner: 'Organizations',
-      resourceKind: 'space.creation',
-      resourceId: 'new',
-      payload: {
-        'name': 'Espace existe',
-        'public_profile': true,
-        'submission_state': 'created_unverified',
-        'created_space_id': 'space-1',
-        'created_space_slug': 'espace-existe',
-      },
-    );
-    await tester.pumpWidget(MaterialApp(home: SpaceCreateScreen(runtime: runtime)));
-    await tester.pumpAndSettle();
-    expect(find.text('Vérifier mon accès'), findsOneWidget);
-    expect(find.text('Créer cet Espace'), findsOneWidget);
-    final button = tester.widget<FilledButton>(find.byType(FilledButton));
-    expect(button.onPressed, isNull);
-  });
+  testWidgets(
+    'owner-created Space keeps verification identity, not authority',
+    (tester) async {
+      await drafts.saveLocal(
+        draftId: 'space:create',
+        owner: 'Organizations',
+        resourceKind: 'space.creation',
+        resourceId: 'new',
+        payload: {
+          'name': 'Espace existe',
+          'public_profile': true,
+          'submission_state': 'created_unverified',
+          'created_space_id': 'space-1',
+          'created_space_slug': 'espace-existe',
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifier mon accès'), findsOneWidget);
+      expect(find.text('Créer cet Espace'), findsOneWidget);
+      final button = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(button.onPressed, isNull);
+    },
+  );
 }

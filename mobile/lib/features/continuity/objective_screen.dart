@@ -154,7 +154,8 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                       ? _DossierContent(
                           payload: projection?.payload ?? const {},
                           onOpenJourney: widget.onOpenJourney,
-                          conversationEntry: widget.conversations != null &&
+                          conversationEntry:
+                              widget.conversations != null &&
                                   widget.onOpenConversation != null
                               ? ConversationContextAction(
                                   repository: widget.conversations!,
@@ -167,7 +168,8 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                       : _ProjectContent(
                           payload: projection?.payload ?? const {},
                           onOpenDossier: widget.onOpenDossier,
-                          conversationEntry: widget.conversations != null &&
+                          conversationEntry:
+                              widget.conversations != null &&
                                   widget.onOpenConversation != null
                               ? ConversationContextAction(
                                   repository: widget.conversations!,
@@ -377,9 +379,7 @@ class _ProjectContent extends StatelessWidget {
         MakoloSection(
           title: 'Dossiers',
           child: dossiers.isEmpty
-              ? const MakoloCard(
-                  child: Text('Aucun dossier à afficher.'),
-                )
+              ? const MakoloCard(child: Text('Aucun dossier à afficher.'))
               : Column(
                   children: [
                     for (var index = 0; index < dossiers.length; index++) ...[

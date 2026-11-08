@@ -150,6 +150,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       widget.repository.itemsSource(_query),
     );
   }
+
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
@@ -219,8 +220,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final root = await widget.repository.readItems(
         query.copyWith(page: 1, clearContinuation: true),
       );
-      if (root != null &&
-          root.receivedAt == _unseenReserve!.rootReceivedAt) return;
+      if (root != null && root.receivedAt == _unseenReserve!.rootReceivedAt)
+        return;
       _unseenReserve = null;
       _unseenField = null;
     }
@@ -231,7 +232,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       } on Object {
         // Recoverable local corruption must not suppress Discovery.
       }
-      if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
+      if (_unseenReserve != null && _unseenField == query.mapFingerprint)
+        return;
     }
     final request = _loadUnseenReserve(query);
     _unseenLoad = request;
@@ -255,8 +257,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     );
     if (root == null) return;
     final saved = await repository.readUnseenReserve(query);
-    final reserve = saved ??
-        DiscoveryUnseenReserve(rootReceivedAt: root.receivedAt);
+    final reserve =
+        saved ?? DiscoveryUnseenReserve(rootReceivedAt: root.receivedAt);
     reserve.observe(collection.items.map((item) => item.wire));
     if (saved == null && reserve.shownKeys.isEmpty) {
       reserve.reveal(
@@ -266,7 +268,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
     if (!mounted ||
         !identical(widget.repository, repository) ||
-        query.mapFingerprint != _query.mapFingerprint) return;
+        query.mapFingerprint != _query.mapFingerprint)
+      return;
     setState(() {
       _unseenReserve = reserve;
       _unseenField = query.mapFingerprint;
@@ -278,7 +281,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final generation = ++_restoreGeneration;
     final repository = widget.repository;
     final initial = _query;
-    bool current() => mounted &&
+    bool current() =>
+        mounted &&
         generation == _restoreGeneration &&
         identical(widget.repository, repository) &&
         identical(_query, initial);
@@ -312,7 +316,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         identical(widget.repository, repository)) {
       setState(() {});
       await _ensureUnseenReserve(_query);
-      if (mounted && generation == _restoreGeneration &&
+      if (mounted &&
+          generation == _restoreGeneration &&
           identical(widget.repository, repository)) {
         await _acquire();
       }
@@ -342,7 +347,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   Future<void> _acquire() async {
     final current = _query;
     final repository = widget.repository;
-    bool active() => mounted &&
+    bool active() =>
+        mounted &&
         identical(repository, widget.repository) &&
         identical(current, _query);
     try {
@@ -376,7 +382,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final repository = widget.repository;
     final generation = ++_ownerGeneration;
     final current = _query;
-    bool active() => mounted &&
+    bool active() =>
+        mounted &&
         generation == _ownerGeneration &&
         identical(widget.repository, repository);
     setState(() {
@@ -449,7 +456,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final current = _query;
     final repository = widget.repository;
     final generation = _ownerGeneration;
-    bool active() => mounted &&
+    bool active() =>
+        mounted &&
         generation == _ownerGeneration &&
         identical(repository, widget.repository) &&
         identical(current, _query);
@@ -526,7 +534,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         setState(() => _loadMoreFailed = true);
       }
     } finally {
-      if (mounted && generation == _ownerGeneration &&
+      if (mounted &&
+          generation == _ownerGeneration &&
           identical(widget.repository, repository)) {
         setState(() => _loadingMore = false);
       }
@@ -603,7 +612,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             final currentReserve = _unseenField == _query.mapFingerprint
                 ? _unseenReserve
                 : null;
-            final rootChanged = currentReserve != null &&
+            final rootChanged =
+                currentReserve != null &&
                 _query.page == 1 &&
                 projection != null &&
                 currentReserve.rootReceivedAt != projection.receivedAt;
@@ -615,13 +625,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             }
             final visible = reserve == null
                 ? full.items.take(_initialReveal(full.items.length)).toList()
-                : full.items.where((item) =>
-                    reserve.isShown(item.candidateKey)).toList();
+                : full.items
+                      .where((item) => reserve.isShown(item.candidateKey))
+                      .toList();
             final hiddenOnCurrent = reserve == null
                 ? visible.length < full.items.length
-                : reserve.pendingFrom(
-                    full.items.map((item) => item.candidateKey),
-                  ).isNotEmpty;
+                : reserve
+                      .pendingFrom(full.items.map((item) => item.candidateKey))
+                      .isNotEmpty;
             final visibleWire = visible.map((item) => item.wire).toList();
             final displaySelection = DiscoveryFieldSelection(
               collection: DiscoveryCollectionPresentation(
@@ -638,9 +649,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               ),
               surface: selection.surface,
               states: hiddenOnCurrent
-                  ? Set.unmodifiable(selection.states.where(
-                      (state) => state != DiscoveryFieldState.endOfField,
-                    ).toSet())
+                  ? Set.unmodifiable(
+                      selection.states
+                          .where(
+                            (state) => state != DiscoveryFieldState.endOfField,
+                          )
+                          .toSet(),
+                    )
                   : selection.states,
             );
             if (_pendingScrollRestore != null && projection != null) {
@@ -735,12 +750,9 @@ class DiscoverySearchScreen extends StatefulWidget {
 }
 
 String _providerFailureMessage(String reason) => switch (reason) {
-  'connection_unavailable' =>
-    'Recherche de sources indisponible.',
-  'invalid_credentials' =>
-    'Connexion à vérifier pour rechercher des sources.',
-  'rate_limited' =>
-    'Limite de recherche atteinte. Réessayez plus tard.',
+  'connection_unavailable' => 'Recherche de sources indisponible.',
+  'invalid_credentials' => 'Connexion à vérifier pour rechercher des sources.',
+  'rate_limited' => 'Limite de recherche atteinte. Réessayez plus tard.',
   'network_unavailable' =>
     'Impossible de rechercher des sources pour le moment.',
   _ => 'Recherche de sources indisponible.',
@@ -771,7 +783,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
 
   void _bindResultStreams() {
     if (_boundResultsKey == _query.fingerprint &&
-        identical(_boundResultsRepository, widget.repository)) return;
+        identical(_boundResultsRepository, widget.repository))
+      return;
     _boundResultsKey = _query.fingerprint;
     _boundResultsRepository = widget.repository;
     _resultsStream = widget.repository.watchItems(_query);
@@ -779,6 +792,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       widget.repository.itemsSource(_query),
     );
   }
+
   bool _refreshing = false;
   String? _verifiedFieldKey;
   bool _clarifying = false;
@@ -856,12 +870,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final stored = await widget.repository.store.readProjection(
         DiscoveryRepository.watchesProjectionKind,
       );
-      final recentlyConfirmed = previous.lastSuccessAt != null &&
+      final recentlyConfirmed =
+          previous.lastSuccessAt != null &&
           !previous.invalidated &&
           previous.lastErrorCode == null &&
-          DateTime.now().toUtc().difference(
-            previous.lastSuccessAt!.toUtc(),
-          ) < const Duration(minutes: 15);
+          DateTime.now().toUtc().difference(previous.lastSuccessAt!.toUtc()) <
+              const Duration(minutes: 15);
       if (recentlyConfirmed && stored != null) return;
       await widget.repository.refreshWatches();
     } on Object {
@@ -1015,19 +1029,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     }
     final location = widget.location;
     if (location == null) {
-      setState(
-        () => _locationMessage =
-            'Impossible d’obtenir votre position.',
-      );
+      setState(() => _locationMessage = 'Impossible d’obtenir votre position.');
       return;
     }
     final result = await location.current();
     if (!mounted) return;
     if (!result.available || result.fix == null) {
-      setState(
-        () => _locationMessage =
-            'Impossible d’obtenir votre position.',
-      );
+      setState(() => _locationMessage = 'Impossible d’obtenir votre position.');
       return;
     }
     _place.clear();
@@ -1148,9 +1156,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Impossible de rechercher des sources.',
-            ),
+            content: Text('Impossible de rechercher des sources.'),
           ),
         );
       }
@@ -1181,9 +1187,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         _searchChanged(_search.text, immediate: true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Recherche affinée. Vérifiez les critères.',
-            ),
+            content: Text('Recherche affinée. Vérifiez les critères.'),
           ),
         );
       } else {
@@ -1193,7 +1197,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            action: result.status == 'unavailable' &&
+            action:
+                result.status == 'unavailable' &&
                     _canRepairDiscoveryConnection(result.reason)
                 ? SnackBarAction(
                     label: 'Connexions',
@@ -1206,11 +1211,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Impossible d’affiner la recherche.',
-            ),
-          ),
+          const SnackBar(content: Text('Impossible d’affiner la recherche.')),
         );
       }
     } finally {
@@ -1284,10 +1285,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     unawaited(_refreshPage(query));
   }
 
-  Future<void> _refreshPage(
-    DiscoveryQuery query, {
-    bool force = false,
-  }) async {
+  Future<void> _refreshPage(DiscoveryQuery query, {bool force = false}) async {
     setState(() => _refreshing = true);
     try {
       if (force) {
@@ -1717,10 +1715,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   void initState() {
     super.initState();
     _query = widget.query.copyWith(page: 1, clearContinuation: true);
-    _visit = discoveryMapVisitState(
-      widget.repository,
-      _query.mapFingerprint,
-    );
+    _visit = discoveryMapVisitState(widget.repository, _query.mapFingerprint);
     widget.repository.rememberExploration(_query);
     _restoredSelectedCandidateKey =
         widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
@@ -1742,10 +1737,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       _refreshing = false;
       _refreshingQuery = null;
       _query = widget.query.copyWith(page: 1, clearContinuation: true);
-      _visit = discoveryMapVisitState(
-        widget.repository,
-        _query.mapFingerprint,
-      );
+      _visit = discoveryMapVisitState(widget.repository, _query.mapFingerprint);
       widget.repository.rememberExploration(_query);
       _restoredSelectedCandidateKey =
           widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
@@ -1814,13 +1806,16 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       // A fully projected item from N1 or another Carte view is already
       // available. Merely selecting it is not a fresh authority operation.
       if (await widget.repository.hasReusableItem(
-        candidate.family, candidate.id,
+        candidate.family,
+        candidate.id,
       )) {
         final cached = await widget.repository.readItem(
-          candidate.family, candidate.id,
+          candidate.family,
+          candidate.id,
         );
         final local = _selector.detail(cached);
-        if (mounted && identical(current, _query) &&
+        if (mounted &&
+            identical(current, _query) &&
             local?.candidateKey == candidate.candidateKey) {
           return local;
         }
@@ -1878,111 +1873,115 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         fit: StackFit.expand,
         children: [
           StreamBuilder<StoredProjection?>(
-        stream: _spatialStream,
-        builder: (context, snapshot) {
-          return StreamBuilder<DiscoverySourceState>(
-            stream: _sourceStream,
-            initialData: DiscoverySourceState.unknown,
-            builder: (context, sourceSnapshot) {
-              final source =
-                  sourceSnapshot.data ?? DiscoverySourceState.unknown;
-              if (!_refreshing &&
-                  snapshot.connectionState != ConnectionState.waiting &&
-                  snapshot.data == null &&
-                  (source.lastSuccessAt != null ||
-                      source.lastErrorCode != null ||
-                      snapshot.hasError)) {
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(MakoloSpacing.md),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Les points de cette recherche sont indisponibles. '
-                              'Vous pouvez réessayer sans perdre les critères.',
-                              textAlign: TextAlign.center,
+            stream: _spatialStream,
+            builder: (context, snapshot) {
+              return StreamBuilder<DiscoverySourceState>(
+                stream: _sourceStream,
+                initialData: DiscoverySourceState.unknown,
+                builder: (context, sourceSnapshot) {
+                  final source =
+                      sourceSnapshot.data ?? DiscoverySourceState.unknown;
+                  if (!_refreshing &&
+                      snapshot.connectionState != ConnectionState.waiting &&
+                      snapshot.data == null &&
+                      (source.lastSuccessAt != null ||
+                          source.lastErrorCode != null ||
+                          snapshot.hasError)) {
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 320),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(MakoloSpacing.md),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Les points de cette recherche sont indisponibles. '
+                                  'Vous pouvez réessayer sans perdre les critères.',
+                                  textAlign: TextAlign.center,
+                                ),
+                                TextButton.icon(
+                                  onPressed: () =>
+                                      unawaited(_refresh(force: true)),
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Réessayer'),
+                                ),
+                              ],
                             ),
-                            TextButton.icon(
-                              onPressed: () =>
-                                  unawaited(_refresh(force: true)),
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Réessayer'),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              }
-              final selection = _selector.spatialSelection(
-                projection: snapshot.data,
-                refreshing: _refreshing,
-                reachability:
-                    source.reachability == ReachabilityState.unreachable
-                    ? MakoloReachabilityCue.temporarilyUnavailable
-                    : source.lastSuccessAt != null
-                    ? MakoloReachabilityCue.reachable
-                    : MakoloReachabilityCue.unknown,
-                failure:
-                        source.lastErrorCode != null ||
-                        snapshot.hasError ||
-                        sourceSnapshot.hasError
-                    ? MakoloFailureCue.recoverable
-                    : MakoloFailureCue.none,
-              );
-              return DiscoverySpatialView(
-                key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
-                selection: selection,
-                mapConfig: widget.mapConfig,
-                location: widget.location,
-                showMapOnCompact: true,
-                fieldKey: _query.mapFingerprint,
-                initialSelectedCandidateKey: _restoredSelectedCandidateKey,
-                initialFocusedAnchor: _visit.focusedAnchor,
-                detailRefreshRevision: _detailReturnRevision,
-                restoredViewport: _visit.viewport,
-                onViewportChanged: (viewport) {
-                  _visit.viewport = viewport;
-                },
-                spatialRevision: snapshot.data?.receivedAt,
-                onSelectionChanged: (key) {
-                  _selectedCandidateKey = key;
-                  _visit.selectedCandidateKey = key;
-                  if (key == null ||
-                      _visit.focusedAnchor?.candidateKey != key) {
-                    _visit.focusedAnchor = null;
+                    );
                   }
+                  final selection = _selector.spatialSelection(
+                    projection: snapshot.data,
+                    refreshing: _refreshing,
+                    reachability:
+                        source.reachability == ReachabilityState.unreachable
+                        ? MakoloReachabilityCue.temporarilyUnavailable
+                        : source.lastSuccessAt != null
+                        ? MakoloReachabilityCue.reachable
+                        : MakoloReachabilityCue.unknown,
+                    failure:
+                        source.lastErrorCode != null ||
+                            snapshot.hasError ||
+                            sourceSnapshot.hasError
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.none,
+                  );
+                  return DiscoverySpatialView(
+                    key: ValueKey(
+                      'discover-map-field-${_query.mapFingerprint}',
+                    ),
+                    selection: selection,
+                    mapConfig: widget.mapConfig,
+                    location: widget.location,
+                    showMapOnCompact: true,
+                    fieldKey: _query.mapFingerprint,
+                    initialSelectedCandidateKey: _restoredSelectedCandidateKey,
+                    initialFocusedAnchor: _visit.focusedAnchor,
+                    detailRefreshRevision: _detailReturnRevision,
+                    restoredViewport: _visit.viewport,
+                    onViewportChanged: (viewport) {
+                      _visit.viewport = viewport;
+                    },
+                    spatialRevision: snapshot.data?.receivedAt,
+                    onSelectionChanged: (key) {
+                      _selectedCandidateKey = key;
+                      _visit.selectedCandidateKey = key;
+                      if (key == null ||
+                          _visit.focusedAnchor?.candidateKey != key) {
+                        _visit.focusedAnchor = null;
+                      }
+                    },
+                    onFocusedAnchorChanged: (anchor) {
+                      _visit.focusedAnchor = anchor;
+                    },
+                    resolveItem: _verifiedMapDetail,
+                    // Same Save owner flow as Découvrir N1. An admitted location
+                    // never creates its own saved state or mutation path.
+                    onSave: widget.authenticated
+                        ? (item) => _saveDiscoveryPossibility(
+                            widget.repository,
+                            item,
+                            _query,
+                          )
+                        : null,
+                    allowOwnerActions:
+                        !_refreshing &&
+                        source.lastSuccessAt != null &&
+                        source.lastErrorCode == null &&
+                        !source.invalidated,
+                    baseUri: widget.repository.api.baseUri,
+                    shareApi: widget.repository.api,
+                    shareAuthenticated: widget.authenticated,
+                    onRetry: () => unawaited(_refresh(force: true)),
+                    onOpen: (item) => unawaited(_openDetail(item)),
+                  );
                 },
-                onFocusedAnchorChanged: (anchor) {
-                  _visit.focusedAnchor = anchor;
-                },
-                resolveItem: _verifiedMapDetail,
-                // Same Save owner flow as Découvrir N1. An admitted location
-                // never creates its own saved state or mutation path.
-                onSave: widget.authenticated
-                    ? (item) => _saveDiscoveryPossibility(
-                        widget.repository, item, _query,
-                      )
-                    : null,
-                allowOwnerActions:
-                    !_refreshing &&
-                    source.lastSuccessAt != null &&
-                    source.lastErrorCode == null &&
-                    !source.invalidated,
-                baseUri: widget.repository.api.baseUri,
-                shareApi: widget.repository.api,
-                shareAuthenticated: widget.authenticated,
-                onRetry: () => unawaited(_refresh(force: true)),
-                onOpen: (item) => unawaited(_openDetail(item)),
               );
             },
-          );
-        },
           ),
           Positioned(
             top: 0,
@@ -2086,7 +2085,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   @override
   void didUpdateWidget(covariant DiscoveryItemDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.family != widget.family || oldWidget.id != widget.id ||
+    if (oldWidget.family != widget.family ||
+        oldWidget.id != widget.id ||
         oldWidget.repository != widget.repository) {
       // A detail for another family/resource may never inherit N2 authority.
       ++_generation;
@@ -2109,8 +2109,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     final key = _itemKey;
     final repository = widget.repository;
     final reusable = await repository.hasReusableItem(widget.family, widget.id);
-    if (!mounted || key != _itemKey ||
-        !identical(repository, widget.repository)) return;
+    if (!mounted ||
+        key != _itemKey ||
+        !identical(repository, widget.repository))
+      return;
     if (reusable) {
       setState(() => _verifiedItemKey = key);
       return;
@@ -2165,8 +2167,11 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
   Future<void> _setSaved(bool saved) async {
     final key = _itemKey;
-    if (!widget.authenticated || _saving || _refreshing ||
-        _verifiedItemKey != key) return;
+    if (!widget.authenticated ||
+        _saving ||
+        _refreshing ||
+        _verifiedItemKey != key)
+      return;
     final family = widget.family;
     final id = widget.id;
     setState(() => _saving = true);
@@ -2257,7 +2262,11 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
             return Scaffold(
               appBar: AppBar(
-                title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 actions: [
                   IconButton(
                     tooltip: 'Actualiser',
@@ -2281,9 +2290,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           )
                   : ListView(
                       key: const Key('discover-personal-n2'),
-                      padding: const EdgeInsets.only(
-                        bottom: MakoloSpacing.xl,
-                      ),
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                       children: [
                         Center(
                           child: ConstrainedBox(
@@ -2307,7 +2314,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                   mayChangeOwnerState: false,
                                 ),
                               ),
-                              onSave: widget.authenticated && verified && !_saving &&
+                              onSave:
+                                  widget.authenticated &&
+                                      verified &&
+                                      !_saving &&
                                       (item.savedState == 'saved'
                                           ? item.canUnsave
                                           : item.canSave)
@@ -2328,7 +2338,6 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     );
   }
 }
-
 
 class ActivityDetailScreen extends StatefulWidget {
   const ActivityDetailScreen({
@@ -2400,7 +2409,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final repository = widget.repository;
     unawaited(_readKnownSavedTitle(id));
     if (await repository.hasReusableActivity(id)) return;
-    if (mounted && widget.activityId == id &&
+    if (mounted &&
+        widget.activityId == id &&
         identical(repository, widget.repository)) {
       await _refresh();
     }
@@ -2476,155 +2486,171 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
         return StreamBuilder<StoredProjection?>(
           stream: _previewStream,
-      builder: (context, previewSnapshot) {
-        return StreamBuilder<StoredProjection?>(
-          stream: _detailStream,
-          builder: (context, snapshot) {
-            final id = snapshot.data?.payload['identity'];
-            final valid = id is Map &&
-                id['kind'] == 'activity' &&
-                id['id'] == widget.activityId;
-            final activity = owner.ownerUnavailable
-                ? null
-                : (valid ? _selector.activity(snapshot.data) : null) ??
-                    _selector.activityPreview(previewSnapshot.data);
-            return Scaffold(
-              appBar: AppBar(
-                title: const Text('Activité'),
-                actions: [
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+          builder: (context, previewSnapshot) {
+            return StreamBuilder<StoredProjection?>(
+              stream: _detailStream,
+              builder: (context, snapshot) {
+                final id = snapshot.data?.payload['identity'];
+                final valid =
+                    id is Map &&
+                    id['kind'] == 'activity' &&
+                    id['id'] == widget.activityId;
+                final activity = owner.ownerUnavailable
+                    ? null
+                    : (valid ? _selector.activity(snapshot.data) : null) ??
+                          _selector.activityPreview(previewSnapshot.data);
+                return Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Activité'),
+                    actions: [
+                      IconButton(
+                        tooltip: 'Actualiser',
+                        onPressed: _refreshing ? null : _refresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              body: MakoloNetworkContextFrame(
-                child: owner.ownerUnavailable
-                    ? MakoloErrorState(
-                        message: 'Cette activité n’est plus accessible.',
-                        onRetry: _refresh,
-                      )
-                    : activity == null
-                    ? _knownSavedTitle != null
-                        ? ListView(
-                            children: [
-                              MakoloDetailHeader(title: _knownSavedTitle!),
-                            ],
-                          )
-                        : _refreshing
-                        ? const MakoloLoadingState(label: 'Mise à jour…')
-                        : MakoloErrorState(
-                            message: 'Cette activité n’est pas disponible.',
+                  body: MakoloNetworkContextFrame(
+                    child: owner.ownerUnavailable
+                        ? MakoloErrorState(
+                            message: 'Cette activité n’est plus accessible.',
                             onRetry: _refresh,
                           )
-                    : ListView(
-                        padding: const EdgeInsets.only(
-                          bottom: MakoloSpacing.xl,
-                        ),
-                        children: [
-                          MakoloDetailHeader(
-                            eyebrow: activity.vertical,
-                            title: activity.title,
-                            subtitle: activity.summary.isEmpty
-                                ? null
-                                : activity.summary,
-                            status: activity.state == null
-                                ? null
-                                : MakoloStatus(label: activity.state!),
-                            metadata: [
-                              if (activity.owner != null)
-                                MakoloMetadataItem(
-                                  activity.owner!,
-                                  icon: Icons.business_outlined,
-                                ),
-                              if (activity.availability != null)
-                                MakoloMetadataItem(
-                                  activity.availability!,
-                                  icon: Icons.event_available_outlined,
-                                ),
-                            ],
-                          ),
-                          if (widget.conversations != null &&
-                              widget.onOpenConversation != null)
-                            ConversationContextAction(
-                              repository: widget.conversations!,
-                              kind: 'activity',
-                              contextId: widget.activityId,
-                              onOpen: widget.onOpenConversation!,
-                            ),
-                          if (activity.occurrences.isNotEmpty)
-                            MakoloSection(
-                              title: switch (activity.occurrenceNoun) {
-                                'Départ' => 'Départs',
-                                'Date' => 'Dates',
-                                'Créneau' => 'Créneaux',
-                                'Session' => 'Sessions',
-                                _ => 'Dates et réalisations',
-                              },
-                              child: Column(
-                                children: [
-                                  for (
-                                    var index = 0;
-                                    index < activity.occurrences.length;
-                                    index++
-                                  ) ...[
-                                    MakoloCard(
-                                      onTap: () => widget.onOpenOccurrence(
-                                        activity.occurrences[index].id,
-                                      ),
-                                      child: MakoloStatusMetadataAction(
-                                        title:
-                                            activity.occurrences[index].label,
-                                        status:
-                                            activity.occurrences[index].state ==
-                                                null
-                                            ? null
-                                            : MakoloStatus(
-                                                label: activity
-                                                    .occurrences[index]
-                                                    .state!,
-                                              ),
-                                        metadata: [
-                                          if (activity
-                                                  .occurrences[index]
-                                                  .timing !=
-                                              null)
-                                            MakoloMetadataItem(
-                                              activity
-                                                  .occurrences[index]
-                                                  .timing!,
-                                              icon: Icons.schedule_outlined,
-                                            ),
-                                        ],
-                                        action: const Icon(
-                                          Icons.chevron_right_rounded,
-                                        ),
-                                      ),
+                        : activity == null
+                        ? _knownSavedTitle != null
+                              ? ListView(
+                                  children: [
+                                    MakoloDetailHeader(
+                                      title: _knownSavedTitle!,
                                     ),
-                                    if (index < activity.occurrences.length - 1)
-                                      const SizedBox(height: MakoloSpacing.sm),
                                   ],
-                                  if (activity.occurrencesHasMore)
-                                    Padding(
-                                      key: const Key('discover-n3-occurrences-limited'),
-                                      padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-                                      child: Text(
-                                        'D’autres réalisations existent. Cette page '
-                                        'présente uniquement celles communiquées '
-                                        'dans le détail actuel.',
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
+                                )
+                              : _refreshing
+                              ? const MakoloLoadingState(label: 'Mise à jour…')
+                              : MakoloErrorState(
+                                  message:
+                                      'Cette activité n’est pas disponible.',
+                                  onRetry: _refresh,
+                                )
+                        : ListView(
+                            padding: const EdgeInsets.only(
+                              bottom: MakoloSpacing.xl,
+                            ),
+                            children: [
+                              MakoloDetailHeader(
+                                eyebrow: activity.vertical,
+                                title: activity.title,
+                                subtitle: activity.summary.isEmpty
+                                    ? null
+                                    : activity.summary,
+                                status: activity.state == null
+                                    ? null
+                                    : MakoloStatus(label: activity.state!),
+                                metadata: [
+                                  if (activity.owner != null)
+                                    MakoloMetadataItem(
+                                      activity.owner!,
+                                      icon: Icons.business_outlined,
+                                    ),
+                                  if (activity.availability != null)
+                                    MakoloMetadataItem(
+                                      activity.availability!,
+                                      icon: Icons.event_available_outlined,
                                     ),
                                 ],
                               ),
-                            ),
-                        ],
-                      ),
-              ),
+                              if (widget.conversations != null &&
+                                  widget.onOpenConversation != null)
+                                ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'activity',
+                                  contextId: widget.activityId,
+                                  onOpen: widget.onOpenConversation!,
+                                ),
+                              if (activity.occurrences.isNotEmpty)
+                                MakoloSection(
+                                  title: switch (activity.occurrenceNoun) {
+                                    'Départ' => 'Départs',
+                                    'Date' => 'Dates',
+                                    'Créneau' => 'Créneaux',
+                                    'Session' => 'Sessions',
+                                    _ => 'Dates et réalisations',
+                                  },
+                                  child: Column(
+                                    children: [
+                                      for (
+                                        var index = 0;
+                                        index < activity.occurrences.length;
+                                        index++
+                                      ) ...[
+                                        MakoloCard(
+                                          onTap: () => widget.onOpenOccurrence(
+                                            activity.occurrences[index].id,
+                                          ),
+                                          child: MakoloStatusMetadataAction(
+                                            title: activity
+                                                .occurrences[index]
+                                                .label,
+                                            status:
+                                                activity
+                                                        .occurrences[index]
+                                                        .state ==
+                                                    null
+                                                ? null
+                                                : MakoloStatus(
+                                                    label: activity
+                                                        .occurrences[index]
+                                                        .state!,
+                                                  ),
+                                            metadata: [
+                                              if (activity
+                                                      .occurrences[index]
+                                                      .timing !=
+                                                  null)
+                                                MakoloMetadataItem(
+                                                  activity
+                                                      .occurrences[index]
+                                                      .timing!,
+                                                  icon: Icons.schedule_outlined,
+                                                ),
+                                            ],
+                                            action: const Icon(
+                                              Icons.chevron_right_rounded,
+                                            ),
+                                          ),
+                                        ),
+                                        if (index <
+                                            activity.occurrences.length - 1)
+                                          const SizedBox(
+                                            height: MakoloSpacing.sm,
+                                          ),
+                                      ],
+                                      if (activity.occurrencesHasMore)
+                                        Padding(
+                                          key: const Key(
+                                            'discover-n3-occurrences-limited',
+                                          ),
+                                          padding: const EdgeInsets.only(
+                                            top: MakoloSpacing.sm,
+                                          ),
+                                          child: Text(
+                                            'D’autres réalisations existent. Cette page '
+                                            'présente uniquement celles communiquées '
+                                            'dans le détail actuel.',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                  ),
+                );
+              },
             );
-          },
-        );
           },
         );
       },
@@ -2668,7 +2694,9 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     _ownerStream = widget.repository.watchSource(
       widget.repository.occurrenceSource(widget.occurrenceId),
     );
-    _previewStream = widget.repository.watchOccurrencePreview(widget.occurrenceId);
+    _previewStream = widget.repository.watchOccurrencePreview(
+      widget.occurrenceId,
+    );
     _detailStream = widget.repository.watchOccurrence(widget.occurrenceId);
   }
 
@@ -2697,7 +2725,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     final id = widget.occurrenceId;
     final repository = widget.repository;
     if (await repository.hasReusableOccurrenceForReading(id)) return;
-    if (mounted && widget.occurrenceId == id &&
+    if (mounted &&
+        widget.occurrenceId == id &&
         identical(repository, widget.repository)) {
       await _refresh();
     }
@@ -2724,15 +2753,18 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
       final source = await widget.repository.readSource(
         widget.repository.occurrenceSource(requestedId),
       );
-      if (!mounted || generation != _generation ||
-          widget.occurrenceId != requestedId) return;
+      if (!mounted ||
+          generation != _generation ||
+          widget.occurrenceId != requestedId)
+        return;
       if (source.lastErrorCode == null &&
           source.lastSuccessAt != null &&
           !source.lastSuccessAt!.isBefore(startedAt) &&
           !source.invalidated) {
         final snapshot = await widget.repository.readOccurrence(requestedId);
         final identity = snapshot?.payload['identity'];
-        if (mounted && generation == _generation &&
+        if (mounted &&
+            generation == _generation &&
             widget.occurrenceId == requestedId &&
             identity is Map &&
             identity['kind'] == 'occurrence' &&
@@ -2766,134 +2798,137 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
         final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
         return StreamBuilder<StoredProjection?>(
           stream: _previewStream,
-      builder: (context, previewSnapshot) {
-        return StreamBuilder<StoredProjection?>(
-          stream: _detailStream,
-          builder: (context, snapshot) {
-            final identity = snapshot.data?.payload['identity'];
-            final ownerIdentityValid = identity is Map &&
-                identity['kind'] == 'occurrence' &&
-                identity['id'] == widget.occurrenceId;
-            final occurrence = owner.ownerUnavailable
-                ? null
-                : (ownerIdentityValid
-                      ? _selector.occurrence(snapshot.data)
-                      : null) ??
-                  _selector.occurrencePreview(previewSnapshot.data);
-            final dayOfVerified =
-                _verifiedOwner &&
-                _dayOfAuthorized &&
-                !_refreshing &&
-                owner.lastErrorCode == null &&
-                !owner.invalidated;
-            return Scaffold(
-              appBar: AppBar(
-                title: Text(
-                  occurrence?.noun ?? 'Réalisation',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                actions: [
-                  IconButton(
-                    tooltip: 'Actualiser',
-                    onPressed: _refreshing ? null : _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+          builder: (context, previewSnapshot) {
+            return StreamBuilder<StoredProjection?>(
+              stream: _detailStream,
+              builder: (context, snapshot) {
+                final identity = snapshot.data?.payload['identity'];
+                final ownerIdentityValid =
+                    identity is Map &&
+                    identity['kind'] == 'occurrence' &&
+                    identity['id'] == widget.occurrenceId;
+                final occurrence = owner.ownerUnavailable
+                    ? null
+                    : (ownerIdentityValid
+                              ? _selector.occurrence(snapshot.data)
+                              : null) ??
+                          _selector.occurrencePreview(previewSnapshot.data);
+                final dayOfVerified =
+                    _verifiedOwner &&
+                    _dayOfAuthorized &&
+                    !_refreshing &&
+                    owner.lastErrorCode == null &&
+                    !owner.invalidated;
+                return Scaffold(
+                  appBar: AppBar(
+                    title: Text(
+                      occurrence?.noun ?? 'Réalisation',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    actions: [
+                      IconButton(
+                        tooltip: 'Actualiser',
+                        onPressed: _refreshing ? null : _refresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              body: MakoloNetworkContextFrame(
-                child: occurrence == null
-                    ? _refreshing
-                          ? const MakoloLoadingState(label: 'Mise à jour…')
-                          : MakoloErrorState(
-                              message: owner.ownerUnavailable
-                                  ? 'Cette réalisation n’est plus accessible.'
-                                  : 'Cette réalisation n’est pas disponible.',
-                              onRetry: _refresh,
-                            )
-                    : ListView(
-                        padding: const EdgeInsets.only(
-                          bottom: MakoloSpacing.xl,
-                        ),
-                        children: [
-                          MakoloDetailHeader(
-                            eyebrow: occurrence.noun ?? 'Réalisation',
-                            title: occurrence.activityTitle,
-                            status: occurrence.state == null
-                                ? null
-                                : MakoloStatus(label: occurrence.state!),
-                            metadata: [
-                              if (occurrence.timing != null)
-                                MakoloMetadataItem(
-                                  'Début : ${occurrence.timing!}',
-                                  icon: Icons.schedule_outlined,
+                  body: MakoloNetworkContextFrame(
+                    child: occurrence == null
+                        ? _refreshing
+                              ? const MakoloLoadingState(label: 'Mise à jour…')
+                              : MakoloErrorState(
+                                  message: owner.ownerUnavailable
+                                      ? 'Cette réalisation n’est plus accessible.'
+                                      : 'Cette réalisation n’est pas disponible.',
+                                  onRetry: _refresh,
+                                )
+                        : ListView(
+                            padding: const EdgeInsets.only(
+                              bottom: MakoloSpacing.xl,
+                            ),
+                            children: [
+                              MakoloDetailHeader(
+                                eyebrow: occurrence.noun ?? 'Réalisation',
+                                title: occurrence.activityTitle,
+                                status: occurrence.state == null
+                                    ? null
+                                    : MakoloStatus(label: occurrence.state!),
+                                metadata: [
+                                  if (occurrence.timing != null)
+                                    MakoloMetadataItem(
+                                      'Début : ${occurrence.timing!}',
+                                      icon: Icons.schedule_outlined,
+                                    ),
+                                  if (occurrence.endTiming != null)
+                                    MakoloMetadataItem(
+                                      'Fin : ${occurrence.endTiming!}',
+                                      icon: Icons.event_outlined,
+                                    ),
+                                  if (occurrence.place != null)
+                                    MakoloMetadataItem(
+                                      occurrence.place!,
+                                      icon: Icons.place_outlined,
+                                    ),
+                                  if (occurrence.availability != null)
+                                    MakoloMetadataItem(
+                                      occurrence.availability!,
+                                      icon: Icons.event_available_outlined,
+                                    ),
+                                ],
+                              ),
+                              if (widget.conversations != null &&
+                                  widget.onOpenConversation != null)
+                                ConversationContextAction(
+                                  repository: widget.conversations!,
+                                  kind: 'occurrence',
+                                  contextId: widget.occurrenceId,
+                                  onOpen: widget.onOpenConversation!,
                                 ),
-                              if (occurrence.endTiming != null)
-                                MakoloMetadataItem(
-                                  'Fin : ${occurrence.endTiming!}',
-                                  icon: Icons.event_outlined,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MakoloSpacing.inner,
                                 ),
-                              if (occurrence.place != null)
-                                MakoloMetadataItem(
-                                  occurrence.place!,
-                                  icon: Icons.place_outlined,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => widget.onOpenActivity(
+                                    occurrence.activityId,
+                                  ),
+                                  icon: const Icon(Icons.arrow_back_rounded),
+                                  label: const Text('Voir l’activité'),
                                 ),
-                              if (occurrence.availability != null)
-                                MakoloMetadataItem(
-                                  occurrence.availability!,
-                                  icon: Icons.event_available_outlined,
+                              ),
+                              if (dayOfVerified && occurrence.canOpenDayOf)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    MakoloSpacing.inner,
+                                    MakoloSpacing.md,
+                                    MakoloSpacing.inner,
+                                    0,
+                                  ),
+                                  child: MakoloAttentionBlock(
+                                    title: 'Jour J disponible',
+                                    body: 'Consultez les informations pratiques pour le Jour J.',
+                                    icon: Icons.directions_walk_rounded,
+                                    action: widget.onOpenDayOf == null
+                                        ? null
+                                        : FilledButton.icon(
+                                            onPressed: widget.onOpenDayOf,
+                                            icon: const Icon(
+                                              Icons.directions_walk_rounded,
+                                            ),
+                                            label: const Text(
+                                              'Ouvrir le Jour J',
+                                            ),
+                                          ),
+                                  ),
                                 ),
                             ],
                           ),
-                          if (widget.conversations != null &&
-                              widget.onOpenConversation != null)
-                            ConversationContextAction(
-                              repository: widget.conversations!,
-                              kind: 'occurrence',
-                              contextId: widget.occurrenceId,
-                              onOpen: widget.onOpenConversation!,
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: MakoloSpacing.inner,
-                            ),
-                            child: OutlinedButton.icon(
-                              onPressed: () =>
-                                  widget.onOpenActivity(occurrence.activityId),
-                              icon: const Icon(Icons.arrow_back_rounded),
-                              label: const Text('Voir l’activité'),
-                            ),
-                          ),
-                          if (dayOfVerified && occurrence.canOpenDayOf)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                MakoloSpacing.inner,
-                                MakoloSpacing.md,
-                                MakoloSpacing.inner,
-                                0,
-                              ),
-                              child: MakoloAttentionBlock(
-                                title: 'Jour J disponible',
-                                body:
-                                    'Consultez les informations pratiques pour le Jour J.',
-                                icon: Icons.directions_walk_rounded,
-                                action: widget.onOpenDayOf == null
-                                    ? null
-                                    : FilledButton.icon(
-                                        onPressed: widget.onOpenDayOf,
-                                        icon: const Icon(
-                                          Icons.directions_walk_rounded,
-                                        ),
-                                        label: const Text('Ouvrir le Jour J'),
-                                      ),
-                              ),
-                            ),
-                        ],
-                      ),
-              ),
+                  ),
+                );
+              },
             );
-          },
-        );
           },
         );
       },

@@ -69,18 +69,32 @@ void main() {
     expect(restored, isNotNull);
     expect(restored!.isShown('server-1'), isTrue);
     expect(restored.unseenKeys, {'server-2'});
-    expect(DiscoveryUnseenReserve.fromPayload(
-      data, profileId: 'profile-b',
-      fieldKey: 'criteria-a', rootReceivedAt: root,
-    ), isNull);
-    expect(DiscoveryUnseenReserve.fromPayload(
-      data, profileId: 'profile-a',
-      fieldKey: 'criteria-b', rootReceivedAt: root,
-    ), isNull);
-    expect(DiscoveryUnseenReserve.fromPayload(
-      data, profileId: 'profile-a',
-      fieldKey: 'criteria-a',
-      rootReceivedAt: root.add(const Duration(seconds: 1)),
-    ), isNull);
+    expect(
+      DiscoveryUnseenReserve.fromPayload(
+        data,
+        profileId: 'profile-b',
+        fieldKey: 'criteria-a',
+        rootReceivedAt: root,
+      ),
+      isNull,
+    );
+    expect(
+      DiscoveryUnseenReserve.fromPayload(
+        data,
+        profileId: 'profile-a',
+        fieldKey: 'criteria-b',
+        rootReceivedAt: root,
+      ),
+      isNull,
+    );
+    expect(
+      DiscoveryUnseenReserve.fromPayload(
+        data,
+        profileId: 'profile-a',
+        fieldKey: 'criteria-a',
+        rootReceivedAt: root.add(const Duration(seconds: 1)),
+      ),
+      isNull,
+    );
   });
 }

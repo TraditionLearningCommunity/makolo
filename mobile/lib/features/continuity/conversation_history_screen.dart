@@ -56,7 +56,8 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
   void initState() {
     super.initState();
     _section = {'history', 'all', 'active'}.contains(widget.initialSection)
-        ? widget.initialSection : 'history';
+        ? widget.initialSection
+        : 'history';
     _query = widget.initialQuery.trim();
     _queryController.text = _query;
     unawaited(_prepare());
@@ -92,17 +93,25 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
   Future<void> _prepare() async {
     if (_query.isEmpty && _section == 'history') {
       try {
-        final source = await widget.repository.readDetailSource(widget.conversationId);
+        final source = await widget.repository.readDetailSource(
+          widget.conversationId,
+        );
         if (source.lastErrorCode == 'permission_denied' ||
             source.lastErrorCode == 'not_found') {
-          if (mounted) setState(() {
-            _error = 'Cette conversation n’est plus accessible.';
-            _initialAttempted = true;
-          });
+          if (mounted)
+            setState(() {
+              _error = 'Cette conversation n’est plus accessible.';
+              _initialAttempted = true;
+            });
           return;
         }
-        final cached = await widget.repository.readPointDepth(widget.conversationId);
-        if (cached != null && mounted && _query.isEmpty && _section == 'history') {
+        final cached = await widget.repository.readPointDepth(
+          widget.conversationId,
+        );
+        if (cached != null &&
+            mounted &&
+            _query.isEmpty &&
+            _section == 'history') {
           setState(() {
             _rows
               ..clear()
@@ -135,9 +144,12 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
         section: priorSection,
         cursor: cursor,
       );
-      if (!mounted || generation != _generation ||
+      if (!mounted ||
+          generation != _generation ||
           widget.conversationId.isEmpty ||
-          _query != priorQuery || _section != priorSection) return;
+          _query != priorQuery ||
+          _section != priorSection)
+        return;
       final arrived = _pointRows(payload['results']);
       setState(() {
         if (reset) _rows.clear();
@@ -259,7 +271,8 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 ),
                 const SizedBox(height: 12),
                 Wrap(
-                  spacing: 8, runSpacing: 8,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     ChoiceChip(
                       key: const Key('conversation-history-history'),
@@ -284,7 +297,9 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 if (_showingLocal)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
-                    child: Text('Dernière lecture sur cet appareil · vérification en cours'),
+                    child: Text(
+                      'Dernière lecture sur cet appareil · vérification en cours',
+                    ),
                   ),
                 if (_error != null) ...[
                   const SizedBox(height: 14),
@@ -337,10 +352,12 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                     ),
                   ),
                 if (_loading && _rows.isNotEmpty)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )),
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -352,7 +369,8 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
 
 class _HistoricalPointRow extends StatelessWidget {
   const _HistoricalPointRow({
-    required this.row, required this.onOpen,
+    required this.row,
+    required this.onOpen,
     required this.onOpenRelated,
   });
   final Map<String, dynamic> row;
@@ -385,9 +403,13 @@ class _HistoricalPointRow extends StatelessWidget {
     final replacement = row['replaced_by_point_id']?.toString();
     return Semantics(
       button: true,
-      label: [kind, title, lifecycle, resolution, 'Ouvrir le Point'].where(
-        (v) => v.isNotEmpty,
-      ).join(', '),
+      label: [
+        kind,
+        title,
+        lifecycle,
+        resolution,
+        'Ouvrir le Point',
+      ].where((v) => v.isNotEmpty).join(', '),
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(

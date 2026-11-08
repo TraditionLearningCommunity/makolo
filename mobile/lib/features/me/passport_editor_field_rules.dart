@@ -23,8 +23,13 @@ class PassportEditorFieldRules {
   };
 
   static const Set<String> linkFields = {
-    'website', 'linkedin_url', 'facebook_url', 'instagram_url',
-    'tiktok_url', 'x_url', 'youtube_url',
+    'website',
+    'linkedin_url',
+    'facebook_url',
+    'instagram_url',
+    'tiktok_url',
+    'x_url',
+    'youtube_url',
   };
 
   static const Map<String, List<String>> socialHosts = {
@@ -39,15 +44,56 @@ class PassportEditorFieldRules {
   // Mirrors Accounts' reserved slugs for immediate feedback.
   // Server-side Accounts validation is the final authority.
   static const Set<String> reservedIdentifiers = {
-    'admin', 'api', 'help', 'login', 'logout', 'makolo', 'me',
-    'support', 'system', 'account', 'activities', 'analytics', 'auth',
-    'autopilot', 'conversations', 'crm', 'dashboard', 'discover',
-    'events', 'funding', 'g', 'goals', 'groups', 'growth', 'journeys',
-    'library', 'mark', 'network', 'notifications', 'o', 'objectives',
-    'obtention', 'operations', 'opportunities', 'partners', 'passport',
-    'payments', 'preparation', 'promotions', 'questionnaires',
-    'recognition', 'scanner', 'services', 'shares', 'sharing', 'spaces',
-    'subscription', 'tickets', 'transport', 'trust',
+    'admin',
+    'api',
+    'help',
+    'login',
+    'logout',
+    'makolo',
+    'me',
+    'support',
+    'system',
+    'account',
+    'activities',
+    'analytics',
+    'auth',
+    'autopilot',
+    'conversations',
+    'crm',
+    'dashboard',
+    'discover',
+    'events',
+    'funding',
+    'g',
+    'goals',
+    'groups',
+    'growth',
+    'journeys',
+    'library',
+    'mark',
+    'network',
+    'notifications',
+    'o',
+    'objectives',
+    'obtention',
+    'operations',
+    'opportunities',
+    'partners',
+    'passport',
+    'payments',
+    'preparation',
+    'promotions',
+    'questionnaires',
+    'recognition',
+    'scanner',
+    'services',
+    'shares',
+    'sharing',
+    'spaces',
+    'subscription',
+    'tickets',
+    'transport',
+    'trust',
   };
 
   static bool isLink(String key) => linkFields.contains(key);
@@ -61,7 +107,8 @@ class PassportEditorFieldRules {
     }
     if (isLink(key)) {
       final withoutScheme = input.replaceFirst(
-        RegExp(r'^(?:(?:https?):\/\/)+', caseSensitive: false), '',
+        RegExp(r'^(?:(?:https?):\/\/)+', caseSensitive: false),
+        '',
       );
       // A half-entered host is not yet something we can confidently fix.
       if (!withoutScheme.contains('.') ||
@@ -83,9 +130,8 @@ class PassportEditorFieldRules {
       if (value.runes.length < 3 || value.runes.length > 30) {
         return '3 à 30 caractères.';
       }
-      if (!RegExp(
-        r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$',
-      ).hasMatch(value)) {
+      if (!RegExp(r'^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$')
+          .hasMatch(value)) {
         return 'Identifiant invalide.';
       }
       if (reservedIdentifiers.contains(value)) return 'Identifiant réservé.';
@@ -98,7 +144,8 @@ class PassportEditorFieldRules {
     }
 
     if (key == 'phone') {
-      if (!RegExp(r'^(?:\+?[0-9][0-9() .-]*|\(\+[0-9]{1,4}\)[0-9() .-]*)$').hasMatch(value)) {
+      if (!RegExp(r'^(?:\+?[0-9][0-9() .-]*|\(\+[0-9]{1,4}\)[0-9() .-]*)$')
+          .hasMatch(value)) {
         return 'Numéro invalide.';
       }
       final digits = RegExp(r'[0-9]').allMatches(value).length;
@@ -108,20 +155,22 @@ class PassportEditorFieldRules {
     if (isLink(key)) {
       if (RegExp(r'\s').hasMatch(value)) return 'Lien invalide.';
       final uri = Uri.tryParse(value);
-      if (uri == null || uri.scheme != 'https' ||
-          uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host.isEmpty ||
+          uri.userInfo.isNotEmpty) {
         return 'Lien invalide.';
       }
       final host = uri.host.toLowerCase();
-      if (!RegExp(
-        r'^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9-]{2,63}$',
-      ).hasMatch(host)) {
+      if (!RegExp(r'^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9-]{2,63}$')
+          .hasMatch(host)) {
         return 'Lien invalide.';
       }
       final requiredHosts = socialHosts[key];
       if (requiredHosts != null &&
-          !requiredHosts.any((domain) =>
-              host == domain || host.endsWith('.$domain'))) {
+          !requiredHosts.any(
+            (domain) => host == domain || host.endsWith('.$domain'),
+          )) {
         return 'Lien invalide.';
       }
     }
@@ -132,9 +181,12 @@ class PassportEditorFieldRules {
       }
       final parsed = DateTime.tryParse(value);
       if (parsed == null ||
-          parsed.year.toString().padLeft(4, '0') + '-' +
-              parsed.month.toString().padLeft(2, '0') + '-' +
-              parsed.day.toString().padLeft(2, '0') != value ||
+          parsed.year.toString().padLeft(4, '0') +
+                  '-' +
+                  parsed.month.toString().padLeft(2, '0') +
+                  '-' +
+                  parsed.day.toString().padLeft(2, '0') !=
+              value ||
           parsed.isAfter(DateTime.now())) {
         return 'Date invalide.';
       }

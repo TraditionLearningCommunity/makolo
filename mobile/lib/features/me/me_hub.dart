@@ -100,33 +100,37 @@ class _MeHubState extends State<MeHub> {
   void _bindLocalPreviews() {
     final store = widget.store;
     if (store == null) return;
-    _accessSourceSubscription = watchOwnerSourceState(
-      database: store.database,
-      profileId: store.profileId,
-      sourceKey: 'accesses:beneficiary:0:24',
-    ).listen((state) {
-      if (mounted && widget.store == store) {
-        setState(() => _accessInvalidated = state.invalidated);
-      }
-    });
-    _historySourceSubscription = watchOwnerSourceState(
-      database: store.database,
-      profileId: store.profileId,
-      sourceKey: 'history:0:24',
-    ).listen((state) {
-      if (mounted && widget.store == store) {
-        setState(() => _historyInvalidated = state.invalidated);
-      }
-    });
-    _accessSubscription = store.watchProjections('personal.accesses')
-        .listen((pages) {
+    _accessSourceSubscription =
+        watchOwnerSourceState(
+          database: store.database,
+          profileId: store.profileId,
+          sourceKey: 'accesses:beneficiary:0:24',
+        ).listen((state) {
+          if (mounted && widget.store == store) {
+            setState(() => _accessInvalidated = state.invalidated);
+          }
+        });
+    _historySourceSubscription =
+        watchOwnerSourceState(
+          database: store.database,
+          profileId: store.profileId,
+          sourceKey: 'history:0:24',
+        ).listen((state) {
+          if (mounted && widget.store == store) {
+            setState(() => _historyInvalidated = state.invalidated);
+          }
+        });
+    _accessSubscription = store.watchProjections('personal.accesses').listen((
+      pages,
+    ) {
       if (!mounted || store != widget.store) return;
       final preview = <MeItemPresentation>[];
       final seen = <String>{};
-      final ordered = pages
-          .where((page) => page.resourceKey.startsWith('beneficiary:'))
-          .toList()
-        ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+      final ordered =
+          pages
+              .where((page) => page.resourceKey.startsWith('beneficiary:'))
+              .toList()
+            ..sort((a, b) => _offset(a).compareTo(_offset(b)));
       for (final page in ordered) {
         final items = page.payload['items'];
         if (items is! List) continue;
@@ -150,8 +154,9 @@ class _MeHubState extends State<MeHub> {
       }
       setState(() => _accessPreviews = preview);
     });
-    _historySubscription = store.watchProjections('personal.history')
-        .listen((pages) {
+    _historySubscription = store.watchProjections('personal.history').listen((
+      pages,
+    ) {
       if (!mounted || store != widget.store) return;
       final preview = <MeItemPresentation>[];
       final seen = <String>{};
@@ -338,7 +343,12 @@ class _MeHubState extends State<MeHub> {
     return OutlinedButton.icon(
       key: Key('me-shortcut-$kind'),
       onPressed: widget.canNavigate ? () => _open(kind, title) : null,
-      icon: _MeHubSymbol(kind: kind, fallback: icon, size: 22, color: Theme.of(context).colorScheme.primary),
+      icon: _MeHubSymbol(
+        kind: kind,
+        fallback: icon,
+        size: 22,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       label: Text(title, maxLines: 2, textAlign: TextAlign.center),
       style: OutlinedButton.styleFrom(
         alignment: Alignment.center,
@@ -347,9 +357,7 @@ class _MeHubState extends State<MeHub> {
         side: BorderSide(
           color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       ),
     );
   }
@@ -390,9 +398,8 @@ class _MeHubState extends State<MeHub> {
               Expanded(
                 child: Text(
                   'Mon espace',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               SegmentedButton<_MeLayout>(
@@ -512,10 +519,18 @@ class _MeHubListEntry extends StatelessWidget {
               key: Key('me-entry-${entry.kind}'),
               onTap: canNavigate ? onOpen : null,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 14,
+                ),
                 child: Row(
                   children: [
-                    _MeHubSymbol(kind: entry.kind, fallback: entry.icon, size: 24, color: scheme.primary),
+                    _MeHubSymbol(
+                      kind: entry.kind,
+                      fallback: entry.icon,
+                      size: 24,
+                      color: scheme.primary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -610,9 +625,11 @@ class _MeHubGridEntry extends StatelessWidget {
     final count = entry.count;
     if (count == null || count <= 0) return null;
     return switch (entry.kind) {
-      'saved_collection' => '$count ${count == 1 ? 'opportunité' : 'opportunités'}',
+      'saved_collection' =>
+        '$count ${count == 1 ? 'opportunité' : 'opportunités'}',
       'collectives' => '$count ${count == 1 ? 'collectif' : 'collectifs'}',
-      'resource_collection' => '$count ${count == 1 ? 'ressource' : 'ressources'}',
+      'resource_collection' =>
+        '$count ${count == 1 ? 'ressource' : 'ressources'}',
       _ => null,
     };
   }
@@ -732,70 +749,70 @@ class _MeDomainSymbolPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     if (kind == 'project_collection') {
-        // One living horizon: a crown, a trunk and visible roots.
-        final crown = Path()
-          ..moveTo(18, 5)
-          ..cubicTo(15, 2, 9, 4, 9, 9)
-          ..cubicTo(4, 8, 2, 14, 6, 18)
-          ..cubicTo(9, 22, 13, 21, 18, 20)
-          ..cubicTo(23, 22, 29, 21, 31, 17)
-          ..cubicTo(34, 13, 31, 9, 26, 9)
-          ..cubicTo(25, 4, 21, 3, 18, 5)
-          ..close();
-        canvas.drawPath(crown, stroke);
-        canvas.drawLine(const Offset(18, 19), const Offset(18, 29), stroke);
-        canvas.drawLine(const Offset(18, 24), const Offset(13, 17), stroke);
-        canvas.drawLine(const Offset(18, 23), const Offset(23, 17), stroke);
-        canvas.drawLine(const Offset(18, 29), const Offset(10, 33), stroke);
-        canvas.drawLine(const Offset(18, 29), const Offset(25, 33), stroke);
-        canvas.drawLine(const Offset(18, 30), const Offset(18, 34), stroke);
+      // One living horizon: a crown, a trunk and visible roots.
+      final crown = Path()
+        ..moveTo(18, 5)
+        ..cubicTo(15, 2, 9, 4, 9, 9)
+        ..cubicTo(4, 8, 2, 14, 6, 18)
+        ..cubicTo(9, 22, 13, 21, 18, 20)
+        ..cubicTo(23, 22, 29, 21, 31, 17)
+        ..cubicTo(34, 13, 31, 9, 26, 9)
+        ..cubicTo(25, 4, 21, 3, 18, 5)
+        ..close();
+      canvas.drawPath(crown, stroke);
+      canvas.drawLine(const Offset(18, 19), const Offset(18, 29), stroke);
+      canvas.drawLine(const Offset(18, 24), const Offset(13, 17), stroke);
+      canvas.drawLine(const Offset(18, 23), const Offset(23, 17), stroke);
+      canvas.drawLine(const Offset(18, 29), const Offset(10, 33), stroke);
+      canvas.drawLine(const Offset(18, 29), const Offset(25, 33), stroke);
+      canvas.drawLine(const Offset(18, 30), const Offset(18, 34), stroke);
     } else if (kind == 'dossier_collection') {
-        // Papers extend above the folder, so it cannot be mistaken for assets.
-        final paper = Path()
-          ..moveTo(13, 13)
-          ..lineTo(13, 4)
-          ..lineTo(24, 4)
-          ..lineTo(28, 8)
-          ..lineTo(28, 20);
-        canvas.drawPath(paper, stroke);
-        canvas.drawLine(const Offset(24, 4), const Offset(24, 9), stroke);
-        canvas.drawLine(const Offset(24, 9), const Offset(28, 9), stroke);
-        canvas.drawLine(const Offset(17, 12), const Offset(24, 12), stroke);
-        final folder = Path()
-          ..moveTo(3, 13)
-          ..lineTo(3, 31)
-          ..lineTo(33, 31)
-          ..lineTo(33, 15)
-          ..lineTo(19, 15)
-          ..lineTo(16, 12)
-          ..lineTo(3, 12)
-          ..close();
-        canvas.drawPath(folder, stroke);
-        canvas.drawLine(const Offset(8, 22), const Offset(28, 22), stroke);
+      // Papers extend above the folder, so it cannot be mistaken for assets.
+      final paper = Path()
+        ..moveTo(13, 13)
+        ..lineTo(13, 4)
+        ..lineTo(24, 4)
+        ..lineTo(28, 8)
+        ..lineTo(28, 20);
+      canvas.drawPath(paper, stroke);
+      canvas.drawLine(const Offset(24, 4), const Offset(24, 9), stroke);
+      canvas.drawLine(const Offset(24, 9), const Offset(28, 9), stroke);
+      canvas.drawLine(const Offset(17, 12), const Offset(24, 12), stroke);
+      final folder = Path()
+        ..moveTo(3, 13)
+        ..lineTo(3, 31)
+        ..lineTo(33, 31)
+        ..lineTo(33, 15)
+        ..lineTo(19, 15)
+        ..lineTo(16, 12)
+        ..lineTo(3, 12)
+        ..close();
+      canvas.drawPath(folder, stroke);
+      canvas.drawLine(const Offset(8, 22), const Offset(28, 22), stroke);
     } else if (kind == 'resource_collection') {
-        // Three independent files, not another folder or project.
-        final backFile = Path()
-          ..moveTo(5, 12)
-          ..lineTo(5, 32)
-          ..lineTo(23, 32);
-        final middleFile = Path()
-          ..moveTo(10, 8)
-          ..lineTo(10, 28)
-          ..lineTo(28, 28);
-        final frontFile = Path()
-          ..moveTo(15, 4)
-          ..lineTo(27, 4)
-          ..lineTo(32, 9)
-          ..lineTo(32, 24)
-          ..lineTo(15, 24)
-          ..close();
-        canvas.drawPath(backFile, stroke);
-        canvas.drawPath(middleFile, stroke);
-        canvas.drawPath(frontFile, stroke);
-        canvas.drawLine(const Offset(27, 4), const Offset(27, 9), stroke);
-        canvas.drawLine(const Offset(27, 9), const Offset(32, 9), stroke);
-        canvas.drawLine(const Offset(19, 14), const Offset(27, 14), stroke);
-        canvas.drawLine(const Offset(19, 19), const Offset(27, 19), stroke);
+      // Three independent files, not another folder or project.
+      final backFile = Path()
+        ..moveTo(5, 12)
+        ..lineTo(5, 32)
+        ..lineTo(23, 32);
+      final middleFile = Path()
+        ..moveTo(10, 8)
+        ..lineTo(10, 28)
+        ..lineTo(28, 28);
+      final frontFile = Path()
+        ..moveTo(15, 4)
+        ..lineTo(27, 4)
+        ..lineTo(32, 9)
+        ..lineTo(32, 24)
+        ..lineTo(15, 24)
+        ..close();
+      canvas.drawPath(backFile, stroke);
+      canvas.drawPath(middleFile, stroke);
+      canvas.drawPath(frontFile, stroke);
+      canvas.drawLine(const Offset(27, 4), const Offset(27, 9), stroke);
+      canvas.drawLine(const Offset(27, 9), const Offset(32, 9), stroke);
+      canvas.drawLine(const Offset(19, 14), const Offset(27, 14), stroke);
+      canvas.drawLine(const Offset(19, 19), const Offset(27, 19), stroke);
     }
     canvas.restore();
   }

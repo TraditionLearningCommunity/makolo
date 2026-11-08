@@ -48,8 +48,7 @@ class SpaceWorkOwnerActions extends StatelessWidget {
           '/api/v1/organizations/workspaces/$spacePart/requests/$idPart/',
         'open_service_case_native' =>
           '/api/v1/organizations/workspaces/$spacePart/work/service-cases/$idPart/',
-        'open_day_of' =>
-          '/api/v1/operations/occurrences/$idPart/day-of/',
+        'open_day_of' => '/api/v1/operations/occurrences/$idPart/day-of/',
         _ => null,
       };
       if (ownerUrl == null ||
@@ -75,7 +74,8 @@ class SpaceWorkOwnerActions extends StatelessWidget {
           id == sourceId) {
         title = 'Suivre le dossier de prestation';
         icon = Icons.work_outline;
-        route = '/space/${Uri.encodeComponent(slug)}'
+        route =
+            '/space/${Uri.encodeComponent(slug)}'
             '/services/cases/${Uri.encodeComponent(id)}';
       } else if (intent == 'open_day_of' &&
           canOpenDayOf &&

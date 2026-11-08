@@ -18,7 +18,9 @@ class ProfilePaths {
         !profileId.startsWith(prefix)) {
       return profileId;
     }
-    final encoded = base64Url.encode(utf8.encode(profileId)).replaceAll('=', '');
+    final encoded = base64Url
+        .encode(utf8.encode(profileId))
+        .replaceAll('=', '');
     return '$prefix$encoded';
   }
 

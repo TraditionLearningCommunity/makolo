@@ -25,7 +25,10 @@ void main() {
                     },
                     'valid_until': '2026-12-01T10:00:00Z',
                     'permissions': [
-                      {'code': 'finance.view', 'label': 'Consulter les montants'},
+                      {
+                        'code': 'finance.view',
+                        'label': 'Consulter les montants',
+                      },
                     ],
                   },
                 ],
@@ -50,9 +53,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: SpaceUsAuthorityFacts(payload: {'mandates': []}),
-        ),
+        home: Scaffold(body: SpaceUsAuthorityFacts(payload: {'mandates': []})),
       ),
     );
     expect(find.text('Aucune autorisation active.'), findsOneWidget);

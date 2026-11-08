@@ -299,7 +299,9 @@ void main() {
       expect(find.text('Recherche'), findsOneWidget);
     },
   );
-  testWidgets('native owner can revoke an issued version and refresh history', (tester) async {
+  testWidgets('native owner can revoke an issued version and refresh history', (
+    tester,
+  ) async {
     final api = _DatedPassportApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
@@ -316,40 +318,48 @@ void main() {
     expect(find.textContaining('Révoqué'), findsWidgets);
   });
 
-  testWidgets('native owner can revoke one share without revoking the version', (tester) async {
-    final api = _DatedPassportApi(withShares: true);
-    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'native owner can revoke one share without revoking the version',
+    (tester) async {
+      final api = _DatedPassportApi(withShares: true);
+      await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Versions datées'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('PM-P-20261030-11111111'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Révoquer un lien de partage'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Révoquer le lien'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Versions datées'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('PM-P-20261030-11111111'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Révoquer un lien de partage'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Révoquer le lien'));
+      await tester.pumpAndSettle();
 
-    expect(api.lastPostPath, 'api/v1/me/passport/shares/$_shareId/revoke/');
-    expect(api.shareRevoked, isTrue);
-    expect(api.revoked, isFalse);
-  });
+      expect(api.lastPostPath, 'api/v1/me/passport/shares/$_shareId/revoke/');
+      expect(api.shareRevoked, isTrue);
+      expect(api.revoked, isFalse);
+    },
+  );
 
-  testWidgets('network error is recoverable and variant controls remain available', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(home: MePassportScreen(api: _UnavailablePassportApi())),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'network error is recoverable and variant controls remain available',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: MePassportScreen(api: _UnavailablePassportApi())),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('Passeport indisponible'), findsOneWidget);
-    expect(find.text('Réessayer'), findsOneWidget);
-    expect(find.text('Public'), findsOneWidget);
-    await tester.tap(find.text('Réessayer'));
-    await tester.pumpAndSettle();
-    expect(find.text('Réessayer'), findsOneWidget);
-  });
+      expect(find.textContaining('Passeport indisponible'), findsOneWidget);
+      expect(find.text('Réessayer'), findsOneWidget);
+      expect(find.text('Public'), findsOneWidget);
+      await tester.tap(find.text('Réessayer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Réessayer'), findsOneWidget);
+    },
+  );
 
-  testWidgets('four Passport tabs compose locally from one owner response', (tester) async {
+  testWidgets('four Passport tabs compose locally from one owner response', (
+    tester,
+  ) async {
     final api = _OneShotPassportApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
@@ -374,16 +384,20 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Informations personnelles'),
       250,
-      scrollable: find.descendant(
-        of: find.byType(ListView).first,
-        matching: find.byType(Scrollable),
-      ).first,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     expect(find.text('Informations personnelles'), findsOneWidget);
     expect(api.ownerFetches, 1);
   });
 
-  testWidgets('switching Passport variant never paints previous private data', (tester) async {
+  testWidgets('switching Passport variant never paints previous private data', (
+    tester,
+  ) async {
     final api = _DelayedVariantApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
@@ -393,20 +407,24 @@ void main() {
     await tester.pump();
     expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
 
-    api.publicResult.complete(api._envelope('personal.me.passport', {
-      'variant': 'public',
-      'identity': {'name': 'Profil public', 'links': const []},
-      'declared': {'interests': const [], 'open_to': const []},
-      'activities': const [],
-      'established': {'proofs': const []},
-      'issued': {'credentials': const []},
-    }));
+    api.publicResult.complete(
+      api._envelope('personal.me.passport', {
+        'variant': 'public',
+        'identity': {'name': 'Profil public', 'links': const []},
+        'declared': {'interests': const [], 'open_to': const []},
+        'activities': const [],
+        'established': {'proofs': const []},
+        'issued': {'credentials': const []},
+      }),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Profil public'), findsOneWidget);
     expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
   });
 
-  testWidgets('version issuance remains available when sharing a selection', (tester) async {
+  testWidgets('version issuance remains available when sharing a selection', (
+    tester,
+  ) async {
     final api = _VariantPassportApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
@@ -417,52 +435,63 @@ void main() {
     await tester.tap(find.text('Copier le lien du Passeport'));
     await tester.pumpAndSettle();
     expect(
-      api.postedPaths.any((p) =>
-        p.contains('api/v1/me/passport/issue/') &&
-        p.contains('variant=public'),
-      ), isTrue,
+      api.postedPaths.any(
+        (p) =>
+            p.contains('api/v1/me/passport/issue/') &&
+            p.contains('variant=public'),
+      ),
+      isTrue,
     );
     expect(
-      api.postedPaths.any((p) =>
-        p.contains('api/v1/me/passport/history/$_versionId/share/'),
-      ), isTrue,
+      api.postedPaths.any(
+        (p) => p.contains('api/v1/me/passport/history/$_versionId/share/'),
+      ),
+      isTrue,
     );
   });
 
-  testWidgets('main share sheet keeps exactly four actions, history is separate', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(home: MePassportScreen(api: _VariantPassportApi())),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Partager le Passeport'));
-    await tester.pumpAndSettle();
-    expect(find.text('Partager le PDF'), findsOneWidget);
-    expect(find.text('Partager dans Makolo'), findsOneWidget);
-    expect(find.text('Partager le lien public'), findsOneWidget);
-    expect(find.text('Copier le lien du Passeport'), findsOneWidget);
-    expect(find.text('Partager une ancienne version'), findsNothing);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Versions datées'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Partager cette version'), findsOneWidget);
-    expect(find.byTooltip('Télécharger cette version'), findsOneWidget);
-    expect(find.byTooltip('Révoquer cette version'), findsOneWidget);
-  });
+  testWidgets(
+    'main share sheet keeps exactly four actions, history is separate',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: MePassportScreen(api: _VariantPassportApi())),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Partager le Passeport'));
+      await tester.pumpAndSettle();
+      expect(find.text('Partager le PDF'), findsOneWidget);
+      expect(find.text('Partager dans Makolo'), findsOneWidget);
+      expect(find.text('Partager le lien public'), findsOneWidget);
+      expect(find.text('Copier le lien du Passeport'), findsOneWidget);
+      expect(find.text('Partager une ancienne version'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Versions datées'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Partager cette version'), findsOneWidget);
+      expect(find.byTooltip('Télécharger cette version'), findsOneWidget);
+      expect(find.byTooltip('Révoquer cette version'), findsOneWidget);
+    },
+  );
 
-  testWidgets('public and empty thematic variants retain the identity baseline', (tester) async {
-    final api = _VariantPassportApi();
-    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Public'));
-    await tester.pumpAndSettle();
-    expect(find.text('Profil exemple'), findsOneWidget);
-    expect(find.textContaining('uniquement les informations renseignées'), findsNothing);
+  testWidgets(
+    'public and empty thematic variants retain the identity baseline',
+    (tester) async {
+      final api = _VariantPassportApi();
+      await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Public'));
+      await tester.pumpAndSettle();
+      expect(find.text('Profil exemple'), findsOneWidget);
+      expect(
+        find.textContaining('uniquement les informations renseignées'),
+        findsNothing,
+      );
 
-    await tester.tap(find.text('Thématique'));
-    await tester.pumpAndSettle();
-    expect(find.text('Profil exemple'), findsOneWidget);
-    expect(find.textContaining('Aucun thème sélectionnable'), findsNothing);
-  });
-
+      await tester.tap(find.text('Thématique'));
+      await tester.pumpAndSettle();
+      expect(find.text('Profil exemple'), findsOneWidget);
+      expect(find.textContaining('Aucun thème sélectionnable'), findsNothing);
+    },
+  );
 }

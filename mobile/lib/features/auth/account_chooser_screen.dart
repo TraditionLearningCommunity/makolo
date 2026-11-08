@@ -259,7 +259,10 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                 onPressed: widget.onAddAccount,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.82), width: 1.25),
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    width: 1.25,
+                  ),
                   minimumSize: const Size.fromHeight(54),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(MakoloRadii.card),

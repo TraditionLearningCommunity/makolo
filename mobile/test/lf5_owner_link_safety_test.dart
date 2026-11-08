@@ -7,15 +7,13 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 class _NeverNetworkApi implements MakoloApiClient {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
   const version = '12345678-1234-1234-1234-123456789abc';
 
-  test('resource bytes and reuse only accept same-origin owner actions',
-      () async {
+  test('resource bytes and reuse only accept same-origin owner actions', () async {
     final db = MakoloDatabase.memory();
     addTearDown(db.close);
     final repo = ResourceRepository(
@@ -33,7 +31,8 @@ void main() {
     ]) {
       await expectLater(
         repo.downloadVersion(
-          path: path, destinationPath: '/unused/never-created',
+          path: path,
+          destinationPath: '/unused/never-created',
         ),
         throwsFormatException,
       );

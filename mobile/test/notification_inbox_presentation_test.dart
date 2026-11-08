@@ -11,7 +11,9 @@ import 'package:makolo_mobile/notifications/notification_screens.dart';
 import 'support/presentation_harness.dart';
 
 void main() {
-  testWidgets('contextual inbox and empty unread stay readable', (tester) async {
+  testWidgets('contextual inbox and empty unread stay readable', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
@@ -19,7 +21,10 @@ void main() {
       kind: NotificationRepository.listProjectionKind,
       schemaVersion: 1,
       payload: {
-        'count': 1, 'total_count': 1, 'unread_count': 0, 'next': null,
+        'count': 1,
+        'total_count': 1,
+        'unread_count': 0,
+        'next': null,
         'results': [
           {
             'id': 'journey-confirmed',
@@ -34,12 +39,18 @@ void main() {
       kind: NotificationRepository.unreadProjectionKind,
       schemaVersion: 1,
       payload: {
-        'count': 0, 'total_count': 1, 'unread_count': 0,
-        'next': null, 'results': <Object>[],
+        'count': 0,
+        'total_count': 1,
+        'unread_count': 0,
+        'next': null,
+        'results': <Object>[],
       },
     );
     final repository = NotificationRepository(
-      database: database, store: store, profileId: 'profile-a', sync: null,
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
     );
     await PresentationHarness.pump(
       tester,
@@ -62,7 +73,9 @@ void main() {
     expect(find.text('Toutes (1)'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('offline cached inbox uses only the slim network line', (tester) async {
+  testWidgets('offline cached inbox uses only the slim network line', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
@@ -107,5 +120,4 @@ void main() {
     expect(find.text('Actualisation indisponible.'), findsNothing);
     expect(tester.takeException(), isNull);
   });
-
 }

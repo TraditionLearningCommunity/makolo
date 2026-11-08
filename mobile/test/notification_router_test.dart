@@ -32,10 +32,12 @@ void main() {
 
   test('unsupported priority cannot manufacture an owner handoff', () {
     const router = NotificationRouter();
-    expect(router.resolveNavigation({
-      'schema_version': 1,
-      'resource': {'kind': 'ticket', 'id': 'ticket-42'},
-    }), isNull);
+    expect(
+      router.resolveNavigation({
+        'schema_version': 1,
+        'resource': {'kind': 'ticket', 'id': 'ticket-42'},
+      }),
+      isNull,
+    );
   });
-
 }

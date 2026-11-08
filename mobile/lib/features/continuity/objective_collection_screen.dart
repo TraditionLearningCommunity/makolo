@@ -138,7 +138,8 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
         _loadingFirst ||
         !_hasFirst ||
         page == null ||
-        !page.hasMore) return;
+        !page.hasMore)
+      return;
     unawaited(_loadMore(page));
   }
 
@@ -150,10 +151,7 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
     _lastRequest = key;
     setState(() => _loadingMore = true);
     try {
-      await repository.refreshCollectionPage(
-        kind,
-        offset: page.nextOffset,
-      );
+      await repository.refreshCollectionPage(kind, offset: page.nextOffset);
       final received = await repository.readCollectionPage(
         kind,
         offset: page.nextOffset,
@@ -209,8 +207,8 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
           final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
-          _offline = offline ||
-              source.reachability == ReachabilityState.unreachable;
+          _offline =
+              offline || source.reachability == ReachabilityState.unreachable;
           if (source.invalidated) {
             return Center(
               child: Text(
@@ -264,7 +262,9 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
                   children: [
                     if (personal.isNotEmpty) ...[
                       Text(
-                        isDossier ? 'Mes dossiers personnels' : 'Mes projets personnels',
+                        isDossier
+                            ? 'Mes dossiers personnels'
+                            : 'Mes projets personnels',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       for (final item in personal)
@@ -276,7 +276,9 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
                     if (other.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(
-                        isDossier ? 'Autres dossiers accessibles' : 'Autres projets accessibles',
+                        isDossier
+                            ? 'Autres dossiers accessibles'
+                            : 'Autres projets accessibles',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       for (final item in other)
@@ -414,13 +416,15 @@ class _ObjectivePage {
           actor['id']?.toString() != profileId ||
           page is! Map ||
           raw is! List ||
-          page['offset'] != expected) break;
+          page['offset'] != expected)
+        break;
       hasFirst = true;
       for (final candidate in raw) {
         if (candidate is! Map ||
             candidate['kind'] != kind.name ||
             candidate['id'] is! String ||
-            candidate['title'] is! String) continue;
+            candidate['title'] is! String)
+          continue;
         final id = candidate['id'] as String;
         if (!seen.add(id)) continue;
         final space = candidate['space'];
@@ -454,8 +458,6 @@ class _ObjectivePage {
 
   static int _offset(StoredProjection snapshot) {
     final page = snapshot.payload['page'];
-    return page is Map && page['offset'] is int
-        ? page['offset'] as int
-        : 0;
+    return page is Map && page['offset'] is int ? page['offset'] as int : 0;
   }
 }

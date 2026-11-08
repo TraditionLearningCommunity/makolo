@@ -19,13 +19,12 @@ typedef OutboxHandler = Future<OutboxResolution> Function(
 typedef OutboxReconciler = Future<OutboxResolution> Function(
   OutboxOperation operation,
 );
-typedef OutboxDispatchGate = Future<bool> Function(
-  OutboxOperation operation,
-);
+typedef OutboxDispatchGate = Future<bool> Function(OutboxOperation operation);
 
 class OutboxProcessor {
-  static final Expando<Set<String>> _activeClaims =
-      Expando<Set<String>>('outbox-claims-per-database');
+  static final Expando<Set<String>> _activeClaims = Expando<Set<String>>(
+    'outbox-claims-per-database',
+  );
   OutboxProcessor({
     required this.repository,
     required this.handlers,
@@ -38,13 +37,16 @@ class OutboxProcessor {
   final OutboxRepository repository;
   final Map<String, OutboxHandler> handlers;
   final Map<String, OutboxReconciler> reconcilers;
+
   /// Prevent an operation of another domain from using a registered handler.
   /// The owner endpoint still rechecks authority at execution time.
   final Map<String, String> expectedOwners;
+
   /// Bind an operation kind to the policy proved by its canonical owner.
   /// A modified local payload cannot quietly turn a guarded form into
   /// a "safe" blind replay.
   final Map<String, ReplayPolicy> expectedReplayPolicies;
+
   /// Recheck the authenticated Profile before owner reads and mutations.
   /// Device-owned outbox rows do not themselves authorize another actor.
   final OutboxDispatchGate? canDispatch;
@@ -104,7 +106,7 @@ class OutboxProcessor {
         }
         if (policy.requiresOwnerIdempotency &&
             (operation.ownerIdempotencyKey == null ||
-             operation.ownerIdempotencyKey!.isEmpty)) {
+                operation.ownerIdempotencyKey!.isEmpty)) {
           await repository.setState(
             operation.operationId,
             OutboxState.awaitingConfirmation,
@@ -118,8 +120,8 @@ class OutboxProcessor {
         List<String> dependencies;
         try {
           final decoded = jsonDecode(operation.dependencyIdsJson);
-          if (decoded is! List || decoded.any((item) =>
-              item is! String || item.isEmpty)) {
+          if (decoded is! List ||
+              decoded.any((item) => item is! String || item.isEmpty)) {
             throw const FormatException('Invalid Outbox dependencies');
           }
           dependencies = decoded.cast<String>();
@@ -153,12 +155,14 @@ class OutboxProcessor {
         }
         if (dependencies.isNotEmpty) {
           final states = await repository.dependencyStates(dependencies);
-          final permanentlyFailed =
-              await repository.permanentlyFailedDependencies(dependencies);
-          if (dependencies.any((id) =>
-              states[id] == OutboxState.conflict.wireValue ||
-              states[id] == OutboxState.cancelled.wireValue ||
-              permanentlyFailed.contains(id))) {
+          final permanentlyFailed = await repository
+              .permanentlyFailedDependencies(dependencies);
+          if (dependencies.any(
+            (id) =>
+                states[id] == OutboxState.conflict.wireValue ||
+                states[id] == OutboxState.cancelled.wireValue ||
+                permanentlyFailed.contains(id),
+          )) {
             await repository.setState(
               operation.operationId,
               OutboxState.conflict,
@@ -166,8 +170,10 @@ class OutboxProcessor {
             );
             continue;
           }
-          if (dependencies.any((id) =>
-              states[id] != OutboxState.confirmed.wireValue)) continue;
+          if (dependencies.any(
+            (id) => states[id] != OutboxState.confirmed.wireValue,
+          ))
+            continue;
         }
 
         if (policy.requiresReconciliationBeforeReplay &&
@@ -188,12 +194,14 @@ class OutboxProcessor {
 
         if (!_active) return;
         if (operation.state == OutboxState.awaitingConfirmation.wireValue &&
-            !policy.requiresReconciliationBeforeReplay) continue;
+            !policy.requiresReconciliationBeforeReplay)
+          continue;
         if (!await repository.claimForAttempt(
           operation.operationId,
           expectedAttempts: operation.attempts,
           expectedState: operation.state,
-        )) continue;
+        ))
+          continue;
         if (!await _mayDispatch(operation)) {
           await repository.setState(
             operation.operationId,

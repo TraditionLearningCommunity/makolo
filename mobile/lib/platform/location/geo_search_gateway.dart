@@ -56,13 +56,13 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
   }) : _key = apiKey,
        _endpoint = endpoint,
        _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 5),
-              receiveTimeout: const Duration(seconds: 7),
-            ),
-          ) {
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 5),
+               receiveTimeout: const Duration(seconds: 7),
+             ),
+           ) {
     if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
       throw ArgumentError(
         'MapTiler geocoding requires approved HTTPS configuration.',
@@ -167,13 +167,13 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
   }) : _key = apiKey,
        _endpoint = endpoint,
        _dio =
-            dio ??
-            Dio(
-              BaseOptions(
-                connectTimeout: const Duration(seconds: 5),
-                receiveTimeout: const Duration(seconds: 7),
-              ),
-            ) {
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 5),
+               receiveTimeout: const Duration(seconds: 7),
+             ),
+           ) {
     if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
       throw ArgumentError(
         'Google Maps geocoding requires approved HTTPS configuration.',

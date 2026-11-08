@@ -83,10 +83,7 @@ void main() {
     final personal = await _seed(database);
     await tester.pumpWidget(
       MaterialApp(
-        home: MeConsiderationsScreen(
-          api: _OfflineApi(),
-          personal: personal,
-        ),
+        home: MeConsiderationsScreen(api: _OfflineApi(), personal: personal),
       ),
     );
     await tester.pumpAndSettle();
@@ -145,10 +142,7 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
-          home: MeConsiderationsScreen(
-            api: _OfflineApi(),
-            personal: personal,
-          ),
+          home: MeConsiderationsScreen(api: _OfflineApi(), personal: personal),
         ),
       );
       await tester.pumpAndSettle();

@@ -162,8 +162,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final allowed = _map(composition['public_ids']);
     List<Map<String, dynamic>> publicRows(Object? value, String family) {
       final ids = (allowed[family] is List ? allowed[family] as List : const [])
-          .map((id) => id.toString()).toSet();
-      return _rows(value).where((row) => ids.contains(row['id']?.toString())).toList();
+          .map((id) => id.toString())
+          .toSet();
+      return _rows(value)
+          .where((row) => ids.contains(row['id']?.toString()))
+          .toList();
     }
 
     bool inTopic(Map<String, dynamic> row, {bool declaration = false}) {
@@ -196,7 +199,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final declared = _map(complete['declared']);
     final established = _map(complete['established']);
     final issued = _map(complete['issued']);
-    final identity = Map<String, dynamic>.from(_map(composition['public_identity']));
+    final identity = Map<String, dynamic>.from(
+      _map(composition['public_identity']),
+    );
     if (requested == 'custom') {
       for (final entry in <String, String>{
         'avatar': 'avatar_url',
@@ -241,28 +246,27 @@ class _MePassportScreenState extends State<MePassportScreen> {
             : filtered(declared['open_to'], 'open_to', declaration: true),
       },
       'activities': filtered(
-        complete['activities'], 'activities', excluded: _activities,
+        complete['activities'],
+        'activities',
+        excluded: _activities,
       ),
-      'experiences': requested == 'custom' &&
-              _sections.contains('activity_involvements')
+      'experiences':
+          requested == 'custom' && _sections.contains('activity_involvements')
           ? <Map<String, dynamic>>[]
           : filtered(complete['experiences'], 'experiences'),
       'established': {
         ...established,
-        'proofs': filtered(
-          established['proofs'], 'proofs', excluded: _proofs,
-        ),
+        'proofs': filtered(established['proofs'], 'proofs', excluded: _proofs),
       },
       'issued': {
         ...issued,
         'credentials': filtered(
-          issued['credentials'], 'credentials', excluded: _credentials,
+          issued['credentials'],
+          'credentials',
+          excluded: _credentials,
         ),
       },
-      'projection': {
-        ..._map(complete['projection']),
-        'variant': requested,
-      },
+      'projection': {..._map(complete['projection']), 'variant': requested},
     };
   }
 
@@ -328,8 +332,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final resourceKey = _passportStorageKey();
 
     void keep(Map<String, dynamic> data, {bool online = false}) {
-      if (!mounted || epoch != _loadEpoch ||
-          resourceKey != _passportStorageKey()) return;
+      if (!mounted ||
+          epoch != _loadEpoch ||
+          resourceKey != _passportStorageKey())
+        return;
       setState(() {
         _cachedPassport = data;
         _cachedVariantKey = resourceKey;
@@ -346,24 +352,30 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (preferLocal && widget.personal != null) {
       try {
         final stored = await widget.personal!.store.readProjection(
-          'personal.me.passport', resourceKey: _sourceKey,
+          'personal.me.passport',
+          resourceKey: _sourceKey,
         );
         final source = stored?.payload;
-        if (source != null && source['variant'] == 'complete' &&
+        if (source != null &&
+            source['variant'] == 'complete' &&
             _map(source['composition'])['schema_version'] == 1 &&
-            epoch == _loadEpoch && resourceKey == _passportStorageKey()) {
+            epoch == _loadEpoch &&
+            resourceKey == _passportStorageKey()) {
           _full = source;
           _onlineReady = false;
           final result = _composePassport(source, variant: requestedVariant);
           keep(result);
-          unawaited(_load(preferLocal: false)
-              .then((fresh) {
-                if (mounted && requestedVariant == _variant &&
-                    resourceKey == _passportStorageKey()) {
-                  setState(() => _future = Future.value(fresh));
-                }
-              })
-              .catchError((Object _) {}));
+          unawaited(
+            _load(preferLocal: false)
+                .then((fresh) {
+                  if (mounted &&
+                      requestedVariant == _variant &&
+                      resourceKey == _passportStorageKey()) {
+                    setState(() => _future = Future.value(fresh));
+                  }
+                })
+                .catchError((Object _) {}),
+          );
           return result;
         }
       } on Object {
@@ -376,12 +388,14 @@ class _MePassportScreenState extends State<MePassportScreen> {
         'api/v1/me/passport/?variant=complete',
       );
       final complete = ProjectionEnvelope.parse(
-        response.jsonObject(), expectedProjection: 'personal.me.passport',
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport',
       ).data;
       if (complete['variant'] != 'complete') {
         throw const FormatException('Incomplete Passport source');
       }
-      if (epoch != _loadEpoch || requestedVariant != _variant ||
+      if (epoch != _loadEpoch ||
+          requestedVariant != _variant ||
           resourceKey != _passportStorageKey()) {
         throw const FormatException('Obsolete Passport response');
       }
@@ -391,15 +405,19 @@ class _MePassportScreenState extends State<MePassportScreen> {
         result = _composePassport(complete, variant: requestedVariant);
       } else if (requestedVariant != 'complete') {
         // Tolerate a backend not yet exposing the owner composition contract.
-        final legacyResponse = await widget.api.get(Uri(
-          path: 'api/v1/me/passport/',
-          queryParameters: _passportParams(),
-        ).toString());
+        final legacyResponse = await widget.api.get(
+          Uri(
+            path: 'api/v1/me/passport/',
+            queryParameters: _passportParams(),
+          ).toString(),
+        );
         result = ProjectionEnvelope.parse(
-          legacyResponse.jsonObject(), expectedProjection: 'personal.me.passport',
+          legacyResponse.jsonObject(),
+          expectedProjection: 'personal.me.passport',
         ).data;
       }
-      if (epoch != _loadEpoch || requestedVariant != _variant ||
+      if (epoch != _loadEpoch ||
+          requestedVariant != _variant ||
           resourceKey != _passportStorageKey()) {
         throw const FormatException('Obsolete Passport selection');
       }
@@ -420,15 +438,18 @@ class _MePassportScreenState extends State<MePassportScreen> {
       unawaited(_persistAvatar(complete));
       return result;
     } on Object catch (error) {
-      if (epoch != _loadEpoch || requestedVariant != _variant ||
-          resourceKey != _passportStorageKey()) rethrow;
+      if (epoch != _loadEpoch ||
+          requestedVariant != _variant ||
+          resourceKey != _passportStorageKey())
+        rethrow;
       if (error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404)) {
         _full = null;
         if (widget.personal != null) {
           try {
             await widget.personal!.store.deleteProjection(
-              'personal.me.passport', resourceKey: _sourceKey,
+              'personal.me.passport',
+              resourceKey: _sourceKey,
             );
           } on Object {
             // Refusal always clears the active projection despite local I/O.
@@ -502,7 +523,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
   }
 
   Future<void> _openDatedVersion(
-    String snapshotId, {List<Map<String, dynamic>> activeShares = const [],
+    String snapshotId, {
+    List<Map<String, dynamic>> activeShares = const [],
   }) async {
     try {
       final response = await widget.api.get(
@@ -791,9 +813,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
         throw const FormatException('Share revocation not confirmed');
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lien de partage révoqué.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Lien de partage révoqué.')));
       await _showDatedHistory();
     } on Object {
       if (!mounted) return;
@@ -832,9 +854,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
         'passeport-makolo-$documentId.pdf',
       );
       if (saved != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF enregistré.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('PDF enregistré.')));
       }
     } on Object {
       if (mounted) {
@@ -914,7 +935,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
                                         Navigator.pop(sheetContext);
                                         _openDatedVersion(
                                           id,
-                                          activeShares: _rows(row['active_shares']),
+                                          activeShares: _rows(
+                                            row['active_shares'],
+                                          ),
                                         );
                                       },
                                 trailing: row['id'] != null && intact
@@ -922,35 +945,48 @@ class _MePassportScreenState extends State<MePassportScreen> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           IconButton(
-                                            tooltip: 'Télécharger cette version',
-                                            icon: const Icon(Icons.picture_as_pdf_outlined),
+                                            tooltip:
+                                                'Télécharger cette version',
+                                            icon: const Icon(
+                                              Icons.picture_as_pdf_outlined,
+                                            ),
                                             onPressed: () {
                                               final id = row['id'].toString();
                                               Navigator.pop(sheetContext);
                                               _saveDatedVersionPdf(
                                                 id,
-                                                row['document_id']?.toString() ?? id,
+                                                row['document_id']
+                                                        ?.toString() ??
+                                                    id,
                                               );
                                             },
                                           ),
                                           IconButton(
                                             tooltip: 'Partager cette version',
-                                            icon: const Icon(Icons.share_outlined),
-                                            onPressed: revoked || row['variant'] == 'complete'
+                                            icon: const Icon(
+                                              Icons.share_outlined,
+                                            ),
+                                            onPressed:
+                                                revoked ||
+                                                    row['variant'] == 'complete'
                                                 ? null
                                                 : () {
-                                                    final id = row['id'].toString();
+                                                    final id = row['id']
+                                                        .toString();
                                                     Navigator.pop(sheetContext);
                                                     _shareDatedVersion(id);
                                                   },
                                           ),
                                           IconButton(
                                             tooltip: 'Révoquer cette version',
-                                            icon: const Icon(Icons.block_outlined),
+                                            icon: const Icon(
+                                              Icons.block_outlined,
+                                            ),
                                             onPressed: revoked
                                                 ? null
                                                 : () {
-                                                    final id = row['id'].toString();
+                                                    final id = row['id']
+                                                        .toString();
                                                     Navigator.pop(sheetContext);
                                                     _revokeDatedVersion(id);
                                                   },
@@ -1019,7 +1055,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Historique indisponible. Vérifiez la connexion et vos droits.'),
+          content: Text(
+            'Historique indisponible. Vérifiez la connexion et vos droits.',
+          ),
         ),
       );
     }
@@ -1040,13 +1078,17 @@ class _MePassportScreenState extends State<MePassportScreen> {
         queryParameters: _passportParams(),
       ).toString();
       final response = await widget.api.download(url, destinationPath: file);
-      final disposition = response.headers.entries
-          .where((entry) => entry.key.toLowerCase() == 'content-disposition')
-          .map((entry) => entry.value)
-          .firstOrNull ?? '';
-      final suggestedName = RegExp(
-        r'filename="?([A-Za-z0-9._-]+\.pdf)"?',
-      ).firstMatch(disposition)?.group(1);
+      final disposition =
+          response.headers.entries
+              .where(
+                (entry) => entry.key.toLowerCase() == 'content-disposition',
+              )
+              .map((entry) => entry.value)
+              .firstOrNull ??
+          '';
+      final suggestedName = RegExp(r'filename="?([A-Za-z0-9._-]+\.pdf)"?')
+          .firstMatch(disposition)
+          ?.group(1);
       if (suggestedName != null &&
           suggestedName.startsWith('passeport-makolo-')) {
         final datedFile = '${directory.path}/$suggestedName';
@@ -1077,7 +1119,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       // No cached export is a source of Passport authority.
     }
   }
-
 
   Future<void> _exportPdf() async {
     if (_exporting || !_onlineReady) return;
@@ -1127,9 +1168,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-            'Émission indisponible. Vérifiez votre connexion et la sélection.',
-          )),
+          const SnackBar(
+            content: Text(
+              'Émission indisponible. Vérifiez votre connexion et la sélection.',
+            ),
+          ),
         );
       }
       return null;
@@ -1164,9 +1207,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lien indisponible.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Lien indisponible.')));
       }
     }
   }
@@ -1291,7 +1333,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Partage indisponible. Vérifiez la connexion et vos droits.')),
+        const SnackBar(
+          content: Text(
+            'Partage indisponible. Vérifiez la connexion et vos droits.',
+          ),
+        ),
       );
     }
   }
@@ -1624,8 +1670,8 @@ class _PassportBody extends StatelessWidget {
     final personalDetails = data['variant'] == 'complete'
         ? _map(data['private_details'])
         : data['personal_details'] != null
-            ? _map(data['personal_details'])
-            : _map(identity['presentation_details']);
+        ? _map(data['personal_details'])
+        : _map(identity['presentation_details']);
     final missing = <String>[
       if (bio == null) 'À propos',
       if (profession == null) 'Profession',
@@ -2049,7 +2095,6 @@ class _PassportBody extends StatelessWidget {
   }
 }
 
-
 class _PassportRecipientPicker extends StatefulWidget {
   const _PassportRecipientPicker({
     required this.api,
@@ -2084,8 +2129,14 @@ class _PassportRecipientPickerState extends State<_PassportRecipientPicker> {
       if (!mounted) return;
       setState(() {
         _results = values is List
-            ? values.whereType<Map>().map((value) =>
-                value.map((key, value) => MapEntry(key.toString(), value))).toList()
+            ? values
+                  .whereType<Map>()
+                  .map(
+                    (value) => value.map(
+                      (key, value) => MapEntry(key.toString(), value),
+                    ),
+                  )
+                  .toList()
             : const [];
       });
     } on Object {
@@ -2103,15 +2154,20 @@ class _PassportRecipientPickerState extends State<_PassportRecipientPicker> {
   Widget build(BuildContext context) => SafeArea(
     child: Padding(
       padding: EdgeInsets.fromLTRB(
-        16, 8, 16, MediaQuery.viewInsetsOf(context).bottom + 16,
+        16,
+        8,
+        16,
+        MediaQuery.viewInsetsOf(context).bottom + 16,
       ),
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.55,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Partager dans Makolo',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Partager dans Makolo',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: widget.query,

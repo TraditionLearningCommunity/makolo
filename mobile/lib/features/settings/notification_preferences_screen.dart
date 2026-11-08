@@ -12,7 +12,11 @@ import '../../notifications/notification_repository.dart';
 
 /// Preferences are owned by Accounts and synchronized through Notifications.
 class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({super.key, required this.repository, this.runtime});
+  const NotificationPreferencesScreen({
+    super.key,
+    required this.repository,
+    this.runtime,
+  });
 
   final NotificationRepository repository;
   final AppRuntime? runtime;
@@ -53,8 +57,7 @@ class _NotificationPreferencesScreenState
     }
   }
 
-  Future<void> _change(String key, Object? value) =>
-      _changeMany({key: value});
+  Future<void> _change(String key, Object? value) => _changeMany({key: value});
 
   Future<void> _changeMany(Map<String, dynamic> changes) async {
     if (_saving || widget.repository.sync == null) return;
@@ -107,176 +110,178 @@ class _NotificationPreferencesScreenState
 
   @override
   Widget build(BuildContext context) {
-    final offline = SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
+    final offline =
+        SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
     return Scaffold(
       appBar: AppBar(title: const Text('Préférences')),
       body: MakoloNetworkContextFrame(
         child: StreamBuilder<StoredProjection?>(
-        stream: widget.repository.watchPreferences(),
-        builder: (context, snapshot) {
-          final values = snapshot.data?.payload;
-          if (values == null && _loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (values == null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Préférences non disponibles sur cet appareil.'),
-                  TextButton(
-                    onPressed: _refresh,
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            );
-          }
-          final editable = widget.repository.sync != null && !_saving;
-                    final quietStart = values['quiet_hours_start'];
-          final quietEnd = values['quiet_hours_end'];
-          Widget toggle(String key, String title, String detail) {
-            return SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(title),
-              subtitle: Text(detail),
-              value: values[key] == true,
-              onChanged: editable ? (value) => _change(key, value) : null,
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.all(MakoloSpacing.inner),
-            children: [
-              if (_loading || _saving) const LinearProgressIndicator(),
-              if (_error != null && (!offline || values == null))
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: MakoloSpacing.sm,
-                  ),
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              if (widget.repository.sync == null)
-                const Text(
-                  'Vous pouvez consulter ces réglages, mais pas les modifier pour le moment.',
-                ),
-              Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: MakoloSpacing.sm),
-              toggle(
-                'push_notifications',
-                'Sur vos appareils',
-                'Alertes sur les appareils autorisés.',
-              ),
-              toggle(
-                'email_notifications',
-                'E-mail',
-                'Alertes envoyées par e-mail.',
-              ),
-              toggle(
-                'sms_notifications',
-                'SMS',
-                'Alertes envoyées par SMS.',
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
-              Text(
-                'Types d’alertes',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              toggle(
-                'security_notifications',
-                'Sécurité',
-                'Connexions et protection du compte.',
-              ),
-              toggle(
-                'event_notifications',
-                'Événements',
-                'Changements et rappels importants.',
-              ),
-              toggle(
-                'service_notifications',
-                'Services',
-                'Suivi de vos services.',
-              ),
-              toggle(
-                'opportunity_notifications',
-                'Opportunités',
-                'Évolutions de vos possibilités.',
-              ),
-              toggle(
-                'marketing_notifications',
-                'Communications commerciales',
-                'Offres et messages promotionnels, à votre choix.',
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
-              Text(
-                'Heures calmes',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Activer les heures calmes'),
-                subtitle: const Text('Les alertes attendent pendant cette période.'),
-                value: values['quiet_hours_enabled'] == true,
-                onChanged: editable && quietStart != null && quietEnd != null
-                    ? (value) => _change('quiet_hours_enabled', value)
-                    : null,
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Début'),
-                subtitle: Text(
-                  _parseTime(quietStart)?.format(context) ?? 'À définir',
-                ),
-                trailing: const Icon(Icons.schedule_outlined),
-                onTap: editable
-                    ? () => _chooseTime('quiet_hours_start', quietStart)
-                    : null,
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Fin'),
-                subtitle: Text(
-                  _parseTime(quietEnd)?.format(context) ?? 'À définir',
-                ),
-                trailing: const Icon(Icons.schedule_outlined),
-                onTap: editable
-                    ? () => _chooseTime('quiet_hours_end', quietEnd)
-                    : null,
-              ),
-              if (widget.runtime != null) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                const Divider(height: 1),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(
-                    bottom: MakoloSpacing.md,
-                  ),
-                  title: const Text('Appareils'),
-                  subtitle: const Text('Gérer les téléphones qui reçoivent vos alertes.'),
+          stream: widget.repository.watchPreferences(),
+          builder: (context, snapshot) {
+            final values = snapshot.data?.payload;
+            if (values == null && _loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (values == null) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    PushDeviceControls(
-                      runtime: widget.runtime!,
-                      mutationsEnabled: widget.runtime!.isAuthenticated &&
-                          widget.runtime!.api != null &&
-                          widget.runtime!.sync != null &&
-                          !_loading &&
-                          !_saving &&
-                          _error == null,
-                      onChanged: () async {
-                        await widget.runtime!.sync?.pullInteroperability();
-                      },
+                    const Text('Préférences non disponibles sur cet appareil.'),
+                    TextButton(
+                      onPressed: _refresh,
+                      child: const Text('Réessayer'),
                     ),
                   ],
                 ),
+              );
+            }
+            final editable = widget.repository.sync != null && !_saving;
+            final quietStart = values['quiet_hours_start'];
+            final quietEnd = values['quiet_hours_end'];
+            Widget toggle(String key, String title, String detail) {
+              return SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(title),
+                subtitle: Text(detail),
+                value: values[key] == true,
+                onChanged: editable ? (value) => _change(key, value) : null,
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.all(MakoloSpacing.inner),
+              children: [
+                if (_loading || _saving) const LinearProgressIndicator(),
+                if (_error != null && (!offline || values == null))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: MakoloSpacing.sm,
+                    ),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                if (widget.repository.sync == null)
+                  const Text(
+                    'Vous pouvez consulter ces réglages, mais pas les modifier pour le moment.',
+                  ),
+                Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: MakoloSpacing.sm),
+                toggle(
+                  'push_notifications',
+                  'Sur vos appareils',
+                  'Alertes sur les appareils autorisés.',
+                ),
+                toggle(
+                  'email_notifications',
+                  'E-mail',
+                  'Alertes envoyées par e-mail.',
+                ),
+                toggle('sms_notifications', 'SMS', 'Alertes envoyées par SMS.'),
+                const SizedBox(height: MakoloSpacing.lg),
+                Text(
+                  'Types d’alertes',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                toggle(
+                  'security_notifications',
+                  'Sécurité',
+                  'Connexions et protection du compte.',
+                ),
+                toggle(
+                  'event_notifications',
+                  'Événements',
+                  'Changements et rappels importants.',
+                ),
+                toggle(
+                  'service_notifications',
+                  'Services',
+                  'Suivi de vos services.',
+                ),
+                toggle(
+                  'opportunity_notifications',
+                  'Opportunités',
+                  'Évolutions de vos possibilités.',
+                ),
+                toggle(
+                  'marketing_notifications',
+                  'Communications commerciales',
+                  'Offres et messages promotionnels, à votre choix.',
+                ),
+                const SizedBox(height: MakoloSpacing.lg),
+                Text(
+                  'Heures calmes',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Activer les heures calmes'),
+                  subtitle: const Text(
+                    'Les alertes attendent pendant cette période.',
+                  ),
+                  value: values['quiet_hours_enabled'] == true,
+                  onChanged: editable && quietStart != null && quietEnd != null
+                      ? (value) => _change('quiet_hours_enabled', value)
+                      : null,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Début'),
+                  subtitle: Text(
+                    _parseTime(quietStart)?.format(context) ?? 'À définir',
+                  ),
+                  trailing: const Icon(Icons.schedule_outlined),
+                  onTap: editable
+                      ? () => _chooseTime('quiet_hours_start', quietStart)
+                      : null,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Fin'),
+                  subtitle: Text(
+                    _parseTime(quietEnd)?.format(context) ?? 'À définir',
+                  ),
+                  trailing: const Icon(Icons.schedule_outlined),
+                  onTap: editable
+                      ? () => _chooseTime('quiet_hours_end', quietEnd)
+                      : null,
+                ),
+                if (widget.runtime != null) ...[
+                  const SizedBox(height: MakoloSpacing.lg),
+                  const Divider(height: 1),
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(
+                      bottom: MakoloSpacing.md,
+                    ),
+                    title: const Text('Appareils'),
+                    subtitle: const Text(
+                      'Gérer les téléphones qui reçoivent vos alertes.',
+                    ),
+                    children: [
+                      PushDeviceControls(
+                        runtime: widget.runtime!,
+                        mutationsEnabled:
+                            widget.runtime!.isAuthenticated &&
+                            widget.runtime!.api != null &&
+                            widget.runtime!.sync != null &&
+                            !_loading &&
+                            !_saving &&
+                            _error == null,
+                        onChanged: () async {
+                          await widget.runtime!.sync?.pullInteroperability();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ],
-          );
-        },
+            );
+          },
         ),
       ),
     );

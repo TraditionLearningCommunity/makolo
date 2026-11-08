@@ -168,8 +168,7 @@ class SpaceWorkSurface extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.sm),
           if (section.items.isEmpty)
             const Text('Aucun élément dans cet aperçu.'),
-          for (final item in section.items)
-            _item(context, item, section.key),
+          for (final item in section.items) _item(context, item, section.key),
           if (section.hasMore) ...[
             const Text('Aperçu partiel : d’autres éléments existent.'),
             if (onLoadMore != null ||
@@ -212,7 +211,8 @@ class SpaceWorkSurface extends StatelessWidget {
         : null;
     final mediaOwner = _map(recognition?['owner']);
     final mediaPath = _string(recognition?['url']);
-    final mediaUri = mediaBaseUri != null &&
+    final mediaUri =
+        mediaBaseUri != null &&
             (payload['archetype'] == 'creative' ||
                 payload['archetype'] == 'media') &&
             recognition?['authorized'] == true &&
@@ -364,7 +364,8 @@ class SpaceWorkSurface extends StatelessWidget {
                       size: 22,
                     )
                   : Semantics(
-                      label: _string(recognition?['label']) ??
+                      label:
+                          _string(recognition?['label']) ??
                           'Visuel publié de reconnaissance',
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -511,7 +512,8 @@ class SpaceWorkSurface extends StatelessWidget {
           final section = _map(sections[key]);
           if (section == null) continue;
           final rows = section['items'];
-          if ((rows is List && rows.isNotEmpty) || section['has_more'] == true) {
+          if ((rows is List && rows.isNotEmpty) ||
+              section['has_more'] == true) {
             chapters[key] = title;
             break;
           }

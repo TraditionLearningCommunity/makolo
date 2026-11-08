@@ -115,13 +115,13 @@ class SyncEngine {
     var requested = 0;
     for (final source in _preparedSources.values) {
       if (!_active || requested >= maxRequests) break;
-      final state = await (database.select(database.syncSources)
-            ..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.sourceKey.equals(source.sourceKey),
-            ))
-          .getSingleOrNull();
+      final state =
+          await (database.select(database.syncSources)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.sourceKey.equals(source.sourceKey),
+              ))
+              .getSingleOrNull();
       // A confirmed owner denial is not retried automatically on every
       // app resume. A later owner event or explicit user request can reopen it.
       if (state?.invalidated == true &&
@@ -140,7 +140,8 @@ class SyncEngine {
           source.freshnessPolicy.refreshRecommendedAfter ??
           const Duration(minutes: 30);
       final lastSuccessAt = state?.lastSuccessAt?.toUtc();
-      final due = state == null ||
+      final due =
+          state == null ||
           state.invalidated ||
           snapshot == null ||
           lastSuccessAt == null ||
@@ -168,13 +169,13 @@ class SyncEngine {
           // Repositories using refreshSource may handle transport failures
           // internally. Consult the durable owner state before reporting
           // their acquisition as successful.
-          final completed = await (database.select(database.syncSources)
-                ..where(
-                  (row) =>
-                      row.profileId.equals(profileId) &
-                      row.sourceKey.equals(source.sourceKey),
-                ))
-              .getSingleOrNull();
+          final completed =
+              await (database.select(database.syncSources)..where(
+                    (row) =>
+                        row.profileId.equals(profileId) &
+                        row.sourceKey.equals(source.sourceKey),
+                  ))
+                  .getSingleOrNull();
           final errorCode = completed?.lastErrorCode;
           if (errorCode != null) {
             if (completed != null &&
@@ -206,8 +207,7 @@ class SyncEngine {
       '$profileId|${source.actorScope.stableKey}|${source.sourceKey}';
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
-  int get _accessRevocationEpoch =>
-      _coordinator.accessEpochs[profileId] ?? 0;
+  int get _accessRevocationEpoch => _coordinator.accessEpochs[profileId] ?? 0;
   int _spaceEpoch(String spaceId) =>
       _coordinator.spaceEpochs['$profileId|$spaceId'] ?? 0;
   int get _spaceInventoryEpoch =>
@@ -217,30 +217,36 @@ class SyncEngine {
 
   Future<bool> _spaceAuthorityWithdrawn(String spaceId) async {
     final encoded = Uri.encodeComponent(spaceId);
-    final inventory = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals('space.inventory')))
-        .getSingleOrNull();
+    final inventory =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals('space.inventory'),
+            ))
+            .getSingleOrNull();
     if (inventory?.invalidated == true &&
         _deniedOwnerState(inventory?.lastErrorCode)) {
       return true;
     }
-    final workspace = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals('space:$encoded:workspace')))
-        .getSingleOrNull();
+    final workspace =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals('space:$encoded:workspace'),
+            ))
+            .getSingleOrNull();
     return workspace?.invalidated == true &&
         _deniedOwnerState(workspace?.lastErrorCode);
   }
 
   Future<bool> _inventoryAuthorityWithdrawn() async {
-    final inventory = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals('space.inventory')))
-        .getSingleOrNull();
+    final inventory =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals('space.inventory'),
+            ))
+            .getSingleOrNull();
     return inventory?.invalidated == true &&
         _deniedOwnerState(inventory?.lastErrorCode);
   }
@@ -392,9 +398,15 @@ class SyncEngine {
         _inFlightSourcePulls.remove(key);
       }
     }
-    unawaited(request.then((_) => cleanup(), onError: (Object _, StackTrace __) {
-      cleanup();
-    }));
+
+    unawaited(
+      request.then(
+        (_) => cleanup(),
+        onError: (Object _, StackTrace __) {
+          cleanup();
+        },
+      ),
+    );
     return request;
   }
 
@@ -434,7 +446,8 @@ class SyncEngine {
       // identity must match the authenticated local storage boundary.
       if (source.actorScope.isPersonal && source.owner == 'Profile') {
         final actor = acquired.payload['actor'];
-        if (actor is Map && actor['id'] != null &&
+        if (actor is Map &&
+            actor['id'] != null &&
             actor['id'].toString() != profileId) {
           throw const FormatException('Owner Profile mismatch');
         }
@@ -449,11 +462,13 @@ class SyncEngine {
         }
         // Across engine instances and process-resumed requests, a response
         // with an older owner generation cannot replace newer local facts.
-        final observed = await (database.select(database.syncSources)
-              ..where((row) =>
-                  row.profileId.equals(profileId) &
-                  row.sourceKey.equals(source.sourceKey)))
-            .getSingleOrNull();
+        final observed =
+            await (database.select(database.syncSources)..where(
+                  (row) =>
+                      row.profileId.equals(profileId) &
+                      row.sourceKey.equals(source.sourceKey),
+                ))
+                .getSingleOrNull();
         if (observed?.generatedAtSeen != null &&
             (acquired.sourceGeneratedAt == null ||
                 acquired.sourceGeneratedAt!.isBefore(
@@ -467,8 +482,8 @@ class SyncEngine {
         final approved = source.projectionKind == 'personal.accesses'
             ? await _withoutRevokedAccessRows(acquired)
             : source.projectionKind == 'space.inventory'
-                ? await _withoutRevokedSpaceRows(acquired)
-                : acquired;
+            ? await _withoutRevokedSpaceRows(acquired)
+            : acquired;
         await source.applier(
           SyncApplyContext(
             database: database,
@@ -541,11 +556,13 @@ class SyncEngine {
     final coordinator = _coordinator;
     coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
     await _ensureSource(source);
-    final existing = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.equals(source.sourceKey)))
-        .getSingleOrNull();
+    final existing =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals(source.sourceKey),
+            ))
+            .getSingleOrNull();
     // Invalidating a source marks it due for refresh; it must not erase a
     // confirmed Space authority withdrawal before workspace/inventory
     // has actually been revalidated by its owner.
@@ -561,12 +578,14 @@ class SyncEngine {
               row.profileId.equals(profileId) &
               row.sourceKey.equals(source.sourceKey),
         ))
-        .write(SyncSourcesCompanion(
-          invalidated: const Value(true),
-          lastErrorCode: protectedDenial
-              ? Value(existing?.lastErrorCode)
-              : const Value(null),
-        ));
+        .write(
+          SyncSourcesCompanion(
+            invalidated: const Value(true),
+            lastErrorCode: protectedDenial
+                ? Value(existing?.lastErrorCode)
+                : const Value(null),
+          ),
+        );
   }
 
   /// Use only on an explicit owner 403/404, never on a timeout or after
@@ -603,8 +622,7 @@ class SyncEngine {
         : null;
     final deniedInventory = source.projectionKind == 'space.inventory';
     if (deniedSpace != null || deniedInventory) {
-      coordinator.spaceInventoryEpochs[profileId] =
-          _spaceInventoryEpoch + 1;
+      coordinator.spaceInventoryEpochs[profileId] = _spaceInventoryEpoch + 1;
       if (deniedSpace != null) {
         coordinator.spaceEpochs['$profileId|$deniedSpace'] =
             _spaceEpoch(deniedSpace) + 1;
@@ -613,7 +631,8 @@ class SyncEngine {
       // repository instances, are rejected before they can commit.
       for (final activeKey in coordinator.generations.keys.toList()) {
         final sameProfile = activeKey.startsWith('$profileId|');
-        final sameSpace = deniedSpace == null ||
+        final sameSpace =
+            deniedSpace == null ||
             activeKey.startsWith('$profileId|space:$deniedSpace');
         if (sameProfile && sameSpace) {
           coordinator.generations[activeKey] =
@@ -624,10 +643,11 @@ class SyncEngine {
     // A denied History owner invalidates its previously received search
     // views as a family. Older in-flight pages cannot restore them.
     if (source.owner == 'ProfileHistory') {
-      for (final key in coordinator.generations.keys
-          .where((key) => key.startsWith('$profileId|personal|history:')).toList()) {
-        coordinator.generations[key] =
-            (coordinator.generations[key] ?? 0) + 1;
+      for (final key
+          in coordinator.generations.keys
+              .where((key) => key.startsWith('$profileId|personal|history:'))
+              .toList()) {
+        coordinator.generations[key] = (coordinator.generations[key] ?? 0) + 1;
       }
     }
     await database.transaction(() async {
@@ -636,10 +656,7 @@ class SyncEngine {
         resourceKey: source.resourceKey,
       );
       if (deniedSpace != null || deniedInventory) {
-        await _withdrawSpaceFacts(
-          spaceId: deniedSpace,
-          code: code,
-        );
+        await _withdrawSpaceFacts(spaceId: deniedSpace, code: code);
       }
       if (source.projectionKind == 'personal.access.detail') {
         await _redactAccessFromCollections(source.resourceKey);
@@ -685,10 +702,12 @@ class SyncEngine {
                   row.profileId.equals(profileId) &
                   row.sourceKey.like('history:%'),
             ))
-            .write(SyncSourcesCompanion(
-              invalidated: const Value(true),
-              lastErrorCode: Value(code),
-            ));
+            .write(
+              SyncSourcesCompanion(
+                invalidated: const Value(true),
+                lastErrorCode: Value(code),
+              ),
+            );
       }
       await _ensureSource(source);
       await (database.update(database.syncSources)..where(
@@ -775,9 +794,9 @@ class SyncEngine {
   ) async {
     final items = acquired.payload['items'];
     if (items is! List) return acquired;
-    final rows = await (database.select(database.syncSources)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final rows = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
     final deniedSpaceKeys = <String>{
       for (final row in rows)
         if (row.sourceKey.startsWith('space:') &&
@@ -818,8 +837,7 @@ class SyncEngine {
       final retained = items.where((row) {
         if (row is! Map) return true;
         final identity = row['identity'];
-        return identity is! Map ||
-            identity['id']?.toString() != accessId;
+        return identity is! Map || identity['id']?.toString() != accessId;
       }).toList();
       if (retained.length == items.length) continue;
       await store.putProjection(
@@ -846,9 +864,9 @@ class SyncEngine {
   ) async {
     final items = acquired.payload['items'];
     if (items is! List) return acquired;
-    final denied = await (database.select(database.syncSources)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final denied = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
     final deniedIds = <String>{
       for (final row in denied)
         if (row.sourceKey.startsWith('access:') &&
@@ -890,25 +908,25 @@ class SyncEngine {
     final pages = await store.readProjections('personal.accesses');
     for (final page in pages) {
       if (page.resourceKey.startsWith('$relationship:')) {
-        await store.deleteProjection(
-          page.kind,
-          resourceKey: page.resourceKey,
-        );
+        await store.deleteProjection(page.kind, resourceKey: page.resourceKey);
       }
     }
-    final sources = await (database.select(database.syncSources)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final sources = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
     for (final row in sources) {
       if (!row.sourceKey.startsWith('accesses:$relationship:')) continue;
-      await (database.update(database.syncSources)
-            ..where((item) =>
+      await (database.update(database.syncSources)..where(
+            (item) =>
                 item.profileId.equals(profileId) &
-                item.sourceKey.equals(row.sourceKey)))
-          .write(SyncSourcesCompanion(
-            invalidated: const Value(true),
-            lastErrorCode: Value(code),
-          ));
+                item.sourceKey.equals(row.sourceKey),
+          ))
+          .write(
+            SyncSourcesCompanion(
+              invalidated: const Value(true),
+              lastErrorCode: Value(code),
+            ),
+          );
     }
   }
 
@@ -920,45 +938,46 @@ class SyncEngine {
     required String code,
   }) async {
     final encoded = spaceId == null ? null : Uri.encodeComponent(spaceId);
-    final snapshots = await (database.select(database.projectionSnapshots)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final snapshots = await (database.select(
+      database.projectionSnapshots,
+    )..where((row) => row.profileId.equals(profileId))).get();
     for (final snapshot in snapshots) {
       if (!snapshot.projectionKind.startsWith('space.') ||
-          snapshot.projectionKind == 'space.inventory') continue;
+          snapshot.projectionKind == 'space.inventory')
+        continue;
       final key = snapshot.resourceKey;
-      final inScope = spaceId == null ||
+      final inScope =
+          spaceId == null ||
           key == encoded ||
           key.startsWith('$encoded|') ||
           key == spaceId ||
           key.startsWith('$spaceId|');
       if (!inScope) continue;
-      await store.deleteProjection(
-        snapshot.projectionKind,
-        resourceKey: key,
-      );
+      await store.deleteProjection(snapshot.projectionKind, resourceKey: key);
     }
-    final rows = await (database.select(database.syncSources)
-          ..where((row) => row.profileId.equals(profileId)))
-        .get();
+    final rows = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
     for (final row in rows) {
       final key = row.sourceKey;
       final inScope = spaceId == null
           ? key.startsWith('space:') ||
-              key.startsWith('space-day-of:') ||
-              key.startsWith('space-live:')
+                key.startsWith('space-day-of:') ||
+                key.startsWith('space-live:')
           : key.startsWith('space:$encoded:') ||
-              key.startsWith('space-day-of:$spaceId:') ||
-              key.startsWith('space-live:$spaceId:');
+                key.startsWith('space-day-of:$spaceId:') ||
+                key.startsWith('space-live:$spaceId:');
       if (!inScope) continue;
-      await (database.update(database.syncSources)
-            ..where((item) =>
-                item.profileId.equals(profileId) &
-                item.sourceKey.equals(key)))
-          .write(SyncSourcesCompanion(
-            invalidated: const Value(true),
-            lastErrorCode: Value(code),
-          ));
+      await (database.update(database.syncSources)..where(
+            (item) =>
+                item.profileId.equals(profileId) & item.sourceKey.equals(key),
+          ))
+          .write(
+            SyncSourcesCompanion(
+              invalidated: const Value(true),
+              lastErrorCode: Value(code),
+            ),
+          );
     }
     if (spaceId == null) {
       await store.deleteProjection('space.inventory');
@@ -970,8 +989,9 @@ class SyncEngine {
     if (inventory == null) return;
     final items = inventory.payload['items'];
     if (items is! List) return;
-    final retained = items.where((row) =>
-        row is! Map || row['id']?.toString() != spaceId).toList();
+    final retained = items
+        .where((row) => row is! Map || row['id']?.toString() != spaceId)
+        .toList();
     if (retained.length == items.length) return;
     await store.putProjection(
       kind: inventory.kind,
@@ -986,21 +1006,24 @@ class SyncEngine {
       expiresAt: inventory.expiresAt,
       freshnessPolicyId: inventory.freshnessPolicyId,
     );
-    await (database.update(database.syncSources)
-          ..where((row) =>
+    await (database.update(database.syncSources)..where(
+          (row) =>
               row.profileId.equals(profileId) &
-              row.sourceKey.equals('space.inventory')))
+              row.sourceKey.equals('space.inventory'),
+        ))
         .write(const SyncSourcesCompanion(invalidated: Value(true)));
   }
 
   Future<void> _recordFailure(SyncSourceDefinition source, String code) {
     return database.transaction(() async {
       await _ensureSource(source);
-      final observed = await (database.select(database.syncSources)
-            ..where((row) =>
-                row.profileId.equals(profileId) &
-                row.sourceKey.equals(source.sourceKey)))
-          .getSingleOrNull();
+      final observed =
+          await (database.select(database.syncSources)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.sourceKey.equals(source.sourceKey),
+              ))
+              .getSingleOrNull();
       if (observed?.invalidated == true &&
           _deniedOwnerState(observed?.lastErrorCode)) {
         // A 500 or timeout cannot replace an owner 403/404. The transaction

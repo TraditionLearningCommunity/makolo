@@ -16,183 +16,207 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
-  test('simultaneous owner reads share one request and preserve local facts',
-      () async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'profile-a');
-    final gate = Completer<void>();
-    final entered = Completer<void>();
-    var requests = 0;
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: MemoryTokenStore(
-        session: const AuthSession(
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          profileId: 'profile-a',
+  test(
+    'simultaneous owner reads share one request and preserve local facts',
+    () async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'profile-a');
+      final gate = Completer<void>();
+      final entered = Completer<void>();
+      var requests = 0;
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            profileId: 'profile-a',
+          ),
         ),
-      ),
-      dio: MockClient((request) async {
-        requests++;
-        if (!entered.isCompleted) entered.complete();
-        await gate.future;
-        return MockResponse(
-          jsonEncode({
-            'meta': {
-              'projection': 'personal.me',
-              'schema_version': 1,
-              'scope': 'personal',
-              'generated_at': '2026-11-08T08:00:00Z',
-            },
-            'data': {
-              'actor': {'type': 'profile', 'id': 'profile-a'},
-              'name': 'Owner result',
-            },
-          }),
-          200,
-        );
-      }).dio,
-    );
-    addTearDown(api.close);
-    final sync = SyncEngine(
-      api: api, store: store, database: db, profileId: 'profile-a',
-    );
-    final first = sync.refreshPersonalMe();
-    await entered.future;
-    final second = sync.refreshPersonalMe();
-    expect(requests, 1);
-    gate.complete();
-    expect(await first, isTrue);
-    expect(await second, isTrue);
-    expect((await store.readProjection('personal.me'))?.payload['name'],
-        'Owner result');
-  });
+        dio: MockClient((request) async {
+          requests++;
+          if (!entered.isCompleted) entered.complete();
+          await gate.future;
+          return MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'personal.me',
+                'schema_version': 1,
+                'scope': 'personal',
+                'generated_at': '2026-11-08T08:00:00Z',
+              },
+              'data': {
+                'actor': {'type': 'profile', 'id': 'profile-a'},
+                'name': 'Owner result',
+              },
+            }),
+            200,
+          );
+        }).dio,
+      );
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: db,
+        profileId: 'profile-a',
+      );
+      final first = sync.refreshPersonalMe();
+      await entered.future;
+      final second = sync.refreshPersonalMe();
+      expect(requests, 1);
+      gate.complete();
+      expect(await first, isTrue);
+      expect(await second, isTrue);
+      expect(
+        (await store.readProjection('personal.me'))?.payload['name'],
+        'Owner result',
+      );
+    },
+  );
 
-  test('invalidating an in-flight owner read permits a fresh request',
-      () async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'profile-a');
-    final releaseOld = Completer<void>();
-    final firstStarted = Completer<void>();
-    var requests = 0;
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: MemoryTokenStore(
-        session: const AuthSession(
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          profileId: 'profile-a',
+  test(
+    'invalidating an in-flight owner read permits a fresh request',
+    () async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'profile-a');
+      final releaseOld = Completer<void>();
+      final firstStarted = Completer<void>();
+      var requests = 0;
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            profileId: 'profile-a',
+          ),
         ),
-      ),
-      dio: MockClient((request) async {
-        final number = ++requests;
-        if (number == 1) {
-          firstStarted.complete();
-          await releaseOld.future;
-        }
-        return MockResponse(
-          jsonEncode({
-            'meta': {
-              'projection': 'personal.me',
-              'schema_version': 1,
-              'scope': 'personal',
-              'generated_at': number == 1
-                  ? '2026-11-08T08:00:00Z'
-                  : '2026-11-08T08:01:00Z',
-            },
-            'data': {
-              'actor': {'type': 'profile', 'id': 'profile-a'},
-              'name': number == 1 ? 'Obsolete' : 'Current',
-            },
-          }),
-          200,
-        );
-      }).dio,
-    );
-    addTearDown(api.close);
-    final sync = SyncEngine(
-      api: api, store: store, database: db, profileId: 'profile-a',
-    );
-    final previous = sync.refreshPersonalMe();
-    await firstStarted.future;
-    await sync.invalidate(SyncSourceDefinition.projectionEnvelope(
-      sourceKey: 'personal.me',
-      owner: 'Profile',
-      path: 'api/v1/me/',
-      projectionKind: 'personal.me',
-    ));
-    expect(await sync.refreshPersonalMe(), isTrue);
-    releaseOld.complete();
-    expect(await previous, isTrue);
-    expect(requests, 2);
-    expect((await store.readProjection('personal.me'))?.payload['name'],
-        'Current');
-  });
-
-  test('composed Me edits reuse the single canonical root reconciliation',
-      () async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'profile-a');
-    await store.putProjection(
-      kind: 'personal.me',
-      schemaVersion: 1,
-      payload: const {'actor': {'id': 'profile-a'}, 'name': 'Local'},
-    );
-    final requests = <String>[];
-    var offline = false;
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: MemoryTokenStore(
-        session: const AuthSession(
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          profileId: 'profile-a',
+        dio: MockClient((request) async {
+          final number = ++requests;
+          if (number == 1) {
+            firstStarted.complete();
+            await releaseOld.future;
+          }
+          return MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'personal.me',
+                'schema_version': 1,
+                'scope': 'personal',
+                'generated_at': number == 1
+                    ? '2026-11-08T08:00:00Z'
+                    : '2026-11-08T08:01:00Z',
+              },
+              'data': {
+                'actor': {'type': 'profile', 'id': 'profile-a'},
+                'name': number == 1 ? 'Obsolete' : 'Current',
+              },
+            }),
+            200,
+          );
+        }).dio,
+      );
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: db,
+        profileId: 'profile-a',
+      );
+      final previous = sync.refreshPersonalMe();
+      await firstStarted.future;
+      await sync.invalidate(
+        SyncSourceDefinition.projectionEnvelope(
+          sourceKey: 'personal.me',
+          owner: 'Profile',
+          path: 'api/v1/me/',
+          projectionKind: 'personal.me',
         ),
-      ),
-      dio: MockClient((request) async {
-        requests.add(request.url.path);
-        if (offline) {
-          return const MockResponse('{"detail":"offline"}', 503);
-        }
-        return MockResponse(
-          jsonEncode({
-            'meta': {
-              'projection': 'personal.me',
-              'schema_version': 1,
-              'scope': 'personal',
-              'generated_at': '2026-11-05T12:00:00Z',
-            },
-            'data': {
-              'actor': {'type': 'profile', 'id': 'profile-a'},
-              'name': 'Confirmed',
-            },
-          }),
-          200,
-        );
-      }).dio,
-    );
-    addTearDown(api.close);
-    final sync = SyncEngine(
-      api: api,
-      database: db,
-      store: store,
-      profileId: 'profile-a',
-    );
-    expect(await sync.refreshPersonalMe(), isTrue);
-    expect(requests, ['/api/v1/me/']);
-    expect((await store.readProjection('personal.me'))?.payload['name'],
-        'Confirmed');
+      );
+      expect(await sync.refreshPersonalMe(), isTrue);
+      releaseOld.complete();
+      expect(await previous, isTrue);
+      expect(requests, 2);
+      expect(
+        (await store.readProjection('personal.me'))?.payload['name'],
+        'Current',
+      );
+    },
+  );
 
-    offline = true;
-    expect(await sync.refreshPersonalMe(), isFalse);
-    expect((await store.readProjection('personal.me'))?.payload['name'],
+  test(
+    'composed Me edits reuse the single canonical root reconciliation',
+    () async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'profile-a');
+      await store.putProjection(
+        kind: 'personal.me',
+        schemaVersion: 1,
+        payload: const {
+          'actor': {'id': 'profile-a'},
+          'name': 'Local',
+        },
+      );
+      final requests = <String>[];
+      var offline = false;
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            profileId: 'profile-a',
+          ),
+        ),
+        dio: MockClient((request) async {
+          requests.add(request.url.path);
+          if (offline) {
+            return const MockResponse('{"detail":"offline"}', 503);
+          }
+          return MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'personal.me',
+                'schema_version': 1,
+                'scope': 'personal',
+                'generated_at': '2026-11-05T12:00:00Z',
+              },
+              'data': {
+                'actor': {'type': 'profile', 'id': 'profile-a'},
+                'name': 'Confirmed',
+              },
+            }),
+            200,
+          );
+        }).dio,
+      );
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        database: db,
+        store: store,
+        profileId: 'profile-a',
+      );
+      expect(await sync.refreshPersonalMe(), isTrue);
+      expect(requests, ['/api/v1/me/']);
+      expect(
+        (await store.readProjection('personal.me'))?.payload['name'],
         'Confirmed',
-        reason: 'Transport failure never clears earlier owner knowledge');
-  });
+      );
 
+      offline = true;
+      expect(await sync.refreshPersonalMe(), isFalse);
+      expect(
+        (await store.readProjection('personal.me'))?.payload['name'],
+        'Confirmed',
+        reason: 'Transport failure never clears earlier owner knowledge',
+      );
+    },
+  );
 
   test(
     'sync applies owner projections locally and preserves them offline',
@@ -520,16 +544,15 @@ void main() {
         profileId: 'profile-a',
       ),
     );
-    final client = MockClient((_) async => MockResponse(
-      jsonEncode({
-        'meta': {
-          'projection': 'activity.detail',
-          'schema_version': 1,
-        },
-        'data': {'id': 'another-activity', 'title': 'Unrelated'},
-      }),
-      200,
-    ));
+    final client = MockClient(
+      (_) async => MockResponse(
+        jsonEncode({
+          'meta': {'projection': 'activity.detail', 'schema_version': 1},
+          'data': {'id': 'another-activity', 'title': 'Unrelated'},
+        }),
+        200,
+      ),
+    );
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
@@ -561,68 +584,72 @@ void main() {
     expect(await store.readKnownResources(), isEmpty);
   });
 
-  test('future local clock observation cannot indefinitely freeze acquisition',
-      () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    await store.putProjection(
-      kind: 'test.known',
-      schemaVersion: 1,
-      payload: {'id': 'local-old'},
-    );
-    final source = SyncSourceDefinition.projectionEnvelope(
-      sourceKey: 'test.known',
-      owner: 'Test',
-      path: 'api/v1/test/known/',
-      projectionKind: 'test.known',
-    );
-    await database.into(database.syncSources).insert(
-      SyncSourcesCompanion.insert(
+  test(
+    'future local clock observation cannot indefinitely freeze acquisition',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      await store.putProjection(
+        kind: 'test.known',
+        schemaVersion: 1,
+        payload: {'id': 'local-old'},
+      );
+      final source = SyncSourceDefinition.projectionEnvelope(
+        sourceKey: 'test.known',
+        owner: 'Test',
+        path: 'api/v1/test/known/',
+        projectionKind: 'test.known',
+      );
+      await database
+          .into(database.syncSources)
+          .insert(
+            SyncSourcesCompanion.insert(
+              profileId: 'profile-a',
+              sourceKey: source.sourceKey,
+              route: source.path,
+              lastSuccessAt: Value(
+                DateTime.now().toUtc().add(const Duration(days: 3)),
+              ),
+            ),
+          );
+      var requests = 0;
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            profileId: 'profile-a',
+          ),
+        ),
+        dio: MockClient((_) async {
+          requests++;
+          return MockResponse(
+            jsonEncode({
+              'meta': {'projection': 'test.known', 'schema_version': 1},
+              'data': {'id': 'owner-fresh'},
+            }),
+            200,
+          );
+        }).dio,
+      );
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        database: database,
+        store: store,
         profileId: 'profile-a',
-        sourceKey: source.sourceKey,
-        route: source.path,
-        lastSuccessAt: Value(
-          DateTime.now().toUtc().add(const Duration(days: 3)),
-        ),
-      ),
-    );
-    var requests = 0;
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: MemoryTokenStore(
-        session: const AuthSession(
-          accessToken: 'access',
-          refreshToken: 'refresh',
-          profileId: 'profile-a',
-        ),
-      ),
-      dio: MockClient((_) async {
-        requests++;
-        return MockResponse(
-          jsonEncode({
-            'meta': {'projection': 'test.known', 'schema_version': 1},
-            'data': {'id': 'owner-fresh'},
-          }),
-          200,
-        );
-      }).dio,
-    );
-    addTearDown(api.close);
-    final sync = SyncEngine(
-      api: api,
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-    );
-    sync.registerPreparedSource(source);
-    expect(await sync.refreshPreparedSources(), isTrue);
-    expect(requests, 1);
-    expect(
-      (await store.readProjection('test.known'))?.payload['id'],
-      'owner-fresh',
-    );
-  });
+      );
+      sync.registerPreparedSource(source);
+      expect(await sync.refreshPreparedSources(), isTrue);
+      expect(requests, 1);
+      expect(
+        (await store.readProjection('test.known'))?.payload['id'],
+        'owner-fresh',
+      );
+    },
+  );
 
   test('prepared owner pages acquire progressively without a screen', () async {
     var calls = 0;
@@ -635,9 +662,9 @@ void main() {
     );
     final client = MockClient((request) async {
       calls++;
-      final page = int.parse(request.url.pathSegments.lastWhere(
-        (segment) => segment.isNotEmpty,
-      ));
+      final page = int.parse(
+        request.url.pathSegments.lastWhere((segment) => segment.isNotEmpty),
+      );
       final amount = page == 3 ? 40 : 10;
       return MockResponse(
         jsonEncode({

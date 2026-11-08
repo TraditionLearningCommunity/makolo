@@ -122,18 +122,22 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       // show a previously granted, not-yet-expired display permission.
       AccessCredentialData? retained;
       try {
-        retained = await widget.repository
-            .readRetainedCredential(requestedAccess);
+        retained = await widget.repository.readRetainedCredential(
+          requestedAccess,
+        );
       } on Object {
         // A missing/unavailable OS vault must not block an online-only QR.
         // The secret is never copied to an unprotected alternative store.
       }
-      if (!mounted || _generation != generation ||
-          widget.accessId != requestedAccess) return;
+      if (!mounted ||
+          _generation != generation ||
+          widget.accessId != requestedAccess)
+        return;
       if (retained != null) {
         _setCredential(retained);
       }
-      final path = widget.credentialPath ??
+      final path =
+          widget.credentialPath ??
           await widget.repository.readKnownCredentialPath(requestedAccess);
       if (path == null) {
         if (retained == null) {
@@ -145,13 +149,18 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
         accessId: requestedAccess,
         path: path,
       );
-      if (!mounted || _generation != generation ||
-          widget.accessId != requestedAccess) return;
+      if (!mounted ||
+          _generation != generation ||
+          widget.accessId != requestedAccess)
+        return;
       _setCredential(fresh);
     } on Object catch (error) {
-      if (!mounted || _generation != generation ||
-          widget.accessId != requestedAccess) return;
-      final revoked = error is MakoloApiError &&
+      if (!mounted ||
+          _generation != generation ||
+          widget.accessId != requestedAccess)
+        return;
+      final revoked =
+          error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404);
       setState(() {
         if (revoked) {
@@ -188,7 +197,8 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
             label: 'Chargement du QR…',
           ),
           (null, false, _) when _error != null => MakoloErrorState(
-            message: 'Le QR ne peut pas être chargé. '
+            message:
+                'Le QR ne peut pas être chargé. '
                 'Le droit déjà reçu reste consultable dans Mes accès. '
                 'La présentation hors ligne nécessite une copie sécurisée '
                 'explicitement autorisée par Access.',

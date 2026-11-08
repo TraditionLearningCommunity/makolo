@@ -13,8 +13,12 @@ Future<String?> showDiscoveryWatchCreation(
 }) async {
   return showDialog<String>(
     context: context,
-    builder: (_) =>
-        _CreateDiscoveryWatchDialog(repository: repository, query: query, watchId: watchId, initialName: initialName),
+    builder: (_) => _CreateDiscoveryWatchDialog(
+      repository: repository,
+      query: query,
+      watchId: watchId,
+      initialName: initialName,
+    ),
   );
 }
 
@@ -65,7 +69,9 @@ class _CreateDiscoveryWatchDialogState
         ? 'Veille · ${widget.query.place.trim()}'
         : 'Ma veille';
     _name = TextEditingController(
-      text: widget.initialName ?? (candidate.length <= 140 ? candidate : candidate.substring(0, 140)),
+      text:
+          widget.initialName ??
+          (candidate.length <= 140 ? candidate : candidate.substring(0, 140)),
     );
   }
 
@@ -104,12 +110,23 @@ class _CreateDiscoveryWatchDialogState
       setState(() => _error = 'Donnez un nom de 1 à 140 caractères.');
       return;
     }
-    final query = widget.query.copyWith(text: _keywords.text.trim(), place: _place.text.trim(), dateFrom: _from.text.trim(), dateTo: _to.text.trim(), vertical: _vertical, when: _when, price: _price, page: 1, clearContinuation: true);
+    final query = widget.query.copyWith(
+      text: _keywords.text.trim(),
+      place: _place.text.trim(),
+      dateFrom: _from.text.trim(),
+      dateTo: _to.text.trim(),
+      vertical: _vertical,
+      when: _when,
+      price: _price,
+      page: 1,
+      clearContinuation: true,
+    );
     if (query.watchCriteria.isEmpty) {
       setState(() => _error = 'Ajoutez au moins un mot-clé ou un filtre.');
       return;
     }
-    if ((_when.isNotEmpty || widget.query.date.isNotEmpty) && (_from.text.trim().isNotEmpty || _to.text.trim().isNotEmpty)) {
+    if ((_when.isNotEmpty || widget.query.date.isNotEmpty) &&
+        (_from.text.trim().isNotEmpty || _to.text.trim().isNotEmpty)) {
       setState(() => _error = 'Choisissez une période ou une plage de dates.');
       return;
     }
@@ -119,10 +136,17 @@ class _CreateDiscoveryWatchDialogState
     });
     try {
       if (widget.watchId != null) {
-        await widget.repository.editWatch(widget.watchId!, name: name, replaceCriteria: query);
+        await widget.repository.editWatch(
+          widget.watchId!,
+          name: name,
+          replaceCriteria: query,
+        );
         if (mounted) Navigator.of(context).pop(widget.watchId);
       } else {
-        final id = await widget.repository.createWatch(name: name, query: query);
+        final id = await widget.repository.createWatch(
+          name: name,
+          query: query,
+        );
         if (mounted) Navigator.of(context).pop(id);
       }
     } on Object {
@@ -140,104 +164,130 @@ class _CreateDiscoveryWatchDialogState
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.watchId == null ? 'Nouvelle veille' : 'Modifier la veille'),
-      content: SizedBox(width: 450, child: SingleChildScrollView(child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Définissez les critères de recherche de cette veille.'),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('discover-watch-keywords'),
-            controller: _keywords,
-            maxLength: 200,
-            decoration: const InputDecoration(labelText: 'Mots-clés', hintText: 'Ex. logistique'),
-          ),
-          TextField(
-            key: const Key('discover-watch-place'),
-            controller: _place,
-            decoration: const InputDecoration(labelText: 'Lieu', hintText: 'Ex. Lubumbashi'),
-          ),
-          DropdownButtonFormField<String>(
-            value: _vertical,
-            decoration: const InputDecoration(labelText: 'Type'),
-            items: const [
-              DropdownMenuItem(value: '', child: Text('Tous les types')),
-              DropdownMenuItem(value: 'event', child: Text('Événements')),
-              DropdownMenuItem(value: 'transport', child: Text('Transports')),
-              DropdownMenuItem(value: 'service', child: Text('Services')),
-              DropdownMenuItem(value: 'other', child: Text('Autres activités')),
+      title: Text(
+        widget.watchId == null ? 'Nouvelle veille' : 'Modifier la veille',
+      ),
+      content: SizedBox(
+        width: 450,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Définissez les critères de recherche de cette veille.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('discover-watch-keywords'),
+                controller: _keywords,
+                maxLength: 200,
+                decoration: const InputDecoration(
+                  labelText: 'Mots-clés',
+                  hintText: 'Ex. logistique',
+                ),
+              ),
+              TextField(
+                key: const Key('discover-watch-place'),
+                controller: _place,
+                decoration: const InputDecoration(
+                  labelText: 'Lieu',
+                  hintText: 'Ex. Lubumbashi',
+                ),
+              ),
+              DropdownButtonFormField<String>(
+                value: _vertical,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Tous les types')),
+                  DropdownMenuItem(value: 'event', child: Text('Événements')),
+                  DropdownMenuItem(
+                    value: 'transport',
+                    child: Text('Transports'),
+                  ),
+                  DropdownMenuItem(value: 'service', child: Text('Services')),
+                  DropdownMenuItem(
+                    value: 'other',
+                    child: Text('Autres activités'),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _vertical = v ?? ''),
+              ),
+              DropdownButtonFormField<String>(
+                value: _when,
+                decoration: const InputDecoration(labelText: 'Période'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Toutes dates')),
+                  DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+                  DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
+                  DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+                  DropdownMenuItem(
+                    value: 'weekend',
+                    child: Text('Ce week-end'),
+                  ),
+                ],
+                onChanged: (v) => setState(() {
+                  _when = v ?? '';
+                  if (_when.isNotEmpty) {
+                    _from.clear();
+                    _to.clear();
+                  }
+                }),
+              ),
+              DropdownButtonFormField<String>(
+                value: _price,
+                decoration: const InputDecoration(labelText: 'Prix'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('Tous les prix')),
+                  DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+                  DropdownMenuItem(value: 'paid', child: Text('Payant')),
+                ],
+                onChanged: (v) => setState(() => _price = v ?? ''),
+              ),
+              const SizedBox(height: 8),
+              const Text('Plage de dates (facultative)'),
+              TextField(
+                key: const Key('discover-watch-from'),
+                controller: _from,
+                readOnly: true,
+                onTap: () => _chooseDate(_from),
+                decoration: const InputDecoration(
+                  labelText: 'À partir du',
+                  hintText: 'Choisir une date',
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const Key('discover-watch-to'),
+                controller: _to,
+                readOnly: true,
+                onTap: () => _chooseDate(_to),
+                decoration: const InputDecoration(
+                  labelText: 'Jusqu’au',
+                  hintText: 'Choisir une date',
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('discover-watch-name'),
+                controller: _name,
+                maxLength: 140,
+                decoration: const InputDecoration(
+                  labelText: 'Nom de la veille',
+                ),
+                onSubmitted: (_) => _create(),
+              ),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
             ],
-            onChanged: (v) => setState(() => _vertical = v ?? ''),
           ),
-          DropdownButtonFormField<String>(
-            value: _when,
-            decoration: const InputDecoration(labelText: 'Période'),
-            items: const [
-              DropdownMenuItem(value: '', child: Text('Toutes dates')),
-              DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
-              DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-              DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
-              DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
-            ],
-            onChanged: (v) => setState(() {
-              _when = v ?? '';
-              if (_when.isNotEmpty) {
-                _from.clear();
-                _to.clear();
-              }
-            }),
-          ),
-          DropdownButtonFormField<String>(
-            value: _price,
-            decoration: const InputDecoration(labelText: 'Prix'),
-            items: const [
-              DropdownMenuItem(value: '', child: Text('Tous les prix')),
-              DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-              DropdownMenuItem(value: 'paid', child: Text('Payant')),
-            ],
-            onChanged: (v) => setState(() => _price = v ?? ''),
-          ),
-          const SizedBox(height: 8),
-          const Text('Plage de dates (facultative)'),
-          TextField(
-            key: const Key('discover-watch-from'),
-            controller: _from,
-            readOnly: true,
-            onTap: () => _chooseDate(_from),
-            decoration: const InputDecoration(
-              labelText: 'À partir du',
-              hintText: 'Choisir une date',
-              suffixIcon: Icon(Icons.calendar_today_outlined),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            key: const Key('discover-watch-to'),
-            controller: _to,
-            readOnly: true,
-            onTap: () => _chooseDate(_to),
-            decoration: const InputDecoration(
-              labelText: 'Jusqu’au',
-              hintText: 'Choisir une date',
-              suffixIcon: Icon(Icons.calendar_today_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('discover-watch-name'),
-            controller: _name,
-            maxLength: 140,
-            decoration: const InputDecoration(labelText: 'Nom de la veille'),
-            onSubmitted: (_) => _create(),
-          ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-        ],
-      ))),
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
@@ -252,7 +302,9 @@ class _CreateDiscoveryWatchDialogState
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text(widget.watchId == null ? 'Créer la veille' : 'Enregistrer'),
+              : Text(
+                  widget.watchId == null ? 'Créer la veille' : 'Enregistrer',
+                ),
         ),
       ],
     );

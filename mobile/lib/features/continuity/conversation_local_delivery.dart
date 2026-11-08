@@ -42,7 +42,8 @@ class ConversationOutgoing {
   final String? localFilePath;
 
   bool get isConfirmed => state == OutboxState.confirmed.wireValue;
-  bool get isBlocked => state == OutboxState.conflict.wireValue ||
+  bool get isBlocked =>
+      state == OutboxState.conflict.wireValue ||
       state == OutboxState.awaitingConfirmation.wireValue ||
       (state == OutboxState.failed.wireValue);
 }
@@ -62,7 +63,8 @@ class ConversationLocalDelivery {
     required this.mediaMime,
     this.mediaDirectory,
   }) {
-    if (profileId != drafts.profileId || profileId != outbox.profileId ||
+    if (profileId != drafts.profileId ||
+        profileId != outbox.profileId ||
         !identical(database, drafts.database) ||
         !identical(database, outbox.database)) {
       throw ArgumentError('Conversation delivery requires one Profile scope');
@@ -81,7 +83,7 @@ class ConversationLocalDelivery {
   final MakoloApiClient api;
   final String profileId;
   final Future<void> Function(String conversationId, String? focusPointId)
-      refreshDetail;
+  refreshDetail;
   final String Function(String filename, String kind) mediaMime;
   final Future<Directory> Function()? mediaDirectory;
 
@@ -123,11 +125,13 @@ class ConversationLocalDelivery {
   Future<void> clearDraft({
     required String conversationId,
     required String kind,
-  }) => drafts.delete(
-    owner: owner,
-    resourceKind: composeDraftKind,
-    resourceId: _draftScope(conversationId, kind),
-  ).then((_) {});
+  }) => drafts
+      .delete(
+        owner: owner,
+        resourceKind: composeDraftKind,
+        resourceId: _draftScope(conversationId, kind),
+      )
+      .then((_) {});
 
   /// Full immutable owner request, with a stable idempotence reference.
   /// The conversation may be offline: queueing never requires API access.
@@ -157,7 +161,9 @@ class ConversationLocalDelivery {
     final deviceId = await tokens.deviceInstanceId();
     String? stagedPath;
     if (mode == 'media') {
-      if (filePath == null || filename == null || mediaKind == null ||
+      if (filePath == null ||
+          filename == null ||
+          mediaKind == null ||
           !{'image', 'file', 'voice', 'audio', 'video'}.contains(mediaKind)) {
         throw ArgumentError('A selected media file is required');
       }
@@ -166,15 +172,19 @@ class ConversationLocalDelivery {
         throw StateError('Le fichier sélectionné est introuvable.');
       }
       final folder = mediaDirectory == null
-          ? Directory('${(await getApplicationSupportDirectory()).path}/profiles/'
-              '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing')
+          ? Directory(
+              '${(await getApplicationSupportDirectory()).path}/profiles/'
+              '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing',
+            )
           : await mediaDirectory!();
       await folder.create(recursive: true);
       final name = filename.split(RegExp(r'[/\\]')).last;
       final suffix = name.contains('.')
-          ? name.substring(name.lastIndexOf('.')) : '.bin';
+          ? name.substring(name.lastIndexOf('.'))
+          : '.bin';
       final extension = RegExp(r'^\.[A-Za-z0-9]{1,10}$').hasMatch(suffix)
-          ? suffix : '.bin';
+          ? suffix
+          : '.bin';
       stagedPath = '${folder.path}/$reference$extension';
       await original.copy(stagedPath);
     }
@@ -191,7 +201,8 @@ class ConversationLocalDelivery {
       if (questions != null) 'questions': questions,
       if (pointId != null) 'point_id': pointId,
       if (audienceId != null) 'audience_id': audienceId,
-      if (representedSpaceId != null) 'represented_space_id': representedSpaceId,
+      if (representedSpaceId != null)
+        'represented_space_id': representedSpaceId,
       if (stagedPath != null) 'local_file_path': stagedPath,
       if (filename != null) 'filename': filename,
       if (mediaKind != null) 'media_kind': mediaKind,
@@ -217,18 +228,22 @@ class ConversationLocalDelivery {
       );
     } on Object {
       if (stagedPath != null) {
-        try { await File(stagedPath).delete(); } on Object {}
+        try {
+          await File(stagedPath).delete();
+        } on Object {}
       }
       rethrow;
     }
     final dispatch = requestDispatch;
     if (dispatch != null) {
-      unawaited(() async {
-        // Another drain may already be running when this intent is queued.
-        // The second pass picks up rows added after its pending snapshot.
-        await dispatch();
-        await dispatch();
-      }().catchError((Object _) {}));
+      unawaited(
+        () async {
+          // Another drain may already be running when this intent is queued.
+          // The second pass picks up rows added after its pending snapshot.
+          await dispatch();
+          await dispatch();
+        }().catchError((Object _) {}),
+      );
     }
     return reference;
   }
@@ -237,17 +252,20 @@ class ConversationLocalDelivery {
   /// claiming they are already accepted or read by remote participants.
   Stream<List<ConversationOutgoing>> watchOutgoing(String conversationId) {
     final query = database.select(database.outboxOperations)
-      ..where((row) =>
-          row.profileId.equals(profileId) &
-          row.owner.equals(owner) &
-          row.operationKind.equals(operationKind) &
-          row.resourceId.equals(conversationId))
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.owner.equals(owner) &
+            row.operationKind.equals(operationKind) &
+            row.resourceId.equals(conversationId),
+      )
       ..orderBy([(row) => OrderingTerm.asc(row.observedAt)]);
-    return query.watch().map((rows) => [
-      for (final row in rows)
-        if (row.state != OutboxState.cancelled.wireValue)
-          _row(row),
-    ]);
+    return query.watch().map(
+      (rows) => [
+        for (final row in rows)
+          if (row.state != OutboxState.cancelled.wireValue) _row(row),
+      ],
+    );
   }
 
   ConversationOutgoing _row(OutboxOperation row) {
@@ -255,10 +273,12 @@ class ConversationLocalDelivery {
     final mode = payload['mode']?.toString();
     return ConversationOutgoing(
       reference: row.intentId,
-      kind: mode == 'form' ? 'form_request'
+      kind: mode == 'form'
+          ? 'form_request'
           : mode == 'media'
           ? payload['point_kind']?.toString() ?? 'information'
-          : mode == 'text' ? 'information'
+          : mode == 'text'
+          ? 'information'
           : payload['kind']?.toString() ?? 'information',
       title: payload['title']?.toString() ?? '',
       body: payload['body']?.toString() ?? '',
@@ -288,7 +308,8 @@ class ConversationLocalDelivery {
     }
     final conversationId = payload['conversation_id']?.toString() ?? '';
     final mode = payload['mode']?.toString() ?? '';
-    if (conversationId.isEmpty || operation.resourceId != conversationId ||
+    if (conversationId.isEmpty ||
+        operation.resourceId != conversationId ||
         !{'text', 'point', 'form', 'media'}.contains(mode)) {
       return OutboxResolution.conflict;
     }
@@ -297,7 +318,9 @@ class ConversationLocalDelivery {
       final localFile = payload['local_file_path']?.toString() ?? '';
       final filename = payload['filename']?.toString() ?? '';
       final kind = payload['media_kind']?.toString() ?? '';
-      if (localFile.isEmpty || filename.isEmpty || kind.isEmpty ||
+      if (localFile.isEmpty ||
+          filename.isEmpty ||
+          kind.isEmpty ||
           !await File(localFile).exists()) {
         return OutboxResolution.conflict;
       }
@@ -314,11 +337,13 @@ class ConversationLocalDelivery {
           'point_kind': payload['point_kind'],
           'title': payload['title'],
           'options': payload['options'] == null
-              ? null : jsonEncode(payload['options']),
+              ? null
+              : jsonEncode(payload['options']),
           'multiple_choice': payload['multiple_choice'] == true,
           'form_version_id': payload['form_version_id'],
           'questions': payload['questions'] == null
-              ? null : jsonEncode(payload['questions']),
+              ? null
+              : jsonEncode(payload['questions']),
         },
         files: [
           MakoloUploadFile(

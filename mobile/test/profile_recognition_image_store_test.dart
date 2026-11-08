@@ -138,43 +138,47 @@ void main() {
     },
   );
 
-  test('cold start restores the last valid published image from backup',
-      () async {
-    final store = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    await store.save(imagePath, imageBytes);
-    final original = File(
-      '${supportRoot.path}/profiles/profile-a/recognition-images/'
-      '${ProfileRecognitionImageStore.keyFor(imagePath)}.image',
-    );
-    final backup = await original.rename('${original.path}.backup-crashed');
-    expect(await original.exists(), isFalse);
-    expect(await backup.exists(), isTrue);
+  test(
+    'cold start restores the last valid published image from backup',
+    () async {
+      final store = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
+      );
+      await store.save(imagePath, imageBytes);
+      final original = File(
+        '${supportRoot.path}/profiles/profile-a/recognition-images/'
+        '${ProfileRecognitionImageStore.keyFor(imagePath)}.image',
+      );
+      final backup = await original.rename('${original.path}.backup-crashed');
+      expect(await original.exists(), isFalse);
+      expect(await backup.exists(), isTrue);
 
-    final restarted = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    await restarted.recoverInterruptedWrites();
-    expect(await restarted.read(imagePath), orderedEquals(imageBytes));
-    expect(await backup.exists(), isFalse);
-  });
+      final restarted = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
+      );
+      await restarted.recoverInterruptedWrites();
+      expect(await restarted.read(imagePath), orderedEquals(imageBytes));
+      expect(await backup.exists(), isFalse);
+    },
+  );
 
-  test('owner purge queued after a write prevents recognition resurrection',
-      () async {
-    final store = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    await store.save(imagePath, imageBytes);
-    final newer = store.save(imagePath, Uint8List.fromList([9, 8, 7]));
-    final withdraw = store.purge();
-    await newer;
-    await withdraw;
-    expect(await store.read(imagePath), isNull);
-  });
+  test(
+    'owner purge queued after a write prevents recognition resurrection',
+    () async {
+      final store = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
+      );
+      await store.save(imagePath, imageBytes);
+      final newer = store.save(imagePath, Uint8List.fromList([9, 8, 7]));
+      final withdraw = store.purge();
+      await newer;
+      await withdraw;
+      expect(await store.read(imagePath), isNull);
+    },
+  );
 
   test('recognition path authorization also guards local reads', () async {
     final store = ProfileRecognitionImageStore(

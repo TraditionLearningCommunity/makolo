@@ -122,7 +122,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       email.text = identity['contact_email']?.toString() ?? '';
       phone.text = identity['contact_phone']?.toString() ?? '';
       final location = identity['location'] is Map
-          ? identity['location'] as Map : const {};
+          ? identity['location'] as Map
+          : const {};
       city.text = location['city']?.toString() ?? '';
       country.text = location['country']?.toString() ?? '';
       setState(() {
@@ -166,7 +167,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       return;
     }
     final normalizedWebsite = PassportEditorFieldRules.normalize(
-      'website', website.text,
+      'website',
+      website.text,
     );
     website.text = normalizedWebsite;
     if (form.currentState?.validate() != true) return;
@@ -220,8 +222,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
           failure.statusCode == 404) {
         setState(() {
           authorized = false;
-          error =
-              'Cette modification n’est plus accessible avec vos droits actuels.';
+          error = 'Cette modification n’est plus accessible avec vos droits actuels.';
         });
       } else {
         setState(() {
@@ -247,7 +248,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       appBar: AppBar(title: const Text('Identité de l’Espace')),
       body: current == null
           ? const Center(
-              child: Text('Sélectionnez l’Espace que vous êtes autorisé à modifier.'),
+              child: Text(
+                'Sélectionnez l’Espace que vous êtes autorisé à modifier.',
+              ),
             )
           : loading
           ? const Center(child: CircularProgressIndicator())
@@ -268,8 +271,10 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(MakoloSpacing.lg),
                 children: [
-                  Text('Identité de l’Espace',
-                    style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    'Identité de l’Espace',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: MakoloSpacing.sm),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -287,7 +292,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                       final text = (v ?? '').trim();
                       if (text.isEmpty) return 'Nom requis.';
                       return text.runes.length > 180
-                          ? '180 caractères maximum.' : null;
+                          ? '180 caractères maximum.'
+                          : null;
                     },
                   ),
                   TextFormField(
@@ -299,33 +305,41 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   ),
 
                   const SizedBox(height: MakoloSpacing.lg),
-                  Text('Localisation',
-                    style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Localisation',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   TextFormField(
                     controller: city,
                     maxLength: 120,
                     maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
-                      labelText: 'Ville', counterText: '',
+                      labelText: 'Ville',
+                      counterText: '',
                     ),
                     validator: (value) =>
                         (value ?? '').trim().runes.length <= 120
-                            ? null : '120 caractères maximum.',
+                        ? null
+                        : '120 caractères maximum.',
                   ),
                   TextFormField(
                     controller: country,
                     maxLength: 120,
                     maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
-                      labelText: 'Pays', counterText: '',
+                      labelText: 'Pays',
+                      counterText: '',
                     ),
                     validator: (value) =>
                         (value ?? '').trim().runes.length <= 120
-                            ? null : '120 caractères maximum.',
+                        ? null
+                        : '120 caractères maximum.',
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
-                  Text('Contact',
-                    style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Contact',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   TextFormField(
                     controller: email,
                     keyboardType: TextInputType.emailAddress,
@@ -333,7 +347,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     maxLength: 254,
                     maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
-                      labelText: 'Adresse e-mail', counterText: '',
+                      labelText: 'Adresse e-mail',
+                      counterText: '',
                     ),
                     validator: (value) {
                       final text = (value ?? '').trim();
@@ -342,7 +357,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                         return '254 caractères maximum.';
                       }
                       return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                          .hasMatch(text)
+                              .hasMatch(text)
                           ? null
                           : 'E-mail invalide.';
                     },
@@ -363,8 +378,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                         return '40 caractères maximum.';
                       }
                       final digits = RegExp(r'[0-9]').allMatches(text).length;
-                      return RegExp(r'^(?:\+?[0-9][0-9().\s-]*|\(\+[0-9]{1,4}\)[0-9().\s-]*)$')
-                          .hasMatch(text) &&
+                      return RegExp(
+                                r'^(?:\+?[0-9][0-9().\s-]*|\(\+[0-9]{1,4}\)[0-9().\s-]*)$',
+                              ).hasMatch(text) &&
                               digits >= 7 &&
                               digits <= 15
                           ? null
@@ -373,13 +389,13 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   ),
 
                   const SizedBox(height: MakoloSpacing.lg),
-                  Text('Liens',
-                    style: Theme.of(context).textTheme.titleMedium),
+                  Text('Liens', style: Theme.of(context).textTheme.titleMedium),
                   Focus(
                     onFocusChange: (focused) {
                       if (!focused && !saving) {
                         final normalized = PassportEditorFieldRules.normalize(
-                          'website', website.text,
+                          'website',
+                          website.text,
                         );
                         if (website.text != normalized) {
                           setState(() => website.text = normalized);
@@ -394,10 +410,12 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                       maxLength: 200,
                       maxLengthEnforcement: MaxLengthEnforcement.none,
                       decoration: const InputDecoration(
-                        labelText: 'Site web', counterText: '',
+                        labelText: 'Site web',
+                        counterText: '',
                       ),
                       validator: (value) => PassportEditorFieldRules.error(
-                        'website', value ?? '',
+                        'website',
+                        value ?? '',
                       ),
                     ),
                   ),

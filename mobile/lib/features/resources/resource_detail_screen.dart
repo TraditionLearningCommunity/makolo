@@ -97,7 +97,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     if (version == null || detail.sensitivity != 'normal') {
       return Future<bool>.value(false);
     }
-    final key = '${widget.repository.profileId}:${widget.assetId}:'
+    final key =
+        '${widget.repository.profileId}:${widget.assetId}:'
         '${detail.title}:${version.number}';
     if (key != _localCopyKey) {
       _localCopyKey = key;

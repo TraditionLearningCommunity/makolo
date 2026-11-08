@@ -103,7 +103,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
           '/conversations/${state.pathParameters['id']}?focus=${Uri.encodeQueryComponent(pointId)}',
         ),
         onOpenFormRequest: (requestId) async {
-          await context.push('/conversations/${state.pathParameters['id']}/forms/$requestId');
+          await context.push(
+            '/conversations/${state.pathParameters['id']}/forms/$requestId',
+          );
           if (context.mounted) {
             try {
               await repository.refreshDetail(state.pathParameters['id']!);
@@ -123,9 +125,13 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       final drafts = runtime.drafts;
       final outbox = runtime.outbox;
       final submit = runtime.questionnaireSubmit;
-      if (repository == null || drafts == null || outbox == null || submit == null) {
+      if (repository == null ||
+          drafts == null ||
+          outbox == null ||
+          submit == null) {
         return const MakoloSecondaryScreen(
-          title: 'Formulaire', message: 'Formulaire indisponible sur cet appareil.',
+          title: 'Formulaire',
+          message: 'Formulaire indisponible sur cet appareil.',
         );
       }
       final requestId = state.pathParameters['requestId']!;
@@ -134,10 +140,15 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         requestId: requestId,
         journeyId: '',
         links: QuestionnaireOwnerLinks(
-          detail: base, save: '${base}save/', submit: '${base}submit/',
+          detail: base,
+          save: '${base}save/',
+          submit: '${base}submit/',
         ),
-        repository: repository, drafts: drafts, outbox: outbox,
-        submitCoordinator: submit, outboxProcessor: runtime.outboxProcessor,
+        repository: repository,
+        drafts: drafts,
+        outbox: outbox,
+        submitCoordinator: submit,
+        outboxProcessor: runtime.outboxProcessor,
       );
     },
   ),

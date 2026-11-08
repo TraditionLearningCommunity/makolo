@@ -73,7 +73,7 @@ class AccessDetailSelector {
       if (page.kind != AccessRepository.collectionProjectionKind ||
           page.schemaVersion != 1 ||
           !(page.resourceKey.startsWith('beneficiary:') ||
-            page.resourceKey.startsWith('purchased_for_other:'))) {
+              page.resourceKey.startsWith('purchased_for_other:'))) {
         continue;
       }
       final rows = page.payload['items'];
@@ -94,10 +94,7 @@ class AccessDetailSelector {
           relationship: _string(item['relationship']) ?? '',
           singleUse: false,
           capabilities: const {},
-          freshness: AccessRepository.freshnessPolicy.evaluate(
-            page,
-            now: now,
-          ),
+          freshness: AccessRepository.freshnessPolicy.evaluate(page, now: now),
           sourceInvalidated: false,
           knownOnly: true,
           state: _string(state['label']) ?? _string(state['code']),

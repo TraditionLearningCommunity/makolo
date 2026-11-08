@@ -43,14 +43,13 @@ abstract interface class AccessCredentialVault {
 /// held by platform Keychain/Keystore, not a Profile projection or file.
 class SecureAccessCredentialVault implements AccessCredentialVault {
   SecureAccessCredentialVault({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _namespace = 'makolo.access.credential.v1';
   static Future<void> _pending = Future<void>.value();
   final FlutterSecureStorage _storage;
 
-  String _key(String profile, String access) =>
-      '$_namespace.$profile.$access';
+  String _key(String profile, String access) => '$_namespace.$profile.$access';
   String _index(String profile) => '$_namespace.index.$profile';
 
   Future<void> _serialize(Future<void> Function() operation) {
@@ -70,11 +69,10 @@ class SecureAccessCredentialVault implements AccessCredentialVault {
     }
   }
 
-  Future<void> _writeKeys(String profile, Set<String> keys) =>
-      _storage.write(
-        key: _index(profile),
-        value: jsonEncode(keys.toList()..sort()),
-      );
+  Future<void> _writeKeys(String profile, Set<String> keys) => _storage.write(
+    key: _index(profile),
+    value: jsonEncode(keys.toList()..sort()),
+  );
 
   @override
   Future<RetainedAccessQr?> read(String profileId, String accessId) async {
@@ -170,12 +168,14 @@ class SecureAccessCredentialVault implements AccessCredentialVault {
               decoded['payload'] is String &&
               (decoded['payload'] as String).isNotEmpty &&
               decoded['path'] is String) {
-            final expiry =
-                DateTime.tryParse(decoded['expiry']?.toString() ?? '');
+            final expiry = DateTime.tryParse(
+              decoded['expiry']?.toString() ?? '',
+            );
             final checked = DateTime.tryParse(
               decoded['checked']?.toString() ?? '',
             );
-            usable = checked != null &&
+            usable =
+                checked != null &&
                 expiry != null &&
                 !checked.toUtc().isAfter(now) &&
                 checked.toUtc().isBefore(expiry.toUtc()) &&
@@ -196,9 +196,9 @@ class SecureAccessCredentialVault implements AccessCredentialVault {
 
   @override
   Future<void> clearProfile(String profileId) => _serialize(() async {
-        for (final access in await _keys(profileId)) {
-          await _storage.delete(key: _key(profileId, access));
-        }
-        await _storage.delete(key: _index(profileId));
-      });
+    for (final access in await _keys(profileId)) {
+      await _storage.delete(key: _key(profileId, access));
+    }
+    await _storage.delete(key: _index(profileId));
+  });
 }

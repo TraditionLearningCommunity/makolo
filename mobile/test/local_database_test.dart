@@ -9,8 +9,7 @@ import 'package:makolo_mobile/repositories/draft_repository.dart';
 import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 void main() {
-  test('Profile SQLite paths cannot collide after identity normalization',
-      () {
+  test('Profile SQLite paths cannot collide after identity normalization', () {
     expect(
       MakoloDatabase.profileDirectoryKey(
         '123e4567-e89b-12d3-a456-426614174000',
@@ -33,12 +32,8 @@ void main() {
       keys,
       reason: 'SQLite, sensitive files and media must share one path boundary',
     );
-    expect(
-      () => MakoloDatabase.profileDirectoryKey(''),
-      throwsArgumentError,
-    );
+    expect(() => MakoloDatabase.profileDirectoryKey(''), throwsArgumentError);
   });
-
 
   test('root projection is stored and isolated by Profile', () async {
     final database = MakoloDatabase.memory();
@@ -105,134 +100,147 @@ void main() {
     },
   );
 
-  test('AccessCredential payloads cannot enter generic Profile snapshots',
-      () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    await expectLater(
-      store.putProjection(
-        kind: 'personal.access.credential',
-        resourceKey: 'access-1',
+  test(
+    'AccessCredential payloads cannot enter generic Profile snapshots',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      await expectLater(
+        store.putProjection(
+          kind: 'personal.access.credential',
+          resourceKey: 'access-1',
+          schemaVersion: 1,
+          payload: {
+            'representation': {'payload': 'private-test-secret'},
+          },
+        ),
+        throwsFormatException,
+      );
+      expect(
+        await store.readProjection(
+          'personal.access.credential',
+          resourceKey: 'access-1',
+        ),
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'resource references are searchable only while owner facts exist',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final alice = ProfileStore(database, 'alice');
+      final bob = ProfileStore(database, 'bob');
+
+      await alice.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-a',
         schemaVersion: 1,
-        payload: {'representation': {'payload': 'private-test-secret'}},
-      ),
-      throwsFormatException,
-    );
-    expect(
-      await store.readProjection(
-        'personal.access.credential',
-        resourceKey: 'access-1',
-      ),
-      isNull,
-    );
-  });
+        payload: {'id': 'activity-a', 'title': 'Formation'},
+      );
+      await alice.putResourceReference(
+        resourceKind: 'Activity',
+        resourceId: 'activity-a',
+        projectionKind: 'activity.detail',
+        label: 'Formation',
+      );
 
-  test('resource references are searchable only while owner facts exist', () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final alice = ProfileStore(database, 'alice');
-    final bob = ProfileStore(database, 'bob');
+      final found = await alice.readKnownResources(search: 'forma');
+      expect(found, hasLength(1));
+      expect(found.single.id, 'activity-a');
+      expect(await bob.readKnownResources(), isEmpty);
+      expect(
+        await alice.watchKnownResources(search: 'FORM').first,
+        hasLength(1),
+      );
 
-    await alice.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-a',
-      schemaVersion: 1,
-      payload: {'id': 'activity-a', 'title': 'Formation'},
-    );
-    await alice.putResourceReference(
-      resourceKind: 'Activity',
-      resourceId: 'activity-a',
-      projectionKind: 'activity.detail',
-      label: 'Formation',
-    );
+      await alice.deleteProjection(
+        'activity.detail',
+        resourceKey: 'activity-a',
+      );
+      expect(
+        await alice.readKnownResources(),
+        isEmpty,
+        reason: 'An orphan index pointer must never resurrect an owner fact.',
+      );
 
-    final found = await alice.readKnownResources(search: 'forma');
-    expect(found, hasLength(1));
-    expect(found.single.id, 'activity-a');
-    expect(await bob.readKnownResources(), isEmpty);
-    expect(
-      await alice.watchKnownResources(search: 'FORM').first,
-      hasLength(1),
-    );
+      await alice.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-a',
+        schemaVersion: 1,
+        payload: {'id': 'activity-a'},
+        expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+      );
+      expect(await alice.readKnownResources(), isEmpty);
+    },
+  );
 
-    await alice.deleteProjection('activity.detail', resourceKey: 'activity-a');
-    expect(
-      await alice.readKnownResources(),
-      isEmpty,
-      reason: 'An orphan index pointer must never resurrect an owner fact.',
-    );
-
-    await alice.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-a',
-      schemaVersion: 1,
-      payload: {'id': 'activity-a'},
-      expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
-    );
-    expect(await alice.readKnownResources(), isEmpty);
-  });
-
-  test('expired snapshots compact only orphan indexes, never local work',
-      () async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final alice = ProfileStore(db, 'profile-a');
-    final bob = ProfileStore(db, 'profile-b');
-    final past = DateTime.now().toUtc().subtract(const Duration(hours: 1));
-    await alice.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-a',
-      schemaVersion: 1,
-      payload: {'title': 'expired'},
-      expiresAt: past,
-    );
-    await alice.putResourceReference(
-      resourceKind: 'Activity',
-      resourceId: 'activity-a',
-      projectionKind: 'activity.detail',
-    );
-    await bob.putProjection(
-      kind: 'activity.detail',
-      resourceKey: 'activity-b',
-      schemaVersion: 1,
-      payload: {'title': 'still known'},
-    );
-    await bob.putResourceReference(
-      resourceKind: 'Activity',
-      resourceId: 'activity-b',
-      projectionKind: 'activity.detail',
-    );
-    final outbox = OutboxRepository(db, 'profile-a');
-    final drafts = DraftRepository(
-      database: db,
-      outbox: outbox,
-      profileId: 'profile-a',
-    );
-    await drafts.saveLocal(
-      draftId: 'draft-keep',
-      owner: 'JourneyArtifact',
-      resourceKind: 'journey',
-      resourceId: 'journey-1',
-      payload: {'text': 'not disposable'},
-    );
-
-    expect(await alice.purgeExpiredProjections(), 1);
-    expect(
-      (await db.select(db.resourceIndex).get())
-          .where((row) => row.profileId == 'profile-a'),
-      isEmpty,
-    );
-    expect(await bob.readKnownResources(), hasLength(1));
-    expect(
-      (await drafts.read(
+  test(
+    'expired snapshots compact only orphan indexes, never local work',
+    () async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final alice = ProfileStore(db, 'profile-a');
+      final bob = ProfileStore(db, 'profile-b');
+      final past = DateTime.now().toUtc().subtract(const Duration(hours: 1));
+      await alice.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-a',
+        schemaVersion: 1,
+        payload: {'title': 'expired'},
+        expiresAt: past,
+      );
+      await alice.putResourceReference(
+        resourceKind: 'Activity',
+        resourceId: 'activity-a',
+        projectionKind: 'activity.detail',
+      );
+      await bob.putProjection(
+        kind: 'activity.detail',
+        resourceKey: 'activity-b',
+        schemaVersion: 1,
+        payload: {'title': 'still known'},
+      );
+      await bob.putResourceReference(
+        resourceKind: 'Activity',
+        resourceId: 'activity-b',
+        projectionKind: 'activity.detail',
+      );
+      final outbox = OutboxRepository(db, 'profile-a');
+      final drafts = DraftRepository(
+        database: db,
+        outbox: outbox,
+        profileId: 'profile-a',
+      );
+      await drafts.saveLocal(
+        draftId: 'draft-keep',
         owner: 'JourneyArtifact',
         resourceKind: 'journey',
         resourceId: 'journey-1',
-      ))?.payload['text'],
-      'not disposable',
-    );
-  });
+        payload: {'text': 'not disposable'},
+      );
+
+      expect(await alice.purgeExpiredProjections(), 1);
+      expect(
+        (await db.select(db.resourceIndex).get()).where(
+          (row) => row.profileId == 'profile-a',
+        ),
+        isEmpty,
+      );
+      expect(await bob.readKnownResources(), hasLength(1));
+      expect(
+        (await drafts.read(
+          owner: 'JourneyArtifact',
+          resourceKind: 'journey',
+          resourceId: 'journey-1',
+        ))?.payload['text'],
+        'not disposable',
+      );
+    },
+  );
 
   test('draft and outbox are committed atomically', () async {
     final database = MakoloDatabase.memory();
@@ -311,53 +319,60 @@ void main() {
     );
   });
 
-  test('atomic draft and queue roll back if operation cannot be inserted',
-      () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final outbox = OutboxRepository(database, 'profile-a');
-    final drafts = DraftRepository(
-      database: database,
-      outbox: outbox,
-      profileId: 'profile-a',
-    );
-    await outbox.enqueue(
-      operationId: 'occupied',
-      deviceInstanceId: 'device-a',
-      operationKind: 'owner.intent',
-      owner: 'Owner',
-      payload: {'initial': true},
-      intentId: 'intent-old',
-      replayPolicy: ReplayPolicy.safe,
-    );
-
-    await expectLater(
-      drafts.saveAndQueue(
-        draftId: 'form:req-1',
-        owner: 'Questionnaires',
-        resourceKind: 'form_request',
-        resourceId: 'req-1',
-        payload: {'answers': {'question': 'A'}},
+  test(
+    'atomic draft and queue roll back if operation cannot be inserted',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final outbox = OutboxRepository(database, 'profile-a');
+      final drafts = DraftRepository(
+        database: database,
+        outbox: outbox,
+        profileId: 'profile-a',
+      );
+      await outbox.enqueue(
         operationId: 'occupied',
         deviceInstanceId: 'device-a',
-        operationKind: 'questionnaire.form.submit',
-        intentId: 'intent-new',
-        replayPolicy: ReplayPolicy.refetchBeforeRetry,
-        operationPayload: {'request_id': 'req-1'},
-      ),
-      throwsA(isA<Exception>()),
-    );
-    expect(
-      await drafts.read(
-        owner: 'Questionnaires',
-        resourceKind: 'form_request',
-        resourceId: 'req-1',
-      ),
-      isNull,
-      reason: 'A failed enqueue must roll back the draft write too',
-    );
-    expect(await database.select(database.outboxOperations).get(), hasLength(1));
-  });
+        operationKind: 'owner.intent',
+        owner: 'Owner',
+        payload: {'initial': true},
+        intentId: 'intent-old',
+        replayPolicy: ReplayPolicy.safe,
+      );
+
+      await expectLater(
+        drafts.saveAndQueue(
+          draftId: 'form:req-1',
+          owner: 'Questionnaires',
+          resourceKind: 'form_request',
+          resourceId: 'req-1',
+          payload: {
+            'answers': {'question': 'A'},
+          },
+          operationId: 'occupied',
+          deviceInstanceId: 'device-a',
+          operationKind: 'questionnaire.form.submit',
+          intentId: 'intent-new',
+          replayPolicy: ReplayPolicy.refetchBeforeRetry,
+          operationPayload: {'request_id': 'req-1'},
+        ),
+        throwsA(isA<Exception>()),
+      );
+      expect(
+        await drafts.read(
+          owner: 'Questionnaires',
+          resourceKind: 'form_request',
+          resourceId: 'req-1',
+        ),
+        isNull,
+        reason: 'A failed enqueue must roll back the draft write too',
+      );
+      expect(
+        await database.select(database.outboxOperations).get(),
+        hasLength(1),
+      );
+    },
+  );
 
   test('same owner intent cannot be queued again with new payload', () async {
     final database = MakoloDatabase.memory();
@@ -374,7 +389,10 @@ void main() {
     );
     await enqueue({'value': 'once'});
     await enqueue({'value': 'once'});
-    expect(await database.select(database.outboxOperations).get(), hasLength(1));
+    expect(
+      await database.select(database.outboxOperations).get(),
+      hasLength(1),
+    );
     await expectLater(enqueue({'value': 'different'}), throwsStateError);
   });
 

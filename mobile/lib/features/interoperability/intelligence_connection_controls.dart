@@ -71,12 +71,10 @@ class _IntelligenceConnectionControlsState
   }
 
   bool _scopeUnchanged(String path, AppRuntime runtime) =>
-      mounted && widget.path == path &&
-      identical(widget.runtime, runtime);
+      mounted && widget.path == path && identical(widget.runtime, runtime);
 
   bool _sameOwner(String path, AppRuntime runtime) =>
       _scopeUnchanged(path, runtime) && widget.mutationsEnabled;
-
 
   Future<void> _loadCatalog() async {
     final generation = ++_catalogGeneration;
@@ -96,22 +94,30 @@ class _IntelligenceConnectionControlsState
     try {
       final result = (await api.get(path)).jsonObject();
       final offers = result['offers'];
-      if (!mounted || generation != _catalogGeneration ||
-          path != widget.path || !identical(runtime, widget.runtime)) return;
+      if (!mounted ||
+          generation != _catalogGeneration ||
+          path != widget.path ||
+          !identical(runtime, widget.runtime))
+        return;
       if (offers is! List) throw const FormatException('Invalid owner catalog');
       setState(() {
-        _offers = offers.whereType<Map<String, dynamic>>()
-            .toList(growable: false);
+        _offers = offers.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
         _catalogLoading = false;
         _catalogError = null;
       });
     } on Object {
-      if (!mounted || generation != _catalogGeneration ||
-          path != widget.path || !identical(runtime, widget.runtime)) return;
+      if (!mounted ||
+          generation != _catalogGeneration ||
+          path != widget.path ||
+          !identical(runtime, widget.runtime))
+        return;
       setState(() {
         _offers = const [];
         _catalogLoading = false;
-        _catalogError = 'Catalogue indisponible. Vérifiez votre connexion ou vos droits.';
+        _catalogError =
+            'Catalogue indisponible. Vérifiez votre connexion ou vos droits.';
       });
     }
   }
@@ -127,7 +133,8 @@ class _IntelligenceConnectionControlsState
     required String method,
     required Map<String, dynamic> body,
   }) async {
-    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return false;
+    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null)
+      return false;
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
     final mutationVersion = ++_mutationGeneration;
@@ -158,7 +165,8 @@ class _IntelligenceConnectionControlsState
       // Server commit and local projection refresh are separate outcomes.
     }
     if (!_scopeUnchanged(ownerPath, ownerRuntime) ||
-        mutationVersion != _mutationGeneration) return false;
+        mutationVersion != _mutationGeneration)
+      return false;
     if (!committed) {
       _notice(
         'Opération non confirmée par le serveur. Vérifiez votre autorité.',
@@ -322,18 +330,21 @@ class _IntelligenceConnectionControlsState
             <String>[]),
     }.toList()..sort();
     final query = _query.trim().toLowerCase();
-    final visibleOffers = _offers.where((offer) {
-      final capabilities =
-          (offer['capabilities'] as List?)?.whereType<String>() ??
-          <String>[];
-      if (_capabilityFilter.isNotEmpty &&
-          !capabilities.contains(_capabilityFilter)) return false;
-      return [
-        offer['label'] as String? ?? '',
-        offer['description'] as String? ?? '',
-        ...capabilities,
-      ].join(' ').toLowerCase().contains(query);
-    }).toList(growable: false);
+    final visibleOffers = _offers
+        .where((offer) {
+          final capabilities =
+              (offer['capabilities'] as List?)?.whereType<String>() ??
+              <String>[];
+          if (_capabilityFilter.isNotEmpty &&
+              !capabilities.contains(_capabilityFilter))
+            return false;
+          return [
+            offer['label'] as String? ?? '',
+            offer['description'] as String? ?? '',
+            ...capabilities,
+          ].join(' ').toLowerCase().contains(query);
+        })
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,8 +406,7 @@ class _IntelligenceConnectionControlsState
                   ChoiceChip(
                     label: const Text('Tous'),
                     selected: _capabilityFilter.isEmpty,
-                    onSelected: (_) =>
-                        setState(() => _capabilityFilter = ''),
+                    onSelected: (_) => setState(() => _capabilityFilter = ''),
                   ),
                   for (final capability in availableCapabilities) ...[
                     const SizedBox(width: 8),
@@ -431,8 +441,7 @@ class _IntelligenceConnectionControlsState
             ),
           for (var index = 0; index < visibleOffers.length; index++) ...[
             _offerRow(context, visibleOffers[index]),
-            if (index < visibleOffers.length - 1)
-              const Divider(height: 1),
+            if (index < visibleOffers.length - 1) const Divider(height: 1),
           ],
           if (_offers.isNotEmpty && !widget.mutationsEnabled)
             Padding(
@@ -458,8 +467,7 @@ class _IntelligenceConnectionControlsState
             ),
           for (var index = 0; index < connections.length; index++) ...[
             _connectionRow(context, connections[index]),
-            if (index < connections.length - 1)
-              const Divider(height: 1),
+            if (index < connections.length - 1) const Divider(height: 1),
           ],
           if (connections.isNotEmpty && !widget.mutationsEnabled)
             Padding(

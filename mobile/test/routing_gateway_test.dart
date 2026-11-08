@@ -12,9 +12,9 @@ void main() {
   test('RoutingGateway remains disabled without approved configuration', () {
     expect(createRoutingGateway(enabled: false), isNull);
     expect(
-      MakoloRuntimeConfig.fromValues(const {
-        'MAKOLO_ENVIRONMENT': 'dev',
-      }).routing.enabled,
+      MakoloRuntimeConfig.fromValues(const {'MAKOLO_ENVIRONMENT': 'dev'})
+          .routing
+          .enabled,
       isFalse,
     );
   });
@@ -53,25 +53,28 @@ void main() {
           [27.48, -11.66],
           [27.50, -11.67],
         ]);
-        return MockResponse(jsonEncode({
-          'type': 'FeatureCollection',
-          'features': [
-            {
-              'type': 'Feature',
-              'properties': {
-                'summary': {'distance': 3450.5, 'duration': 2470.0},
+        return MockResponse(
+          jsonEncode({
+            'type': 'FeatureCollection',
+            'features': [
+              {
+                'type': 'Feature',
+                'properties': {
+                  'summary': {'distance': 3450.5, 'duration': 2470.0},
+                },
+                'geometry': {
+                  'type': 'LineString',
+                  'coordinates': [
+                    [27.48, -11.66],
+                    [27.49, -11.665],
+                    [27.50, -11.67],
+                  ],
+                },
               },
-              'geometry': {
-                'type': 'LineString',
-                'coordinates': [
-                  [27.48, -11.66],
-                  [27.49, -11.665],
-                  [27.50, -11.67],
-                ],
-              },
-            },
-          ],
-        }), 200);
+            ],
+          }),
+          200,
+        );
       }).dio,
     )!;
     final path = await gateway.directions(
@@ -117,11 +120,13 @@ void main() {
         const RoutingPoint(-11.66, 27.48),
         const RoutingPoint(-11.67, 27.50),
       ),
-      throwsA(isA<RoutingUnavailable>().having(
-        (error) => error.toString(),
-        'safe message',
-        isNot(contains('test-only')),
-      )),
+      throwsA(
+        isA<RoutingUnavailable>().having(
+          (error) => error.toString(),
+          'safe message',
+          isNot(contains('test-only')),
+        ),
+      ),
     );
   });
 

@@ -89,9 +89,12 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
       try {
         final source = repository.workSource(actor.space, actor.perspective);
         final state = await repository.readSource(source);
-        final rejected = state.invalidated &&
-            const {'permission_denied', 'not_found'}
-                .contains(state.lastErrorCode);
+        final rejected =
+            state.invalidated &&
+            const {
+              'permission_denied',
+              'not_found',
+            }.contains(state.lastErrorCode);
         if (!rejected) {
           final projection = await store.readProjection(
             source.projectionKind,
@@ -105,8 +108,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
           if (projection != null &&
               (expiry == null || DateTime.now().toUtc().isBefore(expiry)) &&
               space?['id'] == actor.space.id &&
-              value?['responsibility'] ==
-                  (actor.perspective.id ?? 'all') &&
+              value?['responsibility'] == (actor.perspective.id ?? 'all') &&
               section?['items'] is List &&
               mounted &&
               revision == version &&
@@ -230,8 +232,8 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                           payload == null
                               ? 'Impossible de vérifier cette collection.'
                               : 'Actualisation impossible. Les éléments affichés '
-                                  'proviennent de la dernière lecture réussie ; '
-                                  'chaque ouverture sera revérifiée.',
+                                    'proviennent de la dernière lecture réussie ; '
+                                    'chaque ouverture sera revérifiée.',
                         ),
                       ),
                       TextButton(

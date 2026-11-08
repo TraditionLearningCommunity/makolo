@@ -100,13 +100,18 @@ bool nowContinuationCanRebase(
       saved['items'] is! List ||
       saved['root_token'] is! String ||
       saved['first_keys'] is! List ||
-      cursor['token'] != saved['root_token']) return false;
-  final keys = raw.whereType<Map>().map((item) =>
-      (item['continuity_identity'] ?? item['id'])?.toString()).toList();
+      cursor['token'] != saved['root_token'])
+    return false;
+  final keys = raw
+      .whereType<Map>()
+      .map((item) => (item['continuity_identity'] ?? item['id'])?.toString())
+      .toList();
   final previous = saved['first_keys'] as List;
   return keys.length == previous.length &&
-      List.generate(keys.length, (index) =>
-          keys[index] == previous[index]).every((same) => same);
+      List.generate(
+        keys.length,
+        (index) => keys[index] == previous[index],
+      ).every((same) => same);
 }
 
 class _NowScreenState extends State<NowScreen> {
@@ -142,7 +147,8 @@ class _NowScreenState extends State<NowScreen> {
       // A newer root may have arrived while local storage was being read.
       if (_paging ||
           (_pagedBaseReceivedAt != null &&
-              _pagedBaseReceivedAt != root.receivedAt)) return;
+              _pagedBaseReceivedAt != root.receivedAt))
+        return;
       setState(() {
         _pagedBaseReceivedAt = root.receivedAt;
         _pagedActorId = actorId;
@@ -177,10 +183,13 @@ class _NowScreenState extends State<NowScreen> {
               ? (base.payload['continuation'] as Map)['token']
               : null,
           'first_keys': (base.payload['items'] is List)
-              ? (base.payload['items'] as List).whereType<Map>().map(
-                  (item) => (item['continuity_identity'] ?? item['id'])
-                      ?.toString(),
-                ).toList()
+              ? (base.payload['items'] as List)
+                    .whereType<Map>()
+                    .map(
+                      (item) => (item['continuity_identity'] ?? item['id'])
+                          ?.toString(),
+                    )
+                    .toList()
               : const <String>[],
           'items': items,
           'continuation': continuation,

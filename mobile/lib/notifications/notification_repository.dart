@@ -46,29 +46,30 @@ class NotificationRepository {
   final SyncEngine? sync;
   bool _loadingMore = false;
 
-  SyncSourceDefinition listSource({bool onlyUnread = false}) => SyncSourceDefinition(
-    sourceKey: onlyUnread ? 'notifications-unread' : 'notifications',
-    owner: 'Notifications',
-    path: onlyUnread
-        ? 'api/v1/notifications/?filter=unread'
-        : 'api/v1/notifications/',
-    projectionKind: onlyUnread ? unreadProjectionKind : listProjectionKind,
-    category: SyncSourceCategory.collection,
-    freshnessPolicy: listFreshness,
-    parser: (response) {
-      final payload = response.jsonObject();
-      if (payload['results'] is! List || payload['count'] is! num) {
-        throw const FormatException(
-          'Expected Notifications owner collection contract.',
-        );
-      }
-      return AcquiredProjection(
-        schemaVersion: 1,
-        payload: jsonDecode(jsonEncode(payload)) as Map<String, dynamic>,
+  SyncSourceDefinition listSource({bool onlyUnread = false}) =>
+      SyncSourceDefinition(
+        sourceKey: onlyUnread ? 'notifications-unread' : 'notifications',
+        owner: 'Notifications',
+        path: onlyUnread
+            ? 'api/v1/notifications/?filter=unread'
+            : 'api/v1/notifications/',
+        projectionKind: onlyUnread ? unreadProjectionKind : listProjectionKind,
+        category: SyncSourceCategory.collection,
+        freshnessPolicy: listFreshness,
+        parser: (response) {
+          final payload = response.jsonObject();
+          if (payload['results'] is! List || payload['count'] is! num) {
+            throw const FormatException(
+              'Expected Notifications owner collection contract.',
+            );
+          }
+          return AcquiredProjection(
+            schemaVersion: 1,
+            payload: jsonDecode(jsonEncode(payload)) as Map<String, dynamic>,
+          );
+        },
+        applier: applyProjectionSnapshot,
       );
-    },
-    applier: applyProjectionSnapshot,
-  );
 
   SyncSourceDefinition preferencesSource() => SyncSourceDefinition(
     sourceKey: 'notification-preferences',
@@ -85,11 +86,11 @@ class NotificationRepository {
     applier: applyProjectionSnapshot,
   );
 
-  Stream<StoredProjection?> watchList({bool onlyUnread = false}) =>
-      store.watchProjection(onlyUnread ? unreadProjectionKind : listProjectionKind);
+  Stream<StoredProjection?> watchList({bool onlyUnread = false}) => store
+      .watchProjection(onlyUnread ? unreadProjectionKind : listProjectionKind);
 
-  Future<StoredProjection?> readList({bool onlyUnread = false}) =>
-      store.readProjection(onlyUnread ? unreadProjectionKind : listProjectionKind);
+  Future<StoredProjection?> readList({bool onlyUnread = false}) => store
+      .readProjection(onlyUnread ? unreadProjectionKind : listProjectionKind);
 
   Stream<StoredProjection?> watchPreferences() =>
       store.watchProjection(preferencesProjectionKind);
@@ -142,7 +143,9 @@ class NotificationRepository {
     if (uri == null ||
         uri.path != '/api/v1/notifications/' ||
         !uri.queryParameters.containsKey('cursor') ||
-        uri.queryParameters.keys.any((key) => key != 'cursor' && key != 'filter') ||
+        uri.queryParameters.keys.any(
+          (key) => key != 'cursor' && key != 'filter',
+        ) ||
         (onlyUnread && uri.queryParameters['filter'] != 'unread') ||
         (!onlyUnread && uri.queryParameters.containsKey('filter'))) {
       throw const FormatException('Invalid Notifications continuation.');
@@ -181,11 +184,7 @@ class NotificationRepository {
       await store.putProjection(
         kind: onlyUnread ? unreadProjectionKind : listProjectionKind,
         schemaVersion: current.schemaVersion,
-        payload: {
-          ...current.payload,
-          ...page,
-          'results': merged,
-        },
+        payload: {...current.payload, ...page, 'results': merged},
         sourceGeneratedAt: current.sourceGeneratedAt,
         sourceUpdatedAt: current.sourceUpdatedAt,
         freshnessPolicyId: listFreshness.id,

@@ -82,7 +82,9 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
   }
 
   Future<void> _connect() async {
-    if (!_canConnect || _busy || !_consent ||
+    if (!_canConnect ||
+        _busy ||
+        !_consent ||
         _formKey.currentState?.validate() != true) {
       return;
     }
@@ -110,8 +112,7 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
 
   Future<void> _manage(String action) async {
     if (_busy || !_canManage) return;
-    if (action == 'rotate' &&
-        (_formKey.currentState?.validate() != true)) {
+    if (action == 'rotate' && (_formKey.currentState?.validate() != true)) {
       return;
     }
     setState(() {
@@ -199,8 +200,10 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
         ],
         if (capabilities.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Ce que ce service permet',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Ce que ce service permet',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -232,8 +235,10 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 28),
-          Text('Relier ce service',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Relier ce service',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _name,
@@ -317,8 +322,7 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
             widget.connection!.enabled &&
             widget.connection!.usable &&
             widget.connection!.capabilities.any(
-              (cap) => cap == 'web_research' ||
-                  cap == 'structured_generate',
+              (cap) => cap == 'web_research' || cap == 'structured_generate',
             )) ...[
           const SizedBox(height: 24),
           OutlinedButton.icon(
@@ -329,30 +333,29 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
           ),
         ],
         const SizedBox(height: 28),
-        Text('Gérer la connexion',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Gérer la connexion',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 12),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(widget.connection!.enabled
-              ? Icons.pause_circle_outline
-              : Icons.play_circle_outline),
-          title: Text(widget.connection!.enabled
-              ? 'Désactiver'
-              : 'Réactiver'),
+          leading: Icon(
+            widget.connection!.enabled
+                ? Icons.pause_circle_outline
+                : Icons.play_circle_outline,
+          ),
+          title: Text(widget.connection!.enabled ? 'Désactiver' : 'Réactiver'),
           subtitle: const Text('Le serveur vérifie votre autorité.'),
           enabled: !_busy,
-          onTap: () => _manage(widget.connection!.enabled
-              ? 'disable'
-              : 'enable'),
+          onTap: () =>
+              _manage(widget.connection!.enabled ? 'disable' : 'enable'),
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.key_outlined),
           title: const Text('Remplacer la clé API'),
-          trailing: Icon(_rotating
-              ? Icons.expand_less
-              : Icons.chevron_right),
+          trailing: Icon(_rotating ? Icons.expand_less : Icons.chevron_right),
           enabled: !_busy,
           onTap: () => setState(() => _rotating = !_rotating),
         ),
@@ -374,10 +377,9 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
                       labelText: 'Nouvelle clé API',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Saisissez la nouvelle clé.'
-                            : null,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Saisissez la nouvelle clé.'
+                        : null,
                   ),
                   FilledButton(
                     onPressed: _busy ? null : () => _manage('rotate'),
@@ -390,8 +392,10 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
         const Divider(),
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.link_off,
-              color: Theme.of(context).colorScheme.error),
+          leading: Icon(
+            Icons.link_off,
+            color: Theme.of(context).colorScheme.error,
+          ),
           title: const Text('Retirer de Makolo'),
           subtitle: const Text(
             'Supprime la relation et la clé conservée par Makolo.',
@@ -424,10 +428,12 @@ class _ConnectionDetailScreenState extends State<ConnectionDetailScreen> {
                     _manageActions(context),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        )),
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ],
                 ],
               ),

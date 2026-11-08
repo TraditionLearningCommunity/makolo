@@ -246,7 +246,9 @@ void main() {
             'watch': {'state': 'covered', 'watch_id': 'watch-1'},
             'saved': {'state': 'not_saved'},
             'capabilities': ['view'],
-            'links': {'detail': '/api/v1/discovery/items/activity/activity-watch/'},
+            'links': {
+              'detail': '/api/v1/discovery/items/activity/activity-watch/',
+            },
           },
         ],
       },

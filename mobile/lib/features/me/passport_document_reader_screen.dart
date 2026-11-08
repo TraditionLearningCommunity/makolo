@@ -71,10 +71,9 @@ class _PassportDocumentReaderScreenState
       final kind = widget.explicitShare ? 'shared' : 'verify';
       final path =
           'api/v1/sharing/passport/$kind/${Uri.encodeComponent(widget.token)}/';
-      final response =
-          !widget.explicitShare && widget.runtime.isAuthenticated
-              ? await api.get(path)
-              : await api.publicGet(path);
+      final response = !widget.explicitShare && widget.runtime.isAuthenticated
+          ? await api.get(path)
+          : await api.publicGet(path);
       final envelope = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'sharing.passport.document',
@@ -104,10 +103,9 @@ class _PassportDocumentReaderScreenState
     }
   }
 
-  static Map<String, dynamic> _map(Object? raw) =>
-      raw is Map
-          ? raw.map((key, value) => MapEntry(key.toString(), value))
-          : <String, dynamic>{};
+  static Map<String, dynamic> _map(Object? raw) => raw is Map
+      ? raw.map((key, value) => MapEntry(key.toString(), value))
+      : <String, dynamic>{};
 
   static List<Map<String, dynamic>> _rows(Object? raw) =>
       raw is List ? raw.whereType<Map>().map(_map).toList() : const [];
@@ -129,11 +127,7 @@ class _PassportDocumentReaderScreenState
         '${two(local.hour)}:${two(local.minute)}';
   }
 
-  Widget _section(
-    String title,
-    List<String> facts, {
-    String? explanation,
-  }) {
+  Widget _section(String title, List<String> facts, {String? explanation}) {
     final items = facts.where((value) => value.trim().isNotEmpty).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -183,16 +177,11 @@ class _PassportDocumentReaderScreenState
         const SizedBox(height: 14),
         Text(bio, style: Theme.of(context).textTheme.bodyLarge),
       ],
-      _section(
-        'Liens déclarés',
-        [
-          for (final value in identity['links'] is List
-              ? identity['links'] as List
-              : const [])
-            if (value is List && value.length == 2)
-              '${value[0]} : ${value[1]}',
-        ],
-      ),
+      _section('Liens déclarés', [
+        for (final value
+            in identity['links'] is List ? identity['links'] as List : const [])
+          if (value is List && value.length == 2) '${value[0]} : ${value[1]}',
+      ]),
       _section(
         'Informations du titulaire',
         [
@@ -201,45 +190,35 @@ class _PassportDocumentReaderScreenState
         ],
         explanation: 'Présentes uniquement dans la version complète autorisée.',
       ),
-      _section(
-        'Centres d’intérêt',
-        [
-          for (final value in payload['interests'] is List
-              ? payload['interests'] as List
-              : const [])
-            if (_text(value) != null) value.toString(),
-        ],
-        explanation: 'Déclarations du titulaire.',
-      ),
-      _section(
-        'Ouvert à',
-        [
-          for (final row in _rows(payload['open_to']))
-            [row['kind'], row['topic']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
-        ],
-        explanation: 'Déclarations du titulaire.',
-      ),
-      _section(
-        'Activités présentées',
-        [
-          for (final row in _rows(payload['activities']))
-            [row['title'], row['status']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
-        ],
-      ),
+      _section('Centres d’intérêt', [
+        for (final value
+            in payload['interests'] is List
+                ? payload['interests'] as List
+                : const [])
+          if (_text(value) != null) value.toString(),
+      ], explanation: 'Déclarations du titulaire.'),
+      _section('Ouvert à', [
+        for (final row in _rows(payload['open_to']))
+          [
+            row['kind'],
+            row['topic'],
+          ].map(_text).whereType<String>().join(' · '),
+      ], explanation: 'Déclarations du titulaire.'),
+      _section('Activités présentées', [
+        for (final row in _rows(payload['activities']))
+          [
+            row['title'],
+            row['status'],
+          ].map(_text).whereType<String>().join(' · '),
+      ]),
       _section(
         'Faits établis',
         [
           for (final row in _rows(payload['proofs']))
-            [row['label'], row['activity']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
+            [
+              row['label'],
+              row['activity'],
+            ].map(_text).whereType<String>().join(' · '),
         ],
         explanation: 'État enregistré à l’émission ; vérifier la source pour l’état actuel.',
       ),
@@ -247,64 +226,48 @@ class _PassportDocumentReaderScreenState
         'Attestations délivrées',
         [
           for (final row in _rows(payload['credentials']))
-            [row['title'], row['issuer'], row['status']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
+            [
+              row['title'],
+              row['issuer'],
+              row['status'],
+            ].map(_text).whereType<String>().join(' · '),
         ],
-        explanation: 'Une attestation peut avoir été révoquée depuis cette émission.',
+        explanation:
+            'Une attestation peut avoir été révoquée depuis cette émission.',
       ),
-      _section(
-        'Vérifications',
-        [
-          for (final row in _rows(payload['trust_verifications']))
-            [row['label'], row['valid_until']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
-        ],
-      ),
-      _section(
-        'Équipes et Espaces',
-        [
-          for (final row in _rows(payload['team_affiliations']))
-            [row['team'], row['space']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
-        ],
-      ),
-      _section(
-        'Groupes',
-        [
-          for (final row in _rows(payload['group_affiliations']))
-            _text(row['name']) ?? '',
-        ],
-      ),
-      _section(
-        'Espaces accessibles',
-        [
-          for (final row in _rows(payload['authorized_space_affiliations']))
-            _text(row['name']) ?? '',
-        ],
-      ),
-      _section(
-        'Mandats',
-        [
-          for (final row in _rows(payload['active_space_mandates']))
-            [row['role'], row['space']]
-                .map(_text)
-                .whereType<String>()
-                .join(' · '),
-        ],
-      ),
-      _section(
-        'Équipes du Space',
-        [
-          for (final row in _rows(payload['space_teams']))
-            _text(row['name']) ?? '',
-        ],
-      ),
+      _section('Vérifications', [
+        for (final row in _rows(payload['trust_verifications']))
+          [
+            row['label'],
+            row['valid_until'],
+          ].map(_text).whereType<String>().join(' · '),
+      ]),
+      _section('Équipes et Espaces', [
+        for (final row in _rows(payload['team_affiliations']))
+          [
+            row['team'],
+            row['space'],
+          ].map(_text).whereType<String>().join(' · '),
+      ]),
+      _section('Groupes', [
+        for (final row in _rows(payload['group_affiliations']))
+          _text(row['name']) ?? '',
+      ]),
+      _section('Espaces accessibles', [
+        for (final row in _rows(payload['authorized_space_affiliations']))
+          _text(row['name']) ?? '',
+      ]),
+      _section('Mandats', [
+        for (final row in _rows(payload['active_space_mandates']))
+          [
+            row['role'],
+            row['space'],
+          ].map(_text).whereType<String>().join(' · '),
+      ]),
+      _section('Équipes du Space', [
+        for (final row in _rows(payload['space_teams']))
+          _text(row['name']) ?? '',
+      ]),
     ];
   }
 
@@ -372,7 +335,9 @@ class _PassportDocumentReaderScreenState
                 if (doc?['revoked'] == true)
                   const Text('Cette version a été révoquée.')
                 else if (doc?['integrity_ok'] != true)
-                  const Text('L’intégrité de cette version ne peut pas être confirmée.')
+                  const Text(
+                    'L’intégrité de cette version ne peut pas être confirmée.',
+                  )
                 else
                   const Text(
                     'L’émission est enregistrée par Makolo. '

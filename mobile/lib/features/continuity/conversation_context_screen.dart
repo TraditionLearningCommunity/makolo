@@ -8,8 +8,7 @@ List<Map<String, dynamic>> _contextRows(Map<String, dynamic> response) {
   if (raw is! List) return const [];
   return [
     for (final row in raw)
-      if (row is Map)
-        row.map((key, value) => MapEntry(key.toString(), value)),
+      if (row is Map) row.map((key, value) => MapEntry(key.toString(), value)),
   ];
 }
 
@@ -77,7 +76,8 @@ class _ConversationContextScreenState extends State<ConversationContextScreen> {
     });
     try {
       final id = await widget.repository.ensureContext(
-        kind: widget.kind, id: widget.contextId,
+        kind: widget.kind,
+        id: widget.contextId,
       );
       if (mounted) widget.onOpen(id);
     } on Object {
@@ -196,7 +196,8 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
 
   void _load() {
     _future = widget.repository.contextDecision(
-      kind: widget.kind, id: widget.contextId,
+      kind: widget.kind,
+      id: widget.contextId,
     );
   }
 
@@ -205,7 +206,8 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
     setState(() => _busy = true);
     try {
       final id = await widget.repository.ensureContext(
-        kind: widget.kind, id: widget.contextId,
+        kind: widget.kind,
+        id: widget.contextId,
       );
       if (mounted) widget.onOpen(id);
     } on Object {
@@ -249,7 +251,9 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
                       children: [
                         for (final row in rows)
                           ListTile(
-                            title: Text(row['title']?.toString() ?? 'Conversation'),
+                            title: Text(
+                              row['title']?.toString() ?? 'Conversation',
+                            ),
                             onTap: () {
                               Navigator.of(sheetContext).pop();
                               final id = row['id']?.toString();

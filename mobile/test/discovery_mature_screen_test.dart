@@ -1518,44 +1518,57 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
   });
 
-  testWidgets('co-located map opens four choices and scrolls without more action', (
-    tester,
-  ) async {
-    final possibilities = [
-      for (var i = 0; i < 8; i++)
-        item('colocated-$i', 'Possibilité locale $i', mappable: true),
-    ];
-    String? chosen;
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryCoLocatedPicker(
-        items: possibilities,
-        onChoose: (selected) => chosen = selected.candidateKey,
-      ),
-    );
+  testWidgets(
+    'co-located map opens four choices and scrolls without more action',
+    (tester) async {
+      final possibilities = [
+        for (var i = 0; i < 8; i++)
+          item('colocated-$i', 'Possibilité locale $i', mappable: true),
+      ];
+      String? chosen;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryCoLocatedPicker(
+          items: possibilities,
+          onChoose: (selected) => chosen = selected.candidateKey,
+        ),
+      );
 
-    expect(find.text('8 opportunités ici'), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-colocated-sheet')), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-0')), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-place-choice-activity:colocated-2')), findsOneWidget);
-    expect(find.byKey(const Key('discover-map-colocated-more')), findsNothing);
-    expect(find.byIcon(Icons.explore_outlined), findsWidgets);
+      expect(find.text('8 opportunités ici'), findsOneWidget);
+      expect(
+        find.byKey(const Key('discover-map-colocated-sheet')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('discover-map-place-choice-activity:colocated-0')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('discover-map-place-choice-activity:colocated-2')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('discover-map-colocated-more')),
+        findsNothing,
+      );
+      expect(find.byIcon(Icons.explore_outlined), findsWidgets);
 
-    // No extra tap: dragging the list expands the sheet then scrolls.
-    final later = find.byKey(
-      const Key('discover-map-place-choice-activity:colocated-6'),
-    );
-    await tester.scrollUntilVisible(
-      later,
-      130,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.pump();
-    await tester.tap(later);
-    expect(chosen, 'activity:colocated-6');
-    expect(tester.takeException(), isNull);
-  });
+      // No extra tap: dragging the list expands the sheet then scrolls.
+      final later = find.byKey(
+        const Key('discover-map-place-choice-activity:colocated-6'),
+      );
+      await tester.scrollUntilVisible(
+        later,
+        130,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pump();
+      await tester.tap(later);
+      expect(chosen, 'activity:colocated-6');
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('map preview grants no owner action from location alone', (
     tester,
@@ -1575,14 +1588,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
+    expect(
+      find.byKey(const Key('discover-map-selected-preview')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('discover-map-summary')), findsOneWidget);
     expect(find.text('Résumé de Voyage vers Kolwezi'), findsOneWidget);
     expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-map-save')),
-      ).onPressed,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-map-save')))
+          .onPressed,
       isNull,
       reason: 'Un point compact ne donne pas le droit d’enregistrer.',
     );
@@ -1616,9 +1632,9 @@ void main() {
     );
     expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-map-save')),
-      ).onPressed,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-map-save')))
+          .onPressed,
       isNull,
       reason: 'Un point compact ne donne pas le droit d’enregistrer.',
     );
@@ -1644,15 +1660,15 @@ void main() {
 
     expect(find.byKey(const Key('discover-map-save')), findsOneWidget);
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-map-save')),
-      ).icon,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-map-save')))
+          .icon,
       isA<DiscoveryOrbitIcon>(),
     );
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-map-save')),
-      ).onPressed,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-map-save')))
+          .onPressed,
       isNotNull,
     );
     expect(find.byTooltip('Partager l’opportunité'), findsOneWidget);
@@ -1766,7 +1782,10 @@ void main() {
         onOpen: (_) {},
       ),
     );
-    expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
+    expect(
+      find.byKey(const Key('discover-map-selected-preview')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byTooltip('Fermer l’aperçu'));
@@ -1784,7 +1803,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('discover-map-selected-preview')), findsNothing);
+    expect(
+      find.byKey(const Key('discover-map-selected-preview')),
+      findsNothing,
+    );
     expect(find.byKey(const Key('discover-map-save')), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -1798,11 +1820,7 @@ void main() {
         longitude: 25.46,
         fact: const {
           'role': 'arrival',
-          'place': {
-            'name': 'Kolwezi',
-            'latitude': -10.7,
-            'longitude': 25.46,
-          },
+          'place': {'name': 'Kolwezi', 'latitude': -10.7, 'longitude': 25.46},
         },
       );
       final route = DiscoveryItemPresentation(
@@ -1846,10 +1864,7 @@ void main() {
             redraw = setLocalState;
             return DiscoverySpatialView(
               selection: selection(items: [route]),
-              mapConfig: const MakoloMapsConfig(
-                enabled: false,
-                style: null,
-              ),
+              mapConfig: const MakoloMapsConfig(enabled: false, style: null),
               showMapOnCompact: true,
               fieldKey: 'same-route-two-places',
               initialSelectedCandidateKey: route.candidateKey,
@@ -1870,7 +1885,10 @@ void main() {
       await tester.tap(find.byTooltip('Fermer l’aperçu'));
       await tester.pump();
       expect(focused, isNull);
-      expect(find.byKey(const Key('discover-map-selected-preview')), findsNothing);
+      expect(
+        find.byKey(const Key('discover-map-selected-preview')),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     },
   );

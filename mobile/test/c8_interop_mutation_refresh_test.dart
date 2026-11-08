@@ -17,8 +17,9 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('server commit with failed Z16 refresh is never optimistic',
-      (tester) async {
+  testWidgets('server commit with failed Z16 refresh is never optimistic', (
+    tester,
+  ) async {
     var z16Reads = 0;
     var posted = false;
     const privateKey = 'C8-PRIVATE-TEMPORARY-KEY';
@@ -54,29 +55,36 @@ void main() {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final session = const AuthSession(
-      accessToken: 'access', refreshToken: 'refresh',
+      accessToken: 'access',
+      refreshToken: 'refresh',
       profileId: 'c8-profile',
     );
     final tokens = MemoryTokenStore(session: session);
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
-      dio: client.dio, tokenStore: tokens,
+      dio: client.dio,
+      tokenStore: tokens,
     );
     addTearDown(api.close);
     final store = ProfileStore(database, 'c8-profile');
     final runtime = AppRuntime(
-      tokens: tokens, session: session, api: api,
+      tokens: tokens,
+      session: session,
+      api: api,
       recovery: SessionRecoveryController(),
-      database: database, store: store,
+      database: database,
+      store: store,
       interoperability: ProfileInteroperabilityRepository(store),
       sync: SyncEngine(
-        api: api, store: store, database: database,
+        api: api,
+        store: store,
+        database: database,
         profileId: 'c8-profile',
       ),
     );
-    await tester.pumpWidget(MaterialApp(
-      home: ProfileConnectionsScreen(runtime: runtime),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(home: ProfileConnectionsScreen(runtime: runtime)),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.text('Tavily'), findsOneWidget);

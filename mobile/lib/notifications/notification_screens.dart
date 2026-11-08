@@ -61,14 +61,17 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   Future<void> _acquire() async {
     try {
       final local = await widget.repository.readList(onlyUnread: _onlyUnread);
-      final source = await widget.repository.readListSource(onlyUnread: _onlyUnread);
+      final source = await widget.repository.readListSource(
+        onlyUnread: _onlyUnread,
+      );
       if (!mounted) return;
       if (local == null ||
           NotificationRepository.listFreshness.evaluate(
                 local,
                 now: DateTime.now(),
                 invalidated: source.invalidated,
-              ) != FreshnessState.fresh) {
+              ) !=
+              FreshnessState.fresh) {
         await _refresh();
       } else {
         setState(() => _attempted = true);
@@ -115,7 +118,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   Future<void> _loadMore() async {
     if (_loadingMore || _refreshing) return;
     final requestedUnread = _onlyUnread;
-    final snapshot = await widget.repository.readList(onlyUnread: requestedUnread);
+    final snapshot = await widget.repository.readList(
+      onlyUnread: requestedUnread,
+    );
     if (!mounted || snapshot?.payload['next'] is! String) return;
     if (requestedUnread && snapshot?.payload['unread_count'] == 0) return;
     setState(() {
@@ -220,10 +225,10 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   // Cached content remains usable; the thin network cue
                   // already communicates a disconnected device.
                   ? (connectionUnavailable
-                      ? MakoloFailureCue.none
-                      : (source.lastErrorCode != null || _loadFailed)
-                          ? MakoloFailureCue.recoverable
-                          : MakoloFailureCue.none)
+                        ? MakoloFailureCue.none
+                        : (source.lastErrorCode != null || _loadFailed)
+                        ? MakoloFailureCue.recoverable
+                        : MakoloFailureCue.none)
                   : (_attempted && !_refreshing)
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
@@ -232,11 +237,13 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
             final total = projection?.payload['total_count'];
             final unread = projection?.payload['unread_count'];
             final filteredCount = projection?.payload['count'];
-            final remaining = filteredCount is num &&
-                    filteredCount.toInt() > rows.length
+            final remaining =
+                filteredCount is num && filteredCount.toInt() > rows.length
                 ? filteredCount.toInt() - rows.length
                 : 0;
-            WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _maybeLoadMore(),
+            );
 
             return Scaffold(
               appBar: AppBar(
@@ -276,234 +283,317 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
               ),
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
-                state: state,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement des notifications…',
-                ),
-                recoverableErrorMessage: 'Actualisation indisponible.',
-                empty: MakoloEmptyState(
-                  title: _onlyUnread
-                      ? 'Aucune notification non lue.'
-                      : 'Aucune notification.',
-                ),
-                onRetry: _refresh,
-                content: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        MakoloSpacing.inner,
-                        MakoloSpacing.sm,
-                        MakoloSpacing.inner,
-                        MakoloSpacing.sm,
-                      ),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: MakoloSpacing.sm,
-                          runSpacing: MakoloSpacing.sm,
-                          children: [
-                            ChoiceChip(
-                              showCheckmark: false,
-                              visualDensity: VisualDensity.compact,
-                              label: Text('Toutes${total is num ? ' (${total.toInt()})' : ''}'),
-                              selected: !_onlyUnread,
-                              onSelected: (_) => _chooseFilter(false),
-                            ),
-                            ChoiceChip(
-                              showCheckmark: false,
-                              visualDensity: VisualDensity.compact,
-                              label: Text('Non lues${unread is num ? ' (${unread.toInt()})' : ''}'),
-                              selected: _onlyUnread,
-                              onSelected: (_) => _chooseFilter(true),
-                            ),
-                          ],
+                  state: state,
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement des notifications…',
+                  ),
+                  recoverableErrorMessage: 'Actualisation indisponible.',
+                  empty: MakoloEmptyState(
+                    title: _onlyUnread
+                        ? 'Aucune notification non lue.'
+                        : 'Aucune notification.',
+                  ),
+                  onRetry: _refresh,
+                  content: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          MakoloSpacing.inner,
+                          MakoloSpacing.sm,
+                          MakoloSpacing.inner,
+                          MakoloSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: MakoloSpacing.sm,
+                            runSpacing: MakoloSpacing.sm,
+                            children: [
+                              ChoiceChip(
+                                showCheckmark: false,
+                                visualDensity: VisualDensity.compact,
+                                label: Text(
+                                  'Toutes${total is num ? ' (${total.toInt()})' : ''}',
+                                ),
+                                selected: !_onlyUnread,
+                                onSelected: (_) => _chooseFilter(false),
+                              ),
+                              ChoiceChip(
+                                showCheckmark: false,
+                                visualDensity: VisualDensity.compact,
+                                label: Text(
+                                  'Non lues${unread is num ? ' (${unread.toInt()})' : ''}',
+                                ),
+                                selected: _onlyUnread,
+                                onSelected: (_) => _chooseFilter(true),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _refresh,
-                        child: ListView.builder(
-                          controller: _scroll,
-                          key: PageStorageKey<String>(
-                            _onlyUnread ? 'notification-unread' : 'notification-all',
-                          ),
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: visible.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == visible.length) {
-                              if (visible.isEmpty && !hasMore && !_loadingMore) {
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: ListView.builder(
+                            controller: _scroll,
+                            key: PageStorageKey<String>(
+                              _onlyUnread
+                                  ? 'notification-unread'
+                                  : 'notification-all',
+                            ),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: visible.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == visible.length) {
+                                if (visible.isEmpty &&
+                                    !hasMore &&
+                                    !_loadingMore) {
+                                  return Padding(
+                                    padding: const EdgeInsets.all(28),
+                                    child: Center(
+                                      child: Text(
+                                        _onlyUnread
+                                            ? 'Aucune notification non lue.'
+                                            : 'Aucune notification.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                if (connectionUnavailable && hasMore) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (_pageFailed) {
+                                  return Center(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() => _pageFailed = false);
+                                        unawaited(_loadMore());
+                                      },
+                                      child: const Text('Réessayer'),
+                                    ),
+                                  );
+                                }
+                                if (_loadingMore) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
                                 return Padding(
-                                  padding: const EdgeInsets.all(28),
+                                  padding: const EdgeInsets.all(20),
                                   child: Center(
                                     child: Text(
-                                      _onlyUnread
-                                          ? 'Aucune notification non lue.'
-                                          : 'Aucune notification.',
-                                      style: Theme.of(context).textTheme.bodyMedium,
+                                      hasMore
+                                          ? '${remaining} autres à afficher'
+                                          : 'Aucune autre notification',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
                                     ),
                                   ),
                                 );
                               }
-                              if (connectionUnavailable && hasMore) {
-                                return const SizedBox.shrink();
-                              }
-                              if (_pageFailed) {
-                                return Center(
-                                  child: TextButton(
-                                    onPressed: () {
-                                      setState(() => _pageFailed = false);
-                                      unawaited(_loadMore());
-                                    },
-                                    child: const Text('Réessayer'),
-                                  ),
-                                );
-                              }
-                              if (_loadingMore) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Center(child: CircularProgressIndicator()),
-                                );
-                              }
-                              return Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Center(
-                                  child: Text(
-                                    hasMore
-                                        ? '${remaining} autres à afficher'
-                                        : 'Aucune autre notification',
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ),
+                              final row = visible[index];
+                              final section = _notificationSection(
+                                context,
+                                row.createdAt,
                               );
-                            }
-                            final row = visible[index];
-                            final section = _notificationSection(context, row.createdAt);
-                            final previousSection = index == 0
-                                ? null
-                                : _notificationSection(context, visible[index - 1].createdAt);
-                            final canInteract = row.destinationPath != null || !row.isRead;
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (section != previousSection)
-                                  Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      MakoloSpacing.inner, MakoloSpacing.lg,
-                                      MakoloSpacing.inner, MakoloSpacing.sm,
-                                    ),
-                                    child: Text(
-                                      section,
-                                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w700,
+                              final previousSection = index == 0
+                                  ? null
+                                  : _notificationSection(
+                                      context,
+                                      visible[index - 1].createdAt,
+                                    );
+                              final canInteract =
+                                  row.destinationPath != null || !row.isRead;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (section != previousSection)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        MakoloSpacing.inner,
+                                        MakoloSpacing.lg,
+                                        MakoloSpacing.inner,
+                                        MakoloSpacing.sm,
                                       ),
-                                    ),
-                                  ),
-                                Semantics(
-                                  button: canInteract,
-                                  label: '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. '
-                                      '${row.confirmed ? 'Confirmée. ' : ''}${row.message}',
-                                  child: InkWell(
-                                    onTap: canInteract ? () => _open(row) : null,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: MakoloSpacing.inner,
-                                        vertical: MakoloSpacing.compact,
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          SizedBox(
-                                            width: 16,
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(top: 8),
-                                              child: row.isRead
-                                                  ? const SizedBox.shrink()
-                                                  : Icon(
-                                                      Icons.circle,
-                                                      size: 8,
-                                                      color: Theme.of(context).colorScheme.primary,
-                                                    ),
+                                      child: Text(
+                                        section,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              fontWeight: FontWeight.w700,
                                             ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  row.title,
-                                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                                    fontWeight: row.isRead
-                                                        ? FontWeight.w500
-                                                        : FontWeight.w700,
-                                                  ),
+                                      ),
+                                    ),
+                                  Semantics(
+                                    button: canInteract,
+                                    label:
+                                        '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. '
+                                        '${row.confirmed ? 'Confirmée. ' : ''}${row.message}',
+                                    child: InkWell(
+                                      onTap: canInteract
+                                          ? () => _open(row)
+                                          : null,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: MakoloSpacing.inner,
+                                          vertical: MakoloSpacing.compact,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 16,
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 8,
                                                 ),
-                                                if (row.message.isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    row.message,
-                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                    ),
-                                                  ),
-                                                ],
-                                                if (row.confirmed || row.createdAt != null) ...[
-                                                  const SizedBox(height: MakoloSpacing.sm),
-                                                  Wrap(
-                                                    spacing: MakoloSpacing.compact,
-                                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                                    children: [
-                                                      if (row.confirmed)
-                                                        Row(
-                                                          mainAxisSize: MainAxisSize.min,
-                                                          children: [
-                                                            const Icon(
-                                                              Icons.check_circle_outline_rounded,
-                                                              color: MakoloColors.success,
-                                                              size: 15,
-                                                            ),
-                                                            const SizedBox(width: 4),
-                                                            Text(
-                                                              'Confirmée',
-                                                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                                                color: MakoloColors.success,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      if (row.createdAt != null)
-                                                        Text(
-                                                          _notificationDate(context, row.createdAt!),
-                                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ],
+                                                child: row.isRead
+                                                    ? const SizedBox.shrink()
+                                                    : Icon(
+                                                        Icons.circle,
+                                                        size: 8,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
+                                                      ),
+                                              ),
                                             ),
-                                          ),
-                                          if (row.destinationPath != null) ...[
                                             const SizedBox(width: 8),
-                                            const Icon(Icons.chevron_right_rounded),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    row.title,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleSmall
+                                                        ?.copyWith(
+                                                          fontWeight: row.isRead
+                                                              ? FontWeight.w500
+                                                              : FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                  if (row
+                                                      .message
+                                                      .isNotEmpty) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      row.message,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                    ),
+                                                  ],
+                                                  if (row.confirmed ||
+                                                      row.createdAt !=
+                                                          null) ...[
+                                                    const SizedBox(
+                                                      height: MakoloSpacing.sm,
+                                                    ),
+                                                    Wrap(
+                                                      spacing:
+                                                          MakoloSpacing.compact,
+                                                      crossAxisAlignment:
+                                                          WrapCrossAlignment
+                                                              .center,
+                                                      children: [
+                                                        if (row.confirmed)
+                                                          Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              const Icon(
+                                                                Icons
+                                                                    .check_circle_outline_rounded,
+                                                                color:
+                                                                    MakoloColors
+                                                                        .success,
+                                                                size: 15,
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 4,
+                                                              ),
+                                                              Text(
+                                                                'Confirmée',
+                                                                style:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .textTheme
+                                                                        .labelMedium
+                                                                        ?.copyWith(
+                                                                          color:
+                                                                              MakoloColors.success,
+                                                                        ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        if (row.createdAt !=
+                                                            null)
+                                                          Text(
+                                                            _notificationDate(
+                                                              context,
+                                                              row.createdAt!,
+                                                            ),
+                                                            style:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .textTheme
+                                                                    .bodySmall
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(
+                                                                        context,
+                                                                      ).colorScheme.onSurfaceVariant,
+                                                                    ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                            if (row.destinationPath !=
+                                                null) ...[
+                                              const SizedBox(width: 8),
+                                              const Icon(
+                                                Icons.chevron_right_rounded,
+                                              ),
+                                            ],
                                           ],
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const Divider(height: 1, indent: 40),
-                              ],
-                            );
-                          },
+                                  const Divider(height: 1, indent: 40),
+                                ],
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -547,16 +637,17 @@ class _NotificationRow {
           // Present the subject already established by legacy Journey events.
           final confirmed = rawTitle == 'Confirmation Makolo'
               ? RegExp(r'^Votre démarche pour «(.+)» est confirmée[.!]?$')
-                  .firstMatch(rawMessage)
+                    .firstMatch(rawMessage)
               : null;
           return _NotificationRow(
             id: row['id']?.toString() ?? '',
-            title: confirmed?.group(1)?.trim() ??
+            title:
+                confirmed?.group(1)?.trim() ??
                 (rawTitle == 'Confirmation Makolo'
                     ? 'Démarche confirmée'
                     : rawTitle.isEmpty
-                        ? 'Notification'
-                        : rawTitle),
+                    ? 'Notification'
+                    : rawTitle),
             message: confirmed == null ? rawMessage : '',
             confirmed: confirmed != null,
             isRead: row['is_read'] == true,
@@ -586,9 +677,8 @@ String _notificationDate(BuildContext context, DateTime value) {
   final date = value.toLocal();
   final now = DateTime.now();
   if (date.year == now.year && date.month == now.month && date.day == now.day) {
-    return MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(date),
-    );
+    return MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(date));
   }
   return MaterialLocalizations.of(context).formatMediumDate(date);
 }

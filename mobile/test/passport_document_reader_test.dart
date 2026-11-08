@@ -109,74 +109,99 @@ void main() {
   test('structured Passport links remain public reader routes', () {
     const resolver = DeepLinkResolver();
     expect(
-      resolver.resolve(const StructuredDestination(
-        kind: 'passport_shared', id: 'opaque-link',
-      )),
+      resolver.resolve(
+        const StructuredDestination(kind: 'passport_shared', id: 'opaque-link'),
+      ),
       '/passport/shared/opaque-link',
     );
     expect(
-      resolver.resolve(const StructuredDestination(
-        kind: 'passport_verify', id: 'signed:document',
-      )),
+      resolver.resolve(
+        const StructuredDestination(
+          kind: 'passport_verify',
+          id: 'signed:document',
+        ),
+      ),
       '/passport/verify/signed%3Adocument',
     );
   });
 
-  testWidgets('signed verification does not reveal a private issued Passport', (tester) async {
-    final client = _ReaderApi((_) async => _documentEnvelope(
-      explicit: false, readable: false,
-    ));
-    await tester.pumpWidget(MaterialApp(
-      home: PassportDocumentReaderScreen(
-        runtime: _ReaderRuntime(client),
-        token: 'signed:token',
-        explicitShare: false,
+  testWidgets('signed verification does not reveal a private issued Passport', (
+    tester,
+  ) async {
+    final client = _ReaderApi(
+      (_) async => _documentEnvelope(explicit: false, readable: false),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PassportDocumentReaderScreen(
+          runtime: _ReaderRuntime(client),
+          token: 'signed:token',
+          explicitShare: false,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(client.usedPublicReader, isTrue);
     expect(client.requestedPath, contains('passport/verify/'));
-    expect(find.textContaining('Le contenu n’est pas disponible'), findsOneWidget);
+    expect(
+      find.textContaining('Le contenu n’est pas disponible'),
+      findsOneWidget,
+    );
     expect(find.text('Déclaration datée privée'), findsNothing);
   });
 
-  testWidgets('explicit granted share is read natively without elevating identity', (tester) async {
-    final client = _ReaderApi((_) async => _documentEnvelope(
-      explicit: true, readable: true,
-    ));
-    await tester.pumpWidget(MaterialApp(
-      home: PassportDocumentReaderScreen(
-        runtime: _ReaderRuntime(client),
-        token: 'granted',
-        explicitShare: true,
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(client.usedPublicReader, isTrue);
-    expect(find.text('Personne partagée'), findsOneWidget);
-    expect(find.text('Déclaration datée privée'), findsOneWidget);
-    expect(find.text('Bénévolat'), findsOneWidget);
-    expect(find.textContaining('Partage volontaire'), findsOneWidget);
-  });
+  testWidgets(
+    'explicit granted share is read natively without elevating identity',
+    (tester) async {
+      final client = _ReaderApi(
+        (_) async => _documentEnvelope(explicit: true, readable: true),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PassportDocumentReaderScreen(
+            runtime: _ReaderRuntime(client),
+            token: 'granted',
+            explicitShare: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(client.usedPublicReader, isTrue);
+      expect(find.text('Personne partagée'), findsOneWidget);
+      expect(find.text('Déclaration datée privée'), findsOneWidget);
+      expect(find.text('Bénévolat'), findsOneWidget);
+      expect(find.textContaining('Partage volontaire'), findsOneWidget);
+    },
+  );
 
-  testWidgets('an invalidated share never leaves previous content visible', (tester) async {
+  testWidgets('an invalidated share never leaves previous content visible', (
+    tester,
+  ) async {
     final first = Completer<ApiResponse>();
     final client = _ReaderApi((path) {
       if (path.contains('/old/')) return first.future;
       return Future.error(StateError('Revoked'));
     });
     final runtime = _ReaderRuntime(client);
-    await tester.pumpWidget(MaterialApp(
-      home: PassportDocumentReaderScreen(
-        runtime: runtime, token: 'old', explicitShare: true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PassportDocumentReaderScreen(
+          runtime: runtime,
+          token: 'old',
+          explicitShare: true,
+        ),
       ),
-    ));
+    );
     await tester.pump();
-    await tester.pumpWidget(MaterialApp(
-      home: PassportDocumentReaderScreen(
-        runtime: runtime, token: 'new', explicitShare: true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PassportDocumentReaderScreen(
+          runtime: runtime,
+          token: 'new',
+          explicitShare: true,
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     first.complete(_documentEnvelope(explicit: true, readable: true));
     await tester.pumpAndSettle();

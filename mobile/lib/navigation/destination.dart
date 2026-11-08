@@ -114,8 +114,8 @@ enum MakoloDestination {
 /// Restores the last semantic door under the persisted actor. The
 /// actor preference does not certify present-day server authority.
 String restoredShellPath(ActorContext actor, String? lastPath) {
-  final door = MakoloDestination.forPath(lastPath ?? '')?.door ??
-      MakoloPrimaryDoor.now;
+  final door =
+      MakoloDestination.forPath(lastPath ?? '')?.door ?? MakoloPrimaryDoor.now;
   return MakoloDestination.forActor(actor, door).path;
 }
 

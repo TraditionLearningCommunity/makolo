@@ -53,8 +53,9 @@ void main() {
     },
   );
 
-  testWidgets('Mark runtime switch does not display another Profile draft',
-      (tester) async {
+  testWidgets('Mark runtime switch does not display another Profile draft', (
+    tester,
+  ) async {
     final dbA = MakoloDatabase.memory();
     final dbB = MakoloDatabase.memory();
     addTearDown(dbA.close);
@@ -77,10 +78,7 @@ void main() {
         owner: 'profile',
         resourceKind: 'mark_intake',
         resourceId: 'mark:personal',
-        payload: {
-          'input': entry.$2,
-          'attachments': <Object>[],
-        },
+        payload: {'input': entry.$2, 'attachments': <Object>[]},
       );
     }
     AppRuntime runtime(String profile, DraftRepository drafts) => AppRuntime(

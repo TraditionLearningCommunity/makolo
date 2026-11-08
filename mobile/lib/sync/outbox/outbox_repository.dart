@@ -44,6 +44,7 @@ class OutboxResourceOperation {
   });
 
   final String state;
+
   /// A temporary failure will be retried; submitting a second intent is
   /// unsafe while the original owner mutation remains unresolved.
   final bool retryScheduled;
@@ -112,13 +113,13 @@ class OutboxRepository {
       // The same user intent is not a new action after a double tap or retry.
       // Reusing an intent with different content must fail, never overwrite
       // an already dispatched operation.
-      final sameIntent = await (database.select(database.outboxOperations)
-            ..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.intentId.equals(intentId),
-            ))
-          .get();
+      final sameIntent =
+          await (database.select(database.outboxOperations)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.intentId.equals(intentId),
+              ))
+              .get();
       if (sameIntent.isNotEmpty) {
         if (sameIntent.length != 1 ||
             sameIntent.single.operationId != operationId ||
@@ -131,7 +132,9 @@ class OutboxRepository {
             sameIntent.single.dependencyIdsJson != jsonEncode(dependencies) ||
             sameIntent.single.replayPolicy != replayPolicy.wireValue ||
             sameIntent.single.ownerIdempotencyKey != ownerIdempotencyKey) {
-          throw StateError('An outbox intent cannot be changed or replayed as new');
+          throw StateError(
+            'An outbox intent cannot be changed or replayed as new',
+          );
         }
         return;
       }
@@ -198,11 +201,14 @@ class OutboxRepository {
       ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]);
     return query.watch().map(
       (rows) => rows
-          .map((row) => OutboxResourceOperation(
-                state: row.state,
-                retryScheduled: row.state == OutboxState.failed.wireValue &&
-                    retryableErrorCodes.contains(row.lastErrorCode),
-              ))
+          .map(
+            (row) => OutboxResourceOperation(
+              state: row.state,
+              retryScheduled:
+                  row.state == OutboxState.failed.wireValue &&
+                  retryableErrorCodes.contains(row.lastErrorCode),
+            ),
+          )
           .toList(growable: false),
     );
   }
@@ -287,20 +293,21 @@ class OutboxRepository {
   /// revoke an owner mutation simply by hiding an in-flight local record.
   /// The associated local draft remains available for editing.
   Future<bool> cancelUnsent(String operationId) async {
-    final changed = await (database.update(database.outboxOperations)..where(
-          (row) =>
-              row.profileId.equals(profileId) &
-              row.operationId.equals(operationId) &
-              row.state.equals(OutboxState.queued.wireValue) &
-              row.attempts.equals(0),
-        ))
-        .write(
-          const OutboxOperationsCompanion(
-            state: Value('cancelled'),
-            nextRetryAt: Value(null),
-            lastErrorCode: Value(null),
-          ),
-        );
+    final changed =
+        await (database.update(database.outboxOperations)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.operationId.equals(operationId) &
+                  row.state.equals(OutboxState.queued.wireValue) &
+                  row.attempts.equals(0),
+            ))
+            .write(
+              const OutboxOperationsCompanion(
+                state: Value('cancelled'),
+                nextRetryAt: Value(null),
+                lastErrorCode: Value(null),
+              ),
+            );
     return changed == 1;
   }
 
@@ -318,23 +325,24 @@ class OutboxRepository {
       return false;
     }
     final now = DateTime.now().toUtc();
-    final changed = await (database.update(database.outboxOperations)..where(
-          (candidate) =>
-              candidate.profileId.equals(profileId) &
-              candidate.operationId.equals(operationId) &
-              candidate.state.equals(expectedState) &
-              candidate.attempts.equals(expectedAttempts) &
-              (candidate.nextRetryAt.isNull() |
-                  candidate.nextRetryAt.isSmallerOrEqualValue(now)),
-        ))
-        .write(
-          OutboxOperationsCompanion(
-            state: Value(OutboxState.inFlight.wireValue),
-            attempts: Value(expectedAttempts + 1),
-            nextRetryAt: Value(now.add(attemptLease)),
-            lastErrorCode: const Value(null),
-          ),
-        );
+    final changed =
+        await (database.update(database.outboxOperations)..where(
+              (candidate) =>
+                  candidate.profileId.equals(profileId) &
+                  candidate.operationId.equals(operationId) &
+                  candidate.state.equals(expectedState) &
+                  candidate.attempts.equals(expectedAttempts) &
+                  (candidate.nextRetryAt.isNull() |
+                      candidate.nextRetryAt.isSmallerOrEqualValue(now)),
+            ))
+            .write(
+              OutboxOperationsCompanion(
+                state: Value(OutboxState.inFlight.wireValue),
+                attempts: Value(expectedAttempts + 1),
+                nextRetryAt: Value(now.add(attemptLease)),
+                lastErrorCode: const Value(null),
+              ),
+            );
     return changed == 1;
   }
 
@@ -345,12 +353,12 @@ class OutboxRepository {
   ) async {
     final ids = operationIds.toSet();
     if (ids.isEmpty) return const {};
-    final rows = await (database.select(database.outboxOperations)..where(
-          (row) =>
-              row.profileId.equals(profileId) &
-              row.operationId.isIn(ids),
-        ))
-        .get();
+    final rows =
+        await (database.select(database.outboxOperations)..where(
+              (row) =>
+                  row.profileId.equals(profileId) & row.operationId.isIn(ids),
+            ))
+            .get();
     return {for (final row in rows) row.operationId: row.state};
   }
 
@@ -361,14 +369,14 @@ class OutboxRepository {
   ) async {
     final ids = operationIds.toSet();
     if (ids.isEmpty) return const <String>{};
-    final rows = await (database.select(database.outboxOperations)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.operationId.isIn(ids) &
-                row.state.equals(OutboxState.failed.wireValue),
-          ))
-        .get();
+    final rows =
+        await (database.select(database.outboxOperations)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.operationId.isIn(ids) &
+                  row.state.equals(OutboxState.failed.wireValue),
+            ))
+            .get();
     return {
       for (final row in rows)
         if (!retryableErrorCodes.contains(row.lastErrorCode)) row.operationId,
@@ -377,26 +385,25 @@ class OutboxRepository {
 
   /// Next due retry/lease for the foreground lifecycle coordinator.
   /// No new OS job or background scheduler is introduced.
-  Future<DateTime?> nextAutomaticRetryAt({
-    Set<String>? handledKinds,
-  }) async {
+  Future<DateTime?> nextAutomaticRetryAt({Set<String>? handledKinds}) async {
     if (handledKinds != null && handledKinds.isEmpty) return null;
-    final rows = await (database.select(database.outboxOperations)
-          ..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                (row.state.equals(OutboxState.inFlight.wireValue) |
-                    (row.state.equals(OutboxState.failed.wireValue) &
-                        row.lastErrorCode.isIn(retryableErrorCodes.toList()))),
-          ))
-        .get();
+    final rows =
+        await (database.select(database.outboxOperations)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  (row.state.equals(OutboxState.inFlight.wireValue) |
+                      (row.state.equals(OutboxState.failed.wireValue) &
+                          row.lastErrorCode.isIn(
+                            retryableErrorCodes.toList(),
+                          ))),
+            ))
+            .get();
     DateTime? next;
     for (final row in rows) {
-      if (handledKinds != null &&
-          !handledKinds.contains(row.operationKind)) continue;
+      if (handledKinds != null && !handledKinds.contains(row.operationKind))
+        continue;
       final candidate = row.nextRetryAt?.toUtc();
-      if (candidate != null &&
-          (next == null || candidate.isBefore(next))) {
+      if (candidate != null && (next == null || candidate.isBefore(next))) {
         next = candidate;
       }
     }
@@ -409,10 +416,9 @@ class OutboxRepository {
     String operationId,
     Iterable<String> dependencies,
   ) async {
-    final rows = await (database.select(database.outboxOperations)..where(
-          (row) => row.profileId.equals(profileId),
-        ))
-        .get();
+    final rows = await (database.select(
+      database.outboxOperations,
+    )..where((row) => row.profileId.equals(profileId))).get();
     final byId = {for (final row in rows) row.operationId: row};
     final seen = <String>{};
     final pending = dependencies.toList();
@@ -425,8 +431,9 @@ class OutboxRepository {
       if (row == null) continue;
       try {
         final raw = jsonDecode(row.dependencyIdsJson);
-        if (raw is! List || raw.any((entry) =>
-            entry is! String || entry.isEmpty)) return true;
+        if (raw is! List ||
+            raw.any((entry) => entry is! String || entry.isEmpty))
+          return true;
         pending.addAll(raw.cast<String>());
       } on Object {
         return true;
@@ -437,15 +444,19 @@ class OutboxRepository {
 
   /// Backward-compatible explicit start for existing callers.
   Future<void> beginAttempt(String operationId) async {
-    final row = await (database.select(database.outboxOperations)..where(
-      (candidate) => candidate.profileId.equals(profileId) &
-          candidate.operationId.equals(operationId),
-    )).getSingle();
+    final row =
+        await (database.select(database.outboxOperations)..where(
+              (candidate) =>
+                  candidate.profileId.equals(profileId) &
+                  candidate.operationId.equals(operationId),
+            ))
+            .getSingle();
     if (!await claimForAttempt(
       operationId,
       expectedAttempts: row.attempts,
       expectedState: row.state,
-    )) throw StateError('Outbox operation already claimed');
+    ))
+      throw StateError('Outbox operation already claimed');
   }
 
   Future<void> setState(
@@ -456,13 +467,13 @@ class OutboxRepository {
     DateTime? retryAt;
     if (state == OutboxState.failed &&
         retryableErrorCodes.contains(errorCode)) {
-      final operation = await (database.select(database.outboxOperations)
-            ..where(
-              (row) =>
-                  row.profileId.equals(profileId) &
-                  row.operationId.equals(operationId),
-            ))
-          .getSingleOrNull();
+      final operation =
+          await (database.select(database.outboxOperations)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.operationId.equals(operationId),
+              ))
+              .getSingleOrNull();
       if (operation == null) return;
       // Bounded exponential backoff: 10s, 20s, 40s... max 5 min.
       final exponent = (operation.attempts - 1).clamp(0, 5).toInt();

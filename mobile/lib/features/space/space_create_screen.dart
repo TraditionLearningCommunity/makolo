@@ -57,7 +57,8 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       final savedPublic = payload?['public_profile'];
       final spaceId = payload?['created_space_id'];
       final spaceSlug = payload?['created_space_slug'];
-      final identity = spaceId is String &&
+      final identity =
+          spaceId is String &&
               spaceId.isNotEmpty &&
               spaceSlug is String &&
               spaceSlug.isNotEmpty
@@ -66,8 +67,8 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       setState(() {
         if (savedName is String) _name.text = savedName;
         if (savedPublic is bool) _publicProfile = savedPublic;
-        _creationAttempted = state == 'verification_required' ||
-            state == 'created_unverified';
+        _creationAttempted =
+            state == 'verification_required' || state == 'created_unverified';
         _created = state == 'created_unverified' && identity != null;
         _createdIdentity = identity;
         if (_creationAttempted) {
@@ -111,19 +112,21 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     }
     final name = _name.text.trim();
     final publicProfile = _publicProfile;
-    final update = _draftTail.then((_) => repository.saveLocal(
-      draftId: _draftId,
-      owner: _draftOwner,
-      resourceKind: _draftKind,
-      resourceId: _draftResourceId,
-      payload: <String, dynamic>{
-        'name': name,
-        'public_profile': publicProfile,
-        'submission_state': state,
-        if (created != null) 'created_space_id': created.id,
-        if (created != null) 'created_space_slug': created.slug,
-      },
-    ));
+    final update = _draftTail.then(
+      (_) => repository.saveLocal(
+        draftId: _draftId,
+        owner: _draftOwner,
+        resourceKind: _draftKind,
+        resourceId: _draftResourceId,
+        payload: <String, dynamic>{
+          'name': name,
+          'public_profile': publicProfile,
+          'submission_state': state,
+          if (created != null) 'created_space_id': created.id,
+          if (created != null) 'created_space_slug': created.slug,
+        },
+      ),
+    );
     _draftTail = update.then<void>(
       (_) {},
       onError: (Object _, StackTrace __) {},
@@ -169,7 +172,8 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       }
       if (mounted) {
         setState(
-          () => _error = 'Brouillon conservé sur cet appareil lorsque le '
+          () => _error =
+              'Brouillon conservé sur cet appareil lorsque le '
               'stockage est disponible. La création nécessite le réseau.',
         );
       }
@@ -204,7 +208,8 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       }
       if (mounted) context.go('/space/now');
     } on MakoloApiError catch (error) {
-      final denied = !_created &&
+      final denied =
+          !_created &&
           const {400, 401, 403, 404, 422}.contains(error.statusCode);
       if (denied) {
         _creationAttempted = false;
@@ -219,9 +224,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
           _error = _created
               ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
               : _creationAttempted
-                  ? 'Réponse incertaine : vérifiez vos Espaces avant toute '
-                      'nouvelle demande de création.'
-                  : 'La création a été refusée. Vérifiez les informations saisies.';
+              ? 'Réponse incertaine : vérifiez vos Espaces avant toute '
+                    'nouvelle demande de création.'
+              : 'La création a été refusée. Vérifiez les informations saisies.';
         });
       }
     } on Object {
@@ -232,9 +237,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
               ? 'Impossible d’enregistrer le brouillon local. '
                     'La demande de création n’a pas été envoyée.'
               : _created
-                  ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
-                  : 'Réponse incertaine : vérifiez vos Espaces avant '
-                      'de créer à nouveau.';
+              ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
+              : 'Réponse incertaine : vérifiez vos Espaces avant '
+                    'de créer à nouveau.';
         });
       }
     } finally {
@@ -277,8 +282,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       }
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'La préparation locale n’a pas pu être réouverte.');
+        setState(
+          () => _error = 'La préparation locale n’a pas pu être réouverte.',
+        );
       }
     }
   }
@@ -377,8 +383,8 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 subtitle: Text(
                   _publicProfile
                       ? 'La présentation de cet Espace est visible par tous. '
-                          'Les informations privées des membres ne sont pas '
-                          'publiées.'
+                            'Les informations privées des membres ne sont pas '
+                            'publiées.'
                       : 'La présentation de cet Espace n’est pas publique.',
                 ),
               ),
@@ -416,7 +422,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 ),
                 OutlinedButton(
                   onPressed: _saving ? null : _unlockAfterManualVerification,
-                  child: const Text('Après vérification, reprendre le brouillon'),
+                  child: const Text(
+                    'Après vérification, reprendre le brouillon',
+                  ),
                 ),
               ],
               if (_created) ...[

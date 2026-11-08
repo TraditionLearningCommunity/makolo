@@ -31,7 +31,9 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
 
   Future<void> _refresh() async {
     try {
-      final response = await widget.api.get('api/v1/me/passport/visibility/?compact=1');
+      final response = await widget.api.get(
+        'api/v1/me/passport/visibility/?compact=1',
+      );
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'personal.me.passport.visibility',
@@ -155,7 +157,9 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                             dense: true,
                             leading: const Icon(Icons.public_outlined),
                             title: const Text('Tout le monde'),
-                            subtitle: const Text('Cette information est publique'),
+                            subtitle: const Text(
+                              'Cette information est publique',
+                            ),
                             trailing: selected.contains('public:')
                                 ? const Icon(Icons.check_circle)
                                 : null,
@@ -181,14 +185,18 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                           ),
                           ExpansionTile(
                             tilePadding: EdgeInsets.zero,
-                            title: const Text('Choisir des personnes ou collectifs'),
+                            title: const Text(
+                              'Choisir des personnes ou collectifs',
+                            ),
                             subtitle: const Text('Options avancées'),
                             children: [
                               for (final option in choices)
                                 if (option['kind'] != 'public')
                                   CheckboxListTile(
                                     dense: true,
-                                    title: Text(option['label']?.toString() ?? ''),
+                                    title: Text(
+                                      option['label']?.toString() ?? '',
+                                    ),
                                     value: selected.contains(token(option)),
                                     onChanged: working
                                         ? null
@@ -215,9 +223,12 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                               ),
                               for (final person in candidates)
                                 ListTile(
-                                  title: Text(person['name']?.toString() ?? 'Profil'),
+                                  title: Text(
+                                    person['name']?.toString() ?? 'Profil',
+                                  ),
                                   subtitle: Text(
-                                    '@' + (person['username']?.toString() ?? ''),
+                                    '@' +
+                                        (person['username']?.toString() ?? ''),
                                   ),
                                   onTap: () => redraw(() {
                                     if (person['id'] == null) return;
@@ -339,9 +350,8 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                     entry.key,
                     _map(entry.value),
                   ),
-              if (_map(_data!['fields']).entries.any(
-                (entry) => _map(entry.value)['has_value'] == false,
-              ))
+              if (_map(_data!['fields']).entries
+                  .any((entry) => _map(entry.value)['has_value'] == false))
                 ExpansionTile(
                   title: const Text('Autres réglages'),
                   children: [

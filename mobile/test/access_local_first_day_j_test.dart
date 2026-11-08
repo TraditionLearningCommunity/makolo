@@ -36,77 +36,105 @@ Map<String, dynamic> _knownAccess() => {
 };
 
 void main() {
-  testWidgets('day-J Access facts stay readable without a keyed detail or API',
-      (tester) async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'profile-a');
-    final repo = AccessRepository(
-      database: db, store: store, profileId: 'profile-a',
-    );
-    await store.putProjection(
-      kind: AccessRepository.collectionProjectionKind,
-      resourceKey: repo.collectionResourceKey(
-        relationship: 'beneficiary', offset: 0,
-      ),
-      schemaVersion: 1, payload: _knownAccess(),
-    );
-    String? openedCredential;
-    await tester.pumpWidget(MaterialApp(
-      home: AccessDetailScreen(
-        accessId: 'access-1',
-        repository: repo,
-        onOpenDayOf: (_) {},
-        onOpenCredential: (path) => openedCredential = path,
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('Départ du 15 novembre'), findsOneWidget);
-    expect(find.text('Avenue du Départ'), findsOneWidget);
-    expect(find.textContaining('Présentez-vous au guichet A.'), findsOneWidget);
-    expect(find.textContaining('Ces informations ont été enregistrées'), findsOneWidget);
-    expect(find.textContaining('État lors de la dernière réception'), findsOneWidget);
-    expect(await repo.readKnownCredentialPath('access-1'), _path);
-    await tester.tap(find.text('Préparer ou afficher mon QR'));
-    await tester.pump();
-    expect(openedCredential, _path);
-    final other = AccessRepository(
-      database: db, store: ProfileStore(db, 'profile-b'),
-      profileId: 'profile-b',
-    );
-    expect(await other.readKnownCredentialPath('access-1'), isNull);
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
-  });
+  testWidgets(
+    'day-J Access facts stay readable without a keyed detail or API',
+    (tester) async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'profile-a');
+      final repo = AccessRepository(
+        database: db,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await store.putProjection(
+        kind: AccessRepository.collectionProjectionKind,
+        resourceKey: repo.collectionResourceKey(
+          relationship: 'beneficiary',
+          offset: 0,
+        ),
+        schemaVersion: 1,
+        payload: _knownAccess(),
+      );
+      String? openedCredential;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AccessDetailScreen(
+            accessId: 'access-1',
+            repository: repo,
+            onOpenDayOf: (_) {},
+            onOpenCredential: (path) => openedCredential = path,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Départ du 15 novembre'), findsOneWidget);
+      expect(find.text('Avenue du Départ'), findsOneWidget);
+      expect(
+        find.textContaining('Présentez-vous au guichet A.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Ces informations ont été enregistrées'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('État lors de la dernière réception'),
+        findsOneWidget,
+      );
+      expect(await repo.readKnownCredentialPath('access-1'), _path);
+      await tester.tap(find.text('Préparer ou afficher mon QR'));
+      await tester.pump();
+      expect(openedCredential, _path);
+      final other = AccessRepository(
+        database: db,
+        store: ProfileStore(db, 'profile-b'),
+        profileId: 'profile-b',
+      );
+      expect(await other.readKnownCredentialPath('access-1'), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
 
-  testWidgets('explicit owner collection revocation hides Access facts',
-      (tester) async {
+  testWidgets('explicit owner collection revocation hides Access facts', (
+    tester,
+  ) async {
     final db = MakoloDatabase.memory();
     addTearDown(db.close);
     final store = ProfileStore(db, 'profile-a');
     final repo = AccessRepository(
-      database: db, store: store, profileId: 'profile-a',
+      database: db,
+      store: store,
+      profileId: 'profile-a',
     );
     await store.putProjection(
       kind: AccessRepository.collectionProjectionKind,
       resourceKey: repo.collectionResourceKey(
-        relationship: 'beneficiary', offset: 0,
+        relationship: 'beneficiary',
+        offset: 0,
       ),
-      schemaVersion: 1, payload: _knownAccess(),
+      schemaVersion: 1,
+      payload: _knownAccess(),
     );
-    await db.into(db.syncSources).insert(SyncSourcesCompanion.insert(
-      profileId: 'profile-a',
-      sourceKey: repo.collectionSourceKey(
-        relationship: 'beneficiary', offset: 0,
+    await db
+        .into(db.syncSources)
+        .insert(
+          SyncSourcesCompanion.insert(
+            profileId: 'profile-a',
+            sourceKey: repo.collectionSourceKey(
+              relationship: 'beneficiary',
+              offset: 0,
+            ),
+            route: 'api/v1/me/accesses/',
+            invalidated: const Value(true),
+          ),
+        );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccessCollectionScreen(repository: repo, onOpenAccess: (_) {}),
       ),
-      route: 'api/v1/me/accesses/',
-      invalidated: const Value(true),
-    ));
-    await tester.pumpWidget(MaterialApp(
-      home: AccessCollectionScreen(
-        repository: repo, onOpenAccess: (_) {},
-      ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Départ du 15 novembre'), findsNothing);
     expect(find.textContaining('autorité actuelle'), findsOneWidget);

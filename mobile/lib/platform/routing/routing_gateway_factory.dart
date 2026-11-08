@@ -13,15 +13,15 @@ RoutingGateway? createRoutingGateway({
 }) {
   if (!enabled) return null;
   if (provider.trim().toLowerCase() != 'openrouteservice') {
-    throw ArgumentError.value(provider, 'provider', 'Unsupported routing provider');
+    throw ArgumentError.value(
+      provider,
+      'provider',
+      'Unsupported routing provider',
+    );
   }
   final key = apiKey?.trim();
   if (key == null || key.isEmpty) {
     throw ArgumentError('Enabled routing requires an approved API key.');
   }
-  return OpenRouteServiceGateway(
-    apiKey: key,
-    endpoint: endpoint,
-    dio: dio,
-  );
+  return OpenRouteServiceGateway(apiKey: key, endpoint: endpoint, dio: dio);
 }

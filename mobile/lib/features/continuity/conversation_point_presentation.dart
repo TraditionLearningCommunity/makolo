@@ -51,8 +51,12 @@ class ConversationPointShell extends StatelessWidget {
   String get _initials {
     final words = _identity.replaceAll('·', ' ').trim().split(RegExp(r'\s+'));
     if (words.isEmpty) return '?';
-    return words.where((part) => part.isNotEmpty)
-        .take(2).map((part) => part.substring(0, 1)).join().toUpperCase();
+    return words
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1))
+        .join()
+        .toUpperCase();
   }
 
   @override
@@ -73,7 +77,10 @@ class ConversationPointShell extends StatelessWidget {
       builder: (context, constraints) {
         final maxWidth = math.min(constraints.maxWidth * 0.94, 600.0);
         final background = isMine
-            ? Color.alphaBlend(scheme.primary.withValues(alpha: 0.08), scheme.surface)
+            ? Color.alphaBlend(
+                scheme.primary.withValues(alpha: 0.08),
+                scheme.surface,
+              )
             : scheme.surface;
         return Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
@@ -131,8 +138,11 @@ class ConversationPointShell extends StatelessWidget {
                         ),
                         if (representedSpace && !isMine) ...[
                           const SizedBox(width: 4),
-                          Icon(Icons.business_outlined,
-                              size: 14, color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.business_outlined,
+                            size: 14,
+                            color: scheme.onSurfaceVariant,
+                          ),
                         ],
                         const Spacer(),
                         if (statusIcon != null) ...[
@@ -203,8 +213,10 @@ class ConversationPointMediaTile extends StatelessWidget {
       'image' => (Icons.image_outlined, 'Photo'),
       'video' => (Icons.play_circle_outline_rounded, 'Vidéo'),
       'voice' || 'audio' => (Icons.graphic_eq_rounded, 'Message vocal'),
-      _ when mime == 'application/pdf' =>
-        (Icons.picture_as_pdf_outlined, 'Document PDF'),
+      _ when mime == 'application/pdf' => (
+        Icons.picture_as_pdf_outlined,
+        'Document PDF',
+      ),
       _ => (Icons.insert_drive_file_outlined, 'Document'),
     };
     return Padding(
@@ -237,8 +249,10 @@ class ConversationPointMediaTile extends StatelessWidget {
                       const SizedBox(width: MakoloSpacing.sm),
                       Expanded(child: Text(title, style: theme.labelMedium)),
                       if (onOpen != null)
-                        Icon(Icons.chevron_right_rounded,
-                            color: scheme.onSurfaceVariant),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: scheme.onSurfaceVariant,
+                        ),
                     ],
                   ),
                 if (preview != null)
@@ -249,8 +263,11 @@ class ConversationPointMediaTile extends StatelessWidget {
                         Text(title, style: theme.labelSmall),
                         const Spacer(),
                         if (onOpen != null)
-                          Icon(Icons.open_in_full_rounded,
-                              size: 16, color: scheme.onSurfaceVariant),
+                          Icon(
+                            Icons.open_in_full_rounded,
+                            size: 16,
+                            color: scheme.onSurfaceVariant,
+                          ),
                       ],
                     ),
                   ),

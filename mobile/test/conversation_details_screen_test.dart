@@ -15,7 +15,9 @@ void main() {
     database = MakoloDatabase.memory();
     store = ProfileStore(database, 'profile-a');
     repository = ConversationRepository(
-      database: database, store: store, profileId: 'profile-a',
+      database: database,
+      store: store,
+      profileId: 'profile-a',
     );
   });
 
@@ -46,8 +48,11 @@ void main() {
       'media': media,
       'resources': resources,
       'personal_state': {
-        'muted': true, 'pinned': false, 'revisit': false,
-        'hidden': false, 'archived': false,
+        'muted': true,
+        'pinned': false,
+        'revisit': false,
+        'hidden': false,
+        'archived': false,
       },
       'points': [],
       'essential': [],
@@ -55,23 +60,36 @@ void main() {
     },
   );
 
-  testWidgets('detail hero and restricted members are local-first', (tester) async {
+  testWidgets('detail hero and restricted members are local-first', (
+    tester,
+  ) async {
     await putDetail();
-    await tester.pumpWidget(MaterialApp(home: ConversationDetailsScreen(
-      repository: repository, conversationId: 'conv-1',
-    )));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConversationDetailsScreen(
+          repository: repository,
+          conversationId: 'conv-1',
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Salon des mines'), findsOneWidget);
-    expect(find.text('Préparer la participation et suivre les décisions.'),
-        findsOneWidget);
+    expect(
+      find.text('Préparer la participation et suivre les décisions.'),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('conversation-details-tabs')), findsOneWidget);
-    expect(find.textContaining('Leur liste n’est pas affichée ici.'),
-        findsOneWidget);
+    expect(
+      find.textContaining('Leur liste n’est pas affichée ici.'),
+      findsOneWidget,
+    );
     expect(find.text('Partager'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('authorized media index and personal settings are separate', (tester) async {
+  testWidgets('authorized media index and personal settings are separate', (
+    tester,
+  ) async {
     await putDetail(
       scope: 'direct',
       people: const [
@@ -79,16 +97,30 @@ void main() {
         {'label': 'Marie', 'is_me': false},
       ],
       media: const [
-        {'id': 'media-1', 'kind': 'image', 'name': 'salon.jpg', 'mime_type': 'image/jpeg'},
+        {
+          'id': 'media-1',
+          'kind': 'image',
+          'name': 'salon.jpg',
+          'mime_type': 'image/jpeg',
+        },
       ],
       resources: const [
-        {'id': 'resource-1', 'kind': 'text',
-          'title': 'Préparer mon badge', 'description': 'Consignes pratiques'},
+        {
+          'id': 'resource-1',
+          'kind': 'text',
+          'title': 'Préparer mon badge',
+          'description': 'Consignes pratiques',
+        },
       ],
     );
-    await tester.pumpWidget(MaterialApp(home: ConversationDetailsScreen(
-      repository: repository, conversationId: 'conv-1',
-    )));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ConversationDetailsScreen(
+          repository: repository,
+          conversationId: 'conv-1',
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Marie'), findsOneWidget);
 
@@ -104,10 +136,14 @@ void main() {
     await tester.ensureVisible(find.text('Paramètres'));
     await tester.tap(find.text('Paramètres'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('conversation-detail-setting-mute')),
-        findsOneWidget);
-    expect(find.byKey(const Key('conversation-detail-setting-archive')),
-        findsOneWidget);
+    expect(
+      find.byKey(const Key('conversation-detail-setting-mute')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('conversation-detail-setting-archive')),
+      findsOneWidget,
+    );
     final mute = tester.widget<SwitchListTile>(
       find.byKey(const Key('conversation-detail-setting-mute')),
     );

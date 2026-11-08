@@ -656,7 +656,8 @@ class DiscoveryRepository {
     DiscoveryQuery query,
   ) async {
     final rootQuery = query.copyWith(page: 1, clearContinuation: true);
-    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable) return null;
+    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable)
+      return null;
     final root = await _readStoredItems(rootQuery);
     if (root == null) return null;
     final saved = await store.readProjection(
@@ -683,7 +684,8 @@ class DiscoveryRepository {
     final root = await _readStoredItems(rootQuery);
     if (root == null ||
         reserve.rootReceivedAt == null ||
-        reserve.rootReceivedAt != root.receivedAt) return;
+        reserve.rootReceivedAt != root.receivedAt)
+      return;
     final payload = reserve.toPayload(
       profileId: profileId,
       fieldKey: query.mapFingerprint,
@@ -691,15 +693,18 @@ class DiscoveryRepository {
     );
     // User reveals and invisible prefetch may both update the ledger.
     // Serialize their durable writes in presentation order.
-    final write = _unseenWrite.catchError((Object _) {}).then((_) =>
-        store.putProjection(
-          kind: unseenReserveKind,
-          resourceKey: query.mapFingerprint,
-          schemaVersion: 1,
-          payload: payload,
-          receivedAt: root.receivedAt,
-          sourceGeneratedAt: root.sourceGeneratedAt,
-        ));
+    final write = _unseenWrite
+        .catchError((Object _) {})
+        .then(
+          (_) => store.putProjection(
+            kind: unseenReserveKind,
+            resourceKey: query.mapFingerprint,
+            schemaVersion: 1,
+            payload: payload,
+            receivedAt: root.receivedAt,
+            sourceGeneratedAt: root.sourceGeneratedAt,
+          ),
+        );
     _unseenWrite = write;
     await write;
   }
@@ -984,7 +989,8 @@ class DiscoveryRepository {
   StoredProjection? _spatialFromField(StoredProjection? field) {
     if (field == null || field.schemaVersion != 1) return null;
     final raw = field.payload['spatial_index'];
-    if (raw is! Map) return null; // Older servers remain explicitly unsupported.
+    if (raw is! Map)
+      return null; // Older servers remain explicitly unsupported.
     final index = Map<String, dynamic>.from(raw);
     if (index['count'] is! int ||
         index['total_results'] is! int ||
@@ -1032,7 +1038,8 @@ class DiscoveryRepository {
       return false;
     }
     final state = await readSource(itemsSource(query));
-    if (state.invalidated || state.lastErrorCode != null ||
+    if (state.invalidated ||
+        state.lastErrorCode != null ||
         state.lastSuccessAt == null) {
       return false;
     }
@@ -1055,7 +1062,8 @@ class DiscoveryRepository {
       return false;
     }
     final state = await readSource(activitySource(id));
-    return !state.invalidated && state.lastErrorCode == null &&
+    return !state.invalidated &&
+        state.lastErrorCode == null &&
         projection?.payload['identity'] is Map &&
         (projection!.payload['identity'] as Map)['id'] == id;
   }
@@ -1069,7 +1077,8 @@ class DiscoveryRepository {
     // Any known live Day-of privilege requires an owner recheck on entry.
     if (caps is List && caps.contains('open_day_of')) return false;
     if (_freshEnough(projection, detailFreshness.refreshRecommendedAfter!) &&
-        identity is Map && identity['kind'] == 'occurrence' &&
+        identity is Map &&
+        identity['kind'] == 'occurrence' &&
         identity['id'] == id) {
       return true;
     }
@@ -1140,8 +1149,7 @@ class DiscoveryRepository {
         continue;
       }
       if (page.schemaVersion != 1 ||
-          (page.expiresAt != null &&
-              !now.isBefore(page.expiresAt!.toUtc()))) {
+          (page.expiresAt != null && !now.isBefore(page.expiresAt!.toUtc()))) {
         continue;
       }
       final viewer = page.payload['viewer'];
@@ -1158,7 +1166,8 @@ class DiscoveryRepository {
       final collections = <Object?>[
         page.payload['results'],
         if (page.payload['spatial_index'] is Map &&
-            (page.payload['spatial_index'] as Map)['detail_available'] == true &&
+            (page.payload['spatial_index'] as Map)['detail_available'] ==
+                true &&
             (page.payload['spatial_index'] as Map)['viewer'] is Map &&
             ((page.payload['spatial_index'] as Map)['viewer'] as Map)['id'] ==
                 profileId)
@@ -1178,7 +1187,9 @@ class DiscoveryRepository {
           }
           final item = Map<String, dynamic>.from(raw);
           try {
-            DiscoveryWire.validateData({'results': [item]});
+            DiscoveryWire.validateData({
+              'results': [item],
+            });
           } on FormatException {
             continue;
           }
@@ -1829,12 +1840,8 @@ class DiscoveryRepository {
     required Map<String, dynamic> payload,
     required StoredProjection source,
   }) async {
-    final existing = await store.readProjection(
-      kind,
-      resourceKey: resourceKey,
-    );
-    if (existing != null &&
-        existing.receivedAt.isAfter(source.receivedAt)) {
+    final existing = await store.readProjection(kind, resourceKey: resourceKey);
+    if (existing != null && existing.receivedAt.isAfter(source.receivedAt)) {
       return;
     }
     await store.putProjection(

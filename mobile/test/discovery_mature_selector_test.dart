@@ -182,10 +182,7 @@ void main() {
               'family': 'activity',
               'candidate_key': 'activity:far-page',
               'resource': {'kind': 'activity', 'id': 'far-page'},
-              'occurrence': {
-                'kind': 'occurrence',
-                'id': 'occ-far-page',
-              },
+              'occurrence': {'kind': 'occurrence', 'id': 'occ-far-page'},
             },
             'representation': {'title': 'Atelier localisé'},
             'place': {
@@ -200,9 +197,7 @@ void main() {
               },
             ],
             'capabilities': ['view'],
-            'links': {
-              'detail': '/api/v1/discovery/items/activity/far-page/',
-            },
+            'links': {'detail': '/api/v1/discovery/items/activity/far-page/'},
           },
         ],
       },
@@ -214,7 +209,10 @@ void main() {
       selected.collection.items.single.links['detail'],
       '/api/v1/discovery/items/activity/far-page/',
     );
-    expect(selector.spatialAnchorsFromCollection(selected.collection), hasLength(1));
+    expect(
+      selector.spatialAnchorsFromCollection(selected.collection),
+      hasLength(1),
+    );
     expect(selected.collection.hasNext, isFalse);
   });
 
@@ -262,7 +260,10 @@ void main() {
     final collection = selector.collection(fieldProjection(results: [raw]));
     final anchors = selector.spatialAnchorsFromCollection(collection);
     expect(anchors, hasLength(2));
-    expect(anchors.every((anchor) => anchor.candidateKey == 'activity:trip'), isTrue);
+    expect(
+      anchors.every((anchor) => anchor.candidateKey == 'activity:trip'),
+      isTrue,
+    );
     expect(anchors.first.latitude, -11.66);
     expect(anchors.last.longitude, 25.47);
     expect(selector.mapPointsFromCollection(collection), hasLength(1));

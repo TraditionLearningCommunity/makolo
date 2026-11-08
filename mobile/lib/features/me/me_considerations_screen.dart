@@ -506,7 +506,6 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                   knownCount: _openCount,
                 ),
               ],
-
             ],
           ),
   );

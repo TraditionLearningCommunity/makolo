@@ -12,25 +12,30 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('N2/N3 use owner-provided names without overflow at 360dp',
-      (tester) async {
+  testWidgets('N2/N3 use owner-provided names without overflow at 360dp', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(360, 740));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final client = MockClient((request) async {
       expect(request.data, isNull);
-      return MockResponse(jsonEncode({
-        'offers': [
-          {
-            'code': 'dynamic-owner-example',
-            'label': 'Service de recherche scientifique et documentaire',
-            'description': 'Description assez longue pour vérifier '
-                'la composition à largeur réduite sans chevauchement.',
-            'capabilities': ['web_research'],
-            'requires_model': false,
-            'can_connect': false,
-          },
-        ],
-      }), 200);
+      return MockResponse(
+        jsonEncode({
+          'offers': [
+            {
+              'code': 'dynamic-owner-example',
+              'label': 'Service de recherche scientifique et documentaire',
+              'description':
+                  'Description assez longue pour vérifier '
+                  'la composition à largeur réduite sans chevauchement.',
+              'capabilities': ['web_research'],
+              'requires_model': false,
+              'can_connect': false,
+            },
+          ],
+        }),
+        200,
+      );
     });
     const session = AuthSession(
       accessToken: 'token',
@@ -50,28 +55,32 @@ void main() {
       recovery: SessionRecoveryController(),
       api: api,
     );
-    await tester.pumpWidget(MaterialApp(
-      home: MediaQuery(
-        data: const MediaQueryData(
-          size: Size(360, 740),
-          textScaler: TextScaler.linear(1.6),
-        ),
-        child: Scaffold(
-          body: SingleChildScrollView(
-            child: IntelligenceConnectionControls(
-              runtime: runtime,
-              path: 'api/v1/me/intelligence/connections/',
-              connections: const [],
-              onChanged: () async {},
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(360, 740),
+            textScaler: TextScaler.linear(1.6),
+          ),
+          child: Scaffold(
+            body: SingleChildScrollView(
+              child: IntelligenceConnectionControls(
+                runtime: runtime,
+                path: 'api/v1/me/intelligence/connections/',
+                connections: const [],
+                onChanged: () async {},
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Service de recherche scientifique et documentaire'),
-        findsOneWidget);
+    expect(
+      find.text('Service de recherche scientifique et documentaire'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
     await tester.tap(
       find.text('Service de recherche scientifique et documentaire'),

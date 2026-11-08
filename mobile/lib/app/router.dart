@@ -432,8 +432,8 @@ GoRouter createMakoloRouter(
             if (context.canPop()) {
               context.pop();
             } else {
-              final actor = runtime.actorContext?.value ??
-                  const PersonalActorContext();
+              final actor =
+                  runtime.actorContext?.value ?? const PersonalActorContext();
               context.go(
                 runtime.isAuthenticated
                     ? MakoloDestination.forActor(
@@ -496,10 +496,7 @@ GoRouter createMakoloRouter(
           );
         },
       ),
-      ...markRoutes(
-        runtime,
-        onLogout: logout,
-      ),
+      ...markRoutes(runtime, onLogout: logout),
       ...continuityRoutes(runtime),
       ...notificationRoutes(runtime),
       GoRoute(
@@ -549,9 +546,7 @@ GoRouter createMakoloRouter(
               message: 'Choisissez cet Espace et sa responsabilité globale.',
             );
           }
-          return SpaceTransportCreateScreen(
-            runtime: runtime, actor: actor,
-          );
+          return SpaceTransportCreateScreen(runtime: runtime, actor: actor);
         },
       ),
       GoRoute(

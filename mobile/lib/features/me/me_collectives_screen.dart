@@ -161,80 +161,86 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
               child: Text('Ces collectifs ne sont plus accessibles.'),
             )
           : StreamBuilder<StoredProjection?>(
-        stream: _snapshots,
-        builder: (context, snapshot) {
-          final projection = snapshot.data;
-          if (projection == null) {
-            return const Center(child: Text('Mes collectifs sont indisponibles.'));
-          }
-          final selection = const MeSelector().select(
-            projection: projection,
-            now: DateTime.now().toUtc(),
-          );
-          final territory = selection.territories.firstWhere(
-            (item) => item.presentation.key == 'collectives',
-          );
-          _hasMore = territory.hasMore;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _checkEnd();
-          });
-          return ListView(
-            key: PageStorageKey<String>(
-              'me-collectives-${widget.personal.store.profileId}',
+              stream: _snapshots,
+              builder: (context, snapshot) {
+                final projection = snapshot.data;
+                if (projection == null) {
+                  return const Center(
+                    child: Text('Mes collectifs sont indisponibles.'),
+                  );
+                }
+                final selection = const MeSelector().select(
+                  projection: projection,
+                  now: DateTime.now().toUtc(),
+                );
+                final territory = selection.territories.firstWhere(
+                  (item) => item.presentation.key == 'collectives',
+                );
+                _hasMore = territory.hasMore;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _checkEnd();
+                });
+                return ListView(
+                  key: PageStorageKey<String>(
+                    'me-collectives-${widget.personal.store.profileId}',
+                  ),
+                  controller: _scroll,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
+                  children: [
+                    for (final item in territory.items)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(item.title),
+                        subtitle: item.subtitle == null
+                            ? null
+                            : Text(item.subtitle!),
+                        onTap: item.canOpen
+                            ? () => widget.onOpenDestination(item.destination)
+                            : null,
+                        trailing: item.canOpen
+                            ? const Icon(Icons.chevron_right_rounded)
+                            : null,
+                      ),
+                    if (territory.items.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text('Aucun collectif pour le moment.'),
+                        ),
+                      ),
+                    if (_offline && _hasMore)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Text('Suite disponible après reconnexion.'),
+                      ),
+                    if (_loading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      ),
+                    if (_failed)
+                      Center(
+                        child: TextButton(
+                          onPressed: _retry,
+                          child: const Text('Réessayer'),
+                        ),
+                      ),
+                    if (!_loading &&
+                        !_failed &&
+                        !_offline &&
+                        !_hasMore &&
+                        territory.items.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: Center(child: Text('Vous avez tout vu')),
+                      ),
+                  ],
+                );
+              },
             ),
-            controller: _scroll,
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
-            children: [
-              for (final item in territory.items)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.title),
-                  subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-                  onTap: item.canOpen
-                      ? () => widget.onOpenDestination(item.destination)
-                      : null,
-                  trailing: item.canOpen
-                      ? const Icon(Icons.chevron_right_rounded)
-                      : null,
-                ),
-              if (territory.items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Aucun collectif pour le moment.')),
-                ),
-              if (_offline && _hasMore)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('Suite disponible après reconnexion.'),
-                ),
-              if (_loading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
-                ),
-              if (_failed)
-                Center(
-                  child: TextButton(
-                    onPressed: _retry,
-                    child: const Text('Réessayer'),
-                  ),
-                ),
-              if (!_loading &&
-                  !_failed &&
-                  !_offline &&
-                  !_hasMore &&
-                  territory.items.isNotEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 20),
-                  child: Center(child: Text('Vous avez tout vu')),
-                ),
-            ],
-          );
-        },
-      ),
     );
   }
 }

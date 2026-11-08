@@ -10,24 +10,20 @@ void main() {
     expect(payload['type'], 'FeatureCollection');
     final features = payload['features'] as List;
     expect(features, hasLength(2));
-    expect(
-      (features.first as Map)['properties'],
-      {
-        'location_key': 'airport',
-        'opportunity_count': 1,
-        'selected': false,
-        'symbol': '',
-      },
-    );
-    expect(
-      ((features.first as Map)['geometry'] as Map)['coordinates'],
-      [27.4794, -11.6647],
-      reason: 'GeoJSON is longitude-first, unlike the public LatLng UI',
-    );
-    expect(
-      ((features.last as Map)['geometry'] as Map)['coordinates'],
-      [27.4801, -11.6599],
-    );
+    expect((features.first as Map)['properties'], {
+      'location_key': 'airport',
+      'opportunity_count': 1,
+      'selected': false,
+      'symbol': '',
+    });
+    expect(((features.first as Map)['geometry'] as Map)['coordinates'], [
+      27.4794,
+      -11.6647,
+    ], reason: 'GeoJSON is longitude-first, unlike the public LatLng UI');
+    expect(((features.last as Map)['geometry'] as Map)['coordinates'], [
+      27.4801,
+      -11.6599,
+    ]);
     expect(
       (features.first as Map).keys,
       containsAll(['type', 'properties', 'geometry']),
@@ -39,14 +35,16 @@ void main() {
   test('selected markers carry only public presentation attributes', () {
     final payload = DiscoveryMapController.geoJsonForPins(const [
       DiscoveryMapPin(
-        -11.66, 27.48,
+        -11.66,
+        27.48,
         locationKey: 'location-public',
         selected: true,
         opportunityCount: 1,
         symbol: '★',
       ),
       DiscoveryMapPin(
-        -11.67, 27.49,
+        -11.67,
+        27.49,
         locationKey: 'location-shared',
         opportunityCount: 26,
       ),

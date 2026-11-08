@@ -247,7 +247,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                       _objects(preview['quota_changes']).isEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
-                      child: Text('Aucune différence de capacité déclarée entre ces offres. Comparez le tarif et les conditions avant de continuer.'),
+                      child: Text(
+                        'Aucune différence de capacité déclarée entre ces offres. Comparez le tarif et les conditions avant de continuer.',
+                      ),
                     ),
                   _list('Conditions', preview['requirements']),
                   _list('À savoir', preview['warnings']),
@@ -335,28 +337,33 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                         _value(preview['target_name'], title) +
                                             (paidChoice
                                                 ? '\n' +
-                                                    subscriptionPriceLabel(
-                                                      preview['billing_terms'],
-                                                    )
+                                                      subscriptionPriceLabel(
+                                                        preview['billing_terms'],
+                                                      )
                                                 : '') +
                                             '\nLa formule actuelle reste applicable '
                                                 'tant que les conditions ne sont pas remplies.',
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(dialogContext, false),
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            false,
+                                          ),
                                           child: const Text('Retour'),
                                         ),
                                         FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(dialogContext, true),
+                                          onPressed: () => Navigator.pop(
+                                            dialogContext,
+                                            true,
+                                          ),
                                           child: const Text('Confirmer'),
                                         ),
                                       ],
                                     ),
                                   );
-                                  if (approved != true || !sheetContext.mounted ||
+                                  if (approved != true ||
+                                      !sheetContext.mounted ||
                                       !_sameSubject(sourceRuntime, profileId) ||
                                       widget.runtime.api != api) {
                                     return;
@@ -371,7 +378,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                       body: {'idempotency_key': intent},
                                     )).jsonObject();
                                     final paymentId = _value(
-                                      _object(result['transition'])?['payment_obligation_id'],
+                                      _object(
+                                        result['transition'],
+                                      )?['payment_obligation_id'],
                                     );
                                     if (!_sameSubject(
                                           sourceRuntime,
@@ -384,12 +393,18 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                       Navigator.pop(sheetContext);
                                     }
                                     if (paymentId.isNotEmpty &&
-                                        _sameSubject(sourceRuntime, profileId)) {
+                                        _sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        )) {
                                       await context.push(
                                         '/payments/obligations/' +
                                             Uri.encodeComponent(paymentId),
                                       );
-                                      if (_sameSubject(sourceRuntime, profileId)) {
+                                      if (_sameSubject(
+                                        sourceRuntime,
+                                        profileId,
+                                      )) {
                                         await widget.onUpdated();
                                       }
                                     }
@@ -415,10 +430,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                 ? (confirming
                                       ? 'Confirmation…'
                                       : paidChoice
-                                          ? 'Continuer vers le paiement'
-                                          : requiresPaymentVerification
-                                          ? 'Demander le changement'
-                                          : 'Appliquer le changement')
+                                      ? 'Continuer vers le paiement'
+                                      : requiresPaymentVerification
+                                      ? 'Demander le changement'
+                                      : 'Appliquer le changement')
                                 : 'Consultation uniquement',
                           ),
                         ),
@@ -633,7 +648,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           const SizedBox(height: 12),
         ],
         if ((widget.section == 'overview' || widget.section == 'plans') &&
-            canManage && transition != null && transition['open'] == true) ...[
+            canManage &&
+            transition != null &&
+            transition['open'] == true) ...[
           const SizedBox(height: 8),
           if (widget.section == 'plans' &&
               transition['next_action'] == 'pay' &&
@@ -641,13 +658,17 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             FilledButton.icon(
               onPressed: _busy
                   ? null
-                  : () => _openPayment(_value(transition['payment_obligation_id'])),
+                  : () => _openPayment(
+                      _value(transition['payment_obligation_id']),
+                    ),
               icon: const Icon(Icons.credit_card_outlined),
               label: const Text('Reprendre le paiement'),
             )
           else if (widget.section == 'plans' &&
-                 transition['next_action'] == 'finance_access_required')
-            const Text('Une personne autorisée à gérer les finances de cet Espace doit régler cette obligation.'),
+              transition['next_action'] == 'finance_access_required')
+            const Text(
+              'Une personne autorisée à gérer les finances de cet Espace doit régler cette obligation.',
+            ),
           if (transition['status'] == 'ready')
             FilledButton(
               onPressed: _busy
@@ -682,8 +703,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                 _value(event['source_name']).isEmpty
                     ? _value(event['target_name'], 'Changement')
                     : _value(event['source_name']) +
-                        ' → ' +
-                        _value(event['target_name'], 'Changement'),
+                          ' → ' +
+                          _value(event['target_name'], 'Changement'),
               ),
               subtitle: Text(
                 (event['kind'] == 'base_switch'
@@ -692,13 +713,13 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     ' · ' +
                     _value(event['status_label'], 'À vérifier') +
                     (subscriptionDateLabel(
-                      event['completed_at'] ?? event['requested_at'],
-                    ).isEmpty
+                          event['completed_at'] ?? event['requested_at'],
+                        ).isEmpty
                         ? ''
                         : ' · ' +
-                            subscriptionDateLabel(
-                              event['completed_at'] ?? event['requested_at'],
-                            )),
+                              subscriptionDateLabel(
+                                event['completed_at'] ?? event['requested_at'],
+                              )),
               ),
             ),
             const Divider(height: 1),
@@ -707,7 +728,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             TextButton(
               onPressed: _loadingHistory ? null : _moreHistory,
               child: Text(
-                _loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes',
+                _loadingHistory
+                    ? 'Chargement…'
+                    : 'Voir les demandes précédentes',
               ),
             ),
         ],
@@ -738,12 +761,14 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     : 'Un changement est en cours. Terminez-le ou annulez-le avant un nouveau choix.',
               ),
             ),
-          if (catalog.where(
-            (option) =>
-                (option['plan_type'] == 'addon') ==
-                    (widget.section == 'options') &&
-                option['current'] != true,
-          ).isEmpty)
+          if (catalog
+              .where(
+                (option) =>
+                    (option['plan_type'] == 'addon') ==
+                        (widget.section == 'options') &&
+                    option['current'] != true,
+              )
+              .isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text('Aucune autre offre disponible pour le moment.'),
@@ -863,17 +888,19 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                         (subscriptionDateLabel(obligation['due_at']).isEmpty
                             ? ''
                             : ' · Échéance ' +
-                                subscriptionDateLabel(obligation['due_at'])),
+                                  subscriptionDateLabel(obligation['due_at'])),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
-              trailing: _value(obligation['id']).isNotEmpty &&
+              trailing:
+                  _value(obligation['id']).isNotEmpty &&
                       (widget.spaceSlug == null ||
                           obligation['can_open_detail'] == true)
                   ? const Icon(Icons.chevron_right_rounded)
                   : null,
-              onTap: _value(obligation['id']).isEmpty ||
+              onTap:
+                  _value(obligation['id']).isEmpty ||
                       (widget.spaceSlug != null &&
                           obligation['can_open_detail'] != true)
                   ? null

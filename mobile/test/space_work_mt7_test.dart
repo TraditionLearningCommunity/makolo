@@ -6,42 +6,45 @@ import 'package:makolo_mobile/features/space/space_work_surface.dart';
 import 'package:makolo_mobile/presentation/contracts/space_presentation.dart';
 
 void main() {
-  test('MT7 Work origin carries only bounded section and collection context', () {
-    final route = spaceWorkOwnerRoute(
-      slug: 'atelier',
-      kind: 'activity',
-      id: 'work-1',
-      section: 'activities',
-      fromCollection: true,
-    );
-    expect(route, contains('work_section=activities'));
-    expect(route, contains('work_collection=1'));
-    expect(
-      spaceWorkOwnerRoute(
+  test(
+    'MT7 Work origin carries only bounded section and collection context',
+    () {
+      final route = spaceWorkOwnerRoute(
         slug: 'atelier',
         kind: 'activity',
         id: 'work-1',
-        section: 'foreign',
-      ),
-      '/space/atelier/retrieval/activity/work-1',
-    );
-    expect(
-      spaceWorkReturnRoute(
-        slug: 'atelier',
         section: 'activities',
         fromCollection: true,
-      ),
-      '/space/atelier/work/activities',
-    );
-    expect(
-      spaceWorkReturnRoute(
-        slug: 'atelier',
-        section: 'foreign',
-        fromCollection: true,
-      ),
-      '/space/work',
-    );
-  });
+      );
+      expect(route, contains('work_section=activities'));
+      expect(route, contains('work_collection=1'));
+      expect(
+        spaceWorkOwnerRoute(
+          slug: 'atelier',
+          kind: 'activity',
+          id: 'work-1',
+          section: 'foreign',
+        ),
+        '/space/atelier/retrieval/activity/work-1',
+      );
+      expect(
+        spaceWorkReturnRoute(
+          slug: 'atelier',
+          section: 'activities',
+          fromCollection: true,
+        ),
+        '/space/atelier/work/activities',
+      );
+      expect(
+        spaceWorkReturnRoute(
+          slug: 'atelier',
+          section: 'foreign',
+          fromCollection: true,
+        ),
+        '/space/work',
+      );
+    },
+  );
 
   testWidgets('MT7 respects server chapter and section order', (tester) async {
     tester.view.physicalSize = const Size(1200, 1800);
@@ -149,7 +152,9 @@ void main() {
                 'responsibility': 'all',
                 'primary_business_label': 'Créations',
                 'capabilities': {},
-                'presentation': {'section_order': ['activities']},
+                'presentation': {
+                  'section_order': ['activities'],
+                },
                 'sections': {
                   'activities': {
                     'representation': 'Créations',
@@ -236,9 +241,8 @@ void main() {
         ),
         GoRoute(
           path: '/space/requests/:id',
-          builder: (context, state) => Scaffold(
-            body: Text(state.pathParameters['id'] ?? ''),
-          ),
+          builder: (context, state) =>
+              Scaffold(body: Text(state.pathParameters['id'] ?? '')),
         ),
       ],
     );

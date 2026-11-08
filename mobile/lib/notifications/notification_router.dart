@@ -23,28 +23,34 @@ class NotificationRouter {
     const codec = StructuredDestinationCodec();
     final destination = codec.fromNavigation(navigation);
     if (destination == null) return null;
-    final path = resolve(NotificationRouteIntent(
-      kind: destination.kind,
-      id: destination.id,
-      link: destination.link,
-    ));
+    final path = resolve(
+      NotificationRouteIntent(
+        kind: destination.kind,
+        id: destination.id,
+        link: destination.link,
+      ),
+    );
     if (path != null) return path;
     if (navigation is! Map) return null;
 
     // Historical ticket/payment/order priorities can shadow an explicit,
     // usable Access or Journey destination. Never infer an owner from text.
-    if (!{'ticket', 'payment', 'ticket_order', 'event'}
-        .contains(destination.kind.toLowerCase())) return null;
+    if (!{
+      'ticket',
+      'payment',
+      'ticket_order',
+      'event',
+    }.contains(destination.kind.toLowerCase()))
+      return null;
     for (final entry in const [
       ('access_id', 'access'),
       ('journey_id', 'journey'),
     ]) {
       final id = navigation[entry.$1]?.toString().trim();
       if (id == null || id.isEmpty) continue;
-      final alternative = resolve(NotificationRouteIntent(
-        kind: entry.$2,
-        id: id,
-      ));
+      final alternative = resolve(
+        NotificationRouteIntent(kind: entry.$2, id: id),
+      );
       if (alternative != null) return alternative;
     }
     return null;

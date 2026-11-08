@@ -87,16 +87,28 @@ Map<String, dynamic> _fullPayload({bool supportAvailable = false}) {
       'teams': {
         'count': 1,
         'items': [
-          {'kind': 'team', 'id': 'team-1', 'name': 'Équipe terrain',
-            'space': {'id': 'space-1', 'name': 'Espace Makolo'}},
+          {
+            'kind': 'team',
+            'id': 'team-1',
+            'name': 'Équipe terrain',
+            'space': {'id': 'space-1', 'name': 'Espace Makolo'},
+          },
         ],
         'has_more': false,
       },
       'groups': {
         'count': 1,
         'items': [
-          {'kind': 'group', 'id': 'group-1', 'name': 'Groupe local',
-            'owner': {'kind': 'space', 'id': 'space-1', 'name': 'Espace Makolo'}},
+          {
+            'kind': 'group',
+            'id': 'group-1',
+            'name': 'Groupe local',
+            'owner': {
+              'kind': 'space',
+              'id': 'space-1',
+              'name': 'Espace Makolo',
+            },
+          },
         ],
         'has_more': false,
       },
@@ -408,7 +420,9 @@ void main() {
       expect(find.text('Possibilité 3'), findsNothing);
       expect(find.text('Possibilité 4'), findsNothing);
       expect(find.text('Vous avez tout exploré'), findsNothing);
-      await tester.ensureVisible(find.byKey(const Key('me-entry-saved_collection')));
+      await tester.ensureVisible(
+        find.byKey(const Key('me-entry-saved_collection')),
+      );
       await tester.tap(find.byKey(const Key('me-entry-saved_collection')));
       expect(opened, 'saved_collection');
     },
@@ -801,8 +815,14 @@ void main() {
       ),
     );
     expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
-    expect(find.byKey(const Key('me-shortcut-project_collection')), findsOneWidget);
-    expect(find.byKey(const Key('me-shortcut-dossier_collection')), findsOneWidget);
+    expect(
+      find.byKey(const Key('me-shortcut-project_collection')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('me-shortcut-dossier_collection')),
+      findsOneWidget,
+    );
     expect(find.text('Mes veilles'), findsOneWidget);
     expect(find.text('Mes suivis'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
@@ -815,68 +835,62 @@ void main() {
     await tester.tap(find.byTooltip('Liste'));
     await tester.pump();
     expect(find.byKey(const Key('me-navigation-list')), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('me-shortcut-project_collection')));
+    await tester.ensureVisible(
+      find.byKey(const Key('me-shortcut-project_collection')),
+    );
     await tester.tap(find.byKey(const Key('me-shortcut-project_collection')));
     expect(destination, 'project_collection');
   });
 
-  testWidgets('Moi grid centers its information and keeps Discover saved symbol', (
-    tester,
-  ) async {
-    final selection = selector.select(
-      projection: _projection(_fullPayload()),
-      now: now,
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(430, 932),
-      child: MeView(
-        selection: selection,
-        onOpenDestination: (_) => true,
-      ),
-    );
+  testWidgets(
+    'Moi grid centers its information and keeps Discover saved symbol',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(selection: selection, onOpenDestination: (_) => true),
+      );
 
-    await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
-    await tester.tap(find.byTooltip('Grille'));
-    await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('me-layout-toggle')));
+      await tester.tap(find.byTooltip('Grille'));
+      await tester.pump();
 
-    final saved = find.byKey(const Key('me-grid-saved_collection'));
-    await tester.ensureVisible(saved);
-    expect(
-      find.descendant(
-        of: saved,
-        matching: find.byWidgetPredicate(
-          (widget) => widget is DiscoveryOrbitIcon && widget.saved,
+      final saved = find.byKey(const Key('me-grid-saved_collection'));
+      await tester.ensureVisible(saved);
+      expect(
+        find.descendant(
+          of: saved,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is DiscoveryOrbitIcon && widget.saved,
+          ),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: saved,
-        matching: find.text('À retrouver'),
-      ),
-      findsOneWidget,
-    );
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: saved, matching: find.text('À retrouver')),
+        findsOneWidget,
+      );
 
-    final resources = find.byKey(const Key('me-grid-resource_collection'));
-    await tester.ensureVisible(resources);
-    expect(
-      find.descendant(
-        of: resources,
-        matching: find.text('Documents, preuves et attestations'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: resources,
-        matching: find.text('3 ressources'),
-      ),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
+      final resources = find.byKey(const Key('me-grid-resource_collection'));
+      await tester.ensureVisible(resources);
+      expect(
+        find.descendant(
+          of: resources,
+          matching: find.text('Documents, preuves et attestations'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: resources, matching: find.text('3 ressources')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('list mode previews only locally received Access and History', (
     tester,
@@ -1063,41 +1077,42 @@ void main() {
     expect(find.byType(MakoloNotice), findsNothing);
   });
 
-  testWidgets('collectives depth is contextual, scrollable and has no page control', (
-    tester,
-  ) async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-1');
-    await store.putProjection(
-      kind: 'personal.me',
-      schemaVersion: 1,
-      payload: _fullPayload(),
-      receivedAt: now,
-      sourceGeneratedAt: now,
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('http://localhost/'),
-      tokenStore: _UnusedMeTokenStore(),
-    );
-    addTearDown(() => api.close());
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(430, 932),
-      child: MeCollectivesScreen(
-        personal: PersonalRepository(store),
-        api: api,
-        onOpenDestination: (_) => true,
-      ),
-    );
-    await tester.pump();
-    expect(find.text('Équipe terrain'), findsOneWidget);
-    expect(find.text('Équipe · Espace Makolo'), findsOneWidget);
-    expect(find.text('Groupe · Espace Makolo'), findsOneWidget);
-    expect(find.text('Afficher la suite'), findsNothing);
-    expect(find.text('Vous avez tout vu'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'collectives depth is contextual, scrollable and has no page control',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-1');
+      await store.putProjection(
+        kind: 'personal.me',
+        schemaVersion: 1,
+        payload: _fullPayload(),
+        receivedAt: now,
+        sourceGeneratedAt: now,
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('http://localhost/'),
+        tokenStore: _UnusedMeTokenStore(),
+      );
+      addTearDown(() => api.close());
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeCollectivesScreen(
+          personal: PersonalRepository(store),
+          api: api,
+          onOpenDestination: (_) => true,
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Équipe terrain'), findsOneWidget);
+      expect(find.text('Équipe · Espace Makolo'), findsOneWidget);
+      expect(find.text('Groupe · Espace Makolo'), findsOneWidget);
+      expect(find.text('Afficher la suite'), findsNothing);
+      expect(find.text('Vous avez tout vu'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final scale in [1.0, 1.3, 1.6]) {
     testWidgets('textScale $scale keeps essential content available', (

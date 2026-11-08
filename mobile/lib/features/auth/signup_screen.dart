@@ -248,7 +248,8 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted || version != _usernameAvailabilityVersion) return;
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage = 'Impossible de vérifier cet identifiant.';
+        _usernameAvailabilityMessage =
+            'Impossible de vérifier cet identifiant.';
       });
       return;
     }

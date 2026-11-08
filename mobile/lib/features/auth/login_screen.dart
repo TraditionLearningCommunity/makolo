@@ -150,8 +150,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'Impossible de se connecter.';
+        _error = 'Impossible de se connecter.';
       });
       return;
     }

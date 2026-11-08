@@ -135,17 +135,19 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     final answers = Map<String, dynamic>.from(_answers);
     final errors = Map<String, dynamic>.from(_serverErrors);
     final revision = _draftRevision;
-    final write = _draftWrites.then((_) => widget.drafts.saveLocal(
-      draftId: _draftId,
-      owner: QuestionnaireSubmitCoordinator.owner,
-      resourceKind: QuestionnaireSubmitCoordinator.resourceKind,
-      resourceId: widget.requestId,
-      payload: <String, dynamic>{
-        'answers': answers,
-        if (errors.isNotEmpty) 'server_errors': errors,
-        'base_observed_at': DateTime.now().toUtc().toIso8601String(),
-      },
-    ));
+    final write = _draftWrites.then(
+      (_) => widget.drafts.saveLocal(
+        draftId: _draftId,
+        owner: QuestionnaireSubmitCoordinator.owner,
+        resourceKind: QuestionnaireSubmitCoordinator.resourceKind,
+        resourceId: widget.requestId,
+        payload: <String, dynamic>{
+          'answers': answers,
+          if (errors.isNotEmpty) 'server_errors': errors,
+          'base_observed_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      ),
+    );
     _draftWrites = write.then<void>(
       (_) {},
       onError: (Object _, StackTrace __) {},
@@ -386,7 +388,8 @@ class _FormContent extends StatelessWidget {
           if (retryScheduled) ...[
             const SizedBox(height: MakoloSpacing.sm),
             const InlineMessage(
-              message: 'L’envoi a été interrompu. Une nouvelle tentative '
+              message:
+                  'L’envoi a été interrompu. Une nouvelle tentative '
                   'est prévue avec la même intention ; aucune seconde '
                   'soumission n’est nécessaire.',
             ),
@@ -401,7 +404,8 @@ class _FormContent extends StatelessWidget {
               question: question,
               value: answers[question.key],
               error: errors[question.key]?.toString(),
-              enabled: canEdit &&
+              enabled:
+                  canEdit &&
                   !retryScheduled &&
                   !detail.isSubmitted &&
                   commit != MakoloCommitCue.pending &&
@@ -415,7 +419,9 @@ class _FormContent extends StatelessWidget {
             icon: const Icon(Icons.check_rounded),
             label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
           ),
-          if (!canSubmit && !detail.isSubmitted && commit == MakoloCommitCue.none) ...[
+          if (!canSubmit &&
+              !detail.isSubmitted &&
+              commit == MakoloCommitCue.none) ...[
             const SizedBox(height: MakoloSpacing.sm),
             Text(
               'L’envoi de ce formulaire n’est pas disponible pour le moment.',

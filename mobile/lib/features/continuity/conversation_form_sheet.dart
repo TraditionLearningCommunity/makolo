@@ -7,7 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 import 'conversation_repository.dart';
 
-String _newFormReference() => 'mobile-form-${DateTime.now().microsecondsSinceEpoch}-'
+String _newFormReference() =>
+    'mobile-form-${DateTime.now().microsecondsSinceEpoch}-'
     '${Random.secure().nextInt(0x7fffffff).toRadixString(16)}';
 
 class ConversationFormSheet extends StatefulWidget {
@@ -80,10 +81,13 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   void initState() {
     super.initState();
     _newTemplate = _forms.isEmpty;
-    _selectedAudienceId = widget.capabilities['default_audience_id']?.toString();
+    _selectedAudienceId = widget.capabilities['default_audience_id']
+        ?.toString();
     _questionControllers = [TextEditingController()];
     _title.addListener(_edited);
-    for (final controller in _questionControllers) { controller.addListener(_edited); }
+    for (final controller in _questionControllers) {
+      controller.addListener(_edited);
+    }
     unawaited(_restore());
   }
 
@@ -99,22 +103,37 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     } on Object {
       return;
     }
-    if (!mounted || data == null ||
-        _title.text.isNotEmpty || _questionControllers.any((item) => item.text.isNotEmpty)) return;
+    if (!mounted ||
+        data == null ||
+        _title.text.isNotEmpty ||
+        _questionControllers.any((item) => item.text.isNotEmpty))
+      return;
     _restoring = true;
     _title.text = data['title']?.toString() ?? '';
     final savedQuestions = data['questions'];
     final values = savedQuestions is List
         ? savedQuestions.map((item) => item.toString()).toList()
-        : (savedQuestions?.toString() ?? '').split('\n').where((item) => item.trim().isNotEmpty).toList();
-    for (final controller in _questionControllers) { controller.removeListener(_edited); controller.dispose(); }
+        : (savedQuestions?.toString() ?? '')
+              .split('\n')
+              .where((item) => item.trim().isNotEmpty)
+              .toList();
+    for (final controller in _questionControllers) {
+      controller.removeListener(_edited);
+      controller.dispose();
+    }
     _questionControllers
       ..clear()
-      ..addAll((values.isEmpty ? <String>[''] : values).map((value) => TextEditingController(text: value)));
-    for (final controller in _questionControllers) { controller.addListener(_edited); }
+      ..addAll(
+        (values.isEmpty ? <String>[''] : values).map(
+          (value) => TextEditingController(text: value),
+        ),
+      );
+    for (final controller in _questionControllers) {
+      controller.addListener(_edited);
+    }
     _selectedVersionId = data['form_version_id']?.toString();
-    _selectedAudienceId = data['audience_id']?.toString() ??
-        _selectedAudienceId;
+    _selectedAudienceId =
+        data['audience_id']?.toString() ?? _selectedAudienceId;
     _newTemplate = data['new_template'] == true;
     _restoring = false;
     setState(() {});
@@ -130,12 +149,15 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       if (_selectedVersionId != null) 'form_version_id': _selectedVersionId,
       if (_selectedAudienceId != null) 'audience_id': _selectedAudienceId,
     };
-    _draftWrites = _draftWrites.catchError((Object _) {}).then((_) async =>
-        delivery.saveDraft(
-          conversationId: widget.conversationId,
-          kind: 'form',
-          payload: payload,
-        ));
+    _draftWrites = _draftWrites
+        .catchError((Object _) {})
+        .then(
+          (_) async => delivery.saveDraft(
+            conversationId: widget.conversationId,
+            kind: 'form',
+            payload: payload,
+          ),
+        );
   }
 
   void _edited() {
@@ -150,7 +172,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   void dispose() {
     _draftTimer?.cancel();
     if (!_submitted &&
-        (_title.text.isNotEmpty || _questionControllers.any((item) => item.text.isNotEmpty))) _saveDraft();
+        (_title.text.isNotEmpty ||
+            _questionControllers.any((item) => item.text.isNotEmpty)))
+      _saveDraft();
     _title.removeListener(_edited);
     _title.dispose();
     for (final controller in _questionControllers) {
@@ -209,12 +233,18 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       return;
     }
     final questions = _newTemplate
-        ? _questionControllers.map((item) => item.text.trim())
-            .where((value) => value.isNotEmpty).toList(growable: false)
+        ? _questionControllers
+              .map((item) => item.text.trim())
+              .where((value) => value.isNotEmpty)
+              .toList(growable: false)
         : <String>[];
-    if (_newTemplate && (questions.isEmpty || questions.length > 8 ||
-        questions.toSet().length != questions.length)) {
-      setState(() => _error = 'Ajoutez entre une et huit questions distinctes.');
+    if (_newTemplate &&
+        (questions.isEmpty ||
+            questions.length > 8 ||
+            questions.toSet().length != questions.length)) {
+      setState(
+        () => _error = 'Ajoutez entre une et huit questions distinctes.',
+      );
       return;
     }
     if (!_newTemplate && _selectedVersionId == null) {
@@ -246,7 +276,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
         );
         try {
           await delivery.clearDraft(
-            conversationId: widget.conversationId, kind: 'form',
+            conversationId: widget.conversationId,
+            kind: 'form',
           );
         } on Object {
           // The owner operation is already durably queued.
@@ -286,7 +317,10 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          20, 8, 20, MediaQuery.viewInsetsOf(context).bottom + 24,
+          20,
+          8,
+          20,
+          MediaQuery.viewInsetsOf(context).bottom + 24,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -302,21 +336,25 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                     ChoiceChip(
                       label: const Text('Disponible'),
                       selected: !_newTemplate,
-                      onSelected: _sending ? null : (_) => setState(() {
-                        _newTemplate = false;
-                        _reference = null;
-                        _error = null;
-                        _saveDraft();
-                      }),
+                      onSelected: _sending
+                          ? null
+                          : (_) => setState(() {
+                              _newTemplate = false;
+                              _reference = null;
+                              _error = null;
+                              _saveDraft();
+                            }),
                     ),
                     ChoiceChip(
                       label: const Text('Nouveau'),
                       selected: _newTemplate,
-                      onSelected: _sending ? null : (_) => setState(() {
-                        _newTemplate = true;
-                        _reference = null;
-                        _error = null;
-                      }),
+                      onSelected: _sending
+                          ? null
+                          : (_) => setState(() {
+                              _newTemplate = true;
+                              _reference = null;
+                              _error = null;
+                            }),
                     ),
                   ],
                 ),
@@ -327,7 +365,8 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                   value: _selectedVersionId,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Formulaire', border: OutlineInputBorder(),
+                    labelText: 'Formulaire',
+                    border: OutlineInputBorder(),
                   ),
                   items: [
                     for (final form in forms)
@@ -336,18 +375,21 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                         child: Text(form['title']?.toString() ?? 'Formulaire'),
                       ),
                   ],
-                  onChanged: _sending ? null : (value) {
-                    final selected = forms.where(
-                      (form) => form['id']?.toString() == value,
-                    );
-                    setState(() {
-                      _selectedVersionId = value;
-                      _title.text = selected.isEmpty
-                          ? '' : selected.first['title']?.toString() ?? '';
-                      _reference = null;
-                      _saveDraft();
-                    });
-                  },
+                  onChanged: _sending
+                      ? null
+                      : (value) {
+                          final selected = forms.where(
+                            (form) => form['id']?.toString() == value,
+                          );
+                          setState(() {
+                            _selectedVersionId = value;
+                            _title.text = selected.isEmpty
+                                ? ''
+                                : selected.first['title']?.toString() ?? '';
+                            _reference = null;
+                            _saveDraft();
+                          });
+                        },
                 ),
               const SizedBox(height: 12),
               TextField(
@@ -362,55 +404,93 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
               ),
               if (_newTemplate) ...[
                 const SizedBox(height: 8),
-                Text('Questions', style: Theme.of(context).textTheme.titleSmall),
-                for (var index = 0; index < _questionControllers.length; index++)
+                Text(
+                  'Questions',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                for (
+                  var index = 0;
+                  index < _questionControllers.length;
+                  index++
+                )
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: TextField(
-                          key: Key('conversation-form-question-' + index.toString()),
-                          controller: _questionControllers[index],
-                          minLines: 1, maxLines: 3, maxLength: 220,
-                          decoration: InputDecoration(
-                            labelText: 'Question ' + (index + 1).toString(),
-                            border: const OutlineInputBorder(), counterText: '',
+                        Expanded(
+                          child: TextField(
+                            key: Key(
+                              'conversation-form-question-' + index.toString(),
+                            ),
+                            controller: _questionControllers[index],
+                            minLines: 1,
+                            maxLines: 3,
+                            maxLength: 220,
+                            decoration: InputDecoration(
+                              labelText: 'Question ' + (index + 1).toString(),
+                              border: const OutlineInputBorder(),
+                              counterText: '',
+                            ),
                           ),
-                        )),
+                        ),
                         IconButton(
                           tooltip: 'Supprimer cette question',
-                          onPressed: _sending || _questionControllers.length <= 1 ? null : () => setState(() {
-                            final removed = _questionControllers.removeAt(index);
-                            removed.removeListener(_edited); removed.dispose(); _edited();
-                          }),
+                          onPressed:
+                              _sending || _questionControllers.length <= 1
+                              ? null
+                              : () => setState(() {
+                                  final removed = _questionControllers.removeAt(
+                                    index,
+                                  );
+                                  removed.removeListener(_edited);
+                                  removed.dispose();
+                                  _edited();
+                                }),
                           icon: const Icon(Icons.remove_circle_outline),
                         ),
                       ],
                     ),
                   ),
-                Align(alignment: Alignment.centerLeft, child: TextButton.icon(
-                  onPressed: _sending || _questionControllers.length >= 8 ? null : () => setState(() {
-                    final controller = TextEditingController();
-                    controller.addListener(_edited); _questionControllers.add(controller); _edited();
-                  }),
-                  icon: const Icon(Icons.add_rounded), label: const Text('Ajouter une question'),
-                )),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _sending || _questionControllers.length >= 8
+                        ? null
+                        : () => setState(() {
+                            final controller = TextEditingController();
+                            controller.addListener(_edited);
+                            _questionControllers.add(controller);
+                            _edited();
+                          }),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Ajouter une question'),
+                  ),
+                ),
               ],
-              if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty == true) ...[
+              if ((widget.capabilities['media_kinds'] as List?)?.isNotEmpty ==
+                  true) ...[
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   children: [
-                    if ((widget.capabilities['media_kinds'] as List).contains('image'))
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'image',
+                    ))
                       OutlinedButton.icon(
-                        onPressed: _sending ? null : () => _chooseMedia('photo'),
+                        onPressed: _sending
+                            ? null
+                            : () => _chooseMedia('photo'),
                         icon: const Icon(Icons.image_outlined),
                         label: const Text('Photo'),
                       ),
-                    if ((widget.capabilities['media_kinds'] as List).contains('file'))
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'file',
+                    ))
                       OutlinedButton.icon(
-                        onPressed: _sending ? null : () => _chooseMedia('document'),
+                        onPressed: _sending
+                            ? null
+                            : () => _chooseMedia('document'),
                         icon: const Icon(Icons.attach_file_outlined),
                         label: const Text('Document'),
                       ),
@@ -420,46 +500,58 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                   ListTile(
                     dense: true,
                     leading: const Icon(Icons.attachment_rounded),
-                    title: Text(_mediaName!, maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    title: Text(
+                      _mediaName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     trailing: IconButton(
                       tooltip: 'Retirer cette pièce',
                       icon: const Icon(Icons.close_rounded),
-                      onPressed: _sending ? null : () => setState(() {
-                        _mediaPath = null;
-                        _mediaName = null;
-                        _mediaKind = null;
-                      }),
+                      onPressed: _sending
+                          ? null
+                          : () => setState(() {
+                              _mediaPath = null;
+                              _mediaName = null;
+                              _mediaKind = null;
+                            }),
                     ),
                   ),
               ],
-              if (widget.capabilities['audience_selection_required'] == true) ...[
+              if (widget.capabilities['audience_selection_required'] ==
+                  true) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _selectedAudienceId,
                   isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Destinataires', border: OutlineInputBorder(),
+                    labelText: 'Destinataires',
+                    border: OutlineInputBorder(),
                   ),
                   items: [
                     for (final audience in _audiences)
                       DropdownMenuItem(
                         value: audience['id']?.toString(),
-                        child: Text(audience['label']?.toString() ?? 'Audience'),
+                        child: Text(
+                          audience['label']?.toString() ?? 'Audience',
+                        ),
                       ),
                   ],
-                  onChanged: _sending ? null : (value) => setState(() {
-                    _selectedAudienceId = value;
-                    _reference = null;
-                    _saveDraft();
-                  }),
+                  onChanged: _sending
+                      ? null
+                      : (value) => setState(() {
+                          _selectedAudienceId = value;
+                          _reference = null;
+                          _saveDraft();
+                        }),
                 ),
               ],
               if (_error != null) ...[
                 const SizedBox(height: 10),
-                Text(_error!, style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                )),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ],
               const SizedBox(height: 16),
               Align(

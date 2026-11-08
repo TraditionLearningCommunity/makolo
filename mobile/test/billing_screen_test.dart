@@ -149,5 +149,4 @@ void main() {
     expect(find.textContaining('ceux du serveur'), findsNothing);
     expect(find.textContaining('hors ligne'), findsNothing);
   });
-
 }

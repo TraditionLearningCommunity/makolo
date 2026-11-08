@@ -252,9 +252,8 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           devicesRefreshed: devicesRefreshed,
           projectionRefreshed: projectionRefreshed,
         );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       }
     } on Object {
       if (mounted &&
@@ -317,8 +316,8 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                         device['deviceName']!.trim().isNotEmpty
                             ? device['deviceName']!.trim()
                             : device['platform'] == 'android'
-                                ? 'Appareil Android'
-                                : 'Appareil Apple',
+                            ? 'Appareil Android'
+                            : 'Appareil Apple',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       if (DateTime.tryParse(device['lastSeen']!) != null)
@@ -352,7 +351,9 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             label: const Text('Autoriser cet appareil'),
           ),
         if (!widget.mutationsEnabled)
-          const Text('La gestion des appareils est indisponible pour le moment.'),
+          const Text(
+            'La gestion des appareils est indisponible pour le moment.',
+          ),
       ],
     );
   }

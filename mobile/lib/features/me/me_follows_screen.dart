@@ -84,7 +84,8 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
         _offline ||
         _loading ||
         _failed ||
-        _pendingFamily(_current) == null) return;
+        _pendingFamily(_current) == null)
+      return;
     unawaited(_next());
   }
 
@@ -105,7 +106,8 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
     if (family == null) return;
     final collection =
         (current.payload['considerations'] as Map)[family] as Map;
-    final key = '${current.sourceGeneratedAt}:$family:${collection['next_offset']}';
+    final key =
+        '${current.sourceGeneratedAt}:$family:${collection['next_offset']}';
     if (_lastRequest == key) return;
     _lastRequest = key;
     setState(() => _loading = true);
@@ -150,7 +152,8 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
           final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
-          _offline = deviceOffline ||
+          _offline =
+              deviceOffline ||
               source.reachability == ReachabilityState.unreachable;
           if (source.invalidated) {
             return const Center(
@@ -173,7 +176,8 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
               );
               final items = selection.territories
                   .firstWhere(
-                    (territory) => territory.presentation.key == 'considerations',
+                    (territory) =>
+                        territory.presentation.key == 'considerations',
                   )
                   .items;
               final spaces = items
@@ -231,7 +235,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 28),
                       child: Center(
-                        child: Text('Aucune personne ou Espace suivi pour le moment.'),
+                        child: Text(
+                          'Aucune personne ou Espace suivi pour le moment.',
+                        ),
                       ),
                     ),
                   if (_offline && pending)
@@ -242,7 +248,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                   if (_loading)
                     const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator.adaptive()),
+                      child: Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      ),
                     ),
                   if (_failed)
                     Center(

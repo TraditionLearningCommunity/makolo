@@ -196,10 +196,7 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Widget _benefits(Object? source, {bool compact = false}) {
     if (source is! List || source.isEmpty) return const SizedBox.shrink();
-    final rows = source
-        .map(_object)
-        .whereType<Map<String, dynamic>>()
-        .toList();
+    final rows = source.map(_object).whereType<Map<String, dynamic>>().toList();
     if (rows.isEmpty) return const SizedBox.shrink();
     final visible = compact ? rows.take(2).toList() : rows;
     return Column(
@@ -224,7 +221,9 @@ class _BillingScreenState extends State<BillingScreen> {
                 ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  title: Text(_text(item['title'], fallback: 'Avantage inclus')),
+                  title: Text(
+                    _text(item['title'], fallback: 'Avantage inclus'),
+                  ),
                   subtitle: item['description'] == null
                       ? null
                       : Text(item['description'].toString()),
@@ -415,7 +414,9 @@ class _BillingScreenState extends State<BillingScreen> {
               ] else
                 const Padding(
                   padding: EdgeInsets.only(top: 6),
-                  child: Text('Les droits déjà accordés restent vérifiés séparément.'),
+                  child: Text(
+                    'Les droits déjà accordés restent vérifiés séparément.',
+                  ),
                 ),
               if (_text(status?['explanation'], fallback: '').isNotEmpty)
                 Padding(
@@ -462,8 +463,10 @@ class _BillingScreenState extends State<BillingScreen> {
             ),
           ),
           if (transition['next_action'] == 'pay' &&
-              _text(transition['payment_obligation_id'], fallback: '')
-                  .isNotEmpty)
+              _text(
+                transition['payment_obligation_id'],
+                fallback: '',
+              ).isNotEmpty)
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
@@ -505,7 +508,9 @@ class _BillingScreenState extends State<BillingScreen> {
                       title: Text(_text(item['label'])),
                       subtitle: Text(
                         subscriptionConditionStatusLabel(item['state']) +
-                            (item['detail'] == null ? '' : ' · ' + item['detail'].toString()),
+                            (item['detail'] == null
+                                ? ''
+                                : ' · ' + item['detail'].toString()),
                       ),
                     ),
               ],
@@ -523,7 +528,9 @@ class _BillingScreenState extends State<BillingScreen> {
                     title: Text(_text(item['label'])),
                     subtitle: Text(
                       subscriptionConditionStatusLabel(item['state']) +
-                          (item['detail'] == null ? '' : ' · ' + item['detail'].toString()),
+                          (item['detail'] == null
+                              ? ''
+                              : ' · ' + item['detail'].toString()),
                     ),
                   ),
             ],
@@ -580,60 +587,72 @@ class _BillingScreenState extends State<BillingScreen> {
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        leading: _section == 'overview'
-            ? null
-            : IconButton(
-                tooltip: 'Retour à l’abonnement',
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => setState(() => _section = 'overview'),
-              ),
-        title: Text(
-          _section == 'overview'
-              ? (_spaceMode ? 'Abonnement de l’Espace' : 'Abonnement & facturation')
-              : ({'plans': 'Changer de formule', 'options': 'Mes options',
-                  'billing': 'Facturation', 'history': 'Historique'}[_section] ??
-                  'Abonnement & facturation'),
+        appBar: AppBar(
+          leading: _section == 'overview'
+              ? null
+              : IconButton(
+                  tooltip: 'Retour à l’abonnement',
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => setState(() => _section = 'overview'),
+                ),
+          title: Text(
+            _section == 'overview'
+                ? (_spaceMode
+                      ? 'Abonnement de l’Espace'
+                      : 'Abonnement & facturation')
+                : ({
+                        'plans': 'Changer de formule',
+                        'options': 'Mes options',
+                        'billing': 'Facturation',
+                        'history': 'Historique',
+                      }[_section] ??
+                      'Abonnement & facturation'),
+          ),
         ),
-      ),
-      body: _loading && _data == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.inner, 8, MakoloSpacing.inner, 24),
-                children: [
-                  if (_loading) const LinearProgressIndicator(),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+        body: _loading && _data == null
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    MakoloSpacing.inner,
+                    8,
+                    MakoloSpacing.inner,
+                    24,
+                  ),
+                  children: [
+                    if (_loading) const LinearProgressIndicator(),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: MakoloSpacing.md,
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
-                    ),
-                  if (_error != null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: _loading ? null : _load,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Réessayer'),
+                    if (_error != null)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: _loading ? null : _load,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Réessayer'),
+                        ),
                       ),
-                    ),
-                  if (_data == null)
-                    const Text(
-                      'Aucune information fiable n’est disponible pour le moment.',
-                    )
-                  else
-                    _content(),
-                ],
+                    if (_data == null)
+                      const Text(
+                        'Aucune information fiable n’est disponible pour le moment.',
+                      )
+                    else
+                      _content(),
+                  ],
+                ),
               ),
-            ),
       ),
     );
   }

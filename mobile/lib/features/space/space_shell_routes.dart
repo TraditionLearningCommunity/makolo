@@ -216,9 +216,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            projection == null
-                                ? 'Actualisation indisponible.'
-                                : 'Impossible d’actualiser. Les dernières informations enregistrées restent affichées.',
+                            projection == null ? 'Actualisation indisponible.' : 'Impossible d’actualiser. Les dernières informations enregistrées restent affichées.',
                           ),
                         ),
                         TextButton(
@@ -378,28 +376,27 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
   }
 
-  Widget _usBody(BuildContext context, Map<String, dynamic> payload) =>
-      Column(
-        children: [
-          if (conversations != null)
-            ConversationContextAction(
-              repository: conversations!,
-              kind: 'space',
-              contextId: spaceId,
-              onOpen: (id) => context.push('/conversations/$id'),
-            ),
-          Expanded(
-            child: SpaceUsSurface(
-              payload: payload,
-              fallbackSpaceName: fallbackSpaceName,
-              onOpen: (route) async {
-                await context.push(route);
-                if (context.mounted) await onRefresh();
-              },
-            ),
-          ),
-        ],
-      );
+  Widget _usBody(BuildContext context, Map<String, dynamic> payload) => Column(
+    children: [
+      if (conversations != null)
+        ConversationContextAction(
+          repository: conversations!,
+          kind: 'space',
+          contextId: spaceId,
+          onOpen: (id) => context.push('/conversations/$id'),
+        ),
+      Expanded(
+        child: SpaceUsSurface(
+          payload: payload,
+          fallbackSpaceName: fallbackSpaceName,
+          onOpen: (route) async {
+            await context.push(route);
+            if (context.mounted) await onRefresh();
+          },
+        ),
+      ),
+    ],
+  );
 
   Map<String, dynamic>? _map(Object? value) => value is Map
       ? value.map((key, value) => MapEntry(key.toString(), value))
@@ -821,9 +818,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                   initialValue: selected,
                   isExpanded: true,
                   hint: const Text('Choisir un rôle'),
-                  decoration: const InputDecoration(
-                    labelText: 'Rôle',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Rôle'),
                   items: [
                     for (final role in roles)
                       DropdownMenuItem(
@@ -1050,10 +1045,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   @override
   Widget build(BuildContext context) {
     if (widget.depth == 'resources') {
-      return SpaceUsResourcesScreen(
-        runtime: widget.runtime,
-        slug: widget.slug,
-      );
+      return SpaceUsResourcesScreen(runtime: widget.runtime, slug: widget.slug);
     }
     if (_loading) {
       return const MakoloSecondaryScreen(
@@ -1064,7 +1056,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (_denied || _space == null) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.',
+        message:
+            'Vous ne pouvez pas accéder à cet Espace avec votre compte actuel.',
       );
     }
     final current = widget.runtime.actorContext?.value;
@@ -1084,7 +1077,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         if (state.invalidated) {
           return MakoloSecondaryScreen(
             title: _depthTitle(widget.depth),
-            message: 'Cette rubrique n’est plus accessible avec vos droits actuels.',
+            message:
+                'Cette rubrique n’est plus accessible avec vos droits actuels.',
           );
         }
         return StreamBuilder<StoredProjection?>(
@@ -1103,8 +1097,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             if (!allowed) {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
-                message:
-                    'Cette rubrique n’est pas accessible avec vos droits actuels.',
+                message: 'Cette rubrique n’est pas accessible avec vos droits actuels.',
               );
             }
             final freshness = WorkspaceContextRepository.surfaceFreshness
@@ -1291,8 +1284,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           if (observationOnly) ...[
             const SizedBox(height: MakoloSpacing.md),
             const MakoloStatus(
-              label:
-                  'Dernières informations enregistrées. Les actions nécessitent une connexion.',
+              label: 'Dernières informations enregistrées. Les actions nécessitent une connexion.',
               tone: MakoloStatusTone.info,
               icon: Icons.cloud_off_outlined,
             ),

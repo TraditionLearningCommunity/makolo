@@ -18,14 +18,16 @@ class PersonalRepository {
 
   static const ongoingContinuationKind = 'personal.ongoing.continuation';
 
-  Stream<StoredProjection?> watchOngoing() =>
-      store.watchProjection('personal.ongoing').asyncMap(
+  Stream<StoredProjection?> watchOngoing() => store
+      .watchProjection('personal.ongoing')
+      .asyncMap(
         (root) async => root == null ? null : _withOngoingContinuation(root),
       );
 
   static List<String> _ongoingKeys(Object? rows) {
     if (rows is! List) return const [];
-    return rows.whereType<Map>()
+    return rows
+        .whereType<Map>()
         .map((row) => row['id']?.toString() ?? '')
         .toList(growable: false);
   }
@@ -36,23 +38,32 @@ class PersonalRepository {
     final overlay = await store.readProjection(ongoingContinuationKind);
     final actor = root.payload['actor'];
     final cursor = root.payload['continuation'];
-    if (overlay == null || overlay.schemaVersion != 1 ||
-        actor is! Map || actor['id']?.toString() != store.profileId ||
+    if (overlay == null ||
+        overlay.schemaVersion != 1 ||
+        actor is! Map ||
+        actor['id']?.toString() != store.profileId ||
         cursor is! Map ||
         overlay.payload['actor_id'] != store.profileId ||
         overlay.payload['root_token'] != cursor['token'] ||
         overlay.payload['first_keys'] is! List ||
-        overlay.payload['rows'] is! List) return root;
+        overlay.payload['rows'] is! List)
+      return root;
     final first = overlay.payload['first_keys'] as List;
     final rootRows = root.payload['items'];
     if (rootRows is! List) return root;
     final keys = _ongoingKeys(rootRows);
     if (keys.length != first.length ||
-        !List.generate(keys.length, (i) => keys[i] == first[i])
-            .every((same) => same)) return root;
+        !List.generate(
+          keys.length,
+          (i) => keys[i] == first[i],
+        ).every((same) => same))
+      return root;
     final seen = <String>{};
     final merged = <Map<String, dynamic>>[];
-    for (final raw in [...(rootRows as List), ...(overlay.payload['rows'] as List)]) {
+    for (final raw in [
+      ...(rootRows as List),
+      ...(overlay.payload['rows'] as List),
+    ]) {
       if (raw is! Map) continue;
       final id = raw['id']?.toString();
       if (id == null || id.isEmpty || !seen.add(id)) continue;
@@ -136,7 +147,11 @@ class PersonalRepository {
     final response = await api.get(
       Uri(
         path: 'api/v1/me/preview/$territory/',
-        queryParameters: {'family': selectedFamily, 'offset': '$offset', 'limit': '24'},
+        queryParameters: {
+          'family': selectedFamily,
+          'offset': '$offset',
+          'limit': '24',
+        },
       ).toString(),
     );
     final envelope = ProjectionEnvelope.parse(
@@ -170,7 +185,8 @@ class PersonalRepository {
       return;
     }
     final latestTerritory = latest.payload[territory];
-    if (latestTerritory is! Map || latestTerritory[selectedFamily] is! Map) return;
+    if (latestTerritory is! Map || latestTerritory[selectedFamily] is! Map)
+      return;
     final latestItems = (latestTerritory[selectedFamily] as Map)['items'];
     final latestSource = latestTerritory[selectedFamily] as Map;
     if (latestItems is! List ||
@@ -491,7 +507,8 @@ class PersonalRepository {
     }
     final existing = await store.readProjection(ongoingContinuationKind);
     final originalCursor = current.payload['continuation'];
-    final existingFromRoot = existing != null &&
+    final existingFromRoot =
+        existing != null &&
         existing.payload['actor_id'] == store.profileId &&
         existing.payload['continuation'] is Map &&
         existing.payload['first_keys'] is List &&

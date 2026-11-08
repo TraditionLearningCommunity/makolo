@@ -160,52 +160,56 @@ Future<AppRuntime> buildAppRuntime({
   );
   // One owner-scoped outbox processor dispatches both Questionnaire and
   // Conversation operations. C3_bus never creates a private second queue.
-  final conversationDelivery = api == null ? null : ConversationLocalDelivery(
-    database: database,
-    drafts: drafts,
-    outbox: outbox,
-    tokens: tokens,
-    api: api,
-    profileId: profileId,
-    refreshDetail: (conversationId, focusedPointId) =>
-        continuity.conversations.refreshDetail(
-          conversationId,
-          focusPointId: focusedPointId,
-        ),
-    mediaMime: ConversationRepository.mediaMime,
-  );
+  final conversationDelivery = api == null
+      ? null
+      : ConversationLocalDelivery(
+          database: database,
+          drafts: drafts,
+          outbox: outbox,
+          tokens: tokens,
+          api: api,
+          profileId: profileId,
+          refreshDetail: (conversationId, focusedPointId) => continuity
+              .conversations
+              .refreshDetail(conversationId, focusPointId: focusedPointId),
+          mediaMime: ConversationRepository.mediaMime,
+        );
   continuity.conversations.delivery = conversationDelivery;
-  final outboxProcessor = api == null ? null : OutboxProcessor(
-    repository: outbox,
-    handlers: {
-      if (questionnaires.submit != null)
-        QuestionnaireSubmitCoordinator.operationKind:
-            questionnaires.submit!.handler,
-      if (conversationDelivery != null)
-        ConversationLocalDelivery.operationKind: conversationDelivery.handle,
-    },
-    reconcilers: {
-      if (questionnaires.submit != null)
-        QuestionnaireSubmitCoordinator.operationKind:
-            questionnaires.submit!.reconciler,
-    },
-    expectedOwners: {
-      if (questionnaires.submit != null)
-        QuestionnaireSubmitCoordinator.operationKind:
-            QuestionnaireSubmitCoordinator.owner,
-      if (conversationDelivery != null)
-        ConversationLocalDelivery.operationKind: ConversationLocalDelivery.owner,
-    },
-    expectedReplayPolicies: {
-      if (questionnaires.submit != null)
-        QuestionnaireSubmitCoordinator.operationKind:
-            ReplayPolicy.refetchBeforeRetry,
-      if (conversationDelivery != null)
-        ConversationLocalDelivery.operationKind: ReplayPolicy.idempotent,
-    },
-    canDispatch: (operation) async =>
-        (await tokens.readSession())?.profileId == operation.profileId,
-  );
+  final outboxProcessor = api == null
+      ? null
+      : OutboxProcessor(
+          repository: outbox,
+          handlers: {
+            if (questionnaires.submit != null)
+              QuestionnaireSubmitCoordinator.operationKind:
+                  questionnaires.submit!.handler,
+            if (conversationDelivery != null)
+              ConversationLocalDelivery.operationKind:
+                  conversationDelivery.handle,
+          },
+          reconcilers: {
+            if (questionnaires.submit != null)
+              QuestionnaireSubmitCoordinator.operationKind:
+                  questionnaires.submit!.reconciler,
+          },
+          expectedOwners: {
+            if (questionnaires.submit != null)
+              QuestionnaireSubmitCoordinator.operationKind:
+                  QuestionnaireSubmitCoordinator.owner,
+            if (conversationDelivery != null)
+              ConversationLocalDelivery.operationKind:
+                  ConversationLocalDelivery.owner,
+          },
+          expectedReplayPolicies: {
+            if (questionnaires.submit != null)
+              QuestionnaireSubmitCoordinator.operationKind:
+                  ReplayPolicy.refetchBeforeRetry,
+            if (conversationDelivery != null)
+              ConversationLocalDelivery.operationKind: ReplayPolicy.idempotent,
+          },
+          canDispatch: (operation) async =>
+              (await tokens.readSession())?.profileId == operation.profileId,
+        );
   conversationDelivery?.requestDispatch = outboxProcessor?.run;
 
   final discovery = buildDiscoveryRepository(

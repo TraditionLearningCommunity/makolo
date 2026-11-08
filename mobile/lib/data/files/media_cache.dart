@@ -130,7 +130,8 @@ class ProfileMediaCache {
       if (entry.path.contains('.part-')) {
         // An interrupted download has no FileRecord and no owner meaning.
         if (stat.modified.toUtc().isBefore(
-            now.subtract(const Duration(days: 1)))) {
+          now.subtract(const Duration(days: 1)),
+        )) {
           await entry.delete();
         }
         continue;
@@ -145,9 +146,9 @@ class ProfileMediaCache {
     var bytes = 0;
     var retained = 0;
     for (final (file, stat) in files) {
-      final keep = file.path == protect?.path ||
-          (retained < maxCachedFiles &&
-              bytes + stat.size <= maxCachedBytes);
+      final keep =
+          file.path == protect?.path ||
+          (retained < maxCachedFiles && bytes + stat.size <= maxCachedBytes);
       if (keep) {
         retained++;
         bytes += stat.size;
@@ -159,8 +160,9 @@ class ProfileMediaCache {
 
   Future<File> _target(String key, {required String extension}) async {
     await directory.create(recursive: true);
-    final safeExtension =
-        extension.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toLowerCase();
+    final safeExtension = extension
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toLowerCase();
     if (safeExtension.length > 10) {
       throw ArgumentError.value(extension, 'extension');
     }

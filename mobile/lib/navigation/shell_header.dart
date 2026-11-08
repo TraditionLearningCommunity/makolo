@@ -214,14 +214,16 @@ class MakoloPrimaryHeader extends StatelessWidget
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
               child: ClipOval(
-                child: avatarVisual ?? ProfileAvatarImage(
-                  profileId: avatarProfileId,
-                  url: avatarUrl,
-                  api: avatarApi,
-                  revision: avatarRevision,
-                  size: 36,
-                  fallback: _avatarFallback(context),
-                ),
+                child:
+                    avatarVisual ??
+                    ProfileAvatarImage(
+                      profileId: avatarProfileId,
+                      url: avatarUrl,
+                      api: avatarApi,
+                      revision: avatarRevision,
+                      size: 36,
+                      fallback: _avatarFallback(context),
+                    ),
               ),
             ),
           ),

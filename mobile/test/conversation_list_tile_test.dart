@@ -73,45 +73,47 @@ void main() {
     },
   );
 
-  testWidgets(
-    'visual C5: compact, medium and wide at 1.6x do not overflow',
-    (tester) async {
-      for (final size in <Size>[
-        const Size(320, 700),
-        const Size(360, 800),
-        const Size(430, 932),
-        const Size(834, 1112),
-        const Size(1440, 900),
-      ]) {
-        await PresentationHarness.pump(
-          tester,
-          viewport: size,
-          textScale: 1.6,
-          reduceMotion: true,
-          brightness: size.width > 800 ? Brightness.dark : Brightness.light,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: tile(onTap: () {}),
-          ),
-        );
-        expect(tester.takeException(), isNull, reason: 'Overflow at ${size.width}');
-        expect(find.byType(ConversationListTile), findsOneWidget);
-      }
-    },
-  );
-
-  testWidgets(
-    'visual C5: semantic single action and content signal label',
-    (tester) async {
-      final handle = tester.ensureSemantics();
-      await PresentationHarness.pump(tester, child: tile(onTap: () {}));
-      expect(
-        find.bySemanticsLabel(RegExp('Marché des coopératives.*Contenus :')),
-        findsOneWidget,
+  testWidgets('visual C5: compact, medium and wide at 1.6x do not overflow', (
+    tester,
+  ) async {
+    for (final size in <Size>[
+      const Size(320, 700),
+      const Size(360, 800),
+      const Size(430, 932),
+      const Size(834, 1112),
+      const Size(1440, 900),
+    ]) {
+      await PresentationHarness.pump(
+        tester,
+        viewport: size,
+        textScale: 1.6,
+        reduceMotion: true,
+        brightness: size.width > 800 ? Brightness.dark : Brightness.light,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: tile(onTap: () {}),
+        ),
       );
-      handle.dispose();
-    },
-  );
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Overflow at ${size.width}',
+      );
+      expect(find.byType(ConversationListTile), findsOneWidget);
+    }
+  });
+
+  testWidgets('visual C5: semantic single action and content signal label', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await PresentationHarness.pump(tester, child: tile(onTap: () {}));
+    expect(
+      find.bySemanticsLabel(RegExp('Marché des coopératives.*Contenus :')),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
 
   test('context and media icons are canonical, not message-unread cues', () {
     expect(ConversationListTile.contextIcon('space'), Icons.business_rounded);

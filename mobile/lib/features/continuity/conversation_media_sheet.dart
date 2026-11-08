@@ -95,9 +95,10 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedAudienceId =
-        widget.capabilities['default_audience_id']?.toString();
-    _selectedPointId = widget.lockedPointId ??
+    _selectedAudienceId = widget.capabilities['default_audience_id']
+        ?.toString();
+    _selectedPointId =
+        widget.lockedPointId ??
         widget.capabilities['default_exchange_point_id']?.toString();
     _caption.addListener(_edited);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -121,18 +122,22 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     try {
       final allowed = await _recorder.hasPermission();
       if (!allowed) {
-        if (mounted) setState(() {
-          _captureState = 'error';
-          _error = 'Accès au micro refusé.';
-        });
+        if (mounted)
+          setState(() {
+            _captureState = 'error';
+            _error = 'Accès au micro refusé.';
+          });
         return;
       }
       final temp = await getTemporaryDirectory();
-      final path = '${temp.path}/makolo-c4-${DateTime.now().microsecondsSinceEpoch}.m4a';
+      final path =
+          '${temp.path}/makolo-c4-${DateTime.now().microsecondsSinceEpoch}.m4a';
       await _recorder.start(
         const RecordConfig(
-          encoder: AudioEncoder.aacLc, bitRate: 64000,
-          sampleRate: 44100, numChannels: 1,
+          encoder: AudioEncoder.aacLc,
+          bitRate: 64000,
+          sampleRate: 44100,
+          numChannels: 1,
         ),
         path: path,
       );
@@ -154,10 +159,11 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         _error = null;
       });
     } on Object {
-      if (mounted) setState(() {
-        _captureState = 'error';
-        _error = 'Micro indisponible sur cet appareil.';
-      });
+      if (mounted)
+        setState(() {
+          _captureState = 'error';
+          _error = 'Micro indisponible sur cet appareil.';
+        });
     } finally {
       _opening = false;
     }
@@ -205,10 +211,11 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         if (mounted) setState(() => _error = 'Aperçu vocal indisponible.');
       }
     } on Object {
-      if (mounted) setState(() {
-        _captureState = 'error';
-        _error = 'Enregistrement non enregistré.';
-      });
+      if (mounted)
+        setState(() {
+          _captureState = 'error';
+          _error = 'Enregistrement non enregistré.';
+        });
     }
   }
 
@@ -229,7 +236,8 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       } else {
         final selected = await ImagePicker().pickImage(
           source: widget.mode == 'camera'
-              ? ImageSource.camera : ImageSource.gallery,
+              ? ImageSource.camera
+              : ImageSource.gallery,
           imageQuality: 90,
           maxWidth: 2200,
         );
@@ -250,10 +258,11 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       // Selection is not consent to send. Let the person preview and
       // optionally add context before making a durable local intention.
     } on Object {
-      if (mounted) setState(() {
-        _captureState = 'error';
-        _error = 'Sélection indisponible. Réessayer.';
-      });
+      if (mounted)
+        setState(() {
+          _captureState = 'error';
+          _error = 'Sélection indisponible. Réessayer.';
+        });
     }
   }
 
@@ -318,8 +327,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       widget.onPublished(id);
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Fichier non conservé pour envoi. Réessayer.');
+        setState(() => _error = 'Fichier non conservé pour envoi. Réessayer.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -375,7 +383,10 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          20, 8, 20, MediaQuery.viewInsetsOf(context).bottom + 24,
+          20,
+          8,
+          20,
+          MediaQuery.viewInsetsOf(context).bottom + 24,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -383,14 +394,19 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                isVoice ? 'Vocal' : widget.mode == 'document'
-                    ? 'Document' : 'Photo',
+                isVoice
+                    ? 'Vocal'
+                    : widget.mode == 'document'
+                    ? 'Document'
+                    : 'Photo',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 20),
               if (isVoice && (recording || paused)) ...[
-                Text('$minutes:$seconds',
-                    style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  '$minutes:$seconds',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -413,7 +429,8 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                       label: const Text('Terminer'),
                     ),
                     TextButton(
-                      onPressed: _cancel, child: const Text('Annuler'),
+                      onPressed: _cancel,
+                      child: const Text('Annuler'),
                     ),
                   ],
                 ),
@@ -439,12 +456,18 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                                 unawaited(_player.play());
                               }
                             } on Object {
-                              if (mounted) setState(() =>
-                                  _error = 'Lecture du vocal indisponible.');
+                              if (mounted)
+                                setState(
+                                  () =>
+                                      _error = 'Lecture du vocal indisponible.',
+                                );
                             }
                           },
-                          icon: Icon(playing
-                              ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                          icon: Icon(
+                            playing
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                          ),
                           label: Text(playing ? 'Pause' : 'Écouter'),
                         ),
                       );
@@ -464,7 +487,8 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                     value: _selectedPointId,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Échange', border: OutlineInputBorder(),
+                      labelText: 'Échange',
+                      border: OutlineInputBorder(),
                     ),
                     items: [
                       for (final row in _rows('exchange_targets'))
@@ -473,17 +497,20 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                           child: Text(row['title']?.toString() ?? 'Échange'),
                         ),
                     ],
-                    onChanged: _sending ? null : (value) => setState(() {
-                      _selectedPointId = value;
-                      _reference = null;
-                    }),
+                    onChanged: _sending
+                        ? null
+                        : (value) => setState(() {
+                            _selectedPointId = value;
+                            _reference = null;
+                          }),
                   ),
                 if (_requiresAudience)
                   DropdownButtonFormField<String>(
                     value: _selectedAudienceId,
                     isExpanded: true,
                     decoration: const InputDecoration(
-                      labelText: 'Destinataires', border: OutlineInputBorder(),
+                      labelText: 'Destinataires',
+                      border: OutlineInputBorder(),
                     ),
                     items: [
                       for (final row in _rows('audiences'))
@@ -492,10 +519,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                           child: Text(row['label']?.toString() ?? 'Audience'),
                         ),
                     ],
-                    onChanged: _sending ? null : (value) => setState(() {
-                      _selectedAudienceId = value;
-                      _reference = null;
-                    }),
+                    onChanged: _sending
+                        ? null
+                        : (value) => setState(() {
+                            _selectedAudienceId = value;
+                            _reference = null;
+                          }),
                   ),
                 const SizedBox(height: 12),
                 Row(
@@ -520,15 +549,17 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                 ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                )),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ],
               if (!ready && !recording && !paused)
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _cancel, child: const Text('Fermer'),
+                    onPressed: _cancel,
+                    child: const Text('Fermer'),
                   ),
                 ),
             ],

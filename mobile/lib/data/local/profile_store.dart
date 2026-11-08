@@ -77,7 +77,10 @@ class ProfileStore {
             row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     return query.watch().map(
-      (rows) => rows.map(_usableProjection).whereType<StoredProjection>().toList(growable: false),
+      (rows) => rows
+          .map(_usableProjection)
+          .whereType<StoredProjection>()
+          .toList(growable: false),
     );
   }
 
@@ -88,7 +91,10 @@ class ProfileStore {
             row.profileId.equals(profileId) & row.projectionKind.equals(kind),
       );
     final rows = await query.get();
-    return rows.map(_usableProjection).whereType<StoredProjection>().toList(growable: false);
+    return rows
+        .map(_usableProjection)
+        .whereType<StoredProjection>()
+        .toList(growable: false);
   }
 
   Future<StoredProjection?> readProjection(
@@ -119,16 +125,18 @@ class ProfileStore {
         projectionKind.trim().isEmpty) {
       throw ArgumentError('Indexed resource identity must not be empty');
     }
-    await database.into(database.resourceIndex).insertOnConflictUpdate(
-      ResourceIndexCompanion.insert(
-        profileId: profileId,
-        resourceKind: resourceKind,
-        resourceId: resourceId,
-        projectionKind: projectionKind,
-        label: Value(label),
-        updatedAt: DateTime.now().toUtc(),
-      ),
-    );
+    await database
+        .into(database.resourceIndex)
+        .insertOnConflictUpdate(
+          ResourceIndexCompanion.insert(
+            profileId: profileId,
+            resourceKind: resourceKind,
+            resourceId: resourceId,
+            projectionKind: projectionKind,
+            label: Value(label),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
   }
 
   /// The join prevents an index pointer from presenting a revoked, removed
@@ -166,17 +174,16 @@ class ProfileStore {
     );
   }
 
-  List<IndexedResource> _readResourceRows(List<QueryRow> rows) =>
-      rows
-          .map(
-            (row) => IndexedResource(
-              kind: row.read<String>('resource_kind'),
-              id: row.read<String>('resource_id'),
-              projectionKind: row.read<String>('projection_kind'),
-              label: row.readNullable<String>('label'),
-            ),
-          )
-          .toList(growable: false);
+  List<IndexedResource> _readResourceRows(List<QueryRow> rows) => rows
+      .map(
+        (row) => IndexedResource(
+          kind: row.read<String>('resource_kind'),
+          id: row.read<String>('resource_id'),
+          projectionKind: row.read<String>('projection_kind'),
+          label: row.readNullable<String>('label'),
+        ),
+      )
+      .toList(growable: false);
 
   Future<List<IndexedResource>> readKnownResources({
     String search = '',
@@ -266,11 +273,13 @@ class ProfileStore {
   Future<int> purgeExpiredProjections() async {
     final cutoff = DateTime.now().toUtc();
     return database.transaction(() async {
-      final removed = await (database.delete(database.projectionSnapshots)
-            ..where((row) =>
-                row.profileId.equals(profileId) &
-                row.expiresAt.isSmallerOrEqualValue(cutoff)))
-          .go();
+      final removed =
+          await (database.delete(database.projectionSnapshots)..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.expiresAt.isSmallerOrEqualValue(cutoff),
+              ))
+              .go();
       // ResourceIndex is a rebuildable pointer, never independent owner
       // knowledge. Compact only references whose exact owner snapshot has
       // disappeared. Drafts, FileRecords and all other Profiles are untouched.
@@ -322,8 +331,8 @@ class ProfileStore {
   /// permission or capability-bearing projection.
   StoredProjection? _usableProjection(ProjectionSnapshot row) {
     final expires = row.expiresAt;
-    if (expires != null &&
-        !DateTime.now().toUtc().isBefore(expires.toUtc())) return null;
+    if (expires != null && !DateTime.now().toUtc().isBefore(expires.toUtc()))
+      return null;
     return _storedProjection(row);
   }
 

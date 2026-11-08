@@ -166,13 +166,18 @@ void main() {
       final offerTile = tester.widget<ListTile>(
         find.ancestor(of: find.text('Tavily'), matching: find.byType(ListTile)),
       );
-      expect(offerTile.onTap, isNotNull,
-          reason: 'Discovery stays readable without mutation rights');
+      expect(
+        offerTile.onTap,
+        isNotNull,
+        reason: 'Discovery stays readable without mutation rights',
+      );
       await tester.tap(find.text('Tavily'));
       await tester.pump();
       expect(find.byType(TextFormField), findsNothing);
-      expect(find.textContaining('Ce service reste consultable'),
-          findsOneWidget);
+      expect(
+        find.textContaining('Ce service reste consultable'),
+        findsOneWidget,
+      );
     },
   );
 }

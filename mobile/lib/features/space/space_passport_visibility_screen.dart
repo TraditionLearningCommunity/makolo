@@ -10,7 +10,9 @@ import '../../network/api_error.dart';
 /// Uses only the visibility settings actually owned by Organizations.
 class SpacePassportVisibilityScreen extends StatefulWidget {
   const SpacePassportVisibilityScreen({
-    super.key, required this.runtime, required this.slug,
+    super.key,
+    required this.runtime,
+    required this.slug,
   });
   final AppRuntime runtime;
   final String slug;
@@ -30,11 +32,14 @@ class _SpacePassportVisibilityScreenState
   SpaceActorContext? get actor {
     final active = widget.runtime.actorContext?.value;
     return active is SpaceActorContext && active.space.slug == widget.slug
-        ? active : null;
+        ? active
+        : null;
   }
 
-  String get root => 'api/v1/organizations/workspaces/' +
-      Uri.encodeComponent(widget.slug) + '/';
+  String get root =>
+      'api/v1/organizations/workspaces/' +
+      Uri.encodeComponent(widget.slug) +
+      '/';
 
   @override
   void initState() {
@@ -52,7 +57,11 @@ class _SpacePassportVisibilityScreenState
   void onActorChanged() {
     ++revision;
     if (!mounted) return;
-    setState(() { authorized = false; expectedId = null; error = null; });
+    setState(() {
+      authorized = false;
+      expectedId = null;
+      error = null;
+    });
     if (actor != null) {
       unawaited(load());
     } else {
@@ -65,19 +74,27 @@ class _SpacePassportVisibilityScreenState
     final api = widget.runtime.api;
     final ticket = ++revision;
     if (current == null || api == null) {
-      if (mounted) setState(() {
-        loading = false; authorized = false; expectedId = null;
-      });
+      if (mounted)
+        setState(() {
+          loading = false;
+          authorized = false;
+          expectedId = null;
+        });
       return;
     }
     final id = current.space.id;
-    setState(() { loading = true; authorized = false; error = null; });
+    setState(() {
+      loading = true;
+      authorized = false;
+      error = null;
+    });
     try {
       final reply = await api.get(root + 'us/');
       final data = reply.jsonObject();
       final identity = data['identity'];
       final caps = data['capabilities'];
-      if (identity is! Map || caps is! Map ||
+      if (identity is! Map ||
+          caps is! Map ||
           identity['id']?.toString() != id ||
           caps['update_space'] != true ||
           identity['public_profile'] is! bool ||
@@ -106,10 +123,18 @@ class _SpacePassportVisibilityScreenState
   Future<void> change(String field, bool value) async {
     final current = actor;
     final api = widget.runtime.api;
-    if (loading || saving || !authorized || current == null || api == null ||
-        current.space.id != expectedId) return;
+    if (loading ||
+        saving ||
+        !authorized ||
+        current == null ||
+        api == null ||
+        current.space.id != expectedId)
+      return;
     final id = current.space.id;
-    setState(() { saving = true; error = null; });
+    setState(() {
+      saving = true;
+      error = null;
+    });
     try {
       // The PATCH rechecks SPACE_MANAGE at the server.
       await api.patch(root, body: {field: value});
@@ -131,16 +156,17 @@ class _SpacePassportVisibilityScreenState
         }
       }
       if (!mounted || actor?.space.id != id) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enregistré.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enregistré.')));
     } on MakoloApiError catch (failure) {
       if (!mounted || actor?.space.id != id) return;
       setState(() {
-        error = failure.statusCode == 401 ||
+        error =
+            failure.statusCode == 401 ||
                 failure.statusCode == 403 ||
                 failure.statusCode == 404
-            ? 'Accès indisponible.' : 'Modification impossible.';
+            ? 'Accès indisponible.'
+            : 'Modification impossible.';
         if (failure.statusCode == 401 ||
             failure.statusCode == 403 ||
             failure.statusCode == 404) {
@@ -163,55 +189,63 @@ class _SpacePassportVisibilityScreenState
     body: actor == null
         ? const Center(child: Text('Espace indisponible.'))
         : loading
-            ? const Center(child: CircularProgressIndicator.adaptive())
-            : !authorized
-                ? Center(child: TextButton(
-                    onPressed: load,
-                    child: Text(error ?? 'Réessayer'),
-                  ))
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-                    children: [
-                      SwitchListTile.adaptive(
-                        title: const Text('Passeport public'),
-                        contentPadding: EdgeInsets.zero,
-                        value: publicProfile,
-                        onChanged: saving ? null :
-                            (value) => change('public_profile', value),
-                      ),
-                      const Divider(),
-                      SwitchListTile.adaptive(
-                        title: const Text('Visible dans la recherche'),
-                        contentPadding: EdgeInsets.zero,
-                        value: searchable,
-                        onChanged: saving ? null :
-                            (value) => change('searchable', value),
-                      ),
-                      const SizedBox(height: 24),
-                      Text('Informations publiques',
-                        style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      const Text('Nom · Présentation · Localisation · Site web'),
-                      const SizedBox(height: 20),
-                      Text('Informations internes',
-                        style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      const Text('Contacts · Équipes internes'),
-                      if (error != null) ...[
-                        const SizedBox(height: 16),
-                        Text(error!, style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        )),
-                      ],
-                      const SizedBox(height: 24),
-                      OutlinedButton.icon(
-                        onPressed: () => context.push(
-                          '/space/' + widget.slug + '/us/settings',
-                        ),
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Modifier les informations'),
-                      ),
-                    ],
-                  ),
+        ? const Center(child: CircularProgressIndicator.adaptive())
+        : !authorized
+        ? Center(
+            child: TextButton(
+              onPressed: load,
+              child: Text(error ?? 'Réessayer'),
+            ),
+          )
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+            children: [
+              SwitchListTile.adaptive(
+                title: const Text('Passeport public'),
+                contentPadding: EdgeInsets.zero,
+                value: publicProfile,
+                onChanged: saving
+                    ? null
+                    : (value) => change('public_profile', value),
+              ),
+              const Divider(),
+              SwitchListTile.adaptive(
+                title: const Text('Visible dans la recherche'),
+                contentPadding: EdgeInsets.zero,
+                value: searchable,
+                onChanged: saving
+                    ? null
+                    : (value) => change('searchable', value),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Informations publiques',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text('Nom · Présentation · Localisation · Site web'),
+              const SizedBox(height: 20),
+              Text(
+                'Informations internes',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text('Contacts · Équipes internes'),
+              if (error != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () =>
+                    context.push('/space/' + widget.slug + '/us/settings'),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Modifier les informations'),
+              ),
+            ],
+          ),
   );
 }

@@ -96,12 +96,16 @@ class HistoryRepository {
     if (source.invalidated) return const [];
     final normalized = query.trim().toLowerCase();
     final stored = await store.readProjections(searchProjectionKind);
-    final matches = stored.where((row) =>
-      row.schemaVersion == 1 &&
-      (row.payload['query']?.toString().trim().toLowerCase() ?? '') ==
-          normalized &&
-      row.payload['filter'] == type &&
-      row.payload['items'] is List).toList();
+    final matches = stored
+        .where(
+          (row) =>
+              row.schemaVersion == 1 &&
+              (row.payload['query']?.toString().trim().toLowerCase() ?? '') ==
+                  normalized &&
+              row.payload['filter'] == type &&
+              row.payload['items'] is List,
+        )
+        .toList();
     matches.sort((a, b) {
       final aa = _pageOffset(a.payload);
       final bb = _pageOffset(b.payload);
@@ -180,7 +184,8 @@ class HistoryRepository {
           metadata['offset'] != offset ||
           metadata['limit'] is! int ||
           (metadata['limit'] as int) < 1 ||
-          metadata['has_more'] is! bool) return false;
+          metadata['has_more'] is! bool)
+        return false;
       if (metadata['has_more'] == false) return true;
       offset += metadata['limit'] as int;
     }
@@ -247,7 +252,8 @@ class HistoryRepository {
         throw StateError('History owner context withdrawn during search');
       }
       final actor = data['actor'];
-      if (actor is Map && actor['id'] != null &&
+      if (actor is Map &&
+          actor['id'] != null &&
           actor['id'].toString() != profileId) {
         throw const FormatException('History search Profile mismatch');
       }

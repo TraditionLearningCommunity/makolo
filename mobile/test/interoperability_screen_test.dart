@@ -95,8 +95,10 @@ void main() {
     expect(find.text('Connexions'), findsOneWidget);
     expect(find.text('Découvrir'), findsOneWidget);
     expect(find.text('Mes connexions'), findsOneWidget);
-    expect(find.textContaining('Service Connexions indisponible'),
-        findsOneWidget);
+    expect(
+      find.textContaining('Service Connexions indisponible'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Marketplace'), findsNothing);
     expect(find.textContaining('Connecter'), findsNothing);
 
@@ -161,10 +163,7 @@ void main() {
       expect(find.text('Mon service'), findsOneWidget);
       await tester.tap(find.text('Mon service'));
       await tester.pump();
-      expect(
-        find.text('Ce service est prêt à être utilisé.'),
-        findsOneWidget,
-      );
+      expect(find.text('Ce service est prêt à être utilisé.'), findsOneWidget);
       expect(find.textContaining('Connecté et disponible'), findsOneWidget);
       expect(find.textContaining('Génération de texte'), findsOneWidget);
       expect(find.text('Service Espace'), findsNothing);
@@ -359,54 +358,62 @@ void main() {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
-      _payload(connections: [
-        {
-          'id': 'research',
-          'scope': 'profile',
-          'owner': 'intelligence',
-          'provider_protocol': 'tavily_search',
-          'display_name': 'Recherche externe',
-          'available': true,
-          'connected': true,
-          'usable': true,
-          'manageable': true,
-          'enabled': true,
-          'status': 'connected',
-          'health': 'unknown',
-          'capabilities': ['web_research'],
-        },
-        {
-          'id': 'space',
-          'scope': 'space',
-          'owner': 'intelligence',
-          'provider_protocol': 'tavily_search',
-          'display_name': 'Service autre contexte',
-          'available': true,
-          'connected': true,
-          'usable': true,
-          'manageable': true,
-          'enabled': true,
-          'status': 'connected',
-          'health': 'healthy',
-          'capabilities': ['web_research'],
-        },
-      ]),
+      _payload(
+        connections: [
+          {
+            'id': 'research',
+            'scope': 'profile',
+            'owner': 'intelligence',
+            'provider_protocol': 'tavily_search',
+            'display_name': 'Recherche externe',
+            'available': true,
+            'connected': true,
+            'usable': true,
+            'manageable': true,
+            'enabled': true,
+            'status': 'connected',
+            'health': 'unknown',
+            'capabilities': ['web_research'],
+          },
+          {
+            'id': 'space',
+            'scope': 'space',
+            'owner': 'intelligence',
+            'provider_protocol': 'tavily_search',
+            'display_name': 'Service autre contexte',
+            'available': true,
+            'connected': true,
+            'usable': true,
+            'manageable': true,
+            'enabled': true,
+            'status': 'connected',
+            'health': 'healthy',
+            'capabilities': ['web_research'],
+          },
+        ],
+      ),
       database: database,
     );
-    await tester.pumpWidget(MaterialApp(
-      theme: buildMakoloTheme(),
-      home: ProfileConnectionsScreen(runtime: runtime),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ProfileConnectionsScreen(runtime: runtime),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('Recherche externe'), findsOneWidget);
     expect(find.text('Service autre contexte'), findsNothing);
     await tester.tap(find.text('Recherche externe'));
     await tester.pump();
-    expect(find.byKey(const Key('discover-from-connection-research')),
-        findsOneWidget);
-    expect(find.byKey(const Key('discover-from-connection-space')),
-        findsNothing);
+    expect(
+      find.byKey(const Key('discover-from-connection-research')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('discover-from-connection-space')),
+      findsNothing,
+    );
     await _unmount(tester);
   });
 

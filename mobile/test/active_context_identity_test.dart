@@ -22,14 +22,8 @@ void main() {
   test('subscriptions and connections never inherit across contexts', () {
     expect(connectionsRouteForActor(personal), '/connections');
     expect(subscriptionRouteForActor(personal), '/billing');
-    expect(
-      connectionsRouteForActor(spaceE),
-      '/space/artiste-e/connections',
-    );
-    expect(
-      subscriptionRouteForActor(spaceE),
-      '/space/artiste-e/subscription',
-    );
+    expect(connectionsRouteForActor(spaceE), '/space/artiste-e/connections');
+    expect(subscriptionRouteForActor(spaceE), '/space/artiste-e/subscription');
     expect(
       subscriptionRouteForActor(spaceR),
       '/space/association-r/subscription',
@@ -53,40 +47,41 @@ void main() {
     expect(spaceMonogram('Kivu Digital Lab'), 'KD');
     expect(spaceMonogram('Artiste'), 'A');
     expect(
-      activeSpaceName(
-        spaceE.space,
-        [
-          SpaceSummary(
-            identity: SpaceActorIdentity(id: 'space-e', slug: 'artiste-e'),
-            name: 'Univers Artistique',
-            archetype: 'generic',
-            lifecycle: 'active',
-            limitedToActivities: false,
-          ),
-        ],
-      ),
+      activeSpaceName(spaceE.space, [
+        SpaceSummary(
+          identity: SpaceActorIdentity(id: 'space-e', slug: 'artiste-e'),
+          name: 'Univers Artistique',
+          archetype: 'generic',
+          lifecycle: 'active',
+          limitedToActivities: false,
+        ),
+      ]),
       'Univers Artistique',
     );
     expect(activeSpaceName(spaceR.space, null), 'association-r');
   });
 
-  testWidgets('Space avatar never renders the personal portrait', (tester) async {
+  testWidgets('Space avatar never renders the personal portrait', (
+    tester,
+  ) async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,
       recovery: SessionRecoveryController(),
     );
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ActiveContextAvatar(
-          runtime: runtime,
-          actor: spaceE,
-          size: 48,
-          personalLetter: 'G',
-          personalUrl: 'https://example.invalid/personal.jpg',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ActiveContextAvatar(
+            runtime: runtime,
+            actor: spaceE,
+            size: 48,
+            personalLetter: 'G',
+            personalUrl: 'https://example.invalid/personal.jpg',
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('A'), findsOneWidget);

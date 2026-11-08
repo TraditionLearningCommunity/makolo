@@ -125,8 +125,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       'birth_date': user['birth_date']?.toString().trim().isNotEmpty == true
           ? user['birth_date'].toString()
           : null,
-      'gender': const {'male', 'female', 'unspecified'}
-              .contains(user['gender']?.toString())
+      'gender':
+          const {
+            'male',
+            'female',
+            'unspecified',
+          }.contains(user['gender']?.toString())
           ? user['gender'].toString()
           : 'unspecified',
       'public_profile': fields['public_profile'] != false,
@@ -181,7 +185,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Map<String, dynamic> _currentEditor() => {
     'first_name': _firstName.text.trim(),
     'last_name': _lastName.text.trim(),
-    'birth_date': _birthDate.text.trim().isEmpty ? null : _birthDate.text.trim(),
+    'birth_date': _birthDate.text.trim().isEmpty
+        ? null
+        : _birthDate.text.trim(),
     'gender': _gender,
     'bio': _bio.text.trim(),
     'profession': _profession.text.trim(),
@@ -344,8 +350,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       // Keep the last unsaved snapshot available to a later edit/flush.
       _nextDraftSnapshot ??= attempted;
       if (mounted) {
-        setState(() => _error =
-            'Le brouillon local n’a pas pu être conservé sur cet appareil.');
+        setState(
+          () => _error =
+              'Le brouillon local n’a pas pu être conservé sur cet appareil.',
+        );
       }
     } finally {
       _draftWorkerActive = false;
@@ -447,7 +455,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
               onFocusChange: (focused) {
                 if (focused || !dialog.mounted) return;
                 final normalized = PassportEditorFieldRules.normalize(
-                  'username', editor.text,
+                  'username',
+                  editor.text,
                 );
                 if (normalized != editor.text) {
                   editor.value = TextEditingValue(
@@ -460,7 +469,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 update(() {
                   checked = true;
                   localError = PassportEditorFieldRules.error(
-                    'username', normalized,
+                    'username',
+                    normalized,
                   );
                 });
               },
@@ -477,16 +487,20 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   prefixText: '@',
                   counterText: '',
                   errorText: localError,
-                  suffixIcon: checked && localError == null &&
+                  suffixIcon:
+                      checked &&
+                          localError == null &&
                           editor.text.trim().isNotEmpty
                       ? const Icon(
-                          Icons.check_circle_outline, color: Colors.green,
+                          Icons.check_circle_outline,
+                          color: Colors.green,
                         )
                       : null,
                 ),
                 onChanged: (value) {
                   final result = PassportEditorFieldRules.error(
-                    'username', value,
+                    'username',
+                    value,
                   );
                   if (checked || result == null) {
                     update(() {
@@ -505,10 +519,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
               FilledButton(
                 onPressed: () {
                   final normalized = PassportEditorFieldRules.normalize(
-                    'username', editor.text,
+                    'username',
+                    editor.text,
                   );
                   final result = PassportEditorFieldRules.error(
-                    'username', normalized,
+                    'username',
+                    normalized,
                   );
                   if (result != null) {
                     update(() {
@@ -525,17 +541,18 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           ),
         ),
       );
-      if (proposed == null || proposed.isEmpty || !mounted ||
-          proposed == _accountIdentifier) return;
+      if (proposed == null ||
+          proposed.isEmpty ||
+          !mounted ||
+          proposed == _accountIdentifier)
+        return;
       try {
         final response = await widget.api.patch(
           'api/v1/accounts/auth/identifier/',
           body: {'username': proposed},
         );
         final user = response.jsonObject()['user'];
-        final updated = user is Map
-            ? user['username']?.toString()
-            : null;
+        final updated = user is Map ? user['username']?.toString() : null;
         if (!mounted) return;
         setState(() {
           _accountIdentifier = updated ?? proposed;
@@ -557,15 +574,16 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         final reason = errors is List && errors.isNotEmpty
             ? errors.first.toString()
             : errors is String && errors.isNotEmpty
-                ? errors
-                : 'Impossible de modifier cet identifiant.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(reason)),
-        );
+            ? errors
+            : 'Impossible de modifier cet identifiant.';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(reason)));
       } on Object {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Modification de l’identifiant indisponible.')),
+          const SnackBar(
+            content: Text('Modification de l’identifiant indisponible.'),
+          ),
         );
       }
     } finally {
@@ -583,7 +601,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     if (!jpeg && !png && !webp) return 'Format de photo invalide.';
     try {
       final file = File(path);
-      if (await file.length() > maxBytes) return 'Photo trop volumineuse (5 Mo).';
+      if (await file.length() > maxBytes)
+        return 'Photo trop volumineuse (5 Mo).';
       final handle = await file.open();
       List<int> header;
       try {
@@ -598,10 +617,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         }
         return true;
       }
+
       if (jpeg && !at(0, [0xFF, 0xD8, 0xFF]) ||
           png && !at(0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) ||
-          webp && !(at(0, [0x52, 0x49, 0x46, 0x46]) &&
-              at(8, [0x57, 0x45, 0x42, 0x50]))) {
+          webp &&
+              !(at(0, [0x52, 0x49, 0x46, 0x46]) &&
+                  at(8, [0x57, 0x45, 0x42, 0x50]))) {
         return 'Photo invalide.';
       }
     } on Object {
@@ -701,8 +722,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             contentType: image.name.toLowerCase().endsWith('.png')
                 ? 'image/png'
                 : image.name.toLowerCase().endsWith('.webp')
-                    ? 'image/webp'
-                    : 'image/jpeg',
+                ? 'image/webp'
+                : 'image/jpeg',
           ),
         ],
       );
@@ -716,7 +737,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       }
       try {
         await widget.personal.store.deleteProjection(
-          'personal.me.passport', resourceKey: 'variant=complete',
+          'personal.me.passport',
+          resourceKey: 'variant=complete',
         );
       } on Object {
         // A later server read refreshes the owner projection.
@@ -829,6 +851,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             }
             return null;
           }
+
           final message = readable(entry.value);
           if (message != null) fieldErrors[entry.key] = message;
         }
@@ -840,10 +863,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _error = validation && fieldErrors.isNotEmpty
             ? 'Corrigez les champs indiqués.'
             : error is MakoloTransportError
-                ? 'Connexion indisponible. Les modifications sont conservées.'
-                : error is MakoloApiError && error.statusCode == 401
-                    ? 'Connexion expirée. Reconnectez-vous pour enregistrer.'
-                    : 'Enregistrement impossible. Vos modifications sont conservées.';
+            ? 'Connexion indisponible. Les modifications sont conservées.'
+            : error is MakoloApiError && error.statusCode == 401
+            ? 'Connexion expirée. Reconnectez-vous pour enregistrer.'
+            : 'Enregistrement impossible. Vos modifications sont conservées.';
       });
       return;
     }
@@ -1012,7 +1035,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   initiallyExpanded: [
-                    _city.text, _country.text, _address.text,
+                    _city.text,
+                    _country.text,
+                    _address.text,
                   ].any((value) => value.trim().isNotEmpty),
                   title: const Text('Localisation'),
                   children: [
@@ -1027,7 +1052,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   initiallyExpanded: [
-                    _profession.text, _company.text, _organization.text,
+                    _profession.text,
+                    _company.text,
+                    _organization.text,
                   ].any((value) => value.trim().isNotEmpty),
                   title: const Text('Activité professionnelle'),
                   children: [
@@ -1039,8 +1066,13 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   initiallyExpanded: [
-                    _website.text, _linkedin.text, _facebook.text,
-                    _instagram.text, _tiktok.text, _x.text, _youtube.text,
+                    _website.text,
+                    _linkedin.text,
+                    _facebook.text,
+                    _instagram.text,
+                    _tiktok.text,
+                    _x.text,
+                    _youtube.text,
                   ].any((value) => value.trim().isNotEmpty),
                   title: const Text('Liens et réseaux sociaux'),
                   children: [
@@ -1135,9 +1167,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         labelText: label,
         border: const OutlineInputBorder(),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14, vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       ),
       child: Row(
         children: [
@@ -1211,7 +1241,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 }
                 controller.value = TextEditingValue(
                   text: match.label,
-                  selection: TextSelection.collapsed(offset: match.label.length),
+                  selection: TextSelection.collapsed(
+                    offset: match.label.length,
+                  ),
                 );
               } else if (controller.text.trim().isEmpty) {
                 _country.clear();
@@ -1240,10 +1272,14 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 errorText: _fieldErrors['country'],
                 hintText: 'Rechercher un pays',
                 prefixIcon: const Icon(Icons.public_outlined),
-                suffixIcon: _checkedFields.contains('country') &&
+                suffixIcon:
+                    _checkedFields.contains('country') &&
                         _fieldErrors['country'] == null &&
                         _selectedCountry != null
-                    ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                    ? const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green,
+                      )
                     : null,
                 border: const OutlineInputBorder(),
                 isDense: true,
@@ -1385,25 +1421,25 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           keyboardType: phone
               ? TextInputType.phone
               : link
-                  ? TextInputType.url
-                  : name
-                      ? TextInputType.name
-                      : multiLine
-                          ? TextInputType.multiline
-                          : TextInputType.text,
+              ? TextInputType.url
+              : name
+              ? TextInputType.name
+              : multiLine
+              ? TextInputType.multiline
+              : TextInputType.text,
           textCapitalization: phone || link
               ? TextCapitalization.none
               : name || key == 'city'
-                  ? TextCapitalization.words
-                  : TextCapitalization.sentences,
+              ? TextCapitalization.words
+              : TextCapitalization.sentences,
           autocorrect: !phone && !link,
           enableSuggestions: !phone && !link,
           decoration: InputDecoration(
             labelText: label,
             errorText: error,
             counterText: '',
-            suffixIcon: checked && error == null &&
-                    controller.text.trim().isNotEmpty
+            suffixIcon:
+                checked && error == null && controller.text.trim().isNotEmpty
                 ? const Icon(Icons.check_circle_outline, color: Colors.green)
                 : null,
             border: const OutlineInputBorder(),

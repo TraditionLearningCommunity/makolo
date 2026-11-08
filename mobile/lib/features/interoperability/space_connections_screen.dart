@@ -155,8 +155,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         domainIntegrations = const [];
         loadedId = null;
         loading = false;
-        error =
-            'Impossible d’afficher les connexions de cet Espace.';
+        error = 'Impossible d’afficher les connexions de cet Espace.';
       });
     }
   }

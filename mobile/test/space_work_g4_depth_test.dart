@@ -129,45 +129,47 @@ void main() {
     expect(find.byType(Image), findsNothing);
   });
 
-  testWidgets('MT6 create requires owner capability and global responsibility', (
-    tester,
-  ) async {
-    Future<void> show(
-      String archetype, {
-      required bool permission,
-      String responsibility = 'all',
-    }) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SpaceWorkSurface(
-              payload: {
-                'primary_business_label':
-                    archetype == 'creative' ? 'Créations' : 'Productions',
-                'archetype': archetype,
-                'responsibility': responsibility,
-                'space': {'slug': 'studio'},
-                'capabilities': {'create_activity': permission},
-                'presentation': {'empty_message': 'Aucun travail.'},
-                'sections': <String, dynamic>{},
-              },
+  testWidgets(
+    'MT6 create requires owner capability and global responsibility',
+    (tester) async {
+      Future<void> show(
+        String archetype, {
+        required bool permission,
+        String responsibility = 'all',
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SpaceWorkSurface(
+                payload: {
+                  'primary_business_label': archetype == 'creative'
+                      ? 'Créations'
+                      : 'Productions',
+                  'archetype': archetype,
+                  'responsibility': responsibility,
+                  'space': {'slug': 'studio'},
+                  'capabilities': {'create_activity': permission},
+                  'presentation': {'empty_message': 'Aucun travail.'},
+                  'sections': <String, dynamic>{},
+                },
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    await show('creative', permission: true);
-    expect(find.text('Nouvelle création'), findsOneWidget);
-    await show('media', permission: true);
-    expect(find.text('Nouvelle production'), findsOneWidget);
-    await show('creative', permission: false);
-    expect(find.text('Nouvelle création'), findsNothing);
-    await show(
-      'media',
-      permission: true,
-      responsibility: 'mandate:restricted',
-    );
-    expect(find.text('Nouvelle production'), findsNothing);
-  });
+      await show('creative', permission: true);
+      expect(find.text('Nouvelle création'), findsOneWidget);
+      await show('media', permission: true);
+      expect(find.text('Nouvelle production'), findsOneWidget);
+      await show('creative', permission: false);
+      expect(find.text('Nouvelle création'), findsNothing);
+      await show(
+        'media',
+        permission: true,
+        responsibility: 'mandate:restricted',
+      );
+      expect(find.text('Nouvelle production'), findsNothing);
+    },
+  );
 }

@@ -53,8 +53,11 @@ class ConversationRepository {
     }
     final parsed = Uri.tryParse(raw);
     final origin = sync?.api.baseUri;
-    if (parsed == null || origin == null ||
-        parsed.hasScheme || parsed.hasAuthority || parsed.query.isNotEmpty ||
+    if (parsed == null ||
+        origin == null ||
+        parsed.hasScheme ||
+        parsed.hasAuthority ||
+        parsed.query.isNotEmpty ||
         parsed.fragment.isNotEmpty) {
       return null;
     }
@@ -104,7 +107,9 @@ class ConversationRepository {
     parser: (response) {
       final payload = response.jsonObject();
       if (payload['results'] is! List || payload['count'] is! num) {
-        throw const FormatException('Expected archived Conversations owner list.');
+        throw const FormatException(
+          'Expected archived Conversations owner list.',
+        );
       }
       return AcquiredProjection(schemaVersion: 1, payload: payload);
     },
@@ -130,10 +135,14 @@ class ConversationRepository {
     applier: applyProjectionSnapshot,
   );
 
-  SyncSourceDefinition detailSource(String id, {String? focusPointId}) => SyncSourceDefinition(
+  SyncSourceDefinition detailSource(
+    String id, {
+    String? focusPointId,
+  }) => SyncSourceDefinition(
     sourceKey: 'conversation:$id',
     owner: 'Conversations',
-    path: 'api/v1/conversations/$id/${focusPointId == null ? '' : '?focus_point=${Uri.encodeQueryComponent(focusPointId)}'}',
+    path:
+        'api/v1/conversations/$id/${focusPointId == null ? '' : '?focus_point=${Uri.encodeQueryComponent(focusPointId)}'}',
     projectionKind: detailProjectionKind,
     resourceKey: id,
     category: SyncSourceCategory.keyedDetail,
@@ -263,7 +272,8 @@ class ConversationRepository {
     int limit = 25,
   }) async {
     if (!{'history', 'all', 'active'}.contains(section) ||
-        limit < 1 || limit > 60) {
+        limit < 1 ||
+        limit > 60) {
       throw ArgumentError('Invalid Point depth selector.');
     }
     final engine = sync;
@@ -276,8 +286,10 @@ class ConversationRepository {
       if (query.trim().isNotEmpty) 'q': query.trim(),
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
     };
-    final uri = Uri(path: 'api/v1/conversations/$conversationId/points/',
-      queryParameters: params);
+    final uri = Uri(
+      path: 'api/v1/conversations/$conversationId/points/',
+      queryParameters: params,
+    );
     try {
       final response = await engine.api.get(uri.toString());
       final payload = response.jsonObject();
@@ -288,8 +300,11 @@ class ConversationRepository {
         final now = DateTime.now().toUtc();
         try {
           await store.putProjection(
-            kind: depthProjectionKind, resourceKey: conversationId,
-            schemaVersion: 1, payload: payload, receivedAt: now,
+            kind: depthProjectionKind,
+            resourceKey: conversationId,
+            schemaVersion: 1,
+            payload: payload,
+            receivedAt: now,
             freshUntil: now.add(const Duration(minutes: 15)),
             expiresAt: now.add(const Duration(hours: 12)),
             freshnessPolicyId: 'conversation-depth-owner',
@@ -301,17 +316,23 @@ class ConversationRepository {
       return payload;
     } on MakoloApiError catch (error) {
       if (error.statusCode == 403 || error.statusCode == 404) {
-        await store.deleteProjection(depthProjectionKind,
-          resourceKey: conversationId);
-        await store.deleteProjection(detailProjectionKind,
-          resourceKey: conversationId);
+        await store.deleteProjection(
+          depthProjectionKind,
+          resourceKey: conversationId,
+        );
+        await store.deleteProjection(
+          detailProjectionKind,
+          resourceKey: conversationId,
+        );
       }
       rethrow;
     }
   }
 
   Future<List<Map<String, dynamic>>> searchConversations(
-    String query, {String tab = 'all'}) async {
+    String query, {
+    String tab = 'all',
+  }) async {
     final term = query.trim();
     if (term.isEmpty) return const [];
     final engine = sync;
@@ -337,8 +358,15 @@ class ConversationRepository {
     required String id,
   }) async {
     const allowed = {
-      'direct', 'space', 'group', 'activity', 'occurrence',
-      'journey', 'dossier', 'project', 'action_proposal',
+      'direct',
+      'space',
+      'group',
+      'activity',
+      'occurrence',
+      'journey',
+      'dossier',
+      'project',
+      'action_proposal',
     };
     if (!allowed.contains(kind) || id.isEmpty) return const [];
     final engine = sync;
@@ -361,8 +389,15 @@ class ConversationRepository {
     required String id,
   }) async {
     const allowed = {
-      'space', 'group', 'activity', 'occurrence', 'journey',
-      'dossier', 'project', 'action_proposal', 'direct',
+      'space',
+      'group',
+      'activity',
+      'occurrence',
+      'journey',
+      'dossier',
+      'project',
+      'action_proposal',
+      'direct',
     };
     if (!allowed.contains(kind) || id.isEmpty) {
       return {'results': <Object>[], 'can_ensure': false};
@@ -449,7 +484,8 @@ class ConversationRepository {
     String? representedSpaceId,
   }) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion nécessaire pour demander un formulaire.');
+    if (engine == null)
+      throw StateError('Connexion nécessaire pour demander un formulaire.');
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/forms/',
       body: {
@@ -506,7 +542,8 @@ class ConversationRepository {
     TransferProgress? onProgress,
   }) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion nécessaire pour envoyer une pièce.');
+    if (engine == null)
+      throw StateError('Connexion nécessaire pour envoyer une pièce.');
     final response = await engine.api.upload(
       'api/v1/conversations/$conversationId/media/',
       fields: {
@@ -519,9 +556,7 @@ class ConversationRepository {
         'represented_space_id': representedSpaceId,
       },
       files: [
-        MakoloUploadFile(
-          fieldName: 'file', path: filePath, filename: filename,
-        ),
+        MakoloUploadFile(fieldName: 'file', path: filePath, filename: filename),
       ],
       onProgress: onProgress,
     );
@@ -590,8 +625,10 @@ class ConversationRepository {
     int limit = 25,
   }) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion nécessaire pour ouvrir cet échange.');
-    final query = '?limit=$limit${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}';
+    if (engine == null)
+      throw StateError('Connexion nécessaire pour ouvrir cet échange.');
+    final query =
+        '?limit=$limit${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}';
     final response = await engine.api.get(
       'api/v1/conversations/points/$pointId/entries/$query',
     );
@@ -688,12 +725,19 @@ class ConversationRepository {
       final prior = await readInvitations();
       if (prior != null && payload['status'] != 'pending') {
         final entries = (prior.payload['results'] as List? ?? [])
-            .where((entry) => entry is Map && entry['id']?.toString() != invitationId)
+            .where(
+              (entry) =>
+                  entry is Map && entry['id']?.toString() != invitationId,
+            )
             .toList(growable: false);
         await store.putProjection(
           kind: invitationsProjectionKind,
           schemaVersion: prior.schemaVersion,
-          payload: {...prior.payload, 'results': entries, 'count': entries.length},
+          payload: {
+            ...prior.payload,
+            'results': entries,
+            'count': entries.length,
+          },
           receivedAt: DateTime.now().toUtc(),
           freshnessPolicyId: invitationsFreshness.id,
           expiresAt: prior.expiresAt,
@@ -766,13 +810,19 @@ class ConversationRepository {
         final listing = await readList();
         if (listing != null) {
           final visible = (listing.payload['results'] as List? ?? [])
-              .where((item) =>
-                  item is Map && item['id']?.toString() != conversationId)
+              .where(
+                (item) =>
+                    item is Map && item['id']?.toString() != conversationId,
+              )
               .toList(growable: false);
           await store.putProjection(
             kind: listProjectionKind,
             schemaVersion: listing.schemaVersion,
-            payload: {...listing.payload, 'results': visible, 'count': visible.length},
+            payload: {
+              ...listing.payload,
+              'results': visible,
+              'count': visible.length,
+            },
             receivedAt: DateTime.now().toUtc(),
             freshnessPolicyId: listFreshness.id,
             expiresAt: listing.expiresAt,
@@ -783,12 +833,19 @@ class ConversationRepository {
         final archived = await readArchived();
         if (archived != null) {
           final available = (archived.payload['results'] as List? ?? [])
-              .where((item) =>
-                  item is Map && item['id']?.toString() != conversationId)
+              .where(
+                (item) =>
+                    item is Map && item['id']?.toString() != conversationId,
+              )
               .toList(growable: false);
           await store.putProjection(
-            kind: archivedProjectionKind, schemaVersion: archived.schemaVersion,
-            payload: {...archived.payload, 'results': available, 'count': available.length},
+            kind: archivedProjectionKind,
+            schemaVersion: archived.schemaVersion,
+            payload: {
+              ...archived.payload,
+              'results': available,
+              'count': available.length,
+            },
             receivedAt: DateTime.now().toUtc(),
             freshnessPolicyId: listFreshness.id,
             expiresAt: archived.expiresAt,

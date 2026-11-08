@@ -417,7 +417,8 @@ class DiscoverySelector {
     bool refreshing = false,
   }) {
     final rows = projection?.payload['results'];
-    final compatible = projection == null ||
+    final compatible =
+        projection == null ||
         (projection.kind == 'discovery.map' &&
             projection.schemaVersion == 1 &&
             rows is List);
@@ -441,10 +442,10 @@ class DiscoverySelector {
         availability: projection == null
             ? MakoloAvailabilityCue.initial
             : !compatible
-                ? MakoloAvailabilityCue.empty
-                : items.isEmpty
-                    ? MakoloAvailabilityCue.empty
-                    : MakoloAvailabilityCue.content,
+            ? MakoloAvailabilityCue.empty
+            : items.isEmpty
+            ? MakoloAvailabilityCue.empty
+            : MakoloAvailabilityCue.content,
         reachability: reachability,
         failure: compatible ? failure : MakoloFailureCue.blocking,
         refreshing: refreshing,
@@ -479,7 +480,10 @@ class DiscoverySelector {
         projection.schemaVersion != 1) {
       throw const FormatException('Incompatible Discovery watch snapshot');
     }
-    return _collectionFromPayload(projection.payload, now: now ?? DateTime.now());
+    return _collectionFromPayload(
+      projection.payload,
+      now: now ?? DateTime.now(),
+    );
   }
 
   DiscoveryCollectionPresentation _collectionFromPayload(
@@ -549,10 +553,7 @@ class DiscoverySelector {
               _double(place['longitude']) == item.longitude;
         });
         if (!duplicate) {
-          facts.add({
-            'latitude': item.latitude,
-            'longitude': item.longitude,
-          });
+          facts.add({'latitude': item.latitude, 'longitude': item.longitude});
         }
       }
       for (final fact in facts) {

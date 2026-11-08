@@ -64,13 +64,16 @@ class AuthEntryFrame extends StatelessWidget {
                         : 0.0,
                   ),
                   child: Align(
-                    alignment: compactIdentity ? Alignment.topCenter : Alignment.center,
+                    alignment: compactIdentity
+                        ? Alignment.topCenter
+                        : Alignment.center,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (!compactIdentity && (onBack != null || onClose != null))
+                          if (!compactIdentity &&
+                              (onBack != null || onClose != null))
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -101,7 +104,11 @@ class AuthEntryFrame extends StatelessWidget {
                           ),
                           Center(
                             child: MakoloMark(
-                              size: compactIdentity ? 42 : compact ? 52 : 64,
+                              size: compactIdentity
+                                  ? 42
+                                  : compact
+                                  ? 52
+                                  : 64,
                               white: true,
                             ),
                           ),
@@ -165,7 +172,11 @@ class AuthEntryFrame extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [MakoloColors.indigo, Color(0xFF4727C4), MakoloColors.deep],
+                    colors: [
+                      MakoloColors.indigo,
+                      Color(0xFF4727C4),
+                      MakoloColors.deep,
+                    ],
                   ),
                 ),
                 child: Stack(
@@ -180,7 +191,9 @@ class AuthEntryFrame extends StatelessWidget {
                           tooltip: 'Fermer',
                           onPressed: onClose,
                           style: IconButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha: 0.16),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
                             foregroundColor: Colors.white,
                             minimumSize: const Size(48, 48),
                           ),

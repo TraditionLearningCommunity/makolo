@@ -36,6 +36,7 @@ class ActivityDetailPresentation {
   final String? vertical;
   final String? occurrenceNoun;
   final List<ActivityOccurrenceSummary> occurrences;
+
   /// The Activity owner may intentionally bound its occurrence projection.
   final bool occurrencesHasMore;
 }
@@ -107,12 +108,21 @@ class DiscoveryDetailSelector {
         _text(availability?['state']),
       ),
       owner: _text(owner?['display_name']),
-      vertical: _text(_map(_map(payload['representation'])?['vocabulary'])?['activity_noun']) ??
+      vertical:
+          _text(
+            _map(
+              _map(payload['representation'])?['vocabulary'],
+            )?['activity_noun'],
+          ) ??
           _text(identity?['vertical']),
-      occurrenceNoun:
-          _text(_map(_map(payload['representation'])?['vocabulary'])?['occurrence_noun']),
+      occurrenceNoun: _text(
+        _map(
+          _map(payload['representation'])?['vocabulary'],
+        )?['occurrence_noun'],
+      ),
       occurrences: List.unmodifiable(items),
-      occurrencesHasMore: _map(payload['occurrences_page'])?['has_more'] == true,
+      occurrencesHasMore:
+          _map(payload['occurrences_page'])?['has_more'] == true,
     );
   }
 

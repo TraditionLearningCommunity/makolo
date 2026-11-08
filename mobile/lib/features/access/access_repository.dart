@@ -65,7 +65,9 @@ class AccessRepository {
         (syncEngine != null &&
             (syncEngine.profileId != profileId ||
                 !identical(syncEngine.database, database)))) {
-      throw ArgumentError('Access owner scope must match ProfileStore and SyncEngine');
+      throw ArgumentError(
+        'Access owner scope must match ProfileStore and SyncEngine',
+      );
     }
   }
 
@@ -183,9 +185,10 @@ class AccessRepository {
   /// context, even if an older list page is still present in SQLite.
   Stream<Set<String>> watchRevokedCollectionRelationships() {
     final query = database.select(database.syncSources)
-      ..where((row) =>
-          row.profileId.equals(profileId) &
-          row.sourceKey.like('accesses:%'));
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.like('accesses:%'),
+      );
     return query.watch().map((rows) {
       final revoked = <String>{};
       for (final row in rows) {
@@ -198,11 +201,13 @@ class AccessRepository {
   }
 
   Future<bool> _hasRevokedBeneficiaryCollection() async {
-    final rows = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.sourceKey.like('accesses:beneficiary:%')))
-        .get();
+    final rows =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.like('accesses:beneficiary:%'),
+            ))
+            .get();
     return rows.any((row) => row.invalidated);
   }
 
@@ -216,11 +221,12 @@ class AccessRepository {
       offset: offset,
       limit: limit,
     );
-    final row = await (database.select(database.syncSources)
-          ..where((item) =>
-              item.profileId.equals(profileId) &
-              item.sourceKey.equals(key)))
-        .getSingleOrNull();
+    final row =
+        await (database.select(database.syncSources)..where(
+              (item) =>
+                  item.profileId.equals(profileId) & item.sourceKey.equals(key),
+            ))
+            .getSingleOrNull();
     return row == null
         ? AccessSourceState.unknown
         : AccessSourceState(
@@ -232,10 +238,7 @@ class AccessRepository {
 
   /// A bounded set of owner-authorized details is warmed after an online
   /// collection refresh. No credential payload or AccessUse is ever cached.
-  Future<void> warmKnownDetails(
-    Iterable<String> ids, {
-    int limit = 6,
-  }) async {
+  Future<void> warmKnownDetails(Iterable<String> ids, {int limit = 6}) async {
     if (sync == null) return;
     final unique = <String>{};
     var attempted = 0;
@@ -367,10 +370,12 @@ class AccessRepository {
       for (final raw in rows) {
         final item = _map(raw);
         if (_string(_map(item['identity'])['id']) != accessId ||
-            _string(item['relationship']) != 'beneficiary') continue;
+            _string(item['relationship']) != 'beneficiary')
+          continue;
         final capabilities = item['capabilities'];
         if (capabilities is! List ||
-            !capabilities.contains('present_credential')) continue;
+            !capabilities.contains('present_credential'))
+          continue;
         final link = _string(_map(item['links'])['credential']);
         if (link != null && _isCredentialPath(link, accessId)) return link;
       }
@@ -388,8 +393,12 @@ class AccessRepository {
 
   static bool _isCredentialPath(String path, String accessId) {
     final parsed = Uri.tryParse(path);
-    if (parsed == null || parsed.hasScheme || parsed.hasAuthority ||
-        parsed.hasQuery || parsed.hasFragment) return false;
+    if (parsed == null ||
+        parsed.hasScheme ||
+        parsed.hasAuthority ||
+        parsed.hasQuery ||
+        parsed.hasFragment)
+      return false;
     return parsed.path ==
         '/api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/';
   }
@@ -397,11 +406,13 @@ class AccessRepository {
   /// Credential retention is an independent owner decision from Access
   /// itself. A refusal must not erase a legitimate Access detail.
   Future<bool> _credentialRetentionDenied(String accessId) async {
-    final row = await (database.select(database.syncSources)
-          ..where((item) =>
-              item.profileId.equals(profileId) &
-              item.sourceKey.equals('access-credential:$accessId')))
-        .getSingleOrNull();
+    final row =
+        await (database.select(database.syncSources)..where(
+              (item) =>
+                  item.profileId.equals(profileId) &
+                  item.sourceKey.equals('access-credential:$accessId'),
+            ))
+            .getSingleOrNull();
     return row?.invalidated == true;
   }
 
@@ -418,20 +429,22 @@ class AccessRepository {
           _denialEpoch(accessId) != expectedDenialEpoch) {
         return;
       }
-      await database.into(database.syncSources).insertOnConflictUpdate(
-        SyncSourcesCompanion.insert(
-          profileId: profileId,
-          sourceKey: 'access-credential:$accessId',
-          route: 'api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/',
-          invalidated: Value(denied),
-          lastErrorCode: Value(denied ? 'retention_denied' : null),
-        ),
-      );
+      await database
+          .into(database.syncSources)
+          .insertOnConflictUpdate(
+            SyncSourcesCompanion.insert(
+              profileId: profileId,
+              sourceKey: 'access-credential:$accessId',
+              route:
+                  'api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/',
+              invalidated: Value(denied),
+              lastErrorCode: Value(denied ? 'retention_denied' : null),
+            ),
+          );
     });
   }
 
-  Future<AccessCredentialData?> readRetainedCredential(
-      String accessId) async {
+  Future<AccessCredentialData?> readRetainedCredential(String accessId) async {
     final detail = await readSource(accessId);
     if (detail.invalidated ||
         await _hasRevokedBeneficiaryCollection() ||
@@ -502,8 +515,7 @@ class AccessRepository {
       }
       data = envelope.data;
     } on MakoloApiError catch (error) {
-      if (isCurrent() &&
-          (error.statusCode == 403 || error.statusCode == 404)) {
+      if (isCurrent() && (error.statusCode == 403 || error.statusCode == 404)) {
         _advanceDenialEpoch(accessId);
         await _markCredentialRetention(accessId, denied: true);
         try {
@@ -549,7 +561,8 @@ class AccessRepository {
     final policy = _map(data['offline_presentation']);
     final expiry = _dateTime(policy['expires_at']);
     final checked = _dateTime(policy['observed_at']);
-    final canRetain = credentialType == 'qr' &&
+    final canRetain =
+        credentialType == 'qr' &&
         policy['allowed'] == true &&
         policy['scope'] == 'display_only' &&
         expiry != null &&
@@ -587,7 +600,8 @@ class AccessRepository {
       }
     }
     if (isCurrent() && canRetain) {
-      final stillAuthorized = sync?.isActive != false &&
+      final stillAuthorized =
+          sync?.isActive != false &&
           !(await readSource(accessId)).invalidated &&
           !(await _hasRevokedBeneficiaryCollection());
       if (stillAuthorized && securelyRetained) {

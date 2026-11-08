@@ -18,24 +18,30 @@ void main() {
       isNotNull,
     );
   });
-  test('sharing accepts canonical HTTPS links and local Django development', () {
-    expect(
-      discoverySharePublicUri('https://makolo.example/s/token/')?.toString(),
-      'https://makolo.example/s/token/',
-    );
-    expect(
-      discoverySharePublicUri('http://127.0.0.1:8000/s/token/')?.toString(),
-      'http://127.0.0.1:8000/s/token/',
-    );
-    expect(
-      discoverySharePublicUri('http://localhost:8000/s/token/')?.toString(),
-      'http://localhost:8000/s/token/',
-    );
-  });
+  test(
+    'sharing accepts canonical HTTPS links and local Django development',
+    () {
+      expect(
+        discoverySharePublicUri('https://makolo.example/s/token/')?.toString(),
+        'https://makolo.example/s/token/',
+      );
+      expect(
+        discoverySharePublicUri('http://127.0.0.1:8000/s/token/')?.toString(),
+        'http://127.0.0.1:8000/s/token/',
+      );
+      expect(
+        discoverySharePublicUri('http://localhost:8000/s/token/')?.toString(),
+        'http://localhost:8000/s/token/',
+      );
+    },
+  );
 
   test('sharing rejects insecure public links and deceptive authorities', () {
     expect(discoverySharePublicUri('http://example.org/s/token/'), isNull);
-    expect(discoverySharePublicUri('http://192.168.1.20:8000/s/token/'), isNull);
+    expect(
+      discoverySharePublicUri('http://192.168.1.20:8000/s/token/'),
+      isNull,
+    );
     expect(
       discoverySharePublicUri(
         'http://192.168.1.20:8000/s/token/',
@@ -50,7 +56,10 @@ void main() {
       ),
       isNull,
     );
-    expect(discoverySharePublicUri('https://user@example.org/s/token/'), isNull);
+    expect(
+      discoverySharePublicUri('https://user@example.org/s/token/'),
+      isNull,
+    );
     expect(discoverySharePublicUri('/s/token/'), isNull);
     expect(discoverySharePublicUri('javascript:alert(1)'), isNull);
     expect(discoverySharePublicUri(''), isNull);

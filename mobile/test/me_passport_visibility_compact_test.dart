@@ -38,19 +38,19 @@ class _VisibilityApi implements MakoloApiClient {
       'data': {
         'fields': {
           'name': {
-            'audiences': [{'kind': 'public'}],
+            'audiences': [
+              {'kind': 'public'},
+            ],
             'has_value': true,
           },
           'linkedin_url': {
-            'audiences': [{'kind': 'public'}],
+            'audiences': [
+              {'kind': 'public'},
+            ],
             'has_value': false,
           },
         },
-        'collectives': {
-          'spaces': [],
-          'teams': [],
-          'groups': [],
-        },
+        'collectives': {'spaces': [], 'teams': [], 'groups': []},
         'interests': [],
         'open_to': [],
       },
@@ -63,26 +63,29 @@ class _VisibilityApi implements MakoloApiClient {
 }
 
 void main() {
-  testWidgets('blank public settings are grouped instead of posing as content', (tester) async {
-    final api = _VisibilityApi();
-    await tester.pumpWidget(MaterialApp(
-      home: MePassportVisibilityScreen(api: api),
-    ));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'blank public settings are grouped instead of posing as content',
+    (tester) async {
+      final api = _VisibilityApi();
+      await tester.pumpWidget(
+        MaterialApp(home: MePassportVisibilityScreen(api: api)),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Nom'), findsOneWidget);
-    expect(find.text('Informations à renseigner'), findsOneWidget);
-    expect(find.text('LinkedIn'), findsNothing);
-    await tester.tap(find.text('Informations à renseigner'));
-    await tester.pumpAndSettle();
-    expect(find.text('LinkedIn'), findsOneWidget);
-  });
+      expect(find.text('Nom'), findsOneWidget);
+      expect(find.text('Informations à renseigner'), findsOneWidget);
+      expect(find.text('LinkedIn'), findsNothing);
+      await tester.tap(find.text('Informations à renseigner'));
+      await tester.pumpAndSettle();
+      expect(find.text('LinkedIn'), findsOneWidget);
+    },
+  );
 
   testWidgets('one compact choice can make the field private', (tester) async {
     final api = _VisibilityApi();
-    await tester.pumpWidget(MaterialApp(
-      home: MePassportVisibilityScreen(api: api),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(home: MePassportVisibilityScreen(api: api)),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Nom'));

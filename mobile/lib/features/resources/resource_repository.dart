@@ -349,8 +349,11 @@ class ResourceRepository {
 
   String _relative(String path, {required String action}) {
     final uri = Uri.tryParse(path);
-    if (uri == null || uri.hasScheme || uri.hasAuthority ||
-        uri.hasQuery || uri.hasFragment) {
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        uri.hasQuery ||
+        uri.hasFragment) {
       throw const FormatException('Unexpected PersonalAsset owner link');
     }
     final relative = uri.path.startsWith('/')
@@ -361,8 +364,7 @@ class ResourceRepository {
       r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
       r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/(download|reuse)/$',
     );
-    if (!ownerRoute.hasMatch(relative) ||
-        !relative.endsWith('/$action/')) {
+    if (!ownerRoute.hasMatch(relative) || !relative.endsWith('/$action/')) {
       throw const FormatException('PersonalAsset action path mismatch');
     }
     return relative;

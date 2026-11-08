@@ -139,6 +139,7 @@ class SyncSourceDefinition {
   final String projectionKind;
   final String resourceKey;
   final SyncActorScope actorScope;
+
   /// Opt-in pointer for a keyed, owner-confirmed resource detail.
   final String? indexedResourceKind;
   final SyncSourceCategory category;
@@ -201,7 +202,9 @@ Future<void> applyProjectionSnapshot(
     if (!source.actorScope.isPersonal ||
         source.category != SyncSourceCategory.keyedDetail ||
         source.resourceKey.isEmpty) {
-      throw const FormatException('Only personal keyed owner details are indexed');
+      throw const FormatException(
+        'Only personal keyed owner details are indexed',
+      );
     }
     // Reject a mismatched identity before storing any data or index pointer.
     final observedId = projection.payload['id'];

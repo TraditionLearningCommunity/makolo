@@ -44,7 +44,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   SpaceActorContext? get _actor {
     final actor = widget.runtime.actorContext?.value;
     return actor is SpaceActorContext && actor.space.slug == widget.slug
-        ? actor : null;
+        ? actor
+        : null;
   }
 
   String get _base =>
@@ -92,7 +93,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       setState(() {
         _document = null;
         _loading = false;
-        _error = id == null ? 'Cet Espace n’est plus actif.' : 'Connexion nécessaire.';
+        _error = id == null
+            ? 'Cet Espace n’est plus actif.'
+            : 'Connexion nécessaire.';
       });
       return;
     }
@@ -104,8 +107,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       final payload = (await api.get(_url)).jsonObject();
       if (!mounted || ticket != _request || _actor?.space.id != id) return;
       final doc = payload['document'];
-      if (doc is! Map<String, dynamic> ||
-          doc['id'] != widget.documentId) {
+      if (doc is! Map<String, dynamic> || doc['id'] != widget.documentId) {
         throw const FormatException('Document incohérent');
       }
       setState(() {
@@ -148,7 +150,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         '${_url}versions/',
         files: [
           MakoloUploadFile(
-            fieldName: 'file', path: file.path!, filename: file.name,
+            fieldName: 'file',
+            path: file.path!,
+            filename: file.name,
           ),
         ],
       );
@@ -175,7 +179,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       'image/png' => 'png',
       'text/plain' => 'txt',
       'application/msword' => 'doc',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+        'docx',
       _ => 'bin',
     };
     final safeName = makoloDownloadName(
@@ -196,14 +201,17 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       if (!mounted || _actor?.space.id != id) return;
       if (Platform.isAndroid) {
         await const AndroidDeviceDownloads().save(
-          source: file, fileName: safeName, mimeType: mime,
+          source: file,
+          fileName: safeName,
+          mimeType: mime,
         );
       } else {
         await const SystemShareGateway().shareFiles(paths: [file.path]);
       }
       if (mounted && _actor?.space.id == id) _toast('Document enregistré.');
     } on Object {
-      if (mounted && _actor?.space.id == id) _toast('Téléchargement impossible.');
+      if (mounted && _actor?.space.id == id)
+        _toast('Téléchargement impossible.');
     } finally {
       if (await folder.exists()) await folder.delete(recursive: true);
       if (mounted) setState(() => _working = false);
@@ -215,7 +223,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final mime = version['mime_type']?.toString();
     if (mime != 'application/pdf' &&
         mime != 'image/jpeg' &&
-        mime != 'image/png') return;
+        mime != 'image/png')
+      return;
     final api = widget.runtime.api;
     final spaceId = _actor!.space.id;
     final versionId = version['id']?.toString();
@@ -225,7 +234,10 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       '${directory.path}/makolo-preview-${DateTime.now().microsecondsSinceEpoch}',
     ).create();
     final extension = mime == 'application/pdf'
-        ? 'pdf' : mime == 'image/png' ? 'png' : 'jpg';
+        ? 'pdf'
+        : mime == 'image/png'
+        ? 'png'
+        : 'jpg';
     final file = File('${folder.path}/document.$extension');
     if (!mounted || _actor?.space.id != spaceId) {
       if (await folder.exists()) await folder.delete(recursive: true);
@@ -246,9 +258,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
             appBar: AppBar(title: const Text('Document')),
             body: mime == 'application/pdf'
                 ? PrivatePdfView(path: file.path)
-                : InteractiveViewer(
-                    child: Center(child: Image.file(file)),
-                  ),
+                : InteractiveViewer(child: Center(child: Image.file(file))),
           ),
         ),
       );
@@ -279,7 +289,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                 controller: controller,
                 autofocus: true,
                 decoration: const InputDecoration(
-                  prefixText: '@', labelText: 'Destinataire Makolo',
+                  prefixText: '@',
+                  labelText: 'Destinataire Makolo',
                 ),
               ),
               DropdownButtonFormField<int>(
@@ -300,7 +311,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
               child: const Text('Annuler'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
               child: const Text('Partager'),
             ),
           ],
@@ -318,7 +330,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         '${_base}versions/${Uri.encodeComponent(version['id'].toString())}/share/',
         body: {
           'recipient_username': recipient.startsWith('@')
-              ? recipient.substring(1) : recipient,
+              ? recipient.substring(1)
+              : recipient,
           'days': days,
         },
       );
@@ -361,9 +374,10 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     if (api == null) return;
     List<Map<String, dynamic>> journeys;
     try {
-      final response = (await api.get('${_base}eligible-journeys/')).jsonObject();
-      if (!mounted || _actor?.space.id != id ||
-          response['space_id'] != id) return;
+      final response = (await api.get('${_base}eligible-journeys/'))
+          .jsonObject();
+      if (!mounted || _actor?.space.id != id || response['space_id'] != id)
+        return;
       journeys = [
         for (final row in response['items'] as List? ?? [])
           if (row is Map<String, dynamic>) row,
@@ -373,7 +387,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       return;
     }
     if (!mounted || journeys.isEmpty) {
-      if (mounted && _actor?.space.id == id) _toast('Aucune démarche disponible.');
+      if (mounted && _actor?.space.id == id)
+        _toast('Aucune démarche disponible.');
       return;
     }
     final journeyId = await showModalBottomSheet<String>(
@@ -385,15 +400,17 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(MakoloSpacing.md),
-              child: Text('Choisir une démarche',
-                  style: Theme.of(context).textTheme.titleLarge),
+              child: Text(
+                'Choisir une démarche',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
             for (final journey in journeys)
               ListTile(
                 leading: const Icon(Icons.route_outlined),
                 title: Text(journey['title']?.toString() ?? 'Démarche'),
-                onTap: () => Navigator.pop(
-                    sheetContext, journey['id']?.toString()),
+                onTap: () =>
+                    Navigator.pop(sheetContext, journey['id']?.toString()),
               ),
           ],
         ),
@@ -417,7 +434,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   Future<void> _edit() async {
     final doc = _document;
     if (_working || !_canManage || doc == null || _actor == null) return;
-    final controller = TextEditingController(text: doc['title']?.toString() ?? '');
+    final controller = TextEditingController(
+      text: doc['title']?.toString() ?? '',
+    );
     var visibility = doc['visibility']?.toString() ?? 'restricted';
     final changes = await showDialog<Map<String, String>>(
       context: context,
@@ -437,10 +456,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                 decoration: const InputDecoration(labelText: 'Accès'),
                 items: const [
                   DropdownMenuItem(
-                    value: 'restricted', child: Text('Confidentiel'),
+                    value: 'restricted',
+                    child: Text('Confidentiel'),
                   ),
                   DropdownMenuItem(
-                    value: 'internal', child: Text('Équipe autorisée'),
+                    value: 'internal',
+                    child: Text('Équipe autorisée'),
                   ),
                 ],
                 onChanged: (value) =>
@@ -518,9 +539,8 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   }
 
   void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -559,19 +579,34 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
           : ListView(
               padding: const EdgeInsets.all(MakoloSpacing.lg),
               children: [
-                Icon(Icons.description_outlined, size: 44, color: colors.primary),
+                Icon(
+                  Icons.description_outlined,
+                  size: 44,
+                  color: colors.primary,
+                ),
                 const SizedBox(height: MakoloSpacing.md),
-                Text(doc['title']?.toString() ?? 'Document',
-                    style: text.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text(
+                  doc['title']?.toString() ?? 'Document',
+                  style: text.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
-                Text(doc['visibility'] == 'restricted'
-                    ? 'Confidentiel' : 'Équipe autorisée'),
+                Text(
+                  doc['visibility'] == 'restricted'
+                      ? 'Confidentiel'
+                      : 'Équipe autorisée',
+                ),
                 const SizedBox(height: MakoloSpacing.xl),
                 Row(
                   children: [
                     Expanded(
-                      child: Text('Versions',
-                          style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                      child: Text(
+                        'Versions',
+                        style: text.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                     if (_canManage)
                       IconButton(
@@ -597,18 +632,24 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                               version['mime_type'] == 'image/png')
                             IconButton(
                               tooltip: 'Ouvrir',
-                              onPressed: _working ? null : () => _preview(version),
+                              onPressed: _working
+                                  ? null
+                                  : () => _preview(version),
                               icon: const Icon(Icons.visibility_outlined),
                             ),
                           IconButton(
                             tooltip: 'Télécharger',
-                            onPressed: _working ? null : () => _download(version),
+                            onPressed: _working
+                                ? null
+                                : () => _download(version),
                             icon: const Icon(Icons.download_rounded),
                           ),
                           if (_canManage)
                             IconButton(
                               tooltip: 'Partager',
-                              onPressed: _working ? null : () => _share(version),
+                              onPressed: _working
+                                  ? null
+                                  : () => _share(version),
                               icon: const Icon(Icons.share_outlined),
                             ),
                           IconButton(
@@ -622,8 +663,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                   ),
                 if (_canManage && _shares.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.xl),
-                  Text('Partages',
-                      style: text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'Partages',
+                    style: text.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   for (final share in _shares)
                     ListTile(
                       leading: const Icon(Icons.person_outline_rounded),
@@ -634,8 +679,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                       trailing: share['active'] == true
                           ? IconButton(
                               tooltip: 'Révoquer',
-                              onPressed: _working ? null :
-                                  () => _revoke(share['id'].toString()),
+                              onPressed: _working
+                                  ? null
+                                  : () => _revoke(share['id'].toString()),
                               icon: const Icon(Icons.close_rounded),
                             )
                           : null,

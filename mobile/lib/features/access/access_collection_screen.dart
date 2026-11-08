@@ -76,7 +76,8 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         _loadFailed ||
         _loadingMore ||
         view == null ||
-        !view.hasMore) return;
+        !view.hasMore)
+      return;
     unawaited(_loadMore(view));
   }
 
@@ -120,7 +121,8 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         _loadFailed ||
         !view.hasMore ||
         !_canLoadNext ||
-        _completedRequest == requestKey) return;
+        _completedRequest == requestKey)
+      return;
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshCollectionPage(
@@ -143,10 +145,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
       }
       if (!mounted || relationship != _relationship) return;
       _completedRequest = requestKey;
-      unawaited(_warmPage(
-        relationship: relationship,
-        offset: view.nextOffset,
-      ));
+      unawaited(_warmPage(relationship: relationship, offset: view.nextOffset));
     } on Object {
       if (mounted && relationship == _relationship) {
         setState(() => _loadFailed = true);
@@ -171,7 +170,8 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     );
     if (source.invalidated ||
         source.lastErrorCode != null ||
-        source.lastSuccessAt == null) return;
+        source.lastSuccessAt == null)
+      return;
     final page = await widget.repository.readCollectionPage(
       relationship: relationship,
       offset: offset,

@@ -49,9 +49,7 @@ class SpaceWorkG2Depth extends StatelessWidget {
         const SizedBox(height: 24),
         _collection(
           context,
-          title: isEducation
-              ? 'Inscriptions'
-              : 'Dossiers de cette prestation',
+          title: isEducation ? 'Inscriptions' : 'Dossiers de cette prestation',
           empty: isEducation
               ? 'Aucune inscription accessible.'
               : 'Aucun dossier accessible.',
@@ -80,8 +78,7 @@ class SpaceWorkG2Depth extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        if (items.isEmpty)
-          Text(offset == 0 ? empty : 'Fin des résultats.'),
+        if (items.isEmpty) Text(offset == 0 ? empty : 'Fin des résultats.'),
         for (final raw in items)
           if (spaceMap(raw) case final Map<String, dynamic> item)
             _row(context, item, isOccurrence),

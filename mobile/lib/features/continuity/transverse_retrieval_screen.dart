@@ -708,9 +708,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           'D’autres résultats peuvent être disponibles dans les recherches détaillées.',
                         ),
                       if (_isSpace)
-                        Text(
-                          'Espace : ${widget.spaceActor!.space.slug}',
-                        ),
+                        Text('Espace : ${widget.spaceActor!.space.slug}'),
                       if (widget.history && _isSpace) ...[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
