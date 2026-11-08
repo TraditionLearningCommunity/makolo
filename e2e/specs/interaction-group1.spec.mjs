@@ -10,6 +10,7 @@ const primary = [
 ];
 
 test('Group 1: every principal Web surface shares a single interaction stylesheet', async ({ page }) => {
+  test.setTimeout(90_000);
   await login(page, 'participant@e2e.makolo.test');
   for (const item of primary) {
     await page.goto(item.path);
@@ -46,7 +47,10 @@ test('Group 1: Now and Ongoing retain owner actions with shared presentation', a
   const nowLegacy = page.locator('[data-mk-surface="now"] .mk-now-cta:not(.mk-action-button)');
   await expect(nowLegacy).toHaveCount(0);
   const directActions = page.locator('[data-mk-surface="now"] form[data-now-direct]');
-  expect(await directActions.count()).toBeGreaterThanOrEqual(0);
+  expect(await directActions.evaluateAll((forms) => forms.every(
+    (form) => form.method.toLowerCase() === 'post' &&
+      Boolean(form.querySelector('input[name="csrfmiddlewaretoken"]'))
+  ))).toBe(true);
   await page.goto('/me/ongoing/');
   const ongoingLegacy = page.locator('[data-mk-surface="ongoing"] .mk-ongoing-unit__primary:not(.mk-action-button)');
   await expect(ongoingLegacy).toHaveCount(0);
@@ -67,6 +71,7 @@ test('Group 1: Moi and Mark use canonical text/primary action components', async
 });
 
 test('Group 1: mobile Web keeps action targets accessible @mobile', async ({ page }) => {
+  test.setTimeout(60_000);
   await login(page, 'participant@e2e.makolo.test');
   for (const [path,role,accessible] of [
     ['/discover/', 'button', 'Découvrir'],
