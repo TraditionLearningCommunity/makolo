@@ -13,7 +13,7 @@ import 'objective_repository.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
 enum _ProjectSort { title, deadline, state, created, updated }
-enum _ProjectTime { all, next30, overdue, undated }
+enum _ProjectTime { all, next30, overdue, undated, active }
 
 Map<String, dynamic> _map(Object? raw) =>
     raw is Map ? raw.map((k, v) => MapEntry(k.toString(), v)) : {};
@@ -428,8 +428,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           item.payload['project_id']?.toString() == widget.id &&
           _map(item.payload['actor'])['id']?.toString() ==
               widget.repository.profileId).toList()
-        ..sort((a, b) => (_map(a.payload['page'])['offset'] as int)
-            .compareTo(_map(b.payload['page'])['offset'] as int));
+        ..sort((a, b) => (_map(a.payload['page'])['offset'] is int
+              ? _map(a.payload['page'])['offset'] as int : 0)
+            .compareTo(_map(b.payload['page'])['offset'] is int
+              ? _map(b.payload['page'])['offset'] as int : 0));
       for (final fragment in fragments) {
         final nextPage = _map(fragment.payload['page']);
         if (!more || nextPage['offset'] != offset) break;
@@ -777,6 +779,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         _ProjectTime.overdue => day != null && day.isBefore(today) &&
             row['state'] == 'active',
         _ProjectTime.undated => day == null,
+        _ProjectTime.active => row['state'] == 'active',
       };
     }).toList()..sort((a, b) {
       final aDate = _text(a['deadline']), bDate = _text(b['deadline']);
@@ -812,6 +815,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           (_ProjectTime.next30, '30 prochains jours'),
           (_ProjectTime.overdue, 'En retard'),
           (_ProjectTime.undated, 'Sans date'),
+          (_ProjectTime.active, 'Dossiers actifs'),
         ])
           ChoiceChip(selected: _time == mode, label: Text(label),
             onSelected: (_) => setState(() => _time = mode)),
