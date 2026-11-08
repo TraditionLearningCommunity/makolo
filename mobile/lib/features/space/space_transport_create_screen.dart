@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -261,13 +263,15 @@ class _SpaceTransportCreateScreenState
             'la capacité vendable et le tarif avant publication.',
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Publier',
+              appearance: MakoloActionAppearance.primary,
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Publier'),
             ),
           ],
         ),
@@ -474,9 +478,10 @@ class _SpaceTransportCreateScreenState
                             (v) => setState(() => _destination = v),
                           ),
                           if (_morePlaces)
-                            TextButton(
+                            MakoloActionButton(
+                              label: 'Voir davantage de lieux',
+                              appearance: MakoloActionAppearance.quiet,
                               onPressed: () => _loadOptions(more: 'places'),
-                              child: const Text('Voir davantage de lieux'),
                             ),
                           TextFormField(
                             controller: _name,
@@ -567,9 +572,10 @@ class _SpaceTransportCreateScreenState
                             });
                           }),
                           if (_moreRoutes)
-                            TextButton(
+                            MakoloActionButton(
+                              label: 'Voir davantage de routes',
+                              appearance: MakoloActionAppearance.quiet,
                               onPressed: () => _loadOptions(more: 'routes'),
-                              child: const Text('Voir davantage de routes'),
                             ),
                           _choice(
                             'Véhicule (facultatif)',
@@ -579,9 +585,10 @@ class _SpaceTransportCreateScreenState
                             optional: true,
                           ),
                           if (_moreVehicles)
-                            TextButton(
+                            MakoloActionButton(
+                              label: 'Voir davantage de véhicules',
+                              appearance: MakoloActionAppearance.quiet,
                               onPressed: () => _loadOptions(more: 'vehicles'),
-                              child: const Text('Voir davantage de véhicules'),
                             ),
                           TextFormField(
                             controller: _title,
@@ -739,11 +746,12 @@ class _SpaceTransportCreateScreenState
                       ],
                     ),
                   ),
-                OutlinedButton(
+                MakoloActionButton(
+                  label: 'Retour à Métier',
+                  appearance: MakoloActionAppearance.secondary,
                   onPressed: _submitting
                       ? null
                       : () => context.go('/space/work'),
-                  child: const Text('Retour à Métier'),
                 ),
               ],
             ),
