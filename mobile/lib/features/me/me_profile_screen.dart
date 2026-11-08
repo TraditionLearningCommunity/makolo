@@ -979,9 +979,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           : !_loaded
           ? _localSummary(context)
           : ListView(
-              scrollCacheExtent: ScrollCacheExtent.pixels(
-                widget.focusVisibility ? 4000 : null,
-              ),
+              cacheExtent: widget.focusVisibility ? 4000 : null,
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
