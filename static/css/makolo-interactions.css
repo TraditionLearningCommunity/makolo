@@ -65,6 +65,9 @@
   color: #fff;
   background: rgb(255 255 255 / .18);
 }
+.mk-action-button[data-variant="inverse"]:focus-visible {
+  outline-color: #fff !important;
+}
 .mk-action-button[data-variant="danger"] {
   border-color: var(--mk-danger);
   color: var(--mk-danger);
