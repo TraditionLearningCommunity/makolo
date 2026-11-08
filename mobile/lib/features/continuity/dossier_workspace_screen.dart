@@ -871,9 +871,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 onSelected: (_) => _unlinkJourney(row),
               )
             else
-              IconButton(
+              MakoloIconActionButton(
                 tooltip: 'Ouvrir la démarche',
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: Icons.chevron_right_rounded,
                 onPressed: () => widget.onOpenJourney(id),
               ),
           ],
@@ -924,9 +924,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             title: Text(_text(row['label'])),
             subtitle: const Text('Responsabilité opérationnelle'),
             trailing: _cap(row, 'remove')
-                ? IconButton(
+                ? MakoloIconActionButton(
                     tooltip: 'Retirer la responsabilité',
-                    icon: const Icon(Icons.person_remove_outlined),
+                    icon: Icons.person_remove_outlined,
                     onPressed: _canMutate ? () => _removeAssignment(row) : null,
                   )
                 : null,
@@ -937,9 +937,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             title: Text(_text(row['profile'])),
             subtitle: Text('Mandat · ${_text(row['role'])}'),
             trailing: _cap(row, 'revoke')
-                ? IconButton(
+                ? MakoloIconActionButton(
                     tooltip: 'Révoquer ce mandat',
-                    icon: const Icon(Icons.shield_outlined),
+                    icon: Icons.shield_outlined,
                     onPressed: _canMutate ? () => _revoke(row) : null,
                   )
                 : null,
