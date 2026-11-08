@@ -31,6 +31,35 @@ permissions:
   statuses: write
 
 jobs:
+  # Repair only generated frontend assets on the PR branch. The normal
+  # Django/e2e clean-tree gates stay unchanged and validate the next commit.
+  sync-frontend-artifacts:
+    if: ${{ github.event_name == 'push' && github.ref_name == 'fix/discover-a-continuation-context-20261014' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24.18.0"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Commit the generated assets when they drift
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- static/dist; then
+            echo "Committed frontend artifacts are current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- static/dist
+          git commit -m "build(frontend): synchronize generated assets"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
   spec-kit-integrity:
     runs-on: ubuntu-latest
     steps:
