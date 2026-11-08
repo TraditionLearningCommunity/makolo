@@ -6,6 +6,7 @@
   const panel = workspace?.querySelector("#ongoing-detail");
   const body = panel?.querySelector("#ongoing-detail-body");
   const close = panel?.querySelector("#ongoing-n2-close");
+  const heading = panel?.querySelector("[data-ongoing-detail-heading]");
   if (!field || !workspace || !panel || !body || !close) return;
   if (field.dataset.n2Bound === "1") return;
   field.dataset.n2Bound = "1";
@@ -24,6 +25,9 @@
     if (activeKey == null) previousScroll = window.scrollY;
     activeKey = key;
     opener = button;
+    if (heading) {
+      heading.textContent = button.dataset.ongoingFocusTitle?.trim() || "En détail";
+    }
     body.replaceChildren(template.content.cloneNode(true));
     panel.hidden = false;
     workspace.classList.add("mk-ongoing-n2-active");
@@ -43,6 +47,7 @@
     activeKey = null;
     panel.hidden = true;
     body.replaceChildren();
+    if (heading) heading.textContent = "En détail";
     workspace.classList.remove("mk-ongoing-n2-active");
     field.querySelectorAll("[data-ongoing-focus-trigger]").forEach((button) => {
       button.setAttribute("aria-expanded", "false");
