@@ -30,7 +30,7 @@
         <label class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)"><input type="checkbox" name="represented_space_id" value="{{ composer.representable_space_id }}"> Au nom de cet Espace</label>
       {% endif %}
       <div class="flex items-center justify-end gap-3">
-        <button class="mk-btn mk-btn-primary" type="submit">Envoyer</button>
+        <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
       </div>
     </form>
   {% endif %}
@@ -52,7 +52,7 @@
             <label class="block text-xs font-semibold" for="poll-choices">Choix</label>
             <textarea id="poll-choices" name="options" class="mk-input w-full" rows="4" required placeholder="Un choix par ligne">{% if compose_draft.kind == 'poll' %}{{ compose_draft.options }}{% endif %}</textarea>
             {% include 'conversations/_composer_audience.html' %}
-            <button class="mk-btn mk-btn-primary" type="submit">Publier</button>
+            <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
           </form>
         </details>
       {% endif %}
@@ -65,7 +65,7 @@
             <label class="sr-only" for="confirmation-title">À confirmer</label>
             <input id="confirmation-title" name="title" maxlength="220" required class="mk-input w-full" placeholder="À confirmer…" value="{% if compose_draft.kind == 'confirmation' %}{{ compose_draft.title }}{% endif %}">
             {% include 'conversations/_composer_audience.html' %}
-            <button class="mk-btn mk-btn-primary" type="submit">Publier</button>
+            <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
           </form>
         </details>
       {% endif %}
@@ -90,7 +90,7 @@
                     <textarea id="other-body-{{ item }}" maxlength="5000" name="body" rows="2" class="mk-input w-full" placeholder="Écrire…"{% if item == 'information' %} required{% endif %}></textarea>
                   {% endif %}
                   {% include 'conversations/_composer_audience.html' %}
-                  <button class="mk-btn mk-btn-primary" type="submit">Publier</button>
+                  <button class="mk-action-button" data-variant="primary" type="submit">Publier</button>
                 </form>
               </details>
             {% endif %}
