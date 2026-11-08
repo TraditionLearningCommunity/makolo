@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -302,25 +304,26 @@ class _SpaceWorkCreateActivityScreenState
                     ],
                     const SizedBox(height: MakoloSpacing.lg),
                     if (!_attempted)
-                      FilledButton(
+                      MakoloActionButton(
+                        label: _sending ? 'Envoi en cours…' : 'Créer en brouillon',
+                        appearance: MakoloActionAppearance.primary,
+                        busy: _sending,
                         onPressed: _sending ? null : _create,
-                        child: Text(
-                          _sending ? 'Envoi en cours…' : 'Créer en brouillon',
-                        ),
                       ),
                     if (_attempted)
-                      FilledButton(
+                      MakoloActionButton(
+                        label: _sending ? 'Vérification…' : 'Vérifier dans Métier',
+                        appearance: MakoloActionAppearance.primary,
+                        busy: _sending,
                         onPressed: _sending ? null : _verifyWithoutCreating,
-                        child: Text(
-                          _sending ? 'Vérification…' : 'Vérifier dans Métier',
-                        ),
                       ),
                     const SizedBox(height: MakoloSpacing.sm),
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Retour à Métier',
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: _sending
                           ? null
                           : () => context.go('/space/work'),
-                      child: const Text('Retour à Métier'),
                     ),
                   ],
                 ),
