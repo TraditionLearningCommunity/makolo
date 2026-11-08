@@ -241,9 +241,15 @@ class _ObjectiveCollectionAPIView(APIView):
 class DossierCollectionAPIView(_ObjectiveCollectionAPIView):
     kind = "dossier"
 
+    def post(self, request):
+        return _create_objective(request, self.kind)
+
 
 class ProjectCollectionAPIView(_ObjectiveCollectionAPIView):
     kind = "project"
+
+    def post(self, request):
+        return _create_objective(request, self.kind)
 
 
 class OrganizerCollectionAPIView(APIView):
@@ -315,10 +321,3 @@ def _create_objective(request, kind):
         status=status.HTTP_201_CREATED,
     )
 
-
-def _post_objective_collection(self, request):
-    return _create_objective(request, self.kind)
-
-
-ProjectCollectionAPIView.post = _post_objective_collection
-DossierCollectionAPIView.post = _post_objective_collection
