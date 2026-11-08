@@ -1538,25 +1538,25 @@ class _MePassportScreenState extends State<MePassportScreen> {
     appBar: AppBar(
       title: const Text('Passeport'),
       actions: [
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Confidentialité',
           onPressed: _configureVisibility,
-          icon: const Icon(Icons.shield_outlined),
+          icon: Icons.shield_outlined,
         ),
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Versions datées',
           onPressed: _onlineReady ? _showDatedHistory : null,
-          icon: const Icon(Icons.history_outlined),
+          icon: Icons.history_outlined,
         ),
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'PDF',
           onPressed: _exporting || !_onlineReady ? null : _exportPdf,
-          icon: const Icon(Icons.picture_as_pdf_outlined),
+          icon: Icons.picture_as_pdf_outlined,
         ),
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Partager le Passeport',
           onPressed: _exporting || !_onlineReady ? null : _shareCurrentPassport,
-          icon: const Icon(Icons.share_outlined),
+          icon: Icons.share_outlined,
         ),
       ],
     ),
@@ -2170,9 +2170,9 @@ class _PassportRecipientPickerState extends State<_PassportRecipientPicker> {
               decoration: InputDecoration(
                 hintText: 'Nom ou identifiant',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
+                suffixIcon: MakoloIconActionButton(
                   tooltip: 'Rechercher',
-                  icon: const Icon(Icons.arrow_forward),
+                  icon: Icons.arrow_forward,
                   onPressed: _searching ? null : _search,
                 ),
                 border: const OutlineInputBorder(),
