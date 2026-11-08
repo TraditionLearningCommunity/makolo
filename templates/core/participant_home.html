@@ -13,7 +13,7 @@
     <section class="mk-calm-state" aria-labelledby="home-unavailable-title">
       <h2 id="home-unavailable-title">Impossible de charger votre situation.</h2>
       <p>{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Impossible de charger les informations actuelles.{% endif %}</p>
-      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta mk-action-button" data-variant="primary">Actualiser</a>
     </section>
   {% elif home.all_clear %}
     <section class="mk-calm-state" aria-labelledby="home-clear-title">
@@ -24,12 +24,12 @@
     {% if home.is_partial %}
     <section class="mk-now-secondary" role="status" aria-labelledby="home-partial-title">
       <div><h2 id="home-partial-title">Informations incomplètes</h2><p>Certaines informations peuvent manquer.</p></div>
-      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta mk-action-button" data-variant="primary">Actualiser</a>
     </section>
     {% elif home.is_stale %}
     <section class="mk-now-secondary" role="status" aria-labelledby="home-stale-title">
       <div><h2 id="home-stale-title">Informations à actualiser</h2><p>Ces informations peuvent avoir changé.</p></div>
-      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta mk-action-button" data-variant="primary">Actualiser</a>
     </section>
     {% endif %}
 
@@ -85,15 +85,15 @@
           {% for action in home.primary_attention.direct_actions %}
             <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
               {% csrf_token %}
-              <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+              <button type="submit"{% if forloop.first %} class="mk-now-cta mk-action-button" data-variant="primary"{% endif %}>{{ action.label }}</button>
               <output aria-live="polite" role="status"></output>
             </form>
           {% endfor %}
         </div>
       {% elif home.primary_attention.url %}
-        <a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>
+        <a href="{{ home.primary_attention.url }}" class="mk-now-cta mk-action-button" data-variant="primary">{{ home.primary_attention.action_label }}</a>
       {% endif %}
-      <button type="button" class="mk-now-n2-trigger" data-now-focus-trigger="{{ home.primary_attention.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+      <button type="button" class="mk-now-n2-trigger mk-action-button" data-variant="secondary" data-now-focus-trigger="{{ home.primary_attention.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
       <template data-now-focus="{{ home.primary_attention.identity }}">
         {% include "core/_now_n2_focus.html" with item=home.primary_attention %}
       </template>
@@ -103,7 +103,7 @@
     {% if home.primary_action and home.primary_action.identity != home.primary_attention.identity %}
     <section class="mk-now-secondary">
       <div><p class="mk-now-label">À faire ensuite</p><h2>{{ home.primary_action.context_label }}</h2><p>{{ home.primary_action.summary }}</p></div>
-      {% if home.primary_action.url %}<a href="{{ home.primary_action.url }}" class="mk-now-cta">{{ home.primary_action.action_label }}</a>{% endif %}
+      {% if home.primary_action.url %}<a href="{{ home.primary_action.url }}" class="mk-now-cta mk-action-button" data-variant="primary">{{ home.primary_action.action_label }}</a>{% endif %}
     </section>
     {% endif %}
 
@@ -127,7 +127,7 @@
   {% endif %}
   </div>
   <aside class="mk-now-n2-focus" id="now-n2-focus" hidden aria-label="Comprendre la situation" aria-live="off">
-    <button type="button" class="mk-now-n2-close" id="now-n2-close">‹ Retour à Maintenant</button>
+    <button type="button" class="mk-now-n2-close mk-action-button" data-variant="ghost" id="now-n2-close">‹ Retour à Maintenant</button>
     <div id="now-n2-content" tabindex="-1"></div>
   </aside>
 </div>
