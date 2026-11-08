@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -172,13 +174,15 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
           'Le serveur vérifiera votre droit et son état actuel.',
         ),
         actions: [
-          TextButton(
+          MakoloActionButton(
+                                  appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
+            label: 'Annuler',
           ),
-          FilledButton(
+          MakoloActionButton(
+            appearance: MakoloActionAppearance.primary,
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Confirmer'),
+            label: 'Confirmer',
           ),
         ],
       ),
@@ -251,9 +255,10 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                       ),
                     ),
                   if (data == null)
-                    TextButton(
+                    MakoloActionButton(
+                                  appearance: MakoloActionAppearance.quiet,
                       onPressed: _loading ? null : _load,
-                      child: const Text('Vérifier les droits et actualiser'),
+                      label: 'Vérifier les droits et actualiser',
                     ),
                   if (data != null) ...[
                     Text(
@@ -307,22 +312,24 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                               step['can_start'] == true &&
                                   !_mustVerify &&
                                   !_busy
-                              ? TextButton(
+                              ? MakoloActionButton(
+                                  appearance: MakoloActionAppearance.quiet,
                                   onPressed: () => _command(
                                     'start_step',
                                     step['id'] as String,
                                   ),
-                                  child: const Text('Démarrer'),
+                                  label: 'Démarrer',
                                 )
                               : step['can_complete'] == true &&
                                     !_mustVerify &&
                                     !_busy
-                              ? TextButton(
+                              ? MakoloActionButton(
+                                  appearance: MakoloActionAppearance.quiet,
                                   onPressed: () => _command(
                                     'complete_step',
                                     step['id'] as String,
                                   ),
-                                  child: const Text('Terminer'),
+                                  label: 'Terminer',
                                 )
                               : null,
                         ),
@@ -331,22 +338,24 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                         spacing: 8,
                         children: [
                           if (_stepsOffset > 0)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: () => _changePage(
                                 steps: true,
                                 offset: _stepsOffset > 50
                                     ? _stepsOffset - 50
                                     : 0,
                               ),
-                              child: const Text('Étapes précédentes'),
+                              label: 'Étapes précédentes',
                             ),
                           if (data['steps_has_more'] == true)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: () => _changePage(
                                 steps: true,
                                 offset: _stepsOffset + 50,
                               ),
-                              child: const Text('Étapes suivantes'),
+                              label: 'Étapes suivantes',
                             ),
                         ],
                       ),
@@ -369,12 +378,13 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                               blocker['can_resolve'] == true &&
                                   !_mustVerify &&
                                   !_busy
-                              ? TextButton(
+                              ? MakoloActionButton(
+                                  appearance: MakoloActionAppearance.quiet,
                                   onPressed: () => _command(
                                     'resolve_blocker',
                                     blocker['id'] as String,
                                   ),
-                                  child: const Text('Résoudre'),
+                                  label: 'Résoudre',
                                 )
                               : null,
                         ),
@@ -384,33 +394,37 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                         spacing: 8,
                         children: [
                           if (_blockersOffset > 0)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: () => _changePage(
                                 steps: false,
                                 offset: _blockersOffset > 50
                                     ? _blockersOffset - 50
                                     : 0,
                               ),
-                              child: const Text('Blocages précédents'),
+                              label: 'Blocages précédents',
                             ),
                           if (data['blockers_has_more'] == true)
-                            OutlinedButton(
+                            MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: () => _changePage(
                                 steps: false,
                                 offset: _blockersOffset + 50,
                               ),
-                              child: const Text('Blocages suivants'),
+                              label: 'Blocages suivants',
                             ),
                         ],
                       ),
                     const SizedBox(height: 20),
-                    OutlinedButton(
+                    MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                       onPressed: _loading ? null : _load,
-                      child: const Text('Actualiser le dossier'),
+                      label: 'Actualiser le dossier',
                     ),
-                    OutlinedButton(
+                    MakoloActionButton(
+                              appearance: MakoloActionAppearance.secondary,
                       onPressed: () => context.pop(),
-                      child: const Text('Retour à la prestation'),
+                      label: 'Retour à la prestation',
                     ),
                   ],
                 ],
