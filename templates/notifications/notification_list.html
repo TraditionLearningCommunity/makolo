@@ -6,14 +6,14 @@
 <div class="mx-auto max-w-5xl space-y-8">
     <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-            <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Signal</p>
+            <p class="mk-kicker">Signal</p>
             <h1 class="mt-2 text-4xl font-black tracking-tight text-zinc-900 dark:text-white">Notifications</h1>
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">Ce que Makolo a voulu vous signaler récemment, avec un passage direct vers la vérité propriétaire lorsqu’une suite existe.</p>
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{% url 'notifications:preferences' %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">Préférences</a>
             {% if unread_count %}
-            <form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button class="rounded-2xl bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-500">Tout marquer comme lu</button></form>
+            <form method="post" action="{% url 'notifications:read-all' %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="primary">Tout marquer comme lu</button></form>
             {% endif %}
         </div>
     </div>
@@ -37,8 +37,8 @@
                     <p class="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">{{ notification.message }}</p>
                 </div>
                 <div class="flex shrink-0 flex-wrap gap-2">
-                    {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">Ouvrir</a>{% endif %}
-                    {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Marquer comme lue</button></form>{% endif %}
+                    {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="mk-action-button" data-variant="primary">Ouvrir</a>{% endif %}
+                    {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="secondary">Marquer comme lue</button></form>{% endif %}
                 </div>
             </div>
         </article>
