@@ -1883,7 +1883,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       page: 1,
       clearContinuation: true,
     );
-    context.push(query.routeLocation('/discover/map'));
+    context.replace(query.routeLocation('/discover/map'));
   }
 
   Future<void> _openDetail(DiscoveryItemPresentation item) async {
@@ -2075,7 +2075,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                               page: 1,
                               clearContinuation: true,
                             );
-                            context.push(next.routeLocation('/discover/map'));
+                            context.replace(next.routeLocation('/discover/map'));
                           },
                           icon: const Icon(Icons.close_rounded),
                         ),
