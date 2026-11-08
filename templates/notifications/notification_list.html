@@ -54,7 +54,7 @@
     <div class="flex items-center justify-center gap-3 text-sm font-semibold">
         {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="mk-action-button" data-variant="ghost">Précédent</a>{% endif %}
         <span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="rounded-xl border border-zinc-300 px-4 py-2 dark:border-zinc-700">Suivant</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if active_filter == 'unread' %}&filter=unread{% endif %}" class="mk-action-button" data-variant="ghost">Suivant</a>{% endif %}
     </div>
     {% endif %}
 </div>
