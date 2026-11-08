@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -308,14 +310,16 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
+              label: 'Annuler',
             ),
-            FilledButton(
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.primary,
               onPressed: () =>
                   Navigator.pop(dialogContext, controller.text.trim()),
-              child: const Text('Partager'),
+              label: 'Partager',
             ),
           ],
         ),
@@ -474,11 +478,13 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
+              label: 'Annuler',
             ),
-            FilledButton(
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.primary,
               onPressed: () {
                 if (controller.text.trim().isNotEmpty) {
                   Navigator.pop(dialogContext, {
@@ -487,7 +493,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                   });
                 }
               },
-              child: const Text('Enregistrer'),
+              label: 'Enregistrer',
             ),
           ],
         ),
@@ -517,13 +523,15 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archiver ce document ?'),
         actions: [
-          TextButton(
+          MakoloActionButton(
+              appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
+            label: 'Annuler',
           ),
-          FilledButton(
+          MakoloActionButton(
+              appearance: MakoloActionAppearance.primary,
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Archiver'),
+            label: 'Archiver',
           ),
         ],
       ),
@@ -561,16 +569,16 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         title: const Text('Document'),
         actions: [
           if (_canManage)
-            IconButton(
+            MakoloIconActionButton(
               tooltip: 'Modifier',
               onPressed: _working ? null : _edit,
-              icon: const Icon(Icons.edit_outlined),
+              icon: Icons.edit_outlined,
             ),
           if (_canManage)
-            IconButton(
+            MakoloIconActionButton(
               tooltip: 'Archiver',
               onPressed: _working ? null : _archive,
-              icon: const Icon(Icons.archive_outlined),
+              icon: Icons.archive_outlined,
             ),
         ],
       ),
@@ -613,10 +621,10 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                       ),
                     ),
                     if (_canManage)
-                      IconButton(
+                      MakoloIconActionButton(
                         tooltip: 'Nouvelle version',
                         onPressed: _working ? null : _replace,
-                        icon: const Icon(Icons.add_circle_outline),
+                        icon: Icons.add_circle_outline,
                       ),
                   ],
                 ),
@@ -634,32 +642,32 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                           if (version['mime_type'] == 'application/pdf' ||
                               version['mime_type'] == 'image/jpeg' ||
                               version['mime_type'] == 'image/png')
-                            IconButton(
+                            MakoloIconActionButton(
                               tooltip: 'Ouvrir',
                               onPressed: _working
                                   ? null
                                   : () => _preview(version),
-                              icon: const Icon(Icons.visibility_outlined),
+                              icon: Icons.visibility_outlined,
                             ),
-                          IconButton(
+                          MakoloIconActionButton(
                             tooltip: 'Télécharger',
                             onPressed: _working
                                 ? null
                                 : () => _download(version),
-                            icon: const Icon(Icons.download_rounded),
+                            icon: Icons.download_rounded,
                           ),
                           if (_canManage)
-                            IconButton(
+                            MakoloIconActionButton(
                               tooltip: 'Partager',
                               onPressed: _working
                                   ? null
                                   : () => _share(version),
-                              icon: const Icon(Icons.share_outlined),
+                              icon: Icons.share_outlined,
                             ),
-                          IconButton(
+                          MakoloIconActionButton(
                             tooltip: 'Utiliser',
                             onPressed: _working ? null : () => _reuse(version),
-                            icon: const Icon(Icons.arrow_outward_rounded),
+                            icon: Icons.arrow_outward_rounded,
                           ),
                         ],
                       ),
@@ -681,12 +689,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                         share['active'] == true ? 'Actif' : 'Terminé',
                       ),
                       trailing: share['active'] == true
-                          ? IconButton(
+                          ? MakoloIconActionButton(
                               tooltip: 'Révoquer',
                               onPressed: _working
                                   ? null
                                   : () => _revoke(share['id'].toString()),
-                              icon: const Icon(Icons.close_rounded),
+                              icon: Icons.close_rounded,
                             )
                           : null,
                     ),
