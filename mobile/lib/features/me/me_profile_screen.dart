@@ -515,9 +515,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
               ),
             ),
             actions: [
-              TextButton(
+              MakoloActionButton(
+                label: 'Annuler',
+                appearance: MakoloActionAppearance.quiet,
                 onPressed: () => Navigator.pop(dialog),
-                child: const Text('Annuler'),
               ),
               FilledButton(
                 onPressed: () {
@@ -699,13 +700,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Confirmer',
+              appearance: MakoloActionAppearance.primary,
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirmer'),
             ),
           ],
         ),
