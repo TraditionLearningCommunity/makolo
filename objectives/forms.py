@@ -58,11 +58,11 @@ class ProjectEditForm(forms.Form):
     )
     starts_on = forms.DateField(
         label="Début de l’horizon", required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
     ends_on = forms.DateField(
         label="Fin de l’horizon", required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
 
     def __init__(self, *args, project, **kwargs):
