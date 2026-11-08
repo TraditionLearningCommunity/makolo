@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -401,27 +403,29 @@ class _SpaceWorkOfferEditorScreenState
                                 : (v) => setState(() => _status = v),
                           ),
                         const SizedBox(height: 20),
-                        FilledButton(
+                        MakoloActionButton(
+                          label: _posting
+                              ? 'Enregistrement…'
+                              : _editing
+                              ? 'Enregistrer'
+                              : 'Créer en brouillon',
+                          appearance: MakoloActionAppearance.primary,
+                          busy: _posting,
                           onPressed: _attempted || _posting ? null : _submit,
-                          child: Text(
-                            _posting
-                                ? 'Enregistrement…'
-                                : _editing
-                                ? 'Enregistrer'
-                                : 'Créer en brouillon',
-                          ),
                         ),
                       ],
                     ),
                   ),
                 if (!_loading && _modes.isEmpty)
-                  TextButton(
+                  MakoloActionButton(
+                    label: 'Vérifier les droits et actualiser',
+                    appearance: MakoloActionAppearance.quiet,
                     onPressed: _attempted ? null : _load,
-                    child: const Text('Vérifier les droits et actualiser'),
                   ),
-                OutlinedButton(
+                MakoloActionButton(
+                  label: 'Retour à Métier',
+                  appearance: MakoloActionAppearance.secondary,
                   onPressed: _posting ? null : () => context.go('/space/work'),
-                  child: const Text('Retour à Métier'),
                 ),
               ],
             ),
