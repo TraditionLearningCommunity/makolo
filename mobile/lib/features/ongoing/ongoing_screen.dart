@@ -8,6 +8,7 @@ import '../../data/files/profile_recognition_image_store.dart';
 import '../../app/sync_lifecycle.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -450,10 +451,11 @@ class _OngoingFieldState extends State<_OngoingField> {
       if (index == widget.items.length) {
         if (widget.moreError != null) {
           return Center(
-            child: TextButton.icon(
+            child: MakoloActionButton(
+              label: 'Réessayer',
               onPressed: widget.onMore,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              icon: Icons.refresh_rounded,
+              appearance: MakoloActionAppearance.quiet,
             ),
           );
         }
@@ -1703,10 +1705,11 @@ class _OngoingFocus extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (showBack)
-              TextButton.icon(
+              MakoloActionButton(
+                label: 'En cours',
                 onPressed: onBack,
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('En cours'),
+                icon: Icons.arrow_back,
+                appearance: MakoloActionAppearance.quiet,
               ),
             if (_ongoingBadgeIcon(item) case final kindIcon?)
               Padding(
