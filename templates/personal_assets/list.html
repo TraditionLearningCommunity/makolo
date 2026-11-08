@@ -13,7 +13,7 @@
     </div>
     <form method="get" role="search" class="mt-5 flex flex-col gap-2 sm:flex-row">
       <label for="library-search" class="sr-only">Rechercher dans mes documents</label>
-      <input id="library-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher dans mes documents" class="min-w-0 flex-1 rounded-xl border px-4 py-2" style="border-color:var(--mk-border)">
+      <input id="library-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher dans mes documents" class="mk-interaction-field min-w-0 flex-1">
       {% if active_filter != 'all' %}<input type="hidden" name="filter" value="{{ active_filter }}">{% endif %}
       <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
     </form>
