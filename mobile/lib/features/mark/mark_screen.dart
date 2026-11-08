@@ -402,24 +402,27 @@ class _MarkScreenState extends State<MarkScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        OutlinedButton.icon(
+                        MakoloActionButton(
+                          label: 'Joindre',
                           onPressed: _busy ? null : _pickFiles,
-                          icon: const Icon(Icons.attach_file),
-                          label: const Text('Joindre'),
+                          appearance: MakoloActionAppearance.secondary,
+                          icon: Icons.attach_file,
                         ),
-                        OutlinedButton.icon(
+                        MakoloActionButton(
+                          label: 'Photo',
                           onPressed: _busy ? null : _capturePhoto,
-                          icon: const Icon(Icons.photo_camera_outlined),
-                          label: const Text('Photo'),
+                          appearance: MakoloActionAppearance.secondary,
+                          icon: Icons.photo_camera_outlined,
                         ),
-                        OutlinedButton.icon(
+                        MakoloActionButton(
+                          label: 'Voix',
                           onPressed: _busy
                               ? null
                               : () => _show(
                                   'La voix sera disponible lorsque la capability de transcription sera exposée.',
                                 ),
-                          icon: const Icon(Icons.mic_none),
-                          label: const Text('Voix'),
+                          appearance: MakoloActionAppearance.secondary,
+                          icon: Icons.mic_none,
                         ),
                       ],
                     ),
