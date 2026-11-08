@@ -325,3 +325,82 @@
   outline-offset: 3px !important;
 }
 .mk-move-status { min-height: 1.5em; color: var(--mk-muted); }
+
+
+/* Group 2 — shared secondary navigation, tabs, and owner-backed fields. */
+.mk-interaction-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--mk-surface-muted);
+}
+.mk-interaction-tabs > :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mk-muted);
+  text-align: center;
+  text-decoration: none;
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mk-interaction-tabs > :is(a, button):is([aria-current="page"], [aria-pressed="true"], .is-active) {
+  background: var(--mk-surface-solid);
+  color: var(--mk-brand);
+  border-color: var(--mk-border);
+}
+.mk-interaction-tabs > :is(a, button):hover:not([aria-disabled="true"]) {
+  color: var(--mk-brand);
+}
+.mk-interaction-tabs > :is(a, button):focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 2px !important;
+}
+.mk-interaction-field {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--mk-surface-solid);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border-strong);
+  border-radius: 12px;
+  font: inherit;
+  font-size: .925rem;
+}
+.mk-interaction-field:focus-visible {
+  border-color: var(--mk-brand);
+  outline: 2px solid var(--mk-brand);
+  outline-offset: 2px;
+}
+.mk-interaction-field:disabled,
+.mk-interaction-field[aria-disabled="true"] {
+  opacity: .56;
+  cursor: not-allowed;
+}
+.mk-interaction-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.mk-interaction-status {
+  min-height: 1.4rem;
+  color: var(--mk-muted);
+}
+.mk-interaction-status[data-state="rejected"],
+.mk-interaction-status[data-state="conflict"] {
+  color: var(--mk-danger);
+}
