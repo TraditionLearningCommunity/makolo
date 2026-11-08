@@ -200,3 +200,71 @@ test('F2 move cannot register without fallback and confirms only after owner rep
   await expect(page.locator('#f2-move [data-mk-move-status]'))
     .toHaveText('Déplacement confirmé.');
 });
+
+
+test('F2 context restore refuses another actor scope and preserves local choices', async ({ page }) => {
+  await setup(page);
+  const result = await page.evaluate(() => {
+    const make = (key) => {
+      const root = document.createElement('section');
+      root.setAttribute('data-mk-context-key', key);
+      root.setAttribute('data-mk-query-scope', '');
+      root.dataset.mkQueryLocal = 'true';
+      root.setAttribute('data-mk-selection-scope', '');
+      root.innerHTML = [
+        '<input data-mk-query-search value="">',
+        '<div data-mk-query-items>',
+        '<p data-mk-query-item>Alpha</p>',
+        '<p data-mk-query-item>Beta</p>',
+        '</div>',
+        '<input type="checkbox" data-mk-select-item value="alpha">',
+        '<span data-mk-selection-count>0</span>',
+      ].join('');
+      document.querySelector('#main-content').append(root);
+      return root;
+    };
+    const source = make('actor-one');
+    source.querySelector('[data-mk-query-search]').value = 'Alpha';
+    source.querySelector('[data-mk-select-item]').checked = true;
+    const captured = window.MakoloInteractions.captureContext(source);
+    const other = make('actor-two');
+    const refused = window.MakoloInteractions.restoreContext(other, captured);
+    const target = make('actor-one');
+    const applied = window.MakoloInteractions.restoreContext(target, captured);
+    return {
+      refused, applied,
+      query: target.querySelector('[data-mk-query-search]').value,
+      checked: target.querySelector('[data-mk-select-item]').checked,
+      count: target.querySelector('[data-mk-selection-count]').textContent,
+    };
+  });
+  expect(result).toEqual({
+    refused: false, applied: true, query: 'Alpha', checked: true, count: '1',
+  });
+});
+
+test('F2 right-click opens only opt-in contextual menu, not inputs', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const root = document.createElement('section');
+    root.id = 'f2-context-menu';
+    root.setAttribute('data-mk-context-shortcut', '');
+    root.innerHTML = [
+      '<p>Objet avec actions</p>',
+      '<div data-mk-action-menu>',
+      '<button type="button" data-mk-action-trigger aria-label="Options F2"',
+      ' aria-expanded="false">⋯</button>',
+      '<div data-mk-action-panel hidden><button type="button"',
+      ' class="mk-action-item">Inspecter</button></div>',
+      '</div>',
+      '<input aria-label="Texte sans raccourci">',
+    ].join('');
+    document.querySelector('#main-content').append(root);
+  });
+  await page.getByText('Objet avec actions').click({ button: 'right' });
+  await expect(page.getByRole('button', { name: 'Options F2' }))
+    .toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Options F2' }))
+    .toHaveAttribute('aria-expanded', 'false');
+});
