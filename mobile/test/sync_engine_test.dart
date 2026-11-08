@@ -16,6 +16,59 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
+  test('simultaneous owner reads share one request and preserve local facts',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final gate = Completer<void>();
+    final entered = Completer<void>();
+    var requests = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      ),
+      dio: MockClient((request) async {
+        requests++;
+        if (!entered.isCompleted) entered.complete();
+        await gate.future;
+        return MockResponse(
+          jsonEncode({
+            'meta': {
+              'projection': 'personal.me',
+              'schema_version': 1,
+              'scope': 'personal',
+              'generated_at': '2026-11-08T08:00:00Z',
+            },
+            'data': {
+              'actor': {'type': 'profile', 'id': 'profile-a'},
+              'name': 'Owner result',
+            },
+          }),
+          200,
+        );
+      }).dio,
+    );
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api, store: store, database: db, profileId: 'profile-a',
+    );
+    final first = sync.refreshPersonalMe();
+    await entered.future;
+    final second = sync.refreshPersonalMe();
+    expect(requests, 1);
+    gate.complete();
+    expect(await first, isTrue);
+    expect(await second, isTrue);
+    expect((await store.readProjection('personal.me'))?.payload['name'],
+        'Owner result');
+  });
+
   test('composed Me edits reuse the single canonical root reconciliation',
       () async {
     final db = MakoloDatabase.memory();
