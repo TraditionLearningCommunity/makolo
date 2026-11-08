@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/actor_context.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
@@ -128,10 +130,10 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
             appBar: AppBar(
               title: Text(widget.live ? 'Live' : 'Jour J'),
               actions: [
-                IconButton(
+                MakoloIconActionButton(
                   tooltip: 'Actualiser',
                   onPressed: refreshing ? null : _refresh,
-                  icon: const Icon(Icons.refresh_rounded),
+                  icon: Icons.refresh_rounded,
                 ),
               ],
             ),
@@ -198,10 +200,11 @@ class _SpaceOccurrenceContent extends StatelessWidget {
         if (live && onBackToDayOf != null)
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton.icon(
+            child: MakoloActionButton(
+              label: 'Retour au Jour J Space',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: onBackToDayOf,
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('Retour au Jour J Space'),
+              icon: Icons.arrow_back_rounded,
             ),
           ),
         Text(
@@ -268,20 +271,22 @@ class _SpaceOccurrenceContent extends StatelessWidget {
             capabilities.contains('open_live') &&
             onOpenLive != null) ...[
           const SizedBox(height: MakoloSpacing.lg),
-          FilledButton.icon(
+          MakoloActionButton(
+            label: 'Ouvrir Makolo Live',
+            appearance: MakoloActionAppearance.primary,
             onPressed: onOpenLive,
-            icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text('Ouvrir Makolo Live'),
+            icon: Icons.play_circle_outline_rounded,
           ),
         ],
         if (!live &&
             capabilities.contains('open_scanner') &&
             onOpenScanner != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
-          OutlinedButton.icon(
+          MakoloActionButton(
+            label: 'Ouvrir le Scanner',
+            appearance: MakoloActionAppearance.secondary,
             onPressed: onOpenScanner,
-            icon: const Icon(Icons.qr_code_scanner_rounded),
-            label: const Text('Ouvrir le Scanner'),
+            icon: Icons.qr_code_scanner_rounded,
           ),
         ],
       ],
