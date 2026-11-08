@@ -12,11 +12,11 @@
 <input type="hidden" name="type" value="{{ history_filter }}">
 <button class="mk-action-button" data-variant="primary" type="submit">Rechercher</button>
 </form>
-<div class="mt-4 flex flex-wrap gap-2" aria-label="Filtrer l’historique">
-<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=all" class="mk-action-button" data-variant="{% if history_filter == 'all' %}secondary{% else %}ghost{% endif %}" {% if history_filter == 'all' %}aria-current="page"{% endif %}>Tout</a>
-<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=accesses" class="mk-action-button" data-variant="{% if history_filter == 'accesses' %}secondary{% else %}ghost{% endif %}" {% if history_filter == 'accesses' %}aria-current="page"{% endif %}>Participations / accès</a>
-<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=journeys" class="mk-action-button" data-variant="{% if history_filter == 'journeys' %}secondary{% else %}ghost{% endif %}" {% if history_filter == 'journeys' %}aria-current="page"{% endif %}>Démarches</a>
-</div>
+<nav class="mt-4 mk-interaction-tabs" aria-label="Filtrer l’historique">
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=all" {% if history_filter == 'all' %}aria-current="page"{% endif %}>Tout</a>
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=accesses" {% if history_filter == 'accesses' %}aria-current="page"{% endif %}>Participations / accès</a>
+<a href="?{% if q %}q={{ q|urlencode }}&amp;{% endif %}type=journeys" {% if history_filter == 'journeys' %}aria-current="page"{% endif %}>Démarches</a>
+</nav>
 </section>
 
 <div class="lg:grid lg:grid-cols-5 lg:gap-5">
