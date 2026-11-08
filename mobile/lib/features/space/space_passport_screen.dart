@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
@@ -464,13 +466,15 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       builder: (dialog) => AlertDialog(
         title: const Text('Révoquer cette version ?'),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Annuler',
+            appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Annuler'),
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Révoquer',
+            appearance: MakoloActionAppearance.danger,
             onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Révoquer'),
           ),
         ],
       ),
@@ -542,11 +546,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                               trailing: Wrap(
                                 spacing: 0,
                                 children: [
-                                  IconButton(
+                                  MakoloIconActionButton(
                                     tooltip: 'Télécharger cette version',
-                                    icon: const Icon(
-                                      Icons.picture_as_pdf_outlined,
-                                    ),
+                                    icon: Icons.picture_as_pdf_outlined,
                                     onPressed: item['integrity_ok'] == true
                                         ? () {
                                             Navigator.pop(sheet);
@@ -554,9 +556,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                                           }
                                         : null,
                                   ),
-                                  IconButton(
+                                  MakoloIconActionButton(
                                     tooltip: 'Partager cette version',
-                                    icon: const Icon(Icons.share_outlined),
+                                    icon: Icons.share_outlined,
                                     onPressed:
                                         item['integrity_ok'] != true ||
                                             item['revoked'] == true ||
@@ -567,9 +569,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                                             shareVersion(id);
                                           },
                                   ),
-                                  IconButton(
+                                  MakoloIconActionButton(
                                     tooltip: 'Révoquer cette version',
-                                    icon: const Icon(Icons.block_outlined),
+                                    icon: Icons.block_outlined,
                                     onPressed: item['revoked'] == true
                                         ? null
                                         : () {
@@ -688,24 +690,24 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       appBar: AppBar(
         title: const Text('Passeport'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Confidentialité',
-            icon: const Icon(Icons.shield_outlined),
+            icon: Icons.shield_outlined,
             onPressed: full == null || busy ? null : privacy,
           ),
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Versions datées',
-            icon: const Icon(Icons.history_outlined),
+            icon: Icons.history_outlined,
             onPressed: full == null || busy ? null : history,
           ),
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'PDF',
-            icon: const Icon(Icons.picture_as_pdf_outlined),
+            icon: Icons.picture_as_pdf_outlined,
             onPressed: full == null || busy ? null : () => pdf(),
           ),
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Partager le Passeport',
-            icon: const Icon(Icons.share_outlined),
+            icon: Icons.share_outlined,
             onPressed: full == null || busy ? null : share,
           ),
         ],
@@ -714,9 +716,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
           ? const Center(child: CircularProgressIndicator.adaptive())
           : full == null
           ? Center(
-              child: TextButton(
+              child: MakoloActionButton(
+                label: error ?? 'Réessayer',
+                appearance: MakoloActionAppearance.quiet,
                 onPressed: reload,
-                child: Text(error ?? 'Réessayer'),
               ),
             )
           : ListView(
@@ -937,10 +940,11 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                     ),
                   ),
                 const SizedBox(height: 20),
-                OutlinedButton.icon(
+                MakoloActionButton(
+                  label: 'Modifier le Passeport',
+                  appearance: MakoloActionAppearance.secondary,
                   onPressed: edit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modifier le Passeport'),
+                  icon: Icons.edit_outlined,
                 ),
               ],
             ),
@@ -1028,10 +1032,10 @@ class _RecipientPickerState extends State<_RecipientPicker> {
               decoration: InputDecoration(
                 hintText: 'Nom ou identifiant',
                 prefixIcon: const Icon(Icons.search_outlined),
-                suffixIcon: IconButton(
+                suffixIcon: MakoloIconActionButton(
                   tooltip: 'Rechercher',
                   onPressed: searching ? null : search,
-                  icon: const Icon(Icons.arrow_forward),
+                  icon: Icons.arrow_forward,
                 ),
                 border: const OutlineInputBorder(),
               ),
