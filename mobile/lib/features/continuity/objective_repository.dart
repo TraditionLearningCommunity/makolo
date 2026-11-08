@@ -122,6 +122,34 @@ class ObjectiveRepository {
     await engine.refreshSource(organizerSourceFor(offset));
   }
 
+  static const projectDossierProjectionKind =
+      'objective.project.dossiers.collection';
+  static const projectDossierLimit = 50;
+
+  String projectDossierResourceKey(String projectId, int offset) =>
+      '$projectId:$offset:$projectDossierLimit';
+
+  SyncSourceDefinition projectDossierSource(String projectId, int offset) =>
+      SyncSourceDefinition.projectionEnvelope(
+        sourceKey: 'project:dossiers:$projectId:$offset:$projectDossierLimit',
+        owner: 'Objectives',
+        path: 'api/v1/objectives/projects/$projectId/dossiers/'
+            '?limit=$projectDossierLimit&offset=$offset',
+        projectionKind: projectDossierProjectionKind,
+        resourceKey: projectDossierResourceKey(projectId, offset),
+        category: SyncSourceCategory.collection,
+        freshnessPolicy: freshnessPolicy,
+      );
+
+  Stream<List<StoredProjection>> watchProjectDossiers() =>
+      store.watchProjections(projectDossierProjectionKind);
+
+  Future<void> refreshProjectDossiers(String projectId, int offset) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Objectives synchronization unavailable.');
+    await engine.refreshSource(projectDossierSource(projectId, offset));
+  }
+
   static const collectionLimit = 24;
 
   String collectionKind(ObjectiveDepth kind) => switch (kind) {
