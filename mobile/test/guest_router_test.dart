@@ -759,6 +759,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('guest-filter-when')));
       await tester.pumpAndSettle();
+      // The custom option is below the fold in the bounded date menu.
+      await tester.scrollUntilVisible(
+        find.text('Choisir une date…'),
+        160,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.tap(find.text('Choisir une date…').last);
       await tester.pumpAndSettle();
       expect(find.byType(DatePickerDialog), findsOneWidget);
