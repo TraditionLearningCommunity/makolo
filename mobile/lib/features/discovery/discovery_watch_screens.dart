@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
@@ -277,9 +278,10 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
             return Center(
               child: _refreshing
                   ? const CircularProgressIndicator()
-                  : OutlinedButton(
+                  : MakoloActionButton(
+                      label: 'Réessayer',
                       onPressed: () => unawaited(_refresh()),
-                      child: const Text('Réessayer'),
+                      appearance: MakoloActionAppearance.secondary,
                     ),
             );
           }
@@ -303,10 +305,11 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                   ),
                   const SizedBox(height: 24),
                   Center(
-                    child: FilledButton.icon(
+                    child: MakoloActionButton(
+                      label: 'Créer une veille',
                       onPressed: _create,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Créer une veille'),
+                      icon: Icons.add,
+                      appearance: MakoloActionAppearance.primary,
                     ),
                   ),
                 ],
