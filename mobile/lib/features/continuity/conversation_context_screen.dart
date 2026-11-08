@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../design/behavior_states.dart';
 import 'conversation_repository.dart';
@@ -111,9 +112,11 @@ class _ConversationContextScreenState extends State<ConversationContextScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                FilledButton(
+                MakoloActionButton(
+                  label: _busy ? 'Ouverture…' : 'Échanger',
                   onPressed: _busy ? null : _ensure,
-                  child: Text(_busy ? 'Ouverture…' : 'Échanger'),
+                  appearance: MakoloActionAppearance.primary,
+                  busy: _busy,
                 ),
                 if (_error != null)
                   Padding(
