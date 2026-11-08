@@ -25,7 +25,7 @@ class MakoloActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final handler = busy ? null : onPressed;
-    final visibleIcon = busy ? Icons.hourglass_top_rounded : icon;
+    final visibleIcon = busy && icon != null ? Icons.hourglass_top_rounded : icon;
     final labelWidget = Text(label);
     return switch (appearance) {
       MakoloActionAppearance.primary => visibleIcon == null
