@@ -383,6 +383,56 @@
     }
   });
 
+
+  // State is returned to the caller only; never persisted outside the current
+  // owner/actor scope by this shared presentation layer.
+  function captureContext(scope) {
+    if (!(scope instanceof Element) || !scope.dataset.mkContextKey) return null;
+    const read = (selector) => scope.querySelector(selector)?.value || '';
+    const focus = scope.contains(document.activeElement)
+      ? document.activeElement.id || '' : '';
+    return Object.freeze({
+      scopeKey: scope.dataset.mkContextKey,
+      query: read('[data-mk-query-search]'),
+      sort: read('[data-mk-query-sort]'),
+      filter: read('[data-mk-query-filter]'),
+      selectedIds: Object.freeze([...scope.querySelectorAll('[data-mk-select-item]')]
+        .filter((box) => box.checked && !box.disabled)
+        .map((box) => box.value)),
+      scrollTop: scope.scrollTop,
+      focusId: focus,
+    });
+  }
+
+  function restoreContext(scope, context) {
+    if (!(scope instanceof Element) || !context || !context.scopeKey ||
+        !scope.dataset.mkContextKey ||
+        scope.dataset.mkContextKey !== context.scopeKey) return false;
+    const put = (selector, value) => {
+      const field = scope.querySelector(selector);
+      if (field && typeof value === 'string') field.value = value;
+    };
+    put('[data-mk-query-search]', context.query);
+    put('[data-mk-query-sort]', context.sort);
+    put('[data-mk-query-filter]', context.filter);
+    const selected = new Set(Array.isArray(context.selectedIds)
+      ? context.selectedIds : []);
+    scope.querySelectorAll('[data-mk-select-item]').forEach((box) => {
+      box.checked = !box.disabled && selected.has(box.value);
+    });
+    updateSelection(scope);
+    applyLocalQuery(scope);
+    if (typeof context.scrollTop === 'number') {
+      scope.scrollTop = Math.max(0, context.scrollTop);
+    }
+    if (context.focusId && typeof context.focusId === 'string') {
+      const candidate = document.getElementById(context.focusId);
+      if (candidate && scope.contains(candidate) &&
+          typeof candidate.focus === 'function') candidate.focus();
+    }
+    return true;
+  }
+
   window.MakoloInteractions = Object.freeze({
     // Register a real owner transport. No registered adapter means no reorder.
     registerReorder(scope, adapter) {
@@ -410,6 +460,8 @@
         .filter((box) => box.checked && !box.disabled).map((box) => box.value);
     },
     clearSelection(scope) { if (scope instanceof Element) clearSelection(scope); },
+    captureContext,
+    restoreContext,
     applyLocalQuery(scope) { if (scope instanceof Element) applyLocalQuery(scope); },
     closePreview(dialog) { if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close(); },
   });
