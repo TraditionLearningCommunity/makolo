@@ -350,6 +350,21 @@
     );
   });
 
+
+  // Optional right-click shortcut into the same accessible three-dot menu.
+  // Never steal text selection, links, inputs or the browser menu by default.
+  document.addEventListener('contextmenu', (event) => {
+    const shortcut = rootFor(event.target, '[data-mk-context-shortcut]');
+    if (!shortcut || event.target.closest(
+      'a, input, select, textarea, [contenteditable="true"]')) return;
+    const menu = shortcut.matches('[data-mk-action-menu]')
+      ? shortcut : shortcut.querySelector('[data-mk-action-menu]');
+    const trigger = menu?.querySelector('[data-mk-action-trigger]');
+    if (!trigger || trigger.disabled) return;
+    event.preventDefault();
+    if (trigger.getAttribute('aria-expanded') !== 'true') trigger.click();
+  });
+
   document.addEventListener('click', handleClick);
   document.addEventListener('change', (event) => {
     if (event.target.matches('[data-mk-select-item]')) {
