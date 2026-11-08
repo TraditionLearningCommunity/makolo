@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
@@ -92,6 +94,21 @@ void main() {
     var status = await (db.select(db.syncSources)).getSingle();
     expect(status.invalidated, isFalse);
     expect(status.lastErrorCode, 'endpoint_unavailable');
+
+    // Some previously installed clients had persisted the same HTTP 404 as
+    // a permanent owner tombstone. Migrate only this known false-revocation.
+    await (db.update(db.syncSources)
+          ..where((row) => row.sourceKey.equals(sourceKey)))
+        .write(const SyncSourcesCompanion(
+          invalidated: Value(true),
+          lastErrorCode: Value('not_found'),
+        ));
+    await expectLater(engine.pullSource(source), throwsA(isA<Exception>()));
+    status = await (db.select(db.syncSources)).getSingle();
+    expect(status.invalidated, isFalse);
+    expect(status.lastErrorCode, 'endpoint_unavailable');
+    expect(await store.readProjection(projection, resourceKey: resourceKey),
+        isNotNull);
 
     deployed = true;
     await engine.pullSource(source);
