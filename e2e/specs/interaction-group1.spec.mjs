@@ -60,6 +60,8 @@ test('Group 1: Now and Ongoing retain owner actions with shared presentation', a
 test('Group 1: Moi and Mark use canonical text/primary action components', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/me/moi/');
+  await expect(page.locator('head link[href*="me-n1.css"]')).toHaveCount(1);
+  await expect(page.locator('main link[href*="me-n1.css"]')).toHaveCount(0);
   const passport = page.getByRole('link', { name: /Modifier mon passeport/ });
   await expect(passport).toHaveClass(/mk-action-button/);
   await expect(passport).toHaveAttribute('data-variant', 'link');
