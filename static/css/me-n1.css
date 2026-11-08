@@ -384,3 +384,41 @@
 .mk-me-n1-see-all span { font-size: 20px; }
 .mk-me-n1-heading h2 a { color: inherit; }
 .mk-me-n1-heading h2 a:hover { color: var(--me-primary); }
+
+
+/* One premium Objectives entry follows Passport, outside ordinary Mon espace. */
+.mk-me-n1-objectives { grid-column: 1 / -1; }
+.mk-me-n1-objectives-entry {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 94px;
+  margin-inline: 16px;
+  padding: 17px 20px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #c9bff1;
+  color: #0f172a;
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+.mk-me-n1-objectives-entry:hover { border-color: #5232db; background: #faf9ff; }
+.mk-me-n1-objectives-icon {
+  display: grid;
+  place-items: center;
+  width: 51px;
+  height: 51px;
+  flex: none;
+  border-radius: 13px;
+  background: #f0ecff;
+  color: #5232db;
+}
+.mk-me-n1-objectives-icon svg { width: 27px; height: 27px; stroke-width: 1.8; }
+.mk-me-n1-objectives-copy { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.mk-me-n1-objectives-copy strong { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.mk-me-n1-objectives-copy small { font-size: 13px; color: #687386; line-height: 1.4; }
+.mk-me-n1-objectives-arrow { color: #5232db; }
+.mk-me-n1-objectives-arrow svg { width: 21px; height: 21px; stroke-width: 1.8; }
+@media (prefers-reduced-motion: reduce) {
+  .mk-me-n1-objectives-entry { transition: none; }
+}
