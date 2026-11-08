@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/files/profile_paths.dart';
 
@@ -698,13 +699,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
+              appearance: MakoloActionAppearance.quiet,
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Créer le lien',
               onPressed: () => Navigator.pop(dialogContext, selectedDays),
-              child: const Text('Créer le lien'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -1584,12 +1587,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
               ),
               const SizedBox(height: 12),
               Center(
-                child: OutlinedButton(
+                child: MakoloActionButton(
+                  label: 'Réessayer',
                   onPressed: () => setState(() {
                     _onlineReady = false;
                     _future = _load(preferLocal: false);
                   }),
-                  child: const Text('Réessayer'),
+                  appearance: MakoloActionAppearance.secondary,
                 ),
               ),
             ],
@@ -1609,10 +1613,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
             if (widget.onEdit != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: OutlinedButton.icon(
+                child: MakoloActionButton(
+                  label: 'Modifier le Passeport',
                   onPressed: _editAndRefresh,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modifier le Passeport'),
+                  icon: Icons.edit_outlined,
+                  appearance: MakoloActionAppearance.secondary,
                 ),
               ),
           ],
