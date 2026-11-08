@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 
 import '../../data/files/resource_download_destination.dart';
-
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
@@ -61,7 +60,28 @@ class ResourceRepository {
   final SyncEngine? sync;
   final MakoloApiClient? api;
 
+  String collectionScopeKey({
+    required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
+  }) => Uri.encodeComponent(
+    [query.trim(), view, kind, sensitivity, sort].join('|'),
+  );
+
   String collectionResourceKey({
+    required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
+    required int offset,
+    int limit = defaultLimit,
+  }) =>
+      '${collectionScopeKey(query: query, view: view, kind: kind, sensitivity: sensitivity, sort: sort)}:$offset:$limit';
+
+  String _legacyCollectionResourceKey({
     required String query,
     required int offset,
     int limit = defaultLimit,
@@ -72,28 +92,53 @@ class ResourceRepository {
 
   String collectionSourceKey({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     required int offset,
     int limit = defaultLimit,
   }) =>
-      'resources:${collectionResourceKey(query: query, offset: offset, limit: limit)}';
+      'resources:${collectionResourceKey(query: query, view: view, kind: kind, sensitivity: sensitivity, sort: sort, offset: offset, limit: limit)}';
 
   SyncSourceDefinition collectionSourceFor({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     required int offset,
     int limit = defaultLimit,
   }) {
-    final encoded = Uri.encodeQueryComponent(query.trim());
+    final params = <String, String>{
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+      'view': view,
+      if (kind.isNotEmpty) 'kind': kind,
+      if (sensitivity.isNotEmpty) 'sensitivity': sensitivity,
+      'sort': sort,
+      'limit': '$limit',
+      'offset': '$offset',
+    };
+    final queryString = Uri(queryParameters: params).query;
     return SyncSourceDefinition.projectionEnvelope(
       sourceKey: collectionSourceKey(
         query: query,
+        view: view,
+        kind: kind,
+        sensitivity: sensitivity,
+        sort: sort,
         offset: offset,
         limit: limit,
       ),
       owner: 'PersonalAsset',
-      path: 'api/v1/me/resources/?q=$encoded&limit=$limit&offset=$offset',
+      path: 'api/v1/me/resources/?$queryString',
       projectionKind: collectionProjectionKind,
       resourceKey: collectionResourceKey(
         query: query,
+        view: view,
+        kind: kind,
+        sensitivity: sensitivity,
+        sort: sort,
         offset: offset,
         limit: limit,
       ),
@@ -124,22 +169,45 @@ class ResourceRepository {
 
   Future<StoredProjection?> readCollectionPage({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     required int offset,
     int limit = defaultLimit,
-  }) => store.readProjection(
-    collectionProjectionKind,
-    resourceKey: collectionResourceKey(
-      query: query,
-      offset: offset,
-      limit: limit,
-    ),
-  );
+  }) async {
+    final current = await store.readProjection(
+      collectionProjectionKind,
+      resourceKey: collectionResourceKey(
+        query: query,
+        view: view,
+        kind: kind,
+        sensitivity: sensitivity,
+        sort: sort,
+        offset: offset,
+        limit: limit,
+      ),
+    );
+    if (current != null) return current;
+    if (view == 'current' &&
+        kind.isEmpty &&
+        sensitivity.isEmpty &&
+        sort == 'recent') {
+      return store.readProjection(
+        collectionProjectionKind,
+        resourceKey: _legacyCollectionResourceKey(
+          query: query,
+          offset: offset,
+          limit: limit,
+        ),
+      );
+    }
+    return null;
+  }
 
   Future<StoredProjection?> readDetail(String assetId) =>
       store.readProjection(detailProjectionKind, resourceKey: assetId);
 
-  /// Metadata only. Never download resource bytes without explicit intent.
-  /// Owners enforce access independently for each keyed resource.
   Future<void> warmKnownDetails(
     Iterable<String> assetIds, {
     int limit = 8,
@@ -157,7 +225,6 @@ class ResourceRepository {
         final status = await readDetailSource(assetId);
         if (status.reachability == ReachabilityState.unreachable) break;
       } on Object {
-        // An unreachable owner must not trigger a chain of more requests.
         break;
       }
     }
@@ -165,6 +232,10 @@ class ResourceRepository {
 
   Future<void> refreshCollectionPage({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     required int offset,
     int limit = defaultLimit,
   }) async {
@@ -173,7 +244,15 @@ class ResourceRepository {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
     await engine.refreshSource(
-      collectionSourceFor(query: query, offset: offset, limit: limit),
+      collectionSourceFor(
+        query: query,
+        view: view,
+        kind: kind,
+        sensitivity: sensitivity,
+        sort: sort,
+        offset: offset,
+        limit: limit,
+      ),
     );
   }
 
@@ -187,10 +266,22 @@ class ResourceRepository {
 
   Future<ResourceSourceState> readCollectionSource({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     int offset = 0,
     int limit = defaultLimit,
   }) async {
-    final key = collectionSourceKey(query: query, offset: offset, limit: limit);
+    final key = collectionSourceKey(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
     final rows =
         await (database.select(database.syncSources)..where(
               (row) =>
@@ -208,10 +299,22 @@ class ResourceRepository {
 
   Stream<ResourceSourceState> watchCollectionSource({
     required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
     int offset = 0,
     int limit = defaultLimit,
   }) => _watchSource(
-    collectionSourceKey(query: query, offset: offset, limit: limit),
+    collectionSourceKey(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    ),
   );
 
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
@@ -251,8 +354,79 @@ class ResourceRepository {
     );
   }
 
-  /// Only files explicitly downloaded by this Profile are usable offline.
-  /// This says nothing about current Requirement or owner validation.
+  Future<String> createDocument({
+    required String title,
+    required String kind,
+    required String sensitivity,
+    required String filePath,
+    required String filename,
+    required String contentType,
+    DateTime? issuedAt,
+    DateTime? expiresAt,
+  }) async {
+    final client = api;
+    if (client == null) {
+      throw StateError('Remote PersonalAsset owner is not configured.');
+    }
+    final response = await client.upload(
+      'api/v1/me/resources/create/',
+      fields: {
+        'title': title.trim(),
+        'kind': kind,
+        'sensitivity': sensitivity,
+        if (issuedAt != null) 'issued_at': _date(issuedAt),
+        if (expiresAt != null) 'expires_at': _date(expiresAt),
+      },
+      files: [
+        MakoloUploadFile(
+          fieldName: 'file',
+          path: filePath,
+          filename: filename,
+          contentType: contentType,
+        ),
+      ],
+    );
+    return _assetId(response);
+  }
+
+  Future<String> addDocumentVersion({
+    required String path,
+    required String filePath,
+    required String filename,
+    required String contentType,
+    DateTime? issuedAt,
+    DateTime? expiresAt,
+  }) async {
+    final client = api;
+    if (client == null) {
+      throw StateError('Remote PersonalAsset owner is not configured.');
+    }
+    final response = await client.upload(
+      _assetMutationPath(path, action: 'versions'),
+      fields: {
+        if (issuedAt != null) 'issued_at': _date(issuedAt),
+        if (expiresAt != null) 'expires_at': _date(expiresAt),
+      },
+      files: [
+        MakoloUploadFile(
+          fieldName: 'file',
+          path: filePath,
+          filename: filename,
+          contentType: contentType,
+        ),
+      ],
+    );
+    return _assetId(response);
+  }
+
+  Future<void> archiveDocument({required String path}) async {
+    final client = api;
+    if (client == null) {
+      throw StateError('Remote PersonalAsset owner is not configured.');
+    }
+    await client.post(_assetMutationPath(path, action: 'archive'));
+  }
+
   Future<bool> localVersionExists({
     required String assetId,
     required String title,
@@ -287,7 +461,6 @@ class ResourceRepository {
     );
     final retained = File(destination);
     if (await retained.exists() && await retained.length() > 0) {
-      // Re-export a file consciously downloaded before: no network needed.
       return;
     }
     await downloadVersion(
@@ -315,7 +488,7 @@ class ResourceRepository {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
     await client.download(
-      _relative(path, action: 'download'),
+      _versionActionPath(path, action: 'download'),
       destinationPath: destinationPath,
       onProgress: onProgress,
     );
@@ -330,7 +503,7 @@ class ResourceRepository {
       throw StateError('Remote PersonalAsset owner is not configured.');
     }
     final response = await client.post(
-      _relative(path, action: 'reuse'),
+      _versionActionPath(path, action: 'reuse'),
       body: {'journey_id': journeyId},
     );
     final envelope = response.jsonObject();
@@ -347,18 +520,8 @@ class ResourceRepository {
     );
   }
 
-  String _relative(String path, {required String action}) {
-    final uri = Uri.tryParse(path);
-    if (uri == null ||
-        uri.hasScheme ||
-        uri.hasAuthority ||
-        uri.hasQuery ||
-        uri.hasFragment) {
-      throw const FormatException('Unexpected PersonalAsset owner link');
-    }
-    final relative = uri.path.startsWith('/')
-        ? uri.path.substring(1)
-        : uri.path;
+  String _versionActionPath(String path, {required String action}) {
+    final relative = _sameOriginRelative(path);
     final ownerRoute = RegExp(
       r'^api/v1/me/resources/versions/'
       r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
@@ -368,6 +531,47 @@ class ResourceRepository {
       throw const FormatException('PersonalAsset action path mismatch');
     }
     return relative;
+  }
+
+  String _assetMutationPath(String path, {required String action}) {
+    final relative = _sameOriginRelative(path);
+    final ownerRoute = RegExp(
+      r'^api/v1/me/resources/'
+      r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/(versions|archive)/$',
+    );
+    if (!ownerRoute.hasMatch(relative) || !relative.endsWith('/$action/')) {
+      throw const FormatException('PersonalAsset mutation path mismatch');
+    }
+    return relative;
+  }
+
+  String _sameOriginRelative(String path) {
+    final uri = Uri.tryParse(path);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        uri.hasQuery ||
+        uri.hasFragment) {
+      throw const FormatException('Unexpected PersonalAsset owner link');
+    }
+    return uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+  }
+
+  String _assetId(ApiResponse response) {
+    final envelope = response.jsonObject();
+    final data = _map(envelope['data']);
+    final id = _string(data['id']);
+    if (id == null) {
+      throw const FormatException('Invalid PersonalAsset mutation response.');
+    }
+    return id;
+  }
+
+  String _date(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
   }
 }
 
