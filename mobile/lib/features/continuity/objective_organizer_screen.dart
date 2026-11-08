@@ -33,6 +33,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   late Stream<OwnerSourceState> _source;
   OrganizerMode _mode = OrganizerMode.cards;
   OrganizerSort _sort = OrganizerSort.name;
+  OrganizerSort _dateField = OrganizerSort.deadline;
   String _kind = 'all';
   String _status = 'all';
   String _relation = 'all';
@@ -199,9 +200,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       '${entry.title} ${entry.description} ${entry.space ?? ''}',
     ).contains(q)) return false;
     if (_period != 'all') {
-      final date = entry.dateFor(
-        _sort == OrganizerSort.name ? OrganizerSort.created : _sort,
-      );
+      final date = entry.dateFor(_dateField);
       if (date == null) return false;
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
@@ -324,14 +323,21 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           'all': 'Tous les contextes', 'mine': 'Personnel',
           'space': 'Espace', 'independent': 'Indépendants',
         }, (v) => setState(() => _relation = v)),
-        _dropdown('Dates', _period, const {
+        _dropdown('Date concernée', _dateField.name, const {
+          'created': 'Création', 'updated': 'Modification',
+          'deadline': 'Échéance', 'start': 'Début',
+          'completed': 'Réalisation',
+        }, (v) => setState(() => _dateField = OrganizerSort.values.firstWhere(
+          (element) => element.name == v,
+        ))),
+        _dropdown('Période', _period, const {
           'all': 'Toutes les dates', 'week': '7 prochains jours',
           'month': '30 prochains jours', 'quarter': '90 prochains jours',
         }, (v) => setState(() => _period = v)),
         _dropdown('Trier', _sort.name, const {
           'name': 'Nom A–Z', 'created': 'Création',
           'updated': 'Modification', 'deadline': 'Échéance',
-          'start': 'Début',
+          'start': 'Début', 'completed': 'Réalisation',
         }, (v) => setState(() => _sort = OrganizerSort.values.firstWhere(
           (element) => element.name == v,
         ))),
@@ -342,34 +348,59 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded),
         ),
         if (_search.text.isNotEmpty || _kind != 'all' || _status != 'all' ||
-            _relation != 'all' || _period != 'all' || _sort != OrganizerSort.name)
+            _relation != 'all' || _period != 'all' || _sort != OrganizerSort.name ||
+            _dateField != OrganizerSort.deadline)
           TextButton(
             onPressed: () {
               _search.clear();
               setState(() {
                 _kind = 'all'; _status = 'all'; _relation = 'all';
                 _period = 'all'; _sort = OrganizerSort.name;
-                _descending = false;
+                _dateField = OrganizerSort.deadline; _descending = false;
               });
             },
             child: const Text('Effacer les filtres'),
           ),
       ]),
       const SizedBox(height: 12),
-      SegmentedButton<OrganizerMode>(
-        key: const Key('organizer-view-toggle'),
-        showSelectedIcon: false,
-        selected: {_mode},
-        segments: const [
-          ButtonSegment(value: OrganizerMode.cards,
-              icon: Icon(Icons.grid_view_rounded), label: Text('Cartes')),
-          ButtonSegment(value: OrganizerMode.list,
-              icon: Icon(Icons.view_list_rounded), label: Text('Liste')),
-          ButtonSegment(value: OrganizerMode.explorer,
-              icon: Icon(Icons.account_tree_outlined), label: Text('Explorateur')),
-        ],
-        onSelectionChanged: (values) => _setMode(values.first),
-      ),
+      LayoutBuilder(builder: (context, constraints) {
+        if (constraints.maxWidth < 470) {
+          return Wrap(spacing: 7, runSpacing: 7, children: [
+            ChoiceChip(
+              avatar: const Icon(Icons.grid_view_rounded, size: 17),
+              label: const Text('Cartes'),
+              selected: _mode == OrganizerMode.cards,
+              onSelected: (_) => _setMode(OrganizerMode.cards),
+            ),
+            ChoiceChip(
+              avatar: const Icon(Icons.view_list_rounded, size: 17),
+              label: const Text('Liste'),
+              selected: _mode == OrganizerMode.list,
+              onSelected: (_) => _setMode(OrganizerMode.list),
+            ),
+            ChoiceChip(
+              avatar: const Icon(Icons.account_tree_outlined, size: 17),
+              label: const Text('Explorateur'),
+              selected: _mode == OrganizerMode.explorer,
+              onSelected: (_) => _setMode(OrganizerMode.explorer),
+            ),
+          ]);
+        }
+        return SegmentedButton<OrganizerMode>(
+          key: const Key('organizer-view-toggle'),
+          showSelectedIcon: false,
+          selected: {_mode},
+          segments: const [
+            ButtonSegment(value: OrganizerMode.cards,
+                icon: Icon(Icons.grid_view_rounded), label: Text('Cartes')),
+            ButtonSegment(value: OrganizerMode.list,
+                icon: Icon(Icons.view_list_rounded), label: Text('Liste')),
+            ButtonSegment(value: OrganizerMode.explorer,
+                icon: Icon(Icons.account_tree_outlined), label: Text('Explorateur')),
+          ],
+          onSelectionChanged: (values) => _setMode(values.first),
+        );
+      }),
     ],
   );
 
@@ -431,8 +462,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             ]).where(visible).toList();
 
             final flat = _ordered(entries.where(_matches));
-            final showFlat = _kind != 'all' || _relation == 'independent' ||
-                _mode == OrganizerMode.list;
+            final showFlat = _mode == OrganizerMode.list ||
+                (_mode == OrganizerMode.cards &&
+                    (_kind != 'all' || _relation == 'independent'));
             final shown = showFlat ? flat : roots;
 
             return RefreshIndicator(
