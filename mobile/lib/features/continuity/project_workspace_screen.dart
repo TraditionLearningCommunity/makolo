@@ -412,11 +412,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         'Le Dossier quittera son Projet actuel mais conservera ses démarches.',
         'Déplacer',
       );
-      if (yes)
+      if (yes) {
         await _send('${_base}dossiers/$id/', {
           'action': 'move',
           'target_project_id': selected,
         });
+      }
     }
   }
 
@@ -514,7 +515,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                 firstDate: DateTime(1900),
                                 lastDate: DateTime(2100),
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 update(() {
                                   if (isStart) {
                                     start = picked;
@@ -522,6 +523,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                     end = picked;
                                   }
                                 });
+                              }
                             },
                           ),
                           IconButton(
@@ -635,8 +637,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           if (seen.add(_text(row['id']))) rows.add(row);
         }
         if (nextPage['next_offset'] is! int ||
-            nextPage['next_offset'] <= offset)
+            nextPage['next_offset'] <= offset) {
           break;
+        }
         offset = nextPage['next_offset'] as int;
         more = nextPage['has_more'] == true;
       }
