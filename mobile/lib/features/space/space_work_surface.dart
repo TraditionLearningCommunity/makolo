@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../design/behavior_states.dart';
@@ -82,51 +84,52 @@ class SpaceWorkSurface extends StatelessWidget {
           runSpacing: MakoloSpacing.sm,
           children: [
             if (canCreateTransport)
-              FilledButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Planifier dans Transport'),
+              MakoloActionButton(
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.add,
+                label: 'Planifier dans Transport',
                 onPressed: () => context.push(
                   '/space/${Uri.encodeComponent(spaceSlug)}/work/g3/transport/new',
                 ),
               ),
             if (canCreateG2)
-              FilledButton.icon(
-                icon: const Icon(Icons.add),
-                label: Text(
-                  archetype == 'education'
-                      ? 'Nouveau programme'
-                      : 'Nouvelle prestation',
-                ),
+              MakoloActionButton(
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.add,
+                label: archetype == 'education'
+                    ? 'Nouveau programme'
+                    : 'Nouvelle prestation',
                 onPressed: () => context.push(
                   '/space/${Uri.encodeComponent(spaceSlug)}/work/g2/new'
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
             if (canCreateG1)
-              FilledButton.icon(
-                icon: const Icon(Icons.add),
-                label: Text(
-                  archetype == 'community'
-                      ? 'Nouvelle initiative'
-                      : archetype == 'creative'
-                      ? 'Nouvelle création'
-                      : archetype == 'media'
-                      ? 'Nouvelle production'
-                      : 'Nouvelle activité',
-                ),
+              MakoloActionButton(
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.add,
+                label: archetype == 'community'
+                    ? 'Nouvelle initiative'
+                    : archetype == 'creative'
+                    ? 'Nouvelle création'
+                    : archetype == 'media'
+                    ? 'Nouvelle production'
+                    : 'Nouvelle activité',
                 onPressed: () => context.push(
                   '/space/${Uri.encodeComponent(spaceSlug)}/work/activities/new'
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Rechercher'),
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.search,
+              label: 'Rechercher',
               onPressed: () => context.push('/space/search'),
             ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.history),
-              label: const Text('Historique'),
+            MakoloActionButton(
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.history,
+              label: 'Historique',
               onPressed: () => context.push('/space/history'),
             ),
           ],
@@ -173,7 +176,8 @@ class SpaceWorkSurface extends StatelessWidget {
             const Text('Aperçu partiel : d’autres éléments existent.'),
             if (onLoadMore != null ||
                 _string(_map(payload['space'])?['slug']) != null)
-              TextButton(
+              MakoloActionButton(
+                appearance: MakoloActionAppearance.quiet,
                 onPressed: () {
                   if (onLoadMore != null) {
                     onLoadMore!(section.key);
@@ -184,7 +188,7 @@ class SpaceWorkSurface extends StatelessWidget {
                     );
                   }
                 },
-                child: const Text('Afficher la suite'),
+                label: 'Afficher la suite',
               ),
           ],
           const SizedBox(height: MakoloSpacing.lg),
@@ -429,12 +433,13 @@ class SpaceWorkSurface extends StatelessWidget {
                         ),
                       ),
                   if (canOpenDayOf)
-                    TextButton.icon(
+                    MakoloActionButton(
+                      appearance: MakoloActionAppearance.quiet,
                       onPressed: () => context.push(
                         '/space/occurrences/${Uri.encodeComponent(source!['id'] as String)}/day-of',
                       ),
-                      icon: const Icon(Icons.play_circle_outline),
-                      label: const Text('Jour J'),
+                      icon: Icons.play_circle_outline,
+                      label: 'Jour J',
                     ),
                 ],
               ),
