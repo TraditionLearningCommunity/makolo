@@ -163,6 +163,50 @@ void main() {
     expect((await tokens.readSession())?.refreshToken, 'new-refresh');
   });
 
+  test('late 401 reuses an already rotated access token', () async {
+    final slowEntered = Completer<void>();
+    final releaseSlow = Completer<void>();
+    var refreshCalls = 0;
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'old-access',
+        refreshToken: 'old-refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: testDio((request, _) async {
+        if (request.path.endsWith('/auth/refresh/')) {
+          refreshCalls++;
+          expect(request.data, {'refresh': 'old-refresh'});
+          return jsonResponse({
+            'access': 'new-access',
+            'refresh': 'new-refresh',
+          }, 200);
+        }
+        if (request.headers['Authorization'] == 'Bearer old-access') {
+          if (request.path.endsWith('/me/ongoing/')) {
+            slowEntered.complete();
+            await releaseSlow.future;
+          }
+          return jsonResponse({'detail': 'expired'}, 401);
+        }
+        expect(request.headers['Authorization'], 'Bearer new-access');
+        return jsonResponse({'ok': true}, 200);
+      }),
+    );
+
+    final slow = api.get('api/v1/me/ongoing/');
+    await slowEntered.future;
+    expect((await api.get('api/v1/me/now/')).statusCode, 200);
+    releaseSlow.complete();
+    expect((await slow).statusCode, 200);
+    expect(refreshCalls, 1);
+    expect((await tokens.readSession())?.refreshToken, 'new-refresh');
+  });
+
   test('refresh rotation is persisted before the retried mutation', () async {
     final seen = <String>[];
     final tokens = MemoryTokenStore(
