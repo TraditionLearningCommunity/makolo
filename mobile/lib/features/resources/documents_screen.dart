@@ -845,13 +845,23 @@ List<_Option> _options(Object? raw) {
 
 String? _validity(Map<String, dynamic> value) {
   final state = _string(value['state']);
-  final expires = _string(value['expires_at']);
+  final expires = _displayIsoDate(_string(value['expires_at']));
   return switch (state) {
+    'expired' when expires != null => 'Expiré · $expires',
     'expired' => 'Expiré',
     'not_yet_issued' => 'À venir',
     'current' when expires != null => 'Jusqu’au $expires',
     _ => null,
   };
+}
+
+String? _displayIsoDate(String? value) {
+  if (value == null) return null;
+  final date = DateTime.tryParse(value);
+  if (date == null) return value;
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day/$month/${date.year}';
 }
 
 Map<String, dynamic> _map(Object? value) {
