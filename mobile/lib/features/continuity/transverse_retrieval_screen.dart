@@ -684,9 +684,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           labelText: widget.history
                               ? 'Rechercher dans le passé'
                               : 'Retrouver une réalité connue',
-                          suffixIcon: IconButton(
+                          suffixIcon: MakoloIconActionButton(
                             tooltip: 'Lancer la recherche',
-                            icon: const Icon(Icons.search),
+                            icon: Icons.search,
                             onPressed: () => _submit(),
                           ),
                         ),
@@ -836,11 +836,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           ),
                       ],
                       if (_more)
-                        OutlinedButton(
+                        MakoloActionButton(
+                          label: 'Afficher la suite',
                           onPressed: _loading
                               ? null
                               : () => _submit(more: true),
-                          child: const Text('Afficher la suite'),
                         ),
                       const SizedBox(height: 16),
                       Text(
@@ -867,9 +867,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           const SizedBox(height: 12),
                           Text(selected['relation']?.toString() ?? ''),
                           if (_canOpen(selected))
-                            TextButton(
+                            MakoloActionButton(
+                              label: 'Voir les détails',
+                              appearance: MakoloActionAppearance.quiet,
                               onPressed: () => _open(selected),
-                              child: const Text('Voir les détails'),
                             ),
                         ],
                       ),
