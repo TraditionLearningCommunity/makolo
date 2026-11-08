@@ -178,6 +178,12 @@ test('F2 move cannot register without fallback and confirms only after owner rep
     form.setAttribute('data-mk-move-form', '');
     form.method = 'post';
     form.action = '/owner-action-only/';
+    form.innerHTML = [
+      '<input type="hidden" name="csrfmiddlewaretoken" value="fixture">',
+      '<select name="destination_id" aria-label="Choisir un projet">',
+      '<option value="project2">Projet cible</option></select>',
+      '<button type="submit">Déplacer via formulaire</button>',
+    ].join('');
     scope.append(form);
     return window.MakoloInteractions.registerMove(scope, async () => false);
   });
