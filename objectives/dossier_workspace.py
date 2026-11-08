@@ -89,6 +89,11 @@ def dossier_workspace(viewer, dossier):
             "capabilities": ["unlink"] if allowed else [],
             "web_url": reverse("core:participant-journey-detail",
                                kwargs={"pk": journey.pk}),
+            "web_unlink_url": reverse(
+                "objectives:dossier-unlink-journey", kwargs={
+                    "dossier_id": dossier.pk, "journey_id": journey.pk,
+                },
+            ) if allowed else None,
         })
 
     visible_dependencies = list(visible_dependencies_for_profile(viewer, dossier))
@@ -113,6 +118,16 @@ def dossier_workspace(viewer, dossier):
             "effective": (not active or dependency_is_satisfied(dependency)),
             "waiver_reason": dependency.waiver_reason if (manage and not active) else None,
             "capabilities": ["remove", "waive"] if can_edit else [],
+            "web_remove_url": reverse(
+                "objectives:dossier-remove-dependency", kwargs={
+                    "dossier_id": dossier.pk, "dependency_id": dependency.pk,
+                },
+            ) if can_edit else None,
+            "web_waive_url": reverse(
+                "objectives:dossier-waive-dependency", kwargs={
+                    "dossier_id": dossier.pk, "dependency_id": dependency.pk,
+                },
+            ) if can_edit else None,
         })
 
     active_assignments = list(active_assignments_for_dossier(dossier))
@@ -123,6 +138,11 @@ def dossier_workspace(viewer, dossier):
             "assigned_at": _iso(item.assigned_at),
             "self": item.assignee_id == viewer.pk,
             "capabilities": ["remove"] if manage else [],
+            "web_remove_url": reverse(
+                "objectives:dossier-unassign", kwargs={
+                    "dossier_id": dossier.pk, "assignment_id": item.pk,
+                },
+            ) if manage else None,
         }
         for item in active_assignments
         if manage or item.assignee_id == viewer.pk
@@ -131,7 +151,12 @@ def dossier_workspace(viewer, dossier):
     if authority:
         mandates = [
             {"id": str(item.pk), "profile": _person(item.profile),
-             "role": item.role.name, "capabilities": ["revoke"]}
+             "role": item.role.name, "capabilities": ["revoke"],
+             "web_revoke_url": reverse(
+                 "objectives:dossier-revoke-authority", kwargs={
+                     "dossier_id": dossier.pk, "mandate_id": item.pk,
+                 },
+             )}
             for item in current_dossier_authority_mandates(dossier)
         ]
 
