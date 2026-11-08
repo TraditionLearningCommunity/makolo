@@ -2407,6 +2407,20 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                             ),
                           ),
                         ),
+                        if (discoveryDirectionsDestinations(item).isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: MakoloSpacing.md,
+                            ),
+                            child: OutlinedButton.icon(
+                              key: const Key('discover-n2-directions'),
+                              onPressed: () => unawaited(
+                                showDiscoveryItemDirections(context, item!),
+                              ),
+                              icon: const Icon(Icons.directions_outlined),
+                              label: const Text('Itinéraire'),
+                            ),
+                          ),
                       ],
                     ),
             );
