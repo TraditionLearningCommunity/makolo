@@ -26,7 +26,7 @@
       <option value="">Toutes les activités</option>
       {% for activity in activities %}<option value="{{ activity.pk }}" {% if activity_filter == activity.pk|stringformat:'s' %}selected{% endif %}>{{ activity.title }}</option>{% endfor %}
     </select>
-    <button class="rounded-2xl border border-zinc-300 px-4 py-2 font-bold dark:border-zinc-700">Filtrer</button>
+    <button class="mk-action-button" data-variant="secondary">Filtrer</button>
   </form>
 
   <div class="mt-6 space-y-3">
@@ -44,7 +44,7 @@
           {% if item.console_can_manage and item.status == 'valid' or item.console_can_manage and item.status == 'pending' %}
             <form method="post" action="{% url 'organizations:console-access-revoke' space.slug item.pk %}">
               {% csrf_token %}
-              <button class="rounded-2xl border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-zinc-700">Révoquer</button>
+              <button class="mk-action-button" data-variant="danger">Révoquer</button>
             </form>
           {% endif %}
         </div>
