@@ -129,7 +129,15 @@ class OrganizerPage {
     var expected = 0;
     var hasFirst = false;
     var hasMore = false;
+    DateTime? firstReceivedAt;
     for (final snapshot in pages) {
+      // A refreshed first page is a new authorized view. Never append
+      // continuation pages received before that view: old Dossier/Project
+      // relationships or permissions may no longer be visible.
+      if (firstReceivedAt != null &&
+          snapshot.receivedAt.isBefore(firstReceivedAt)) {
+        break;
+      }
       final value = snapshot.payload;
       final actor = value['actor'];
       final pagination = value['page'];
@@ -143,6 +151,7 @@ class OrganizerPage {
         break;
       }
       hasFirst = true;
+      firstReceivedAt ??= snapshot.receivedAt;
       for (final raw in entries) {
         if (raw is! Map ||
             !{'project', 'dossier', 'journey'}.contains(raw['kind']) ||
