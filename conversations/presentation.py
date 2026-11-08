@@ -15,7 +15,11 @@ from .core_models import (
     ConversationParticipationStatus,
     ConversationUserState,
 )
-from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle, ConversationResponseVisibility
+from .point_models import (
+    ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
+    ConversationPointResponse, ConversationPointResponseStatus,
+    ConversationPointUserState, ConversationResponseVisibility,
+)
 from .media_models import ConversationPointAttachment
 from .list_presentation import conversation_list_card
 from .point_services import point_visible_to, point_resolution_visible_to
@@ -125,6 +129,19 @@ def _list_projection_queryset(profile):
         "expected_action_audience", "resolution_audience",
     ).prefetch_related(
         Prefetch("attachments", queryset=ConversationPointAttachment.objects.select_related("response", "exchange_entry")),
+        Prefetch(
+            "responses",
+            queryset=ConversationPointResponse.objects.filter(
+                actor=profile, represented_space__isnull=True,
+                status=ConversationPointResponseStatus.ACTIVE,
+            ),
+            to_attr="_attention_profile_responses",
+        ),
+        Prefetch(
+            "user_states",
+            queryset=ConversationPointUserState.objects.filter(profile=profile),
+            to_attr="_attention_profile_states",
+        ),
     )
     resolved_points = ConversationPoint.objects.filter(
         lifecycle=ConversationPointLifecycle.RESOLVED
@@ -204,6 +221,10 @@ def _latest_resolution_summary(conversation, profile):
 
 def conversation_rows_for_profile(profile, *, archived=False, only_attention=False, limit=100):
     rows = []
+    at = timezone.now()
+    audience_membership_cache = {}
+    conversation_visibility_cache = {}
+    conversation_manage_cache = {}
     for conversation in _accessible_conversations(profile, include_archived=archived, limit=max(limit * 4, 100)):
         state = _profile_state(conversation)
         if archived and not (state and state.archived_at):
@@ -215,7 +236,12 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
                 "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
             )[:200]
         for point in points[:200]:
-            if point_attention_reason(profile, point):
+            if point_attention_reason(
+                profile, point, at=at,
+                audience_membership_cache=audience_membership_cache,
+                conversation_visibility_cache=conversation_visibility_cache,
+                conversation_manage_cache=conversation_manage_cache,
+            ):
                 attention += 1
         if only_attention and not attention:
             continue
