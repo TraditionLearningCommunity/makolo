@@ -396,7 +396,9 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
     return result
 
 
-def _public_occurrence_facts_for_rows(rows) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+def _public_occurrence_facts_for_rows(
+    rows, *, additional_occurrence_ids=None,
+) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
     """Resolve public occurrence-place roles for selected Activity candidates.
 
     Only Occurrences already admitted by Discovery can be inspected here.
@@ -411,6 +413,14 @@ def _public_occurrence_facts_for_rows(rows) -> tuple[dict[str, list[dict]], dict
         if family != "activity":
             continue
         selected[str(candidate.activity_id)] = set(candidate.matching_occurrence_ids)
+
+    # The canonical occurrence selector also admits published Service activity
+    # occurrences. Feed only these verified identities, never raw service place
+    # fields or an independent map permission rule.
+    for activity_id, occurrence_ids in (additional_occurrence_ids or {}).items():
+        selected.setdefault(str(activity_id), set()).update(
+            str(occurrence_id) for occurrence_id in occurrence_ids
+        )
 
     if not selected:
         return {}, {}
@@ -1457,35 +1467,95 @@ def project_rows(rows, *, profile=None) -> list[dict]:
 
 
 def spatial_index_from_rows(rows) -> dict:
-    """Minimal public geographic presentation of already-admitted candidates.
+    """All mappable candidates from one admitted field, independent of N1 pages.
 
-    The owners decide admission and public occurrence places. Coordinates
-    are facts, not authority or a client-generated ranking. Keep every
-    mappable candidate without imposing the old Map endpoint's 100-point cap.
+    Activity uses its already-admitted occurrence variants. A Service has a
+    different candidate shape: use the canonical *public future occurrence*
+    selector and the same SpacePlace privacy gate, never an invented Service
+    address or an unfiltered Place lookup. No Commerce/Access facts go to map.
     """
     located_rows = [
         (family, key, candidate)
         for family, key, candidate in rows
-        if family == "activity"
+        if family in {"activity", "service_activity"}
     ]
-    facts_by_activity, _ = _public_occurrence_facts_for_rows(located_rows)
+    service_activity_ids = {
+        str(candidate["activity_id"])
+        for family, _, candidate in located_rows
+        if family == "service_activity"
+    }
+    service_occurrences = {}
+    if service_activity_ids:
+        # One bounded query, not a query per pin. The source is restricted to
+        # published, scheduled, non-expired Occurrences before place lookup.
+        for activity_id, occurrence_id in (
+            public_occurrences_for_activities(service_activity_ids)
+            .values_list("activity_id", "id")
+        ):
+            service_occurrences.setdefault(str(activity_id), set()).add(
+                str(occurrence_id)
+            )
+    facts_by_activity, _ = _public_occurrence_facts_for_rows(
+        located_rows, additional_occurrence_ids=service_occurrences,
+    )
     possibilities = []
     for family, key, candidate in located_rows:
-        primary = candidate.to_map_dict()
-        facts = facts_by_activity.get(str(candidate.activity_id), [])
+        activity_id = str(
+            candidate.activity_id if family == "activity"
+            else candidate["activity_id"]
+        )
+        facts = facts_by_activity.get(activity_id, [])
         located_facts = [
             fact for fact in facts
             if fact.get("place", {}).get("latitude") is not None
             and fact.get("place", {}).get("longitude") is not None
         ]
+        if family == "service_activity":
+            # Only public canonical OccurrencePlace facts qualify. A Service
+            # can exist in N1 without any place and must stay unmappable then.
+            if not located_facts:
+                continue
+            primary = next(
+                (fact for fact in located_facts if fact["role"] == "primary"),
+                located_facts[0],
+            )
+            place = primary["place"]
+            possibilities.append({
+                "identity": {
+                    "family": family,
+                    "candidate_key": key,
+                    "resource": {"kind": "activity", "id": activity_id},
+                    # Match N1's Service identity; its occurrence is not a
+                    # participant entitlement or an invented selected session.
+                    "occurrence": None,
+                    "revision": None,
+                },
+                "representation": {
+                    "title": candidate["title"],
+                    "summary": (candidate.get("summary") or "")[:160],
+                    "kind": candidate.get("vertical") or "service",
+                    "eyebrow": candidate.get("vertical_label"),
+                    "image_url": None,
+                },
+                "owner": None,
+                "timing": None,
+                "place": place,
+                "spatial_facts": located_facts,
+                "capabilities": ["view"],
+                "links": {
+                    "detail": reverse(
+                        "discovery_api:item-detail",
+                        kwargs={"family": family, "item_id": activity_id},
+                    ),
+                },
+            })
+            continue
+
+        primary = candidate.to_map_dict()
         if primary is None and not located_facts:
             continue
         place = primary["place"] if primary is not None else located_facts[0]["place"]
-        # Match the canonical N1/N2 place representation when the admitted
-        # candidate has a primary place. In particular, preserve its Place
-        # identity and server-computed distance; the small map wire must not
-        # invent or strip either fact. Fall back to already-public spatial
-        # facts only when the candidate has no primary place.
+        # Preserve canonical Activity N1/N2 Place identity and distance.
         if candidate.place is not None:
             place = {
                 "id": candidate.place.id,
@@ -1501,10 +1571,7 @@ def spatial_index_from_rows(rows) -> dict:
             "identity": {
                 "family": family,
                 "candidate_key": key,
-                "resource": {
-                    "kind": "activity",
-                    "id": str(candidate.activity_id),
-                },
+                "resource": {"kind": "activity", "id": activity_id},
                 "occurrence": {
                     "kind": "occurrence",
                     "id": str(candidate.occurrence_id),
@@ -1513,16 +1580,11 @@ def spatial_index_from_rows(rows) -> dict:
             },
             "representation": {
                 "title": candidate.title,
-                # Already-published owner summary, limited to recognition:
-                # full descriptions/resources remain available via N2.
                 "summary": (candidate.summary or "")[:160],
                 "kind": candidate.vertical,
                 "eyebrow": candidate.eyebrow,
                 "image_url": candidate.image_url,
             },
-            # Owner identity belongs to the publication selector and is
-            # populated only in compact_spatial_discovery_projection after
-            # the same Profile/Space privacy gate used by N1.
             "owner": None,
             "timing": {
                 "kind": candidate.timing_kind,
@@ -1540,7 +1602,7 @@ def spatial_index_from_rows(rows) -> dict:
             "links": {
                 "detail": reverse(
                     "discovery_api:item-detail",
-                    kwargs={"family": family, "item_id": candidate.activity_id},
+                    kwargs={"family": family, "item_id": activity_id},
                 ),
             },
         })
@@ -1549,7 +1611,6 @@ def spatial_index_from_rows(rows) -> dict:
         "total_results": len(rows),
         "results": possibilities,
     }
-
 
 
 def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
