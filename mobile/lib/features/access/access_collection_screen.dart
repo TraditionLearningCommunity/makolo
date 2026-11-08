@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
@@ -210,10 +211,10 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
       appBar: AppBar(
         title: const Text('Mes accès'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refreshFirst,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -326,10 +327,11 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                                   ),
                                   if (!hasKnownFirstPage) ...[
                                     const SizedBox(height: MakoloSpacing.sm),
-                                    TextButton.icon(
+                                    MakoloActionButton(
+                                      label: 'Réessayer',
                                       onPressed: _refreshFirst,
-                                      icon: const Icon(Icons.refresh_rounded),
-                                      label: const Text('Réessayer'),
+                                      icon: Icons.refresh_rounded,
+                                      appearance: MakoloActionAppearance.quiet,
                                     ),
                                   ],
                                 ],
@@ -358,12 +360,13 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                       ),
                     if (_loadFailed && view.hasMore)
                       Center(
-                        child: TextButton(
+                        child: MakoloActionButton(
+                          label: 'Réessayer',
                           onPressed: () {
                             setState(() => _loadFailed = false);
                             unawaited(_loadMore(view));
                           },
-                          child: const Text('Réessayer'),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                       ),
                     if (!view.hasMore &&
@@ -380,10 +383,11 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                     if (_relationship == _mine &&
                         widget.onOpenHistory != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      TextButton.icon(
+                      MakoloActionButton(
+                        label: 'Voir les accès terminés',
                         onPressed: widget.onOpenHistory,
-                        icon: const Icon(Icons.history_rounded),
-                        label: const Text('Voir les accès terminés'),
+                        icon: Icons.history_rounded,
+                        appearance: MakoloActionAppearance.quiet,
                       ),
                     ],
                   ],
