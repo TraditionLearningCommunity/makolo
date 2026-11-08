@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:path/path.dart' as p;
 
+import '../../data/files/profile_paths.dart';
 import '../../data/files/resource_download_destination.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -570,6 +572,50 @@ class ResourceRepository {
         assetId: assetId,
       );
       throw StateError('Resource owner permission withdrawn during transfer');
+    }
+  }
+
+  Future<String> downloadVersionForExplicitExport({
+    required String path,
+    required String assetId,
+    required String title,
+    required int versionNumber,
+    required bool retainOfflineCopy,
+    TransferProgress? onProgress,
+  }) async {
+    if (retainOfflineCopy) {
+      await downloadVersionToLocal(
+        path: path,
+        assetId: assetId,
+        title: title,
+        versionNumber: versionNumber,
+        onProgress: onProgress,
+      );
+      return resourceDownloadDestination(
+        profileId: profileId,
+        assetId: assetId,
+        title: title,
+        versionNumber: versionNumber,
+      );
+    }
+
+    final staging = await ProfilePaths.stagingFiles(profileId);
+    final destination = p.join(
+      staging.path,
+      'resource-export-${ProfilePaths.safeProfileId(assetId)}-'
+      'v$versionNumber-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+    );
+    try {
+      await downloadVersion(
+        path: path,
+        destinationPath: destination,
+        onProgress: onProgress,
+      );
+      return destination;
+    } on Object {
+      final partial = File(destination);
+      if (await partial.exists()) await partial.delete();
+      rethrow;
     }
   }
 
