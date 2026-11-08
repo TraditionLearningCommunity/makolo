@@ -745,13 +745,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
           'enregistrés par un destinataire ne peuvent pas être rappelés.',
         ),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Conserver',
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Conserver'),
+            appearance: MakoloActionAppearance.quiet,
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Révoquer la version',
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Révoquer la version'),
+            appearance: MakoloActionAppearance.danger,
           ),
         ],
       ),
@@ -792,13 +794,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
           'liens éventuels restent inchangés.',
         ),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Conserver',
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Conserver'),
+            appearance: MakoloActionAppearance.quiet,
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Révoquer le lien',
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Révoquer le lien'),
+            appearance: MakoloActionAppearance.danger,
           ),
         ],
       ),
