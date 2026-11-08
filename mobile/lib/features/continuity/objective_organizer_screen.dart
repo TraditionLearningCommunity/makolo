@@ -150,6 +150,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     });
     try {
       await repository.refreshOrganizerPage(0);
+      // The sync engine can retain the local snapshot and record a scoped
+      // failure without throwing. Read its durable status, not just the Future.
+      final local = await repository.readOrganizerPage(0);
+      final owner = await repository.readOrganizerSource();
+      if (mounted && repository == widget.repository) {
+        setState(() {
+          _failed = owner.lastErrorCode != null ||
+              (local == null && owner.lastSuccessAt == null);
+        });
+      }
     } on Object {
       if (mounted && repository == widget.repository) {
         setState(() => _failed = true);
@@ -260,8 +270,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     String label,
     String selected,
     Map<String, String> choices,
-    ValueChanged<String> onSelected,
-  ) {
+    ValueChanged<String> onSelected, {
+    required IconData icon,
+  }) {
     return PopupMenuButton<String>(
       tooltip: label,
       initialValue: selected,
@@ -281,6 +292,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 7),
             Text(
               choices[selected] ?? label,
               style: Theme.of(context).textTheme.labelMedium,
@@ -344,16 +357,21 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         ),
       ),
       const SizedBox(height: 12),
-      Wrap(
-        spacing: 7,
-        runSpacing: 8,
-        children: [
+      SizedBox(
+        height: 53,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            // All six filters remain immediately available in one row.
+            // Horizontal scrolling preserves their labels on small screens.
+            Row(
+              children: [
           _dropdown('Type', _kind, const {
             'all': 'Tous les types',
             'project': 'Projets',
             'dossier': 'Dossiers',
             'journey': 'Démarches',
-          }, (v) => setState(() => _kind = v)),
+          }, (v) => setState(() => _kind = v), icon: Icons.category_outlined),
           _dropdown('État', _status, const {
             'all': 'Tous les états',
             'draft': 'En préparation',
@@ -361,13 +379,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             'completed': 'Terminé',
             'cancelled': 'Annulé',
             'archived': 'Archivé',
-          }, (v) => setState(() => _status = v)),
+          }, (v) => setState(() => _status = v), icon: Icons.tune_rounded),
           _dropdown('Contexte', _relation, const {
             'all': 'Tous les contextes',
             'mine': 'Personnel',
             'space': 'Espace',
             'independent': 'Indépendants',
-          }, (v) => setState(() => _relation = v)),
+          }, (v) => setState(() => _relation = v), icon: Icons.account_tree_outlined),
           _dropdown(
             'Date concernée',
             _dateField.name,
@@ -383,13 +401,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 (element) => element.name == v,
               ),
             ),
+            icon: Icons.event_outlined,
           ),
           _dropdown('Période', _period, const {
             'all': 'Toutes les dates',
             'week': '7 prochains jours',
             'month': '30 prochains jours',
             'quarter': '90 prochains jours',
-          }, (v) => setState(() => _period = v)),
+          }, (v) => setState(() => _period = v), icon: Icons.date_range_outlined),
           _dropdown(
             'Trier',
             _sort.name,
@@ -406,6 +425,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 (element) => element.name == v,
               ),
             ),
+            icon: Icons.sort_by_alpha_rounded,
           ),
           IconButton(
             tooltip: _descending ? 'Décroissant' : 'Croissant',
@@ -438,7 +458,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               },
               child: const Text('Effacer les filtres'),
             ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
       const SizedBox(height: 12),
       LayoutBuilder(
