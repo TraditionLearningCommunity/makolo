@@ -1,12 +1,13 @@
 /* Moi: same spacing, typography and unboxed field grammar as Discover.
    Owner facts and action permissions remain outside presentation CSS. */
 .mk-me-n1 {
-  --me-ink: #0f172a;
-  --me-muted: #64748b;
-  --me-primary: #5232db;
-  --me-border: #e7e1dd;
-  --me-surface: #fff;
-  --me-tint: #f4f0ff;
+  /* Presentation aliases use the global Makolo palette; no screen-owned brand. */
+  --me-ink: var(--mk-text);
+  --me-muted: var(--mk-muted);
+  --me-primary: var(--mk-brand);
+  --me-border: var(--mk-border);
+  --me-surface: var(--mk-surface-solid);
+  --me-tint: var(--mk-brand-soft);
   width: min(100%, 1120px);
   margin: 0 auto;
   padding: 8px 0 40px;
@@ -53,18 +54,7 @@
 }
 .mk-me-n1-subtitle { margin: 4px 0 0; color: var(--me-muted); font-size: 13px; }
 .mk-me-n1-bio { margin: 5px 0 0; max-width: 650px; font-size: 14px; line-height: 1.4; }
-.mk-me-n1-edit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 44px;
-  padding: 4px 10px;
-  color: var(--me-primary) !important;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
+.mk-me-n1-edit { white-space: nowrap; }
 .mk-me-n1-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -163,13 +153,7 @@
 .mk-me-n1-passport .mk-me-n1-arrow {
   color: white !important;
 }
-.mk-me-n1-heading-link {
-  color: var(--me-primary) !important;
-  padding: 8px 4px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
+.mk-me-n1-heading-link { white-space: nowrap; }
 .mk-me-n1-family + .mk-me-n1-family {
   padding-top: 10px;
   margin-top: 10px;
