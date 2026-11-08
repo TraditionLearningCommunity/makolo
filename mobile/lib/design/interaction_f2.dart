@@ -610,3 +610,79 @@ class _MakoloOwnerUndoButtonState extends State<MakoloOwnerUndoButton> {
     );
   }
 }
+
+
+/// Long-press shortcut and a permanently visible accessible menu invoke the
+/// exact same owner-provided actions. Never make long-press the only route.
+class MakoloContextActionRow extends StatelessWidget {
+  const MakoloContextActionRow({
+    super.key,
+    required this.child,
+    required this.actions,
+    required this.onSelected,
+  });
+
+  final Widget child;
+  final List<MakoloInteractionAction> actions;
+  final ValueChanged<MakoloInteractionAction> onSelected;
+
+  Future<void> _showActions(BuildContext context) async {
+    if (actions.isEmpty) return;
+    await showMakoloBottomSheet<void>(
+      context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.compact),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Actions', style: Theme.of(sheetContext).textTheme.titleLarge),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.6,
+                ),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final action in actions)
+                      ListTile(
+                        enabled: action.enabled,
+                        leading: Icon(
+                          MakoloInteractionIcons.forIntent(action.intent),
+                          color: action.destructive
+                              ? Theme.of(sheetContext).colorScheme.error
+                              : null,
+                        ),
+                        title: Text(action.label),
+                        onTap: action.enabled
+                            ? () {
+                                Navigator.of(sheetContext).pop();
+                                onSelected(action);
+                              }
+                            : null,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onLongPress: actions.isEmpty ? null : () => _showActions(context),
+          child: child,
+        ),
+      ),
+      if (actions.isNotEmpty)
+        MakoloActionMenu(actions: actions, onSelected: onSelected),
+    ],
+  );
+}
