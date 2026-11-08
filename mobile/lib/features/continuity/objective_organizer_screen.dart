@@ -626,28 +626,73 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                           const SizedBox(height: 12),
                           const Divider(),
                           if (source.invalidated)
-                            const ListTile(
-                              leading: Icon(Icons.lock_outline),
-                              title: Text('Accès à cette collection retiré.'),
-                              subtitle: Text(
-                                'Vérifiez votre session pour actualiser.',
-                              ),
+                            Column(
+                              children: [
+                                ListTile(
+                                  leading: Icon(
+                                    source.lastErrorCode == 'permission_denied' ||
+                                            source.lastErrorCode == 'not_found'
+                                        ? Icons.lock_outline
+                                        : Icons.sync_problem_outlined,
+                                  ),
+                                  title: Text(
+                                    source.lastErrorCode == 'permission_denied' ||
+                                            source.lastErrorCode == 'not_found'
+                                        ? 'Vos démarches ne sont pas accessibles avec ce compte.'
+                                        : 'Retrouvons vos démarches.',
+                                  ),
+                                  subtitle: Text(
+                                    source.lastErrorCode == 'permission_denied' ||
+                                            source.lastErrorCode == 'not_found'
+                                        ? 'Vérifiez le compte utilisé. Vos autres espaces restent disponibles.'
+                                        : 'Le contenu sera affiché dès qu’il sera à jour.',
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _refreshing ? null : _refresh,
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text('Réessayer'),
+                                ),
+                              ],
                             )
                           else if (!page.hasFirst) ...[
                             if (_refreshing)
                               const Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(30),
-                                  child: CircularProgressIndicator.adaptive(),
+                                  child: Column(
+                                    children: [
+                                      CircularProgressIndicator.adaptive(),
+                                      SizedBox(height: 14),
+                                      Text('Nous préparons vos démarches…'),
+                                    ],
+                                  ),
                                 ),
                               )
                             else
                               Padding(
                                 padding: const EdgeInsets.all(20),
-                                child: Text(
-                                  offline || _failed
-                                      ? 'Première synchronisation nécessaire. Réessayez lorsque le réseau est disponible.'
-                                      : 'Aucune collection acquise. Actualisez pour commencer.',
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      _failed
+                                          ? 'Impossible d’afficher vos démarches pour le moment.'
+                                          : 'Retrouvez vos projets, dossiers et démarches ici.',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      offline
+                                          ? 'Réessayez lorsque la connexion revient.'
+                                          : 'Touchez Réessayer pour les retrouver.',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: _refreshing ? null : _refresh,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('Réessayer'),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ] else ...[
@@ -656,16 +701,15 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                 dense: true,
                                 leading: Icon(Icons.offline_bolt_outlined),
                                 title: Text(
-                                  'Données disponibles sur cet appareil',
+                                  'Vos démarches sont disponibles',
                                 ),
                                 subtitle: Text(
-                                  'Actualisation à la reconnexion.',
+                                  'Les nouveautés apparaîtront à la prochaine connexion.',
                                 ),
                               ),
                             if (page.hasMore)
                               Text(
-                                'Recherche et tri parmi les éléments acquis. '
-                                'D’autres éléments peuvent être chargés.',
+                                'D’autres démarches peuvent encore apparaître.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             if (_search.text.trim().isNotEmpty &&
@@ -694,7 +738,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Text(
-                                '${flat.length} résultat(s) dans les données acquises',
+                                '${flat.length} résultat(s)',
                                 style: Theme.of(context).textTheme.labelMedium,
                               ),
                             ),
@@ -742,8 +786,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                       : const Icon(Icons.add_rounded),
                                   label: Text(
                                     offline
-                                        ? 'Suite disponible après reconnexion'
-                                        : 'Charger les éléments suivants',
+                                        ? 'Vous pourrez en voir davantage à la reconnexion'
+                                        : 'Voir davantage',
                                   ),
                                 ),
                               ),
@@ -752,7 +796,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                 onPressed: _refresh,
                                 icon: const Icon(Icons.refresh_rounded),
                                 label: const Text(
-                                  'Actualisation impossible · Réessayer',
+                                  'Impossible de mettre à jour · Réessayer',
                                 ),
                               ),
                           ],
@@ -781,7 +825,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         const SizedBox(height: 12),
         Text(
           noData
-              ? 'Aucun élément accessible pour le moment.'
+              ? 'Votre espace est prêt.'
               : 'Aucun résultat pour ces critères.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
@@ -789,7 +833,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         const SizedBox(height: 8),
         Text(
           noData
-              ? 'Créez un projet ou un dossier pour commencer.'
+              ? 'Créez un projet ou un dossier pour organiser ce qui compte pour vous.'
               : 'Modifiez la recherche ou les filtres.',
           textAlign: TextAlign.center,
         ),
