@@ -90,7 +90,7 @@ def personal_surface_owner(request) -> PersonalSurface:
         return PersonalSurface("me", "Connexions", _reverse("core:participant-me"), False)
 
     if namespace == "objectives":
-        return PersonalSurface("ongoing", "En cours", _reverse("core:participant-ongoing"), False)
+        return PersonalSurface("me", "Mes démarches", _reverse("objectives:organizer"), False)
 
     if namespace == "payments":
         return PersonalSurface("ongoing", "Paiement", _reverse("core:participant-ongoing"), False)
