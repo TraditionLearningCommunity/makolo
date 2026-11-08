@@ -220,13 +220,15 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           title: Text(title),
           content: Text(explanation),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: action,
+              appearance: MakoloActionAppearance.primary,
               onPressed: () => Navigator.pop(dialog, true),
-              child: Text(action),
             ),
           ],
         ),
