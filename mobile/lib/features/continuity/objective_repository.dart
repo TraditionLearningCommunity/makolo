@@ -108,11 +108,17 @@ class ObjectiveRepository {
     sourceKey: organizerSourceKey(0),
   );
 
-  Future<OwnerSourceState> readOrganizerSource() => readOwnerSourceState(
-    database: database,
-    profileId: profileId,
-    sourceKey: organizerSourceKey(0),
-  );
+  Future<OwnerSourceState> readOrganizerSource() =>
+      readOrganizerSourceForOffset(0);
+
+  /// Every continuation has its own durable owner status; the first page
+  /// cannot attest that a later page was successfully acquired.
+  Future<OwnerSourceState> readOrganizerSourceForOffset(int offset) =>
+      readOwnerSourceState(
+        database: database,
+        profileId: profileId,
+        sourceKey: organizerSourceKey(offset),
+      );
 
   Future<void> refreshOrganizerPage(int offset) async {
     final engine = sync;
