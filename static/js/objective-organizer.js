@@ -101,6 +101,8 @@
     if (field === 'deadline') {
       key = row.kind === 'project' ? 'ends_on' :
         row.kind === 'journey' ? null : 'deadline';
+    } else if (field === 'fulfilled_at') {
+      key = row.kind === 'journey' ? 'fulfilled_at' : null;
     } else if (field === 'starts_on') {
       key = row.kind === 'journey' ? 'started_at' :
         row.kind === 'dossier' ? null : 'starts_on';
@@ -286,8 +288,9 @@
       (row.kind === 'journey' && (!(row.dossier_ids || []).length ||
         !row.dossier_ids.some((parentId) => index.has('dossier:' + parentId)))),
     ), options).filter((row) => matchTree(row, rows, options));
-    const showFlat = state.mode === 'list' || options.kind !== 'all' ||
-      options.relation === 'independent';
+    const showFlat = state.mode === 'list' ||
+      (state.mode === 'cards' && (options.kind !== 'all' ||
+        options.relation === 'independent'));
     const visible = showFlat ? filtered : roots;
 
     for (const button of root.querySelectorAll('[data-view]')) {
