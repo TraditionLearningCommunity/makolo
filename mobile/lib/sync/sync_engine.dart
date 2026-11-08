@@ -517,10 +517,15 @@ class SyncEngine {
       rethrow;
     } on MakoloApiError catch (error) {
       if (isCurrent()) {
-        if (error.statusCode == 403 || error.statusCode == 404) {
-          // Arbitrary owner error codes are not stable tombstone names.
-          // Normalize HTTP authority refusal so every local reader can
-          // recognize it even after a cold start.
+        if (error.statusCode == 404 &&
+            source.projectionKind == 'objective.organizer.collection') {
+          // An authenticated collection is either populated or empty (HTTP
+          // 200). A 404 here points to a missing/mismatched deployment route,
+          // not proof that this Profile lost authority. Earlier clients
+          // treated it as a revocation and removed an otherwise valid cache.
+          await _recordOrganizerEndpointUnavailable(source);
+        } else if (error.statusCode == 403 || error.statusCode == 404) {
+          // Only owner-scoped refusals are durable authorization tombstones.
           await _recordScopedUnavailable(
             source,
             error.statusCode == 403 ? 'permission_denied' : 'not_found',
@@ -598,6 +603,35 @@ class SyncEngine {
       throw ArgumentError.value(code, 'code');
     }
     return _recordScopedUnavailable(source, code);
+  }
+
+  Future<void> _recordOrganizerEndpointUnavailable(
+    SyncSourceDefinition source,
+  ) async {
+    // The previous implementation may have persisted a false 404 tombstone.
+    // Migrate only that legacy state, never an explicit 403 permission denial.
+    // Keep any legitimately acquired collection instead of deleting it.
+    await database.transaction(() async {
+      await _ensureSource(source);
+      final observed =
+          await (database.select(database.syncSources)..where(
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.sourceKey.equals(source.sourceKey),
+          )).getSingleOrNull();
+      if (observed?.invalidated == true &&
+          observed?.lastErrorCode == 'permission_denied') {
+        return;
+      }
+      await (database.update(database.syncSources)..where(
+        (row) =>
+            row.profileId.equals(profileId) &
+            row.sourceKey.equals(source.sourceKey),
+      )).write(const SyncSourcesCompanion(
+        invalidated: Value(false),
+        lastErrorCode: Value('endpoint_unavailable'),
+      ));
+    });
   }
 
   Future<void> _recordScopedUnavailable(
