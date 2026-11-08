@@ -38,7 +38,7 @@
     {% if not asset.archived_at %}
     <form method="post" action="{% url 'personal_assets:archive' asset.pk %}" class="mt-5 flex justify-end">
       {% csrf_token %}
-      <button type="submit" class="mk-action-button" data-variant="danger" aria-label="Archiver" title="Archiver"><i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i></button>
+      <button type="submit" class="mk-action-button" data-variant="danger" aria-label="Archiver" title="Archiver"><svg viewBox="0 0 24 24" class="h-4 w-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"></path><path d="M6 8v11h12V8"></path><path d="M10 12h4"></path></svg></button>
     </form>
     {% endif %}
   </section>
