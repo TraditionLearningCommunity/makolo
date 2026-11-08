@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/contracts/space_presentation.dart';
@@ -34,9 +36,10 @@ class SpaceWorkG3Depth extends StatelessWidget {
       widgets.add(_heading(context, 'Offres de cette activité'));
       if (facts['can_manage_offer'] == true && ownerId != null) {
         widgets.add(
-          FilledButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Créer une offre'),
+          MakoloActionButton(
+            appearance: MakoloActionAppearance.primary,
+            icon: Icons.add,
+            label: 'Créer une offre',
             onPressed: () => context.push(
               '/space/${Uri.encodeComponent(slug)}/work/g3/'
               'activities/${Uri.encodeComponent(ownerId!)}/offers/new',
@@ -48,9 +51,10 @@ class SpaceWorkG3Depth extends StatelessWidget {
       widgets.add(_heading(context, 'Conditions de cette offre'));
       if (facts['can_manage_offer'] == true && ownerId != null) {
         widgets.add(
-          FilledButton.icon(
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Modifier l’offre'),
+          MakoloActionButton(
+            appearance: MakoloActionAppearance.primary,
+            icon: Icons.edit_outlined,
+            label: 'Modifier l’offre',
             onPressed: () => context.push(
               '/space/${Uri.encodeComponent(slug)}/work/g3/'
               'offers/${Uri.encodeComponent(ownerId!)}/edit',
@@ -163,9 +167,10 @@ class SpaceWorkG3Depth extends StatelessWidget {
       final departureId = spaceText(facts['departure_id']);
       if (facts['can_manage_operations'] == true && departureId != null) {
         widgets.add(
-          FilledButton.icon(
-            icon: const Icon(Icons.tune_outlined),
-            label: const Text('Exploiter ce départ'),
+          MakoloActionButton(
+            appearance: MakoloActionAppearance.primary,
+            icon: Icons.tune_outlined,
+            label: 'Exploiter ce départ',
             onPressed: () => context.push(
               '/space/${Uri.encodeComponent(slug)}/work/g3/'
               'departures/${Uri.encodeComponent(departureId)}/operate',
@@ -268,15 +273,17 @@ class SpaceWorkG3Depth extends StatelessWidget {
             spacing: 8,
             children: [
               if (offset > 0)
-                OutlinedButton(
+                MakoloActionButton(
+                  appearance: MakoloActionAppearance.secondary,
                   onPressed: () =>
                       onChange(offset > limit ? offset - limit : 0),
-                  child: const Text('Précédents'),
+                  label: 'Précédents',
                 ),
               if (hasMore)
-                OutlinedButton(
+                MakoloActionButton(
+                  appearance: MakoloActionAppearance.secondary,
                   onPressed: () => onChange(offset + limit),
-                  child: const Text('Voir les suivants'),
+                  label: 'Voir les suivants',
                 ),
             ],
           ),
