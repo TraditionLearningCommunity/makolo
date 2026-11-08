@@ -2,14 +2,14 @@
    The component is shared in meaning with Flutter's organizer; responsive
    composition changes, business rules do not. */
 .mk-organizer {
-  --o-primary: #5232db;
-  --o-deep: #2b176e;
-  --o-coral: #ff704d;
-  --o-ink: #0f172a;
-  --o-muted: #687386;
-  --o-line: #e5e2ed;
-  --o-soft: #f8f7fc;
-  --o-surface: #fff;
+  --o-primary: var(--mk-brand);
+  --o-deep: var(--mk-brand-strong, #2b176e);
+  --o-coral: var(--mk-coral, #ff704d);
+  --o-ink: var(--mk-text);
+  --o-muted: var(--mk-muted);
+  --o-line: var(--mk-border);
+  --o-soft: var(--mk-surface-muted);
+  --o-surface: var(--mk-surface-solid);
   width: min(100%, 1130px);
   margin-inline: auto;
   padding: 16px clamp(16px, 3vw, 40px) 60px;
@@ -78,26 +78,8 @@
   max-width: 650px;
   margin-bottom: 26px;
 }
-.mk-organizer__primary, .mk-organizer__secondary {
-  min-height: 54px;
-  padding: 13px 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 11px;
-  border-radius: 14px;
-  font-weight: 750;
-  font-size: 14px;
-  transition: background .15s ease, border-color .15s ease, transform .15s ease;
-}
-.mk-organizer__primary { color: #fff !important; background: var(--o-primary); }
-.mk-organizer__primary:hover { background: var(--o-deep); }
-.mk-organizer__secondary {
-  background: #fff;
-  color: var(--o-primary) !important;
-  border: 1px solid #bcb0ee;
-}
-.mk-organizer__secondary:hover { background: #f6f3ff; border-color: var(--o-primary); }
+/* Creation links use the shared Makolo action control; only placement stays here. */
+.mk-organizer__create .mk-action-button { min-height: 54px; gap: 11px; }
 .mk-organizer__tools {
   padding: 16px 0 20px;
   border-top: 1px solid var(--o-line);
@@ -175,26 +157,9 @@
   font-size: 13px;
   cursor: pointer;
 }
-.mk-organizer__order {
-  min-width: 42px;
-  height: 41px;
-  background: #fff;
-  border: 1px solid var(--o-line);
-  border-radius: 11px;
-  color: var(--o-primary);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.mk-organizer__clear {
-  border: 0;
-  background: transparent;
-  color: var(--o-primary);
-  font-weight: 700;
-  min-height: 41px;
-  padding: 0 8px;
-  cursor: pointer;
-}
+/* Order and reset adopt the shared control skin and accessible target. */
+.mk-organizer__order.mk-action-button { flex: none; }
+.mk-organizer__clear.mk-action-button { white-space: nowrap; }
 .mk-organizer__views {
   display: inline-flex;
   flex-wrap: wrap;
@@ -376,19 +341,7 @@
 .mk-organizer__continuation { text-align: center; padding: 24px 0; }
 .mk-organizer__continuation[hidden] { display: none; }
 .mk-organizer__continuation p { color: var(--o-muted); font-size: 13px; }
-.mk-organizer__load {
-  padding: 11px 18px;
-  min-height: 44px;
-  border-radius: 10px;
-  border: 1px solid #baaee8;
-  color: var(--o-primary);
-  background: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
+.mk-organizer__load.mk-action-button { gap: 8px; }
 .mk-organizer__load:disabled { cursor: progress; opacity: .6; }
 .mk-organizer__error { color: #bc4026 !important; }
 @media (max-width: 740px) {
@@ -472,7 +425,7 @@
   gap: 13px;
   padding-top: 6px;
 }
-.mk-organizer__form-footer .mk-organizer__primary {
+.mk-organizer__form-footer .mk-organizer__primary:not(.mk-action-button) {
   border: 0;
   cursor: pointer;
   font: inherit;
