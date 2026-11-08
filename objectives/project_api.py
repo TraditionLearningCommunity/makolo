@@ -85,7 +85,6 @@ class ProjectDossiersAPIView(APIView):
             generated_at=timezone.now(), scope="authorized",
         ))
 
-    @transaction.atomic
     def post(self, request, pk):
         project = get_object_or_404(projects_for_profile(request.user), pk=pk)
         if not can_manage_project(request.user, project):
@@ -95,18 +94,19 @@ class ProjectDossiersAPIView(APIView):
         command.is_valid(raise_exception=True)
         values = command.validated_data
         try:
-            if values["action"] == "create":
-                dossier = create_dossier(
+            with transaction.atomic():
+                if values["action"] == "create":
+                    dossier = create_dossier(
                     actor=request.user, title=values["title"],
                     description=values.get("description", ""),
                     deadline=values.get("deadline"),
                     owner_profile=project.owner_profile, owning_space=project.owning_space,
-                )
-            else:
-                dossier = get_object_or_404(
-                    dossiers_for_profile(request.user), pk=values["dossier_id"],
-                )
-            link_dossier_to_project(actor=request.user, project=project, dossier=dossier)
+                    )
+                else:
+                    dossier = get_object_or_404(
+                        dossiers_for_profile(request.user), pk=values["dossier_id"],
+                    )
+                link_dossier_to_project(actor=request.user, project=project, dossier=dossier)
         except (PermissionDenied, ValidationError) as exc:
             return _command_error(exc)
         return Response({"kind": "dossier", "id": str(dossier.pk),
