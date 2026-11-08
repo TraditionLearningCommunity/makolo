@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
+from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.api.projections import projection_envelope
+from objectives.organizer import build_organizer_page
+from objectives.services import create_dossier, create_project
+from organizations.models import Organization
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
     active_assignments_for_dossier,
@@ -172,8 +177,6 @@ class _ObjectiveCollectionAPIView(APIView):
     kind = None
 
     def get(self, request):
-        from rest_framework import status
-
         args = _page_args(request.query_params)
         if args is None:
             return Response(
@@ -241,3 +244,81 @@ class DossierCollectionAPIView(_ObjectiveCollectionAPIView):
 
 class ProjectCollectionAPIView(_ObjectiveCollectionAPIView):
     kind = "project"
+
+
+class OrganizerCollectionAPIView(APIView):
+    """A viewer-aware, paginated three-kind collection for one local-first index."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        args = _page_args(request.query_params)
+        if args is None:
+            return Response(
+                {"detail": "Paramètres de liste invalides."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        limit, offset = args
+        return Response(projection_envelope(
+            projection="objective.organizer.collection",
+            data=build_organizer_page(request.user, limit=limit, offset=offset),
+            generated_at=timezone.now(),
+            scope="authorized",
+        ))
+
+
+class _ProjectCreateInput(serializers.Serializer):
+    title = serializers.CharField(max_length=220, allow_blank=False, trim_whitespace=True)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    owning_space_id = serializers.UUIDField(required=False, allow_null=True)
+    starts_on = serializers.DateField(required=False, allow_null=True)
+    ends_on = serializers.DateField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if attrs.get("starts_on") and attrs.get("ends_on") and attrs["starts_on"] > attrs["ends_on"]:
+            raise serializers.ValidationError({"ends_on": "La fin doit suivre le début."})
+        return attrs
+
+
+class _DossierCreateInput(serializers.Serializer):
+    title = serializers.CharField(max_length=220, allow_blank=False, trim_whitespace=True)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    owning_space_id = serializers.UUIDField(required=False, allow_null=True)
+    deadline = serializers.DateField(required=False, allow_null=True)
+
+
+def _create_objective(request, kind):
+    serializer = _ProjectCreateInput if kind == "project" else _DossierCreateInput
+    command = serializer(data=request.data)
+    command.is_valid(raise_exception=True)
+    values = dict(command.validated_data)
+    space_id = values.pop("owning_space_id", None)
+    space = get_object_or_404(Organization, pk=space_id) if space_id else None
+    common = {
+        "actor": request.user,
+        "owner_profile": None if space else request.user,
+        "owning_space": space,
+        **values,
+    }
+    try:
+        obj = create_project(**common) if kind == "project" else create_dossier(**common)
+    except DomainValidationError as exc:
+        return Response(
+            {"detail": exc.messages or ["Données invalides."]},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(
+        {
+            "kind": kind,
+            "id": str(obj.pk),
+            "link": f"/api/v1/objectives/{kind}s/{obj.pk}/",
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+def _post_objective_collection(self, request):
+    return _create_objective(request, self.kind)
+
+
+ProjectCollectionAPIView.post = _post_objective_collection
+DossierCollectionAPIView.post = _post_objective_collection
