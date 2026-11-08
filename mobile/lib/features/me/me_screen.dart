@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -480,10 +481,10 @@ class _MeIdentity extends StatelessWidget {
               ),
             ),
             if (onEdit != null)
-              IconButton(
+              MakoloIconActionButton(
                 tooltip: 'Modifier mon profil',
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined),
+                icon: Icons.edit_outlined,
                 color: theme.colorScheme.primary,
               ),
           ],
