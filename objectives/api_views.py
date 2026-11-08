@@ -30,92 +30,21 @@ class DossierDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        observed_at = timezone.now()
+        from objectives.dossier_workspace import dossier_workspace
+
         dossier = get_object_or_404(dossiers_for_profile(request.user), pk=pk)
-        readiness = resolve_dossier_readiness(dossier, viewer=request.user)
+        return Response(projection_envelope(
+            projection="objective.dossier.detail",
+            data=dossier_workspace(request.user, dossier),
+            generated_at=timezone.now(),
+            scope="authorized",
+        ))
 
-        personal_assignments = [
-            {
-                "kind": "assignment",
-                "id": str(row.pk),
-                "state": row.status,
-                "assigned_at": row.assigned_at.isoformat(),
-            }
-            for row in active_assignments_for_dossier(dossier)
-            if row.assignee_id == request.user.pk
-        ]
+    def patch(self, request, pk):
+        from objectives.dossier_api import edit_dossier
 
-        actor_interventions = []
-        if readiness.primary_next_action is not None:
-            action = readiness.primary_next_action
-            actor_interventions.append(
-                {
-                    "state": action.reason_code or "action_required",
-                    "label": action.label,
-                    "journey_id": str(action.journey_id),
-                    "link": (
-                        f"/api/v1/me/journeys/{action.journey_id}/"
-                        if action.journey_id
-                        else None
-                    ),
-                }
-            )
-
-        data = {
-            "identity": {"kind": "dossier", "id": str(dossier.pk)},
-            "objective": {
-                "title": dossier.title,
-                "description": dossier.description or None,
-            },
-            "state": {"code": dossier.lifecycle},
-            "deadline": _date(dossier.deadline),
-            "readiness": {
-                "state": readiness.status.value if readiness.status is not None else None,
-                "partial": bool(readiness.is_partial),
-                "hidden_signal": readiness.hidden_signal,
-            },
-            "visible_items": [
-                {
-                    "journey_id": str(item.journey_id),
-                    "label": item.label,
-                    "state": item.status.value,
-                    "hidden_dependency": bool(item.hidden_dependency),
-                    "next": (
-                        {
-                            "state": item.next_action.reason_code or "action_required",
-                            "label": item.next_action.label,
-                        }
-                        if item.next_action is not None
-                        else None
-                    ),
-                }
-                for item in readiness.visible_items
-            ],
-            "visible_dependencies": [
-                {
-                    "dependent_journey_id": str(item.dependent_journey_id),
-                    "dependent_label": item.dependent_label,
-                    "required_journey_id": str(item.required_journey_id),
-                    "required_label": item.required_label,
-                    "satisfied": bool(item.is_satisfied),
-                }
-                for item in readiness.visible_dependencies
-            ],
-            "personal_responsibilities": personal_assignments,
-            "actor_interventions": actor_interventions,
-            "capabilities": [],
-            "links": {
-                "self": f"/api/v1/objectives/dossiers/{dossier.pk}/",
-            },
-        }
-        return Response(
-            projection_envelope(
-                projection="objective.dossier.detail",
-                data=data,
-                generated_at=observed_at,
-                scope="authorized",
-            )
-        )
+        dossier = get_object_or_404(dossiers_for_profile(request.user), pk=pk)
+        return edit_dossier(request, dossier)
 
 
 class ProjectDetailAPIView(APIView):
