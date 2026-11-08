@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/discover-a-continuation-context-20261014
     paths-ignore:
       - "mobile/**"
       - "docs/**"
@@ -22,11 +21,11 @@ on:
       - ".github/workflows/mobile-*.yml"
       - "specs/*mobile-*/**"
 
-# Keep the active full test matrix alive as PR 522 receives commits.
-# GitHub retains only the newest pending run for this group.
+# Run once per PR revision (plus main pushes), not twice for a PR branch push.
+# Cancel superseded PR matrices; the newest commit owns the quality result.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
