@@ -961,7 +961,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     final keys = matches.map((anchor) => anchor.candidateKey).toSet();
     if (keys.isEmpty) return;
     if (keys.length == 1) {
-      _select(keys.first, anchor: matches.first, moveCamera: false);
+      _select(keys.first, anchor: matches.first);
     } else {
       unawaited(_chooseCoLocated(keys, at: point));
     }
@@ -1009,7 +1009,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
           _select(
             item.candidateKey,
             anchor: matches.isEmpty ? null : matches.first,
-            moveCamera: false,
+            moveCamera: true,
           );
         },
       ),
