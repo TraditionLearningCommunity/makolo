@@ -46,7 +46,7 @@
   </template>
   {% if item.why_now or item.consequence or item.preparation or item.relation_members or item.inline_media %}
     <details class="mk-now-unit__more">
-      <summary><span class="mk-now-unit__closed">Voir plus</span><span class="mk-now-unit__opened">Voir moins</span></summary>
+      <summary class="mk-disclosure-trigger"><span class="mk-now-unit__closed">Voir plus</span><span class="mk-now-unit__opened">Voir moins</span></summary>
       <div class="mk-now-unit__depth">
         {% if item.why_now and item.why_now != item.summary %}<p>{{ item.why_now }}</p>{% endif %}
         {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
