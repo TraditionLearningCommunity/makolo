@@ -22,9 +22,11 @@ on:
       - ".github/workflows/mobile-*.yml"
       - "specs/*mobile-*/**"
 
+# Keep the active full test matrix alive as PR 522 receives commits.
+# GitHub retains only the newest pending run for this group.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
