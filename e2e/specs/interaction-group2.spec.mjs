@@ -145,3 +145,17 @@ test('Group 2 History, Library and Conversations reuse native owner-backed tabs'
     await expect(page.locator('[data-mk-query-local="true"]')).toHaveCount(0);
   }
 });
+
+
+test('Group 2 account switching uses shared inverse actions and external composition', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  await page.goto('/account/switch/');
+  await expect(page.locator('head link[href*="account-switcher-layout.css"]')).toHaveCount(1);
+  await expect(page.locator('style')).toHaveCount(0);
+  const add = page.getByRole('button', { name: '+ Ajouter un compte' });
+  await expect(add).toHaveClass(/mk-action-button/);
+  await expect(add).toHaveAttribute('data-variant', 'inverse');
+  const form = add.locator('xpath=ancestor::form[1]');
+  await expect(form).toHaveAttribute('method', 'post');
+  await expect(form.locator('input[name="csrfmiddlewaretoken"]')).toHaveCount(1);
+});
