@@ -9,11 +9,9 @@
       {% if item.cue %}<span class="mk-ongoing-card__cue mk-ongoing-card__cue--{{ item.tone }}">{{ item.cue }}</span>{% endif %}
       {% if item.when %}<span>{{ item.when }}</span>{% endif %}
     </div>
-    {% if item.kind == "journey" or item.kind == "dossier" or item.kind == "project" %}
+    {% if item.kind_label %}
       <span class="mk-ongoing-card__kind" style="display:inline-flex;align-items:center;gap:.4rem;color:#5232DB;font-size:.8rem;font-weight:650;margin:.35rem 0">
-        {% if item.kind == "journey" %}<i data-lucide="route" aria-hidden="true"></i>Démarche
-        {% elif item.kind == "dossier" %}<i data-lucide="folder-open" aria-hidden="true"></i>Dossier
-        {% else %}<i data-lucide="folder-kanban" aria-hidden="true"></i>Projet{% endif %}
+        <i data-lucide="{{ item.kind_icon|default:'layers' }}" aria-hidden="true"></i>{{ item.kind_label }}
       </span>
     {% endif %}
     <h2>{{ item.title }}</h2>
