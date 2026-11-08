@@ -108,13 +108,14 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   Widget _dateField(String field, String label, DateTime? value) => Row(
     children: [
       Expanded(child: Text('$label : ${_human(value)}')),
-      TextButton.icon(
+      MakoloActionButton(
+        label: 'Choisir',
+        appearance: MakoloActionAppearance.quiet,
         onPressed: _submitting ? null : () => _chooseDate(field),
-        icon: const Icon(Icons.calendar_today_outlined, size: 17),
-        label: const Text('Choisir'),
+        icon: Icons.calendar_today_outlined,
       ),
       if (value != null)
-        IconButton(
+        MakoloIconActionButton(
           tooltip: 'Effacer la date',
           onPressed: _submitting
               ? null
@@ -131,7 +132,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                       break;
                   }
                 }),
-          icon: const Icon(Icons.close_rounded, size: 17),
+          icon: Icons.close_rounded,
         ),
     ],
   );
