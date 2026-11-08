@@ -39,6 +39,42 @@ class ResourceReuseResult {
   final String artifactId;
 }
 
+class ResourceOption {
+  const ResourceOption({required this.id, required this.label});
+
+  final String id;
+  final String label;
+}
+
+class ResourceDocumentOptions {
+  const ResourceDocumentOptions({
+    required this.kinds,
+    required this.sensitivities,
+  });
+
+  final List<ResourceOption> kinds;
+  final List<ResourceOption> sensitivities;
+
+  static const fallback = ResourceDocumentOptions(
+    kinds: [
+      ResourceOption(id: 'cv', label: 'CV'),
+      ResourceOption(id: 'cover_letter', label: 'Lettre de motivation'),
+      ResourceOption(id: 'certificate', label: 'Certificat'),
+      ResourceOption(id: 'transcript', label: 'Relevé'),
+      ResourceOption(id: 'recommendation', label: 'Recommandation'),
+      ResourceOption(id: 'identity_document', label: 'Document d’identité'),
+      ResourceOption(id: 'form', label: 'Formulaire'),
+      ResourceOption(id: 'payment_receipt', label: 'Reçu de paiement'),
+      ResourceOption(id: 'other', label: 'Autre'),
+    ],
+    sensitivities: [
+      ResourceOption(id: 'normal', label: 'Normale'),
+      ResourceOption(id: 'sensitive', label: 'Sensible'),
+      ResourceOption(id: 'restricted', label: 'Restreinte'),
+    ],
+  );
+}
+
 class ResourceRepository {
   ResourceRepository({
     required this.database,
@@ -354,6 +390,61 @@ class ResourceRepository {
     );
   }
 
+  Future<ResourceDocumentOptions> documentOptions() async {
+    StoredProjection? projection = await readCollectionPage(
+      query: '',
+      offset: 0,
+    );
+    if (projection == null && sync != null) {
+      try {
+        await refreshCollectionPage(query: '', offset: 0);
+        projection = await readCollectionPage(query: '', offset: 0);
+      } on Object {
+        // Fall back to the canonical enum values already shipped by this app.
+      }
+    }
+    final documents = _map(projection?.payload['documents']);
+    final filterOptions = _map(documents['filter_options']);
+    final kinds = _options(filterOptions['kinds']);
+    final sensitivities = _options(filterOptions['sensitivities']);
+    if (kinds.isEmpty || sensitivities.isEmpty) {
+      return ResourceDocumentOptions.fallback;
+    }
+    return ResourceDocumentOptions(
+      kinds: List.unmodifiable(kinds),
+      sensitivities: List.unmodifiable(sensitivities),
+    );
+  }
+
+  Future<String> addDocumentVersionForAsset({
+    required String assetId,
+    required String filePath,
+    required String filename,
+    required String contentType,
+    DateTime? issuedAt,
+    DateTime? expiresAt,
+  }) async {
+    var detail = await readDetail(assetId);
+    if (detail == null || _string(_map(detail.payload['links'])['add_version']) == null) {
+      await refreshDetail(assetId);
+      detail = await readDetail(assetId);
+    }
+    final path = _string(_map(detail?.payload['links'])['add_version']);
+    if (path == null) {
+      throw StateError('New version is not available for this document.');
+    }
+    final id = await addDocumentVersion(
+      path: path,
+      filePath: filePath,
+      filename: filename,
+      contentType: contentType,
+      issuedAt: issuedAt,
+      expiresAt: expiresAt,
+    );
+    await refreshDetail(assetId);
+    return id;
+  }
+
   Future<String> createDocument({
     required String title,
     required String kind,
@@ -586,4 +677,18 @@ Map<String, dynamic> _map(Object? value) {
 String? _string(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
+}
+
+List<ResourceOption> _options(Object? value) {
+  if (value is! List) return const [];
+  final options = <ResourceOption>[];
+  for (final raw in value) {
+    final row = _map(raw);
+    final id = _string(row['id']);
+    final label = _string(row['label']);
+    if (id != null && label != null) {
+      options.add(ResourceOption(id: id, label: label));
+    }
+  }
+  return options;
 }
