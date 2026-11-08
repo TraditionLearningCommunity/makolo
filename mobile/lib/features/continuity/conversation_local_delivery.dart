@@ -229,7 +229,9 @@ class ConversationLocalDelivery {
       if (stagedPath != null) {
         try {
           await File(stagedPath).delete();
-        } on Object {}
+        } on Object {
+          // Best-effort cleanup: preserve the original dispatch failure.
+        }
       }
       rethrow;
     }
