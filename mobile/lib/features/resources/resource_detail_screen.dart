@@ -698,7 +698,10 @@ class _ResourceVersion {
           ? (payload['version'] as num).toInt()
           : 0,
       current: payload['current'] == true,
-      validityLabel: _validityLabel(_string(validity['state'])),
+      validityLabel: _validityLabel(
+        _string(validity['state']),
+        expiresAt: _string(validity['expires_at']),
+      ),
       provenanceLabel: _string(provenance['kind']) == 'journey_artifact'
           ? 'Démarche'
           : 'Inconnue',
@@ -708,12 +711,26 @@ class _ResourceVersion {
   }
 }
 
-String _validityLabel(String? state) => switch (state) {
-  'current' => 'Valide',
-  'expired' => 'Expiré',
-  'not_yet_issued' => 'À venir',
-  _ => 'Validité inconnue',
-};
+String _validityLabel(String? state, {String? expiresAt}) {
+  final expiry = _displayIsoDate(expiresAt);
+  return switch (state) {
+    'current' when expiry != null => 'Jusqu’au $expiry',
+    'current' => 'Valide',
+    'expired' when expiry != null => 'Expiré · $expiry',
+    'expired' => 'Expiré',
+    'not_yet_issued' => 'À venir',
+    _ => 'Validité inconnue',
+  };
+}
+
+String? _displayIsoDate(String? value) {
+  if (value == null) return null;
+  final date = DateTime.tryParse(value);
+  if (date == null) return value;
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day/$month/${date.year}';
+}
 
 String _extensionForMime(String? mimeType) => switch (mimeType) {
   'application/pdf' => 'pdf',
