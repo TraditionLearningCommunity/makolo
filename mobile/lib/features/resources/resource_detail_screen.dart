@@ -3,13 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../design/action_controls.dart';
-
-import '../../data/local/profile_store.dart';
 import '../../data/files/resource_download_destination.dart';
-import '../../platform/downloads/device_downloads.dart';
+import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import 'resource_repository.dart';
@@ -21,12 +20,16 @@ class ResourceDetailScreen extends StatefulWidget {
     required this.repository,
     required this.personal,
     required this.onOpenJourney,
+    required this.onAddVersion,
+    required this.onArchived,
   });
 
   final String assetId;
   final ResourceRepository repository;
   final PersonalRepository personal;
   final ValueChanged<String> onOpenJourney;
+  final VoidCallback onAddVersion;
+  final VoidCallback onArchived;
 
   @override
   State<ResourceDetailScreen> createState() => _ResourceDetailScreenState();
@@ -35,6 +38,7 @@ class ResourceDetailScreen extends StatefulWidget {
 class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _refreshing = false;
   bool _downloading = false;
+  bool _archiving = false;
   double? _downloadProgress;
   _ResourceDetail? _cachedSummary;
   String? _localCopyKey;
@@ -45,10 +49,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _detail = widget.repository.watchDetail(widget.assetId);
-    _source = widget.repository.watchDetailSource(widget.assetId);
-    unawaited(_loadKnownSummary());
-    unawaited(_refresh());
+    _bind();
   }
 
   @override
@@ -56,12 +57,18 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository ||
         oldWidget.assetId != widget.assetId) {
-      _detail = widget.repository.watchDetail(widget.assetId);
-      _source = widget.repository.watchDetailSource(widget.assetId);
       _cachedSummary = null;
-      unawaited(_loadKnownSummary());
-      unawaited(_refresh());
+      _localCopyKey = null;
+      _localCopy = null;
+      _bind();
     }
+  }
+
+  void _bind() {
+    _detail = widget.repository.watchDetail(widget.assetId);
+    _source = widget.repository.watchDetailSource(widget.assetId);
+    unawaited(_loadKnownSummary());
+    unawaited(_refresh());
   }
 
   Future<void> _loadKnownSummary() async {
@@ -78,7 +85,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         setState(() => _cachedSummary = known);
       }
     } on Object {
-      // No provisional owner authority is inferred from a list row.
+      // A list row remains a summary, never a permission grant.
     }
   }
 
@@ -88,7 +95,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     try {
       await widget.repository.refreshDetail(widget.assetId);
     } on Object {
-      // Keep the locally known metadata.
+      // Keep already acquired metadata visible.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -113,19 +120,14 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     return _localCopy!;
   }
 
-  Future<void> _download(_ResourceDetail detail) async {
-    final path = detail.downloadPath;
-    final version = detail.currentVersion;
-    if (path == null || version == null || _downloading) return;
+  Future<void> _download(
+    _ResourceDetail detail,
+    _ResourceVersion version,
+  ) async {
+    final path = version.downloadPath;
+    if (path == null || _downloading) return;
     if (detail.sensitivity != 'normal') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Ce document sensible ne peut pas être téléchargé '
-            'sur cet appareil.',
-          ),
-        ),
-      );
+      _message('Téléchargement protégé sur cet appareil.');
       return;
     }
 
@@ -150,30 +152,22 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         title: detail.title,
         versionNumber: version.number,
       );
-      // The owner-local copy and the user-requested public export are distinct.
-      // Sensitivity checks above remain in force for the export.
+      final extension = _extensionForMime(version.mimeType);
       final exportedName = await const AndroidDeviceDownloads().save(
         source: File(pathOnDevice),
         fileName: makoloDownloadName(
           '${detail.title}-v${version.number}',
-          'bin',
+          extension,
         ),
-        mimeType: 'application/octet-stream',
+        mimeType: version.mimeType ?? 'application/octet-stream',
       );
       if (!mounted) return;
-      setState(() => _localCopy = Future<bool>.value(true));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Enregistré dans Téléchargements : $exportedName'),
-        ),
-      );
+      if (version.current) {
+        setState(() => _localCopy = Future<bool>.value(true));
+      }
+      _message('Enregistré : $exportedName');
     } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Téléchargement impossible pour le moment.'),
-        ),
-      );
+      if (mounted) _message('Téléchargement impossible.');
     } finally {
       if (mounted) {
         setState(() {
@@ -186,9 +180,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
 
   Future<void> _reuse(_ResourceDetail detail) async {
     final reusePath = detail.reusePath;
-    final version = detail.currentVersion;
-    if (reusePath == null || version == null) return;
-
+    if (reusePath == null || detail.currentVersion == null) return;
     final journey = await showModalBottomSheet<_JourneyChoice>(
       context: context,
       isScrollControlled: true,
@@ -202,184 +194,241 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         journeyId: journey.id,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Document ajouté à la démarche. '
-            'Cet ajout ne confirme pas que ses conditions sont remplies.',
-          ),
-        ),
-      );
+      _message('Ajouté à la démarche.');
       widget.onOpenJourney(result.journeyId);
     } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Ce document ne peut pas être réutilisé ici pour le moment.',
-          ),
-        ),
-      );
+      if (mounted) _message('Action impossible.');
     }
+  }
+
+  Future<void> _archive(_ResourceDetail detail) async {
+    final path = detail.archivePath;
+    if (path == null || _archiving) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Archiver ce document ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Archiver'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _archiving = true);
+    try {
+      await widget.repository.archiveDocument(path: path);
+      await widget.repository.refreshDetail(widget.assetId);
+      if (!mounted) return;
+      _message('Document archivé.');
+      widget.onArchived();
+    } on Object {
+      if (mounted) _message('Archivage impossible.');
+    } finally {
+      if (mounted) setState(() => _archiving = false);
+    }
+  }
+
+  void _message(String value) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(value)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ressource'),
-        actions: [
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
+    return StreamBuilder<StoredProjection?>(
+      stream: _detail,
+      builder: (context, snapshot) {
+        final projection = snapshot.data;
+        final detail = projection != null
+            ? _ResourceDetail.fromPayload(projection.payload)
+            : _cachedSummary;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Document'),
+            actions: [
+              if (detail?.currentVersion?.downloadPath != null &&
+                  detail?.sensitivity == 'normal')
+                MakoloIconActionButton(
+                  tooltip: 'Télécharger',
+                  icon: Icons.download_rounded,
+                  onPressed: _downloading
+                      ? null
+                      : () => _download(detail!, detail.currentVersion!),
+                ),
+              if (detail?.reusePath != null)
+                MakoloIconActionButton(
+                  tooltip: 'Utiliser',
+                  icon: Icons.drive_file_move_outline,
+                  onPressed: () => _reuse(detail!),
+                ),
+              if (detail?.addVersionPath != null)
+                MakoloIconActionButton(
+                  tooltip: 'Nouvelle version',
+                  icon: Icons.note_add_outlined,
+                  onPressed: widget.onAddVersion,
+                ),
+              if (detail?.archivePath != null)
+                MakoloIconActionButton(
+                  tooltip: 'Archiver',
+                  icon: Icons.archive_outlined,
+                  onPressed: _archiving ? null : () => _archive(detail!),
+                ),
+            ],
           ),
-        ],
-      ),
-      body: StreamBuilder<StoredProjection?>(
-        stream: _detail,
-        builder: (context, snapshot) {
-          final projection = snapshot.data;
-          final detail = projection != null
-              ? _ResourceDetail.fromPayload(projection.payload)
-              : _cachedSummary;
-          if (detail == null) {
-            return Center(
-              child: _refreshing
-                  ? const CircularProgressIndicator.adaptive()
-                  : const Text('Cette ressource n’est pas disponible ici.'),
-            );
-          }
-          return StreamBuilder<ResourceSourceState>(
-            stream: _source,
-            initialData: ResourceSourceState.unknown,
-            builder: (context, sourceSnapshot) {
-              final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
-              if (source.invalidated) {
-                return const Center(
-                  child: Text('Cette ressource n’est plus accessible.'),
-                );
-              }
-              return RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  children: [
-                    Text(
-                      detail.title,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(
-                      [
-                        detail.kindLabel,
-                        detail.sensitivityLabel,
-                        if (detail.archived) 'Archivé',
-                      ].join(' · '),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (source.reachability ==
-                        ReachabilityState.unreachable) ...[
-                      const SizedBox(height: MakoloSpacing.md),
-                      Text(
-                        'Dernières informations enregistrées sur cet appareil. '
-                        'Certaines actions nécessitent une vérification en ligne.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: MakoloSpacing.lg),
-                    if (detail.currentVersion != null)
-                      _VersionSummary(version: detail.currentVersion!),
-                    if (detail.currentVersion != null &&
-                        detail.sensitivity == 'normal')
-                      FutureBuilder<bool>(
-                        future: _knownLocalCopy(detail),
-                        builder: (context, snapshot) => snapshot.data == true
-                            ? const Padding(
-                                padding: EdgeInsets.only(top: MakoloSpacing.sm),
-                                child: Text(
-                                  'Copie déjà reçue : réexportable sans connexion.',
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    const SizedBox(height: MakoloSpacing.lg),
-                    if (!detail.archived) ...[
-                      Wrap(
-                        spacing: MakoloSpacing.sm,
-                        runSpacing: MakoloSpacing.sm,
+          body: detail == null
+              ? Center(
+                  child: _refreshing
+                      ? const CircularProgressIndicator.adaptive()
+                      : const Text('Document indisponible'),
+                )
+              : StreamBuilder<ResourceSourceState>(
+                  stream: _source,
+                  initialData: ResourceSourceState.unknown,
+                  builder: (context, sourceSnapshot) {
+                    final source =
+                        sourceSnapshot.data ?? ResourceSourceState.unknown;
+                    if (source.invalidated) {
+                      return const Center(
+                        child: Text('Document indisponible'),
+                      );
+                    }
+                    return RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(MakoloSpacing.inner),
                         children: [
-                          if (detail.downloadPath != null &&
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.description_outlined,
+                                size: 32,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: MakoloSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      detail.title,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.headlineSmall,
+                                    ),
+                                    const SizedBox(height: MakoloSpacing.xs),
+                                    Text(
+                                      [
+                                        detail.kindLabel,
+                                        detail.sensitivityLabel,
+                                        if (detail.archived) 'Archivé',
+                                      ].join(' · '),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (source.reachability ==
+                                  ReachabilityState.unreachable)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 8),
+                                  child: Icon(
+                                    Icons.cloud_off_outlined,
+                                    size: 18,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (_downloading && _downloadProgress != null) ...[
+                            const SizedBox(height: MakoloSpacing.md),
+                            LinearProgressIndicator(value: _downloadProgress),
+                          ],
+                          const SizedBox(height: MakoloSpacing.lg),
+                          if (detail.currentVersion != null)
+                            _VersionSummary(version: detail.currentVersion!),
+                          if (detail.currentVersion != null &&
                               detail.sensitivity == 'normal')
-                            MakoloActionButton(
-                              label: 'Télécharger',
-                              appearance: MakoloActionAppearance.primary,
-                              onPressed: _downloading
-                                  ? null
-                                  : () => _download(detail),
-                              icon: Icons.download_rounded,
+                            FutureBuilder<bool>(
+                              future: _knownLocalCopy(detail),
+                              builder: (context, localSnapshot) =>
+                                  localSnapshot.data == true
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: MakoloSpacing.sm,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.offline_pin_outlined,
+                                            size: 18,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                          const SizedBox(
+                                            width: MakoloSpacing.xs,
+                                          ),
+                                          const Text('Disponible hors connexion'),
+                                        ],
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
                             ),
-                          if (detail.reusePath != null)
-                            MakoloActionButton(
-                              label: 'Réutiliser dans une démarche',
-                              appearance: MakoloActionAppearance.secondary,
-                              onPressed: () => _reuse(detail),
-                              icon: Icons.redo_rounded,
+                          const SizedBox(height: MakoloSpacing.xl),
+                          Row(
+                            children: [
+                              Text(
+                                'Versions',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${detail.versions.length}',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: MakoloSpacing.sm),
+                          for (final version in detail.versions)
+                            _VersionRow(
+                              version: version,
+                              canDownload:
+                                  detail.sensitivity == 'normal' &&
+                                  version.downloadPath != null,
+                              onDownload: _downloading
+                                  ? null
+                                  : () => _download(detail, version),
                             ),
                         ],
                       ),
-                      if (detail.downloadPath != null &&
-                          detail.sensitivity != 'normal') ...[
-                        const SizedBox(height: MakoloSpacing.sm),
-                        Text(
-                          'Le téléchargement de cette ressource sensible '
-                          'n’est pas proposé sur cet appareil.',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                      if (_downloading && _downloadProgress != null) ...[
-                        const SizedBox(height: MakoloSpacing.sm),
-                        LinearProgressIndicator(value: _downloadProgress),
-                      ],
-                    ] else ...[
-                      Text(
-                        'Cette ressource a été retirée de vos ressources '
-                        'courantes. Les versions historiques restent lisibles.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                    const SizedBox(height: MakoloSpacing.xl),
-                    Text(
-                      'Versions',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    for (final version in detail.versions)
-                      _VersionRow(version: version),
-                    const SizedBox(height: MakoloSpacing.xl),
-                    Text(
-                      'Conserver un document ne suffit pas à remplir une condition d’une démarche.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          );
-        },
-      ),
+        );
+      },
     );
   }
 }
@@ -391,42 +440,80 @@ class _VersionSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MakoloCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Row(
       children: [
-        Text(
-          'Version courante ${version.number}',
-          style: Theme.of(context).textTheme.titleMedium,
+        const Icon(Icons.history_rounded),
+        const SizedBox(width: MakoloSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Version ${version.number}',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: MakoloSpacing.xs),
+              Text(
+                [
+                  version.validityLabel,
+                  'Provenance : ${version.provenanceLabel}',
+                ].join(' · '),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: MakoloSpacing.xs),
-        Text('Validité : ${version.validityLabel}'),
-        Text('Provenance : ${version.provenanceLabel}'),
       ],
     ),
   );
 }
 
 class _VersionRow extends StatelessWidget {
-  const _VersionRow({required this.version});
+  const _VersionRow({
+    required this.version,
+    required this.canDownload,
+    required this.onDownload,
+  });
 
   final _ResourceVersion version;
+  final bool canDownload;
+  final VoidCallback? onDownload;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
     child: MakoloCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'Version ${version.number}${version.current ? ' · courante' : ''}',
-            style: Theme.of(context).textTheme.titleSmall,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'v${version.number}${version.current ? ' · actuelle' : ''}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(
+                  [
+                    version.validityLabel,
+                    version.provenanceLabel,
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: MakoloSpacing.xs),
-          Text(
-            '${version.validityLabel} · provenance ${version.provenanceLabel}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          if (canDownload)
+            MakoloIconActionButton(
+              tooltip: 'Télécharger',
+              icon: Icons.download_rounded,
+              onPressed: onDownload,
+            ),
         ],
       ),
     ),
@@ -454,23 +541,17 @@ class _JourneyChooser extends StatelessWidget {
                 'Choisir une démarche',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: MakoloSpacing.xs),
-              Text(
-                'Choisissez une démarche affichée dans En cours. '
-                'Votre droit d’y ajouter ce document sera vérifié.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
               const SizedBox(height: MakoloSpacing.md),
               if (choices.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-                  child: Text('Aucune démarche disponible pour cet ajout.'),
+                  child: Text('Aucune démarche disponible'),
                 )
               else
                 for (final choice in choices)
                   ListTile(
                     title: Text(choice.title),
-                    subtitle: const Text('Démarche'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => Navigator.of(context).pop(choice),
                   ),
             ],
@@ -516,8 +597,9 @@ class _ResourceDetail {
     required this.archived,
     required this.currentVersion,
     required this.versions,
-    required this.downloadPath,
     required this.reusePath,
+    required this.addVersionPath,
+    required this.archivePath,
   });
 
   final String title;
@@ -527,11 +609,10 @@ class _ResourceDetail {
   final bool archived;
   final _ResourceVersion? currentVersion;
   final List<_ResourceVersion> versions;
-  final String? downloadPath;
   final String? reusePath;
+  final String? addVersionPath;
+  final String? archivePath;
 
-  /// Only facts from an already received Profile-scoped list. No versions,
-  /// download, reuse, readiness, or permissions are invented.
   static _ResourceDetail? fromKnownCollection(
     Iterable<StoredProjection> pages,
     String assetId,
@@ -544,16 +625,17 @@ class _ResourceDetail {
         final row = _map(raw);
         if (_string(row['id']) != assetId) continue;
         return _ResourceDetail(
-          title: _string(row['title']) ?? 'Ressource',
+          title: _string(row['title']) ?? 'Document',
           kindLabel: _string(row['asset_kind_label']) ?? 'Document',
-          sensitivity: 'unknown',
+          sensitivity: _string(row['sensitivity']) ?? 'unknown',
           sensitivityLabel:
-              _string(row['sensitivity_label']) ?? 'Sensibilité inconnue',
+              _string(row['sensitivity_label']) ?? 'Confidentialité inconnue',
           archived: _string(row['status']) == 'archived',
           currentVersion: null,
           versions: const [],
-          downloadPath: null,
           reusePath: null,
+          addVersionPath: null,
+          archivePath: null,
         );
       }
     }
@@ -577,16 +659,17 @@ class _ResourceDetail {
     }
     final links = _map(payload['links']);
     return _ResourceDetail(
-      title: _string(payload['title']) ?? 'Ressource',
+      title: _string(payload['title']) ?? 'Document',
       kindLabel: _string(payload['asset_kind_label']) ?? 'Document',
       sensitivity: _string(payload['sensitivity']) ?? 'normal',
       sensitivityLabel:
-          _string(payload['sensitivity_label']) ?? 'Sensibilité inconnue',
+          _string(payload['sensitivity_label']) ?? 'Confidentialité inconnue',
       archived: _string(payload['status']) == 'archived',
       currentVersion: current,
       versions: List.unmodifiable(versions),
-      downloadPath: _string(links['download']),
       reusePath: _string(links['reuse_in_journey']),
+      addVersionPath: _string(links['add_version']),
+      archivePath: _string(links['archive']),
     );
   }
 }
@@ -597,16 +680,21 @@ class _ResourceVersion {
     required this.current,
     required this.validityLabel,
     required this.provenanceLabel,
+    required this.mimeType,
+    required this.downloadPath,
   });
 
   final int number;
   final bool current;
   final String validityLabel;
   final String provenanceLabel;
+  final String? mimeType;
+  final String? downloadPath;
 
   factory _ResourceVersion.fromPayload(Map<String, dynamic> payload) {
     final validity = _map(payload['validity']);
     final provenance = _map(payload['provenance']);
+    final links = _map(payload['links']);
     return _ResourceVersion(
       number: payload['version'] is num
           ? (payload['version'] as num).toInt()
@@ -614,17 +702,30 @@ class _ResourceVersion {
       current: payload['current'] == true,
       validityLabel: _validityLabel(_string(validity['state'])),
       provenanceLabel: _string(provenance['kind']) == 'journey_artifact'
-          ? 'pièce de démarche'
-          : 'inconnue',
+          ? 'Démarche'
+          : 'Inconnue',
+      mimeType: _string(payload['mime_type']),
+      downloadPath: _string(links['download']),
     );
   }
 }
 
 String _validityLabel(String? state) => switch (state) {
-  'current' => 'valide',
-  'expired' => 'expirée',
-  'not_yet_issued' => 'pas encore émise',
-  _ => 'inconnue',
+  'current' => 'Valide',
+  'expired' => 'Expiré',
+  'not_yet_issued' => 'À venir',
+  _ => 'Validité inconnue',
+};
+
+String _extensionForMime(String? mimeType) => switch (mimeType) {
+  'application/pdf' => 'pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+    'docx',
+  'application/msword' => 'doc',
+  'text/plain' => 'txt',
+  'image/jpeg' => 'jpg',
+  'image/png' => 'png',
+  _ => 'bin',
 };
 
 Map<String, dynamic> _map(Object? value) {
