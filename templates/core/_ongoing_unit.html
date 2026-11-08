@@ -28,7 +28,7 @@
     </details>
   {% endif %}
 
-  <button type="button" class="mk-ongoing-n2-trigger" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-label="{{ item.focus_title }}" data-ongoing-focus-title="{{ item.focus_title }}" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <button type="button" class="mk-ongoing-n2-trigger mk-action-button" data-variant="secondary" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-label="{{ item.focus_title }}" data-ongoing-focus-title="{{ item.focus_title }}" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
   <template data-ongoing-focus="{{ item.id }}">
     {% include "core/_ongoing_n2_focus.html" with item=item %}
   </template>
@@ -38,7 +38,7 @@
     {% if item.can_save and item.possibility.links.saved %}
       <form class="mk-ongoing-unit__save" data-ongoing-save data-save-url="{{ item.possibility.links.saved }}" data-save-state="{{ item.possibility.saved_state }}" data-ongoing-activity="{{ item.possibility.id }}">
         {% csrf_token %}
-        <button type="button" data-ongoing-save-toggle aria-pressed="{% if item.possibility.saved_state == 'saved' %}true{% else %}false{% endif %}">
+        <button type="button" class="mk-action-button" data-variant="ghost" data-size="icon" data-ongoing-save-toggle aria-pressed="{% if item.possibility.saved_state == 'saved' %}true{% else %}false{% endif %}">
           <svg data-ongoing-orbit-available {% if item.possibility.saved_state == 'saved' %}hidden{% endif %} viewBox="0 0 24 24" width="21" height="21" fill="none" aria-hidden="true">
             <path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
             <path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
@@ -56,7 +56,7 @@
     {% endif %}
 
     {% if item.url %}
-      <a class="mk-ongoing-unit__primary" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
+      <a class="mk-ongoing-unit__primary mk-action-button" data-variant="ghost" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
         <i data-lucide="{{ item.primary_icon|default:'arrow-right' }}" aria-hidden="true"></i>
         <span class="sr-only">{{ item.primary_label }}</span>
         <span class="mk-ongoing-unit__primary-caption" aria-hidden="true">{{ item.primary_label }}</span>
@@ -69,10 +69,10 @@
         <details>
           <summary><i data-lucide="share-2" aria-hidden="true"></i><span class="sr-only">Partager</span></summary>
           <div class="mk-ongoing-unit__share-menu" role="group" aria-label="Options de partage">
-            <button type="button" data-share-internal>Dans Makolo</button>
-            <button type="button" data-share-native>Partager avec…</button>
-            <button type="button" data-share-copy>Copier le lien</button>
-            <button type="button" data-share-qr-button>Afficher le QR</button>
+            <button type="button" class="mk-action-item" data-share-internal>Dans Makolo</button>
+            <button type="button" class="mk-action-item" data-share-native>Partager avec…</button>
+            <button type="button" class="mk-action-item" data-share-copy>Copier le lien</button>
+            <button type="button" class="mk-action-item" data-share-qr-button>Afficher le QR</button>
             <div data-share-internal-panel hidden>
               <label>Rechercher un Profil
                 <input type="search" data-share-person-search autocomplete="off" placeholder="Nom ou identifiant public">
