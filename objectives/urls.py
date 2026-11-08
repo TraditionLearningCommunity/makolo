@@ -7,6 +7,7 @@ from .activity_views import dossier_from_activity
 app_name = "objectives"
 
 urlpatterns = [
+    path("organizer/", views.organizer, name="organizer"),
     path("", views.dossier_list, name="dossier-list"),
     path("new/", views.dossier_create, name="dossier-create"),
     path("from-activity/<uuid:activity_id>/", dossier_from_activity, name="dossier-from-activity"),
