@@ -258,3 +258,39 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-interaction-preview { scroll-behavior: auto; }
 }
+
+/* Owner-bound direct manipulation; drag is optional, native form fallback required. */
+.mk-drop-target {
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px dashed var(--mk-border-strong);
+  border-radius: 12px;
+  background: var(--mk-surface-muted);
+  color: var(--mk-text);
+}
+.mk-drop-target[data-mk-drop-active="true"] {
+  border-style: solid;
+  border-color: var(--mk-brand);
+  box-shadow: 0 0 0 3px var(--mk-brand-soft);
+}
+.mk-move-handle,
+.mk-reorder-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--mk-border);
+  border-radius: 10px;
+  color: var(--mk-muted);
+  background: var(--mk-surface-solid);
+  cursor: grab;
+}
+.mk-move-handle:active,
+.mk-reorder-handle:active { cursor: grabbing; }
+.mk-move-handle:focus-visible,
+.mk-reorder-handle:focus-visible {
+  outline: 2px solid var(--mk-brand) !important;
+  outline-offset: 3px !important;
+}
+.mk-move-status { min-height: 1.5em; color: var(--mk-muted); }
