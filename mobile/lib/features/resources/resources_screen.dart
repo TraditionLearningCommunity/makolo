@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
@@ -196,10 +197,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       appBar: AppBar(
         title: const Text('Mes ressources'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refreshFirst,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -297,12 +298,13 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                       ),
                     if (_loadFailed && view.hasMore)
                       Center(
-                        child: TextButton(
+                        child: MakoloActionButton(
+                          label: 'Réessayer',
                           onPressed: () {
                             setState(() => _loadFailed = false);
                             unawaited(_loadMore(view));
                           },
-                          child: const Text('Réessayer'),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                       ),
                     if (_query.isEmpty) ...[
