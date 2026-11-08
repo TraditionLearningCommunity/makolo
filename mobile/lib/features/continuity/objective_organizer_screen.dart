@@ -452,17 +452,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      if (_kind != 'all' ||
-                          _status != 'all' ||
-                          _relation != 'all')
+                      if (_hasAnyFilters)
                         TextButton.icon(
-                          onPressed: () => change(() {
-                            _kind = 'all';
-                            _status = 'all';
-                            _relation = 'all';
-                          }),
+                          onPressed: () {
+                            _clearFilters();
+                            refreshSheet(() {});
+                          },
                           icon: const Icon(Icons.filter_alt_off_outlined),
-                          label: const Text('Effacer'),
+                          label: const Text('Tout effacer'),
                         ),
                       const Spacer(),
                       MakoloActionButton(
@@ -569,13 +566,26 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: MakoloActionButton(
-                      label: 'Appliquer',
-                      appearance: MakoloActionAppearance.primary,
-                      onPressed: () => Navigator.pop(sheet),
-                    ),
+                  Row(
+                    children: [
+                      if (_hasExtraFilters)
+                        TextButton.icon(
+                          onPressed: () => change(() {
+                            _dateField = OrganizerSort.deadline;
+                            _period = 'all';
+                            _sort = OrganizerSort.name;
+                            _descending = false;
+                          }),
+                          icon: const Icon(Icons.restart_alt_rounded),
+                          label: const Text('Réinitialiser'),
+                        ),
+                      const Spacer(),
+                      MakoloActionButton(
+                        label: 'Appliquer',
+                        appearance: MakoloActionAppearance.primary,
+                        onPressed: () => Navigator.pop(sheet),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -611,8 +621,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       ),
     );
     return Tooltip(
-      message: 'Créer un $label'.replaceFirst('un Dossier', 'un dossier')
-          .replaceFirst('un Projet', 'un projet'),
+      message: 'Créer un ${label.toLowerCase()}',
       child: primary
           ? FilledButton(
               style: style,
