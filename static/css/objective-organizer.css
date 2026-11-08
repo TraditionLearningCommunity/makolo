@@ -408,3 +408,84 @@
 @media (prefers-reduced-motion: reduce) {
   .mk-organizer * { transition-duration: 0.01ms !important; }
 }
+
+
+/* Project/Dossier creation uses the exact same visual grammar as the organizer. */
+.mk-organizer--create { max-width: 760px; }
+.mk-organizer--create .mk-organizer__heading { padding-bottom: 22px; }
+.mk-organizer__create-form {
+  border: 1px solid var(--o-line);
+  border-radius: 19px;
+  background: var(--o-surface);
+  padding: clamp(18px, 4vw, 32px);
+  display: grid;
+  gap: 21px;
+}
+.mk-organizer__field { display: grid; gap: 9px; }
+.mk-organizer__field > label {
+  color: var(--o-ink);
+  font-size: 14px;
+  font-weight: 750;
+}
+.mk-organizer__field > :is(input,select,textarea) {
+  width: 100%;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #cdd0db;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--o-ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+  min-height: 48px;
+}
+.mk-organizer__field > textarea { min-height: 110px; resize: vertical; }
+.mk-organizer__field > :is(input,select,textarea):focus {
+  border-color: var(--o-primary);
+  outline: 3px solid #5232db23;
+  outline-offset: 1px;
+}
+.mk-organizer__field--invalid > :is(input,select,textarea) {
+  border-color: #c94739;
+}
+.mk-organizer__field-help, .mk-organizer__form-note {
+  margin: 0;
+  color: var(--o-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.mk-organizer__form-errors, .mk-organizer__field-errors {
+  color: #ae2b22;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mk-organizer__field-errors ul, .mk-organizer__form-errors ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mk-organizer__form-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  padding-top: 6px;
+}
+.mk-organizer__form-footer .mk-organizer__primary {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+}
+.mk-organizer__form-cancel {
+  min-height: 45px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--o-muted) !important;
+  font-size: 14px;
+  font-weight: 700;
+}
+.mk-organizer__form-cancel:hover { color: var(--o-primary) !important; }
