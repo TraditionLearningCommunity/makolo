@@ -295,18 +295,14 @@ class _CreateDiscoveryWatchDialogState
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
           appearance: MakoloActionAppearance.quiet,
         ),
-        FilledButton(
+        MakoloActionButton(
           key: const Key('discover-watch-confirm'),
+          label: _saving
+              ? 'Enregistrement…'
+              : widget.watchId == null ? 'Créer la veille' : 'Enregistrer',
           onPressed: _saving ? null : _create,
-          child: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(
-                  widget.watchId == null ? 'Créer la veille' : 'Enregistrer',
-                ),
+          appearance: MakoloActionAppearance.primary,
+          busy: _saving,
         ),
       ],
     );
