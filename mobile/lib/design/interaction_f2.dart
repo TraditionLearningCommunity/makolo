@@ -290,7 +290,13 @@ class _MakoloInlineEditorState extends State<MakoloInlineEditor> {
           onSubmitted: (_) => _save(),
         ),
         if (_error != null)
-          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         Wrap(
           spacing: MakoloSpacing.sm,
           children: [
@@ -382,7 +388,13 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_error != null)
-          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         ReorderableListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -512,7 +524,13 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
           Text('Choisir une destination',
               style: Theme.of(context).textTheme.titleLarge),
           if (_error != null)
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Semantics(
+            liveRegion: true,
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
           if (_busy) const LinearProgressIndicator(),
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -602,9 +620,12 @@ class _MakoloOwnerUndoButtonState extends State<MakoloOwnerUndoButton> {
           label: Text(widget.label),
         ),
         if (_error != null)
-          Text(
-            _error!,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
       ],
     );
