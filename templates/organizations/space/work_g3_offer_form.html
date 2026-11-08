@@ -22,8 +22,8 @@
       </div>
     {% endfor %}
     <div class="flex flex-wrap gap-2">
-      <button type="submit" class="mk-btn mk-btn-primary">{% if offer_owner %}Enregistrer l’offre{% else %}Créer l’offre en brouillon{% endif %}</button>
-      <a href="{{ offer_back_url }}" class="mk-btn mk-btn-secondary">Annuler</a>
+      <button type="submit" class="mk-action-button" data-variant="primary">{% if offer_owner %}Enregistrer l’offre{% else %}Créer l’offre en brouillon{% endif %}</button>
+      <a href="{{ offer_back_url }}" class="mk-action-button" data-variant="secondary">Annuler</a>
     </div>
   </form>
 </main>
