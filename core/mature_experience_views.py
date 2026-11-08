@@ -221,18 +221,16 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             {},
         )
         links = item.get("links") or {}
-        labels = {
-            "journey": "Continuer la démarche",
-            "access": "Voir mon accès",
-            "dossier": "Ouvrir le dossier",
-            "project": "Voir le projet",
-            "waitlist": "Suivre ma liste d’attente",
-            "transfer": "Voir le transfert",
-            "payment": "Suivre le paiement",
-            "funding": "Gérer le financement",
-        }
+        # The owner-backed API decides the action's human wording; the
+        # web adapter does not maintain a second kind-to-button dictionary.
+        badge = n1.get("kind_badge") or {}
+        action = n1.get("primary_action") or {}
         return {
-            "primary_label": labels.get(item.get("kind"), "Voir la suite"),
+            "primary_label": action.get("label"),
+            "primary_icon": action.get("icon"),
+            "kind_label": badge.get("label"),
+            "kind_icon": badge.get("icon"),
+            "focus_title": n1.get("focus_title") or "Comprendre cet élément",
             "id": item.get("id"),
             "kind": item.get("kind"),
             "composition": [
