@@ -99,6 +99,23 @@ class ProjectDossierLinkForm(forms.Form):
         self.fields["dossier"].label_from_instance = lambda dossier: dossier.title
 
 
+class DossierEditForm(forms.Form):
+    title = forms.CharField(label="Objectif du Dossier", max_length=220)
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+    )
+
+    def __init__(self, *args, dossier, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("title", "description", "deadline"):
+            self.fields[name].initial = getattr(dossier, name)
+
+
 class DossierProjectForm(forms.Form):
     project = forms.ModelChoiceField(label="Projet", queryset=Project.objects.none(), required=False, help_text="Laissez vide pour retirer le Dossier de son Projet.")
 
