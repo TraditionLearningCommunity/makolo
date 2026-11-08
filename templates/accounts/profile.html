@@ -10,8 +10,8 @@
             <h1 class="mk-page-title">Mon profil</h1>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'account:interests' %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary"><i data-lucide="sparkles" class="h-4 w-4"></i>Centres d’intérêt</a>
-            {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes Espaces</a>{% endif %}
+            <a href="{% url 'account:interests' %}" class="mk-action-button" data-variant="secondary"><i data-lucide="sparkles" class="h-4 w-4"></i>Centres d’intérêt</a>
+            {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-action-button" data-variant="secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes Espaces</a>{% endif %}
         </div>
     </section>
 
@@ -42,7 +42,7 @@
     <section class="mk-panel p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Centres d’intérêt</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Déclarez ce qui vous intéresse pour personnaliser Découvrir. Les nouveaux choix sont publics par défaut ; vous pouvez limiter leur visibilité.</p></div></div>
-            <a href="{% url 'account:interests' %}" class="mk-action-button mk-action-button-primary" data-variant="primary">Gérer mes centres d’intérêt</a>
+            <a href="{% url 'account:interests' %}" class="mk-action-button" data-variant="primary">Gérer mes centres d’intérêt</a>
         </div>
     </section>
 
@@ -108,7 +108,7 @@
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="settings-2" class="h-5 w-5"></i></div>
             <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">5 · Préférences</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Adapter Makolo à mes besoins</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Modifiez la langue, le fuseau horaire et l’apparence dans Paramètres.</p></div>
         </div>
-        <div class="mt-5"><a href="{% url 'account:settings' %}#regional" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Gérer mes préférences</a></div>
+        <div class="mt-5"><a href="{% url 'account:settings' %}#regional" class="mk-action-button" data-variant="secondary">Gérer mes préférences</a></div>
     </section>
 
     <section id="privacy" class="mk-panel p-5 sm:p-6 lg:p-7">
@@ -122,7 +122,7 @@
         </div>
         {% if profile_forms.privacy.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.privacy.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-4 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.privacy %}</div>
-        <div class="mt-7 flex justify-end"><button type="submit" form="profile-master" class="mk-action-button mk-action-button-primary" data-variant="primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
+        <div class="mt-7 flex justify-end"><button type="submit" form="profile-master" class="mk-action-button" data-variant="primary"><i data-lucide="save" class="h-4 w-4"></i>Enregistrer mon profil</button></div>
     </section>
 </div>
 {% endblock %}
