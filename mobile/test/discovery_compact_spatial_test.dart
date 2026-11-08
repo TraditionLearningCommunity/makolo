@@ -138,6 +138,72 @@ void main() {
     );
   });
 
+  test('Service appears on the unpaginated map although absent from N1 page', () async {
+    const query = DiscoveryQuery(pageSize: 1);
+    final field = _field();
+    field['page_size'] = 1;
+    final index = Map<String, dynamic>.from(field['spatial_index'] as Map);
+    final service = _candidate('service');
+    service['identity'] = {
+      'family': 'service_activity',
+      'candidate_key': 'service_activity:service',
+      'resource': {'kind': 'activity', 'id': 'service'},
+      'occurrence': null,
+    };
+    service['representation'] = {
+      'kind': 'service',
+      'title': 'Service demo Maseru',
+      'eyebrow': 'Service',
+    };
+    service['place'] = {
+      'name': 'Maseru',
+      'latitude': -29.315,
+      'longitude': 27.483,
+    };
+    service['spatial_facts'] = [
+      {
+        'role': 'primary',
+        'place': {
+          'name': 'Maseru',
+          'latitude': -29.315,
+          'longitude': 27.483,
+        },
+      },
+    ];
+    index['results'] = [_candidate('first'), service];
+    field['spatial_index'] = index;
+    await store.putProjection(
+      kind: DiscoveryRepository.itemsProjectionKind,
+      resourceKey: query.fingerprint,
+      schemaVersion: 1,
+      payload: field,
+    );
+
+    final n1 = await repository.readItems(query);
+    final list = const DiscoverySelector().collection(n1);
+    expect(list.items, hasLength(1));
+    expect(list.items.first.family, 'activity');
+    final map = await repository.readSpatial(query);
+    final selection = const DiscoverySelector().spatialSelection(
+      projection: map,
+    );
+    expect(selection.collection.items, hasLength(2));
+    final serviceItem = selection.collection.items.last;
+    expect(serviceItem.family, 'service_activity');
+    expect(serviceItem.isMappable, isTrue);
+    expect(serviceItem.occurrenceId, isNull);
+    expect(serviceItem.latitude, -29.315);
+    expect(serviceItem.longitude, 27.483);
+    final anchors = const DiscoverySelector().spatialAnchorsFromCollection(
+      selection.collection,
+    );
+    expect(
+      anchors.where((anchor) => anchor.candidateKey == 'service_activity:service'),
+      hasLength(1),
+    );
+    expect(await repository.readItem('service_activity', 'service'), isNull);
+  });
+
   test('spatial projection cannot cross the viewer boundary', () async {
     const query = DiscoveryQuery();
     await store.putProjection(
