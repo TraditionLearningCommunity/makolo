@@ -183,6 +183,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     setState(() => _loadingMore = true);
     try {
       await repository.refreshOrganizerPage(page.nextOffset);
+      final received = await repository.readOrganizerPage(page.nextOffset);
+      final owner = await repository.readOrganizerSourceForOffset(page.nextOffset);
+      if (received == null ||
+          owner.invalidated ||
+          owner.lastErrorCode != null ||
+          owner.lastSuccessAt == null) {
+        _requestedOffset = null;
+        if (mounted && repository == widget.repository) {
+          setState(() => _failed = true);
+        }
+      }
     } on Object {
       _requestedOffset = null;
       if (mounted && repository == widget.repository) {
