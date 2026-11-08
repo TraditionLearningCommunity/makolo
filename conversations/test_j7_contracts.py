@@ -333,7 +333,7 @@ class ConversationJ7ContractsTests(TestCase):
             [],
         )
 
-    def test_future_question_does_not_count_as_action_before_opening(self):
+    def test_future_question_counts_as_upcoming_without_early_response(self):
         from .attention import point_attention_reason
 
         future_point = create_point(
@@ -347,18 +347,29 @@ class ConversationJ7ContractsTests(TestCase):
             expected_action_audience=self.audience,
             opens_at=timezone.now() + timedelta(days=1),
         )
-        self.assertIsNone(point_attention_reason(self.member, future_point))
+        self.assertEqual(point_attention_reason(self.member, future_point), "upcoming")
         self.client.force_login(self.member)
         presence = self.client.get(reverse("conversations-api:attention-presence"))
         self.assertEqual(presence.status_code, 200)
-        self.assertEqual(presence.json(), {"has_attention": False})
+        self.assertEqual(presence.json(), {"has_attention": True})
         listing = self.client.get(reverse("conversations-api:list"))
         self.assertEqual(listing.status_code, 200)
         row = next(
             item for item in listing.json()["results"]
             if item["id"] == str(self.conversation.pk)
         )
-        self.assertEqual(row["attention_count"], 0)
+        self.assertEqual(row["attention_count"], 1)
+        detail = self.client.get(
+            reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+        )
+        self.assertEqual(detail.status_code, 200)
+        upcoming = next(
+            item for item in detail.json()["points"]
+            if item["id"] == str(future_point.pk)
+        )
+        self.assertEqual(upcoming["attention_reason"], "upcoming")
+        self.assertEqual(upcoming["section"], "a_savoir")
+        self.assertFalse(upcoming["can_respond"])
 
     def test_attention_presence_tracks_real_point_attention_not_unread_activity(self):
         point = self._question(client_reference="j7-presence-question")
