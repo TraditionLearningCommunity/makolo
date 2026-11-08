@@ -126,3 +126,22 @@ test('Group 2 secondary Me choices reuse shared link controls', async ({ page })
   await expect(page.getByRole('link', { name: 'Modifier' }).first()).toHaveClass(/mk-action-button/);
   await expect(page.locator('.mk-me-choices .mk-action-button[data-variant="link"]').first()).toBeVisible();
 });
+
+
+test('Group 2 History, Library and Conversations reuse native owner-backed tabs', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+
+  for (const [path, label, firstOption] of [
+    ['/me/history/', 'Filtrer l’historique', 'Tout'],
+    ['/library/', 'Filtrer la bibliothèque', 'Tous'],
+    ['/conversations/', 'Conversations', 'Toutes'],
+  ]) {
+    await page.goto(path);
+    const tabs = page.getByRole('navigation', { name: label });
+    await expect(tabs).toHaveClass(/mk-interaction-tabs/);
+    await expect(tabs.getByRole('link', { name: firstOption, exact: true })).toHaveAttribute(
+      'aria-current', 'page',
+    );
+    await expect(page.locator('[data-mk-query-local="true"]')).toHaveCount(0);
+  }
+});
