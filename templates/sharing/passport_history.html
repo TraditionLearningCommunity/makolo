@@ -5,6 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Versions datées · Passeport Makolo</title>
+  <link rel="stylesheet" href="{% static 'css/makolo-ui.css' %}">
+  <link rel="stylesheet" href="{% static 'css/makolo-brand.css' %}">
+  <link rel="stylesheet" href="{% static 'css/makolo-interactions.css' %}">
   <style>
     :root{--violet:#5232DB;--deep:#2B176E;--ink:#0F172A;--paper:#FAF7F5;--muted:#64748B}
     *{box-sizing:border-box}body{background:var(--paper);font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink);margin:0}
@@ -14,7 +17,7 @@
     .entry{display:flex;justify-content:space-between;align-items:start;gap:22px;flex-wrap:wrap}
     .id{font-weight:800;overflow-wrap:anywhere}.date{color:var(--muted);margin:8px 0}.link{color:var(--violet);font-weight:750}
     a{color:var(--violet)}.nav{display:flex;gap:16px;margin:23px 0}.pagination{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:26px 0}
-    .state{color:var(--muted);font-size:13px}.revoked{color:#991B1B}button{background:var(--violet);color:white;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}select{border:1px solid #aaa;border-radius:8px;padding:7px}
+    .state{color:var(--muted);font-size:13px}.revoked{color:#991B1B}select{border:1px solid #aaa;border-radius:8px;padding:7px}
   </style>
 </head>
 <body>
@@ -39,16 +42,16 @@
           {% csrf_token %}
           <label for="days-{{ entry.snapshot.pk }}">Partager cette version</label>
           <select id="days-{{ entry.snapshot.pk }}" name="days"><option value="1">1 jour</option><option value="7" selected>7 jours</option><option value="30">30 jours</option></select>
-          <button type="submit">Créer un lien</button>
+          <button type="submit" class="mk-action-button" data-variant="primary">Créer un lien</button>
         </form>
       {% endif %}
       {% if can_share_issued_passport and not entry.snapshot.is_revoked %}
         <details style="margin-top:12px">
-          <summary>Retirer l'accès à cette version</summary>
+          <summary class="mk-disclosure-trigger">Retirer l'accès à cette version</summary>
           <p class="muted">La version restera dans votre historique, mais sa consultation publique et tous ses liens de partage seront révoqués. Les fichiers déjà téléchargés ne peuvent pas être rappelés.</p>
           <form method="post" action="{{ entry.revoke_url }}">
             {% csrf_token %}
-            <button type="submit">Révoquer cette version et ses partages</button>
+            <button type="submit" class="mk-action-button" data-variant="danger">Révoquer cette version et ses partages</button>
           </form>
         </details>
       {% endif %}
@@ -56,7 +59,7 @@
         <form method="post" action="{{ grant.revoke_url }}" style="margin-top:10px">
           {% csrf_token %}
           <span class="state">Partage actif · expire le {{ grant.envelope.expires_at|date:"d/m/Y H:i" }}</span>
-          <button type="submit">Révoquer ce partage</button>
+          <button type="submit" class="mk-action-button" data-variant="danger">Révoquer ce partage</button>
         </form>
       {% endfor %}{% endif %}
     </article>
