@@ -895,8 +895,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     var todayInserted = false;
     for (final event in events) {
       final local = event.when.toLocal();
-      final String key;
-      final String caption;
+      var key = '';
+      var caption = '';
       switch (_timeScale) {
         case _TimeScale.week:
           final monday = DateTime(local.year, local.month, local.day)
