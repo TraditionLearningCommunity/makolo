@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/local/profile_store.dart';
@@ -542,15 +543,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     children: [
       LayoutBuilder(
         builder: (context, constraints) {
-          final createDossier = FilledButton.icon(
+          final createDossier = MakoloActionButton(
+            label: 'Créer un dossier',
             onPressed: () => widget.onCreate('dossier'),
-            icon: const Icon(Icons.folder_open_outlined),
-            label: const Text('Créer un dossier'),
+            icon: Icons.folder_open_outlined,
+            appearance: MakoloActionAppearance.primary,
           );
-          final createProject = OutlinedButton.icon(
+          final createProject = MakoloActionButton(
+            label: 'Créer un projet',
             onPressed: () => widget.onCreate('project'),
-            icon: const Icon(Icons.create_new_folder_outlined),
-            label: const Text('Créer un projet'),
+            icon: Icons.create_new_folder_outlined,
+            appearance: MakoloActionAppearance.secondary,
           );
           if (constraints.maxWidth < 350) {
             return Column(
