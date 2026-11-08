@@ -204,7 +204,7 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-now-unit .mk-now-business-actions .mk-now-cta{margin-top:0}
 .mk-now-unit>.mk-now-cta{margin-top:2px;align-self:flex-start}
 .mk-now-unit__more{border-top:1px solid var(--mk-border);padding-top:10px;margin-top:4px;width:100%}
-.mk-now-unit__more summary{cursor:pointer;display:list-item;color:var(--mk-brand);font-size:.85rem;font-weight:750;padding:8px 0;list-style-position:inside}
+.mk-now-unit__more summary:not(.mk-disclosure-trigger){cursor:pointer;display:list-item;color:var(--mk-brand);font-size:.85rem;font-weight:750;padding:8px 0;list-style-position:inside}
 .mk-now-unit__more summary:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:8px}
 .mk-now-unit__more .mk-now-unit__opened{display:none}
 .mk-now-unit__more[open] .mk-now-unit__closed{display:none}
@@ -220,7 +220,7 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 /* En cours N1: one complete native semantic unit on mobile and wide Web. */
 .mk-ongoing-unit{min-width:0}
 .mk-ongoing-unit__more{border-bottom:1px solid var(--mk-border);padding:0 10px 14px}
-.mk-ongoing-unit__more summary{cursor:pointer;color:var(--mk-brand);font-size:.84rem;font-weight:780;padding:8px 0;list-style-position:inside}
+.mk-ongoing-unit__more summary:not(.mk-disclosure-trigger){cursor:pointer;color:var(--mk-brand);font-size:.84rem;font-weight:780;padding:8px 0;list-style-position:inside}
 .mk-ongoing-unit__more summary:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:8px}
 .mk-ongoing-unit__more .mk-ongoing-unit__opened{display:none}
 .mk-ongoing-unit__more[open] .mk-ongoing-unit__closed{display:none}
@@ -235,7 +235,7 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 /* Ongoing N1 bottom actions — same capability semantics as Discovery. */
 .mk-ongoing-unit{position:relative;padding-bottom:16px}
 .mk-ongoing-unit__more{border-bottom:0;padding:0 10px 8px}
-.mk-ongoing-unit__more summary{display:inline-flex;align-items:center;gap:6px;min-height:44px}
+
 .mk-ongoing-unit__more summary svg{width:16px;height:16px;transition:transform .16s ease}
 .mk-ongoing-unit__more[open] summary svg{transform:rotate(180deg)}
 .mk-ongoing-unit__actions{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:8px;align-items:stretch;padding:10px 4px;border-bottom:1px solid var(--mk-border)}
