@@ -272,6 +272,32 @@ def unlink_journey(*, actor, dossier, journey):
 
 
 @transaction.atomic
+def update_dossier(*, actor, dossier, title, description, deadline):
+    """Edit Dossier-owned objective facts; no new lifecycle or Journey owner."""
+    _require_authenticated(actor)
+    dossier = _locked_dossier(dossier)
+    if not can_manage_dossier(actor, dossier):
+        raise PermissionDenied("Autorité de gestion du Dossier requise.")
+    before = (dossier.title, dossier.description, dossier.deadline)
+    dossier.title = (title or "").strip()
+    dossier.description = (description or "").strip()
+    dossier.deadline = deadline
+    after = (dossier.title, dossier.description, dossier.deadline)
+    if before == after:
+        return dossier
+    dossier.save(update_fields=["title", "description", "deadline", "updated_at"])
+    _emit(
+        event_type=DomainEventType.DOSSIER_UPDATED, dossier=dossier,
+        idempotency_key=f"dossier:{dossier.pk}:updated:{dossier.updated_at.isoformat()}",
+        payload={"dossier_id": str(dossier.pk), "changed_fields": [
+            key for key, old, new in zip(("title", "description", "deadline"), before, after)
+            if old != new
+        ]},
+    )
+    return dossier
+
+
+@transaction.atomic
 def set_dossier_lifecycle(*, actor, dossier, lifecycle):
     _require_authenticated(actor); dossier = _locked_dossier(dossier)
     if not can_manage_dossier(actor, dossier): raise PermissionDenied("Autorité de gestion du Dossier requise.")
