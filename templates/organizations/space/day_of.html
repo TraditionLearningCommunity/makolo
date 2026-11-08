@@ -9,9 +9,9 @@
         <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ activity.title }}{% if projection.context.phase == "before" %} · À venir{% elif projection.context.phase == "arrival" %} · Accueil{% elif projection.context.phase == "live" %} · En cours{% elif projection.context.phase == "after" %} · Terminé{% elif projection.context.phase == "cancelled" %} · Annulé{% endif %}</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <a class="mk-btn mk-btn-secondary" href="{{ live_url }}">Ouvrir Live</a>
+        <a class="mk-action-button" data-variant="secondary" href="{{ live_url }}">Ouvrir Live</a>
         {% if "open_scanner" in projection.capabilities %}
-        <a class="mk-btn mk-btn-primary" href="{{ scanner_url }}">Scanner</a>
+        <a class="mk-action-button" data-variant="primary" href="{{ scanner_url }}">Scanner</a>
         {% endif %}
       </div>
     </div>
@@ -55,8 +55,8 @@
   </div>
 
   <div class="flex flex-wrap gap-2">
-    <a class="mk-btn mk-btn-secondary" href="{{ space_work_url }}">Retour au métier</a>
-    <a class="mk-btn mk-btn-secondary" href="{{ space_root_url }}">Retour à Maintenant</a>
+    <a class="mk-action-button" data-variant="secondary" href="{{ space_work_url }}">Retour au métier</a>
+    <a class="mk-action-button" data-variant="secondary" href="{{ space_root_url }}">Retour à Maintenant</a>
   </div>
 </section>
 {% endblock %}
