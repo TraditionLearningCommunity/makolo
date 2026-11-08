@@ -15,12 +15,7 @@
 }
 .mk-me-n1 *, .mk-me-n1 *::before, .mk-me-n1 *::after { box-sizing: border-box; }
 .mk-me-n1 a { color: inherit; text-decoration: none; }
-.mk-me-n1 a:focus-visible,
-.mk-me-n1 button:focus-visible {
-  outline: 3px solid var(--me-primary);
-  outline-offset: 3px;
-  border-radius: 8px;
-}
+/* Focus affordance uses the global Makolo control/accessibility layer. */
 .mk-me-n1-identity {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr) auto;
