@@ -417,3 +417,25 @@
 .mk-interaction-status[data-state="conflict"] {
   color: var(--mk-danger);
 }
+
+/* Depth surfaces: hidden means hidden even when a shared action class is present.
+   The Tailwind .hidden utility can otherwise lose to a later component stylesheet. */
+.mk-action-button[hidden],
+.mk-action-button.hidden,
+.mk-action-item[hidden] { display: none !important; }
+
+/* Display-only hint inside an already navigable owner row. Not a button. */
+.mk-action-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid var(--mk-border-strong);
+  border-radius: var(--mk-control-radius, 12px);
+  color: var(--mk-brand);
+  background: var(--mk-surface-muted);
+  font-size: .85rem;
+  font-weight: 700;
+  pointer-events: none;
+}
