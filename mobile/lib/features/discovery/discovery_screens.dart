@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../platform/sharing/share_gateway.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -1468,19 +1469,16 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               children: [
                 _watchFilter(),
                 const SizedBox(height: MakoloSpacing.sm),
-                OutlinedButton.icon(
+                MakoloActionButton(
                   key: const Key('discover-search-nearby'),
                   onPressed: _toggleNearby,
-                  icon: Icon(
-                    _query.latitude == null
-                        ? Icons.near_me_outlined
-                        : Icons.location_off_outlined,
-                  ),
-                  label: Text(
-                    _query.latitude == null
-                        ? 'Autour de moi · 25 km'
-                        : 'Retirer « Autour de moi »',
-                  ),
+                  appearance: MakoloActionAppearance.secondary,
+                  icon: _query.latitude == null
+                      ? Icons.near_me_outlined
+                      : Icons.location_off_outlined,
+                  label: _query.latitude == null
+                      ? 'Autour de moi · 25 km'
+                      : 'Retirer « Autour de moi »',
                 ),
                 if (_locationMessage != null) Text(_locationMessage!),
               ],
