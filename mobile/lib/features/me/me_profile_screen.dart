@@ -994,9 +994,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   ),
                   const SizedBox(height: 12),
                   if (!_saving && _saveFailedRemotely)
-                    TextButton(
+                    MakoloActionButton(
+                      label: 'Réessayer l’enregistrement',
+                      appearance: MakoloActionAppearance.quiet,
                       onPressed: _save,
-                      child: const Text('Réessayer l’enregistrement'),
                     ),
                 ],
                 if (_confirmation != null) ...[
@@ -1153,10 +1154,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
+          child: MakoloActionButton(
+            label: 'Réessayer',
+            appearance: MakoloActionAppearance.quiet,
+            icon: Icons.refresh_rounded,
             onPressed: _read,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Réessayer'),
           ),
         ),
       ],
@@ -1187,10 +1189,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             ),
           ),
           if (onChange != null)
-            IconButton(
+            MakoloIconActionButton(
               tooltip: 'Modifier $label',
               onPressed: onChange,
-              icon: const Icon(Icons.edit_outlined),
+              icon: Icons.edit_outlined,
             ),
         ],
       ),
