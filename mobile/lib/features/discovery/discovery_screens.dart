@@ -96,8 +96,9 @@ DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
 /// Never convert a screen position into server-owned data.
 double? retainedDiscoveryScrollOffset(StoredProjection? marker) {
   if (marker?.kind != 'discovery.presentation-position' ||
-      marker?.schemaVersion != 1)
+      marker?.schemaVersion != 1) {
     return null;
+  }
   final value = marker!.payload['scroll_offset'];
   if (value is! num || !value.isFinite || value < 0) return null;
   return value.toDouble();
@@ -105,8 +106,9 @@ double? retainedDiscoveryScrollOffset(StoredProjection? marker) {
 
 String? retainedDiscoveryFocusedCandidate(StoredProjection? marker) {
   if (marker?.kind != 'discovery.presentation-position' ||
-      marker?.schemaVersion != 1)
+      marker?.schemaVersion != 1) {
     return null;
+  }
   final key = marker!.payload['selected_candidate_key'];
   return key is String && key.isNotEmpty ? key : null;
 }
@@ -220,8 +222,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final root = await widget.repository.readItems(
         query.copyWith(page: 1, clearContinuation: true),
       );
-      if (root != null && root.receivedAt == _unseenReserve!.rootReceivedAt)
+      if (root != null && root.receivedAt == _unseenReserve!.rootReceivedAt) {
         return;
+      }
       _unseenReserve = null;
       _unseenField = null;
     }
@@ -232,8 +235,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       } on Object {
         // Recoverable local corruption must not suppress Discovery.
       }
-      if (_unseenReserve != null && _unseenField == query.mapFingerprint)
+      if (_unseenReserve != null && _unseenField == query.mapFingerprint) {
         return;
+      }
     }
     final request = _loadUnseenReserve(query);
     _unseenLoad = request;
@@ -268,8 +272,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
     if (!mounted ||
         !identical(widget.repository, repository) ||
-        query.mapFingerprint != _query.mapFingerprint)
+        query.mapFingerprint != _query.mapFingerprint) {
       return;
+    }
     setState(() {
       _unseenReserve = reserve;
       _unseenField = query.mapFingerprint;
@@ -662,8 +667,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted ||
                     !_fieldScroll.hasClients ||
-                    _pendingScrollRestore == null)
+                    _pendingScrollRestore == null) {
                   return;
+                }
                 final restored = _pendingScrollRestore!;
                 _pendingScrollRestore = null;
                 _fieldScroll.jumpTo(
@@ -783,8 +789,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
 
   void _bindResultStreams() {
     if (_boundResultsKey == _query.fingerprint &&
-        identical(_boundResultsRepository, widget.repository))
+        identical(_boundResultsRepository, widget.repository)) {
       return;
+    }
     _boundResultsKey = _query.fingerprint;
     _boundResultsRepository = widget.repository;
     _resultsStream = widget.repository.watchItems(_query);
@@ -2111,8 +2118,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     final reusable = await repository.hasReusableItem(widget.family, widget.id);
     if (!mounted ||
         key != _itemKey ||
-        !identical(repository, widget.repository))
+        !identical(repository, widget.repository)) {
       return;
+    }
     if (reusable) {
       setState(() => _verifiedItemKey = key);
       return;
@@ -2170,8 +2178,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     if (!widget.authenticated ||
         _saving ||
         _refreshing ||
-        _verifiedItemKey != key)
+        _verifiedItemKey != key) {
       return;
+    }
     final family = widget.family;
     final id = widget.id;
     setState(() => _saving = true);
@@ -2755,8 +2764,9 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
       );
       if (!mounted ||
           generation != _generation ||
-          widget.occurrenceId != requestedId)
+          widget.occurrenceId != requestedId) {
         return;
+      }
       if (source.lastErrorCode == null &&
           source.lastSuccessAt != null &&
           !source.lastSuccessAt!.isBefore(startedAt) &&

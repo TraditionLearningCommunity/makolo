@@ -109,7 +109,7 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
     });
     try {
       final response = await api.get(
-        '${_base}?q=${Uri.encodeQueryComponent(_search.text.trim())}'
+        '$_base?q=${Uri.encodeQueryComponent(_search.text.trim())}'
         '&offset=$offset',
       );
       final payload = response.jsonObject();

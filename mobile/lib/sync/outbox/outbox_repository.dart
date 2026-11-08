@@ -400,8 +400,9 @@ class OutboxRepository {
             .get();
     DateTime? next;
     for (final row in rows) {
-      if (handledKinds != null && !handledKinds.contains(row.operationKind))
+      if (handledKinds != null && !handledKinds.contains(row.operationKind)) {
         continue;
+      }
       final candidate = row.nextRetryAt?.toUtc();
       if (candidate != null && (next == null || candidate.isBefore(next))) {
         next = candidate;
@@ -432,8 +433,9 @@ class OutboxRepository {
       try {
         final raw = jsonDecode(row.dependencyIdsJson);
         if (raw is! List ||
-            raw.any((entry) => entry is! String || entry.isEmpty))
+            raw.any((entry) => entry is! String || entry.isEmpty)) {
           return true;
+        }
         pending.addAll(raw.cast<String>());
       } on Object {
         return true;
@@ -455,8 +457,9 @@ class OutboxRepository {
       operationId,
       expectedAttempts: row.attempts,
       expectedState: row.state,
-    ))
+    )) {
       throw StateError('Outbox operation already claimed');
+    }
   }
 
   Future<void> setState(

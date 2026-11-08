@@ -9,20 +9,18 @@ import 'interoperability_presentation.dart';
 class ConnectionDetailScreen extends StatefulWidget {
   const ConnectionDetailScreen.offer({
     super.key,
-    required Map<String, dynamic> offer,
+    required Map<String, dynamic> this.offer,
     required this.onConnect,
     this.mutationsEnabled = true,
-  }) : offer = offer,
-       connection = null,
+  }) : connection = null,
        onManage = null;
 
   const ConnectionDetailScreen.connected({
     super.key,
-    required InteroperabilityConnectionProjection connection,
+    required InteroperabilityConnectionProjection this.connection,
     required this.onManage,
     this.mutationsEnabled = true,
-  }) : connection = connection,
-       offer = null,
+  }) : offer = null,
        onConnect = null;
 
   final bool mutationsEnabled;

@@ -74,8 +74,9 @@ class DiscoveryN2Depth {
       final label = (raw['label'] ?? '').toString().trim();
       if (!states.contains(state) ||
           label.isEmpty ||
-          !seen.add('$state:$label'))
+          !seen.add('$state:$label')) {
         continue;
+      }
       result.add(DiscoveryN2Assessment(state, label));
     }
     return List.unmodifiable(result);
@@ -85,8 +86,9 @@ class DiscoveryN2Depth {
     if (value is! String) return null;
     final text = value.trim();
     if (text.isEmpty ||
-        const {'unknown', 'null', 'none', 'n/a'}.contains(text.toLowerCase()))
+        const {'unknown', 'null', 'none', 'n/a'}.contains(text.toLowerCase())) {
       return null;
+    }
     return text;
   }
 
@@ -104,7 +106,7 @@ class DiscoveryN2Depth {
     final clock = _text(data[fallbackTime]);
     if (day == null) return null;
     final zone = _text(data['timezone']);
-    return [day, if (clock != null) clock, if (zone != null) zone].join(' · ');
+    return [day, ?clock, ?zone].join(' · ');
   }
 
   static List<DiscoveryN2Variant> _variants(DiscoveryItemPresentation item) {
@@ -117,8 +119,9 @@ class DiscoveryN2Depth {
       final place = fact['place'];
       if (occurrence is! Map ||
           place is! Map ||
-          occurrence['kind'] != 'occurrence')
+          occurrence['kind'] != 'occurrence') {
         continue;
+      }
       final id = _text(occurrence['id']);
       if (id == null) continue;
       final name = _text(place['name']);

@@ -150,7 +150,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     );
     _draftWrites = write.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     return write.then((_) {
       if (_draftRevision == revision) _draftDirty = false;

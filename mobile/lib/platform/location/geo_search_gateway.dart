@@ -51,10 +51,9 @@ class GeoSearchException implements Exception {
 class MapTilerGeoSearchGateway implements GeoSearchGateway {
   MapTilerGeoSearchGateway({
     required String apiKey,
-    required Uri endpoint,
+    required this._endpoint,
     Dio? dio,
   }) : _key = apiKey,
-       _endpoint = endpoint,
        _dio =
            dio ??
            Dio(
@@ -163,9 +162,8 @@ class GoogleMapsGeoSearchGateway implements GeoSearchGateway {
   GoogleMapsGeoSearchGateway({
     required String apiKey,
     Dio? dio,
-    required Uri endpoint,
+    required this._endpoint,
   }) : _key = apiKey,
-       _endpoint = endpoint,
        _dio =
            dio ??
            Dio(

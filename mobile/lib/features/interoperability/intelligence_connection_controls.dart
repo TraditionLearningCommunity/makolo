@@ -97,8 +97,9 @@ class _IntelligenceConnectionControlsState
       if (!mounted ||
           generation != _catalogGeneration ||
           path != widget.path ||
-          !identical(runtime, widget.runtime))
+          !identical(runtime, widget.runtime)) {
         return;
+      }
       if (offers is! List) throw const FormatException('Invalid owner catalog');
       setState(() {
         _offers = offers.whereType<Map<String, dynamic>>().toList(
@@ -111,8 +112,9 @@ class _IntelligenceConnectionControlsState
       if (!mounted ||
           generation != _catalogGeneration ||
           path != widget.path ||
-          !identical(runtime, widget.runtime))
+          !identical(runtime, widget.runtime)) {
         return;
+      }
       setState(() {
         _offers = const [];
         _catalogLoading = false;
@@ -133,8 +135,9 @@ class _IntelligenceConnectionControlsState
     required String method,
     required Map<String, dynamic> body,
   }) async {
-    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null)
+    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) {
       return false;
+    }
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
     final mutationVersion = ++_mutationGeneration;
@@ -142,7 +145,7 @@ class _IntelligenceConnectionControlsState
     var committed = false;
     try {
       final api = ownerRuntime.api!;
-      final path = id == null ? ownerPath : '${ownerPath}$id/';
+      final path = id == null ? ownerPath : '$ownerPath$id/';
       if (method == 'POST') {
         await api.post(path, body: body);
       } else if (method == 'PATCH') {
@@ -165,8 +168,9 @@ class _IntelligenceConnectionControlsState
       // Server commit and local projection refresh are separate outcomes.
     }
     if (!_scopeUnchanged(ownerPath, ownerRuntime) ||
-        mutationVersion != _mutationGeneration)
+        mutationVersion != _mutationGeneration) {
       return false;
+    }
     if (!committed) {
       _notice(
         'Opération non confirmée par le serveur. Vérifiez votre autorité.',
@@ -336,8 +340,9 @@ class _IntelligenceConnectionControlsState
               (offer['capabilities'] as List?)?.whereType<String>() ??
               <String>[];
           if (_capabilityFilter.isNotEmpty &&
-              !capabilities.contains(_capabilityFilter))
+              !capabilities.contains(_capabilityFilter)) {
             return false;
+          }
           return [
             offer['label'] as String? ?? '',
             offer['description'] as String? ?? '',

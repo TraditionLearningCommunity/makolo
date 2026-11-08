@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
-import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
 import 'package:makolo_mobile/notifications/notification_repository.dart';
 import 'package:makolo_mobile/notifications/notification_screens.dart';

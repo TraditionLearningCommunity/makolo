@@ -30,7 +30,7 @@ class ProfileMediaCache {
     final next = before.then((_) => work());
     final settled = next.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     _pending[key] = settled;
     settled.whenComplete(() {

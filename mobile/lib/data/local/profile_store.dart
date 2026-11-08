@@ -331,8 +331,9 @@ class ProfileStore {
   /// permission or capability-bearing projection.
   StoredProjection? _usableProjection(ProjectionSnapshot row) {
     final expires = row.expiresAt;
-    if (expires != null && !DateTime.now().toUtc().isBefore(expires.toUtc()))
+    if (expires != null && !DateTime.now().toUtc().isBefore(expires.toUtc())) {
       return null;
+    }
     return _storedProjection(row);
   }
 

@@ -496,7 +496,7 @@ class _MeIdentity extends StatelessWidget {
 }
 
 class _MeHistorySection extends StatelessWidget {
-  const _MeHistorySection({required this.edge, this.onOpen});
+  const _MeHistorySection({required this.edge}) : onOpen = null;
   final double edge;
   final VoidCallback? onOpen;
 

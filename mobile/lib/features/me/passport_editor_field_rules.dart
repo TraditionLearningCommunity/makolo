@@ -181,11 +181,7 @@ class PassportEditorFieldRules {
       }
       final parsed = DateTime.tryParse(value);
       if (parsed == null ||
-          parsed.year.toString().padLeft(4, '0') +
-                  '-' +
-                  parsed.month.toString().padLeft(2, '0') +
-                  '-' +
-                  parsed.day.toString().padLeft(2, '0') !=
+          '${parsed.year.toString().padLeft(4, '0')}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}' !=
               value ||
           parsed.isAfter(DateTime.now())) {
         return 'Date invalide.';

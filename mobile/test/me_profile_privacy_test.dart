@@ -239,7 +239,7 @@ void main() {
               200,
             );
           }
-          throw StateError('Unexpected request: ' + request.url.toString());
+          throw StateError('Unexpected request: ${request.url}');
         }).dio,
       );
       addTearDown(api.close);

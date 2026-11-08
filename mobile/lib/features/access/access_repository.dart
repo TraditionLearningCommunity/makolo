@@ -370,12 +370,14 @@ class AccessRepository {
       for (final raw in rows) {
         final item = _map(raw);
         if (_string(_map(item['identity'])['id']) != accessId ||
-            _string(item['relationship']) != 'beneficiary')
+            _string(item['relationship']) != 'beneficiary') {
           continue;
+        }
         final capabilities = item['capabilities'];
         if (capabilities is! List ||
-            !capabilities.contains('present_credential'))
+            !capabilities.contains('present_credential')) {
           continue;
+        }
         final link = _string(_map(item['links'])['credential']);
         if (link != null && _isCredentialPath(link, accessId)) return link;
       }
@@ -397,8 +399,9 @@ class AccessRepository {
         parsed.hasScheme ||
         parsed.hasAuthority ||
         parsed.hasQuery ||
-        parsed.hasFragment)
+        parsed.hasFragment) {
       return false;
+    }
     return parsed.path ==
         '/api/v1/me/accesses/${Uri.encodeComponent(accessId)}/credential/';
   }
@@ -570,7 +573,7 @@ class AccessRepository {
         !expiry.isBefore(checked) &&
         expiry.isAfter(DateTime.now().toUtc());
     var securelyRetained = false;
-    if (canRetain && expiry != null && checked != null) {
+    if (canRetain) {
       try {
         await credentialVault.save(
           profileId,

@@ -122,11 +122,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
     try {
       final allowed = await _recorder.hasPermission();
       if (!allowed) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             _captureState = 'error';
             _error = 'Accès au micro refusé.';
           });
+        }
         return;
       }
       final temp = await getTemporaryDirectory();
@@ -159,11 +160,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         _error = null;
       });
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _captureState = 'error';
           _error = 'Micro indisponible sur cet appareil.';
         });
+      }
     } finally {
       _opening = false;
     }
@@ -211,11 +213,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         if (mounted) setState(() => _error = 'Aperçu vocal indisponible.');
       }
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _captureState = 'error';
           _error = 'Enregistrement non enregistré.';
         });
+      }
     }
   }
 
@@ -258,11 +261,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       // Selection is not consent to send. Let the person preview and
       // optionally add context before making a durable local intention.
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _captureState = 'error';
           _error = 'Sélection indisponible. Réessayer.';
         });
+      }
     }
   }
 
@@ -456,11 +460,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                                 unawaited(_player.play());
                               }
                             } on Object {
-                              if (mounted)
+                              if (mounted) {
                                 setState(
                                   () =>
                                       _error = 'Lecture du vocal indisponible.',
                                 );
+                              }
                             }
                           },
                           icon: Icon(
@@ -484,7 +489,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                 ),
                 if (_requiresPoint)
                   DropdownButtonFormField<String>(
-                    value: _selectedPointId,
+                    initialValue: _selectedPointId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Échange',
@@ -506,7 +511,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
                   ),
                 if (_requiresAudience)
                   DropdownButtonFormField<String>(
-                    value: _selectedAudienceId,
+                    initialValue: _selectedAudienceId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Destinataires',

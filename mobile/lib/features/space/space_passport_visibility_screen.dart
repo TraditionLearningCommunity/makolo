@@ -37,9 +37,7 @@ class _SpacePassportVisibilityScreenState
   }
 
   String get root =>
-      'api/v1/organizations/workspaces/' +
-      Uri.encodeComponent(widget.slug) +
-      '/';
+      'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/';
 
   @override
   void initState() {
@@ -74,12 +72,13 @@ class _SpacePassportVisibilityScreenState
     final api = widget.runtime.api;
     final ticket = ++revision;
     if (current == null || api == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           loading = false;
           authorized = false;
           expectedId = null;
         });
+      }
       return;
     }
     final id = current.space.id;
@@ -89,7 +88,7 @@ class _SpacePassportVisibilityScreenState
       error = null;
     });
     try {
-      final reply = await api.get(root + 'us/');
+      final reply = await api.get('${root}us/');
       final data = reply.jsonObject();
       final identity = data['identity'];
       final caps = data['capabilities'];
@@ -128,8 +127,9 @@ class _SpacePassportVisibilityScreenState
         !authorized ||
         current == null ||
         api == null ||
-        current.space.id != expectedId)
+        current.space.id != expectedId) {
       return;
+    }
     final id = current.space.id;
     setState(() {
       saving = true;
@@ -241,7 +241,7 @@ class _SpacePassportVisibilityScreenState
               const SizedBox(height: 24),
               OutlinedButton.icon(
                 onPressed: () =>
-                    context.push('/space/' + widget.slug + '/us/settings'),
+                    context.push('/space/${widget.slug}/us/settings'),
                 icon: const Icon(Icons.edit_outlined),
                 label: const Text('Modifier les informations'),
               ),

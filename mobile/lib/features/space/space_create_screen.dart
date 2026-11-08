@@ -129,7 +129,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     );
     _draftTail = update.then<void>(
       (_) {},
-      onError: (Object _, StackTrace __) {},
+      onError: (Object _, StackTrace _) {},
     );
     return update;
   }
@@ -336,10 +336,11 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       }
       if (mounted) context.go('/space/now');
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'La vérification reste indisponible. Aucun accès n’a été accordé.',
         );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

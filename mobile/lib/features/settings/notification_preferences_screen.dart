@@ -89,8 +89,9 @@ class _NotificationPreferencesScreenState
         hour < 0 ||
         hour > 23 ||
         minute < 0 ||
-        minute > 59)
+        minute > 59) {
       return null;
+    }
     return TimeOfDay(hour: hour, minute: minute);
   }
 
@@ -102,9 +103,7 @@ class _NotificationPreferencesScreenState
     );
     if (picked == null || !mounted) return;
     final time =
-        picked.hour.toString().padLeft(2, '0') +
-        ':' +
-        picked.minute.toString().padLeft(2, '0');
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
     await _change(key, time);
   }
 
@@ -153,7 +152,7 @@ class _NotificationPreferencesScreenState
               padding: const EdgeInsets.all(MakoloSpacing.inner),
               children: [
                 if (_loading || _saving) const LinearProgressIndicator(),
-                if (_error != null && (!offline || values == null))
+                if (_error != null && (!offline))
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       vertical: MakoloSpacing.sm,

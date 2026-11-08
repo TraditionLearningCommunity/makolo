@@ -43,9 +43,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   int epoch = 0;
 
   String get root =>
-      'api/v1/organizations/workspaces/' +
-      Uri.encodeComponent(widget.slug) +
-      '/passport/';
+      'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/passport/';
 
   bool get authorized {
     final value = widget.runtime.actorContext?.value;
@@ -122,31 +120,25 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     if (parsed == null) return raw?.toString() ?? '';
     final date = parsed.toLocal();
     String two(int item) => item.toString().padLeft(2, '0');
-    return two(date.day) +
-        '/' +
-        two(date.month) +
-        '/' +
-        date.year.toString() +
-        ' ' +
-        two(date.hour) +
-        ':' +
-        two(date.minute);
+    return '${two(date.day)}/${two(date.month)}/${date.year} ${two(date.hour)}:${two(date.minute)}';
   }
 
   void message(String text) {
-    if (mounted)
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    }
   }
 
   Future<void> reload() async {
     final api = widget.runtime.api;
     if (!authorized || api == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           source = null;
           loading = false;
           error = 'Impossible de consulter le Passeport de cet Espace actuellement.';
         });
+      }
       return;
     }
     final ticket = ++epoch;
@@ -163,8 +155,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       if (!mounted ||
           !authorized ||
           ticket != epoch ||
-          data['slug'] != widget.slug)
+          data['slug'] != widget.slug) {
         return;
+      }
       setState(() {
         source = data;
         loading = false;
@@ -200,8 +193,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       if (!ids.contains(id) ||
           (!showExcluded &&
               excludedActivities.contains(id) &&
-              variant == 'custom'))
+              variant == 'custom')) {
         return false;
+      }
       if (variant == 'thematic') {
         if (topic == null) return false;
         final codes = row['topic_codes'];
@@ -269,11 +263,12 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
           failure.statusCode == 403 ||
           failure.statusCode == 404) {
         ++epoch;
-        if (mounted)
+        if (mounted) {
           setState(() {
             source = null;
             error = 'Impossible de confirmer vos droits pour cette action.';
           });
+        }
       } else {
         message('Action indisponible.');
       }
@@ -308,18 +303,19 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     if (api == null || !authorized || startActor is! SpaceActorContext) return;
     final spaceId = startActor.space.id;
     final dir = await Directory.systemTemp.createTemp('makolo-space-passport-');
-    final path = dir.path + '/passeport-makolo.pdf';
+    final path = '${dir.path}/passeport-makolo.pdf';
     try {
       final route = datedId == null
           ? url('pdf/')
-          : root + 'history/' + datedId + '/pdf/';
+          : '${root}history/$datedId/pdf/';
       final reply = await api.download(route, destinationPath: path);
       final actorNow = widget.runtime.actorContext?.value;
       if (!mounted ||
           !authorized ||
           actorNow is! SpaceActorContext ||
-          actorNow.space.id != spaceId)
+          actorNow.space.id != spaceId) {
         return;
+      }
       final disposition =
           reply.headers.entries
               .where((item) => item.key.toLowerCase() == 'content-disposition')
@@ -331,7 +327,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
           ?.group(1);
       var file = path;
       if (filename != null && filename.startsWith('passeport-makolo-')) {
-        file = dir.path + '/' + filename;
+        file = '${dir.path}/$filename';
         await File(path).rename(file);
       }
       await action(file);
@@ -362,7 +358,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
 
   Future<String?> shareLink(String id) async {
     final response = await widget.runtime.api!.post(
-      root + 'history/' + id + '/share/',
+      '${root}history/$id/share/',
       body: {'days': 7},
     );
     final data = ProjectionEnvelope.parse(
@@ -410,7 +406,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final id = await issue(shareable: true);
     if (id == null) return;
     await widget.runtime.api!.post(
-      root + 'history/' + id + '/deliver/',
+      '${root}history/$id/deliver/',
       body: {'recipient_id': recipientId},
     );
     message('Passeport partagé dans Makolo.');
@@ -481,7 +477,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     );
     if (yes != true || !authorized) return;
     await widget.runtime.api!.post(
-      root + 'history/' + id + '/revoke/',
+      '${root}history/$id/revoke/',
       body: <String, dynamic>{},
     );
     message('Version révoquée.');
@@ -490,7 +486,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   Future<void> history() async {
     if (busy || !authorized) return;
     try {
-      final response = await widget.runtime.api!.get(root + 'history/');
+      final response = await widget.runtime.api!.get('${root}history/');
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'space.passport.history',
@@ -530,15 +526,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                                 value(item['document_id']) ?? 'Passeport',
                               ),
                               subtitle: Text(
-                                datedAt(item['generated_at']) +
-                                    ' · ' +
-                                    (variants[item['variant']] ?? '') +
-                                    (item['revoked'] == true
-                                        ? ' · Révoquée'
-                                        : '') +
-                                    (item['integrity_ok'] != true
-                                        ? ' · Non intègre'
-                                        : ''),
+                                '${datedAt(item['generated_at'])} · ${variants[item['variant']] ?? ''}${item['revoked'] == true ? ' · Révoquée' : ''}${item['integrity_ok'] != true ? ' · Non intègre' : ''}',
                               ),
                               onTap: item['integrity_ok'] == true
                                   ? () {
@@ -547,7 +535,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                                         item['verification_path'],
                                       );
                                       if (route != null && mounted) {
-                                        this.context.push(route);
+                                        context.push(route);
                                       }
                                     }
                                   : null,
@@ -604,12 +592,9 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                                 : () async {
                                     update(() => pageLoading = true);
                                     try {
-                                      final next = await widget.runtime.api!
-                                          .get(
-                                            root +
-                                                'history/?offset=' +
-                                                nextOffset.toString(),
-                                          );
+                                      final next = await widget.runtime.api!.get(
+                                        '${root}history/?offset=$nextOffset',
+                                      );
                                       final page = ProjectionEnvelope.parse(
                                         next.jsonObject(),
                                         expectedProjection:
@@ -647,12 +632,12 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
   }
 
   Future<void> edit() async {
-    await context.push('/space/' + widget.slug + '/us/settings');
+    await context.push('/space/${widget.slug}/us/settings');
     if (mounted) await reload();
   }
 
   Future<void> privacy() async {
-    await context.push('/space/' + widget.slug + '/us/passport/privacy');
+    await context.push('/space/${widget.slug}/us/passport/privacy');
     if (mounted) await reload();
   }
 
@@ -944,7 +929,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                     child: ExpansionTile(
                       tilePadding: EdgeInsets.zero,
                       title: const Text('À enrichir'),
-                      subtitle: Text(missing.length.toString() + ' rubriques'),
+                      subtitle: Text('${missing.length} rubriques'),
                       children: [
                         for (final label in missing)
                           ListTile(dense: true, title: Text(label)),
@@ -994,7 +979,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
         ).toString(),
       );
       final data = response.jsonObject()['results'];
-      if (mounted)
+      if (mounted) {
         setState(() {
           results = data is List
               ? data
@@ -1006,11 +991,13 @@ class _RecipientPickerState extends State<_RecipientPicker> {
                     .toList()
               : [];
         });
+      }
     } on Object {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Recherche indisponible.')),
         );
+      }
     } finally {
       if (mounted) setState(() => searching = false);
     }
@@ -1056,7 +1043,7 @@ class _RecipientPickerState extends State<_RecipientPicker> {
                   for (final row in results)
                     ListTile(
                       title: Text(row['name']?.toString() ?? ''),
-                      subtitle: Text('@' + (row['username']?.toString() ?? '')),
+                      subtitle: Text('@${row['username']?.toString() ?? ''}'),
                       onTap: () => widget.onSelected(row),
                     ),
                 ],

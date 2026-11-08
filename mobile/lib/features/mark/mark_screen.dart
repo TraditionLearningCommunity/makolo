@@ -115,8 +115,9 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor)
+        actor != _actor) {
       return;
+    }
     if (draft != null) {
       _input.text = draft['input']?.toString() ?? '';
       final rawSelected = draft['selected'];
@@ -264,8 +265,9 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted ||
         revision != _draftRevision ||
         repository != _repository ||
-        actor != _actor)
+        actor != _actor) {
       return;
+    }
     setState(() {
       _busy = false;
       _result = result;

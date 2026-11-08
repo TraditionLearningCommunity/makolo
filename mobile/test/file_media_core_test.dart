@@ -196,7 +196,7 @@ void main() {
         cache.getOrDownload(
           'failed-media',
           extension: 'jpg',
-          download: (path, _, __) async {
+          download: (path, _, _) async {
             await File(path).writeAsBytes([1, 2]);
             throw const FileSystemException('network ended early');
           },
@@ -219,7 +219,7 @@ void main() {
       final download = cache.getOrDownload(
         'image',
         extension: 'png',
-        download: (path, _, __) async {
+        download: (path, _, _) async {
           started.complete();
           await finish.future;
           await File(path).writeAsBytes([3, 1, 4], flush: true);
@@ -250,7 +250,7 @@ void main() {
         await cache.getOrDownload(
           'image-$index',
           extension: 'jpg',
-          download: (path, _, __) =>
+          download: (path, _, _) =>
               File(path).writeAsBytes([index], flush: true),
         );
       }

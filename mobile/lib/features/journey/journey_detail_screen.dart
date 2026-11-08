@@ -339,7 +339,7 @@ class _JourneyContent extends StatelessWidget {
                   )!,
                 ),
         ),
-        if (conversationEntry != null) conversationEntry!,
+        ?conversationEntry,
         if (presentation.canRespondInvitation) ...[
           Padding(
             padding: const EdgeInsets.symmetric(

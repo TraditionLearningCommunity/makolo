@@ -166,7 +166,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                               usernameValue is String &&
                               usernameValue.trim().isNotEmpty)
                             Text(
-                              '@' + usernameValue,
+                              '@$usernameValue',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           if (actor is PersonalActorContext &&

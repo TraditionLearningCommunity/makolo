@@ -69,8 +69,9 @@ class DiscoveryOfflineStore {
         url.host.isEmpty ||
         url.userInfo.isNotEmpty ||
         url.hasQuery ||
-        url.hasFragment)
+        url.hasFragment) {
       return false;
+    }
     return (profileId != null && profileId!.trim().isNotEmpty) ||
         isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
   }
@@ -119,8 +120,9 @@ class DiscoveryOfflineStore {
   }
 
   Future<Uint8List?> recognizedImage(Uri url) async {
-    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin))
+    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin)) {
       return null;
+    }
     final file = await _recognitionFile(url);
     if (!await file.exists()) return null;
     final size = await file.length();

@@ -101,7 +101,7 @@ void main() {
       viewport: const Size(390, 840),
       child: ValueListenableBuilder<DiscoveryItemPresentation>(
         valueListenable: shown,
-        builder: (_, value, __) => DiscoveryPossibilityUnit(
+        builder: (_, value, _) => DiscoveryPossibilityUnit(
           item: value,
           onOpen: () {},
           onSave: () => pending.future,

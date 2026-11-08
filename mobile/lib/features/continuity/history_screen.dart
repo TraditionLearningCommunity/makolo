@@ -73,10 +73,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _loadingMore ||
         _searching ||
         current == null ||
-        !current.hasMore)
+        !current.hasMore) {
       return;
+    }
     final key =
-        '${_query}:${_filter}:${current.nextOffset}:${_remoteHistory != null}';
+        '$_query:$_filter:${current.nextOffset}:${_remoteHistory != null}';
     if (_lastRequested == key) return;
     _lastRequested = key;
     if (_remoteHistory == null) {
@@ -161,8 +162,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!mounted ||
         generation != _searchGeneration ||
         query != _query ||
-        filter != _filter)
+        filter != _filter) {
       return;
+    }
     setState(() {
       _remotePages = rows;
       _remoteHistory = rows.isEmpty ? null : _HistoryView.fromPages(rows);

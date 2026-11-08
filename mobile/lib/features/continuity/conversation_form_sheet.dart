@@ -106,8 +106,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     if (!mounted ||
         data == null ||
         _title.text.isNotEmpty ||
-        _questionControllers.any((item) => item.text.isNotEmpty))
+        _questionControllers.any((item) => item.text.isNotEmpty)) {
       return;
+    }
     _restoring = true;
     _title.text = data['title']?.toString() ?? '';
     final savedQuestions = data['questions'];
@@ -173,8 +174,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
     _draftTimer?.cancel();
     if (!_submitted &&
         (_title.text.isNotEmpty ||
-            _questionControllers.any((item) => item.text.isNotEmpty)))
+            _questionControllers.any((item) => item.text.isNotEmpty))) {
       _saveDraft();
+    }
     _title.removeListener(_edited);
     _title.dispose();
     for (final controller in _questionControllers) {
@@ -362,7 +364,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
               ],
               if (!_newTemplate)
                 DropdownButtonFormField<String>(
-                  value: _selectedVersionId,
+                  initialValue: _selectedVersionId,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Formulaire',
@@ -420,15 +422,13 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                       children: [
                         Expanded(
                           child: TextField(
-                            key: Key(
-                              'conversation-form-question-' + index.toString(),
-                            ),
+                            key: Key('conversation-form-question-$index'),
                             controller: _questionControllers[index],
                             minLines: 1,
                             maxLines: 3,
                             maxLength: 220,
                             decoration: InputDecoration(
-                              labelText: 'Question ' + (index + 1).toString(),
+                              labelText: 'Question ${index + 1}',
                               border: const OutlineInputBorder(),
                               counterText: '',
                             ),
@@ -522,7 +522,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                   true) ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _selectedAudienceId,
+                  initialValue: _selectedAudienceId,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Destinataires',

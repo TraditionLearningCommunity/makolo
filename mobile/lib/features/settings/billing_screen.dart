@@ -43,8 +43,9 @@ class _BillingScreenState extends State<BillingScreen> {
     final actor = widget.runtime.actorContext?.value;
     if (actor is! SpaceActorContext ||
         actor.space.slug != widget.spaceSlug ||
-        actor.space.id != widget.expectedSpaceId)
+        actor.space.id != widget.expectedSpaceId) {
       return null;
+    }
     return actor;
   }
 
@@ -68,8 +69,9 @@ class _BillingScreenState extends State<BillingScreen> {
 
   @override
   void dispose() {
-    if (_spaceMode)
+    if (_spaceMode) {
       widget.runtime.actorContext?.removeListener(_onActorChanged);
+    }
     super.dispose();
   }
 
@@ -129,11 +131,12 @@ class _BillingScreenState extends State<BillingScreen> {
       }
       return;
     }
-    if (isCurrent())
+    if (isCurrent()) {
       setState(() {
         _loading = true;
         _error = null;
       });
+    }
     try {
       final path = _spaceMode
           ? 'api/v1/subscriptions/spaces/${Uri.encodeComponent(expectedSlug!)}/'
@@ -213,9 +216,7 @@ class _BillingScreenState extends State<BillingScreen> {
         if (compact && rows.length > 2)
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: Text(
-              'Autres avantages (' + (rows.length - 2).toString() + ')',
-            ),
+            title: Text('Autres avantages (${rows.length - 2})'),
             children: [
               for (final item in rows.skip(2))
                 ListTile(
@@ -359,9 +360,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 context.pop();
               } else {
                 context.go(
-                  '/space/' +
-                      Uri.encodeComponent(widget.spaceSlug!) +
-                      '/us/team',
+                  '/space/${Uri.encodeComponent(widget.spaceSlug!)}/us/team',
                 );
               }
             },
@@ -430,8 +429,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    'Fin du délai de grâce : ' +
-                        subscriptionDateLabel(status?['grace_until']),
+                    'Fin du délai de grâce : ${subscriptionDateLabel(status?['grace_until'])}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -472,10 +470,7 @@ class _BillingScreenState extends State<BillingScreen> {
               child: TextButton(
                 onPressed: () async {
                   await context.push(
-                    '/payments/obligations/' +
-                        Uri.encodeComponent(
-                          transition['payment_obligation_id'].toString(),
-                        ),
+                    '/payments/obligations/${Uri.encodeComponent(transition['payment_obligation_id'].toString())}',
                   );
                   if (mounted) await _load();
                 },
@@ -489,10 +484,7 @@ class _BillingScreenState extends State<BillingScreen> {
           if (transition['total_conditions'] is int &&
               (transition['total_conditions'] as int) > 0)
             Text(
-              'Conditions remplies : ' +
-                  transition['completed_conditions'].toString() +
-                  ' / ' +
-                  transition['total_conditions'].toString(),
+              'Conditions remplies : ${transition['completed_conditions']} / ${transition['total_conditions']}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           if (transition['conditions'] is List &&
@@ -510,7 +502,7 @@ class _BillingScreenState extends State<BillingScreen> {
                         subscriptionConditionStatusLabel(item['state']) +
                             (item['detail'] == null
                                 ? ''
-                                : ' · ' + item['detail'].toString()),
+                                : ' · ${item['detail']}'),
                       ),
                     ),
               ],
@@ -530,7 +522,7 @@ class _BillingScreenState extends State<BillingScreen> {
                       subscriptionConditionStatusLabel(item['state']) +
                           (item['detail'] == null
                               ? ''
-                              : ' · ' + item['detail'].toString()),
+                              : ' · ${item['detail']}'),
                     ),
                   ),
             ],

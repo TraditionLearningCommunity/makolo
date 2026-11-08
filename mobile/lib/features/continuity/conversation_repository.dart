@@ -484,8 +484,9 @@ class ConversationRepository {
     String? representedSpaceId,
   }) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion nécessaire pour demander un formulaire.');
+    }
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/forms/',
       body: {
@@ -542,8 +543,9 @@ class ConversationRepository {
     TransferProgress? onProgress,
   }) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion nécessaire pour envoyer une pièce.');
+    }
     final response = await engine.api.upload(
       'api/v1/conversations/$conversationId/media/',
       fields: {
@@ -625,8 +627,9 @@ class ConversationRepository {
     int limit = 25,
   }) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Connexion nécessaire pour ouvrir cet échange.');
+    }
     final query =
         '?limit=$limit${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}';
     final response = await engine.api.get(

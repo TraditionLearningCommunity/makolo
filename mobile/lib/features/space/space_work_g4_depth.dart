@@ -91,7 +91,7 @@ class SpaceWorkG4Depth extends StatelessWidget {
                   width: 260,
                   height: 200,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
+                  errorBuilder: (_, _, _) =>
                       const Text('Visuel publié indisponible.'),
                 ),
               ),

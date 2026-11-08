@@ -184,8 +184,9 @@ class HistoryRepository {
           metadata['offset'] != offset ||
           metadata['limit'] is! int ||
           (metadata['limit'] as int) < 1 ||
-          metadata['has_more'] is! bool)
+          metadata['has_more'] is! bool) {
         return false;
+      }
       if (metadata['has_more'] == false) return true;
       offset += metadata['limit'] as int;
     }

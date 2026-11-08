@@ -172,8 +172,9 @@ class OutboxProcessor {
           }
           if (dependencies.any(
             (id) => states[id] != OutboxState.confirmed.wireValue,
-          ))
+          )) {
             continue;
+          }
         }
 
         if (policy.requiresReconciliationBeforeReplay &&
@@ -194,14 +195,16 @@ class OutboxProcessor {
 
         if (!_active) return;
         if (operation.state == OutboxState.awaitingConfirmation.wireValue &&
-            !policy.requiresReconciliationBeforeReplay)
+            !policy.requiresReconciliationBeforeReplay) {
           continue;
+        }
         if (!await repository.claimForAttempt(
           operation.operationId,
           expectedAttempts: operation.attempts,
           expectedState: operation.state,
-        ))
+        )) {
           continue;
+        }
         if (!await _mayDispatch(operation)) {
           await repository.setState(
             operation.operationId,

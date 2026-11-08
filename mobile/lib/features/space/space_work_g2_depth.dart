@@ -129,7 +129,7 @@ class SpaceWorkG2Depth extends StatelessWidget {
       title: Text(title),
       subtitle: Text(
         [
-          if (date != null) date,
+          ?date,
           if (state != null) spaceStateLabel(state),
           if (isOccurrence && route == null) 'Date non ouvrable dans cet état',
         ].join(' · '),

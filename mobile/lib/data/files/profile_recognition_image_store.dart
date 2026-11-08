@@ -171,8 +171,9 @@ class ProfileRecognitionImageStore {
       }
       final cutoff = DateTime.now().toUtc().subtract(const Duration(days: 1));
       for (final file in files) {
-        if (!file.path.contains('.image.part-') || !await file.exists())
+        if (!file.path.contains('.image.part-') || !await file.exists()) {
           continue;
+        }
         final modified = (await file.stat()).modified.toUtc();
         if (modified.isBefore(cutoff)) await file.delete();
       }

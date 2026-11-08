@@ -230,7 +230,7 @@ class _DossierContent extends StatelessWidget {
               ),
           ],
         ),
-        if (conversationEntry != null) conversationEntry!,
+        ?conversationEntry,
         MakoloSection(
           title: 'État collectif',
           description: readiness['partial'] == true
@@ -375,7 +375,7 @@ class _ProjectContent extends StatelessWidget {
                 ),
           metadata: metadata,
         ),
-        if (conversationEntry != null) conversationEntry!,
+        ?conversationEntry,
         MakoloSection(
           title: 'Dossiers',
           child: dossiers.isEmpty

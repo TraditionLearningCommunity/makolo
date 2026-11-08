@@ -148,8 +148,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         _refreshFailed ||
         !widget.runtime.isAuthenticated ||
         widget.runtime.api == null ||
-        widget.runtime.sync == null)
+        widget.runtime.sync == null) {
       return false;
+    }
     return status?.state != SyncVisualState.offline &&
         status?.state != SyncVisualState.failed &&
         status?.state != SyncVisualState.stale &&

@@ -100,8 +100,9 @@ bool nowContinuationCanRebase(
       saved['items'] is! List ||
       saved['root_token'] is! String ||
       saved['first_keys'] is! List ||
-      cursor['token'] != saved['root_token'])
+      cursor['token'] != saved['root_token']) {
     return false;
+  }
   final keys = raw
       .whereType<Map>()
       .map((item) => (item['continuity_identity'] ?? item['id'])?.toString())
@@ -147,8 +148,9 @@ class _NowScreenState extends State<NowScreen> {
       // A newer root may have arrived while local storage was being read.
       if (_paging ||
           (_pagedBaseReceivedAt != null &&
-              _pagedBaseReceivedAt != root.receivedAt))
+              _pagedBaseReceivedAt != root.receivedAt)) {
         return;
+      }
       setState(() {
         _pagedBaseReceivedAt = root.receivedAt;
         _pagedActorId = actorId;

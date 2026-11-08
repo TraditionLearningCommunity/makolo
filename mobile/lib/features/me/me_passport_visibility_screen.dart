@@ -38,17 +38,19 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
         response.jsonObject(),
         expectedProjection: 'personal.me.passport.visibility',
       ).data;
-      if (mounted)
+      if (mounted) {
         setState(() {
           _data = data;
           _loading = false;
         });
+      }
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _data = null;
           _loading = false;
         });
+      }
     }
   }
 
@@ -67,7 +69,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
           {'kind': row['kind'], 'id': row['id'], 'label': row['label']},
     ];
     String token(Map<String, dynamic> item) =>
-        item['kind'].toString() + ':' + (item['id']?.toString() ?? '');
+        '${item['kind']}:${item['id']?.toString() ?? ''}';
     final selected = _rows(setting['audiences']).map(token).toSet();
     for (final row in _rows(setting['audiences'])) {
       if (row['kind'] == 'selected_profile' && row['id'] != null) {
@@ -95,10 +97,11 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                 queryParameters: {'q': searchInput.text.trim()},
               ).toString();
               final response = await widget.api.get(url);
-              if (sheet.mounted)
+              if (sheet.mounted) {
                 redraw(() {
                   candidates = _rows(response.jsonObject()['results']);
                 });
+              }
             } on Object {
               if (sheet.mounted) redraw(() => candidates = []);
             }
@@ -227,8 +230,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                                     person['name']?.toString() ?? 'Profil',
                                   ),
                                   subtitle: Text(
-                                    '@' +
-                                        (person['username']?.toString() ?? ''),
+                                    '@${person['username']?.toString() ?? ''}',
                                   ),
                                   onTap: () => redraw(() {
                                     if (person['id'] == null) return;

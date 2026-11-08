@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
 import 'conversation_repository.dart';
 
@@ -98,11 +97,12 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
         );
         if (source.lastErrorCode == 'permission_denied' ||
             source.lastErrorCode == 'not_found') {
-          if (mounted)
+          if (mounted) {
             setState(() {
               _error = 'Cette conversation n’est plus accessible.';
               _initialAttempted = true;
             });
+          }
           return;
         }
         final cached = await widget.repository.readPointDepth(
@@ -148,8 +148,9 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
           generation != _generation ||
           widget.conversationId.isEmpty ||
           _query != priorQuery ||
-          _section != priorSection)
+          _section != priorSection) {
         return;
+      }
       final arrived = _pointRows(payload['results']);
       setState(() {
         if (reset) _rows.clear();

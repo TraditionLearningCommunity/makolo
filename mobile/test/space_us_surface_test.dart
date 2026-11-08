@@ -82,9 +82,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
 
 void main() {
   for (final width in [360.0, 834.0, 1440.0]) {
-    testWidgets('Nous is readable at width ' + width.toString(), (
-      tester,
-    ) async {
+    testWidgets('Nous is readable at width $width', (tester) async {
       tester.view.physicalSize = Size(width, 1100);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);

@@ -118,8 +118,8 @@ class _RealizationRow extends StatelessWidget {
       title: Text(title),
       subtitle: Text(
         [
-          if (date != null) date,
-          if (clock != null) clock,
+          ?date,
+          ?clock,
           if (state != null) spaceStateLabel(state),
           if (route == null) 'Date non ouvrable ici',
         ].join(' · '),

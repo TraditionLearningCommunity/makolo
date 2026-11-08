@@ -51,7 +51,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   String get _base =>
       'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/documents/';
 
-  String get _url => '${_base}${Uri.encodeComponent(widget.documentId)}/';
+  String get _url => '$_base${Uri.encodeComponent(widget.documentId)}/';
 
   @override
   void initState() {
@@ -210,8 +210,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       }
       if (mounted && _actor?.space.id == id) _toast('Document enregistré.');
     } on Object {
-      if (mounted && _actor?.space.id == id)
+      if (mounted && _actor?.space.id == id) {
         _toast('Téléchargement impossible.');
+      }
     } finally {
       if (await folder.exists()) await folder.delete(recursive: true);
       if (mounted) setState(() => _working = false);
@@ -223,8 +224,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final mime = version['mime_type']?.toString();
     if (mime != 'application/pdf' &&
         mime != 'image/jpeg' &&
-        mime != 'image/png')
+        mime != 'image/png') {
       return;
+    }
     final api = widget.runtime.api;
     final spaceId = _actor!.space.id;
     final versionId = version['id']?.toString();
@@ -376,8 +378,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     try {
       final response = (await api.get('${_base}eligible-journeys/'))
           .jsonObject();
-      if (!mounted || _actor?.space.id != id || response['space_id'] != id)
+      if (!mounted || _actor?.space.id != id || response['space_id'] != id) {
         return;
+      }
       journeys = [
         for (final row in response['items'] as List? ?? [])
           if (row is Map<String, dynamic>) row,
@@ -387,8 +390,9 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       return;
     }
     if (!mounted || journeys.isEmpty) {
-      if (mounted && _actor?.space.id == id)
+      if (mounted && _actor?.space.id == id) {
         _toast('Aucune démarche disponible.');
+      }
       return;
     }
     final journeyId = await showModalBottomSheet<String>(

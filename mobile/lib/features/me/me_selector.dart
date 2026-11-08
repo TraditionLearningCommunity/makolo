@@ -718,8 +718,8 @@ class MeSelector {
       destination: StructuredDestination(kind: 'proof', id: id),
       title: title,
       subtitle: [
-        if (activity != null) activity,
-        if (status != null) status,
+        ?activity,
+        ?status,
         if (activity == null && status == null) 'Preuve',
       ].join(' · '),
     );

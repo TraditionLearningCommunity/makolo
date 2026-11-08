@@ -219,7 +219,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         body: {
           'family': family,
           'values': values.toList(),
-          if (newVisibility != null) 'new_visibility': newVisibility,
+          'new_visibility': ?newVisibility,
         },
       );
       final confirmed = ProjectionEnvelope.parse(

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
-import '../../network/makolo_api_client.dart';
 import '../../network/api_error.dart';
 import '../../platform/scanner/qr_renderer.dart';
 import 'access_repository.dart';
@@ -131,8 +130,9 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       }
       if (!mounted ||
           _generation != generation ||
-          widget.accessId != requestedAccess)
+          widget.accessId != requestedAccess) {
         return;
+      }
       if (retained != null) {
         _setCredential(retained);
       }
@@ -151,14 +151,16 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       );
       if (!mounted ||
           _generation != generation ||
-          widget.accessId != requestedAccess)
+          widget.accessId != requestedAccess) {
         return;
+      }
       _setCredential(fresh);
     } on Object catch (error) {
       if (!mounted ||
           _generation != generation ||
-          widget.accessId != requestedAccess)
+          widget.accessId != requestedAccess) {
         return;
+      }
       final revoked =
           error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404);

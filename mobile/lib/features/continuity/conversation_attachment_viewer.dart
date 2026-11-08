@@ -168,8 +168,9 @@ class _ConversationAttachmentViewerState
         future: file.readAsString(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const Text('Texte indisponible.');
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           return SingleChildScrollView(
             padding: const EdgeInsets.all(18),
             child: SelectableText(snapshot.data!),

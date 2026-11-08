@@ -46,8 +46,9 @@ class PersonalRepository {
         overlay.payload['actor_id'] != store.profileId ||
         overlay.payload['root_token'] != cursor['token'] ||
         overlay.payload['first_keys'] is! List ||
-        overlay.payload['rows'] is! List)
+        overlay.payload['rows'] is! List) {
       return root;
+    }
     final first = overlay.payload['first_keys'] as List;
     final rootRows = root.payload['items'];
     if (rootRows is! List) return root;
@@ -56,14 +57,12 @@ class PersonalRepository {
         !List.generate(
           keys.length,
           (i) => keys[i] == first[i],
-        ).every((same) => same))
+        ).every((same) => same)) {
       return root;
+    }
     final seen = <String>{};
     final merged = <Map<String, dynamic>>[];
-    for (final raw in [
-      ...(rootRows as List),
-      ...(overlay.payload['rows'] as List),
-    ]) {
+    for (final raw in [...rootRows, ...(overlay.payload['rows'] as List)]) {
       if (raw is! Map) continue;
       final id = raw['id']?.toString();
       if (id == null || id.isEmpty || !seen.add(id)) continue;
@@ -185,8 +184,9 @@ class PersonalRepository {
       return;
     }
     final latestTerritory = latest.payload[territory];
-    if (latestTerritory is! Map || latestTerritory[selectedFamily] is! Map)
+    if (latestTerritory is! Map || latestTerritory[selectedFamily] is! Map) {
       return;
+    }
     final latestItems = (latestTerritory[selectedFamily] as Map)['items'];
     final latestSource = latestTerritory[selectedFamily] as Map;
     if (latestItems is! List ||

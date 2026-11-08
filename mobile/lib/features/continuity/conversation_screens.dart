@@ -7,7 +7,6 @@ import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
-import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/humanization.dart';
@@ -776,8 +775,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     List<_ConversationTimelineEntry> entries,
     List<ConversationOutgoing> outgoing,
   ) {
-    if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null)
+    if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null) {
       return;
+    }
     final latestId = outgoing.isNotEmpty
         ? outgoing.last.reference
         : entries.last.point.id;
@@ -788,8 +788,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     _lastTimelinePointId = latestId;
     if (!shouldFollow) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_timelineScroll.hasClients || _focusedPointId != null)
+      if (!mounted || !_timelineScroll.hasClients || _focusedPointId != null) {
         return;
+      }
       _timelineScroll.jumpTo(_timelineScroll.position.maxScrollExtent);
     });
   }
@@ -824,8 +825,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     try {
       final local = await repository.readDetail(id);
       final source = await repository.readDetailSource(id);
-      if (!mounted || repository != widget.repository || id != widget.id)
+      if (!mounted || repository != widget.repository || id != widget.id) {
         return;
+      }
       if (local == null) {
         await _refresh();
         return;

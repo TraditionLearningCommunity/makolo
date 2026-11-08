@@ -100,11 +100,12 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
     final current = actor;
     final api = widget.runtime.api;
     if (current == null || api == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           authorized = false;
           loading = false;
         });
+      }
       return;
     }
     final id = current.space.id;

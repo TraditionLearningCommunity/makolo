@@ -98,10 +98,11 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
         _loaded = true;
       });
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'Échange indisponible. Votre saisie est conservée.',
         );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -133,8 +134,9 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
       widget.onPublished(published);
       await _load(reset: true);
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Envoi non confirmé. Réessayer ou modifier.');
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }

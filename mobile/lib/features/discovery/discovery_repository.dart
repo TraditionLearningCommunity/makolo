@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
-
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
@@ -43,8 +41,9 @@ class DiscoveryQuery {
       if (parsed == null ||
           !parsed.isFinite ||
           parsed < minimum ||
-          parsed > maximum)
+          parsed > maximum) {
         return null;
+      }
       return parsed;
     }
 
@@ -406,8 +405,9 @@ class DiscoveryRepository {
         if (url == null ||
             url.scheme != 'https' ||
             url.host.isEmpty ||
-            url.userInfo.isNotEmpty)
+            url.userInfo.isNotEmpty) {
           continue;
+        }
         leads.add(
           DiscoverySourceLead(
             label: label,
@@ -656,8 +656,9 @@ class DiscoveryRepository {
     DiscoveryQuery query,
   ) async {
     final rootQuery = query.copyWith(page: 1, clearContinuation: true);
-    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable)
+    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable) {
       return null;
+    }
     final root = await _readStoredItems(rootQuery);
     if (root == null) return null;
     final saved = await store.readProjection(
@@ -684,8 +685,9 @@ class DiscoveryRepository {
     final root = await _readStoredItems(rootQuery);
     if (root == null ||
         reserve.rootReceivedAt == null ||
-        reserve.rootReceivedAt != root.receivedAt)
+        reserve.rootReceivedAt != root.receivedAt) {
       return;
+    }
     final payload = reserve.toPayload(
       profileId: profileId,
       fieldKey: query.mapFingerprint,
@@ -719,8 +721,9 @@ class DiscoveryRepository {
     final field = payload['field'];
     if (field is! Map<String, dynamic> ||
         window.schemaVersion != 1 ||
-        window.payload['fingerprint'] is! String)
+        window.payload['fingerprint'] is! String) {
       return null;
+    }
     final actor = field['viewer'];
     if (actor is! Map || actor['id'] != profileId) return null;
     return StoredProjection(
@@ -768,8 +771,9 @@ class DiscoveryRepository {
     );
     if (root == null ||
         root.payload['viewer'] is! Map ||
-        (root.payload['viewer'] as Map)['id'] != profileId)
+        (root.payload['viewer'] as Map)['id'] != profileId) {
       return;
+    }
     final wire = Map<String, dynamic>.from(collection.wire)
       ..['results'] = bounded
       ..['items'] = bounded;
@@ -934,8 +938,9 @@ class DiscoveryRepository {
       final viewer = snapshot.payload['viewer'];
       if (snapshot.schemaVersion != 1 ||
           viewer is! Map ||
-          viewer['id'] != profileId)
+          viewer['id'] != profileId) {
         return null;
+      }
       try {
         DiscoveryWire.validateData(snapshot.payload);
       } on FormatException {
@@ -950,8 +955,9 @@ class DiscoveryRepository {
           identity['family'] is! String ||
           identity['resource'] is! Map ||
           '${identity['family']}:${(identity['resource'] as Map)['id']}' !=
-              source.resourceKey)
+              source.resourceKey) {
         return null;
+      }
       try {
         DiscoveryWire.validateData({
           'results': [item],
@@ -989,8 +995,9 @@ class DiscoveryRepository {
   StoredProjection? _spatialFromField(StoredProjection? field) {
     if (field == null || field.schemaVersion != 1) return null;
     final raw = field.payload['spatial_index'];
-    if (raw is! Map)
+    if (raw is! Map) {
       return null; // Older servers remain explicitly unsupported.
+    }
     final index = Map<String, dynamic>.from(raw);
     if (index['count'] is! int ||
         index['total_results'] is! int ||

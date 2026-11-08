@@ -93,7 +93,7 @@ class _ReaderApi implements MakoloApiClient {
 }
 
 class _ReaderRuntime extends Fake implements AppRuntime {
-  _ReaderRuntime(this.client, {this.authenticated = false});
+  _ReaderRuntime(this.client) : authenticated = false;
 
   final _ReaderApi client;
   final bool authenticated;

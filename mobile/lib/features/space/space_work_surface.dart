@@ -86,7 +86,7 @@ class SpaceWorkSurface extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 label: const Text('Planifier dans Transport'),
                 onPressed: () => context.push(
-                  '/space/${Uri.encodeComponent(spaceSlug!)}/work/g3/transport/new',
+                  '/space/${Uri.encodeComponent(spaceSlug)}/work/g3/transport/new',
                 ),
               ),
             if (canCreateG2)
@@ -98,7 +98,7 @@ class SpaceWorkSurface extends StatelessWidget {
                       : 'Nouvelle prestation',
                 ),
                 onPressed: () => context.push(
-                  '/space/${Uri.encodeComponent(spaceSlug!)}/work/g2/new'
+                  '/space/${Uri.encodeComponent(spaceSlug)}/work/g2/new'
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
@@ -115,7 +115,7 @@ class SpaceWorkSurface extends StatelessWidget {
                       : 'Nouvelle activité',
                 ),
                 onPressed: () => context.push(
-                  '/space/${Uri.encodeComponent(spaceSlug!)}/work/activities/new'
+                  '/space/${Uri.encodeComponent(spaceSlug)}/work/activities/new'
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
@@ -374,7 +374,7 @@ class SpaceWorkSurface extends StatelessWidget {
                           width: 72,
                           height: 72,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
+                          errorBuilder: (_, _, _) =>
                               const Icon(Icons.image_not_supported_outlined),
                         ),
                       ),

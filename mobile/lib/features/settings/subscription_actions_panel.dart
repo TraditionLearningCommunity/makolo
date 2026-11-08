@@ -87,8 +87,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   bool _sameSubject(AppRuntime runtime, String? profileId) {
     if (!mounted ||
         !identical(widget.runtime, runtime) ||
-        runtime.session?.profileId != profileId)
+        runtime.session?.profileId != profileId) {
       return false;
+    }
     if (widget.spaceSlug == null) return true;
     final actor = runtime.actorContext?.value;
     return actor is SpaceActorContext &&
@@ -137,11 +138,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '• ' +
-                        _value(
-                          _object(row)?['label'] ?? _object(row)?['title'],
-                          _value(row),
-                        ),
+                    '• ${_value(_object(row)?['label'] ?? _object(row)?['title'], _value(row))}',
                   ),
                   if (_object(row) case final detail?)
                     if (_value(
@@ -157,10 +154,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                               ) +
                               (detail['state'] == null
                                   ? ''
-                                  : ' · ' +
-                                        subscriptionConditionStatusLabel(
-                                          detail['state'],
-                                        )),
+                                  : ' · ${subscriptionConditionStatusLabel(detail['state'])}'),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -196,8 +190,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       }
       return;
     }
-    if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api)
+    if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api) {
       return;
+    }
     setState(() => _busy = false);
     final billedAmount = num.tryParse(
       _object(preview['billing_terms'])?['amount']?.toString() ?? '',
@@ -237,9 +232,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     Text(subscriptionPriceLabel(preview['billing_terms'])),
                   ],
                   if (_value(preview['current_name']).isNotEmpty)
-                    Text('Depuis : ' + _value(preview['current_name'])),
+                    Text('Depuis : ${_value(preview['current_name'])}'),
                   if (_value(preview['eligibility']).isNotEmpty)
-                    Text('Disponibilité : ' + _value(preview['eligibility'])),
+                    Text('Disponibilité : ${_value(preview['eligibility'])}'),
                   _list('Capacités obtenues', preview['features_gained']),
                   _list('Capacités retirées', preview['features_lost']),
                   if (_objects(preview['features_gained']).isEmpty &&
@@ -256,11 +251,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                   for (final quota in _objects(preview['quota_changes'])) ...[
                     const SizedBox(height: 8),
                     Text(
-                      _value(quota['label']) +
-                          ' : ' +
-                          _value(quota['current_value'], '—') +
-                          ' → ' +
-                          _value(quota['target_value'], '—'),
+                      '${_value(quota['label'])} : ${_value(quota['current_value'], '—')} → ${_value(quota['target_value'], '—')}',
                     ),
                   ],
                   if (preview['quota_changes'] is List &&
@@ -334,15 +325,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                             : 'Confirmer le changement ?',
                                       ),
                                       content: Text(
-                                        _value(preview['target_name'], title) +
-                                            (paidChoice
-                                                ? '\n' +
-                                                      subscriptionPriceLabel(
-                                                        preview['billing_terms'],
-                                                      )
-                                                : '') +
-                                            '\nLa formule actuelle reste applicable '
-                                                'tant que les conditions ne sont pas remplies.',
+                                        '${_value(preview['target_name'], title)}${paidChoice ? '\n${subscriptionPriceLabel(preview['billing_terms'])}' : ''}\nLa formule actuelle reste applicable tant que les conditions ne sont pas remplies.',
                                       ),
                                       actions: [
                                         TextButton(
@@ -386,8 +369,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                           sourceRuntime,
                                           profileId,
                                         ) ||
-                                        widget.runtime.api != api)
+                                        widget.runtime.api != api) {
                                       return;
+                                    }
                                     await widget.onUpdated();
                                     if (sheetContext.mounted) {
                                       Navigator.pop(sheetContext);
@@ -398,8 +382,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                           profileId,
                                         )) {
                                       await context.push(
-                                        '/payments/obligations/' +
-                                            Uri.encodeComponent(paymentId),
+                                        '/payments/obligations/${Uri.encodeComponent(paymentId)}',
                                       );
                                       if (_sameSubject(
                                         sourceRuntime,
@@ -454,7 +437,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     final profileId = sourceRuntime.session?.profileId;
     if (obligationId.isEmpty || !_sameSubject(sourceRuntime, profileId)) return;
     await context.push(
-      '/payments/obligations/' + Uri.encodeComponent(obligationId),
+      '/payments/obligations/${Uri.encodeComponent(obligationId)}',
     );
     if (_sameSubject(sourceRuntime, profileId)) {
       await widget.onUpdated();
@@ -491,20 +474,16 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     );
     if (confirmed != true ||
         !_sameSubject(sourceRuntime, profileId) ||
-        widget.runtime.api != api)
+        widget.runtime.api != api) {
       return;
+    }
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       await api.post(
-        subscriptionPath +
-            'transitions/' +
-            Uri.encodeComponent(id) +
-            '/' +
-            action +
-            '/',
+        '${subscriptionPath}transitions/${Uri.encodeComponent(id)}/$action/',
       );
       if (_sameSubject(sourceRuntime, profileId) && widget.runtime.api == api) {
         await widget.onUpdated();
@@ -529,12 +508,13 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     setState(() => _loadingMore = true);
     try {
       final result = (await api.get(
-        subscriptionPath + 'obligations/?offset=' + offset.toString(),
+        '${subscriptionPath}obligations/?offset=$offset',
       )).jsonObject();
       if (!_sameSubject(sourceRuntime, profileId) ||
           widget.runtime.api != api ||
-          widget.snapshot != snapshot)
+          widget.snapshot != snapshot) {
         return;
+      }
       final previous = {
         ..._objects(_object(widget.snapshot['billing'])?['items']),
         ..._extraBills,
@@ -563,12 +543,13 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     setState(() => _loadingHistory = true);
     try {
       final result = (await api.get(
-        subscriptionPath + 'transitions/?offset=' + offset.toString(),
+        '${subscriptionPath}transitions/?offset=$offset',
       )).jsonObject();
       if (!_sameSubject(runtime, profileId) ||
           widget.runtime.api != api ||
-          widget.snapshot != snapshot)
+          widget.snapshot != snapshot) {
         return;
+      }
       final seen = {
         ..._objects(_object(widget.snapshot['history'])?['items']),
         ..._extraHistory,
@@ -635,11 +616,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                       onPressed: _busy
                           ? null
                           : () => _preview(
-                              subscriptionPath +
-                                  'addons/' +
-                                  Uri.encodeComponent(_value(row['item_id'])) +
-                                  '/remove/',
-                              'Retirer ' + _value(row['name'], 'cette option'),
+                              '${subscriptionPath}addons/${Uri.encodeComponent(_value(row['item_id']))}/remove/',
+                              'Retirer ${_value(row['name'], 'cette option')}',
                             ),
                       child: const Text('Retirer'),
                     )
@@ -702,24 +680,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               title: Text(
                 _value(event['source_name']).isEmpty
                     ? _value(event['target_name'], 'Changement')
-                    : _value(event['source_name']) +
-                          ' → ' +
-                          _value(event['target_name'], 'Changement'),
+                    : '${_value(event['source_name'])} → ${_value(event['target_name'], 'Changement')}',
               ),
               subtitle: Text(
-                (event['kind'] == 'base_switch'
-                        ? 'Changement de formule'
-                        : _value(event['kind_label'])) +
-                    ' · ' +
-                    _value(event['status_label'], 'À vérifier') +
-                    (subscriptionDateLabel(
-                          event['completed_at'] ?? event['requested_at'],
-                        ).isEmpty
-                        ? ''
-                        : ' · ' +
-                              subscriptionDateLabel(
-                                event['completed_at'] ?? event['requested_at'],
-                              )),
+                '${event['kind'] == 'base_switch' ? 'Changement de formule' : _value(event['kind_label'])} · ${_value(event['status_label'], 'À vérifier')}${subscriptionDateLabel(event['completed_at'] ?? event['requested_at']).isEmpty ? '' : ' · ${subscriptionDateLabel(event['completed_at'] ?? event['requested_at'])}'}',
               ),
             ),
             const Divider(height: 1),
@@ -740,8 +704,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                'Formule actuelle : ' +
-                    _value(_object(subscription['current_base'])?['name']),
+                'Formule actuelle : ${_value(_object(subscription['current_base'])?['name'])}',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -833,12 +796,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                 onPressed: _busy
                                     ? null
                                     : () => _preview(
-                                        subscriptionPath +
-                                            'plans/' +
-                                            Uri.encodeComponent(
-                                              _value(option['plan_version_id']),
-                                            ) +
-                                            '/',
+                                        '${subscriptionPath}plans/${Uri.encodeComponent(_value(option['plan_version_id']))}/',
                                         widget.section == 'options'
                                             ? 'Examiner cette option'
                                             : 'Examiner cette formule',
@@ -874,9 +832,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                _value(obligation['amount']) +
-                    ' ' +
-                    _value(obligation['currency']),
+                '${_value(obligation['amount'])} ${_value(obligation['currency'])}',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               subtitle: Column(
@@ -887,8 +843,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     subscriptionObligationStatusLabel(obligation['status']) +
                         (subscriptionDateLabel(obligation['due_at']).isEmpty
                             ? ''
-                            : ' · Échéance ' +
-                                  subscriptionDateLabel(obligation['due_at'])),
+                            : ' · Échéance ${subscriptionDateLabel(obligation['due_at'])}'),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],

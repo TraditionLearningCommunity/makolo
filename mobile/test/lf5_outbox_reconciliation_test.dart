@@ -34,11 +34,12 @@ void main() {
       final began = Completer<void>();
       final release = Completer<OutboxResolution>();
       var calls = 0;
-      OutboxHandler handler = (_) {
+      Future<OutboxResolution> handler(_) {
         calls++;
         if (!began.isCompleted) began.complete();
         return release.future;
-      };
+      }
+
       final first = OutboxProcessor(
         repository: repo,
         handlers: {'owner.intent': handler},

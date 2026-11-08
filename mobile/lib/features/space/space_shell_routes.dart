@@ -487,11 +487,12 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _resolveSpace() async {
     final repository = widget.runtime.space;
     if (repository == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _denied = true;
           _loading = false;
         });
+      }
       return;
     }
     final actorBeforeLookup = widget.runtime.actorContext?.value;
@@ -760,8 +761,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                       if (!mounted ||
                           current is! SpaceActorContext ||
                           current.space.id != spaceId ||
-                          current.space.slug != widget.slug)
+                          current.space.slug != widget.slug) {
                         return;
+                      }
                       context.push('$handoff?from=team');
                     },
                   )

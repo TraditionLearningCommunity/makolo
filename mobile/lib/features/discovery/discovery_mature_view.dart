@@ -364,7 +364,7 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                     Padding(
                       padding: const EdgeInsets.only(top: MakoloSpacing.xs),
                       child: Text(
-                        place!,
+                        place,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium,
@@ -1048,8 +1048,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     final operation = _pinRender.then((_) async {
       if (!mounted ||
           _mapController != controller ||
-          generation != _pinGeneration)
+          generation != _pinGeneration) {
         return;
+      }
       try {
         final pins = await controller.renderPins([
           for (final entry in locations.entries)
@@ -1068,8 +1069,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         ]);
         if (!mounted ||
             _mapController != controller ||
-            generation != _pinGeneration)
+            generation != _pinGeneration) {
           return;
+        }
         _locationAnchors
           ..clear()
           ..addAll(locations);
@@ -1194,8 +1196,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     if (!_trackingRequested ||
         location == null ||
         _deviceWatch != null ||
-        _deviceWatchStarting)
+        _deviceWatchStarting) {
       return;
+    }
     _deviceWatchStarting = true;
     final generation = ++_trackingGeneration;
     try {
@@ -1208,11 +1211,13 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
               fix.latitude < -90 ||
               fix.latitude > 90 ||
               fix.longitude < -180 ||
-              fix.longitude > 180)
+              fix.longitude > 180) {
             return;
+          }
           if (_deviceLatitude == fix.latitude &&
-              _deviceLongitude == fix.longitude)
+              _deviceLongitude == fix.longitude) {
             return;
+          }
           _deviceLatitude = fix.latitude;
           _deviceLongitude = fix.longitude;
           unawaited(_paintDevicePosition());
@@ -1454,8 +1459,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         if (item.candidateKey == key &&
             _selector
                 .spatialAnchorsFromCollection(widget.selection.collection)
-                .any((anchor) => anchor.candidateKey == key))
+                .any((anchor) => anchor.candidateKey == key)) {
           return item;
+        }
       }
     }
     return null;

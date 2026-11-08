@@ -18,10 +18,10 @@ String subscriptionPriceLabel(Object? raw) {
       ? raw['period_count'] as int
       : int.tryParse(raw['period_count']?.toString() ?? '') ?? 1;
   final cadence =
-      (count > 1 ? count.toString() + ' ' : '') +
+      (count > 1 ? '$count ' : '') +
       unit +
       (count > 1 && unit != 'mois' ? 's' : '');
-  return currency + ' ' + amount + ' / ' + cadence;
+  return '$currency $amount / $cadence';
 }
 
 String subscriptionDateLabel(Object? raw) {

@@ -207,8 +207,9 @@ class ProfileFileStore {
   }) async {
     var removed = 0;
     for (final file in await stagedFiles()) {
-      if (!await canRemove(file) || await _referencedByLocalWork(file))
+      if (!await canRemove(file) || await _referencedByLocalWork(file)) {
         continue;
+      }
       await remove(file.fileId);
       removed += 1;
     }
@@ -234,8 +235,9 @@ class ProfileFileStore {
     await for (final entry in stagingDirectory.list(followLinks: false)) {
       if (entry is! File ||
           !p.basename(entry.path).startsWith('stage-') ||
-          paths.contains(p.normalize(entry.path)))
+          paths.contains(p.normalize(entry.path))) {
         continue;
+      }
       final modified = (await entry.stat()).modified.toUtc();
       if (modified.isAfter(cutoff)) continue;
       await entry.delete();

@@ -201,11 +201,12 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         if (mounted) _checkEnd();
       });
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _failed = true;
         });
+      }
     }
   }
 

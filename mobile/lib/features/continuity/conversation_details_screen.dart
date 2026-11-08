@@ -102,8 +102,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final base = widget.repository.sync?.api.baseUri;
     // The existing login-protected Django detail route, not a permission
     // grant or a new Sharing token. No URL for an unconfigured environment.
-    if (base == null || path != '/conversations/${widget.conversationId}/')
+    if (base == null || path != '/conversations/${widget.conversationId}/') {
       return;
+    }
     final uri = base.resolve(path!);
     if (uri.scheme != 'https' && uri.scheme != 'http') return;
     try {
@@ -262,7 +263,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               _heroAction(
                 icon: Icons.open_in_new_rounded,
                 label: 'Voir l’objet',
-                onTap: () => widget.onOpenSubject!(subjectRoute!),
+                onTap: () => widget.onOpenSubject!(subjectRoute),
               ),
             ],
             if (shareEnabled)
@@ -396,7 +397,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             final name = attachment['name']?.toString() ?? 'Pièce jointe';
             return Semantics(
               button: true,
-              label: 'Ouvrir ' + name,
+              label: 'Ouvrir $name',
               child: Material(
                 color: colors.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
@@ -410,9 +411,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                           padding: const EdgeInsets.all(6),
                           child: ConversationAttachmentViewer(
                             key: ValueKey(
-                              'conversation-details-media-preview-' +
-                                  (attachment['id']?.toString() ??
-                                      index.toString()),
+                              'conversation-details-media-preview-${attachment['id']?.toString() ?? index.toString()}',
                             ),
                             repository: widget.repository,
                             attachment: attachment,
@@ -477,7 +476,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             trailing: opensJourney
                 ? const Icon(Icons.chevron_right_rounded)
                 : null,
-            onTap: opensJourney ? () => widget.onOpenSubject!(route!) : null,
+            onTap: opensJourney ? () => widget.onOpenSubject!(route) : null,
           ),
       ],
     );
@@ -577,7 +576,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
             child: Text(
-              'Conversation créée le ' + when,
+              'Conversation créée le $when',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -602,7 +601,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     bool enabled,
     Map<String, dynamic> state,
   ) => SwitchListTile(
-    key: Key('conversation-detail-setting-' + action),
+    key: Key('conversation-detail-setting-$action'),
     value: enabled,
     onChanged: _busy == null ? (_) => _toggle(action, state) : null,
     secondary: Icon(icon),

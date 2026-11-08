@@ -127,7 +127,7 @@ void main() {
       expect(
         PassportEditorFieldRules.error(
           'website',
-          'exemple.com/' + List.filled(220, 'a').join(),
+          'exemple.com/${List.filled(220, 'a').join()}',
         ),
         isNotNull,
       );

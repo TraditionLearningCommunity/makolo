@@ -141,7 +141,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       query: const DiscoveryQuery(),
     );
     if (mounted && id != null) {
-      context.push('/discover/watches/' + Uri.encodeComponent(id));
+      context.push('/discover/watches/${Uri.encodeComponent(id)}');
     }
   }
 

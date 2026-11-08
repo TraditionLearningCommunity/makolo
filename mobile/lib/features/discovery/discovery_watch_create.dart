@@ -97,7 +97,7 @@ class _CreateDiscoveryWatchDialogState
       final month = selected.month.toString().padLeft(2, '0');
       final day = selected.day.toString().padLeft(2, '0');
       setState(() {
-        target.text = selected.year.toString() + '-' + month + '-' + day;
+        target.text = '${selected.year}-$month-$day';
         _when = '';
       });
     }
@@ -196,7 +196,7 @@ class _CreateDiscoveryWatchDialogState
                 ),
               ),
               DropdownButtonFormField<String>(
-                value: _vertical,
+                initialValue: _vertical,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: const [
                   DropdownMenuItem(value: '', child: Text('Tous les types')),
@@ -214,7 +214,7 @@ class _CreateDiscoveryWatchDialogState
                 onChanged: (v) => setState(() => _vertical = v ?? ''),
               ),
               DropdownButtonFormField<String>(
-                value: _when,
+                initialValue: _when,
                 decoration: const InputDecoration(labelText: 'Période'),
                 items: const [
                   DropdownMenuItem(value: '', child: Text('Toutes dates')),
@@ -235,7 +235,7 @@ class _CreateDiscoveryWatchDialogState
                 }),
               ),
               DropdownButtonFormField<String>(
-                value: _price,
+                initialValue: _price,
                 decoration: const InputDecoration(labelText: 'Prix'),
                 items: const [
                   DropdownMenuItem(value: '', child: Text('Tous les prix')),

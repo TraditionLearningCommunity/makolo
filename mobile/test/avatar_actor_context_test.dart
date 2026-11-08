@@ -8,7 +8,6 @@ import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
-import 'package:makolo_mobile/navigation/active_context_avatar.dart';
 import 'package:makolo_mobile/navigation/avatar_sheet.dart';
 import 'package:makolo_mobile/navigation/profile_avatar_image.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';

@@ -40,8 +40,9 @@ class NotificationRouter {
       'payment',
       'ticket_order',
       'event',
-    }.contains(destination.kind.toLowerCase()))
+    }.contains(destination.kind.toLowerCase())) {
       return null;
+    }
     for (final entry in const [
       ('access_id', 'access'),
       ('journey_id', 'journey'),

@@ -7,7 +7,6 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
 import '../../presentation/contracts/space_presentation.dart';
-import 'space_repository.dart';
 import 'space_work_surface.dart';
 
 /// An ephemeral continuation of the existing work projection. Every page is

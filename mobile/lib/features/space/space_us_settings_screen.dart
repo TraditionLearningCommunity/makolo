@@ -89,11 +89,12 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     final current = actor;
     final api = widget.runtime.api;
     if (current == null || api == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           loading = false;
           authorized = false;
         });
+      }
       return;
     }
     final expectedId = current.space.id;

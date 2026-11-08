@@ -128,8 +128,9 @@ class _ConversationComposerState extends State<ConversationComposer> {
           repository != widget.repository ||
           conversationId != widget.conversationId ||
           _text.text.isNotEmpty ||
-          draft == null)
+          draft == null) {
         return;
+      }
       _editingProgrammatically = true;
       _text.text = draft['body']?.toString() ?? '';
       _editingProgrammatically = false;
@@ -488,7 +489,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
               ),
             if (_needsAudience && textMode == 'information')
               DropdownButtonFormField<String>(
-                value: _audienceId,
+                initialValue: _audienceId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Destinataires',
@@ -937,15 +938,13 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                     children: [
                       Expanded(
                         child: TextField(
-                          key: Key(
-                            'conversation-compose-option-' + index.toString(),
-                          ),
+                          key: Key('conversation-compose-option-$index'),
                           controller: _optionControllers[index],
                           minLines: 1,
                           maxLines: 3,
                           maxLength: 220,
                           decoration: InputDecoration(
-                            labelText: 'Choix ' + (index + 1).toString(),
+                            labelText: 'Choix ${index + 1}',
                             border: const OutlineInputBorder(),
                             counterText: '',
                           ),
@@ -1057,7 +1056,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
             ],
             if (widget.capabilities['audience_selection_required'] == true)
               DropdownButtonFormField<String>(
-                value: _audienceId,
+                initialValue: _audienceId,
                 decoration: const InputDecoration(
                   labelText: 'Destinataires',
                   border: OutlineInputBorder(),

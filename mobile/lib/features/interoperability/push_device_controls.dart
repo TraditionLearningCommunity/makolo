@@ -72,19 +72,21 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     final generation = ++_generation;
     final api = widget.runtime.api;
     if (api == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _devices = const [];
           _error = 'Impossible d’afficher vos appareils.';
         });
+      }
       return;
     }
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = true;
         _error = null;
       });
+    }
     try {
       final payload = (await api.get('api/v1/notifications/push/endpoints/'))
           .jsonObject();
@@ -96,8 +98,9 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             value['id'] is! String ||
             value['platform'] is! String ||
             value['provider'] != 'fcm' ||
-            value['active'] != true)
+            value['active'] != true) {
           continue;
+        }
         devices.add({
           'id': value['id'] as String,
           'platform': value['platform'] as String,
@@ -165,8 +168,9 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       committed = true;
       if (!mounted ||
           version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime))
+          !identical(ownerRuntime, widget.runtime)) {
         return;
+      }
       await _load();
       refreshed = _error == null;
       try {
@@ -176,8 +180,9 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       }
       if (!mounted ||
           version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime))
+          !identical(ownerRuntime, widget.runtime)) {
         return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -233,8 +238,9 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       await registrar.reactivateCurrent();
       if (!mounted ||
           version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime))
+          !identical(ownerRuntime, widget.runtime)) {
         return;
+      }
       await _load();
       final devicesRefreshed = _error == null;
       var projectionRefreshed = false;

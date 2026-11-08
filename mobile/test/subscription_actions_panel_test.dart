@@ -206,7 +206,7 @@ void main() {
         GoRoute(
           path: '/payments/obligations/:id',
           builder: (context, state) =>
-              Scaffold(body: Text('Paiement ' + state.pathParameters['id']!)),
+              Scaffold(body: Text('Paiement ${state.pathParameters['id']!}')),
         ),
       ],
     );

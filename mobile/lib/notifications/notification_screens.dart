@@ -389,7 +389,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                   child: Center(
                                     child: Text(
                                       hasMore
-                                          ? '${remaining} autres à afficher'
+                                          ? '$remaining autres à afficher'
                                           : 'Aucune autre notification',
                                       style: Theme.of(context)
                                           .textTheme

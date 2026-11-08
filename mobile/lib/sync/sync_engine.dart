@@ -402,7 +402,7 @@ class SyncEngine {
     unawaited(
       request.then(
         (_) => cleanup(),
-        onError: (Object _, StackTrace __) {
+        onError: (Object _, StackTrace _) {
           cleanup();
         },
       ),
@@ -943,8 +943,9 @@ class SyncEngine {
     )..where((row) => row.profileId.equals(profileId))).get();
     for (final snapshot in snapshots) {
       if (!snapshot.projectionKind.startsWith('space.') ||
-          snapshot.projectionKind == 'space.inventory')
+          snapshot.projectionKind == 'space.inventory') {
         continue;
+      }
       final key = snapshot.resourceKey;
       final inScope =
           spaceId == null ||

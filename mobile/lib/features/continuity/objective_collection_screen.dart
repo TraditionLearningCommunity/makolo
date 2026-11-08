@@ -138,8 +138,9 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
         _loadingFirst ||
         !_hasFirst ||
         page == null ||
-        !page.hasMore)
+        !page.hasMore) {
       return;
+    }
     unawaited(_loadMore(page));
   }
 
@@ -416,15 +417,17 @@ class _ObjectivePage {
           actor['id']?.toString() != profileId ||
           page is! Map ||
           raw is! List ||
-          page['offset'] != expected)
+          page['offset'] != expected) {
         break;
+      }
       hasFirst = true;
       for (final candidate in raw) {
         if (candidate is! Map ||
             candidate['kind'] != kind.name ||
             candidate['id'] is! String ||
-            candidate['title'] is! String)
+            candidate['title'] is! String) {
           continue;
+        }
         final id = candidate['id'] as String;
         if (!seen.add(id)) continue;
         final space = candidate['space'];

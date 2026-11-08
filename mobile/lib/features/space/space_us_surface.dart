@@ -353,7 +353,7 @@ class SpaceUsSurface extends StatelessWidget {
                       _action(
                         context,
                         'Consulter les ressources',
-                        resourcesTarget!,
+                        resourcesTarget,
                         open,
                       ),
                     ],

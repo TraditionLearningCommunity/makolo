@@ -84,8 +84,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
         _offline ||
         _loading ||
         _failed ||
-        _pendingFamily(_current) == null)
+        _pendingFamily(_current) == null) {
       return;
+    }
     unawaited(_next());
   }
 

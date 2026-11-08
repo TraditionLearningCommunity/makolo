@@ -137,8 +137,9 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
           ticket != _requestVersion ||
           active is! SpaceActorContext ||
           active.space.id != expectedId ||
-          active.space.slug != widget.slug)
+          active.space.slug != widget.slug) {
         return;
+      }
       if (data['space_id'] != expectedId ||
           data['kind'] != kind ||
           data['items'] is! List) {

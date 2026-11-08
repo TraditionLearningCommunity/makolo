@@ -4,7 +4,6 @@ import 'dart:io';
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../data/files/profile_paths.dart';
 
@@ -334,8 +333,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     void keep(Map<String, dynamic> data, {bool online = false}) {
       if (!mounted ||
           epoch != _loadEpoch ||
-          resourceKey != _passportStorageKey())
+          resourceKey != _passportStorageKey()) {
         return;
+      }
       setState(() {
         _cachedPassport = data;
         _cachedVariantKey = resourceKey;
@@ -440,8 +440,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     } on Object catch (error) {
       if (epoch != _loadEpoch ||
           requestedVariant != _variant ||
-          resourceKey != _passportStorageKey())
+          resourceKey != _passportStorageKey()) {
         rethrow;
+      }
       if (error is MakoloApiError &&
           (error.statusCode == 403 || error.statusCode == 404)) {
         _full = null;
@@ -1817,9 +1818,7 @@ class _PassportBody extends StatelessWidget {
         _section(context, 'Ouvert à', _rows(declared['open_to']), (row) {
           final label = _text(row['label']);
           final topic = _text(_map(row['topic'])['label']);
-          return label == null
-              ? null
-              : [label, if (topic != null) topic].join(' · ');
+          return label == null ? null : [label, ?topic].join(' · ');
         }),
         _section(context, 'Expériences et rôles', _rows(data['experiences']), (
           row,
@@ -1837,16 +1836,12 @@ class _PassportBody extends StatelessWidget {
         ) {
           final title = _text(row['title']);
           final status = _text(row['status_label']);
-          return title == null
-              ? null
-              : [title, if (status != null) status].join(' · ');
+          return title == null ? null : [title, ?status].join(' · ');
         }),
         _section(context, 'Faits établis', _rows(established['proofs']), (row) {
           final type = _text(row['proof_type_label']);
           final activity = _text(_map(row['activity'])['title']);
-          return type == null
-              ? null
-              : [type, if (activity != null) activity].join(' · ');
+          return type == null ? null : [type, ?activity].join(' · ');
         }),
         _section(context, 'Attestations reçues', _rows(issued['credentials']), (
           row,
@@ -1861,7 +1856,7 @@ class _PassportBody extends StatelessWidget {
               : [
                   title,
                   if (issuerName != null) 'Délivrée par $issuerName',
-                  if (status != null) status,
+                  ?status,
                 ].join(' · ');
         }),
         _section(
@@ -1871,9 +1866,7 @@ class _PassportBody extends StatelessWidget {
           (row) {
             final team = _text(row['team']);
             final space = _text(row['space']);
-            return team == null
-                ? null
-                : [team, if (space != null) space].join(' · ');
+            return team == null ? null : [team, ?space].join(' · ');
           },
         ),
         _section(
@@ -1895,9 +1888,7 @@ class _PassportBody extends StatelessWidget {
           (row) {
             final role = _text(row['role']);
             final space = _text(row['space']);
-            return role == null
-                ? null
-                : [role, if (space != null) space].join(' · ');
+            return role == null ? null : [role, ?space].join(' · ');
           },
         ),
         if (data['variant'] == 'complete' && missing.isNotEmpty)

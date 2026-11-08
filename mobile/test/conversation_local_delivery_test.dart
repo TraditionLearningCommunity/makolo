@@ -47,8 +47,9 @@ void main() {
       tokenStore: tokens,
       dio: MockClient((request) async {
         requests.add(request);
-        if (!reachable)
+        if (!reachable) {
           return const MockResponse('{"error":"unavailable"}', 503);
+        }
         if (request.url.path.endsWith('/media/')) {
           return MockResponse(
             jsonEncode({
@@ -72,7 +73,7 @@ void main() {
       tokens: tokens,
       api: api,
       profileId: 'profile-a',
-      refreshDetail: (_, __) async {},
+      refreshDetail: (_, _) async {},
       mediaMime: (filename, kind) =>
           kind == 'image' ? 'image/png' : 'application/octet-stream',
       mediaDirectory: () async => mediaDirectory,

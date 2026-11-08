@@ -43,8 +43,9 @@ class DiscoveryUnseenReserve {
       if (key == null ||
           _shown.contains(key) ||
           _evicted.contains(key) ||
-          _unseen.containsKey(key))
+          _unseen.containsKey(key)) {
         continue;
+      }
       _unseen[key] = Map<String, dynamic>.from(row);
       while (_unseen.length > maxUnseen) {
         final oldest = _unseen.keys.first;
@@ -102,15 +103,18 @@ class DiscoveryUnseenReserve {
   }) {
     if (payload['profile_id'] != profileId ||
         payload['field_key'] != fieldKey ||
-        payload['root_received_at'] != rootReceivedAt.toUtc().toIso8601String())
+        payload['root_received_at'] !=
+            rootReceivedAt.toUtc().toIso8601String()) {
       return null;
+    }
     final shown = payload['shown_keys'];
     final evicted = payload['evicted_keys'];
     final unseen = payload['unseen'];
     if (shown is! List || evicted is! List || unseen is! List) return null;
     if (shown.any((key) => key is! String) ||
-        evicted.any((key) => key is! String))
+        evicted.any((key) => key is! String)) {
       return null;
+    }
     final rows = <Map<String, dynamic>>[];
     for (final raw in unseen) {
       if (raw is! Map) return null;

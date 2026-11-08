@@ -544,8 +544,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       if (proposed == null ||
           proposed.isEmpty ||
           !mounted ||
-          proposed == _accountIdentifier)
+          proposed == _accountIdentifier) {
         return;
+      }
       try {
         final response = await widget.api.patch(
           'api/v1/accounts/auth/identifier/',
@@ -601,8 +602,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     if (!jpeg && !png && !webp) return 'Format de photo invalide.';
     try {
       final file = File(path);
-      if (await file.length() > maxBytes)
+      if (await file.length() > maxBytes) {
         return 'Photo trop volumineuse (5 Mo).';
+      }
       final handle = await file.open();
       List<int> header;
       try {
@@ -977,8 +979,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           : !_loaded
           ? _localSummary(context)
           : ListView(
+              scrollCacheExtent: ScrollCacheExtent.pixels(
+                widget.focusVisibility ? 4000 : null,
+              ),
               controller: _scrollController,
-              cacheExtent: widget.focusVisibility ? 4000 : null,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
                 if (_error != null) ...[
