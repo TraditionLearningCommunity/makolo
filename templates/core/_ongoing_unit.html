@@ -56,7 +56,7 @@
     {% endif %}
 
     {% if item.url %}
-      <a class="mk-ongoing-unit__primary mk-action-button" data-variant="ghost" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
+      <a class="mk-ongoing-unit__primary mk-action-button" data-variant="link" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
         <i data-lucide="{{ item.primary_icon|default:'arrow-right' }}" aria-hidden="true"></i>
         <span class="sr-only">{{ item.primary_label }}</span>
         <span class="mk-ongoing-unit__primary-caption" aria-hidden="true">{{ item.primary_label }}</span>
