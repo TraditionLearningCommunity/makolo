@@ -44,6 +44,17 @@
 .mk-action-button[data-variant="ghost"]:hover:not(:disabled) {
   background: var(--mk-surface-muted);
 }
+/* Textual action link shared across primary and secondary surfaces. */
+.mk-action-button[data-variant="link"] {
+  background: transparent;
+  color: var(--mk-brand);
+  border-color: transparent;
+  padding-inline: .5rem;
+}
+.mk-action-button[data-variant="link"]:hover:not(:disabled) {
+  color: var(--mk-brand-hover, var(--mk-brand-strong));
+  background: var(--mk-brand-soft);
+}
 .mk-action-button[data-variant="danger"] {
   border-color: var(--mk-danger);
   color: var(--mk-danger);
