@@ -1,6 +1,12 @@
 name: Mobile Format
 
 on:
+  # Temporary PR #522 remediation; restore manual-only after this run.
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
