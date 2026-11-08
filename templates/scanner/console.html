@@ -11,7 +11,7 @@
             <h1 class="mt-2 text-3xl font-black text-zinc-900 dark:text-white">{{ event.title }}</h1>
             <p class="mt-2 text-zinc-500 dark:text-zinc-400">{{ event.start_at|date:"d/m/Y H:i" }}{% if event.venue %} · {{ event.venue }}{% endif %}</p>
         </div>
-        <div class="flex flex-wrap gap-2"><a href="{% url 'scanner:live-access' event.slug %}" class="mk-btn mk-btn-primary"><i data-lucide="activity" class="h-4 w-4"></i>Smart Access Live</a><a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="mk-btn mk-btn-secondary"><i data-lucide="history" class="h-4 w-4"></i>Historique</a></div>
+        <div class="flex flex-wrap gap-2"><a href="{% url 'scanner:live-access' event.slug %}" class="mk-action-button" data-variant="primary"><i data-lucide="activity" class="h-4 w-4"></i>Smart Access Live</a><a href="{% url 'scanner:logs' %}?event={{ event.slug }}" class="mk-action-button" data-variant="secondary"><i data-lucide="history" class="h-4 w-4"></i>Historique</a></div>
     </div>
 
     <div class="rounded-2xl border p-4 text-sm" style="border-color:var(--mk-border);background:var(--mk-brand-softer)">
