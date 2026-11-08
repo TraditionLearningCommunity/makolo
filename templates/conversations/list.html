@@ -12,10 +12,10 @@
       <button type="submit" class="mk-action-button" data-variant="secondary">Rechercher</button>
     </form>
   </header>
-  <nav class="mb-5 flex gap-4 border-b pb-3 text-sm" style="border-color:var(--mk-border)" aria-label="Conversations">
-    <a href="?tab=all" class="{% if tab == 'all' %}font-extrabold{% else %}font-medium{% endif %}" {% if tab == 'all' %}aria-current="page"{% endif %}>Toutes</a>
-    <a href="?tab=for-me" class="{% if tab == 'for-me' %}font-extrabold{% else %}font-medium{% endif %}" {% if tab == 'for-me' %}aria-current="page"{% endif %}>À traiter</a>
-    <a href="?tab=archived" class="{% if tab == 'archived' %}font-extrabold{% else %}font-medium{% endif %}" {% if tab == 'archived' %}aria-current="page"{% endif %}>Archives</a>
+  <nav class="mb-5 mk-interaction-tabs" aria-label="Conversations">
+    <a href="?tab=all" {% if tab == 'all' %}aria-current="page"{% endif %}>Toutes</a>
+    <a href="?tab=for-me" {% if tab == 'for-me' %}aria-current="page"{% endif %}>À traiter</a>
+    <a href="?tab=archived" {% if tab == 'archived' %}aria-current="page"{% endif %}>Archives</a>
   </nav>
   {% if not q and pending_invitations %}
     <section aria-labelledby="pending-invitations-heading" class="mb-7">
