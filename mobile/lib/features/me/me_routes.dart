@@ -5,6 +5,8 @@ import '../../navigation/secondary_screen.dart';
 import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
 import '../continuity/objective_collection_screen.dart';
+import '../continuity/objective_organizer_screen.dart';
+import '../continuity/objective_create_screen.dart';
 import '../continuity/objective_repository.dart';
 import 'me_screen.dart';
 import 'me_passport_screen.dart';
@@ -25,6 +27,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         onOpenDestination: (destination) {
           if (destination.kind == 'history') {
             context.push('/history');
+            return true;
+          }
+          if (destination.kind == 'organizer_collection') {
+            context.push('/me/demarches');
             return true;
           }
           if (destination.kind == 'project_collection') {
@@ -115,6 +121,52 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'demarches',
+          builder: (context, state) => runtime.objectives == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes démarches',
+                  message: 'Vos démarches ne sont pas encore disponibles sur cet appareil.',
+                )
+              : ObjectiveOrganizerScreen(
+                  repository: runtime.objectives!,
+                  onOpenItem: (kind, id) {
+                    if (kind == 'project') {
+                      context.push('/projects/$id');
+                    } else if (kind == 'dossier') {
+                      context.push('/dossiers/$id');
+                    } else if (kind == 'journey') {
+                      context.push('/journeys/$id');
+                    }
+                  },
+                  onCreate: (kind) => context.push(
+                    '/me/demarches/new?kind=$kind',
+                  ),
+                ),
+          routes: [
+            GoRoute(
+              path: 'new',
+              builder: (context, state) {
+                final kind = state.uri.queryParameters['kind'];
+                if (runtime.objectives == null || runtime.api == null ||
+                    (kind != 'project' && kind != 'dossier')) {
+                  return const MakoloSecondaryScreen(
+                    title: 'Créer',
+                    message: 'Création momentanément indisponible.',
+                  );
+                }
+                return ObjectiveCreateScreen(
+                  kind: kind!,
+                  repository: runtime.objectives!,
+                  api: runtime.api!,
+                  onCreated: (id) => context.pushReplacement(
+                    kind == 'project' ? '/projects/$id' : '/dossiers/$id',
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
         GoRoute(
           path: 'projects',
           builder: (context, state) => runtime.objectives == null
