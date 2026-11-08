@@ -15,19 +15,19 @@
       <summary class="inline-flex min-h-11 cursor-pointer items-center rounded-lg font-semibold focus-visible:outline-2" style="color:var(--mk-brand)">Pour moi · Options</summary>
       <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Mon état de Conversation">
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button mk-action-button-secondary min-h-11" data-variant="secondary" type="submit" name="action" value="pin">{% if personal_state and personal_state.pinned_at %}Désépingler{% else %}Épingler{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="pin">{% if personal_state and personal_state.pinned_at %}Désépingler{% else %}Épingler{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button mk-action-button-secondary min-h-11" data-variant="secondary" type="submit" name="action" value="mute">{% if personal_state and personal_state.muted_at %}Réactiver les signaux{% else %}Mettre en sourdine{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="mute">{% if personal_state and personal_state.muted_at %}Réactiver les signaux{% else %}Mettre en sourdine{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button mk-action-button-secondary min-h-11" data-variant="secondary" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="revisit">{% if personal_state and personal_state.revisit_at %}Ne plus revoir plus tard{% else %}Revoir plus tard{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button mk-action-button-secondary min-h-11" data-variant="secondary" type="submit" name="action" value="archive">{% if personal_state and personal_state.archived_at %}Désarchiver{% else %}Archiver{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="archive">{% if personal_state and personal_state.archived_at %}Désarchiver{% else %}Archiver{% endif %}</button>
         </form>
         <form method="post" action="{% url 'conversations:personal-state' conversation.pk %}">{% csrf_token %}
-          <button class="mk-action-button mk-action-button-secondary min-h-11" data-variant="secondary" type="submit" name="action" value="hide">{% if personal_state and personal_state.hidden_at %}Afficher{% else %}Masquer{% endif %}</button>
+          <button class="mk-action-button min-h-11" data-variant="secondary" type="submit" name="action" value="hide">{% if personal_state and personal_state.hidden_at %}Afficher{% else %}Masquer{% endif %}</button>
         </form>
       </div>
     </details>
@@ -108,7 +108,7 @@
     <form method="get" action="{% url 'conversations:history' conversation.pk %}" role="search" class="flex flex-wrap gap-2">
       <label class="sr-only" for="point-search">Rechercher un Point</label>
       <input id="point-search" type="search" maxlength="120" class="mk-input min-w-0 flex-1" name="q" value="{{ q }}" placeholder="Un sujet, une réponse…">
-      <button class="mk-action-button mk-action-button-secondary" data-variant="secondary" type="submit">Rechercher</button>
+      <button class="mk-action-button" data-variant="secondary" type="submit">Rechercher</button>
     </form>
     {% if q %}
       <div class="mt-4 space-y-2">
