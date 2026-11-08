@@ -10,8 +10,6 @@ import 'conversation_screens.dart';
 import 'conversation_details_screen.dart';
 import 'conversation_history_screen.dart';
 import 'history_screen.dart';
-import 'objective_repository.dart';
-import 'objective_screen.dart';
 import 'dossier_workspace_screen.dart';
 import 'project_workspace_screen.dart';
 

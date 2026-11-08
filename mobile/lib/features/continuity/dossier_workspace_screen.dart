@@ -545,10 +545,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       'Le Dossier et les Journeys conserveront leur identité.',
       action: 'Confirmer',
     );
-    if (yes)
+    if (yes) {
       await _command('project_set', {
         'project_id': result == '__none__' ? null : result,
       });
+    }
   }
 
   Future<void> _lifecycle(Map<String, dynamic> payload) async {
@@ -589,8 +590,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       'Accorder cette autorité ?',
       'Ce mandat concerne le Dossier, pas automatiquement ses Journeys.',
     );
-    if (yes)
+    if (yes) {
       await _command('mandate_grant', {'profile_id': profile, 'role_id': role});
+    }
   }
 
   Future<void> _removeAssignment(Map<String, dynamic> row) async {
@@ -1122,8 +1124,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (first.isEmpty != second.isEmpty) return first.isEmpty ? 1 : -1;
       if (_sort == _ListSort.recent ||
           _sort == _ListSort.created ||
-          _sort == _ListSort.fulfilled)
+          _sort == _ListSort.fulfilled) {
         return second.compareTo(first);
+      }
       return first.compareTo(second);
     });
     return next;
@@ -1395,7 +1398,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   void _graphZoom(double factor) {
     final value = _transform.value.clone();
-    value.scale(factor);
+    value.scaleByDouble(factor, factor, 1.0, 1.0);
     _transform.value = value;
   }
 

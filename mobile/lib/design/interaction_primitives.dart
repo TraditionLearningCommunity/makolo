@@ -144,10 +144,10 @@ class MakoloSelectionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
     final theme = Theme.of(context);
-    final countLabel = '$count sélectionné' + (count > 1 ? 's' : '');
+    final countLabel = '$count sélectionné${count > 1 ? 's' : ''}';
     return Semantics(
       container: true,
-      label: '$count élément' + (count > 1 ? 's sélectionnés' : ' sélectionné'),
+      label: '$count élément${count > 1 ? 's sélectionnés' : ' sélectionné'}',
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(MakoloRadii.card),

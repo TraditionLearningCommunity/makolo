@@ -424,8 +424,7 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
           physics: const NeverScrollableScrollPhysics(),
           buildDefaultDragHandles: false,
           itemCount: widget.entries.length,
-          onReorder: (oldIndex, newIndex) {
-            if (newIndex > oldIndex) newIndex -= 1;
+          onReorderItem: (oldIndex, newIndex) {
             _propose(oldIndex, newIndex);
           },
           itemBuilder: (context, index) {
@@ -437,7 +436,7 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
                 index: index,
                 enabled: !_busy,
                 child: Tooltip(
-                  message: 'Réorganiser ' + entry.label,
+                  message: 'Réorganiser ${entry.label}',
                   child: const Icon(Icons.drag_indicator),
                 ),
               ),
@@ -445,14 +444,14 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'Monter ' + entry.label,
+                    tooltip: 'Monter ${entry.label}',
                     onPressed: _busy || index == 0
                         ? null
                         : () => _propose(index, index - 1),
                     icon: const Icon(Icons.keyboard_arrow_up),
                   ),
                   IconButton(
-                    tooltip: 'Descendre ' + entry.label,
+                    tooltip: 'Descendre ${entry.label}',
                     onPressed: _busy || index == widget.entries.length - 1
                         ? null
                         : () => _propose(index, index + 1),

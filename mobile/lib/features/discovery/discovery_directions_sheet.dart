@@ -36,8 +36,9 @@ List<DiscoveryDirectionsDestination> discoveryDirectionsDestinations(
     final longitude = coordinate(place['longitude']);
     if (latitude == null ||
         longitude == null ||
-        !ExternalDirections.valid(latitude, longitude))
+        !ExternalDirections.valid(latitude, longitude)) {
       continue;
+    }
     final key = '$latitude:$longitude';
     if (!seen.add(key)) continue;
     final name = (place['name'] ?? place['locality'] ?? item.place ?? 'Lieu')
