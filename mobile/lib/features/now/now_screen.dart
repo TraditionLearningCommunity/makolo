@@ -953,16 +953,18 @@ class _NowSemanticContent extends StatelessWidget {
         ],
         for (final media in readable)
           if (media != dominantMedia)
-            TextButton.icon(
+            MakoloActionButton(
+              label: media.label ?? 'Lire le média dans Makolo',
               onPressed: () => _openMedia(context, media),
-              icon: Icon(_mediaIcon(media.kind)),
-              label: Text(media.label ?? 'Lire le média dans Makolo'),
+              icon: _mediaIcon(media.kind),
+              appearance: MakoloActionAppearance.quiet,
             ),
         if (dominantMedia != null && readable.contains(dominantMedia))
-          TextButton.icon(
+          MakoloActionButton(
+            label: 'Lire dans Makolo',
             onPressed: () => _openMedia(context, dominantMedia!),
-            icon: const Icon(Icons.open_in_full_outlined),
-            label: const Text('Lire dans Makolo'),
+            icon: Icons.open_in_full_outlined,
+            appearance: MakoloActionAppearance.quiet,
           ),
       ],
     );
