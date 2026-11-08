@@ -33,6 +33,8 @@ class OngoingContinuityPresentation {
     required this.outcome,
     required this.rawState,
     required this.composition,
+    this.kindBadge,
+    this.primaryAction,
     this.cue,
     this.cueTone = 'calm',
     this.supporting,
@@ -76,6 +78,9 @@ class OngoingContinuityPresentation {
   final String rawState;
   /// Server-projected, viewer-visible group facts; never a progress metric.
   final List<String> composition;
+  /// Owner-context vocabulary; absence means an older local snapshot.
+  final OngoingContextAffordance? kindBadge;
+  final OngoingContextAffordance? primaryAction;
   final String? cue;
   final String cueTone;
   final String? supporting;
@@ -246,6 +251,8 @@ class OngoingContinuityPresentation {
         for (final fact in _maps(item['composition']))
           if (_text(fact['label']) case final label?) label,
       ]),
+      kindBadge: OngoingContextAffordance.fromMap(n1['kind_badge']),
+      primaryAction: OngoingContextAffordance.fromMap(n1['primary_action']),
       cue:
           _text(n1['cue']) ??
           _fallbackCue(
@@ -342,6 +349,36 @@ class OngoingContinuityPresentation {
     if (value is! String) return null;
     final text = value.trim();
     return text.isEmpty ? null : text;
+  }
+}
+
+/// Purely presentational; never certifies a business action or permission.
+/// Clients must still route through the canonical owner and its capabilities.
+class OngoingContextAffordance {
+  const OngoingContextAffordance({
+    required this.label,
+    required this.icon,
+    this.intent,
+  });
+
+  final String label;
+  final String icon;
+  final String? intent;
+
+  static OngoingContextAffordance? fromMap(Object? raw) {
+    if (raw is! Map) return null;
+    final label = raw['label'];
+    final icon = raw['icon'];
+    if (label is! String || label.trim().isEmpty ||
+        icon is! String || icon.trim().isEmpty) {
+      return null;
+    }
+    final intent = raw['intent'];
+    return OngoingContextAffordance(
+      label: label.trim(),
+      icon: icon.trim(),
+      intent: intent is String && intent.isNotEmpty ? intent : null,
+    );
   }
 }
 
