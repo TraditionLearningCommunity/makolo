@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/interaction_primitives.dart';
 import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
@@ -257,16 +258,16 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       appBar: AppBar(
         title: const Text('Veilles'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             key: const Key('discover-watch-create'),
             tooltip: 'Créer une veille',
             onPressed: () => _create(),
-            icon: const Icon(Icons.add_rounded),
+            icon: Icons.add_rounded,
           ),
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -343,33 +344,38 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                         ),
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      key: ValueKey('discover-watch-manage-${watch.id}'),
-                      enabled: _mutating == null,
+                    MakoloActionMenu(
+                      key: ValueKey('discover-watch-manage-\${watch.id}'),
                       tooltip: 'Gérer la veille',
-                      onSelected: (action) => unawaited(_change(watch, action)),
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: watch.statusCode == 'paused'
-                              ? 'active'
-                              : 'paused',
-                          child: Text(
-                            watch.statusCode == 'paused'
-                                ? 'Reprendre'
-                                : 'Mettre en pause',
-                          ),
+                      onSelected: (action) =>
+                          unawaited(_change(watch, action.id)),
+                      actions: [
+                        MakoloInteractionAction(
+                          id: watch.statusCode == 'paused' ? 'active' : 'paused',
+                          label: watch.statusCode == 'paused'
+                              ? 'Reprendre'
+                              : 'Mettre en pause',
+                          intent: MakoloActionIntent.transition,
+                          enabled: _mutating == null,
                         ),
-                        const PopupMenuItem(
-                          value: 'rename',
-                          child: Text('Renommer'),
+                        MakoloInteractionAction(
+                          id: 'rename',
+                          label: 'Renommer',
+                          intent: MakoloActionIntent.edit,
+                          enabled: _mutating == null,
                         ),
-                        const PopupMenuItem(
-                          value: 'criteria',
-                          child: Text('Modifier les critères'),
+                        MakoloInteractionAction(
+                          id: 'criteria',
+                          label: 'Modifier les critères',
+                          intent: MakoloActionIntent.filter,
+                          enabled: _mutating == null,
                         ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Supprimer'),
+                        MakoloInteractionAction(
+                          id: 'delete',
+                          label: 'Supprimer',
+                          intent: MakoloActionIntent.more,
+                          enabled: _mutating == null,
+                          destructive: true,
                         ),
                       ],
                     ),
@@ -447,10 +453,10 @@ class _DiscoveryWatchResultsScreenState
       appBar: AppBar(
         title: const Text('Résultats de la veille'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -465,9 +471,10 @@ class _DiscoveryWatchResultsScreenState
             return Center(
               child: _refreshing
                   ? const CircularProgressIndicator()
-                  : OutlinedButton(
+                  : MakoloActionButton(
+                      label: 'Réessayer',
                       onPressed: () => unawaited(_refresh()),
-                      child: const Text('Réessayer'),
+                      appearance: MakoloActionAppearance.secondary,
                     ),
             );
           }
@@ -518,18 +525,20 @@ class _DiscoveryWatchResultsScreenState
                 ],
                 Row(
                   children: [
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Précédent',
                       onPressed: _page > 1 ? () => _movePage(_page - 1) : null,
-                      child: const Text('Précédent'),
+                      appearance: MakoloActionAppearance.secondary,
                     ),
                     const Spacer(),
                     Text('Page $_page'),
                     const Spacer(),
-                    FilledButton(
+                    MakoloActionButton(
+                      label: 'Suivant',
                       onPressed: result.hasNext
                           ? () => _movePage(_page + 1)
                           : null,
-                      child: const Text('Suivant'),
+                      appearance: MakoloActionAppearance.primary,
                     ),
                   ],
                 ),
