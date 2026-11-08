@@ -347,7 +347,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                       ),
                     ),
                     MakoloActionMenu(
-                      key: ValueKey('discover-watch-manage-\${watch.id}'),
+                      key: ValueKey('discover-watch-manage-${watch.id}'),
                       tooltip: 'Gérer la veille',
                       onSelected: (action) =>
                           unawaited(_change(watch, action.id)),
