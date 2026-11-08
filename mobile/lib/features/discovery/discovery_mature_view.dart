@@ -10,6 +10,7 @@ import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/location_service.dart';
+import '../../platform/permissions/permission_gateway.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../platform/maps/discovery_map_controller.dart';
@@ -1119,10 +1120,31 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
     if (watch != null) unawaited(watch.stop());
   }
 
+  Future<void> _resumeAuthorizedLocation() async {
+    final location = widget.location;
+    if (location == null || !widget.mapConfig.enabled) return;
+    try {
+      final permission = await location.permissions.status(
+        MakoloPermission.locationWhenInUse,
+      );
+      if (!mounted || location != widget.location) return;
+      if (!permission.permitsCapability) return;
+      // No request/prompt: reuse the already-authorized foreground stream.
+      _trackingRequested = true;
+      await _startDeviceWatch();
+    } on Object {
+      // A map remains usable if a device cannot report permission status.
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (_trackingRequested) unawaited(_startDeviceWatch());
+      if (_trackingRequested) {
+        unawaited(_startDeviceWatch());
+      } else {
+        unawaited(_resumeAuthorizedLocation());
+      }
     } else {
       _stopDeviceWatch();
     }
@@ -1264,32 +1286,56 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
 
   Future<void> _recenterOnDevice() async {
     final location = widget.location;
-    if (location == null || _locationBusy) return;
+    final controller = _mapController;
+    if (location == null || controller == null || _locationBusy) return;
+
+    // Recenter immediately if the foreground stream has already supplied a
+    // position. Recenter never requests an additional GPS fix unnecessarily.
+    if (_deviceLatitude != null && _deviceLongitude != null) {
+      _clearSelection();
+      _trackingRequested = true;
+      unawaited(_startDeviceWatch());
+      try {
+        await controller.moveTo(_deviceLatitude!, _deviceLongitude!);
+      } on Object {
+        // MapLibre can be reloading its style; GPS updates may continue.
+      }
+      return;
+    }
+
     setState(() => _locationBusy = true);
     try {
-      final result = await location.current();
-      if (!mounted) return;
+      // First-time location acquisition remains explicit and bounded.
+      final result = await location.current().timeout(
+        const Duration(seconds: 8),
+      );
+      if (!mounted || location != widget.location) return;
       final fix = result.fix;
       if (!result.available || fix == null) {
         _showLocationAlert(result.status);
         return;
       }
-      final controller = _mapController;
-      if (controller == null) {
+      if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
+          fix.latitude < -90 || fix.latitude > 90 ||
+          fix.longitude < -180 || fix.longitude > 180) {
         _showLocationAlert(LocationCapabilityStatus.failed);
         return;
       }
-      _clearSelection();
       _deviceLatitude = fix.latitude;
       _deviceLongitude = fix.longitude;
-      // The native circle is independent of all Discovery sources/clusters.
-      await _paintDevicePosition();
       _trackingRequested = true;
-      // Foreground-only stream; camera remains under the explorer's control.
       unawaited(_startDeviceWatch());
+      _clearSelection();
+      await _paintDevicePosition();
       await controller.moveTo(fix.latitude, fix.longitude);
+    } on TimeoutException {
+      if (mounted) {
+        _showLocationAlert(LocationCapabilityStatus.failed);
+      }
     } on Object {
-      _showLocationAlert(LocationCapabilityStatus.failed);
+      if (mounted) {
+        _showLocationAlert(LocationCapabilityStatus.failed);
+      }
     } finally {
       if (mounted) setState(() => _locationBusy = false);
     }
@@ -1357,14 +1403,25 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         if (mounted) unawaited(_resolveSelected());
       });
     }
+    // Existing Android permission is enough to show and update the GPS dot.
+    // Never request permission automatically when Carte opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_resumeAuthorizedLocation());
+    });
   }
 
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.location != widget.location) {
+    if (oldWidget.location != widget.location ||
+        oldWidget.mapConfig.enabled != widget.mapConfig.enabled) {
       _stopDeviceWatch();
       _trackingRequested = false;
+      if (widget.mapConfig.enabled) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_resumeAuthorizedLocation());
+        });
+      }
     }
     if (oldWidget.detailRefreshRevision != widget.detailRefreshRevision &&
         _selectedCandidateKey != null) {
