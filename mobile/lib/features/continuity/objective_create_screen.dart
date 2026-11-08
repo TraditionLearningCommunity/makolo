@@ -246,7 +246,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   ),
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
-                    value: _spaceId,
+                    initialValue: _spaceId,
                     decoration: const InputDecoration(
                       labelText: 'Contexte porteur',
                       border: OutlineInputBorder(),
