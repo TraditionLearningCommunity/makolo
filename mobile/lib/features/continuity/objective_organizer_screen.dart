@@ -165,8 +165,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     if (_loadingMore ||
         _refreshing ||
         !page.hasMore ||
-        _requestedOffset == page.nextOffset)
+        _requestedOffset == page.nextOffset) {
       return;
+    }
     final repository = widget.repository;
     _requestedOffset = page.nextOffset;
     setState(() => _loadingMore = true);
@@ -209,8 +210,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     final q = _fold(_search.text);
     if (q.isNotEmpty &&
         !_fold('${entry.title} ${entry.description} ${entry.space ?? ''}')
-            .contains(q))
+            .contains(q)) {
       return false;
+    }
     if (_period != 'all') {
       final date = entry.dateFor(_dateField);
       if (date == null) return false;
