@@ -91,3 +91,17 @@ test('Group 1: mobile Web keeps action targets accessible @mobile', async ({ pag
     expect(dimensions.width).toBeGreaterThanOrEqual(44);
   }
 });
+
+test('Group 1: public Discover receives the same shared control CSS and behavior', async ({ page }) => {
+  await page.goto('/discover/');
+  await expect(page.locator('link[href*="makolo-interactions.css"]')).toHaveCount(1);
+  await expect(page.locator('script[src*="makolo-interactions.js"]')).toHaveCount(1);
+  await expect(page.locator('script[src*="makolo-interactions-f2.js"]')).toHaveCount(1);
+  const search = page.locator('#discovery-search-form');
+  await expect(search).toHaveAttribute('method', 'get');
+  const action = search.getByRole('button', { name: 'Découvrir' });
+  await expect(action).toHaveAttribute('data-variant', 'primary');
+  await expect(action).toHaveClass(/mk-action-button/);
+  const minimum = await action.evaluate((node) => parseFloat(getComputedStyle(node).minHeight));
+  expect(minimum).toBeGreaterThanOrEqual(44);
+});
