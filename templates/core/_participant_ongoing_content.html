@@ -8,7 +8,7 @@
         <p id="ongoing-calendar-empty">Aucune date à afficher pour le moment.</p>
       </div>
     </details>
-    {% if ongoing_page_offset %}<a href="?" class="mk-ongoing-back">Tout ce qui est en cours</a>{% endif %}
+    {% if ongoing_page_offset %}<a href="?" class="mk-ongoing-back mk-action-button" data-variant="secondary">Tout ce qui est en cours</a>{% endif %}
   </header>
 
   {% if ongoing_items %}
@@ -24,7 +24,7 @@
     <section class="mk-calm-state">
       <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
       <h2>Rien en cours pour le moment.</h2>
-      {% if ongoing_page_offset %}<a href="?" class="mk-ongoing-back">Retour à En cours</a>{% endif %}
+      {% if ongoing_page_offset %}<a href="?" class="mk-ongoing-back mk-action-button" data-variant="secondary">Retour à En cours</a>{% endif %}
     </section>
   {% endif %}
 </div>
