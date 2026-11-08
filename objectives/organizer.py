@@ -29,7 +29,7 @@ def build_organizer_page(profile, *, limit=50, offset=0):
     """
     visible_projects = projects_for_profile(profile)
     visible_dossiers = dossiers_for_profile(profile)
-    visible_journeys = participant_journeys(profile)
+    visible_journeys = participant_journeys(profile).prefetch_related(None)
     projects = list(visible_projects.order_by("-updated_at", "id")[offset:offset + limit + 1])
     dossiers = list(visible_dossiers.order_by("-updated_at", "id")[offset:offset + limit + 1])
     journeys = list(visible_journeys.order_by("-updated_at", "id")[offset:offset + limit + 1])
@@ -46,8 +46,9 @@ def build_organizer_page(profile, *, limit=50, offset=0):
     # not a fictitious "independent" item.
     dossier_ids = [obj.pk for obj in dossiers]
     journey_ids = [obj.pk for obj in journeys]
-    allowed_project_ids = set(visible_projects.values_list("pk", flat=True))
-    allowed_dossier_ids = set(visible_dossiers.values_list("pk", flat=True))
+    # Keep permission scope as SQL subqueries instead of materializing all IDs.
+    allowed_project_ids = visible_projects.values_list("pk", flat=True)
+    allowed_dossier_ids = visible_dossiers.values_list("pk", flat=True)
 
     project_parent = {}
     for relation in ProjectDossierLink.objects.filter(
