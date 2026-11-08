@@ -126,46 +126,44 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   ) async {
     final path = version.downloadPath;
     if (path == null || _downloading) return;
-    if (detail.sensitivity != 'normal') {
-      _message('Téléchargement protégé sur cet appareil.');
-      return;
-    }
-
     setState(() {
       _downloading = true;
       _downloadProgress = null;
     });
     try {
-      await widget.repository.downloadVersionToLocal(
+      final retainOfflineCopy = detail.sensitivity == 'normal';
+      final pathOnDevice = await widget.repository.downloadVersionForExplicitExport(
         path: path,
         assetId: widget.assetId,
         title: detail.title,
         versionNumber: version.number,
+        retainOfflineCopy: retainOfflineCopy,
         onProgress: (transferred, total) {
           if (!mounted || total <= 0) return;
           setState(() => _downloadProgress = transferred / total);
         },
       );
-      final pathOnDevice = await resourceDownloadDestination(
-        profileId: widget.repository.profileId,
-        assetId: widget.assetId,
-        title: detail.title,
-        versionNumber: version.number,
-      );
-      final extension = _extensionForMime(version.mimeType);
-      final exportedName = await const AndroidDeviceDownloads().save(
-        source: File(pathOnDevice),
-        fileName: makoloDownloadName(
-          '${detail.title}-v${version.number}',
-          extension,
-        ),
-        mimeType: version.mimeType ?? 'application/octet-stream',
-      );
-      if (!mounted) return;
-      if (version.current) {
-        setState(() => _localCopy = Future<bool>.value(true));
+      final exportedFile = File(pathOnDevice);
+      try {
+        final extension = _extensionForMime(version.mimeType);
+        final exportedName = await const AndroidDeviceDownloads().save(
+          source: exportedFile,
+          fileName: makoloDownloadName(
+            '${detail.title}-v${version.number}',
+            extension,
+          ),
+          mimeType: version.mimeType ?? 'application/octet-stream',
+        );
+        if (!mounted) return;
+        if (retainOfflineCopy && version.current) {
+          setState(() => _localCopy = Future<bool>.value(true));
+        }
+        _message('Enregistré : $exportedName');
+      } finally {
+        if (!retainOfflineCopy && await exportedFile.exists()) {
+          await exportedFile.delete();
+        }
       }
-      _message('Enregistré : $exportedName');
     } on Object {
       if (mounted) _message('Téléchargement impossible.');
     } finally {
@@ -260,8 +258,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
           appBar: AppBar(
             title: const Text('Document'),
             actions: [
-              if (detail?.currentVersion?.downloadPath != null &&
-                  detail?.sensitivity == 'normal')
+              if (detail?.currentVersion?.downloadPath != null)
                 MakoloIconActionButton(
                   tooltip: 'Télécharger',
                   icon: Icons.download_rounded,
@@ -419,9 +416,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                           for (final version in detail.versions)
                             _VersionRow(
                               version: version,
-                              canDownload:
-                                  detail.sensitivity == 'normal' &&
-                                  version.downloadPath != null,
+                              canDownload: version.downloadPath != null,
                               onDownload: _downloading
                                   ? null
                                   : () => _download(detail, version),
