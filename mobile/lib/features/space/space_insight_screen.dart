@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -235,9 +237,10 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                               'Actualisation impossible. Dernières informations affichées.',
                             ),
                           ),
-                          TextButton(
+                          MakoloActionButton(
+                            label: 'Réessayer',
+                            appearance: MakoloActionAppearance.quiet,
                             onPressed: refresh,
-                            child: const Text('Réessayer'),
                           ),
                         ],
                       ),
@@ -316,10 +319,10 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           onSubmitted: (_) => search(),
           decoration: InputDecoration(
             labelText: 'Rechercher une personne ou une relation',
-            suffixIcon: IconButton(
+            suffixIcon: MakoloIconActionButton(
               tooltip: 'Rechercher',
               onPressed: search,
-              icon: const Icon(Icons.search),
+              icon: Icons.search,
             ),
           ),
         ),
