@@ -135,16 +135,17 @@ def point_attention_reason(
         if state is None or state.acknowledged_at is None:
             return "acknowledge"
 
-    if (point.lifecycle == ConversationPointLifecycle.OPEN and expected
-            and (point.opens_at is None or at >= point.opens_at)):
+    if point.lifecycle == ConversationPointLifecycle.OPEN and expected:
+        future = point.opens_at is not None and at < point.opens_at
         if point.kind == ConversationPointKind.FORM_REQUEST:
             from .form_services import form_request_completed_for_profile
 
             if not form_request_completed_for_profile(point, profile):
-                return "form"
+                if not point.deadline_at or at < point.deadline_at:
+                    return "upcoming" if future else "form"
         elif point.response_mode != "none" and not _subject_has_active_response(point, profile):
             if not point.deadline_at or at < point.deadline_at:
-                return "respond"
+                return "upcoming" if future else "respond"
 
     if point.resolution_audience_id and _profile_in_audience(
         profile,
