@@ -306,6 +306,215 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     );
   }
 
+  bool get _hasExtraFilters =>
+      _period != 'all' || _dateField != OrganizerSort.deadline ||
+      _sort != OrganizerSort.name || _descending;
+
+  bool get _hasAnyFilters =>
+      _search.text.isNotEmpty || _kind != 'all' || _status != 'all' ||
+      _relation != 'all' || _hasExtraFilters;
+
+  void _clearFilters() {
+    _search.clear();
+    setState(() {
+      _kind = 'all';
+      _status = 'all';
+      _relation = 'all';
+      _period = 'all';
+      _sort = OrganizerSort.name;
+      _dateField = OrganizerSort.deadline;
+      _descending = false;
+    });
+  }
+
+  Widget _compactFilter(String title, String value,
+      Map<String, String> values, IconData icon, ValueChanged<String> change) {
+    final active = value != 'all';
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: '$title : ${values[value] ?? title}',
+      child: PopupMenuButton<String>(
+        tooltip: title,
+        initialValue: value,
+        onSelected: change,
+        itemBuilder: (_) => [
+          for (final entry in values.entries)
+            PopupMenuItem(value: entry.key, child: Text(entry.value)),
+        ],
+        child: Semantics(
+          button: true,
+          label: '$title : ${values[value] ?? title}',
+          child: Container(
+            width: 46, height: 45,
+            decoration: BoxDecoration(
+              color: active ? scheme.primaryContainer : scheme.surface,
+              border: Border.all(color: active ? scheme.primary : scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Stack(alignment: Alignment.center, children: [
+              Icon(icon, size: 21,
+                color: active ? scheme.onPrimaryContainer : scheme.primary),
+              if (active)
+                Positioned(right: 5, top: 5, child: CircleAvatar(
+                  radius: 3, backgroundColor: scheme.primary)),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _compactMode(OrganizerMode mode, IconData icon, String name) {
+    final active = _mode == mode;
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: name,
+      child: Semantics(
+        button: true, selected: active, label: 'Vue $name',
+        child: IconButton(
+          tooltip: name,
+          onPressed: () => _setMode(mode),
+          icon: Icon(icon, size: 22),
+          color: active ? scheme.onPrimaryContainer : scheme.primary,
+          style: IconButton.styleFrom(
+            fixedSize: const Size(46, 45),
+            backgroundColor: active ? scheme.primaryContainer : scheme.surface,
+            side: BorderSide(
+              color: active ? scheme.primary : scheme.outlineVariant),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _advancedFilters() async {
+    await showModalBottomSheet<void>(
+      context: context, isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheet) => StatefulBuilder(builder: (sheet, refreshSheet) {
+        void change(VoidCallback command) {
+          setState(command);
+          refreshSheet(() {});
+        }
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Dates et classement',
+                  style: Theme.of(sheet).textTheme.titleLarge),
+                const SizedBox(height: 7),
+                Text('Choisissez les dates qui comptent pour votre recherche.',
+                  style: Theme.of(sheet).textTheme.bodySmall),
+                const SizedBox(height: 19),
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  _dropdown('Date concernée', _dateField.name, const {
+                    'created': 'Création', 'updated': 'Modification',
+                    'deadline': 'Échéance', 'start': 'Début',
+                    'completed': 'Réalisation',
+                  }, (v) => change(() => _dateField =
+                      OrganizerSort.values.firstWhere((x) => x.name == v)),
+                      icon: Icons.event_outlined),
+                  _dropdown('Période', _period, const {
+                    'all': 'Toutes les dates', 'week': '7 prochains jours',
+                    'month': '30 prochains jours',
+                    'quarter': '90 prochains jours',
+                  }, (v) => change(() => _period = v),
+                      icon: Icons.date_range_outlined),
+                  _dropdown('Trier', _sort.name, const {
+                    'name': 'Nom A–Z', 'created': 'Création',
+                    'updated': 'Modification', 'deadline': 'Échéance',
+                    'start': 'Début', 'completed': 'Réalisation',
+                  }, (v) => change(() => _sort =
+                      OrganizerSort.values.firstWhere((x) => x.name == v)),
+                      icon: Icons.sort_by_alpha_rounded),
+                  ActionChip(
+                    avatar: Icon(_descending
+                        ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded),
+                    label: Text(_descending ? 'Décroissant' : 'Croissant'),
+                    onPressed: () => change(() => _descending = !_descending),
+                  ),
+                ]),
+                const SizedBox(height: 18),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(sheet),
+                    child: const Text('Appliquer'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _mobileOrganizerToolbar() {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            // Group 1: WHAT the person wants to find.
+            _compactFilter('Type', _kind, const {
+              'all': 'Tous les types', 'project': 'Projets',
+              'dossier': 'Dossiers', 'journey': 'Démarches',
+            }, Icons.category_outlined, (v) => setState(() => _kind = v)),
+            const SizedBox(width: 5),
+            _compactFilter('État', _status, const {
+              'all': 'Tous les états', 'draft': 'En préparation',
+              'active': 'En cours', 'completed': 'Terminé',
+              'cancelled': 'Annulé', 'archived': 'Archivé',
+            }, Icons.tune_rounded, (v) => setState(() => _status = v)),
+            const SizedBox(width: 5),
+            _compactFilter('Contexte', _relation, const {
+              'all': 'Tous les contextes', 'mine': 'Personnel',
+              'space': 'Espace', 'independent': 'Indépendants',
+            }, Icons.account_tree_outlined,
+                (v) => setState(() => _relation = v)),
+            Container(
+              height: 31, width: 1,
+              color: scheme.outlineVariant,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            // Group 2: HOW the collection is displayed.
+            _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
+            const SizedBox(width: 5),
+            _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
+            const SizedBox(width: 5),
+            _compactMode(OrganizerMode.explorer,
+                Icons.account_tree_rounded, 'Explorateur'),
+          ]),
+        ),
+        const SizedBox(height: 5),
+        Row(children: [
+          TextButton.icon(
+            onPressed: _advancedFilters,
+            icon: Icon(Icons.calendar_month_outlined,
+              color: _hasExtraFilters ? scheme.primary : null),
+            label: Text(_hasExtraFilters
+                ? 'Dates et tri · actifs' : 'Dates et tri'),
+          ),
+          const Spacer(),
+          if (_hasAnyFilters)
+            IconButton(
+              tooltip: 'Tout effacer',
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+            ),
+        ]),
+      ],
+    );
+  }
+
   Widget _controls() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -357,15 +566,15 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         ),
       ),
       const SizedBox(height: 12),
-      SizedBox(
-        height: 53,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            // All six filters remain immediately available in one row.
-            // Horizontal scrolling preserves their labels on small screens.
-            Row(
-              children: [
+      LayoutBuilder(builder: (context, constraints) =>
+        constraints.maxWidth < 680
+            ? _mobileOrganizerToolbar()
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
                 _dropdown('Type', _kind, const {
             'all': 'Tous les types',
             'project': 'Projets',
@@ -427,97 +636,33 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             ),
             icon: Icons.sort_by_alpha_rounded,
           ),
-          IconButton(
-            tooltip: _descending ? 'Décroissant' : 'Croissant',
-            onPressed: () => setState(() => _descending = !_descending),
-            icon: Icon(
-              _descending
-                  ? Icons.arrow_downward_rounded
-                  : Icons.arrow_upward_rounded,
+
+          if (_hasAnyFilters)
+            TextButton.icon(
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+              label: const Text('Effacer les filtres'),
             ),
-          ),
-          if (_search.text.isNotEmpty ||
-              _kind != 'all' ||
-              _status != 'all' ||
-              _relation != 'all' ||
-              _period != 'all' ||
-              _sort != OrganizerSort.name ||
-              _dateField != OrganizerSort.deadline)
-            TextButton(
-              onPressed: () {
-                _search.clear();
-                setState(() {
-                  _kind = 'all';
-                  _status = 'all';
-                  _relation = 'all';
-                  _period = 'all';
-                  _sort = OrganizerSort.name;
-                  _dateField = OrganizerSort.deadline;
-                  _descending = false;
-                });
-              },
-              child: const Text('Effacer les filtres'),
-            ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
       const SizedBox(height: 12),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 470) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                ChoiceChip(
-                  avatar: const Icon(Icons.grid_view_rounded, size: 17),
-                  label: const Text('Cartes'),
-                  selected: _mode == OrganizerMode.cards,
-                  onSelected: (_) => _setMode(OrganizerMode.cards),
-                ),
-                ChoiceChip(
-                  avatar: const Icon(Icons.view_list_rounded, size: 17),
-                  label: const Text('Liste'),
-                  selected: _mode == OrganizerMode.list,
-                  onSelected: (_) => _setMode(OrganizerMode.list),
-                ),
-                ChoiceChip(
-                  avatar: const Icon(Icons.account_tree_outlined, size: 17),
-                  label: const Text('Explorateur'),
-                  selected: _mode == OrganizerMode.explorer,
-                  onSelected: (_) => _setMode(OrganizerMode.explorer),
-                ),
-                const SizedBox(width: 6),
-              ],
-              ),
-            );
-          }
-          return SegmentedButton<OrganizerMode>(
-            key: const Key('organizer-view-toggle'),
-            showSelectedIcon: false,
-            selected: {_mode},
-            segments: const [
-              ButtonSegment(
-                value: OrganizerMode.cards,
-                icon: Icon(Icons.grid_view_rounded),
-                label: Text('Cartes'),
-              ),
-              ButtonSegment(
-                value: OrganizerMode.list,
-                icon: Icon(Icons.view_list_rounded),
-                label: Text('Liste'),
-              ),
-              ButtonSegment(
-                value: OrganizerMode.explorer,
-                icon: Icon(Icons.account_tree_outlined),
-                label: Text('Explorateur'),
-              ),
-            ],
-            onSelectionChanged: (values) => _setMode(values.first),
-          );
-        },
+      SegmentedButton<OrganizerMode>(
+        key: const Key('organizer-view-toggle'),
+        showSelectedIcon: false,
+        selected: {_mode},
+        segments: const [
+          ButtonSegment(value: OrganizerMode.cards,
+            icon: Icon(Icons.grid_view_rounded), label: Text('Cartes')),
+          ButtonSegment(value: OrganizerMode.list,
+            icon: Icon(Icons.view_list_rounded), label: Text('Liste')),
+          ButtonSegment(value: OrganizerMode.explorer,
+            icon: Icon(Icons.account_tree_outlined),
+            label: Text('Explorateur')),
+        ],
+        onSelectionChanged: (values) => _setMode(values.first),
+      ),
+
+            ]),
       ),
     ],
   );
