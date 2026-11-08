@@ -2,14 +2,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required as django_login_required
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import Http404
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierJourneyLinkForm, DossierLifecycleForm, DossierProjectForm, ProjectCreateForm, ProjectDossierLinkForm, ProjectLifecycleForm
+from .forms import DossierAssignmentForm, DossierAuthorityGrantForm, DossierCreateForm, DossierDependencyForm, DossierDependencyWaiverForm, DossierJourneyLinkForm, DossierLifecycleForm, DossierProjectForm, ProjectCreateForm, ProjectDossierLinkForm, ProjectLifecycleForm, ProjectEditForm, ProjectChildDossierForm
 from .models import DossierAssignment, DossierJourneyDependencyState
 from .readiness import resolve_dossier_readiness
+from .project_workspace import project_workspace
 from .selectors import active_assignments_for_dossier, active_project_for_dossier, current_dossier_authority_mandates, dossier_for_profile, dossiers_for_profile, project_for_profile, projects_for_profile, visible_dependencies_for_profile, visible_dossiers_for_project, visible_linked_journeys, visible_project_for_dossier
-from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, set_project_lifecycle, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
+from .services import add_dependency, assign_dossier, can_manage_dossier, can_manage_dossier_authority, can_manage_project, create_dossier, create_project, dependency_is_satisfied, grant_dossier_authority, link_dossier_to_project, link_journey, move_dossier_to_project, remove_dependency, revoke_dossier_authority, set_dossier_lifecycle, set_project_lifecycle, update_project, unassign_dossier, unlink_dossier_from_project, unlink_journey, waive_dependency
 
 
 login_required = django_login_required(login_url="core:login")
@@ -71,10 +73,20 @@ def project_create(request):
 
 @login_required
 def project_detail(request, project_id):
-    project = _visible_project_or_404(request.user, project_id); can_manage = can_manage_project(request.user, project)
-    dossiers = list(visible_dossiers_for_project(request.user, project)[:50])
-    dossier_rows = [{"dossier": dossier, "readiness": resolve_dossier_readiness(dossier, viewer=request.user), "can_manage": can_manage_dossier(request.user, dossier)} for dossier in dossiers]
-    return render(request, "objectives/project_detail.html", {"project": project, "dossier_rows": dossier_rows, "visible_dossier_count": visible_dossiers_for_project(request.user, project).count(), "can_manage": can_manage, "link_form": ProjectDossierLinkForm(actor=request.user) if can_manage else None, "lifecycle_form": ProjectLifecycleForm(project=project) if can_manage else None})
+    project = _visible_project_or_404(request.user, project_id)
+    workspace = project_workspace(request.user, project)
+    can_manage = can_manage_project(request.user, project)
+    return render(request, "objectives/project_detail.html", {
+        "project": project,
+        "workspace": workspace,
+        "dossier_rows": workspace["visible_dossiers"],
+        "dossiers_page": workspace["dossiers_page"],
+        "can_manage": can_manage,
+        "link_form": ProjectDossierLinkForm(actor=request.user) if "project.dossier.link" in workspace["capabilities"] else None,
+        "lifecycle_form": ProjectLifecycleForm(project=project) if can_manage else None,
+        "child_form": ProjectChildDossierForm() if "project.dossier.create" in workspace["capabilities"] else None,
+        "edit_form": ProjectEditForm(project=project) if can_manage else None,
+    })
 
 
 @login_required
@@ -98,6 +110,82 @@ def dossier_detail(request, dossier_id):
         "assignment_form": DossierAssignmentForm(dossier=dossier) if can_manage else None,
         "authority_form": DossierAuthorityGrantForm(dossier=dossier) if can_manage_authority else None,
     })
+
+
+@login_required
+@require_POST
+def project_create_child(request, project_id):
+    project = _visible_project_or_404(request.user, project_id)
+    if not can_manage_project(request.user, project):
+        raise Http404
+    form = ProjectChildDossierForm(request.POST)
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                dossier = create_dossier(
+                    actor=request.user, title=form.cleaned_data["title"],
+                    description=form.cleaned_data["description"],
+                    deadline=form.cleaned_data["deadline"],
+                    owner_profile=project.owner_profile,
+                    owning_space=project.owning_space,
+                )
+                link_dossier_to_project(
+                    actor=request.user, project=project, dossier=dossier,
+                )
+            messages.success(request, "Dossier créé et rattaché.")
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+    else:
+        messages.error(request, "Vérifiez les informations du nouveau Dossier.")
+    return redirect("objectives:project-detail", project_id=project.pk)
+
+
+@login_required
+@require_POST
+def project_move_dossier(request, project_id, dossier_id):
+    project = _visible_project_or_404(request.user, project_id)
+    dossier = _visible_dossier_or_404(request.user, dossier_id)
+    from .models import ProjectDossierLink
+    if not ProjectDossierLink.objects.filter(
+        project=project, dossier=dossier, is_active=True,
+    ).exists():
+        raise Http404
+    target_id = request.POST.get("target_project_id")
+    if not target_id:
+        messages.error(request, "Choisissez un Projet cible.")
+        return redirect("objectives:project-detail", project_id=project.pk)
+    import uuid
+    try:
+        target_uuid = uuid.UUID(target_id)
+    except (TypeError, ValueError, AttributeError):
+        raise Http404
+    target = _visible_project_or_404(request.user, target_uuid)
+    try:
+        move_dossier_to_project(
+            actor=request.user, dossier=dossier, target_project=target,
+        )
+        messages.success(request, "Dossier déplacé sans suppression.")
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    return redirect("objectives:project-detail", project_id=project.pk)
+
+
+@login_required
+@require_POST
+def project_edit(request, project_id):
+    project = _visible_project_or_404(request.user, project_id)
+    if not can_manage_project(request.user, project):
+        raise Http404
+    form = ProjectEditForm(request.POST, project=project)
+    if form.is_valid():
+        try:
+            update_project(actor=request.user, project=project, **form.cleaned_data)
+            messages.success(request, "Informations du Projet mises à jour.")
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+    else:
+        messages.error(request, "Vérifiez le titre et les dates du Projet.")
+    return redirect("objectives:project-detail", project_id=project.pk)
 
 
 @login_required
