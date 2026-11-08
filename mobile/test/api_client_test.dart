@@ -406,6 +406,45 @@ void main() {
     );
   });
 
+  test('avatar multipart sends the owner-validated image MIME type', () async {
+    final directory = await Directory.systemTemp.createTemp('makolo-avatar-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/portrait.jpg');
+    await file.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: testDio((request, _) async {
+        expect(request.method, 'PATCH');
+        expect(request.path, 'api/v1/accounts/auth/profile/update/');
+        final form = request.data as FormData;
+        expect(form.files.single.key, 'avatar');
+        expect(form.files.single.value.contentType.toString(), 'image/jpeg');
+        return jsonResponse({'message': 'Profil mis à jour.'}, 200);
+      }),
+    );
+
+    await api.upload(
+      'api/v1/accounts/auth/profile/update/',
+      method: 'PATCH',
+      files: [
+        MakoloUploadFile(
+          fieldName: 'avatar',
+          path: file.path,
+          filename: 'portrait.jpg',
+          contentType: 'image/jpeg',
+        ),
+      ],
+    );
+  });
+
   test(
     'multipart upload keeps transport generic and owner path explicit',
     () async {
