@@ -166,13 +166,15 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
               decoration: const InputDecoration(labelText: 'Nom'),
             ),
             actions: [
-              TextButton(
+              MakoloActionButton(
+                label: 'Annuler',
+                appearance: MakoloActionAppearance.quiet,
                 onPressed: () => Navigator.pop(dialog),
-                child: const Text('Annuler'),
               ),
-              FilledButton(
+              MakoloActionButton(
+                label: 'Enregistrer',
+                appearance: MakoloActionAppearance.primary,
                 onPressed: () => Navigator.pop(dialog, controller.text.trim()),
-                child: const Text('Enregistrer'),
               ),
             ],
           ),
@@ -206,13 +208,15 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
             'Cela ne supprime aucune possibilité enregistrée.',
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Supprimer',
+              appearance: MakoloActionAppearance.danger,
               onPressed: () => Navigator.pop(dialog, true),
-              child: const Text('Supprimer'),
             ),
           ],
         ),
