@@ -33,6 +33,20 @@ class _SyncCoordinator {
   final Map<String, int> spaceInventoryEpochs = {};
 }
 
+class _InFlightSourcePull {
+  const _InFlightSourcePull({
+    required this.path,
+    required this.projectionKind,
+    required this.generation,
+    required this.future,
+  });
+
+  final String path;
+  final String projectionKind;
+  final int generation;
+  final Future<void> future;
+}
+
 class SyncEngine {
   static final Expando<_SyncCoordinator> _coordinators =
       Expando<_SyncCoordinator>('sync-per-database');
@@ -60,6 +74,7 @@ class SyncEngine {
   final Map<String, SyncSourceDefinition> _preparedSources = {};
   final Map<String, Future<void> Function()> _preparedAcquirers = {};
   final Map<String, DateTime> _lastPreparedAttempt = {};
+  final Map<String, _InFlightSourcePull> _inFlightSourcePulls = {};
 
   /// Opt in stable owner sources for bounded proactive acquisition.
   /// Never prefetch signed continuation URLs or an unverified Space context.
@@ -349,8 +364,41 @@ class SyncEngine {
 
   Future<void> pullInteroperability() => pullSource(_interoperabilitySource);
 
-  Future<void> pullSource(SyncSourceDefinition source) async {
-    if (!_active) return;
+  /// Share a pending owner read when its scope, route and generation match.
+  /// Invalidation or an owner denial increments the generation, so the next
+  /// acquisition cannot join an obsolete request.
+  Future<void> pullSource(SyncSourceDefinition source) {
+    if (!_active) return Future<void>.value();
+    final key = _scopeKey(source);
+    final existing = _inFlightSourcePulls[key];
+    if (existing != null &&
+        existing.path == source.path &&
+        existing.projectionKind == source.projectionKind &&
+        existing.generation == _coordinator.generations[key]) {
+      return existing.future;
+    }
+    final request = _pullSourceOnce(source);
+    final pending = _InFlightSourcePull(
+      path: source.path,
+      projectionKind: source.projectionKind,
+      generation: _coordinator.generations[key]!,
+      future: request,
+    );
+    _inFlightSourcePulls[key] = pending;
+    // Register both completion paths: never create an unhandled secondary
+    // failed Future merely to perform map cleanup.
+    void cleanup() {
+      if (identical(_inFlightSourcePulls[key], pending)) {
+        _inFlightSourcePulls.remove(key);
+      }
+    }
+    unawaited(request.then((_) => cleanup(), onError: (Object _, StackTrace __) {
+      cleanup();
+    }));
+    return request;
+  }
+
+  Future<void> _pullSourceOnce(SyncSourceDefinition source) async {
     final key = _scopeKey(source);
     final coordinator = _coordinator;
     final generation = (coordinator.generations[key] ?? 0) + 1;
