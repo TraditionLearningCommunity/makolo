@@ -240,10 +240,10 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
       appBar: AppBar(
         title: const Text('Retrouver un Point'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _loading ? null : () => _load(reset: true),
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -316,9 +316,10 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: TextButton(
+                    child: MakoloActionButton(
+                      label: 'Réessayer',
                       onPressed: _loading ? null : () => _load(reset: true),
-                      child: const Text('Réessayer'),
+                      appearance: MakoloActionAppearance.quiet,
                     ),
                   ),
                 ],
@@ -451,10 +452,11 @@ class _HistoricalPointRow extends StatelessWidget {
                 if (replacement != null && replacement.isNotEmpty)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
+                    child: MakoloActionButton(
+                      label: 'Voir le Point actuel',
                       onPressed: () => onOpenRelated(replacement),
-                      icon: const Icon(Icons.call_made_rounded),
-                      label: const Text('Voir le Point actuel'),
+                      icon: Icons.call_made_rounded,
+                      appearance: MakoloActionAppearance.quiet,
                     ),
                   ),
                 const Divider(height: 24),
