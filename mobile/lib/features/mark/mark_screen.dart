@@ -7,6 +7,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
 import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../design/makolo_mark.dart';
 import '../../navigation/avatar_sheet.dart';
 import '../../navigation/destination.dart';
@@ -423,9 +424,11 @@ class _MarkScreenState extends State<MarkScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    FilledButton(
+                    MakoloActionButton(
+                      appearance: MakoloActionAppearance.primary,
                       onPressed: _busy || _restoring ? null : _submit,
-                      child: Text(_busy ? 'Envoi…' : 'Continuer'),
+                      busy: _busy,
+                      label: _busy ? 'Envoi…' : 'Continuer',
                     ),
                     if (_restoring)
                       const Padding(
