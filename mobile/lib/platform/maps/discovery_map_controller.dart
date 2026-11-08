@@ -461,14 +461,14 @@ class DiscoveryMapController {
       try {
         await _controller.removeLayer(layer);
       } on Object {
-              // A native style reload may already have removed this layer.
-            }
+        // A native style reload may already have removed this layer.
+      }
     }
     try {
       await _controller.removeSource(_source);
     } on Object {
-              // A native style reload may already have removed this layer.
-            }
+      // A native style reload may already have removed this layer.
+    }
   }
 
   /// A cluster zooms to its real expansion level; an individual point

@@ -3,15 +3,25 @@ import 'package:flutter/material.dart';
 import '../../data/local/profile_store.dart';
 
 enum OrganizerMode { cards, list, explorer }
+
 enum OrganizerSort { name, created, updated, deadline, start, completed }
 
 class OrganizerEntry {
   const OrganizerEntry({
-    required this.kind, required this.id, required this.title,
-    required this.state, required this.relation,
-    this.description = '', this.space, this.projectId,
-    this.dossierIds = const [], this.created, this.updated,
-    this.deadline, this.start, this.completed,
+    required this.kind,
+    required this.id,
+    required this.title,
+    required this.state,
+    required this.relation,
+    this.description = '',
+    this.space,
+    this.projectId,
+    this.dossierIds = const [],
+    this.created,
+    this.updated,
+    this.deadline,
+    this.start,
+    this.completed,
   });
 
   final String kind, id, title, state, relation, description;
@@ -30,7 +40,8 @@ class OrganizerEntry {
     'dossier' => Icons.folder_outlined,
     _ => Icons.route_outlined,
   };
-  bool get isIndependent => kind == 'project' ||
+  bool get isIndependent =>
+      kind == 'project' ||
       (kind == 'dossier' && projectId == null) ||
       (kind == 'journey' && dossierIds.isEmpty);
 
@@ -62,7 +73,8 @@ class OrganizerEntry {
   String? get displayDate {
     final value = deadline ?? start;
     if (value == null) return null;
-    final stamp = '${value.day.toString().padLeft(2, '0')}/'
+    final stamp =
+        '${value.day.toString().padLeft(2, '0')}/'
         '${value.month.toString().padLeft(2, '0')}/${value.year}';
     return '${deadline != null ? 'Échéance' : 'Début'} : $stamp';
   }
@@ -82,7 +94,9 @@ class OrganizerEntry {
       relation: row['relation']?.toString() ?? '',
       space: space is Map ? space['name']?.toString() : null,
       projectId: row['project_id']?.toString(),
-      dossierIds: ids is List ? ids.map((id) => id.toString()).toList() : const [],
+      dossierIds: ids is List
+          ? ids.map((id) => id.toString()).toList()
+          : const [],
       created: _date(row['created_at']),
       updated: _date(row['updated_at']),
       deadline: _date(row['deadline'] ?? row['ends_on']),
@@ -95,15 +109,21 @@ class OrganizerEntry {
 /// Local pages are identity-checked and only consumed while contiguous.
 class OrganizerPage {
   const OrganizerPage({
-    required this.entries, required this.hasFirst,
-    required this.hasMore, required this.nextOffset,
+    required this.entries,
+    required this.hasFirst,
+    required this.hasMore,
+    required this.nextOffset,
   });
   final List<OrganizerEntry> entries;
   final bool hasFirst, hasMore;
   final int nextOffset;
 
-  factory OrganizerPage.read(List<StoredProjection> projections, String profileId) {
-    final pages = projections.toList()..sort((a, b) => _offset(a).compareTo(_offset(b)));
+  factory OrganizerPage.read(
+    List<StoredProjection> projections,
+    String profileId,
+  ) {
+    final pages = projections.toList()
+      ..sort((a, b) => _offset(a).compareTo(_offset(b)));
     final result = <OrganizerEntry>[];
     final seen = <String>{};
     var expected = 0;
@@ -114,15 +134,20 @@ class OrganizerPage {
       final actor = value['actor'];
       final pagination = value['page'];
       final entries = value['items'];
-      if (actor is! Map || actor['type'] != 'profile' ||
+      if (actor is! Map ||
+          actor['type'] != 'profile' ||
           actor['id']?.toString() != profileId ||
-          pagination is! Map || pagination['offset'] != expected ||
-          entries is! List) break;
+          pagination is! Map ||
+          pagination['offset'] != expected ||
+          entries is! List)
+        break;
       hasFirst = true;
       for (final raw in entries) {
         if (raw is! Map ||
             !{'project', 'dossier', 'journey'}.contains(raw['kind']) ||
-            raw['id'] is! String || raw['title'] is! String) continue;
+            raw['id'] is! String ||
+            raw['title'] is! String)
+          continue;
         final item = OrganizerEntry.fromMap(raw);
         if (seen.add(item.key)) result.add(item);
       }
@@ -133,8 +158,10 @@ class OrganizerPage {
       if (!hasMore) break;
     }
     return OrganizerPage(
-      entries: result, hasFirst: hasFirst,
-      hasMore: hasMore, nextOffset: expected,
+      entries: result,
+      hasFirst: hasFirst,
+      hasMore: hasMore,
+      nextOffset: expected,
     );
   }
 

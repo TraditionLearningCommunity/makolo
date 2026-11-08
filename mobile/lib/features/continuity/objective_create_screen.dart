@@ -45,11 +45,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     if (!mounted) return;
     final items = row?.payload['manageable_spaces'];
     if (items is! List) return;
-    setState(() => _spaces = [
-      for (final value in items)
-        if (value is Map && value['id'] is String && value['name'] is String)
-          (value['id'] as String, value['name'] as String),
-    ]);
+    setState(
+      () => _spaces = [
+        for (final value in items)
+          if (value is Map && value['id'] is String && value['name'] is String)
+            (value['id'] as String, value['name'] as String),
+      ],
+    );
   }
 
   @override
@@ -59,10 +61,11 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     super.dispose();
   }
 
-  String? _iso(DateTime? date) => date == null ? null :
-      '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
+  String? _iso(DateTime? date) => date == null
+      ? null
+      : '${date.year.toString().padLeft(4, '0')}-'
+            '${date.month.toString().padLeft(2, '0')}-'
+            '${date.day.toString().padLeft(2, '0')}';
 
   String _human(DateTime? value) {
     if (value == null) return 'Non renseignée';
@@ -72,7 +75,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   Future<void> _chooseDate(String field) async {
     final current = switch (field) {
-      'start' => _start, 'end' => _end, _ => _deadline,
+      'start' => _start,
+      'end' => _end,
+      _ => _deadline,
     };
     final now = DateTime.now();
     final date = await showDatePicker(
@@ -85,9 +90,15 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     if (date == null || !mounted) return;
     setState(() {
       switch (field) {
-        case 'start': _start = date; break;
-        case 'end': _end = date; break;
-        default: _deadline = date; break;
+        case 'start':
+          _start = date;
+          break;
+        case 'end':
+          _end = date;
+          break;
+        default:
+          _deadline = date;
+          break;
       }
     });
   }
@@ -103,13 +114,21 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       if (value != null)
         IconButton(
           tooltip: 'Effacer la date',
-          onPressed: _submitting ? null : () => setState(() {
-            switch (field) {
-              case 'start': _start = null; break;
-              case 'end': _end = null; break;
-              default: _deadline = null; break;
-            }
-          }),
+          onPressed: _submitting
+              ? null
+              : () => setState(() {
+                  switch (field) {
+                    case 'start':
+                      _start = null;
+                      break;
+                    case 'end':
+                      _end = null;
+                      break;
+                    default:
+                      _deadline = null;
+                      break;
+                  }
+                }),
           icon: const Icon(Icons.close_rounded, size: 17),
         ),
     ],
@@ -117,7 +136,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   Future<void> _submit() async {
     if (_submitting || !(_form.currentState?.validate() ?? false)) return;
-    if (_isProject && _start != null && _end != null &&
+    if (_isProject &&
+        _start != null &&
+        _end != null &&
         _start!.isAfter(_end!)) {
       setState(() => _error = 'La fin ne peut pas précéder le début.');
       return;
@@ -151,8 +172,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       if (mounted) widget.onCreated(id);
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Création non confirmée. Vérifiez votre connexion et les informations saisies.');
+        setState(
+          () => _error = 'Création non confirmée. Vérifiez votre connexion et les informations saisies.',
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -166,97 +188,122 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SafeArea(
-        child: Center(child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: Form(
-            key: _form,
-            child: ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Icon(project ? Icons.folder_special_outlined : Icons.folder_outlined,
-                    size: 40, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 16),
-                Text(project ? 'Définir un horizon' : 'Définir un objectif concret',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Form(
+              key: _form,
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Icon(
+                    project
+                        ? Icons.folder_special_outlined
+                        : Icons.folder_outlined,
+                    size: 40,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    project
+                        ? 'Définir un horizon'
+                        : 'Définir un objectif concret',
                     style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800)),
-                const SizedBox(height: 7),
-                Text(project
-                    ? 'Un projet rassemble des dossiers sur la durée.'
-                    : 'Un dossier peut exister seul ou être rattaché à un projet ensuite.',
-                    style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _title,
-                  autofocus: true,
-                  maxLength: 220,
-                  enabled: !_submitting,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: project ? 'Nom du projet' : 'Objectif du dossier',
-                    border: const OutlineInputBorder(),
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Ce titre est obligatoire.' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _description,
-                  maxLines: 4,
-                  enabled: !_submitting,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (facultative)',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
+                  const SizedBox(height: 7),
+                  Text(
+                    project ? 'Un projet rassemble des dossiers sur la durée.' : 'Un dossier peut exister seul ou être rattaché à un projet ensuite.',
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
-                const SizedBox(height: 20),
-                DropdownButtonFormField<String>(
-                  value: _spaceId,
-                  decoration: const InputDecoration(
-                    labelText: 'Contexte porteur',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: null, child: Text('Personnel — Moi'),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: _title,
+                    autofocus: true,
+                    maxLength: 220,
+                    enabled: !_submitting,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: project
+                          ? 'Nom du projet'
+                          : 'Objectif du dossier',
+                      border: const OutlineInputBorder(),
                     ),
-                    for (final space in _spaces)
-                      DropdownMenuItem<String>(
-                        value: space.$1, child: Text(space.$2),
-                      ),
-                  ],
-                  onChanged: _submitting ? null :
-                      (value) => setState(() => _spaceId = value),
-                ),
-                const SizedBox(height: 18),
-                if (project) ...[
-                  _dateField('start', 'Début de l’horizon', _start),
-                  _dateField('end', 'Fin de l’horizon', _end),
-                ] else _dateField('deadline', 'Échéance', _deadline),
-                const SizedBox(height: 24),
-                if (_error != null) ...[
-                  Text(_error!, style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  )),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Ce titre est obligatoire.'
+                        : null,
+                  ),
                   const SizedBox(height: 12),
-                ],
-                FilledButton.icon(
-                  onPressed: _submitting ? null : _submit,
-                  icon: _submitting
-                      ? const SizedBox(width: 17, height: 17,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.check_rounded),
-                  label: Text(_submitting ? 'Confirmation…' : title),
-                ),
-                const SizedBox(height: 12),
-                Text('La création est effective uniquement après validation '
+                  TextFormField(
+                    controller: _description,
+                    maxLines: 4,
+                    enabled: !_submitting,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (facultative)',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _spaceId,
+                    decoration: const InputDecoration(
+                      labelText: 'Contexte porteur',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Personnel — Moi'),
+                      ),
+                      for (final space in _spaces)
+                        DropdownMenuItem<String>(
+                          value: space.$1,
+                          child: Text(space.$2),
+                        ),
+                    ],
+                    onChanged: _submitting
+                        ? null
+                        : (value) => setState(() => _spaceId = value),
+                  ),
+                  const SizedBox(height: 18),
+                  if (project) ...[
+                    _dateField('start', 'Début de l’horizon', _start),
+                    _dateField('end', 'Fin de l’horizon', _end),
+                  ] else
+                    _dateField('deadline', 'Échéance', _deadline),
+                  const SizedBox(height: 24),
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  FilledButton.icon(
+                    onPressed: _submitting ? null : _submit,
+                    icon: _submitting
+                        ? const SizedBox(
+                            width: 17,
+                            height: 17,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_rounded),
+                    label: Text(_submitting ? 'Confirmation…' : title),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'La création est effective uniquement après validation '
                     'par Makolo. Aucune donnée métier n’est inventée hors ligne.',
-                    style: Theme.of(context).textTheme.bodySmall),
-              ],
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ),
-        )),
+        ),
       ),
     );
   }

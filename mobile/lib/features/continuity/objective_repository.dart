@@ -76,7 +76,8 @@ class ObjectiveRepository {
   static const organizerLimit = 50;
   static const organizerProjectionKind = 'objective.organizer.collection';
 
-  String organizerResourceKey(int offset) => 'offset:$offset:limit:$organizerLimit';
+  String organizerResourceKey(int offset) =>
+      'offset:$offset:limit:$organizerLimit';
   String organizerSourceKey(int offset) =>
       '$organizerProjectionKind:$offset:$organizerLimit';
 
@@ -84,7 +85,8 @@ class ObjectiveRepository {
       SyncSourceDefinition.projectionEnvelope(
         sourceKey: organizerSourceKey(offset),
         owner: 'Objectives',
-        path: 'api/v1/objectives/organizer/?limit=$organizerLimit&offset=$offset',
+        path:
+            'api/v1/objectives/organizer/?limit=$organizerLimit&offset=$offset',
         projectionKind: organizerProjectionKind,
         resourceKey: organizerResourceKey(offset),
         category: SyncSourceCategory.collection,

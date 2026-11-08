@@ -139,16 +139,16 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                       context.push('/journeys/$id');
                     }
                   },
-                  onCreate: (kind) => context.push(
-                    '/me/demarches/new?kind=$kind',
-                  ),
+                  onCreate: (kind) =>
+                      context.push('/me/demarches/new?kind=$kind'),
                 ),
           routes: [
             GoRoute(
               path: 'new',
               builder: (context, state) {
                 final kind = state.uri.queryParameters['kind'];
-                if (runtime.objectives == null || runtime.api == null ||
+                if (runtime.objectives == null ||
+                    runtime.api == null ||
                     (kind != 'project' && kind != 'dossier')) {
                   return const MakoloSecondaryScreen(
                     title: 'Créer',
