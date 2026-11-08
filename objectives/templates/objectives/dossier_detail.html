@@ -25,11 +25,11 @@
       </div>
     </div>
     <div class="mk-dossier__hero-actions">
-      <a class="mk-dossier__quiet" href="{% url 'conversations:by-context' 'dossier' dossier.pk %}">
+      <a class="mk-dossier__quiet mk-action-button" data-variant="ghost" href="{% url 'conversations:by-context' 'dossier' dossier.pk %}">
         <i data-lucide="message-circle" aria-hidden="true"></i> Échanges
       </a>
       {% if edit_form %}
-        <button type="button" class="mk-dossier__quiet" data-dialog-open="dossier-edit">
+        <button type="button" class="mk-dossier__quiet mk-action-button" data-variant="ghost" data-dialog-open="dossier-edit">
           <i data-lucide="pencil" aria-hidden="true"></i> Modifier
         </button>
       {% endif %}
@@ -37,30 +37,30 @@
   </header>
   <div class="mk-dossier__actions">
     {% if link_form %}
-      <button type="button" class="mk-dossier__primary" data-dialog-open="dossier-link">
+      <button type="button" class="mk-dossier__primary mk-action-button" data-variant="primary" data-dialog-open="dossier-link">
         <i data-lucide="link"></i> Lier une démarche
       </button>
-      <button type="button" class="mk-dossier__secondary" data-dialog-open="dossier-dependency">
+      <button type="button" class="mk-dossier__secondary mk-action-button" data-variant="secondary" data-dialog-open="dossier-dependency">
         <i data-lucide="git-branch"></i> Ajouter une dépendance
       </button>
     {% endif %}
     {% if project_form %}
-      <button type="button" class="mk-dossier__secondary" data-dialog-open="dossier-project">
+      <button type="button" class="mk-dossier__secondary mk-action-button" data-variant="secondary" data-dialog-open="dossier-project">
         <i data-lucide="folder-input"></i> Organiser dans un Projet
       </button>
     {% endif %}
     {% if lifecycle_form %}
-      <button type="button" class="mk-dossier__secondary" data-dialog-open="dossier-lifecycle">
+      <button type="button" class="mk-dossier__secondary mk-action-button" data-variant="secondary" data-dialog-open="dossier-lifecycle">
         <i data-lucide="circle-dot"></i> Changer l’état
       </button>
     {% endif %}
     {% if assignment_form %}
-      <button type="button" class="mk-dossier__secondary" data-dialog-open="dossier-assign">
+      <button type="button" class="mk-dossier__secondary mk-action-button" data-variant="secondary" data-dialog-open="dossier-assign">
         <i data-lucide="users"></i> Responsabilités
       </button>
     {% endif %}
     {% if authority_form %}
-      <button type="button" class="mk-dossier__secondary" data-dialog-open="dossier-authority">
+      <button type="button" class="mk-dossier__secondary mk-action-button" data-variant="secondary" data-dialog-open="dossier-authority">
         <i data-lucide="shield-check"></i> Autorisations
       </button>
     {% endif %}
@@ -97,8 +97,8 @@
         </div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Enregistrer</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Enregistrer</button>
       </div>
     </form>
   </dialog>
@@ -113,8 +113,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Confirmer le rattachement</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Confirmer le rattachement</button>
       </div>
     </form>
   </dialog>
@@ -129,8 +129,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Lier la démarche</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Lier la démarche</button>
       </div>
     </form>
   </dialog>
@@ -143,8 +143,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Ajouter le prérequis</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Ajouter le prérequis</button>
       </div>
     </form>
   </dialog>
@@ -159,8 +159,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Confirmer</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Confirmer</button>
       </div>
     </form>
   </dialog>
@@ -175,8 +175,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Désigner</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Désigner</button>
       </div>
     </form>
   </dialog>
@@ -191,8 +191,8 @@
         <div class="mk-dossier__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>
       {% endfor %}
       <div class="mk-dossier__dialog-actions">
-        <button type="button" data-dialog-close>Annuler</button>
-        <button type="submit" class="mk-dossier__submit">Accorder le rôle</button>
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-dossier__submit mk-action-button" data-variant="primary">Accorder le rôle</button>
       </div>
     </form>
   </dialog>
