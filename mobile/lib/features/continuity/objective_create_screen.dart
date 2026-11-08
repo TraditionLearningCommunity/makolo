@@ -1,0 +1,263 @@
+import 'package:flutter/material.dart';
+
+import '../../network/makolo_api_client.dart';
+import 'objective_repository.dart';
+
+/// Owner-backed creation; an offline form is not a confirmed Project/Dossier.
+class ObjectiveCreateScreen extends StatefulWidget {
+  const ObjectiveCreateScreen({
+    super.key,
+    required this.kind,
+    required this.api,
+    required this.repository,
+    required this.onCreated,
+  });
+
+  final String kind;
+  final MakoloApiClient api;
+  final ObjectiveRepository repository;
+  final ValueChanged<String> onCreated;
+
+  @override
+  State<ObjectiveCreateScreen> createState() => _ObjectiveCreateScreenState();
+}
+
+class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
+  final _form = GlobalKey<FormState>();
+  final _title = TextEditingController();
+  final _description = TextEditingController();
+  DateTime? _start, _end, _deadline;
+  String? _spaceId;
+  List<(String, String)> _spaces = const [];
+  bool _submitting = false;
+  String? _error;
+
+  bool get _isProject => widget.kind == 'project';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSpaces();
+  }
+
+  Future<void> _loadSpaces() async {
+    final row = await widget.repository.readOrganizerPage(0);
+    if (!mounted) return;
+    final items = row?.payload['manageable_spaces'];
+    if (items is! List) return;
+    setState(() => _spaces = [
+      for (final value in items)
+        if (value is Map && value['id'] is String && value['name'] is String)
+          (value['id'] as String, value['name'] as String),
+    ]);
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  String? _iso(DateTime? date) => date == null ? null :
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+
+  String _human(DateTime? value) {
+    if (value == null) return 'Non renseignée';
+    return '${value.day.toString().padLeft(2, '0')}/'
+        '${value.month.toString().padLeft(2, '0')}/${value.year}';
+  }
+
+  Future<void> _chooseDate(String field) async {
+    final current = switch (field) {
+      'start' => _start, 'end' => _end, _ => _deadline,
+    };
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100),
+      helpText: 'Choisir une date',
+    );
+    if (date == null || !mounted) return;
+    setState(() {
+      switch (field) {
+        case 'start': _start = date;
+        case 'end': _end = date;
+        default: _deadline = date;
+      }
+    });
+  }
+
+  Widget _dateField(String field, String label, DateTime? value) => Row(
+    children: [
+      Expanded(child: Text('$label : ${_human(value)}')),
+      TextButton.icon(
+        onPressed: _submitting ? null : () => _chooseDate(field),
+        icon: const Icon(Icons.calendar_today_outlined, size: 17),
+        label: const Text('Choisir'),
+      ),
+      if (value != null)
+        IconButton(
+          tooltip: 'Effacer la date',
+          onPressed: _submitting ? null : () => setState(() {
+            switch (field) {
+              case 'start': _start = null;
+              case 'end': _end = null;
+              default: _deadline = null;
+            }
+          }),
+          icon: const Icon(Icons.close_rounded, size: 17),
+        ),
+    ],
+  );
+
+  Future<void> _submit() async {
+    if (_submitting || !(_form.currentState?.validate() ?? false)) return;
+    if (_isProject && _start != null && _end != null &&
+        _start!.isAfter(_end!)) {
+      setState(() => _error = 'La fin ne peut pas précéder le début.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.api.post(
+        'api/v1/objectives/${_isProject ? 'projects' : 'dossiers'}/',
+        body: {
+          'title': _title.text.trim(),
+          'description': _description.text.trim(),
+          if (_spaceId != null) 'owning_space_id': _spaceId,
+          if (_isProject && _start != null) 'starts_on': _iso(_start),
+          if (_isProject && _end != null) 'ends_on': _iso(_end),
+          if (!_isProject && _deadline != null) 'deadline': _iso(_deadline),
+        },
+      );
+      final id = result.jsonObject()['id']?.toString();
+      if (id == null || id.isEmpty) {
+        throw const FormatException('Invalid Objectives owner response');
+      }
+      // The mutation is confirmed. The parent list is now revalidated.
+      try {
+        await widget.repository.refreshOrganizerPage(0);
+      } on Object {
+        // The new detail still opens; the organizer can retry its refresh.
+      }
+      if (mounted) widget.onCreated(id);
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Création non confirmée. Vérifiez votre connexion et les informations saisies.');
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final project = _isProject;
+    final title = project ? 'Créer un projet' : 'Créer un dossier';
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Form(
+            key: _form,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Icon(project ? Icons.folder_special_outlined : Icons.folder_outlined,
+                    size: 40, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(height: 16),
+                Text(project ? 'Définir un horizon' : 'Définir un objectif concret',
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 7),
+                Text(project
+                    ? 'Un projet rassemble des dossiers sur la durée.'
+                    : 'Un dossier peut exister seul ou être rattaché à un projet ensuite.',
+                    style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _title,
+                  autofocus: true,
+                  maxLength: 220,
+                  enabled: !_submitting,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: project ? 'Nom du projet' : 'Objectif du dossier',
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Ce titre est obligatoire.' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _description,
+                  maxLines: 4,
+                  enabled: !_submitting,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (facultative)',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  value: _spaceId,
+                  decoration: const InputDecoration(
+                    labelText: 'Contexte porteur',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: null, child: Text('Personnel — Moi'),
+                    ),
+                    for (final space in _spaces)
+                      DropdownMenuItem<String>(
+                        value: space.$1, child: Text(space.$2),
+                      ),
+                  ],
+                  onChanged: _submitting ? null :
+                      (value) => setState(() => _spaceId = value),
+                ),
+                const SizedBox(height: 18),
+                if (project) ...[
+                  _dateField('start', 'Début de l’horizon', _start),
+                  _dateField('end', 'Fin de l’horizon', _end),
+                ] else _dateField('deadline', 'Échéance', _deadline),
+                const SizedBox(height: 24),
+                if (_error != null) ...[
+                  Text(_error!, style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  )),
+                  const SizedBox(height: 12),
+                ],
+                FilledButton.icon(
+                  onPressed: _submitting ? null : _submit,
+                  icon: _submitting
+                      ? const SizedBox(width: 17, height: 17,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.check_rounded),
+                  label: Text(_submitting ? 'Confirmation…' : title),
+                ),
+                const SizedBox(height: 12),
+                Text('La création est effective uniquement après validation '
+                    'par Makolo. Aucune donnée métier n’est inventée hors ligne.',
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        )),
+      ),
+    );
+  }
+}
