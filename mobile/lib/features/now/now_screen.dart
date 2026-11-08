@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/local/profile_store.dart';
 import '../../app/sync_lifecycle.dart';
 import '../../network/makolo_api_client.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -751,10 +752,11 @@ class _NowField extends StatelessWidget {
           )
         else if (loadMoreFailed)
           Center(
-            child: TextButton.icon(
+            child: MakoloActionButton(
+              label: 'Réessayer',
               onPressed: onRetryMore,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              icon: Icons.refresh_rounded,
+              appearance: MakoloActionAppearance.quiet,
             ),
           ),
       ],
@@ -1248,10 +1250,11 @@ class _NowDepth extends StatelessWidget {
           children: [
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
+              child: MakoloActionButton(
+                label: 'Maintenant',
                 onPressed: onClose,
-                icon: const Icon(Icons.arrow_back_rounded),
-                label: const Text('Maintenant'),
+                icon: Icons.arrow_back_rounded,
+                appearance: MakoloActionAppearance.quiet,
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
@@ -1316,14 +1319,13 @@ class _NowDepth extends StatelessWidget {
             ],
             if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
-              FilledButton(
+              MakoloActionButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(
-                  nowDisplayHandoffLabel(
-                    situation.responseLabel!,
-                    situation.meaning,
-                    situation.humanContext,
-                  ),
+                appearance: MakoloActionAppearance.primary,
+                label: nowDisplayHandoffLabel(
+                  situation.responseLabel!,
+                  situation.meaning,
+                  situation.humanContext,
                 ),
               ),
             ],
