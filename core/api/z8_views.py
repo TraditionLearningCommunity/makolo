@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -10,8 +11,13 @@ from rest_framework.response import Response
 
 from journeys.collaboration_services import ensure_case_access
 from journeys.models import Journey
+from personal_assets.forms import PersonalAssetCreateForm, PersonalAssetVersionForm
 from personal_assets.models import PersonalAsset
+from personal_assets.selectors import personal_asset_for_controller
 from personal_assets.services import (
+    archive_personal_asset,
+    create_personal_asset,
+    create_personal_asset_version,
     personal_asset_version_for_download,
     use_personal_asset_version_in_journey,
 )
@@ -27,6 +33,13 @@ from core.api.z8_projection import (
     build_personal_group_detail_data,
     build_personal_resource_detail_data,
 )
+
+
+def _form_errors(form):
+    return {
+        field: [item["message"] for item in errors]
+        for field, errors in form.errors.get_json_data().items()
+    }
 
 
 def _integer_param(request, name, *, default, minimum=0, maximum=None):
@@ -46,6 +59,111 @@ def _integer_param(request, name, *, default, minimum=0, maximum=None):
             {name: f"Ce paramètre ne peut pas dépasser {maximum}."}
         )
     return value
+
+
+class PersonalResourceCreateAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.resource.detail"
+
+    def post(self, request):
+        self._guard_personal_scope(request, include_body=True)
+        form = PersonalAssetCreateForm(request.data, request.FILES)
+        if not form.is_valid():
+            raise ValidationError(_form_errors(form))
+        try:
+            with transaction.atomic():
+                asset = create_personal_asset(
+                    controller=request.user,
+                    subject_profile=request.user,
+                    title=form.cleaned_data["title"],
+                    kind=form.cleaned_data["kind"],
+                    sensitivity=form.cleaned_data["sensitivity"],
+                )
+                create_personal_asset_version(
+                    actor=request.user,
+                    asset=asset,
+                    uploaded_file=form.cleaned_data["file"],
+                    issued_at=form.cleaned_data["issued_at"],
+                    expires_at=form.cleaned_data["expires_at"],
+                )
+        except DjangoValidationError as exc:
+            fields = getattr(exc, "message_dict", None)
+            raise ValidationError(
+                fields or {"non_field_errors": exc.messages}
+            ) from exc
+        observed_at = timezone.now()
+        response = self._response(
+            build_personal_resource_detail_data(
+                request.user,
+                asset_id=asset.pk,
+                observed_at=observed_at,
+            ),
+            observed_at=observed_at,
+        )
+        response.status_code = 201
+        return response
+
+
+class PersonalResourceVersionCreateAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.resource.detail"
+
+    def post(self, request, pk):
+        self._guard_personal_scope(request, include_body=True)
+        try:
+            asset = personal_asset_for_controller(request.user, pk)
+        except PersonalAsset.DoesNotExist as exc:
+            raise Http404 from exc
+        form = PersonalAssetVersionForm(request.data, request.FILES)
+        if not form.is_valid():
+            raise ValidationError(_form_errors(form))
+        try:
+            create_personal_asset_version(
+                actor=request.user,
+                asset=asset,
+                uploaded_file=form.cleaned_data["file"],
+                issued_at=form.cleaned_data["issued_at"],
+                expires_at=form.cleaned_data["expires_at"],
+            )
+        except (PermissionDenied, DjangoValidationError) as exc:
+            fields = getattr(exc, "message_dict", None)
+            if isinstance(exc, PermissionDenied):
+                raise Http404 from exc
+            raise ValidationError(
+                fields or {"non_field_errors": exc.messages}
+            ) from exc
+        observed_at = timezone.now()
+        response = self._response(
+            build_personal_resource_detail_data(
+                request.user,
+                asset_id=asset.pk,
+                observed_at=observed_at,
+            ),
+            observed_at=observed_at,
+        )
+        response.status_code = 201
+        return response
+
+
+class PersonalResourceArchiveAPIView(PersonalProjectionAPIView):
+    projection_code = "personal.resource.detail"
+
+    def post(self, request, pk):
+        self._guard_personal_scope(request, include_body=True)
+        try:
+            asset = personal_asset_for_controller(request.user, pk)
+            archive_personal_asset(actor=request.user, asset=asset)
+        except PersonalAsset.DoesNotExist as exc:
+            raise Http404 from exc
+        except PermissionDenied as exc:
+            raise Http404 from exc
+        observed_at = timezone.now()
+        return self._response(
+            build_personal_resource_detail_data(
+                request.user,
+                asset_id=pk,
+                observed_at=observed_at,
+            ),
+            observed_at=observed_at,
+        )
 
 
 class PersonalResourceDetailAPIView(PersonalProjectionAPIView):
