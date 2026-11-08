@@ -124,7 +124,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       final cached = await repo.read(ObjectiveDepth.dossier, id);
       final source = await repo.readSource(ObjectiveDepth.dossier, id);
       if (!mounted || widget.id != id || widget.repository != repo) return;
-      if (cached == null || ObjectiveRepository.freshnessPolicy.evaluate(
+      if (cached == null || cached.payload['visible_items_complete'] != true ||
+          ObjectiveRepository.freshnessPolicy.evaluate(
             cached, now: DateTime.now().toUtc(), invalidated: source.invalidated,
           ) != FreshnessState.fresh) {
         unawaited(_refresh());
@@ -887,13 +888,16 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               .subtract(Duration(days: local.weekday - 1));
           key = 'week-${monday.toIso8601String()}';
           caption = 'Semaine du ${_dateLabel(context, monday)}';
+          break;
         case _TimeScale.month:
           key = 'month-${local.year}-${local.month}';
-          caption = _dateLabel(context, DateTime(local.year, local.month));
+          caption = MaterialLocalizations.of(context).formatMonthYear(local);
+          break;
         case _TimeScale.quarter:
           final quarter = ((local.month - 1) ~/ 3) + 1;
           key = 'quarter-${local.year}-$quarter';
           caption = 'Trimestre $quarter · ${local.year}';
+          break;
       }
       if (key != previousGroup) {
         widgets.add(Padding(
