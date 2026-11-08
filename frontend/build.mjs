@@ -48,6 +48,14 @@ for (const file of await walk(root)) {
     iconNames.add(toPascalCase(match[1]));
   }
 }
+// Interaction Grammar icons are dynamic across owner projections, not all
+// discoverable from static templates. Bundle them once for every Web surface.
+const INTERACTION_ICONS = [
+  'ellipsis', 'grip-vertical', 'arrow-down-up', 'folder-input',
+  'link-2', 'unlink', 'panel-right-open', 'square-check',
+  'undo-2', 'search', 'filter', 'chevron-down', 'x',
+];
+for (const name of INTERACTION_ICONS) iconNames.add(toPascalCase(name));
 const sortedIcons = [...iconNames].sort();
 if (!sortedIcons.length) throw new Error('No Lucide icons found in templates.');
 const importNames = [...new Set(sortedIcons.map(icon => ICON_ALIASES[icon] || icon))].sort();
