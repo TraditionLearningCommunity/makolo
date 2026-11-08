@@ -226,8 +226,11 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         badge = n1.get("kind_badge") or {}
         action = n1.get("primary_action") or {}
         return {
-            "primary_label": action.get("label"),
-            "primary_icon": action.get("icon"),
+            "primary_label": (
+                action.get("label")
+                or ("Ouvrir les détails" if links.get("web") else None)
+            ),
+            "primary_icon": action.get("icon") or "arrow-right",
             "kind_label": badge.get("label"),
             "kind_icon": badge.get("icon"),
             "focus_title": n1.get("focus_title") or "Comprendre cet élément",
