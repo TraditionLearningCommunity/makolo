@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/behavior_states.dart';
@@ -147,13 +149,17 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
         title: const Text('Confirmer votre décision'),
         content: Text('Voulez-vous $label cette demande ?'),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Annuler',
+            appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Confirmer',
+            appearance: decision == 'approve'
+                ? MakoloActionAppearance.primary
+                : MakoloActionAppearance.danger,
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Confirmer'),
           ),
         ],
       ),
@@ -220,10 +226,10 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       appBar: AppBar(
         title: const Text('Demande de cet Espace'),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
             onPressed: _sending || !_actorValid ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: Icons.refresh_rounded,
           ),
         ],
       ),
@@ -305,16 +311,18 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
                 ],
                 const SizedBox(height: MakoloSpacing.lg),
                 if (canDecide) ...[
-                  FilledButton.icon(
+                  MakoloActionButton(
+                    label: 'Approuver',
+                    appearance: MakoloActionAppearance.primary,
                     onPressed: () => unawaited(_decide('approve')),
-                    icon: const Icon(Icons.check_circle_outline_rounded),
-                    label: const Text('Approuver'),
+                    icon: Icons.check_circle_outline_rounded,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
-                  OutlinedButton.icon(
+                  MakoloActionButton(
+                    label: 'Refuser',
+                    appearance: MakoloActionAppearance.danger,
                     onPressed: () => unawaited(_decide('reject')),
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Refuser'),
+                    icon: Icons.cancel_outlined,
                   ),
                 ] else if (request['status'] == 'pending')
                   const Text(
