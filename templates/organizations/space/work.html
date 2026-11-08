@@ -20,16 +20,16 @@
         <span class="mk-badge">Vue limitée à vos activités autorisées</span>
         {% endif %}
         {% if work_create_url %}
-        <a class="mk-btn mk-btn-secondary" href="{{ work_create_url }}">{{ work_create_label }}</a>
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_create_url }}">{{ work_create_label }}</a>
         {% endif %}
         {% if work_g2_create_url %}
-        <a class="mk-btn mk-btn-secondary" href="{{ work_g2_create_url }}">{{ work_g2_create_label }}</a>
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_g2_create_url }}">{{ work_g2_create_label }}</a>
         {% endif %}
         {% if work_g3_transport_url %}
-        <a class="mk-btn mk-btn-secondary" href="{{ work_g3_transport_url }}">Planifier un départ, une route ou un véhicule</a>
+        <a class="mk-action-button" data-variant="secondary" href="{{ work_g3_transport_url }}">Planifier un départ, une route ou un véhicule</a>
         {% endif %}
-        {% if work_search_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_search_url }}">Rechercher</a>{% endif %}
-        {% if work_history_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_history_url }}">Historique</a>{% endif %}
+        {% if work_search_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_search_url }}">Rechercher</a>{% endif %}
+        {% if work_history_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_history_url }}">Historique</a>{% endif %}
       </div>
     </div>
   </header>
@@ -39,7 +39,7 @@
     <h3 class="text-base font-extrabold">Aujourd’hui · Départs réels</h3>
     <div class="mt-3 flex flex-wrap gap-2">
       {% for departure in projection.presentation.today_departures %}
-      <a class="mk-btn mk-btn-secondary" href="#work-{{ departure.section }}">
+      <a class="mk-action-button" data-variant="secondary" href="#work-{{ departure.section }}">
         {{ departure.title }}
         {% if departure.start_time %}· {{ departure.start_time|time:"H:i" }}{% endif %}
       </a>
@@ -51,7 +51,7 @@
   {% if work_sections and not work_is_collection %}
   <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
     {% for section in work_sections %}
-    <a class="mk-btn mk-btn-secondary shrink-0" href="#work-{{ section.key }}">{{ section.label }} · {{ section.items|length }}</a>
+    <a class="mk-action-button shrink-0" data-variant="secondary" href="#work-{{ section.key }}">{{ section.label }} · {{ section.items|length }}</a>
     {% endfor %}
   </nav>
   {% endif %}
@@ -142,11 +142,11 @@
             </div>
             <div class="flex shrink-0 flex-col gap-2">
               {% if item.owner_url %}
-              <a class="mk-btn mk-btn-secondary" href="{{ item.owner_url }}">{{ item.owner_label }}</a>
+              <a class="mk-action-button" data-variant="secondary" href="{{ item.owner_url }}">{{ item.owner_label }}</a>
               {% endif %}
               {% for handoff in item.web_handoffs %}
               {% if handoff.url != item.owner_url %}
-              <a class="mk-btn mk-btn-secondary" href="{{ handoff.url }}">{{ handoff.label }}</a>
+              <a class="mk-action-button" data-variant="secondary" href="{{ handoff.url }}">{{ handoff.label }}</a>
               {% endif %}
               {% endfor %}
             </div>
@@ -157,7 +157,7 @@
       {% endif %}
 
       {% if section.continuation_url and not work_is_collection %}
-      <a class="mk-btn mk-btn-secondary mt-4" href="{{ section.continuation_url }}">Afficher la suite de {{ section.label|lower }}</a>
+      <a class="mk-action-button mt-4" data-variant="secondary" href="{{ section.continuation_url }}">Afficher la suite de {{ section.label|lower }}</a>
       {% elif section.has_more and work_is_collection and not work_next_url %}
       <p class="mt-4 text-sm" style="color:var(--mk-muted)">
         La navigation paginée atteint sa limite. Utilisez
@@ -173,8 +173,8 @@
   <nav aria-label="Pages de cette collection" class="flex flex-wrap items-center justify-between gap-3">
     <span class="text-sm" style="color:var(--mk-muted)">Page {{ work_collection_page }}</span>
     <div class="flex flex-wrap gap-2">
-      {% if work_previous_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_previous_url }}">Précédents</a>{% endif %}
-      {% if work_next_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_next_url }}">Voir les suivants</a>{% endif %}
+      {% if work_previous_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_previous_url }}">Précédents</a>{% endif %}
+      {% if work_next_url %}<a class="mk-action-button" data-variant="secondary" href="{{ work_next_url }}">Voir les suivants</a>{% endif %}
     </div>
   </nav>
   {% endif %}
@@ -185,7 +185,7 @@
         <p class="font-bold">Autres actions</p>
         <p class="mt-1 text-sm" style="color:var(--mk-muted)">Retrouvez les opérations détaillées dans les outils de votre espace.</p>
       </div>
-      <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary shrink-0">Ouvrir les outils de l’Espace</a>
+      <a href="{{ space_console_url }}" class="mk-action-button shrink-0" data-variant="secondary">Ouvrir les outils de l’Espace</a>
     </div>
   </footer>
 </section>
