@@ -5,16 +5,19 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import F, OuterRef, Subquery
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from journeys.collaboration_models import JourneyArtifact
+from journeys.collaboration_models import JourneyArtifact, JourneyArtifactKind, JourneyArtifactSensitivity
 from journeys.collaboration_services import artifact_for_download, ensure_case_access
 from journeys.models import Journey
 from journeys.selectors import journeys_for_profile
+from trust.credential_selectors import credentials_for_profile
+from trust.selectors import proofs_for_profile
 
 from .forms import PersonalAssetCreateForm, PersonalAssetVersionForm, SaveArtifactToLibraryForm
 from .models import PersonalAsset, PersonalAssetVersion
@@ -42,21 +45,81 @@ def _asset_for_request(request, asset_id, *, include_archived=False):
 
 
 @login_required
+def resources_hub(request):
+    return render(
+        request,
+        "personal_assets/hub.html",
+        {
+            "document_count": personal_assets_for_controller(request.user).count(),
+            "proof_count": proofs_for_profile(request.user).count(),
+            "credential_count": credentials_for_profile(request.user).count(),
+        },
+    )
+
+
+@login_required
 def library_list(request):
-    assets = personal_assets_for_controller(request.user)
     query = (request.GET.get("q") or "").strip()[:120]
-    active_filter = request.GET.get("filter", "all")
+    active_view = request.GET.get("view", "current")
+    active_sort = request.GET.get("sort", "recent")
+    kind = request.GET.get("kind", "")
+    sensitivity = request.GET.get("sensitivity", "")
+
+    if active_view not in {"current", "expiring", "archived"}:
+        active_view = "current"
+    if active_sort not in {"recent", "oldest", "title", "expiry"}:
+        active_sort = "recent"
+    valid_kinds = {value for value, _label in JourneyArtifactKind.choices}
+    valid_sensitivities = {
+        value for value, _label in JourneyArtifactSensitivity.choices
+    }
+    if kind not in valid_kinds:
+        kind = ""
+    if sensitivity not in valid_sensitivities:
+        sensitivity = ""
+
+    latest = PersonalAssetVersion.objects.filter(
+        asset_id=OuterRef("pk"),
+    ).order_by("-version", "-created_at")
+    assets = personal_assets_for_controller(
+        request.user,
+        include_archived=active_view == "archived",
+    ).filter(archived_at__isnull=(active_view != "archived"))
+    assets = assets.annotate(
+        current_expires_at=Subquery(latest.values("expires_at")[:1]),
+    )
+
     if query:
         assets = assets.filter(title__icontains=query)
-    if active_filter == "expiring":
+    if kind:
+        assets = assets.filter(kind=kind)
+    if sensitivity:
+        assets = assets.filter(sensitivity=sensitivity)
+    if active_view == "expiring":
         today = timezone.localdate()
         assets = assets.filter(
-            versions__expires_at__gte=today,
-            versions__expires_at__lte=today + timedelta(days=30),
-        ).distinct()
-    assets = assets.order_by("-updated_at", "id")
+            current_expires_at__gte=today,
+            current_expires_at__lte=today + timedelta(days=30),
+        )
+
+    if active_sort == "oldest":
+        assets = assets.order_by("updated_at", "id")
+    elif active_sort == "title":
+        assets = assets.order_by("title", "id")
+    elif active_sort == "expiry":
+        assets = assets.order_by(
+            F("current_expires_at").asc(nulls_last=True),
+            "title",
+            "id",
+        )
+    else:
+        assets = assets.order_by("-updated_at", "id")
+
     page = Paginator(assets, 24).get_page(request.GET.get("page"))
-    items = [{"asset": asset, "latest": _latest_version(asset)} for asset in page.object_list]
+    items = [
+        {"asset": asset, "latest": _latest_version(asset)}
+        for asset in page.object_list
+    ]
     return render(
         request,
         "personal_assets/list.html",
@@ -64,7 +127,12 @@ def library_list(request):
             "items": items,
             "page": page,
             "query": query,
-            "active_filter": active_filter,
+            "active_view": active_view,
+            "active_sort": active_sort,
+            "kind": kind,
+            "sensitivity": sensitivity,
+            "kind_options": JourneyArtifactKind.choices,
+            "sensitivity_options": JourneyArtifactSensitivity.choices,
             "today": timezone.localdate(),
         },
     )
@@ -180,7 +248,7 @@ def library_archive(request, asset_id):
     asset = _asset_for_request(request, asset_id)
     archive_personal_asset(actor=request.user, asset=asset)
     messages.success(request, "Élément archivé. Son historique est conservé.")
-    return redirect("personal_assets:list")
+    return redirect("personal_assets:documents")
 
 
 @login_required
