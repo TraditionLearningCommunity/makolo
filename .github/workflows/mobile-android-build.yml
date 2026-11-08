@@ -65,7 +65,7 @@ jobs:
       - name: Validate changed mobile core
         run: |
           bash tool/dart_format.sh check
-          flutter test test/api_client_test.dart test/sync_engine_test.dart --timeout 3m
+          flutter test test/api_client_test.dart test/sync_engine_test.dart test/guest_router_test.dart --timeout 3m
           flutter analyze
       - name: Validate remote DEV API
         run: |
