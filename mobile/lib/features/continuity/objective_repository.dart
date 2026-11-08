@@ -146,7 +146,9 @@ class ObjectiveRepository {
 
   Future<void> refreshProjectDossiers(String projectId, int offset) async {
     final engine = sync;
-    if (engine == null) throw StateError('Objectives synchronization unavailable.');
+    if (engine == null) {
+      throw StateError('Objectives synchronization unavailable.');
+    }
     await engine.refreshSource(projectDossierSource(projectId, offset));
   }
 
