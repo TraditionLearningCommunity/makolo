@@ -143,7 +143,7 @@
                     {% if row.state %}{{ row.state }}{% endif %}
                   </span>
                 </span>
-                {% if row.url %}<span class="mk-btn mk-btn-secondary">Ouvrir</span>{% elif row.source.kind == 'occurrence' %}<span class="text-xs" style="color:var(--mk-muted)">Date non ouvrable</span>{% endif %}
+                {% if row.url %}<span class="mk-action-hint">Ouvrir</span>{% elif row.source.kind == 'occurrence' %}<span class="text-xs" style="color:var(--mk-muted)">Date non ouvrable</span>{% endif %}
               {% if row.url %}</a>{% else %}</div>{% endif %}
             </li>
           {% endfor %}
@@ -153,8 +153,8 @@
       {% endif %}
       {% if group.next or group.previous %}
       <nav aria-label="Pagination {{ group.label }}" class="flex flex-wrap justify-between gap-3">
-        <span>{% if group.previous %}<a href="{{ group.previous }}" class="mk-btn mk-btn-secondary">Précédents</a>{% endif %}</span>
-        <span>{% if group.next %}<a href="{{ group.next }}" class="mk-btn mk-btn-secondary">Voir les suivants</a>{% endif %}</span>
+        <span>{% if group.previous %}<a href="{{ group.previous }}" class="mk-action-button" data-variant="secondary">Précédents</a>{% endif %}</span>
+        <span>{% if group.next %}<a href="{{ group.next }}" class="mk-action-button" data-variant="secondary">Voir les suivants</a>{% endif %}</span>
       </nav>
       {% endif %}
     </section>
@@ -165,10 +165,10 @@
     <span class="mk-kicker">Actions disponibles</span>
     <h3 id="mt5-actions" class="text-lg font-extrabold">Agir</h3>
     <div class="flex flex-wrap gap-2">
-      {% for action in work_g3.actions %}<a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+      {% for action in work_g3.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
     </div>
   </section>
   {% endif %}
-  <footer><a href="{{ work_g3.back_url }}" class="mk-btn mk-btn-secondary">{{ work_g3.back_label }}</a></footer>
+  <footer><a href="{{ work_g3.back_url }}" class="mk-action-button" data-variant="secondary">{{ work_g3.back_label }}</a></footer>
 </main>
 {% endblock %}
