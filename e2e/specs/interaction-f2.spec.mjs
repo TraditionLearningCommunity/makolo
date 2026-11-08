@@ -189,7 +189,7 @@ test('F2 move cannot register without fallback and confirms only after owner rep
   });
   expect(acceptedWithFallback).toBe(true);
   const source = page.getByRole('button', { name: 'Déplacer Dossier' });
-  const target = page.getByText('Projet cible');
+  const target = page.locator('#f2-move [data-mk-move-destination]');
   await source.dragTo(target);
   await expect(page.locator('#f2-move [data-mk-move-status]'))
     .toHaveText('Déplacement non confirmé.');
