@@ -159,6 +159,7 @@ class DiscoveryMapController {
                 _placeSelectedImage, _placeImage,
               ],
               iconSize: 1,
+              iconAnchor: 'center',
               iconAllowOverlap: true,
               iconIgnorePlacement: true,
             ),
@@ -199,15 +200,16 @@ class DiscoveryMapController {
         );
         // A glyph is shown only for one opportunity with an admitted type.
         // The native clusters and exact-location counts retain their own layers.
-        if (_symbolPinsReady) try {
+        if (_symbolPinsReady) {
+          try {
           await _controller.addSymbolLayer(
             _source,
             _pointIcons,
             SymbolLayerProperties(
               textField: [Expressions.get, 'symbol'],
               textSize: 15,
-              textColor: '#FFFFFF',
-              textOffset: [0, -1.9],
+              textColor: '#2B176E',
+              textOffset: [0, -2.1],
               textAllowOverlap: true,
             ),
             filter: [
@@ -216,9 +218,10 @@ class DiscoveryMapController {
               ['==', [Expressions.get, 'opportunity_count'], 1],
               ['!=', [Expressions.get, 'symbol'], ''],
             ],
-          );
-        } on Object {
-          // A missing glyph/font must NEVER disable native clustering.
+            );
+          } on Object {
+            // A missing glyph/font must NEVER disable native clustering.
+          }
         }
         _clusterReady = true;
       }
