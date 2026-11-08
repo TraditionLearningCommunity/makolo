@@ -5,7 +5,7 @@
   <header><span class="mk-kicker">Mon contexte personnel</span><h1 class="mk-page-title mt-2">Recherche</h1><p class="mk-page-copy">Retrouvez vos démarches, accès, documents, collectifs et commandes.</p></header>
   <form method="get" role="search" class="mk-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-end">
     <div class="flex-1"><label for="personal-search-query" class="block font-semibold mb-2">Que recherchez-vous ?</label><input id="personal-search-query" class="mk-input" name="q" maxlength="120" value="{{ q }}" autocomplete="off" placeholder="Activité, référence de commande, lieu, organisateur"></div>
-    <button class="mk-btn mk-btn-primary" type="submit">Rechercher</button>
+    <button class="mk-action-button mk-action-button-primary" data-variant="primary" type="submit">Rechercher</button>
   </form>
   <section class="mk-panel p-5" aria-live="polite" aria-atomic="false">
     {% if not q %}<p>Recherchez parmi vos éléments.</p>
@@ -32,14 +32,14 @@
         <aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné">
           <h3 class="font-bold">{{ selected_item.title }}</h3>
           <p>{{ selected_item.human_type }} · {{ selected_item.relation }}</p>
-          {% if selected_destination %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_destination }}">Voir le détail</a>{% endif %}
+          {% if selected_destination %}<a class="mk-action-button mk-action-button-secondary mt-4" data-variant="secondary" href="{{ selected_destination }}">Voir le détail</a>{% endif %}
         </aside>
         {% endif %}
       </div>
     {% else %}<p>Aucun résultat.</p>{% endif %}
     <p class="text-sm mt-4" style="color:var(--mk-muted)">Recherche parmi vos démarches, accès, documents, groupes personnels et commandes.</p>
   </section>
-  {% if search.page.has_more %}<a class="mk-btn mk-btn-secondary" href="?q={{ q|urlencode }}&amp;page={{ page|add:1 }}">Afficher la suite</a>{% endif %}
-  {% if page > 1 %}<a class="mk-btn mk-btn-ghost" href="?q={{ q|urlencode }}&amp;page={{ page|add:-1 }}">Précédent</a>{% endif %}
+  {% if search.page.has_more %}<a class="mk-action-button mk-action-button-secondary" data-variant="secondary" href="?q={{ q|urlencode }}&amp;page={{ page|add:1 }}">Afficher la suite</a>{% endif %}
+  {% if page > 1 %}<a class="mk-action-button mk-action-button-ghost" data-variant="ghost" href="?q={{ q|urlencode }}&amp;page={{ page|add:-1 }}">Précédent</a>{% endif %}
 </main>
 {% endblock %}
