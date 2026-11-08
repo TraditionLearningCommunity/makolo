@@ -141,6 +141,7 @@
   async function requestReorder(scope, from, to) {
     const adapter = reorderAdapters.get(scope);
     const state = reorderScope(scope);
+    const status = scope.querySelector('[data-mk-reorder-status]');
     if (!adapter || !state || reorderBusy.has(scope) ||
         from < 0 || to < 0 || from >= state.list.length ||
         to >= state.list.length || from === to) return;
@@ -149,11 +150,19 @@
     order.splice(to, 0, movedId);
     reorderBusy.add(scope);
     scope.setAttribute('aria-busy', 'true');
+    if (status) status.textContent = 'Réorganisation en cours…';
     try {
       // Adapter must only return true after authoritative confirmation and
       // should refresh its owner projection if the order is not canonical.
       const confirmed = await adapter(Object.freeze([...order]), movedId);
-      if (confirmed !== true || !scope.isConnected) return;
+      if (confirmed !== true) {
+        if (status) status.textContent = 'Nouvel ordre non confirmé.';
+        scope.dispatchEvent(new CustomEvent('makolo:reorder-failed', {
+          bubbles: true, detail: { movedId }
+        }));
+        return;
+      }
+      if (!scope.isConnected) return;
       const latest = reorderScope(scope);
       if (!latest || latest.ids.join('|') !== state.ids.join('|')) return;
       const byId = new Map(latest.list.map((item) => [item.dataset.mkReorderId, item]));
@@ -161,11 +170,12 @@
       const moved = byId.get(movedId);
       const focus = moved.querySelector('[data-mk-reorder-up], [data-mk-reorder-down]');
       if (focus) focus.focus();
+      if (status) status.textContent = 'Nouvel ordre confirmé.';
       scope.dispatchEvent(new CustomEvent('makolo:reorder-confirmed', {
         bubbles: true, detail: { ids: order, movedId }
       }));
     } catch (_) {
-      // Owner adapter handles its human-readable error; never invent success.
+      if (status) status.textContent = 'Nouvel ordre non confirmé.';
       scope.dispatchEvent(new CustomEvent('makolo:reorder-failed', {
         bubbles: true, detail: { movedId }
       }));
@@ -383,8 +393,13 @@
     unregisterReorder(scope) { reorderAdapters.delete(scope); },
     // Require an actual fallback form; never make drag the only route.
     registerMove(scope, adapter) {
-      if (!(scope instanceof Element) || typeof adapter !== 'function' ||
-          !scope.querySelector('form[data-mk-move-form]')) return false;
+      if (!(scope instanceof Element) || typeof adapter !== 'function') return false;
+      const fallback = scope.querySelector('form[data-mk-move-form]');
+      if (!fallback || fallback.method.toLowerCase() !== 'post' ||
+          !fallback.getAttribute('action') ||
+          !fallback.querySelector('select[name], input[name="destination_id"]') ||
+          !fallback.querySelector('button[type="submit"], input[type="submit"]') ||
+          !fallback.querySelector('input[name="csrfmiddlewaretoken"]')) return false;
       moveAdapters.set(scope, adapter);
       return true;
     },
