@@ -9,7 +9,19 @@
       {% if item.cue %}<span class="mk-ongoing-card__cue mk-ongoing-card__cue--{{ item.tone }}">{{ item.cue }}</span>{% endif %}
       {% if item.when %}<span>{{ item.when }}</span>{% endif %}
     </div>
+    {% if item.kind == "journey" or item.kind == "dossier" or item.kind == "project" %}
+      <span class="mk-ongoing-card__kind" style="display:inline-flex;align-items:center;gap:.4rem;color:#5232DB;font-size:.8rem;font-weight:650;margin:.35rem 0">
+        {% if item.kind == "journey" %}<i data-lucide="route" aria-hidden="true"></i>Démarche
+        {% elif item.kind == "dossier" %}<i data-lucide="folder-open" aria-hidden="true"></i>Dossier
+        {% else %}<i data-lucide="folder-kanban" aria-hidden="true"></i>Projet{% endif %}
+      </span>
+    {% endif %}
     <h2>{{ item.title }}</h2>
+    {% if item.composition %}
+      <p class="mk-ongoing-card__composition" style="color:#64748b;font-size:.85rem;margin:.35rem 0">
+        {% for fact in item.composition %}{{ fact }}{% if not forloop.last %} · {% endif %}{% endfor %}
+      </p>
+    {% endif %}
     {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
     {% if item.next_action and item.next_action != item.summary and item.next_action != item.title %}
       <span class="mk-ongoing-card__next">{{ item.next_action }}</span>
