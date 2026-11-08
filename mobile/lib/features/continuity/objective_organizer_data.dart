@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/local/profile_store.dart';
 
 enum OrganizerMode { cards, list, explorer }
-enum OrganizerSort { name, created, updated, deadline, start }
+enum OrganizerSort { name, created, updated, deadline, start, completed }
 
 class OrganizerEntry {
   const OrganizerEntry({
@@ -11,13 +11,13 @@ class OrganizerEntry {
     required this.state, required this.relation,
     this.description = '', this.space, this.projectId,
     this.dossierIds = const [], this.created, this.updated,
-    this.deadline, this.start,
+    this.deadline, this.start, this.completed,
   });
 
   final String kind, id, title, state, relation, description;
   final String? space, projectId;
   final List<String> dossierIds;
-  final DateTime? created, updated, deadline, start;
+  final DateTime? created, updated, deadline, start, completed;
 
   String get key => '$kind:$id';
   String get kindLabel => switch (kind) {
@@ -55,6 +55,7 @@ class OrganizerEntry {
     OrganizerSort.updated => updated,
     OrganizerSort.deadline => deadline,
     OrganizerSort.start => start,
+    OrganizerSort.completed => completed,
     OrganizerSort.name => null,
   };
 
@@ -86,6 +87,7 @@ class OrganizerEntry {
       updated: _date(row['updated_at']),
       deadline: _date(row['deadline'] ?? row['ends_on']),
       start: _date(row['starts_on'] ?? row['started_at']),
+      completed: _date(row['fulfilled_at']),
     );
   }
 }
