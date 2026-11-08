@@ -69,6 +69,68 @@ void main() {
         'Owner result');
   });
 
+  test('invalidating an in-flight owner read permits a fresh request',
+      () async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final releaseOld = Completer<void>();
+    final firstStarted = Completer<void>();
+    var requests = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      ),
+      dio: MockClient((request) async {
+        final number = ++requests;
+        if (number == 1) {
+          firstStarted.complete();
+          await releaseOld.future;
+        }
+        return MockResponse(
+          jsonEncode({
+            'meta': {
+              'projection': 'personal.me',
+              'schema_version': 1,
+              'scope': 'personal',
+              'generated_at': number == 1
+                  ? '2026-11-08T08:00:00Z'
+                  : '2026-11-08T08:01:00Z',
+            },
+            'data': {
+              'actor': {'type': 'profile', 'id': 'profile-a'},
+              'name': number == 1 ? 'Obsolete' : 'Current',
+            },
+          }),
+          200,
+        );
+      }).dio,
+    );
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api, store: store, database: db, profileId: 'profile-a',
+    );
+    final previous = sync.refreshPersonalMe();
+    await firstStarted.future;
+    await sync.invalidate(SyncSourceDefinition.projectionEnvelope(
+      sourceKey: 'personal.me',
+      owner: 'Profile',
+      path: 'api/v1/me/',
+      projectionKind: 'personal.me',
+    ));
+    expect(await sync.refreshPersonalMe(), isTrue);
+    releaseOld.complete();
+    expect(await previous, isTrue);
+    expect(requests, 2);
+    expect((await store.readProjection('personal.me'))?.payload['name'],
+        'Current');
+  });
+
   test('composed Me edits reuse the single canonical root reconciliation',
       () async {
     final db = MakoloDatabase.memory();
