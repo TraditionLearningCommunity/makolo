@@ -33,6 +33,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
 class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   static const _storage = FlutterSecureStorage();
   final _search = TextEditingController();
+  bool _searchOpen = false;
   late Stream<List<StoredProjection>> _pages;
   late Stream<OwnerSourceState> _source;
   OrganizerMode _mode = OrganizerMode.cards;
@@ -79,6 +80,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   void _changed() {
     if (mounted) setState(() {});
+  }
+
+  void _startSearch() => setState(() => _searchOpen = true);
+
+  void _stopSearch() {
+    FocusScope.of(context).unfocus();
+    _search.clear();
+    setState(() => _searchOpen = false);
   }
 
   @override
@@ -349,63 +358,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     });
   }
 
-  Widget _compactFilter(
-    String title,
-    String value,
-    Map<String, String> values,
-    IconData icon,
-    ValueChanged<String> change,
-  ) {
-    final active = value != 'all';
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: '$title : ${values[value] ?? title}',
-      child: PopupMenuButton<String>(
-        tooltip: title,
-        initialValue: value,
-        onSelected: change,
-        itemBuilder: (_) => [
-          for (final entry in values.entries)
-            PopupMenuItem(value: entry.key, child: Text(entry.value)),
-        ],
-        child: Semantics(
-          button: true,
-          label: '$title : ${values[value] ?? title}',
-          child: Container(
-            width: 46,
-            height: 45,
-            decoration: BoxDecoration(
-              color: active ? scheme.primaryContainer : scheme.surface,
-              border: Border.all(
-                color: active ? scheme.primary : scheme.outlineVariant,
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 21,
-                  color: active ? scheme.onPrimaryContainer : scheme.primary,
-                ),
-                if (active)
-                  Positioned(
-                    right: 5,
-                    top: 5,
-                    child: CircleAvatar(
-                      radius: 3,
-                      backgroundColor: scheme.primary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _compactMode(OrganizerMode mode, IconData icon, String name) {
     final active = _mode == mode;
     final scheme = Theme.of(context).colorScheme;
@@ -435,6 +387,100 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     );
   }
 
+  Future<void> _showContentFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheet) => StatefulBuilder(
+        builder: (sheet, refreshSheet) {
+          void change(VoidCallback command) {
+            setState(command);
+            refreshSheet(() {});
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Filtres', style: Theme.of(sheet).textTheme.titleLarge),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _dropdown(
+                        'Type', _kind,
+                        const {
+                          'all': 'Tous les types',
+                          'project': 'Projets',
+                          'dossier': 'Dossiers',
+                          'journey': 'Démarches',
+                        },
+                        (v) => change(() => _kind = v),
+                        icon: Icons.category_outlined,
+                      ),
+                      _dropdown(
+                        'État', _status,
+                        const {
+                          'all': 'Tous les états',
+                          'draft': 'En préparation',
+                          'active': 'En cours',
+                          'completed': 'Terminé',
+                          'cancelled': 'Annulé',
+                          'archived': 'Archivé',
+                        },
+                        (v) => change(() => _status = v),
+                        icon: Icons.tune_rounded,
+                      ),
+                      _dropdown(
+                        'Contexte', _relation,
+                        const {
+                          'all': 'Tous les contextes',
+                          'mine': 'Personnel',
+                          'space': 'Espace',
+                          'independent': 'Indépendants',
+                        },
+                        (v) => change(() => _relation = v),
+                        icon: Icons.account_tree_outlined,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      if (_kind != 'all' ||
+                          _status != 'all' ||
+                          _relation != 'all')
+                        TextButton.icon(
+                          onPressed: () => change(() {
+                            _kind = 'all';
+                            _status = 'all';
+                            _relation = 'all';
+                          }),
+                          icon: const Icon(Icons.filter_alt_off_outlined),
+                          label: const Text('Effacer'),
+                        ),
+                      const Spacer(),
+                      MakoloActionButton(
+                        label: 'Terminé',
+                        appearance: MakoloActionAppearance.primary,
+                        onPressed: () => Navigator.pop(sheet),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _advancedFilters() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -455,15 +501,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Dates et classement',
+                    'Dates et tri',
                     style: Theme.of(sheet).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 7),
-                  Text(
-                    'Choisissez les dates qui comptent pour votre recherche.',
-                    style: Theme.of(sheet).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 19),
+                  const SizedBox(height: 16),
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
@@ -545,324 +586,172 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     );
   }
 
-  Widget _mobileOrganizerToolbar() {
+  Widget _createQuickAction(String kind, String label) {
+    final primary = kind == 'dossier';
     final scheme = Theme.of(context).colorScheme;
-    Widget group(Widget child) => DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(padding: const EdgeInsets.all(5), child: child),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              group(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Group 1: WHAT the person wants to find.
-                    _compactFilter(
-                      'Type',
-                      _kind,
-                      const {
-                        'all': 'Tous les types',
-                        'project': 'Projets',
-                        'dossier': 'Dossiers',
-                        'journey': 'Démarches',
-                      },
-                      Icons.category_outlined,
-                      (v) => setState(() => _kind = v),
-                    ),
-                    const SizedBox(width: 5),
-                    _compactFilter(
-                      'État',
-                      _status,
-                      const {
-                        'all': 'Tous les états',
-                        'draft': 'En préparation',
-                        'active': 'En cours',
-                        'completed': 'Terminé',
-                        'cancelled': 'Annulé',
-                        'archived': 'Archivé',
-                      },
-                      Icons.tune_rounded,
-                      (v) => setState(() => _status = v),
-                    ),
-                    const SizedBox(width: 5),
-                    _compactFilter(
-                      'Contexte',
-                      _relation,
-                      const {
-                        'all': 'Tous les contextes',
-                        'mine': 'Personnel',
-                        'space': 'Espace',
-                        'independent': 'Indépendants',
-                      },
-                      Icons.account_tree_outlined,
-                      (v) => setState(() => _relation = v),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              group(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Group 2: HOW the collection is displayed.
-                    _compactMode(
-                      OrganizerMode.cards,
-                      Icons.grid_view_rounded,
-                      'Cartes',
-                    ),
-                    const SizedBox(width: 5),
-                    _compactMode(
-                      OrganizerMode.list,
-                      Icons.view_list_rounded,
-                      'Liste',
-                    ),
-                    const SizedBox(width: 5),
-                    _compactMode(
-                      OrganizerMode.explorer,
-                      Icons.account_tree_rounded,
-                      'Explorateur',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 5),
-        Row(
-          children: [
-            MakoloActionButton(
-              label: _hasExtraFilters
-                  ? 'Dates et tri · actifs'
-                  : 'Dates et tri',
-              onPressed: _advancedFilters,
-              icon: Icons.calendar_month_outlined,
-              appearance: MakoloActionAppearance.quiet,
-            ),
-            const Spacer(),
-            if (_hasAnyFilters)
-              MakoloIconActionButton(
-                tooltip: 'Tout effacer',
-                onPressed: _clearFilters,
-                icon: Icons.filter_alt_off_outlined,
-              ),
-          ],
-        ),
+        const Icon(Icons.add_rounded, size: 17),
+        const SizedBox(width: 3),
+        Text(label, style: const TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w700,
+        )),
       ],
+    );
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(Size(0, 44)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: 9),
+      ),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: WidgetStatePropertyAll(
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+      ),
+    );
+    return Tooltip(
+      message: 'Créer un $label'.replaceFirst('un Dossier', 'un dossier')
+          .replaceFirst('un Projet', 'un projet'),
+      child: primary
+          ? FilledButton(
+              style: style,
+              onPressed: () => widget.onCreate(kind),
+              child: child,
+            )
+          : OutlinedButton(
+              style: style.copyWith(
+                foregroundColor: WidgetStatePropertyAll(scheme.primary),
+              ),
+              onPressed: () => widget.onCreate(kind),
+              child: child,
+            ),
     );
   }
 
-  Widget _controls() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final createDossier = MakoloActionButton(
-            label: 'Créer un dossier',
-            onPressed: () => widget.onCreate('dossier'),
-            icon: Icons.folder_open_outlined,
-            appearance: MakoloActionAppearance.primary,
-          );
-          final createProject = MakoloActionButton(
-            label: 'Créer un projet',
-            onPressed: () => widget.onCreate('project'),
-            icon: Icons.create_new_folder_outlined,
-            appearance: MakoloActionAppearance.secondary,
-          );
-          if (constraints.maxWidth < 350) {
-            return Column(
-              children: [
-                SizedBox(width: double.infinity, child: createDossier),
-                const SizedBox(height: 8),
-                SizedBox(width: double.infinity, child: createProject),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: createDossier),
-              const SizedBox(width: 10),
-              Expanded(child: createProject),
-            ],
-          );
-        },
+  // The action bar belongs to the app chrome, never the scrolling collection.
+  // On very narrow screens it scrolls as a single accessible toolbar rather
+  // than hiding either creation command or any view mode.
+  Widget _persistentActions() {
+    final scheme = Theme.of(context).colorScheme;
+    final create = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _createQuickAction('dossier', 'Dossier'),
+        const SizedBox(width: 6),
+        _createQuickAction('project', 'Projet'),
+      ],
+    );
+    final modes = Row(
+      key: const Key('organizer-view-toggle'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
+        const SizedBox(width: 3),
+        _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
+        const SizedBox(width: 3),
+        _compactMode(
+          OrganizerMode.explorer, Icons.account_tree_rounded, 'Explorateur',
+        ),
+      ],
+    );
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-      const SizedBox(height: 16),
-      TextField(
-        key: const Key('organizer-search'),
-        controller: _search,
-        decoration: InputDecoration(
-          prefixIcon: const Icon(Icons.search_rounded),
-          hintText: 'Rechercher dans mes démarches',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          suffixIcon: _search.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Effacer',
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: _search.clear,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 330) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [
+                  create,
+                  const SizedBox(width: 12),
+                  modes,
+                ]),
+              );
+            }
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [create, modes],
+            );
+          },
         ),
       ),
-      const SizedBox(height: 12),
-      LayoutBuilder(
-        builder: (context, constraints) => constraints.maxWidth < 680
-            ? _mobileOrganizerToolbar()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _dropdown(
-                        'Type',
-                        _kind,
-                        const {
-                          'all': 'Tous les types',
-                          'project': 'Projets',
-                          'dossier': 'Dossiers',
-                          'journey': 'Démarches',
-                        },
-                        (v) => setState(() => _kind = v),
-                        icon: Icons.category_outlined,
-                      ),
-                      _dropdown(
-                        'État',
-                        _status,
-                        const {
-                          'all': 'Tous les états',
-                          'draft': 'En préparation',
-                          'active': 'En cours',
-                          'completed': 'Terminé',
-                          'cancelled': 'Annulé',
-                          'archived': 'Archivé',
-                        },
-                        (v) => setState(() => _status = v),
-                        icon: Icons.tune_rounded,
-                      ),
-                      _dropdown(
-                        'Contexte',
-                        _relation,
-                        const {
-                          'all': 'Tous les contextes',
-                          'mine': 'Personnel',
-                          'space': 'Espace',
-                          'independent': 'Indépendants',
-                        },
-                        (v) => setState(() => _relation = v),
-                        icon: Icons.account_tree_outlined,
-                      ),
-                      _dropdown(
-                        'Date concernée',
-                        _dateField.name,
-                        const {
-                          'created': 'Création',
-                          'updated': 'Modification',
-                          'deadline': 'Échéance',
-                          'start': 'Début',
-                          'completed': 'Réalisation',
-                        },
-                        (v) => setState(
-                          () => _dateField = OrganizerSort.values.firstWhere(
-                            (element) => element.name == v,
-                          ),
-                        ),
-                        icon: Icons.event_outlined,
-                      ),
-                      _dropdown(
-                        'Période',
-                        _period,
-                        const {
-                          'all': 'Toutes les dates',
-                          'week': '7 prochains jours',
-                          'month': '30 prochains jours',
-                          'quarter': '90 prochains jours',
-                        },
-                        (v) => setState(() => _period = v),
-                        icon: Icons.date_range_outlined,
-                      ),
-                      _dropdown(
-                        'Trier',
-                        _sort.name,
-                        const {
-                          'name': 'Nom A–Z',
-                          'created': 'Création',
-                          'updated': 'Modification',
-                          'deadline': 'Échéance',
-                          'start': 'Début',
-                          'completed': 'Réalisation',
-                        },
-                        (v) => setState(
-                          () => _sort = OrganizerSort.values.firstWhere(
-                            (element) => element.name == v,
-                          ),
-                        ),
-                        icon: Icons.sort_by_alpha_rounded,
-                      ),
-
-                      if (_hasAnyFilters)
-                        MakoloActionButton(
-                          label: 'Effacer les filtres',
-                          onPressed: _clearFilters,
-                          icon: Icons.filter_alt_off_outlined,
-                          appearance: MakoloActionAppearance.quiet,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SegmentedButton<OrganizerMode>(
-                    key: const Key('organizer-view-toggle'),
-                    showSelectedIcon: false,
-                    selected: {_mode},
-                    segments: const [
-                      ButtonSegment(
-                        value: OrganizerMode.cards,
-                        icon: Icon(Icons.grid_view_rounded),
-                        label: Text('Cartes'),
-                      ),
-                      ButtonSegment(
-                        value: OrganizerMode.list,
-                        icon: Icon(Icons.view_list_rounded),
-                        label: Text('Liste'),
-                      ),
-                      ButtonSegment(
-                        value: OrganizerMode.explorer,
-                        icon: Icon(Icons.account_tree_outlined),
-                        label: Text('Explorateur'),
-                      ),
-                    ],
-                    onSelectionChanged: (values) => _setMode(values.first),
-                  ),
-                ],
-              ),
-      ),
-    ],
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Mes démarches'),
-      actions: [
-        MakoloIconActionButton(
-          tooltip: 'Actualiser',
-          onPressed: _refreshing ? null : _refresh,
-          icon: Icons.refresh_rounded,
-        ),
-      ],
+      title: _searchOpen
+          ? TextField(
+              key: const Key('organizer-search'),
+              autofocus: true,
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                hintText: 'Rechercher…',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            )
+          : const Text(
+              'Mes démarches',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+      actions: _searchOpen
+          ? [
+              if (_search.text.isNotEmpty)
+                MakoloIconActionButton(
+                  tooltip: 'Effacer la recherche',
+                  onPressed: _search.clear,
+                  icon: Icons.backspace_outlined,
+                ),
+              MakoloIconActionButton(
+                tooltip: 'Fermer la recherche',
+                onPressed: _stopSearch,
+                icon: Icons.close_rounded,
+              ),
+            ]
+          : [
+              MakoloIconActionButton(
+                tooltip: 'Rechercher',
+                onPressed: _startSearch,
+                icon: Icons.search_rounded,
+              ),
+              MakoloIconActionButton(
+                tooltip: _kind != 'all' ||
+                        _status != 'all' ||
+                        _relation != 'all'
+                    ? 'Filtres actifs'
+                    : 'Filtrer',
+                onPressed: _showContentFilters,
+                icon: Icons.tune_rounded,
+                color: _kind != 'all' ||
+                        _status != 'all' ||
+                        _relation != 'all'
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+              MakoloIconActionButton(
+                tooltip: _hasExtraFilters ? 'Dates et tri actifs' : 'Dates et tri',
+                onPressed: _advancedFilters,
+                icon: Icons.sort_rounded,
+                color: _hasExtraFilters
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+              ),
+            ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: _persistentActions(),
+      ),
     ),
     body: StreamBuilder<OwnerSourceState>(
       stream: _source,
@@ -938,7 +827,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               child: ListView(
                 key: const PageStorageKey<String>('organizer-scroll'),
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 44),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 44),
                 children: [
                   Center(
                     child: ConstrainedBox(
@@ -946,25 +835,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            'Mon espace d’organisation',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'Projets, dossiers et démarches, à votre rythme.',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                          ),
-                          const SizedBox(height: 19),
-                          _controls(),
-                          const SizedBox(height: 12),
-                          const Divider(),
+
                           if (source.invalidated)
                             Column(
                               children: [
