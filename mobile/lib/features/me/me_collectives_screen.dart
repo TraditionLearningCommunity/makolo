@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
@@ -223,9 +224,10 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                       ),
                     if (_failed)
                       Center(
-                        child: TextButton(
+                        child: MakoloActionButton(
+                          label: 'Réessayer',
                           onPressed: _retry,
-                          child: const Text('Réessayer'),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                       ),
                     if (!_loading &&
