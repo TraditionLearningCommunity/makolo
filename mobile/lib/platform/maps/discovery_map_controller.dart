@@ -539,9 +539,7 @@ class DiscoveryMapController {
   ///
   /// Returns only public geographic points. This does not use device
   /// coordinates or require location permission.
-  static List<DiscoveryMapPin> initialFocusPins(
-    List<DiscoveryMapPin> pins,
-  ) {
+  static List<DiscoveryMapPin> initialFocusPins(List<DiscoveryMapPin> pins) {
     if (pins.length < 2) return pins;
     final minLat = pins.map((pin) => pin.latitude).reduce(math.min);
     final maxLat = pins.map((pin) => pin.latitude).reduce(math.max);
@@ -561,8 +559,8 @@ class DiscoveryMapController {
         group.add(point);
         weight += math.max(1, point.opportunityCount);
       }
-      if (weight > bestWeight || (weight == bestWeight &&
-          group.length > bestCount)) {
+      if (weight > bestWeight ||
+          (weight == bestWeight && group.length > bestCount)) {
         bestWeight = weight;
         bestCount = group.length;
         best = group;
@@ -575,7 +573,8 @@ class DiscoveryMapController {
     const rad = math.pi / 180;
     final dLat = (b.latitude - a.latitude) * rad;
     final dLon = (b.longitude - a.longitude) * rad;
-    final h = math.pow(math.sin(dLat / 2), 2) +
+    final h =
+        math.pow(math.sin(dLat / 2), 2) +
         math.cos(a.latitude * rad) *
             math.cos(b.latitude * rad) *
             math.pow(math.sin(dLon / 2), 2);

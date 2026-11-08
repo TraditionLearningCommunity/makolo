@@ -1865,22 +1865,27 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     }
     final place = await chooseDiscoveryMapPlace(context, gateway: gateway);
     if (!mounted || place == null) return;
-    if (!place.latitude.isFinite || !place.longitude.isFinite ||
-        place.latitude < -90 || place.latitude > 90 ||
-        place.longitude < -180 || place.longitude > 180) {
+    if (!place.latitude.isFinite ||
+        !place.longitude.isFinite ||
+        place.latitude < -90 ||
+        place.latitude > 90 ||
+        place.longitude < -180 ||
+        place.longitude > 180) {
       return;
     }
     // A selected geocoder location is an ephemeral search center, not a
     // canonical Makolo Place. Reuse the same Discovery query and spatial
     // projection, constrained to opportunities in its vicinity.
-    final query = _query.copyWith(clearLocation: true).copyWith(
-      place: '',
-      latitude: place.latitude,
-      longitude: place.longitude,
-      radiusKm: 25,
-      page: 1,
-      clearContinuation: true,
-    );
+    final query = _query
+        .copyWith(clearLocation: true)
+        .copyWith(
+          place: '',
+          latitude: place.latitude,
+          longitude: place.longitude,
+          radiusKm: 25,
+          page: 1,
+          clearContinuation: true,
+        );
     context.replace(query.routeLocation('/discover/map'));
   }
 
@@ -1977,8 +1982,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                     selection: selection,
                     mapConfig: widget.mapConfig,
                     location: widget.location,
-                    initialMapFocus: _query.latitude != null &&
-                            _query.longitude != null
+                    initialMapFocus:
+                        _query.latitude != null && _query.longitude != null
                         ? MapCoordinate(_query.latitude!, _query.longitude!)
                         : null,
                     onDirections: (anchor) => unawaited(
@@ -2073,7 +2078,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                               page: 1,
                               clearContinuation: true,
                             );
-                            context.replace(next.routeLocation('/discover/map'));
+                            context.replace(
+                              next.routeLocation('/discover/map'),
+                            );
                           },
                           icon: const Icon(Icons.close_rounded),
                         ),

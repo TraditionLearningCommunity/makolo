@@ -28,13 +28,16 @@ List<DiscoveryDirectionsDestination> discoveryDirectionsDestinations(
     if (value is String) return double.tryParse(value);
     return null;
   }
+
   for (final fact in item.spatialFacts) {
     final place = fact['place'];
     if (place is! Map) continue;
     final latitude = coordinate(place['latitude']);
     final longitude = coordinate(place['longitude']);
-    if (latitude == null || longitude == null ||
-        !ExternalDirections.valid(latitude, longitude)) continue;
+    if (latitude == null ||
+        longitude == null ||
+        !ExternalDirections.valid(latitude, longitude))
+      continue;
     final key = '$latitude:$longitude';
     if (!seen.add(key)) continue;
     final name = (place['name'] ?? place['locality'] ?? item.place ?? 'Lieu')
@@ -48,20 +51,25 @@ List<DiscoveryDirectionsDestination> discoveryDirectionsDestinations(
       'dropoff' => 'Débarquement',
       _ => '',
     };
-    result.add(DiscoveryDirectionsDestination(
-      latitude: latitude,
-      longitude: longitude,
-      label: prefix.isEmpty ? name : '$prefix · $name',
-    ));
+    result.add(
+      DiscoveryDirectionsDestination(
+        latitude: latitude,
+        longitude: longitude,
+        label: prefix.isEmpty ? name : '$prefix · $name',
+      ),
+    );
   }
   if (result.isEmpty &&
-      item.latitude != null && item.longitude != null &&
+      item.latitude != null &&
+      item.longitude != null &&
       ExternalDirections.valid(item.latitude!, item.longitude!)) {
-    result.add(DiscoveryDirectionsDestination(
-      latitude: item.latitude!,
-      longitude: item.longitude!,
-      label: item.place ?? 'Lieu de l’activité',
-    ));
+    result.add(
+      DiscoveryDirectionsDestination(
+        latitude: item.latitude!,
+        longitude: item.longitude!,
+        label: item.place ?? 'Lieu de l’activité',
+      ),
+    );
   }
   return List.unmodifiable(result);
 }

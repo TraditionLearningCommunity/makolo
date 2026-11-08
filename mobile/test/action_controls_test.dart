@@ -105,7 +105,10 @@ void main() {
     );
     final action = find.byTooltip('Modifier mon profil');
     expect(action, findsOneWidget);
-    expect(tester.getSize(find.byType(IconButton)).height, greaterThanOrEqualTo(48));
+    expect(
+      tester.getSize(find.byType(IconButton)).height,
+      greaterThanOrEqualTo(48),
+    );
     await tester.tap(action);
     expect(called, isTrue);
   });

@@ -760,9 +760,11 @@ class DiscoverySpatialView extends StatefulWidget {
   final MakoloMapsConfig mapConfig;
   final DiscoveryOpenItem onOpen;
   final LocationCapability? location;
+
   /// Search-center only; not the user's GPS or a canonical Makolo Place.
   final MapCoordinate? initialMapFocus;
   final DiscoverySaveItem? onSave;
+
   /// Only the selected public spatial fact is passed to navigation.
   final ValueChanged<DiscoverySpatialAnchor>? onDirections;
   final DiscoveryResolveItem? resolveItem;
@@ -1335,9 +1337,12 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
         _showLocationAlert(result.status);
         return;
       }
-      if (!fix.latitude.isFinite || !fix.longitude.isFinite ||
-          fix.latitude < -90 || fix.latitude > 90 ||
-          fix.longitude < -180 || fix.longitude > 180) {
+      if (!fix.latitude.isFinite ||
+          !fix.longitude.isFinite ||
+          fix.latitude < -90 ||
+          fix.latitude > 90 ||
+          fix.longitude < -180 ||
+          fix.longitude > 180) {
         _showLocationAlert(LocationCapabilityStatus.failed);
         return;
       }
@@ -1634,7 +1639,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
               initialViewport:
                   widget.restoredViewport ??
                   MapViewport(
-                    center: widget.initialMapFocus ??
+                    center:
+                        widget.initialMapFocus ??
                         (anchor == null
                             ? const MapCoordinate(0, 0)
                             : MapCoordinate(anchor.latitude, anchor.longitude)),
@@ -1749,8 +1755,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
                         saving: _savingSelected,
                         onClose: _clearSelection,
                         onOpen: () => widget.onOpen(selected),
-                        onDirections: selectedPoint == null ||
-                                widget.onDirections == null
+                        onDirections:
+                            selectedPoint == null || widget.onDirections == null
                             ? null
                             : () => widget.onDirections!(selectedPoint!),
                         onSave: widget.onSave == null

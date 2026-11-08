@@ -4,8 +4,21 @@ import 'makolo_theme.dart';
 
 /// UI intent only. Owner services resolve permissions and command consequences.
 enum MakoloActionIntent {
-  open, inspect, more, select, sort, filter, reorder, move,
-  link, unlink, transition, edit, bulk, undo, search,
+  open,
+  inspect,
+  more,
+  select,
+  sort,
+  filter,
+  reorder,
+  move,
+  link,
+  unlink,
+  transition,
+  edit,
+  bulk,
+  undo,
+  search,
 }
 
 abstract final class MakoloInteractionIcons {

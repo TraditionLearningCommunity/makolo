@@ -1122,19 +1122,17 @@ IconData? _ongoingSemanticIcon(String? token) => switch (token) {
   _ => null,
 };
 
-IconData? _ongoingKindIcon(String kind) => _ongoingSemanticIcon(
-  switch (kind) {
-    'journey' => 'route',
-    'dossier' => 'folder-open',
-    'project' => 'folder-kanban',
-    'access' => 'ticket',
-    'waitlist' => 'hourglass',
-    'transfer' => 'arrow-left-right',
-    'payment' => 'credit-card',
-    'funding' => 'hand-coins',
-    _ => null,
-  },
-);
+IconData? _ongoingKindIcon(String kind) => _ongoingSemanticIcon(switch (kind) {
+  'journey' => 'route',
+  'dossier' => 'folder-open',
+  'project' => 'folder-kanban',
+  'access' => 'ticket',
+  'waitlist' => 'hourglass',
+  'transfer' => 'arrow-left-right',
+  'payment' => 'credit-card',
+  'funding' => 'hand-coins',
+  _ => null,
+});
 
 String? _ongoingKindLabel(String kind) => switch (kind) {
   'journey' => 'Démarche',
@@ -1329,7 +1327,9 @@ class _OngoingRow extends StatelessWidget {
                           Text(
                             fact,
                             style: textTheme.labelMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1716,7 +1716,11 @@ class _OngoingFocus extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: Row(
                   children: [
-                    Icon(kindIcon, color: Theme.of(context).colorScheme.primary, size: 18),
+                    Icon(
+                      kindIcon,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 18,
+                    ),
                     const SizedBox(width: MakoloSpacing.xs),
                     Text(_ongoingBadgeLabel(item) ?? ''),
                   ],
@@ -1731,7 +1735,10 @@ class _OngoingFocus extends StatelessWidget {
                   runSpacing: MakoloSpacing.xs,
                   children: [
                     for (final fact in item.composition)
-                      Text(fact, style: Theme.of(context).textTheme.labelMedium),
+                      Text(
+                        fact,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
                   ],
                 ),
               ),

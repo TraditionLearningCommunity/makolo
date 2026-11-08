@@ -23,19 +23,11 @@ void main() {
     final item = _item([
       {
         'role': 'departure',
-        'place': {
-          'name': 'Lubumbashi',
-          'latitude': -11.66,
-          'longitude': 27.48,
-        },
+        'place': {'name': 'Lubumbashi', 'latitude': -11.66, 'longitude': 27.48},
       },
       {
         'role': 'arrival',
-        'place': {
-          'name': 'Montréal',
-          'latitude': 45.5,
-          'longitude': -73.56,
-        },
+        'place': {'name': 'Montréal', 'latitude': 45.5, 'longitude': -73.56},
       },
       {
         'role': 'stopover',
@@ -55,29 +47,39 @@ void main() {
 
   test('private/malformed or missing coordinates never fabricate a route', () {
     final item = _item([
-      {'role': 'primary', 'place': {'name': 'Sans coordonnées'}},
-      {'role': 'arrival', 'place': {
-        'latitude': 95,
-        'longitude': 27,
-      }},
+      {
+        'role': 'primary',
+        'place': {'name': 'Sans coordonnées'},
+      },
+      {
+        'role': 'arrival',
+        'place': {'latitude': 95, 'longitude': 27},
+      },
     ]);
     expect(discoveryDirectionsDestinations(item), isEmpty);
   });
 
-  testWidgets('Itinerary opens Google Maps without provider chooser',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: Builder(
-        builder: (context) => TextButton(
-          onPressed: () => unawaited(
-            showDiscoveryDirections(
-              context, latitude: -29.315, longitude: 27.483,
+  testWidgets('Itinerary opens Google Maps without provider chooser', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => unawaited(
+                showDiscoveryDirections(
+                  context,
+                  latitude: -29.315,
+                  longitude: 27.483,
+                ),
+              ),
+              child: const Text('Itinéraire'),
             ),
           ),
-          child: const Text('Itinéraire'),
         ),
-      )),
-    ));
+      ),
+    );
     await tester.tap(find.text('Itinéraire'));
     await tester.pump();
     expect(find.text('Comment y aller ?'), findsNothing);

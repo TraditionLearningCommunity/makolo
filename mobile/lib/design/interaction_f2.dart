@@ -46,12 +46,17 @@ List<T> makoloFilterLocal<T>(
   String Function(T)? categoryOf,
 }) {
   final needle = query.trim().toLowerCase();
-  return List<T>.of(items).where((item) {
-    final textMatches = needle.isEmpty || textOf(item).toLowerCase().contains(needle);
-    final categoryMatches = category == null || category.isEmpty ||
-        (categoryOf != null && categoryOf(item) == category);
-    return textMatches && categoryMatches;
-  }).toList(growable: false);
+  return List<T>.of(items)
+      .where((item) {
+        final textMatches =
+            needle.isEmpty || textOf(item).toLowerCase().contains(needle);
+        final categoryMatches =
+            category == null ||
+            category.isEmpty ||
+            (categoryOf != null && categoryOf(item) == category);
+        return textMatches && categoryMatches;
+      })
+      .toList(growable: false);
 }
 
 /// A shared bar, not a ranking engine. Caller chooses approved sort/filter
@@ -181,11 +186,11 @@ enum MakoloCommitOutcome { confirmed, rejected, conflict }
 class MakoloInlineSaveResult {
   const MakoloInlineSaveResult._(this.outcome, this.canonicalValue);
   const MakoloInlineSaveResult.confirmed(String value)
-      : this._(MakoloCommitOutcome.confirmed, value);
+    : this._(MakoloCommitOutcome.confirmed, value);
   const MakoloInlineSaveResult.rejected()
-      : this._(MakoloCommitOutcome.rejected, null);
+    : this._(MakoloCommitOutcome.rejected, null);
   const MakoloInlineSaveResult.conflict()
-      : this._(MakoloCommitOutcome.conflict, null);
+    : this._(MakoloCommitOutcome.conflict, null);
 
   final MakoloCommitOutcome outcome;
   final String? canonicalValue;
@@ -241,7 +246,10 @@ class _MakoloInlineEditorState extends State<MakoloInlineEditor> {
   Future<void> _save() async {
     if (_saving) return;
     final candidate = _controller.text;
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final result = await widget.onSave(candidate);
       if (!mounted) return;
@@ -274,7 +282,10 @@ class _MakoloInlineEditorState extends State<MakoloInlineEditor> {
           Expanded(child: Text(_confirmed)),
           IconButton(
             tooltip: widget.label,
-            onPressed: () => setState(() { _editing = true; _error = null; }),
+            onPressed: () => setState(() {
+              _editing = true;
+              _error = null;
+            }),
             icon: const Icon(Icons.edit_outlined),
           ),
         ],
@@ -301,18 +312,21 @@ class _MakoloInlineEditorState extends State<MakoloInlineEditor> {
           spacing: MakoloSpacing.sm,
           children: [
             TextButton(
-              onPressed: _saving ? null : () => setState(() {
-                _controller.text = _confirmed;
-                _editing = false;
-                _error = null;
-              }),
+              onPressed: _saving
+                  ? null
+                  : () => setState(() {
+                      _controller.text = _confirmed;
+                      _editing = false;
+                      _error = null;
+                    }),
               child: const Text('Annuler'),
             ),
             FilledButton(
               onPressed: _saving ? null : _save,
               child: _saving
                   ? const SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Enregistrer'),
@@ -358,14 +372,21 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
   String? _error;
 
   Future<void> _propose(int from, int to) async {
-    if (_busy || from < 0 || to < 0 ||
-        from >= widget.entries.length || to >= widget.entries.length || from == to) {
+    if (_busy ||
+        from < 0 ||
+        to < 0 ||
+        from >= widget.entries.length ||
+        to >= widget.entries.length ||
+        from == to) {
       return;
     }
     final ids = widget.entries.map((entry) => entry.id).toList();
     final moved = ids.removeAt(from);
     ids.insert(to, moved);
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final confirmed = await widget.onRequestReorder(List.unmodifiable(ids));
       if (!mounted) return;
@@ -382,8 +403,11 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
 
   @override
   Widget build(BuildContext context) {
-    assert(widget.entries.map((entry) => entry.id).toSet().length ==
-        widget.entries.length, 'Reorder entries need unique IDs');
+    assert(
+      widget.entries.map((entry) => entry.id).toSet().length ==
+          widget.entries.length,
+      'Reorder entries need unique IDs',
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -423,13 +447,15 @@ class _MakoloOwnerReorderListState extends State<MakoloOwnerReorderList> {
                   IconButton(
                     tooltip: 'Monter ' + entry.label,
                     onPressed: _busy || index == 0
-                        ? null : () => _propose(index, index - 1),
+                        ? null
+                        : () => _propose(index, index - 1),
                     icon: const Icon(Icons.keyboard_arrow_up),
                   ),
                   IconButton(
                     tooltip: 'Descendre ' + entry.label,
                     onPressed: _busy || index == widget.entries.length - 1
-                        ? null : () => _propose(index, index + 1),
+                        ? null
+                        : () => _propose(index, index + 1),
                     icon: const Icon(Icons.keyboard_arrow_down),
                   ),
                 ],
@@ -498,7 +524,10 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
 
   Future<void> _move(String destinationId) async {
     if (_busy) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final confirmed = await widget.onRequestMove(destinationId);
       if (!mounted) return;
@@ -521,16 +550,18 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Choisir une destination',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Choisir une destination',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           if (_error != null)
             Semantics(
-            liveRegion: true,
-            child: Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+              liveRegion: true,
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
-          ),
           if (_busy) const LinearProgressIndicator(),
           ConstrainedBox(
             constraints: BoxConstraints(
@@ -559,7 +590,6 @@ class _MakoloMoveSheetState extends State<_MakoloMoveSheet> {
   );
 }
 
-
 /// Undo is only displayed if the owner truly exposes an inverse command.
 /// The callback returns true only after the inverse has been confirmed.
 class MakoloOwnerUndoButton extends StatefulWidget {
@@ -585,7 +615,10 @@ class _MakoloOwnerUndoButtonState extends State<MakoloOwnerUndoButton> {
 
   Future<void> _undo() async {
     if (!widget.available || _busy || _confirmed) return;
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final confirmed = await widget.onRequestUndo();
       if (!mounted) return;
@@ -632,7 +665,6 @@ class _MakoloOwnerUndoButtonState extends State<MakoloOwnerUndoButton> {
   }
 }
 
-
 /// Long-press shortcut and a permanently visible accessible menu invoke the
 /// exact same owner-provided actions. Never make long-press the only route.
 class MakoloContextActionRow extends StatelessWidget {
@@ -657,7 +689,10 @@ class MakoloContextActionRow extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Actions', style: Theme.of(sheetContext).textTheme.titleLarge),
+              Text(
+                'Actions',
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.6,

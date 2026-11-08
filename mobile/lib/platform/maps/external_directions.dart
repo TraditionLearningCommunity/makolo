@@ -33,10 +33,7 @@ class ExternalDirections {
   static Future<bool> open(Uri destination) async {
     if (destination.scheme != 'https') return false;
     try {
-      return await launchUrl(
-        destination,
-        mode: LaunchMode.externalApplication,
-      );
+      return await launchUrl(destination, mode: LaunchMode.externalApplication);
     } on Object {
       return false;
     }

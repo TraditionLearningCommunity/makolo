@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../design/action_controls.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/local/profile_store.dart';
@@ -157,7 +159,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       final owner = await repository.readOrganizerSource();
       if (mounted && repository == widget.repository) {
         setState(() {
-          _failed = owner.lastErrorCode != null ||
+          _failed =
+              owner.lastErrorCode != null ||
               (local == null && owner.lastSuccessAt == null);
         });
       }
@@ -185,7 +188,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     try {
       await repository.refreshOrganizerPage(page.nextOffset);
       final received = await repository.readOrganizerPage(page.nextOffset);
-      final owner = await repository.readOrganizerSourceForOffset(page.nextOffset);
+      final owner = await repository.readOrganizerSourceForOffset(
+        page.nextOffset,
+      );
       if (received == null ||
           owner.invalidated ||
           owner.lastErrorCode != null ||
@@ -319,12 +324,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   bool get _hasExtraFilters =>
-      _period != 'all' || _dateField != OrganizerSort.deadline ||
-      _sort != OrganizerSort.name || _descending;
+      _period != 'all' ||
+      _dateField != OrganizerSort.deadline ||
+      _sort != OrganizerSort.name ||
+      _descending;
 
   bool get _hasAnyFilters =>
-      _search.text.isNotEmpty || _kind != 'all' || _status != 'all' ||
-      _relation != 'all' || _hasExtraFilters;
+      _search.text.isNotEmpty ||
+      _kind != 'all' ||
+      _status != 'all' ||
+      _relation != 'all' ||
+      _hasExtraFilters;
 
   void _clearFilters() {
     _search.clear();
@@ -339,8 +349,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     });
   }
 
-  Widget _compactFilter(String title, String value,
-      Map<String, String> values, IconData icon, ValueChanged<String> change) {
+  Widget _compactFilter(
+    String title,
+    String value,
+    Map<String, String> values,
+    IconData icon,
+    ValueChanged<String> change,
+  ) {
     final active = value != 'all';
     final scheme = Theme.of(context).colorScheme;
     return Tooltip(
@@ -357,19 +372,34 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           button: true,
           label: '$title : ${values[value] ?? title}',
           child: Container(
-            width: 46, height: 45,
+            width: 46,
+            height: 45,
             decoration: BoxDecoration(
               color: active ? scheme.primaryContainer : scheme.surface,
-              border: Border.all(color: active ? scheme.primary : scheme.outlineVariant),
+              border: Border.all(
+                color: active ? scheme.primary : scheme.outlineVariant,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Stack(alignment: Alignment.center, children: [
-              Icon(icon, size: 21,
-                color: active ? scheme.onPrimaryContainer : scheme.primary),
-              if (active)
-                Positioned(right: 5, top: 5, child: CircleAvatar(
-                  radius: 3, backgroundColor: scheme.primary)),
-            ]),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 21,
+                  color: active ? scheme.onPrimaryContainer : scheme.primary,
+                ),
+                if (active)
+                  Positioned(
+                    right: 5,
+                    top: 5,
+                    child: CircleAvatar(
+                      radius: 3,
+                      backgroundColor: scheme.primary,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -382,7 +412,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     return Tooltip(
       message: name,
       child: Semantics(
-        button: true, selected: active, label: 'Vue $name',
+        button: true,
+        selected: active,
+        label: 'Vue $name',
         child: IconButton(
           tooltip: name,
           onPressed: () => _setMode(mode),
@@ -392,9 +424,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             fixedSize: const Size(46, 45),
             backgroundColor: active ? scheme.primaryContainer : scheme.surface,
             side: BorderSide(
-              color: active ? scheme.primary : scheme.outlineVariant),
+              color: active ? scheme.primary : scheme.outlineVariant,
+            ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ),
@@ -403,67 +437,110 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   Future<void> _advancedFilters() async {
     await showModalBottomSheet<void>(
-      context: context, isScrollControlled: true,
+      context: context,
+      isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheet) => StatefulBuilder(builder: (sheet, refreshSheet) {
-        void change(VoidCallback command) {
-          setState(command);
-          refreshSheet(() {});
-        }
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Dates et classement',
-                  style: Theme.of(sheet).textTheme.titleLarge),
-                const SizedBox(height: 7),
-                Text('Choisissez les dates qui comptent pour votre recherche.',
-                  style: Theme.of(sheet).textTheme.bodySmall),
-                const SizedBox(height: 19),
-                Wrap(spacing: 10, runSpacing: 10, children: [
-                  _dropdown('Date concernée', _dateField.name, const {
-                    'created': 'Création', 'updated': 'Modification',
-                    'deadline': 'Échéance', 'start': 'Début',
-                    'completed': 'Réalisation',
-                  }, (v) => change(() => _dateField =
-                      OrganizerSort.values.firstWhere((x) => x.name == v)),
-                      icon: Icons.event_outlined),
-                  _dropdown('Période', _period, const {
-                    'all': 'Toutes les dates', 'week': '7 prochains jours',
-                    'month': '30 prochains jours',
-                    'quarter': '90 prochains jours',
-                  }, (v) => change(() => _period = v),
-                      icon: Icons.date_range_outlined),
-                  _dropdown('Trier', _sort.name, const {
-                    'name': 'Nom A–Z', 'created': 'Création',
-                    'updated': 'Modification', 'deadline': 'Échéance',
-                    'start': 'Début', 'completed': 'Réalisation',
-                  }, (v) => change(() => _sort =
-                      OrganizerSort.values.firstWhere((x) => x.name == v)),
-                      icon: Icons.sort_by_alpha_rounded),
-                  ActionChip(
-                    avatar: Icon(_descending
-                        ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded),
-                    label: Text(_descending ? 'Décroissant' : 'Croissant'),
-                    onPressed: () => change(() => _descending = !_descending),
+      builder: (sheet) => StatefulBuilder(
+        builder: (sheet, refreshSheet) {
+          void change(VoidCallback command) {
+            setState(command);
+            refreshSheet(() {});
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Dates et classement',
+                    style: Theme.of(sheet).textTheme.titleLarge,
                   ),
-                ]),
-                const SizedBox(height: 18),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(sheet),
-                    child: const Text('Appliquer'),
+                  const SizedBox(height: 7),
+                  Text(
+                    'Choisissez les dates qui comptent pour votre recherche.',
+                    style: Theme.of(sheet).textTheme.bodySmall,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 19),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _dropdown(
+                        'Date concernée',
+                        _dateField.name,
+                        const {
+                          'created': 'Création',
+                          'updated': 'Modification',
+                          'deadline': 'Échéance',
+                          'start': 'Début',
+                          'completed': 'Réalisation',
+                        },
+                        (v) => change(
+                          () => _dateField = OrganizerSort.values.firstWhere(
+                            (x) => x.name == v,
+                          ),
+                        ),
+                        icon: Icons.event_outlined,
+                      ),
+                      _dropdown(
+                        'Période',
+                        _period,
+                        const {
+                          'all': 'Toutes les dates',
+                          'week': '7 prochains jours',
+                          'month': '30 prochains jours',
+                          'quarter': '90 prochains jours',
+                        },
+                        (v) => change(() => _period = v),
+                        icon: Icons.date_range_outlined,
+                      ),
+                      _dropdown(
+                        'Trier',
+                        _sort.name,
+                        const {
+                          'name': 'Nom A–Z',
+                          'created': 'Création',
+                          'updated': 'Modification',
+                          'deadline': 'Échéance',
+                          'start': 'Début',
+                          'completed': 'Réalisation',
+                        },
+                        (v) => change(
+                          () => _sort = OrganizerSort.values.firstWhere(
+                            (x) => x.name == v,
+                          ),
+                        ),
+                        icon: Icons.sort_by_alpha_rounded,
+                      ),
+                      ActionChip(
+                        avatar: Icon(
+                          _descending
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
+                        ),
+                        label: Text(_descending ? 'Décroissant' : 'Croissant'),
+                        onPressed: () =>
+                            change(() => _descending = !_descending),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(sheet),
+                      child: const Text('Appliquer'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
@@ -475,65 +552,114 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(5),
-        child: child,
-      ),
+      child: Padding(padding: const EdgeInsets.all(5), child: child),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            group(Row(mainAxisSize: MainAxisSize.min, children: [
-            // Group 1: WHAT the person wants to find.
-            _compactFilter('Type', _kind, const {
-              'all': 'Tous les types', 'project': 'Projets',
-              'dossier': 'Dossiers', 'journey': 'Démarches',
-            }, Icons.category_outlined, (v) => setState(() => _kind = v)),
-            const SizedBox(width: 5),
-            _compactFilter('État', _status, const {
-              'all': 'Tous les états', 'draft': 'En préparation',
-              'active': 'En cours', 'completed': 'Terminé',
-              'cancelled': 'Annulé', 'archived': 'Archivé',
-            }, Icons.tune_rounded, (v) => setState(() => _status = v)),
-            const SizedBox(width: 5),
-            _compactFilter('Contexte', _relation, const {
-              'all': 'Tous les contextes', 'mine': 'Personnel',
-              'space': 'Espace', 'independent': 'Indépendants',
-            }, Icons.account_tree_outlined,
-                (v) => setState(() => _relation = v)),
-            ])),
-            const SizedBox(width: 10),
-            group(Row(mainAxisSize: MainAxisSize.min, children: [
-            // Group 2: HOW the collection is displayed.
-            _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
-            const SizedBox(width: 5),
-            _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
-            const SizedBox(width: 5),
-            _compactMode(OrganizerMode.explorer,
-                Icons.account_tree_rounded, 'Explorateur'),
-            ])),
-          ]),
+          child: Row(
+            children: [
+              group(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Group 1: WHAT the person wants to find.
+                    _compactFilter(
+                      'Type',
+                      _kind,
+                      const {
+                        'all': 'Tous les types',
+                        'project': 'Projets',
+                        'dossier': 'Dossiers',
+                        'journey': 'Démarches',
+                      },
+                      Icons.category_outlined,
+                      (v) => setState(() => _kind = v),
+                    ),
+                    const SizedBox(width: 5),
+                    _compactFilter(
+                      'État',
+                      _status,
+                      const {
+                        'all': 'Tous les états',
+                        'draft': 'En préparation',
+                        'active': 'En cours',
+                        'completed': 'Terminé',
+                        'cancelled': 'Annulé',
+                        'archived': 'Archivé',
+                      },
+                      Icons.tune_rounded,
+                      (v) => setState(() => _status = v),
+                    ),
+                    const SizedBox(width: 5),
+                    _compactFilter(
+                      'Contexte',
+                      _relation,
+                      const {
+                        'all': 'Tous les contextes',
+                        'mine': 'Personnel',
+                        'space': 'Espace',
+                        'independent': 'Indépendants',
+                      },
+                      Icons.account_tree_outlined,
+                      (v) => setState(() => _relation = v),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              group(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Group 2: HOW the collection is displayed.
+                    _compactMode(
+                      OrganizerMode.cards,
+                      Icons.grid_view_rounded,
+                      'Cartes',
+                    ),
+                    const SizedBox(width: 5),
+                    _compactMode(
+                      OrganizerMode.list,
+                      Icons.view_list_rounded,
+                      'Liste',
+                    ),
+                    const SizedBox(width: 5),
+                    _compactMode(
+                      OrganizerMode.explorer,
+                      Icons.account_tree_rounded,
+                      'Explorateur',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 5),
-        Row(children: [
-          TextButton.icon(
-            onPressed: _advancedFilters,
-            icon: Icon(Icons.calendar_month_outlined,
-              color: _hasExtraFilters ? scheme.primary : null),
-            label: Text(_hasExtraFilters
-                ? 'Dates et tri · actifs' : 'Dates et tri'),
-          ),
-          const Spacer(),
-          if (_hasAnyFilters)
-            IconButton(
-              tooltip: 'Tout effacer',
-              onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_alt_off_outlined),
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: _advancedFilters,
+              icon: Icon(
+                Icons.calendar_month_outlined,
+                color: _hasExtraFilters ? scheme.primary : null,
+              ),
+              label: Text(
+                _hasExtraFilters ? 'Dates et tri · actifs' : 'Dates et tri',
+              ),
             ),
-        ]),
+            const Spacer(),
+            if (_hasAnyFilters)
+              IconButton(
+                tooltip: 'Tout effacer',
+                onPressed: _clearFilters,
+                icon: const Icon(Icons.filter_alt_off_outlined),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -591,103 +717,137 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         ),
       ),
       const SizedBox(height: 12),
-      LayoutBuilder(builder: (context, constraints) =>
-        constraints.maxWidth < 680
+      LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 680
             ? _mobileOrganizerToolbar()
-            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 12),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-                _dropdown('Type', _kind, const {
-            'all': 'Tous les types',
-            'project': 'Projets',
-            'dossier': 'Dossiers',
-            'journey': 'Démarches',
-          }, (v) => setState(() => _kind = v), icon: Icons.category_outlined),
-          _dropdown('État', _status, const {
-            'all': 'Tous les états',
-            'draft': 'En préparation',
-            'active': 'En cours',
-            'completed': 'Terminé',
-            'cancelled': 'Annulé',
-            'archived': 'Archivé',
-          }, (v) => setState(() => _status = v), icon: Icons.tune_rounded),
-          _dropdown('Contexte', _relation, const {
-            'all': 'Tous les contextes',
-            'mine': 'Personnel',
-            'space': 'Espace',
-            'independent': 'Indépendants',
-          }, (v) => setState(() => _relation = v), icon: Icons.account_tree_outlined),
-          _dropdown(
-            'Date concernée',
-            _dateField.name,
-            const {
-              'created': 'Création',
-              'updated': 'Modification',
-              'deadline': 'Échéance',
-              'start': 'Début',
-              'completed': 'Réalisation',
-            },
-            (v) => setState(
-              () => _dateField = OrganizerSort.values.firstWhere(
-                (element) => element.name == v,
-              ),
-            ),
-            icon: Icons.event_outlined,
-          ),
-          _dropdown('Période', _period, const {
-            'all': 'Toutes les dates',
-            'week': '7 prochains jours',
-            'month': '30 prochains jours',
-            'quarter': '90 prochains jours',
-          }, (v) => setState(() => _period = v), icon: Icons.date_range_outlined),
-          _dropdown(
-            'Trier',
-            _sort.name,
-            const {
-              'name': 'Nom A–Z',
-              'created': 'Création',
-              'updated': 'Modification',
-              'deadline': 'Échéance',
-              'start': 'Début',
-              'completed': 'Réalisation',
-            },
-            (v) => setState(
-              () => _sort = OrganizerSort.values.firstWhere(
-                (element) => element.name == v,
-              ),
-            ),
-            icon: Icons.sort_by_alpha_rounded,
-          ),
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _dropdown(
+                        'Type',
+                        _kind,
+                        const {
+                          'all': 'Tous les types',
+                          'project': 'Projets',
+                          'dossier': 'Dossiers',
+                          'journey': 'Démarches',
+                        },
+                        (v) => setState(() => _kind = v),
+                        icon: Icons.category_outlined,
+                      ),
+                      _dropdown(
+                        'État',
+                        _status,
+                        const {
+                          'all': 'Tous les états',
+                          'draft': 'En préparation',
+                          'active': 'En cours',
+                          'completed': 'Terminé',
+                          'cancelled': 'Annulé',
+                          'archived': 'Archivé',
+                        },
+                        (v) => setState(() => _status = v),
+                        icon: Icons.tune_rounded,
+                      ),
+                      _dropdown(
+                        'Contexte',
+                        _relation,
+                        const {
+                          'all': 'Tous les contextes',
+                          'mine': 'Personnel',
+                          'space': 'Espace',
+                          'independent': 'Indépendants',
+                        },
+                        (v) => setState(() => _relation = v),
+                        icon: Icons.account_tree_outlined,
+                      ),
+                      _dropdown(
+                        'Date concernée',
+                        _dateField.name,
+                        const {
+                          'created': 'Création',
+                          'updated': 'Modification',
+                          'deadline': 'Échéance',
+                          'start': 'Début',
+                          'completed': 'Réalisation',
+                        },
+                        (v) => setState(
+                          () => _dateField = OrganizerSort.values.firstWhere(
+                            (element) => element.name == v,
+                          ),
+                        ),
+                        icon: Icons.event_outlined,
+                      ),
+                      _dropdown(
+                        'Période',
+                        _period,
+                        const {
+                          'all': 'Toutes les dates',
+                          'week': '7 prochains jours',
+                          'month': '30 prochains jours',
+                          'quarter': '90 prochains jours',
+                        },
+                        (v) => setState(() => _period = v),
+                        icon: Icons.date_range_outlined,
+                      ),
+                      _dropdown(
+                        'Trier',
+                        _sort.name,
+                        const {
+                          'name': 'Nom A–Z',
+                          'created': 'Création',
+                          'updated': 'Modification',
+                          'deadline': 'Échéance',
+                          'start': 'Début',
+                          'completed': 'Réalisation',
+                        },
+                        (v) => setState(
+                          () => _sort = OrganizerSort.values.firstWhere(
+                            (element) => element.name == v,
+                          ),
+                        ),
+                        icon: Icons.sort_by_alpha_rounded,
+                      ),
 
-          if (_hasAnyFilters)
-            TextButton.icon(
-              onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_alt_off_outlined),
-              label: const Text('Effacer les filtres'),
-            ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      SegmentedButton<OrganizerMode>(
-        key: const Key('organizer-view-toggle'),
-        showSelectedIcon: false,
-        selected: {_mode},
-        segments: const [
-          ButtonSegment(value: OrganizerMode.cards,
-            icon: Icon(Icons.grid_view_rounded), label: Text('Cartes')),
-          ButtonSegment(value: OrganizerMode.list,
-            icon: Icon(Icons.view_list_rounded), label: Text('Liste')),
-          ButtonSegment(value: OrganizerMode.explorer,
-            icon: Icon(Icons.account_tree_outlined),
-            label: Text('Explorateur')),
-        ],
-        onSelectionChanged: (values) => _setMode(values.first),
-      ),
-
-            ]),
+                      if (_hasAnyFilters)
+                        TextButton.icon(
+                          onPressed: _clearFilters,
+                          icon: const Icon(Icons.filter_alt_off_outlined),
+                          label: const Text('Effacer les filtres'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SegmentedButton<OrganizerMode>(
+                    key: const Key('organizer-view-toggle'),
+                    showSelectedIcon: false,
+                    selected: {_mode},
+                    segments: const [
+                      ButtonSegment(
+                        value: OrganizerMode.cards,
+                        icon: Icon(Icons.grid_view_rounded),
+                        label: Text('Cartes'),
+                      ),
+                      ButtonSegment(
+                        value: OrganizerMode.list,
+                        icon: Icon(Icons.view_list_rounded),
+                        label: Text('Liste'),
+                      ),
+                      ButtonSegment(
+                        value: OrganizerMode.explorer,
+                        icon: Icon(Icons.account_tree_outlined),
+                        label: Text('Explorateur'),
+                      ),
+                    ],
+                    onSelectionChanged: (values) => _setMode(values.first),
+                  ),
+                ],
+              ),
       ),
     ],
   );
@@ -818,8 +978,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                     source.lastErrorCode == 'permission_denied'
                                         ? 'Vous n’avez pas accès à cet espace.'
                                         : source.lastErrorCode == 'not_found'
-                                            ? 'Cet espace de démarches est momentanément introuvable.'
-                                            : 'Retrouvons vos démarches.',
+                                        ? 'Cet espace de démarches est momentanément introuvable.'
+                                        : 'Retrouvons vos démarches.',
                                   ),
                                   subtitle: Text(
                                     source.lastErrorCode == 'permission_denied'
@@ -854,22 +1014,26 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                 child: Column(
                                   children: [
                                     Text(
-                                      source.lastErrorCode == 'endpoint_unavailable' ||
-                                              source.lastErrorCode == 'not_found'
+                                      source.lastErrorCode ==
+                                                  'endpoint_unavailable' ||
+                                              source.lastErrorCode ==
+                                                  'not_found'
                                           ? 'Vos démarches ne sont pas encore disponibles ici.'
                                           : _failed
-                                              ? 'Impossible d’afficher vos démarches pour le moment.'
-                                              : 'Retrouvez vos projets, dossiers et démarches ici.',
+                                          ? 'Impossible d’afficher vos démarches pour le moment.'
+                                          : 'Retrouvez vos projets, dossiers et démarches ici.',
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 10),
                                     Text(
                                       offline
                                           ? 'Réessayez lorsque la connexion revient.'
-                                          : source.lastErrorCode == 'endpoint_unavailable' ||
-                                                  source.lastErrorCode == 'not_found'
-                                              ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
-                                              : 'Touchez Réessayer pour les retrouver.',
+                                          : source.lastErrorCode ==
+                                                    'endpoint_unavailable' ||
+                                                source.lastErrorCode ==
+                                                    'not_found'
+                                          ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
+                                          : 'Touchez Réessayer pour les retrouver.',
                                       textAlign: TextAlign.center,
                                     ),
                                     TextButton.icon(
@@ -885,9 +1049,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               const ListTile(
                                 dense: true,
                                 leading: Icon(Icons.offline_bolt_outlined),
-                                title: Text(
-                                  'Vos démarches sont disponibles',
-                                ),
+                                title: Text('Vos démarches sont disponibles'),
                                 subtitle: Text(
                                   'Les nouveautés apparaîtront à la prochaine connexion.',
                                 ),

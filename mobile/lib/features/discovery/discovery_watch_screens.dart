@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../design/interaction_primitives.dart';
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
@@ -351,7 +353,9 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                           unawaited(_change(watch, action.id)),
                       actions: [
                         MakoloInteractionAction(
-                          id: watch.statusCode == 'paused' ? 'active' : 'paused',
+                          id: watch.statusCode == 'paused'
+                              ? 'active'
+                              : 'paused',
                           label: watch.statusCode == 'paused'
                               ? 'Reprendre'
                               : 'Mettre en pause',

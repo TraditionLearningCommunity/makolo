@@ -35,19 +35,36 @@ void main() {
   test('initial map focus excludes distant outliers but retains all pins', () {
     final pins = <DiscoveryMapPin>[
       const DiscoveryMapPin(45.5017, -73.5673, locationKey: 'montreal'),
-      const DiscoveryMapPin(-11.6647, 27.4794,
-          locationKey: 'lubumbashi', opportunityCount: 20),
-      const DiscoveryMapPin(-11.6700, 27.4810,
-          locationKey: 'lubumbashi-east', opportunityCount: 4),
-      const DiscoveryMapPin(-33.9249, 18.4241,
-          locationKey: 'cape-town', opportunityCount: 8),
+      const DiscoveryMapPin(
+        -11.6647,
+        27.4794,
+        locationKey: 'lubumbashi',
+        opportunityCount: 20,
+      ),
+      const DiscoveryMapPin(
+        -11.6700,
+        27.4810,
+        locationKey: 'lubumbashi-east',
+        opportunityCount: 4,
+      ),
+      const DiscoveryMapPin(
+        -33.9249,
+        18.4241,
+        locationKey: 'cape-town',
+        opportunityCount: 8,
+      ),
     ];
     final focused = DiscoveryMapController.initialFocusPins(pins);
-    expect(focused.map((pin) => pin.locationKey).toSet(),
-        {'lubumbashi', 'lubumbashi-east'});
+    expect(focused.map((pin) => pin.locationKey).toSet(), {
+      'lubumbashi',
+      'lubumbashi-east',
+    });
     expect(pins, hasLength(4), reason: 'No map candidate may be discarded');
-    expect((DiscoveryMapController.geoJsonForPins(pins)['features'] as List),
-        hasLength(4), reason: 'All pins remain in MapLibre GeoJSON');
+    expect(
+      (DiscoveryMapController.geoJsonForPins(pins)['features'] as List),
+      hasLength(4),
+      reason: 'All pins remain in MapLibre GeoJSON',
+    );
   });
 
   test('local searches still fit all available places', () {
@@ -59,9 +76,9 @@ void main() {
     ];
     expect(DiscoveryMapController.initialFocusPins(pins), pins);
     expect(
-      DiscoveryMapController.initialFocusPins(
-        [const DiscoveryMapPin(45.5017, -73.5673)],
-      ),
+      DiscoveryMapController.initialFocusPins([
+        const DiscoveryMapPin(45.5017, -73.5673),
+      ]),
       hasLength(1),
     );
   });

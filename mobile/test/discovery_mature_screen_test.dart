@@ -1988,33 +1988,34 @@ void main() {
     },
   );
 
-  testWidgets('Carte itinerary uses the selected spatial anchor, not a guessed Place', (
-    tester,
-  ) async {
-    DiscoverySpatialAnchor? destination;
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoverySpatialView(
-        selection: selection(),
-        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
-        showMapOnCompact: true,
-        initialSelectedCandidateKey: 'activity:route',
-        onDirections: (anchor) => destination = anchor,
-        onOpen: (_) {},
-      ),
-    );
-    await tester.pumpAndSettle();
-    final control = find.byKey(const Key('discover-map-directions'));
-    expect(control, findsOneWidget);
-    await tester.ensureVisible(control);
-    await tester.tap(control);
-    await tester.pump();
-    expect(destination, isNotNull);
-    expect(destination!.candidateKey, 'activity:route');
-    expect(destination!.latitude.isFinite, isTrue);
-    expect(destination!.longitude.isFinite, isTrue);
-  });
+  testWidgets(
+    'Carte itinerary uses the selected spatial anchor, not a guessed Place',
+    (tester) async {
+      DiscoverySpatialAnchor? destination;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoverySpatialView(
+          selection: selection(),
+          mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+          showMapOnCompact: true,
+          initialSelectedCandidateKey: 'activity:route',
+          onDirections: (anchor) => destination = anchor,
+          onOpen: (_) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      final control = find.byKey(const Key('discover-map-directions'));
+      expect(control, findsOneWidget);
+      await tester.ensureVisible(control);
+      await tester.tap(control);
+      await tester.pump();
+      expect(destination, isNotNull);
+      expect(destination!.candidateKey, 'activity:route');
+      expect(destination!.latitude.isFinite, isTrue);
+      expect(destination!.longitude.isFinite, isTrue);
+    },
+  );
 
   testWidgets('Carte location control stays bottom-right above preview', (
     tester,
@@ -2060,7 +2061,10 @@ void main() {
       child: DiscoverySpatialView(
         selection: selection(),
         mapConfig: const MakoloMapsConfig(enabled: true, style: null),
-        location: LocationCapability(permissions: permissions, service: service),
+        location: LocationCapability(
+          permissions: permissions,
+          service: service,
+        ),
         showMapOnCompact: true,
         onOpen: (_) {},
       ),
@@ -2087,7 +2091,10 @@ void main() {
       child: DiscoverySpatialView(
         selection: selection(),
         mapConfig: const MakoloMapsConfig(enabled: true, style: null),
-        location: LocationCapability(permissions: permissions, service: service),
+        location: LocationCapability(
+          permissions: permissions,
+          service: service,
+        ),
         showMapOnCompact: true,
         onOpen: (_) {},
       ),

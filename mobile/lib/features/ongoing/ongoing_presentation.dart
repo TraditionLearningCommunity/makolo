@@ -76,8 +76,10 @@ class OngoingContinuityPresentation {
   final Map<String, dynamic> horizon;
   final Map<String, dynamic> outcome;
   final String rawState;
+
   /// Server-projected, viewer-visible group facts; never a progress metric.
   final List<String> composition;
+
   /// Owner-context vocabulary; absence means an older local snapshot.
   final OngoingContextAffordance? kindBadge;
   final OngoingContextAffordance? primaryAction;
@@ -369,8 +371,10 @@ class OngoingContextAffordance {
     if (raw is! Map) return null;
     final label = raw['label'];
     final icon = raw['icon'];
-    if (label is! String || label.trim().isEmpty ||
-        icon is! String || icon.trim().isEmpty) {
+    if (label is! String ||
+        label.trim().isEmpty ||
+        icon is! String ||
+        icon.trim().isEmpty) {
       return null;
     }
     final intent = raw['intent'];

@@ -47,41 +47,62 @@ void main() {
     expect(state.hasMore, isFalse);
   });
 
-  test('mixed canonical identities and parent references survive local read', () {
-    final state = OrganizerPage.read([
-      page(received: t0, offset: 0, entries: [
-        item('project', 'p'),
-        item('dossier', 'd', parent: 'p'),
-        item('journey', 'j', parent: 'd'),
-      ]),
-    ], 'current');
-    expect(state.entries.map((e) => e.kind).toList(),
-        ['project', 'dossier', 'journey']);
-    expect(state.entries[1].projectId, 'p');
-    expect(state.entries[2].dossierIds, ['d']);
-  });
+  test(
+    'mixed canonical identities and parent references survive local read',
+    () {
+      final state = OrganizerPage.read([
+        page(
+          received: t0,
+          offset: 0,
+          entries: [
+            item('project', 'p'),
+            item('dossier', 'd', parent: 'p'),
+            item('journey', 'j', parent: 'd'),
+          ],
+        ),
+      ], 'current');
+      expect(state.entries.map((e) => e.kind).toList(), [
+        'project',
+        'dossier',
+        'journey',
+      ]);
+      expect(state.entries[1].projectId, 'p');
+      expect(state.entries[2].dossierIds, ['d']);
+    },
+  );
 
-  test('older continuation cannot restore removed authorized relationships', () {
-    final first = page(
-      received: t1, offset: 0, hasMore: true,
-      entries: [item('project', 'new')],
-    );
-    final previous = page(
-      received: t0, offset: 50, entries: [item('dossier', 'old')],
-    );
-    final state = OrganizerPage.read([previous, first], 'current');
-    expect(state.entries.map((e) => e.id).toList(), ['new']);
-    expect(state.hasMore, isTrue);
-    expect(state.nextOffset, 50);
-  });
+  test(
+    'older continuation cannot restore removed authorized relationships',
+    () {
+      final first = page(
+        received: t1,
+        offset: 0,
+        hasMore: true,
+        entries: [item('project', 'new')],
+      );
+      final previous = page(
+        received: t0,
+        offset: 50,
+        entries: [item('dossier', 'old')],
+      );
+      final state = OrganizerPage.read([previous, first], 'current');
+      expect(state.entries.map((e) => e.id).toList(), ['new']);
+      expect(state.hasMore, isTrue);
+      expect(state.nextOffset, 50);
+    },
+  );
 
   test('contiguous pages from same acquisition are combined', () {
     final first = page(
-      received: t0, offset: 0, hasMore: true,
+      received: t0,
+      offset: 0,
+      hasMore: true,
       entries: [item('project', 'p')],
     );
     final second = page(
-      received: t1, offset: 50, entries: [item('dossier', 'd')],
+      received: t1,
+      offset: 50,
+      entries: [item('dossier', 'd')],
     );
     final state = OrganizerPage.read([second, first], 'current');
     expect(state.entries.map((e) => e.id).toList(), ['p', 'd']);
@@ -90,7 +111,8 @@ void main() {
 
   test('another Profile cannot enter this organizer collection', () {
     final other = page(
-      received: t0, offset: 0,
+      received: t0,
+      offset: 0,
       entries: [item('project', 'private')],
       actor: 'other',
     );

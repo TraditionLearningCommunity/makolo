@@ -25,30 +25,35 @@ class MakoloActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final handler = busy ? null : onPressed;
-    final visibleIcon = busy && icon != null ? Icons.hourglass_top_rounded : icon;
+    final visibleIcon = busy && icon != null
+        ? Icons.hourglass_top_rounded
+        : icon;
     final labelWidget = Text(label);
     return switch (appearance) {
-      MakoloActionAppearance.primary => visibleIcon == null
-          ? FilledButton(onPressed: handler, child: labelWidget)
-          : FilledButton.icon(
-              onPressed: handler,
-              icon: Icon(visibleIcon),
-              label: labelWidget,
-            ),
-      MakoloActionAppearance.secondary => visibleIcon == null
-          ? OutlinedButton(onPressed: handler, child: labelWidget)
-          : OutlinedButton.icon(
-              onPressed: handler,
-              icon: Icon(visibleIcon),
-              label: labelWidget,
-            ),
-      MakoloActionAppearance.quiet => visibleIcon == null
-          ? TextButton(onPressed: handler, child: labelWidget)
-          : TextButton.icon(
-              onPressed: handler,
-              icon: Icon(visibleIcon),
-              label: labelWidget,
-            ),
+      MakoloActionAppearance.primary =>
+        visibleIcon == null
+            ? FilledButton(onPressed: handler, child: labelWidget)
+            : FilledButton.icon(
+                onPressed: handler,
+                icon: Icon(visibleIcon),
+                label: labelWidget,
+              ),
+      MakoloActionAppearance.secondary =>
+        visibleIcon == null
+            ? OutlinedButton(onPressed: handler, child: labelWidget)
+            : OutlinedButton.icon(
+                onPressed: handler,
+                icon: Icon(visibleIcon),
+                label: labelWidget,
+              ),
+      MakoloActionAppearance.quiet =>
+        visibleIcon == null
+            ? TextButton(onPressed: handler, child: labelWidget)
+            : TextButton.icon(
+                onPressed: handler,
+                icon: Icon(visibleIcon),
+                label: labelWidget,
+              ),
     };
   }
 }
@@ -75,8 +80,6 @@ class MakoloIconActionButton extends StatelessWidget {
     icon: Icon(icon),
     onPressed: onPressed,
     color: color,
-    style: IconButton.styleFrom(
-      minimumSize: const Size(48, 48),
-    ),
+    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
   );
 }

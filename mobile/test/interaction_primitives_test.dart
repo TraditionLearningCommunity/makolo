@@ -22,63 +22,61 @@ void main() {
     }
   });
 
-  testWidgets('menu shows only provided actions and does not dispatch disabled',
-      (tester) async {
-    final selected = <String>[];
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: Center(
-            child: MakoloActionMenu(
-              actions: const [open, restricted],
-              onSelected: (action) => selected.add(action.id),
+  testWidgets(
+    'menu shows only provided actions and does not dispatch disabled',
+    (tester) async {
+      final selected = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            body: Center(
+              child: MakoloActionMenu(
+                actions: const [open, restricted],
+                onSelected: (action) => selected.add(action.id),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.byTooltip('Actions'));
-    await tester.pumpAndSettle();
-    expect(find.text('Ouvrir'), findsOneWidget);
-    expect(find.text('Déplacer'), findsOneWidget);
+      await tester.tap(find.byTooltip('Actions'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ouvrir'), findsOneWidget);
+      expect(find.text('Déplacer'), findsOneWidget);
 
-    final disabled = tester.widget<PopupMenuItem<String>>(
-      find.widgetWithText(PopupMenuItem<String>, 'Déplacer'),
-    );
-    expect(disabled.enabled, isFalse);
-    await tester.tap(find.text('Ouvrir'));
-    await tester.pumpAndSettle();
-    expect(selected, ['open']);
-  });
+      final disabled = tester.widget<PopupMenuItem<String>>(
+        find.widgetWithText(PopupMenuItem<String>, 'Déplacer'),
+      );
+      expect(disabled.enabled, isFalse);
+      await tester.tap(find.text('Ouvrir'));
+      await tester.pumpAndSettle();
+      expect(selected, ['open']);
+    },
+  );
 
-  testWidgets('menu without permitted actions renders no trigger',
-      (tester) async {
+  testWidgets('menu without permitted actions renders no trigger', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: MakoloActionMenu(
-            actions: const [],
-            onSelected: (_) {},
-          ),
+          body: MakoloActionMenu(actions: const [], onSelected: (_) {}),
         ),
       ),
     );
     expect(find.byType(PopupMenuButton<String>), findsNothing);
   });
 
-  testWidgets('selection bar only appears with selection, can be exited',
-      (tester) async {
+  testWidgets('selection bar only appears with selection, can be exited', (
+    tester,
+  ) async {
     var cleared = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
         home: Scaffold(
-          body: MakoloSelectionBar(
-            count: 2,
-            onClear: () => cleared = true,
-          ),
+          body: MakoloSelectionBar(count: 2, onClear: () => cleared = true),
         ),
       ),
     );
@@ -91,9 +89,7 @@ void main() {
   testWidgets('zero selection renders no actions', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: MakoloSelectionBar(count: 0, onClear: () {}),
-        ),
+        home: Scaffold(body: MakoloSelectionBar(count: 0, onClear: () {})),
       ),
     );
     expect(find.text('Terminer'), findsNothing);

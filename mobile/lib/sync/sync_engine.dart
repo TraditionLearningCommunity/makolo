@@ -615,22 +615,26 @@ class SyncEngine {
       await _ensureSource(source);
       final observed =
           await (database.select(database.syncSources)..where(
-            (row) =>
-                row.profileId.equals(profileId) &
-                row.sourceKey.equals(source.sourceKey),
-          )).getSingleOrNull();
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.sourceKey.equals(source.sourceKey),
+              ))
+              .getSingleOrNull();
       if (observed?.invalidated == true &&
           observed?.lastErrorCode == 'permission_denied') {
         return;
       }
       await (database.update(database.syncSources)..where(
-        (row) =>
-            row.profileId.equals(profileId) &
-            row.sourceKey.equals(source.sourceKey),
-      )).write(const SyncSourcesCompanion(
-        invalidated: Value(false),
-        lastErrorCode: Value('endpoint_unavailable'),
-      ));
+            (row) =>
+                row.profileId.equals(profileId) &
+                row.sourceKey.equals(source.sourceKey),
+          ))
+          .write(
+            const SyncSourcesCompanion(
+              invalidated: Value(false),
+              lastErrorCode: Value('endpoint_unavailable'),
+            ),
+          );
     });
   }
 
