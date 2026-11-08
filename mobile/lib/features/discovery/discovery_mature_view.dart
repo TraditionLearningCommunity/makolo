@@ -619,10 +619,10 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                IconButton(
+                MakoloIconActionButton(
                   tooltip: 'Fermer l’aperçu',
                   onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icons.close_rounded,
                 ),
               ],
             ),
@@ -662,11 +662,12 @@ class _DiscoveryMapPreview extends StatelessWidget {
             if (onDirections != null)
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
+                child: MakoloActionButton(
                   key: const Key('discover-map-directions'),
+                  label: 'Itinéraire',
                   onPressed: onDirections,
-                  icon: const Icon(Icons.directions_outlined),
-                  label: const Text('Itinéraire'),
+                  icon: Icons.directions_outlined,
+                  appearance: MakoloActionAppearance.quiet,
                 ),
               ),
             const SizedBox(height: MakoloSpacing.xs),
@@ -689,11 +690,11 @@ class _DiscoveryMapPreview extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: IconButton(
+                  child: MakoloIconActionButton(
                     key: const Key('discover-map-open-n2'),
                     tooltip: 'Voir l’opportunité',
                     onPressed: onOpen,
-                    icon: const Icon(Icons.arrow_forward_rounded),
+                    icon: Icons.arrow_forward_rounded,
                   ),
                 ),
                 Expanded(
