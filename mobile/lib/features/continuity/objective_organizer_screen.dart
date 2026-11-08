@@ -632,22 +632,21 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               children: [
                                 ListTile(
                                   leading: Icon(
-                                    source.lastErrorCode == 'permission_denied' ||
-                                            source.lastErrorCode == 'not_found'
+                                    source.lastErrorCode == 'permission_denied'
                                         ? Icons.lock_outline
                                         : Icons.sync_problem_outlined,
                                   ),
                                   title: Text(
-                                    source.lastErrorCode == 'permission_denied' ||
-                                            source.lastErrorCode == 'not_found'
-                                        ? 'Vos démarches ne sont pas accessibles avec ce compte.'
-                                        : 'Retrouvons vos démarches.',
+                                    source.lastErrorCode == 'permission_denied'
+                                        ? 'Vous n’avez pas accès à cet espace.'
+                                        : source.lastErrorCode == 'not_found'
+                                            ? 'Cet espace de démarches est momentanément introuvable.'
+                                            : 'Retrouvons vos démarches.',
                                   ),
                                   subtitle: Text(
-                                    source.lastErrorCode == 'permission_denied' ||
-                                            source.lastErrorCode == 'not_found'
-                                        ? 'Vérifiez le compte utilisé. Vos autres espaces restent disponibles.'
-                                        : 'Le contenu sera affiché dès qu’il sera à jour.',
+                                    source.lastErrorCode == 'permission_denied'
+                                        ? 'Vérifiez le compte utilisé.'
+                                        : 'Vos autres rubriques restent disponibles.',
                                   ),
                                 ),
                                 TextButton.icon(
