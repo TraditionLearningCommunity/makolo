@@ -102,6 +102,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         authenticated: runtime.isAuthenticated,
         mapConfig: runtime.mapConfig,
         location: runtime.location,
+        geoSearch: runtime.geoSearch,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
         onOpenItem: (family, id) async {
           await context.push<void>(
