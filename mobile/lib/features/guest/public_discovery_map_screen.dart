@@ -63,8 +63,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     }
   }
 
-  Future<void> _load({bool next = false}) async {
-    if (next && (_loading || !_collection.hasNext)) return;
+  Future<void> _load() async {
     final revision = ++_requestRevision;
     setState(() {
       _loading = true;
@@ -73,28 +72,41 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      // Map is another view of exactly the same public field. Its first
-      // request must not silently replace the selected page/size or cursor.
-      final query = next
-          ? widget.query.copyWith(
-              page: _collection.page + 1,
-              continuation: _collection.continuationToken,
-            )
-          : widget.query;
-      final response = await api.publicGet(query.path);
+      // A Map is the complete admitted geographic field, not the current
+      // N1 page. The owner already provides an unpaginated compact index
+      // alongside the first paginated Discovery response.
+      final root = widget.query.copyWith(page: 1, clearContinuation: true);
+      final path = root.path;
+      final response = await api.publicGet(
+        '$path${path.contains('?') ? '&' : '?'}include_spatial_index=compact',
+      );
       final wire = DiscoveryWire.receive(
         response.jsonObject(),
         scope: 'public',
       );
-      final incoming = _selector.publicCollection(wire.snapshotPayload);
+      final index = wire.snapshotPayload['spatial_index'];
+      if (index is! Map ||
+          index['results'] is! List ||
+          index['count'] is! int ||
+          index['detail_available'] != false) {
+        throw const FormatException('Invalid public spatial index');
+      }
+      final spatial = _selector.publicCollection(<String, dynamic>{
+        ...wire.snapshotPayload,
+        'results': index['results'],
+        'items': index['results'],
+        'count': index['count'],
+        'page': 1,
+        'page_size': index['count'],
+        'has_next': false,
+      });
       if (!mounted || revision != _requestRevision) return;
-      final collection = next ? _collection.reconcile(incoming) : incoming;
       final items = {
-        for (final item in collection.items) item.candidateKey: item,
+        for (final item in spatial.items) item.candidateKey: item,
       };
-      final anchors = _selector.spatialAnchorsFromCollection(collection);
+      final anchors = _selector.spatialAnchorsFromCollection(spatial);
       setState(() {
-        _collection = collection;
+        _collection = spatial;
         _points = [
           for (final anchor in anchors)
             if (items[anchor.candidateKey] != null)
@@ -124,97 +136,102 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     final hasPoints = _points.isNotEmpty;
     return PublicExperienceShell(
       current: 1,
-      child: ListView(
+      // Lazy cards: 500 map pins must not build 500 Flutter ListTiles at once.
+      child: ListView.builder(
         key: const Key('guest-discover-map'),
         padding: const EdgeInsets.all(MakoloSpacing.lg),
-        children: [
-          TextButton.icon(
-            onPressed: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go(widget.query.routeLocation('/discover'));
-              }
-            },
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Retour aux résultats'),
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          Text('Explorer sur la carte', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: MakoloSpacing.md),
-          if (_loading && !hasPoints)
-            const Center(child: CircularProgressIndicator())
-          else if (_error != null && !hasPoints) ...[
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-            TextButton(onPressed: _load, child: const Text('Réessayer')),
-          ] else if (!hasPoints && !_collection.hasNext)
-            const Text('Aucun lieu à afficher pour cette recherche.')
-          else ...[
-            if (hasPoints) ...[
-              SizedBox(
-                height: 320,
-                child: PublicDiscoveryPointsMap(
-                  config: widget.runtime.mapConfig,
-                  points: [
-                    for (final point in _points)
-                      MapCoordinate(
-                        point.anchor.latitude,
-                        point.anchor.longitude,
-                      ),
-                  ],
-                  fallbackBuilder: (context, state, retry) => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('Impossible d’afficher la carte.'),
-                        if (state == MakoloMapRuntimeState.error)
-                          TextButton(
-                            onPressed: retry,
-                            child: const Text('Réessayer'),
-                          ),
-                      ],
-                    ),
-                  ),
+        itemCount: _points.length + 1,
+        itemBuilder: (context, index) {
+          if (index > 0) {
+            final point = _points[index - 1];
+            return Card(
+              child: ListTile(
+                title: Text(point.item.title),
+                subtitle: Text(
+                  (point.anchor.fact['place'] is Map
+                              ? (point.anchor.fact['place'] as Map)['name']
+                              : null)?.toString() ??
+                      point.item.place ??
+                      '',
                 ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _open(point.item),
               ),
-              const SizedBox(height: MakoloSpacing.md),
-              Text(
-                '${_points.length} lieux',
-                style: theme.textTheme.titleMedium,
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(widget.query.routeLocation('/discover'));
+                  }
+                },
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Retour aux résultats'),
               ),
               const SizedBox(height: MakoloSpacing.sm),
-              for (final point in _points)
-                Card(
-                  child: ListTile(
-                    title: Text(point.item.title),
-                    subtitle: Text(
-                      (point.anchor.fact['place'] is Map
-                                  ? (point.anchor.fact['place'] as Map)['name']
-                                  : null)
-                              ?.toString() ??
-                          point.item.place ??
-                          '',
+              Text('Explorer sur la carte', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: MakoloSpacing.md),
+              if (_loading && !hasPoints)
+                const Center(child: CircularProgressIndicator())
+              else if (_error != null && !hasPoints) ...[
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                TextButton(
+                  onPressed: () => unawaited(_load()),
+                  child: const Text('Réessayer'),
+                ),
+              ] else if (!hasPoints && !_loading)
+                const Text('Aucun lieu à afficher pour cette recherche.')
+              else if (hasPoints) ...[
+                SizedBox(
+                  height: 320,
+                  child: PublicDiscoveryPointsMap(
+                    config: widget.runtime.mapConfig,
+                    points: [
+                      for (final point in _points)
+                        MapCoordinate(
+                          point.anchor.latitude,
+                          point.anchor.longitude,
+                        ),
+                    ],
+                    fallbackBuilder: (context, state, retry) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Impossible d’afficher la carte.'),
+                          if (state == MakoloMapRuntimeState.error)
+                            TextButton(
+                              onPressed: retry,
+                              child: const Text('Réessayer'),
+                            ),
+                        ],
+                      ),
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _open(point.item),
                   ),
                 ),
+                const SizedBox(height: MakoloSpacing.md),
+                Text(
+                  '${_points.length} emplacements sur la carte',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+              if (_loading && hasPoints)
+                const Center(child: CircularProgressIndicator()),
+              if (_error != null && hasPoints) ...[
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                TextButton(
+                  onPressed: () => unawaited(_load()),
+                  child: const Text('Réessayer'),
+                ),
+              ],
             ],
-            if (_loading) const Center(child: CircularProgressIndicator()),
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              TextButton(
-                onPressed: () => _load(next: true),
-                child: const Text('Réessayer'),
-              ),
-            ],
-            if (_collection.hasNext && !_loading && _error == null)
-              TextButton(
-                onPressed: () => _load(next: true),
-                child: const Text('Explorer plus de lieux'),
-              ),
-          ],
-        ],
+          );
+        },
       ),
     );
   }
