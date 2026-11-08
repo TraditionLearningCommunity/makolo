@@ -50,7 +50,7 @@
                     {{ row.state }}
                   </span>
                 </span>
-                {% if row.url %}<span class="mk-btn mk-btn-secondary">Ouvrir</span>{% else %}
+                {% if row.url %}<span class="mk-action-hint">Ouvrir</span>{% else %}
                   <span class="text-xs" style="color:var(--mk-muted)">État de cette date à actualiser</span>
                 {% endif %}
               {% if row.url %}</a>{% else %}</div>{% endif %}
@@ -58,8 +58,8 @@
           {% endfor %}
         </ol>
         <nav class="flex flex-wrap justify-between gap-3" aria-label="Pagination des sessions">
-          <span>{% if work_g2.previous_occurrences %}<a class="mk-btn mk-btn-secondary" href="{{ work_g2.previous_occurrences }}">Précédentes</a>{% endif %}</span>
-          <span>{% if work_g2.next_occurrences %}<a class="mk-btn mk-btn-secondary" href="{{ work_g2.next_occurrences }}">Voir les suivantes</a>{% endif %}</span>
+          <span>{% if work_g2.previous_occurrences %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.previous_occurrences }}">Précédentes</a>{% endif %}</span>
+          <span>{% if work_g2.next_occurrences %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.next_occurrences }}">Voir les suivantes</a>{% endif %}</span>
         </nav>
       {% else %}
         <div class="mk-panel p-5 sm:p-6">
@@ -82,14 +82,14 @@
                   <strong class="block group-hover:underline">{{ row.work_label }}</strong>
                   <span class="mt-1 block text-sm" style="color:var(--mk-muted)">{{ row.state }}</span>
                 </span>
-                <span class="mk-btn mk-btn-secondary">Consulter</span>
+                <span class="mk-action-hint">Consulter</span>
               </a>
             </li>
           {% endfor %}
         </ol>
         <nav class="flex flex-wrap justify-between gap-3" aria-label="Pagination des démarches">
-          <span>{% if work_g2.previous_work %}<a class="mk-btn mk-btn-secondary" href="{{ work_g2.previous_work }}">Précédentes</a>{% endif %}</span>
-          <span>{% if work_g2.next_work %}<a class="mk-btn mk-btn-secondary" href="{{ work_g2.next_work }}">Voir les suivantes</a>{% endif %}</span>
+          <span>{% if work_g2.previous_work %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.previous_work }}">Précédentes</a>{% endif %}</span>
+          <span>{% if work_g2.next_work %}<a class="mk-action-button" data-variant="secondary" href="{{ work_g2.next_work }}">Voir les suivantes</a>{% endif %}</span>
         </nav>
       {% else %}
         <div class="mk-panel p-5 sm:p-6">
@@ -144,11 +144,11 @@
     <span class="mk-kicker">Prochaines actions autorisées</span>
     <h3 id="g2-actions" class="text-lg font-extrabold">Actions disponibles</h3>
     <div class="flex flex-wrap gap-2">
-      {% for action in work_g2.actions %}<a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
+      {% for action in work_g2.actions %}<a class="mk-action-button" data-variant="{% if forloop.first %}primary{% else %}secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
     </div>
   </section>
   {% endif %}
 
-  <footer><a class="mk-btn mk-btn-secondary" href="{{ work_g2.back_url }}">{{ work_g2.back_label }}</a></footer>
+  <footer><a class="mk-action-button" data-variant="secondary" href="{{ work_g2.back_url }}">{{ work_g2.back_label }}</a></footer>
 </main>
 {% endblock %}
