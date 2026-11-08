@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import OuterRef, Subquery
+from django.db.models import F, OuterRef, Subquery
 from django.urls import reverse
 from django.utils import timezone
 
@@ -8,6 +8,7 @@ from authorization.constants import PermissionCode
 from groups.models import GroupMembership, GroupMembershipStatus
 from groups.selectors import groups_for_profile
 from groups.services import has_group_permission
+from journeys.collaboration_models import JourneyArtifactKind, JourneyArtifactSensitivity
 from personal_assets.models import PersonalAssetVersion
 from personal_assets.selectors import (
     personal_asset_for_controller,
@@ -38,6 +39,12 @@ RESOURCE_MAX_LIMIT = 50
 RESOURCE_SEARCH_MAX_LENGTH = 120
 RESOURCE_VERSION_DEFAULT_LIMIT = 20
 RESOURCE_VERSION_MAX_LIMIT = 50
+RESOURCE_VIEW_VALUES = frozenset({"current", "expiring", "archived"})
+RESOURCE_SORT_VALUES = frozenset({"recent", "oldest", "title", "expiry"})
+RESOURCE_KIND_VALUES = frozenset(value for value, _label in JourneyArtifactKind.choices)
+RESOURCE_SENSITIVITY_VALUES = frozenset(
+    value for value, _label in JourneyArtifactSensitivity.choices
+)
 
 
 def _validity_payload(*, issued_at, expires_at, observed_at):
@@ -72,6 +79,7 @@ def _current_version_annotations(queryset):
 
 
 def _resource_collection_item(asset, *, observed_at):
+    archived = asset.archived_at is not None
     current = None
     capabilities = ["view_detail"]
     links = {
@@ -80,6 +88,16 @@ def _resource_collection_item(asset, *, observed_at):
             kwargs={"pk": asset.pk},
         )
     }
+    if not archived:
+        capabilities.extend(["add_version", "archive"])
+        links["add_version"] = reverse(
+            "personal-projections:resource-version-create",
+            kwargs={"pk": asset.pk},
+        )
+        links["archive"] = reverse(
+            "personal-projections:resource-archive",
+            kwargs={"pk": asset.pk},
+        )
     if asset.current_version_id is not None:
         current = {
             "id": str(asset.current_version_id),
@@ -91,15 +109,16 @@ def _resource_collection_item(asset, *, observed_at):
                 observed_at=observed_at,
             ),
         }
-        capabilities.extend(["download", "reuse_in_journey"])
-        links["download"] = reverse(
-            "personal-projections:resource-version-download",
-            kwargs={"version_id": asset.current_version_id},
-        )
-        links["reuse_in_journey"] = reverse(
-            "personal-projections:resource-version-reuse",
-            kwargs={"version_id": asset.current_version_id},
-        )
+        if not archived:
+            capabilities.extend(["download", "reuse_in_journey"])
+            links["download"] = reverse(
+                "personal-projections:resource-version-download",
+                kwargs={"version_id": asset.current_version_id},
+            )
+            links["reuse_in_journey"] = reverse(
+                "personal-projections:resource-version-reuse",
+                kwargs={"version_id": asset.current_version_id},
+            )
     latest = None
     if current is not None:
         latest = {
@@ -116,7 +135,7 @@ def _resource_collection_item(asset, *, observed_at):
         "asset_kind_label": asset.get_kind_display(),
         "sensitivity": asset.sensitivity,
         "sensitivity_label": asset.get_sensitivity_display(),
-        "status": "active",
+        "status": "archived" if archived else "active",
         "latest_version": latest,
         "current_version": current,
         "capabilities": capabilities,
@@ -129,14 +148,56 @@ def build_personal_resources_depth_data(
     *,
     observed_at,
     query="",
+    view="current",
+    kind="",
+    sensitivity="",
+    sort="recent",
     limit=RESOURCE_DEFAULT_LIMIT,
     offset=0,
 ):
     query = (query or "").strip()
-    assets = personal_assets_for_controller(profile)
+    view = view if view in RESOURCE_VIEW_VALUES else "current"
+    sort = sort if sort in RESOURCE_SORT_VALUES else "recent"
+    kind = kind if kind in RESOURCE_KIND_VALUES else ""
+    sensitivity = (
+        sensitivity if sensitivity in RESOURCE_SENSITIVITY_VALUES else ""
+    )
+
+    include_archived = view == "archived"
+    assets = personal_assets_for_controller(
+        profile,
+        include_archived=include_archived,
+    )
+    assets = assets.filter(
+        archived_at__isnull=(view != "archived"),
+    )
     if query:
         assets = assets.filter(title__icontains=query)
-    assets = _current_version_annotations(assets).order_by("-updated_at", "id")
+    if kind:
+        assets = assets.filter(kind=kind)
+    if sensitivity:
+        assets = assets.filter(sensitivity=sensitivity)
+
+    assets = _current_version_annotations(assets)
+    if view == "expiring":
+        today = timezone.localdate(observed_at)
+        assets = assets.filter(
+            current_version_expires_at__gte=today,
+            current_version_expires_at__lte=today + timezone.timedelta(days=30),
+        )
+
+    if sort == "oldest":
+        assets = assets.order_by("updated_at", "id")
+    elif sort == "title":
+        assets = assets.order_by("title", "id")
+    elif sort == "expiry":
+        assets = assets.order_by(
+            F("current_version_expires_at").asc(nulls_last=True),
+            "title",
+            "id",
+        )
+    else:
+        assets = assets.order_by("-updated_at", "id")
 
     total = assets.count()
     rows = list(assets[offset : offset + limit])
@@ -144,21 +205,38 @@ def build_personal_resources_depth_data(
     credentials = credentials_for_profile(profile)
     data = {
         "documents": {
-        "count": total,
-        "query": query or None,
-        "items": [
-            _resource_collection_item(asset, observed_at=observed_at)
-            for asset in rows
-        ],
-        "has_more": offset + len(rows) < total,
-        "page": {
             "count": total,
-            "offset": offset,
-            "limit": limit,
+            "query": query or None,
+            "view": view,
+            "sort": sort,
+            "filters": {
+                "kind": kind or None,
+                "sensitivity": sensitivity or None,
+            },
+            "filter_options": {
+                "kinds": [
+                    {"id": value, "label": label}
+                    for value, label in JourneyArtifactKind.choices
+                ],
+                "sensitivities": [
+                    {"id": value, "label": label}
+                    for value, label in JourneyArtifactSensitivity.choices
+                ],
+            },
+            "items": [
+                _resource_collection_item(asset, observed_at=observed_at)
+                for asset in rows
+            ],
             "has_more": offset + len(rows) < total,
-        },
+            "page": {
+                "count": total,
+                "offset": offset,
+                "limit": limit,
+                "has_more": offset + len(rows) < total,
+            },
             "links": {
                 "self": reverse("personal-projections:resources"),
+                "create": reverse("personal-projections:resource-create"),
             },
         },
         "proofs": _bounded(proofs, _proof_item, limit=RESOURCE_MAX_LIMIT),
@@ -247,9 +325,18 @@ def build_personal_resource_detail_data(
         "collection": reverse("personal-projections:resources"),
     }
     if not archived:
+        capabilities.extend(["add_version", "archive"])
         links["web"] = reverse(
             "personal_assets:detail",
             kwargs={"asset_id": asset.pk},
+        )
+        links["add_version"] = reverse(
+            "personal-projections:resource-version-create",
+            kwargs={"pk": asset.pk},
+        )
+        links["archive"] = reverse(
+            "personal-projections:resource-archive",
+            kwargs={"pk": asset.pk},
         )
     if current is not None and not archived:
         capabilities.extend(["download", "reuse_in_journey"])
