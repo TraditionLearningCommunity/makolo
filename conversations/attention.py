@@ -135,7 +135,8 @@ def point_attention_reason(
         if state is None or state.acknowledged_at is None:
             return "acknowledge"
 
-    if point.lifecycle == ConversationPointLifecycle.OPEN and expected:
+    if (point.lifecycle == ConversationPointLifecycle.OPEN and expected
+            and (point.opens_at is None or at >= point.opens_at)):
         if point.kind == ConversationPointKind.FORM_REQUEST:
             from .form_services import form_request_completed_for_profile
 
