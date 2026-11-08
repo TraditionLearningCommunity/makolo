@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../data/files/resource_download_destination.dart';
@@ -314,18 +315,20 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         children: [
                           if (detail.downloadPath != null &&
                               detail.sensitivity == 'normal')
-                            FilledButton.icon(
+                            MakoloActionButton(
+                              label: 'Télécharger',
+                              appearance: MakoloActionAppearance.primary,
                               onPressed: _downloading
                                   ? null
                                   : () => _download(detail),
-                              icon: const Icon(Icons.download_rounded),
-                              label: const Text('Télécharger'),
+                              icon: Icons.download_rounded,
                             ),
                           if (detail.reusePath != null)
-                            OutlinedButton.icon(
+                            MakoloActionButton(
+                              label: 'Réutiliser dans une démarche',
+                              appearance: MakoloActionAppearance.secondary,
                               onPressed: () => _reuse(detail),
-                              icon: const Icon(Icons.redo_rounded),
-                              label: const Text('Réutiliser dans une démarche'),
+                              icon: Icons.redo_rounded,
                             ),
                         ],
                       ),
