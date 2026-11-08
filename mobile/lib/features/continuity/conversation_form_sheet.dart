@@ -511,9 +511,9 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: IconButton(
+                    trailing: MakoloIconActionButton(
                       tooltip: 'Retirer cette pièce',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: Icons.close_rounded,
                       onPressed: _sending
                           ? null
                           : () => setState(() {
