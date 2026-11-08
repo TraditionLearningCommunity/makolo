@@ -139,15 +139,17 @@ class OrganizerPage {
           actor['id']?.toString() != profileId ||
           pagination is! Map ||
           pagination['offset'] != expected ||
-          entries is! List)
+          entries is! List) {
         break;
+      }
       hasFirst = true;
       for (final raw in entries) {
         if (raw is! Map ||
             !{'project', 'dossier', 'journey'}.contains(raw['kind']) ||
             raw['id'] is! String ||
-            raw['title'] is! String)
+            raw['title'] is! String) {
           continue;
+        }
         final item = OrganizerEntry.fromMap(raw);
         if (seen.add(item.key)) result.add(item);
       }
