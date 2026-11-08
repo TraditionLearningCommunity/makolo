@@ -164,7 +164,8 @@
       }
       if (!scope.isConnected) return;
       const latest = reorderScope(scope);
-      if (!latest || latest.ids.join('|') !== state.ids.join('|')) return;
+      if (!latest || latest.ids.length !== state.ids.length ||
+          latest.ids.some((id, i) => id !== state.ids[i])) return;
       const byId = new Map(latest.list.map((item) => [item.dataset.mkReorderId, item]));
       order.forEach((id) => latest.container.append(byId.get(id)));
       const moved = byId.get(movedId);
@@ -448,10 +449,36 @@
     return true;
   }
 
+
+  // Central Web equivalent of MakoloInteractionIcons in Flutter.
+  // The frontend builder explicitly bundles every glyph in this registry.
+  const icons = Object.freeze({
+    open: 'external-link',
+    inspect: 'panel-right-open',
+    more: 'ellipsis',
+    select: 'square-check',
+    sort: 'arrow-down-up',
+    filter: 'filter',
+    reorder: 'grip-vertical',
+    move: 'folder-input',
+    link: 'link-2',
+    unlink: 'unlink',
+    transition: 'arrow-left-right',
+    edit: 'pencil',
+    bulk: 'square-check',
+    undo: 'undo-2',
+    search: 'search',
+  });
+  window.MakoloInteractionIcons = icons;
+
   window.MakoloInteractions = Object.freeze({
     // Register a real owner transport. No registered adapter means no reorder.
     registerReorder(scope, adapter) {
       if (!(scope instanceof Element) || typeof adapter !== 'function') return false;
+      const state = reorderScope(scope);
+      if (!state || state.list.length < 2 ||
+          state.list.some((item) => !item.querySelector(
+            '[data-mk-reorder-up], [data-mk-reorder-down]'))) return false;
       reorderAdapters.set(scope, adapter);
       return true;
     },
