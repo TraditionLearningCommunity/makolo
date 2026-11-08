@@ -268,3 +268,51 @@ test('F2 right-click opens only opt-in contextual menu, not inputs', async ({ pa
   await expect(page.getByRole('button', { name: 'Options F2' }))
     .toHaveAttribute('aria-expanded', 'false');
 });
+
+
+test('F2 semantic icon registry and shared button tokens are available globally', async ({ page }) => {
+  await setup(page);
+  const result = await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.className = 'mk-action-button';
+    button.setAttribute('data-variant', 'primary');
+    button.textContent = 'Confirmer';
+    document.querySelector('#main-content').append(button);
+    return {
+      intents: Object.keys(window.MakoloInteractionIcons || {}),
+      move: window.MakoloInteractionIcons?.move,
+      font: getComputedStyle(button).fontFamily,
+      height: button.getBoundingClientRect().height,
+    };
+  });
+  expect(result.intents).toHaveLength(15);
+  expect(result.move).toBe('folder-input');
+  expect(result.font).toBeTruthy();
+  expect(result.height).toBeGreaterThanOrEqual(44);
+});
+
+test('F2 shared primary button and preview remain accessible on compact Web @mobile', async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const section = document.createElement('section');
+    section.innerHTML = [
+      '<button class="mk-action-button" data-variant="primary"',
+      ' data-mk-preview-target="f2-compact-preview">Voir</button>',
+      '<dialog class="mk-interaction-preview" data-mk-preview',
+      ' id="f2-compact-preview" aria-label="Aperçu compact">',
+      '<p>Contenu utile</p>',
+      '<button type="button" data-mk-preview-close>Fermer</button></dialog>',
+    ].join('');
+    document.querySelector('#main-content').append(section);
+  });
+  await page.getByRole('button', { name: 'Voir' }).click();
+  await expect(page.getByRole('dialog', { name: 'Aperçu compact' })).toBeVisible();
+  const measures = await page.locator('#f2-compact-preview').evaluate((dialog) => {
+    const rect = dialog.getBoundingClientRect();
+    return { left: rect.left, right: rect.right, viewport: innerWidth };
+  });
+  expect(measures.left).toBeGreaterThanOrEqual(0);
+  expect(measures.right).toBeLessThanOrEqual(measures.viewport + 1);
+  await page.getByRole('button', { name: 'Fermer' }).click();
+  await expect(page.getByRole('dialog', { name: 'Aperçu compact' })).toBeHidden();
+});
