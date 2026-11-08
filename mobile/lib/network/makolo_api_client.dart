@@ -297,7 +297,7 @@ class MakoloApiClient {
     );
     if (response.statusCode == 401) {
       await _deleteIfExists('$destinationPath.part');
-      session = await _refreshSingleFlight();
+      session = await _refreshAfterUnauthorized(session.accessToken);
       response = await _downloadOnce(
         path,
         destinationPath: destinationPath,
@@ -356,7 +356,7 @@ class MakoloApiClient {
     var session = await _requireSession();
     var response = await request(session.accessToken);
     if (response.statusCode == 401) {
-      session = await _refreshSingleFlight();
+      session = await _refreshAfterUnauthorized(session.accessToken);
       response = await request(session.accessToken);
     }
     final status = response.statusCode ?? 0;
@@ -452,7 +452,7 @@ class MakoloApiClient {
       return _ensureSuccess(response);
     }
 
-    session = await _refreshSingleFlight();
+    session = await _refreshAfterUnauthorized(session.accessToken);
     response = await _send(
       method,
       path,
@@ -480,6 +480,15 @@ class MakoloApiClient {
       cancel: cancel,
     );
     return _ensureSuccess(response);
+  }
+
+  // A concurrent request may have rotated the credentials while this
+  // request was in flight. Reuse the persisted session instead of rotating
+  // the refresh token again for a late 401.
+  Future<AuthSession> _refreshAfterUnauthorized(String rejectedAccessToken) async {
+    final current = await _requireSession();
+    if (current.accessToken != rejectedAccessToken) return current;
+    return _refreshSingleFlight();
   }
 
   Completer<AuthSession>? _refreshCompleter;
