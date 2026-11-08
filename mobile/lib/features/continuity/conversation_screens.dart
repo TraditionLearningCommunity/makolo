@@ -1984,18 +1984,20 @@ Future<Object?> _collectResponseValue(
                   ),
                 ),
                 actions: [
-                  TextButton(
+                  MakoloActionButton(
+                    label: 'Annuler',
+                    appearance: MakoloActionAppearance.quiet,
                     onPressed: () => Navigator.pop(context, _cancelledResponse),
-                    child: const Text('Annuler'),
                   ),
-                  FilledButton(
+                  MakoloActionButton(
+                    label: 'Continuer',
+                    appearance: MakoloActionAppearance.primary,
                     onPressed: selected.isEmpty
                         ? null
                         : () => Navigator.pop(
                             context,
                             selected.toList(growable: false),
                           ),
-                    child: const Text('Continuer'),
                   ),
                 ],
               ),
@@ -2053,16 +2055,18 @@ Future<Object?> _collectResponseValue(
             ),
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(context, _cancelledResponse),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Envoyer',
+              appearance: MakoloActionAppearance.primary,
               onPressed: () {
                 final value = controller.text.trim();
                 if (value.isNotEmpty) Navigator.pop(context, value);
               },
-              child: const Text('Envoyer'),
             ),
           ],
         ),
