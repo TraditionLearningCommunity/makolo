@@ -468,12 +468,24 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   Widget _mobileOrganizerToolbar() {
     final scheme = Theme.of(context).colorScheme;
+    Widget group(Widget child) => DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: child,
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
+            group(Row(mainAxisSize: MainAxisSize.min, children: [
             // Group 1: WHAT the person wants to find.
             _compactFilter('Type', _kind, const {
               'all': 'Tous les types', 'project': 'Projets',
@@ -491,11 +503,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               'space': 'Espace', 'independent': 'Indépendants',
             }, Icons.account_tree_outlined,
                 (v) => setState(() => _relation = v)),
-            Container(
-              height: 31, width: 1,
-              color: scheme.outlineVariant,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-            ),
+            ])),
+            const SizedBox(width: 10),
+            group(Row(mainAxisSize: MainAxisSize.min, children: [
             // Group 2: HOW the collection is displayed.
             _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
             const SizedBox(width: 5),
@@ -503,6 +513,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             const SizedBox(width: 5),
             _compactMode(OrganizerMode.explorer,
                 Icons.account_tree_rounded, 'Explorateur'),
+            ])),
           ]),
         ),
         const SizedBox(height: 5),
