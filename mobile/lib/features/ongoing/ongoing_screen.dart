@@ -1116,6 +1116,28 @@ void _openOngoingProtectedMedia(
 
 /// G06 mobile: the same open, vertical reading rhythm as Discover.
 /// A recognition image gets the available width; text never sits beside it.
+IconData? _ongoingKindIcon(String kind) => switch (kind) {
+  'journey' => Icons.route_outlined,
+  'dossier' => Icons.folder_open_outlined,
+  'project' => Icons.folder_special_outlined,
+  _ => null,
+};
+
+String? _ongoingKindLabel(String kind) => switch (kind) {
+  'journey' => 'Démarche',
+  'dossier' => 'Dossier',
+  'project' => 'Projet',
+  _ => null,
+};
+
+String _ongoingOpenLabel(String kind) => switch (kind) {
+  'journey' => 'Ouvrir la démarche',
+  'dossier' => 'Ouvrir le dossier',
+  'project' => 'Ouvrir le projet',
+  'access' => 'Voir mon accès',
+  _ => 'Ouvrir les détails',
+};
+
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
     required this.profileId,
@@ -1234,6 +1256,23 @@ class _OngoingRow extends StatelessWidget {
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
                   ],
+                  if (_ongoingKindIcon(item.kind) case final kindIcon?) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(kindIcon, size: 17, color: colors.brand),
+                        const SizedBox(width: MakoloSpacing.xs),
+                        Text(
+                          _ongoingKindLabel(item.kind)!,
+                          style: textTheme.labelMedium?.copyWith(
+                            color: colors.brand,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: MakoloSpacing.xs),
+                  ],
                   Text(item.title, style: textTheme.titleLarge),
                   if (summary != null) ...[
                     const SizedBox(height: MakoloSpacing.xs),
@@ -1242,6 +1281,23 @@ class _OngoingRow extends StatelessWidget {
                       style: textTheme.bodyMedium?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
+                    ),
+                  ],
+                  if (item.composition.isNotEmpty) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Wrap(
+                      spacing: MakoloSpacing.sm,
+                      runSpacing: MakoloSpacing.xs,
+                      children: [
+                        for (final fact in item.composition)
+                          Text(
+                            fact,
+                            style: textTheme.labelMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                   if (supporting != null) ...[
@@ -1618,7 +1674,30 @@ class _OngoingFocus extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('En cours'),
               ),
+            if (_ongoingKindIcon(item.kind) case final kindIcon?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                child: Row(
+                  children: [
+                    Icon(kindIcon, color: Theme.of(context).colorScheme.primary, size: 18),
+                    const SizedBox(width: MakoloSpacing.xs),
+                    Text(_ongoingKindLabel(item.kind)!),
+                  ],
+                ),
+              ),
             Text(item.title, style: Theme.of(context).textTheme.headlineMedium),
+            if (item.composition.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                child: Wrap(
+                  spacing: MakoloSpacing.md,
+                  runSpacing: MakoloSpacing.xs,
+                  children: [
+                    for (final fact in item.composition)
+                      Text(fact, style: Theme.of(context).textTheme.labelMedium),
+                  ],
+                ),
+              ),
             if (item.cue != null) ...[
               const SizedBox(height: MakoloSpacing.sm),
               Text(
@@ -1645,7 +1724,7 @@ class _OngoingFocus extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
                 onPressed: () => context.push(nativeOwnerRoute),
-                child: const Text('Ouvrir la démarche'),
+                child: Text(_ongoingOpenLabel(item.kind)),
               ),
             ],
             if (metadata.isNotEmpty)
