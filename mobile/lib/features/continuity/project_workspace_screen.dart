@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
@@ -682,22 +683,25 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     runSpacing: 9,
     children: [
       if (_has(project, 'project.dossier.create'))
-        FilledButton.icon(
+        MakoloActionButton(
+          label: 'Créer un dossier',
           onPressed: _enabled ? _create : null,
-          icon: const Icon(Icons.create_new_folder_outlined),
-          label: const Text('Créer un dossier'),
+          icon: Icons.create_new_folder_outlined,
+          appearance: MakoloActionAppearance.primary,
         ),
       if (_has(project, 'project.dossier.link'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Rattacher un dossier',
           onPressed: _enabled ? () => _link(project) : null,
-          icon: const Icon(Icons.link_rounded),
-          label: const Text('Rattacher un dossier'),
+          icon: Icons.link_rounded,
+          appearance: MakoloActionAppearance.secondary,
         ),
       if (_has(project, 'project.lifecycle'))
-        OutlinedButton.icon(
+        MakoloActionButton(
+          label: 'Changer l’état',
           onPressed: _enabled ? () => _lifecycle(project) : null,
-          icon: const Icon(Icons.change_circle_outlined),
-          label: const Text('Changer l’état'),
+          icon: Icons.change_circle_outlined,
+          appearance: MakoloActionAppearance.secondary,
         ),
     ],
   );
