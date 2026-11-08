@@ -31,6 +31,7 @@ class PublicDiscoveryPointsMap extends StatefulWidget {
 class _PublicDiscoveryPointsMapState extends State<PublicDiscoveryPointsMap> {
   DiscoveryMapController? _controller;
   bool _styleReady = false;
+  bool _initialCameraPositioned = false;
   Future<void> _renderQueue = Future<void>.value();
 
   Future<void> _plot() {
@@ -43,6 +44,14 @@ class _PublicDiscoveryPointsMapState extends State<PublicDiscoveryPointsMap> {
       if (!mounted || _controller != controller) return;
       try {
         await controller.renderPins(pins);
+        if (!_initialCameraPositioned && pins.isNotEmpty) {
+          _initialCameraPositioned = true;
+          try {
+            await controller.fitPins(pins);
+          } on Object {
+            _initialCameraPositioned = false;
+          }
+        }
       } on Object {
         // The adjacent lazy list remains usable if the native map fails.
       }
@@ -86,6 +95,7 @@ class _PublicDiscoveryPointsMapState extends State<PublicDiscoveryPointsMap> {
       onMapCreated: (controller) {
         _controller = DiscoveryMapController(controller);
         _styleReady = false;
+        _initialCameraPositioned = false;
       },
       onStyleReady: () {
         _styleReady = true;
