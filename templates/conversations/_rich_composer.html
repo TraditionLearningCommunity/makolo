@@ -17,7 +17,7 @@
           <label class="sr-only" for="form-existing-title">Objet</label>
           <input name="title" id="form-existing-title" class="mk-input w-full" required maxlength="220" value="{% if compose_draft.mode == 'form' %}{{ compose_draft.title }}{% endif %}" placeholder="Objet de la demande" data-conversation-form-title>
           {% include 'conversations/_composer_audience.html' %}
-          <button class="mk-btn mk-btn-primary" type="submit">Demander</button>
+          <button class="mk-action-button" data-variant="primary" type="submit">Demander</button>
         </form>
       {% endif %}
       <form method="post" action="{% url 'conversations:compose' conversation.pk %}#conversation-compose" class="space-y-3">
@@ -29,7 +29,7 @@
         <label class="sr-only" for="form-new-questions">Questions</label>
         <textarea id="form-new-questions" name="questions" class="mk-input w-full" required rows="3" placeholder="Une question par ligne"></textarea>
         {% include 'conversations/_composer_audience.html' %}
-        <button class="mk-btn mk-btn-primary" type="submit">Demander</button>
+        <button class="mk-action-button" data-variant="primary" type="submit">Demander</button>
       </form>
     </div>
   </details>
@@ -71,24 +71,24 @@
     <input id="media-caption" name="body" type="text" maxlength="5000" class="mk-input w-full" placeholder="Légende (facultative)">
     <div class="flex flex-wrap items-center gap-3">
       {% if 'voice' in composer.media_kinds %}
-        <button type="button" class="mk-btn mk-btn-secondary" data-voice-start><span aria-hidden="true">●</span> Vocal</button>
-        <button type="button" class="mk-btn mk-btn-secondary hidden" data-voice-pause>Pause</button>
-        <button type="button" class="mk-btn mk-btn-secondary hidden" data-voice-resume>Reprendre</button>
-        <button type="button" class="mk-btn mk-btn-secondary hidden" data-voice-stop>Terminer</button>
-        <button type="button" class="mk-btn mk-btn-secondary hidden" data-voice-cancel>Annuler</button>
-        <button type="button" class="mk-btn mk-btn-primary hidden" data-voice-send>Envoyer le vocal</button>
+        <button type="button" class="mk-action-button" data-variant="secondary" data-voice-start><span aria-hidden="true">●</span> Vocal</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-pause>Pause</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-resume>Reprendre</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-stop>Terminer</button>
+        <button type="button" class="mk-action-button hidden" data-variant="secondary" data-voice-cancel>Annuler</button>
+        <button type="button" class="mk-action-button hidden" data-variant="primary" data-voice-send>Envoyer le vocal</button>
       {% endif %}
       {% if 'image' in composer.media_kinds %}
-        <label class="mk-btn mk-btn-secondary cursor-pointer">Photo<input type="file" class="sr-only" name="file" accept="image/jpeg,image/png" data-media-file="image"></label>
-        <label class="mk-btn mk-btn-secondary cursor-pointer">Caméra<input type="file" class="sr-only" accept="image/*" capture="environment" data-media-file="image"></label>
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Photo<input type="file" class="sr-only" name="file" accept="image/jpeg,image/png" data-media-file="image"></label>
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Caméra<input type="file" class="sr-only" accept="image/*" capture="environment" data-media-file="image"></label>
       {% endif %}
       {% if 'file' in composer.media_kinds %}
-        <label class="mk-btn mk-btn-secondary cursor-pointer">Document<input type="file" class="sr-only" name="file" accept=".pdf,.txt,.doc,.docx,application/pdf,text/plain" data-media-file="file"></label>
+        <label class="mk-action-button cursor-pointer" data-variant="secondary">Document<input type="file" class="sr-only" name="file" accept=".pdf,.txt,.doc,.docx,application/pdf,text/plain" data-media-file="file"></label>
       {% endif %}
     </div>
     <audio class="hidden w-full" controls preload="metadata" data-voice-preview></audio>
     <p role="status" aria-live="polite" class="text-sm" data-media-state></p>
-    <button class="mk-btn mk-btn-primary hidden" type="button" data-media-retry>Réessayer l’envoi</button>
-    <noscript><p class="text-sm">Joindre un fichier et envoyer.</p><button class="mk-btn mk-btn-primary" type="submit">Envoyer</button></noscript>
+    <button class="mk-action-button hidden" data-variant="primary" type="button" data-media-retry>Réessayer l’envoi</button>
+    <noscript><p class="text-sm">Joindre un fichier et envoyer.</p><button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button></noscript>
   </form>
 {% endif %}
