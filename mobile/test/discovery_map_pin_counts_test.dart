@@ -24,6 +24,6 @@ void main() {
       DiscoveryMapPin(-11.66, 27.48, opportunityCount: 4),
     ])['features'] as List).single as Map;
     expect((feature['properties'] as Map).keys.toSet(),
-        {'location_key', 'opportunity_count'});
+        {'location_key', 'opportunity_count', 'selected', 'symbol'});
   });
 }
