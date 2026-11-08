@@ -510,7 +510,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 : () => unawaited(_prepareOffline()),
                             icon: Icons.download_for_offline_outlined,
                             appearance: MakoloActionAppearance.secondary,
-                            ),
                           ),
                           if (_preparingOffline) ...[
                             const LinearProgressIndicator(),
