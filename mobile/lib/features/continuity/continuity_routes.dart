@@ -12,6 +12,7 @@ import 'conversation_history_screen.dart';
 import 'history_screen.dart';
 import 'objective_repository.dart';
 import 'objective_screen.dart';
+import 'dossier_workspace_screen.dart';
 import 'project_workspace_screen.dart';
 
 List<RouteBase> continuityRoutes(AppRuntime runtime) => [
@@ -204,13 +205,13 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
           message: 'Ce dossier n’est pas disponible sur cet appareil.',
         );
       }
-      return ObjectiveDetailScreen(
-        kind: ObjectiveDepth.dossier,
+      return DossierWorkspaceScreen(
         id: state.pathParameters['id']!,
         repository: repository,
+        api: runtime.api,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
-        onOpenDossier: (id) => context.push('/dossiers/$id'),
+        onOpenProject: (id) => context.push('/projects/$id'),
         onOpenJourney: (id) => context.push('/journeys/$id'),
       );
     },
