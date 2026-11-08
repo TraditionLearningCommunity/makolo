@@ -1,6 +1,13 @@
 name: Mobile Format
 
 on:
+  # One-shot correction on the PR branch when this workflow file changes.
+  # No continuous format jobs on subsequent mobile commits.
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
