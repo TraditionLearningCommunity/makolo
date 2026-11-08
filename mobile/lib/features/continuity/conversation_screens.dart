@@ -1809,10 +1809,11 @@ class _PointCardState extends State<_PointCard> {
                   icon: const Icon(Icons.attach_file_rounded),
                   label: const Text('Joindre un fichier'),
                 ),
-                TextButton.icon(
+                MakoloActionButton(
+                  label: 'Photo',
+                  appearance: MakoloActionAppearance.quiet,
                   onPressed: () => widget.onRespondWithMedia!('photo'),
-                  icon: const Icon(Icons.image_outlined),
-                  label: const Text('Photo'),
+                  icon: Icons.image_outlined,
                 ),
               ],
             ),
@@ -1827,17 +1828,13 @@ class _PointCardState extends State<_PointCard> {
             Wrap(
               spacing: MakoloSpacing.sm,
               children: [
-                OutlinedButton(
+                MakoloActionButton(
+                  label: point.kind == 'request' ? "Je m'en charge" : 'Oui',
                   onPressed: _busy ? null : () => _submitResponse(true),
-                  child: Text(
-                    point.kind == 'request' ? "Je m'en charge" : 'Oui',
-                  ),
                 ),
-                OutlinedButton(
+                MakoloActionButton(
+                  label: point.kind == 'request' ? 'Je ne peux pas' : 'Non',
                   onPressed: _busy ? null : () => _submitResponse(false),
-                  child: Text(
-                    point.kind == 'request' ? 'Je ne peux pas' : 'Non',
-                  ),
                 ),
               ],
             )
@@ -1847,9 +1844,9 @@ class _PointCardState extends State<_PointCard> {
               runSpacing: MakoloSpacing.sm,
               children: [
                 for (final option in point.options)
-                  OutlinedButton(
+                  MakoloActionButton(
+                    label: option.label,
                     onPressed: _busy ? null : () => _submitResponse(option.id),
-                    child: Text(option.label),
                   ),
               ],
             )
@@ -1878,18 +1875,22 @@ class _PointCardState extends State<_PointCard> {
                   ],
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
-                FilledButton(
+                MakoloActionButton(
+                  label: _busy ? 'Envoi…' : 'Répondre',
+                  busy: _busy,
+                  appearance: MakoloActionAppearance.primary,
                   onPressed: _busy || _choices.isEmpty
                       ? null
                       : () => _submitResponse(_choices.toList()),
-                  child: Text(_busy ? 'Envoi…' : 'Répondre'),
                 ),
               ],
             )
           else if (point.supportsInteractiveResponse)
-            FilledButton(
+            MakoloActionButton(
+              label: _busy ? 'Envoi…' : point.responseActionLabel,
+              busy: _busy,
+              appearance: MakoloActionAppearance.primary,
               onPressed: _busy ? null : _respond,
-              child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
             ),
         ],
       ],
