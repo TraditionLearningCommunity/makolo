@@ -183,8 +183,7 @@ def library_reuse(request, asset_id):
         else:
             messages.success(
                 request,
-                "Document ajouté à la démarche. "
-                "Cet ajout ne confirme pas que ses conditions sont remplies.",
+                "Ajouté à la démarche.",
             )
             return redirect("core:participant-journey-detail", pk=journey.pk)
 
@@ -215,7 +214,7 @@ def library_add(request):
                     issued_at=form.cleaned_data["issued_at"],
                     expires_at=form.cleaned_data["expires_at"],
                 )
-            messages.success(request, "Document ajouté à Ma Bibliothèque.")
+            messages.success(request, "Document ajouté.")
             return redirect("personal_assets:detail", asset_id=asset.pk)
         except ValidationError as exc:
             form.add_error(None, exc)
@@ -235,7 +234,7 @@ def library_add_version(request, asset_id):
                 issued_at=form.cleaned_data["issued_at"],
                 expires_at=form.cleaned_data["expires_at"],
             )
-            messages.success(request, f"Version {version.version} ajoutée sans écraser l’historique.")
+            messages.success(request, f"Version {version.version} ajoutée.")
             return redirect("personal_assets:detail", asset_id=asset.pk)
         except ValidationError as exc:
             form.add_error(None, exc)
@@ -247,7 +246,7 @@ def library_add_version(request, asset_id):
 def library_archive(request, asset_id):
     asset = _asset_for_request(request, asset_id)
     archive_personal_asset(actor=request.user, asset=asset)
-    messages.success(request, "Élément archivé. Son historique est conservé.")
+    messages.success(request, "Document archivé.")
     return redirect("personal_assets:documents")
 
 
@@ -280,7 +279,7 @@ def library_use_in_journey(request, journey_id):
         except (PermissionDenied, ValidationError) as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, f"Version {version.version} utilisée comme snapshot dans la démarche.")
+            messages.success(request, "Document ajouté à la démarche.")
             return redirect("journeys:artifact-download", artifact_id=artifact.pk)
     return render(request, "personal_assets/use_in_journey.html", {"journey": journey, "items": items})
 
