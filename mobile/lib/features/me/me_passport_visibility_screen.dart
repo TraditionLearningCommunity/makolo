@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../sync/projection_contract.dart';
@@ -256,18 +257,17 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                     ),
                     Row(
                       children: [
-                        TextButton(
-                          onPressed: working
-                              ? null
-                              : () => Navigator.pop(sheet),
-                          child: const Text('Annuler'),
+                        MakoloActionButton(
+                          label: 'Annuler',
+                          onPressed: working ? null : () => Navigator.pop(sheet),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                         const Spacer(),
-                        FilledButton(
+                        MakoloActionButton(
+                          label: working ? 'Enregistrement…' : 'Enregistrer',
                           onPressed: working ? null : save,
-                          child: Text(
-                            working ? 'Enregistrement…' : 'Enregistrer',
-                          ),
+                          appearance: MakoloActionAppearance.primary,
+                          busy: working,
                         ),
                       ],
                     ),
