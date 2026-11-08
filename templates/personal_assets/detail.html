@@ -2,7 +2,7 @@
 {% block title %}{{ asset.title }} | Bibliothèque{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-5">
-  <a href="{% url 'personal_assets:list' %}" class="mk-btn mk-btn-ghost">← Bibliothèque</a>
+  <a href="{% url 'personal_assets:list' %}" class="mk-action-button mk-action-button-ghost" data-variant="ghost">← Bibliothèque</a>
   <section class="mk-panel p-5 sm:p-7">
     <span class="mk-kicker">{{ asset.get_kind_display }}</span>
     <h1 class="mt-2 text-2xl font-extrabold">{{ asset.title }}</h1>
@@ -23,9 +23,9 @@
       <p class="mt-6 text-sm" style="color:var(--mk-muted)">Cette ressource a été retirée de vos ressources courantes. Son historique reste consultable.</p>
     {% else %}
       <div class="mt-6 flex flex-wrap gap-2">
-        <a href="{% url 'personal_assets:download' latest.pk %}" class="mk-btn mk-btn-primary">Télécharger</a>
-        <a href="{% url 'personal_assets:reuse' asset.pk %}" class="mk-btn mk-btn-secondary">Réutiliser dans une démarche</a><a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-btn mk-btn-secondary">Ajouter une nouvelle version</a>
-        <form method="post" action="{% url 'personal_assets:archive' asset.pk %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-ghost">Archiver</button></form>
+        <a href="{% url 'personal_assets:download' latest.pk %}" class="mk-action-button mk-action-button-primary" data-variant="primary">Télécharger</a>
+        <a href="{% url 'personal_assets:reuse' asset.pk %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Réutiliser dans une démarche</a><a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-action-button mk-action-button-secondary" data-variant="secondary">Ajouter une nouvelle version</a>
+        <form method="post" action="{% url 'personal_assets:archive' asset.pk %}">{% csrf_token %}<button type="submit" class="mk-action-button mk-action-button-ghost" data-variant="ghost">Archiver</button></form>
       </div>
     {% endif %}
     {% endif %}
@@ -42,7 +42,7 @@
             <p class="text-xs" style="color:var(--mk-subtle)">{{ version.created_at|date:'d/m/Y H:i' }} · {{ version.mime_type }} · {{ version.size }} octets</p>
             <p class="mt-1 text-xs" style="color:var(--mk-muted)">Provenance : {% if version.source_journey_artifact_id %}pièce de démarche{% else %}inconnue{% endif %}</p>
           </div>
-          {% if not asset.archived_at %}<a class="mk-btn mk-btn-ghost" href="{% url 'personal_assets:download' version.pk %}">Télécharger</a>{% endif %}
+          {% if not asset.archived_at %}<a class="mk-action-button mk-action-button-ghost" data-variant="ghost" href="{% url 'personal_assets:download' version.pk %}">Télécharger</a>{% endif %}
         </div>
       </div>
       {% empty %}
