@@ -248,7 +248,8 @@ class DiscoveryMapController {
                 textField: [Expressions.get, 'symbol'],
                 textSize: 15,
                 textColor: '#2B176E',
-                textOffset: [0, -2.1],
+                // Keep the category inside the native pin head (not floating above it).
+                textOffset: [0, -1.0],
                 textAllowOverlap: true,
               ),
               filter: [
