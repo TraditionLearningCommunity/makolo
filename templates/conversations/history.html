@@ -20,7 +20,7 @@
         <option value="active" {% if section == 'active' %}selected{% endif %}>En cours</option>
       </select>
     </label>
-    <button class="mk-action-button mk-action-button-primary min-h-11" data-variant="primary" type="submit">Rechercher</button>
+    <button class="mk-action-button min-h-11" data-variant="primary" type="submit">Rechercher</button>
   </form>
   {% if history_error %}
     <div role="alert" class="mt-5 rounded-xl border p-4 text-sm" style="border-color:var(--mk-border)">
@@ -44,7 +44,7 @@
     </div>
     {% if next_cursor %}
       <nav aria-label="Suite de l’historique" class="mt-7">
-        <a class="mk-action-button mk-action-button-secondary inline-flex min-h-11 items-center" data-variant="secondary" href="?{{ next_query }}">Voir les Points suivants</a>
+        <a class="mk-action-button inline-flex min-h-11 items-center" data-variant="secondary" href="?{{ next_query }}">Voir les Points suivants</a>
       </nav>
     {% endif %}
   </section>
