@@ -141,7 +141,7 @@ L'expérience en DEV intègre désormais :
   canonique dans un rayon de 25 km (la pagination de la liste N1 ne change pas) ;
 - `geolocator` / `LocationCapability` : point bleu en premier plan, suivi
   automatique si permission existante, bouton de recentrage ;
-- Liens universels d'itinéraire Google Maps et Waze par `url_launcher` : pas
+- Lien universel d'itinéraire Google Maps par `url_launcher` : pas
   de nouvelle clé, pas de nouvel appel routier serveur, choix d'un lieu
   explicite pour les activités ayant plusieurs points géographiques ;
 - API Discovery : services et événements publics à partir des lieux
@@ -159,7 +159,7 @@ flutter analyze
 déjà accordée puis marcher pour observer le point bleu ; recentrer ; rechercher
 « Maseru » dans Carte et vérifier les opportunités et l'emprise ;
 sélectionner un marqueur unique ; ouvrir la liste d'un lieu colocalisé ;
-utiliser `Itinéraire` vers Google Maps et Waze ; ouvrir une activité à
+utiliser `Itinéraire` vers Google Maps sans étape de sélection ; ouvrir une activité à
 plusieurs lieux et choisir explicitement destination ou départ ; revenir
 à Makolo et vérifier la conservation du contexte Carte. Vérifier ensuite le
 refus de permission, le GPS système désactivé et l'absence de crash.
@@ -169,3 +169,14 @@ adaptateur optionnel désactivé, non nécessaire au parcours de navigation.
 Les tests Flutter/Android n'ont pas encore été exécutés ici ; ne pas marquer
 ce comportement validé tant qu'une APK issue de la branche n'a pas été essayée.
 Aucune modification de la base SQLite n'est nécessaire.
+
+### Décision navigation Android — Google Maps uniquement (8 novembre 2026)
+
+L'action `Itinéraire` ouvre directement le lien universel HTTPS officiel
+Google Maps avec la seule destination publique. Le résolveur Android
+(`LaunchMode.externalApplication`) peut lancer l'application Maps installée ;
+si elle n'est pas disponible, le lien peut être ouvert par un navigateur.
+**Aucun sélecteur Waze/Google Maps**, aucune dépendance, aucun itinéraire
+fabriqué par Makolo. Le choix explicite du **lieu** reste uniquement pour
+les activités ayant plusieurs lieux (départ/arrivée/escale). L'adaptateur
+OpenRouteService demeure désactivé et indépendant de cette action.
