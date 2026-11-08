@@ -159,19 +159,25 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
       return;
     }
     // Reuse the same chooser as authenticated Discovery for co-located items.
-    unawaited(showModalBottomSheet<void>(
+    unawaited(_chooseCoLocated(choices.values.toList()));
+  }
+
+  Future<void> _chooseCoLocated(
+    List<DiscoveryItemPresentation> items,
+  ) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       builder: (sheetContext) => DiscoveryCoLocatedPicker(
-        items: choices.values.toList(),
+        items: items,
         onChoose: (item) {
           Navigator.of(sheetContext).pop();
           if (mounted) _open(item);
         },
       ),
-    ));
+    );
   }
 
   void _open(DiscoveryItemPresentation item) {
