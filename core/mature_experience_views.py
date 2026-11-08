@@ -234,6 +234,11 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         return {
             "primary_label": labels.get(item.get("kind"), "Voir la suite"),
             "id": item.get("id"),
+            "kind": item.get("kind"),
+            "composition": [
+                fact.get("label") for fact in item.get("composition") or []
+                if isinstance(fact, dict) and isinstance(fact.get("label"), str)
+            ],
             "title": item.get("human_context") or item.get("title") or "",
             "summary": item.get("synthesis") or item.get("summary") or "",
             "tone": n1.get("tone") or "calm",
