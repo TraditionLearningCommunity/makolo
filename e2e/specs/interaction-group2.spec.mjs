@@ -158,3 +158,33 @@ test('Group 2 account switching uses shared inverse actions and external composi
   await expect(form).toHaveAttribute('method', 'post');
   await expect(form.locator('input[name="csrfmiddlewaretoken"]')).toHaveCount(1);
 });
+
+
+test('Group 2 auxiliary Groups and Tickets reuse shared actions and preserve owner routes', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  for (const path of ['/groups/', '/tickets/']) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBeLessThan(500);
+    await expect(page.locator('head link[href*="makolo-interactions.css"]')).toHaveCount(1);
+    await expect(page.locator('main, [role="main"]').first()).toBeVisible();
+  }
+  await page.goto('/groups/');
+  const create = page.getByRole('link', { name: 'Créer un Groupe' });
+  await expect(create).toHaveClass(/mk-action-button/);
+  await expect(create).toHaveAttribute('data-variant', 'primary');
+});
+
+test('Group 2 private Passport history composes shared controls without exposing revocation actions', async ({ page }) => {
+  await login(page, 'participant@e2e.makolo.test');
+  const response = await page.goto('/passport/me/history/');
+  expect(response?.status()).toBeLessThan(500);
+  await expect(page.locator('head link[href*="makolo-interactions.css"]')).toHaveCount(1);
+  const revocations = page.getByRole('button', { name: /Révoquer/ });
+  for (const button of await revocations.all()) {
+    await expect(button).toHaveClass(/mk-action-button/);
+    await expect(button).toHaveAttribute('data-variant', 'danger');
+    const form = button.locator('xpath=ancestor::form[1]');
+    await expect(form).toHaveAttribute('method', 'post');
+    await expect(form.locator('input[name="csrfmiddlewaretoken"]')).toHaveCount(1);
+  }
+});
