@@ -572,7 +572,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                           if (_loadFailed)
                             Center(
-                              child: TextButton(
+                              child: MakoloActionButton(
+                                label: 'Réessayer',
+                                appearance: MakoloActionAppearance.quiet,
                                 onPressed: () {
                                   setState(() {
                                     _loadFailed = false;
@@ -584,7 +586,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     unawaited(_remoteSearch(more: true));
                                   }
                                 },
-                                child: const Text('Réessayer'),
                               ),
                             ),
                           if (!_loadFailed &&
