@@ -90,6 +90,7 @@ class DomainEventType:
     DOSSIER_ASSIGNMENT_REMOVED = "dossier.assignment_removed"
 
     PROJECT_CREATED = "project.created"
+    PROJECT_UPDATED = "project.updated"
     PROJECT_LIFECYCLE_CHANGED = "project.lifecycle_changed"
     PROJECT_DOSSIER_LINKED = "project.dossier_linked"
     PROJECT_DOSSIER_UNLINKED = "project.dossier_unlinked"
