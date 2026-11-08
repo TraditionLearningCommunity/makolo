@@ -10,6 +10,8 @@ Les composants réutilisables sont définis **une seule fois par interface**. Le
 
 Une page garde uniquement sa composition : hiérarchie des informations, grille ou rail, taille des médias, présentation de sa verticale et disposition de ses actions. Le sens et l'apparence des actions courantes ne sont pas redéfinis par page.
 
+Les shells `templates/base/app.html` (**personnes connectées**) et `templates/base/public.html` (**visiteurs**, notamment Découvrir) chargent le même socle CSS/JS F1–F2. Sans cela la recherche publique conserverait des boutons sans style.
+
 Le Web dispose des variantes partagées `mk-action-button` (`primary`, `secondary`, `ghost`, `danger`, `link`) et du `mk-disclosure-trigger`. Flutter ajoute `mobile/lib/design/action_controls.dart` : `MakoloActionButton` (`primary`, `secondary`, `quiet`) et `MakoloIconActionButton` (cible minimale de 48 dp et tooltip requis). Ces contrôles s'appuient sur le `ThemeData` et les tokens existants ; ils ne résolvent pas les permissions.
 
 ## 2. Inventaire et adoption des cinq pages
@@ -54,7 +56,7 @@ Les actions comportant un composant spécialisé (`DiscoveryOrbitIcon`, share co
 ### Tests ajoutés
 
 - `mobile/test/action_controls_test.dart` : boutons primary/quiet/secondary, cible 48 dp, action désactivée, absence de double soumission en attente, tooltip obligatoire.
-- `e2e/specs/interaction-group1.spec.mjs` : cinq routes principales, chargement global CSS/JS F1/F2, recherche Découvrir toujours GET et propriétaire, CTA et liens communs, formulaires Now toujours natifs, actions Moi et Mark, cible tactile compacte.
+- `e2e/specs/interaction-group1.spec.mjs` : cinq routes principales et Découvrir visiteur, chargement CSS/JS F1/F2 dans les deux shells, recherche Découvrir toujours GET et propriétaire, CTA et liens communs, formulaires Now toujours natifs, actions Moi et Mark, cible tactile compacte.
 
 ### Tests existants obligatoires
 
