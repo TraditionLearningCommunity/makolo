@@ -190,7 +190,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       }
       return;
     }
-    if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api) {
+    if (!mounted ||
+        !_sameSubject(sourceRuntime, profileId) ||
+        widget.runtime.api != api) {
       return;
     }
     setState(() => _busy = false);
@@ -377,6 +379,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                       Navigator.pop(sheetContext);
                                     }
                                     if (paymentId.isNotEmpty &&
+                                        mounted &&
                                         _sameSubject(
                                           sourceRuntime,
                                           profileId,
