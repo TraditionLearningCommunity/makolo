@@ -1,12 +1,12 @@
 {% extends 'base/app.html' %}
 {% load static %}
 {% block title %}Ce qui compte pour moi | Makolo{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
 <main class="mk-me-n1 mk-me-choices" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
   <header class="mk-me-n1-identity">
     <div class="mk-me-n1-person">
-      <a class="mk-me-n1-heading-link" href="{% url 'core:participant-me' %}">‹ Moi</a>
+      <a class="mk-me-n1-heading-link mk-action-button" data-variant="link" href="{% url 'core:participant-me' %}">‹ Moi</a>
       <h1>Ce qui compte pour moi</h1>
     </div>
   </header>
@@ -15,7 +15,7 @@
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◇</span>
         <h2>Mes intérêts</h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'account:interests' %}">Modifier</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="link" href="{% url 'account:interests' %}">Modifier</a>
       </div>
       <div class="mk-me-n1-panel">
         {% if choices.interests.items %}
@@ -25,14 +25,14 @@
             {% endfor %}
           </div>
         {% else %}<p class="mk-me-n1-empty">Aucun intérêt pour le moment.</p>{% endif %}
-        <a class="mk-me-n1-see-all" href="{% url 'account:interests' %}">Ajouter ou retirer des intérêts ›</a>
+        <a class="mk-me-n1-see-all mk-action-button" data-variant="link" href="{% url 'account:interests' %}">Ajouter ou retirer des intérêts ›</a>
       </div>
     </section>
     <section class="mk-me-n1-section">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">✦</span>
         <h2>Ouvert à</h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'account:open-to' %}">Modifier</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="link" href="{% url 'account:open-to' %}">Modifier</a>
       </div>
       <div class="mk-me-n1-panel">
         {% if choices.open_to.items %}
@@ -40,14 +40,14 @@
             {% for row in choices.open_to.items %}<span>{{ row.label }}</span>{% endfor %}
           </div>
         {% else %}<p class="mk-me-n1-empty">Aucune ouverture déclarée.</p>{% endif %}
-        <a class="mk-me-n1-see-all" href="{% url 'account:open-to' %}">Ajouter ou retirer des ouvertures ›</a>
+        <a class="mk-me-n1-see-all mk-action-button" data-variant="link" href="{% url 'account:open-to' %}">Ajouter ou retirer des ouvertures ›</a>
       </div>
     </section>
     <section class="mk-me-n1-section">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◎</span>
         <h2>Mes veilles</h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'discovery:watch-list' %}">Voir tout</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="link" href="{% url 'discovery:watch-list' %}">Voir tout</a>
       </div>
       <div class="mk-me-n1-panel">
         {% if choices.watches.items %}
@@ -57,14 +57,14 @@
             </a>
           {% endfor %}
         {% else %}<p class="mk-me-n1-empty">Aucune veille pour le moment.</p>{% endif %}
-        <a class="mk-me-n1-see-all" href="{% url 'discovery:watch-list' %}">Gérer mes veilles ›</a>
+        <a class="mk-me-n1-see-all mk-action-button" data-variant="link" href="{% url 'discovery:watch-list' %}">Gérer mes veilles ›</a>
       </div>
     </section>
     <section class="mk-me-n1-section">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◉</span>
         <h2>Mes enregistrements</h2>
-        <a class="mk-me-n1-heading-link" href="{% url 'discovery:bookmarks' %}">Voir tout</a>
+        <a class="mk-me-n1-heading-link mk-action-button" data-variant="link" href="{% url 'discovery:bookmarks' %}">Voir tout</a>
       </div>
       <div class="mk-me-n1-panel">
         {% if choices.bookmarks.items %}
@@ -77,7 +77,7 @@
             {% endfor %}
           </div>
         {% else %}<p class="mk-me-n1-empty">Rien d'enregistré.</p>{% endif %}
-        <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ choices.bookmarks.count }} enregistrements ›</a>
+        <a class="mk-me-n1-see-all mk-action-button" data-variant="link" href="{% url 'discovery:bookmarks' %}">Voir les {{ choices.bookmarks.count }} enregistrements ›</a>
       </div>
     </section>
     <section class="mk-me-n1-section">
