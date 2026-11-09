@@ -64,6 +64,7 @@ import '../features/space/space_work_offer_editor_screen.dart';
 import '../features/space/space_transport_create_screen.dart';
 import '../features/space/space_transport_departure_operations_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
+import '../features/occurrence/occurrence_scanner_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
 import '../notifications/notification_routes.dart';
@@ -768,6 +769,9 @@ GoRouter createMakoloRouter(
             live: false,
             onOpenLive: () => context.push(
               '/space/occurrences/${state.pathParameters['id']}/live',
+            ),
+            onOpenScanner: () => context.push(
+              '/space/occurrences/${state.pathParameters['id']}/scanner',
             ),
             onOpenAccess: (accessId, detailPath) =>
                 context.push('/accesses/$accessId'),
