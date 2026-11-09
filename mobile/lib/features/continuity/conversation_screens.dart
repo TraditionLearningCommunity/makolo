@@ -1588,6 +1588,26 @@ class _PointCardState extends State<_PointCard> {
   String? _clientReference;
   Object? _lastValue;
   final Set<String> _choices = {};
+  String _resolutionDraft = '';
+  final Set<String> _resolutionSelections = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _choices.addAll(widget.point.mySelectedOptions);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PointCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.point.id != widget.point.id ||
+        oldWidget.point.myResponse['submitted_at'] !=
+            widget.point.myResponse['submitted_at']) {
+      _choices
+        ..clear()
+        ..addAll(widget.point.mySelectedOptions);
+    }
+  }
 
   String _referenceFor(Object? value) {
     if (_lastValue.toString() != value.toString()) {
@@ -1610,6 +1630,7 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         pointId: widget.point.id,
       );
+      if (mounted) setState(() => _feedback = 'Prise de connaissance enregistrée.');
     } on Object {
       try {
         await widget.repository.refreshDetail(widget.conversationId);
@@ -1639,7 +1660,7 @@ class _PointCardState extends State<_PointCard> {
         representedSpaceId: widget.representedSpaceId,
       );
       _clientReference = null;
-      if (mounted) setState(() => _choices.clear());
+      if (mounted) setState(() => _feedback = 'Réponse enregistrée.');
     } on Object {
       try {
         await widget.repository.refreshDetail(widget.conversationId);
@@ -1653,6 +1674,159 @@ class _PointCardState extends State<_PointCard> {
       }
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _closeResponses() async {
+    if (_busy) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clore les réponses ?'),
+        content: const Text(
+          'Les personnes ne pourront plus répondre à ce Point. '
+          'Cette action ne modifie aucune autre donnée métier.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Clore'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || approved != true) return;
+    setState(() { _busy = true; _feedback = null; });
+    try {
+      await widget.repository.closePointResponses(
+        conversationId: widget.conversationId,
+        pointId: widget.point.id,
+      );
+      if (mounted) setState(() => _feedback = 'Réponses closes.');
+    } on Object {
+      try {
+        await widget.repository.refreshDetail(widget.conversationId);
+      } on Object {
+        // The authoritative state may have changed concurrently.
+      }
+      if (mounted) {
+        setState(() => _feedback =
+            'Ce Point a pu changer. Clôture non confirmée : vérifiez son état.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resolvePoint() async {
+    if (_busy) return;
+    final controller = TextEditingController(text: _resolutionDraft);
+    final selected = Set<String>.from(_resolutionSelections);
+    try {
+      final answer = await showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, refreshDialog) => AlertDialog(
+            title: const Text('Résultat de coordination'),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Décrivez ce qui a été décidé. La résolution ne change '
+                      'aucun statut de paiement, d’accès ou de démarche.',
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    TextField(
+                      controller: controller,
+                      maxLength: 500,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Conclusion retenue',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => refreshDialog(() {}),
+                    ),
+                    if (widget.point.kind == 'poll') ...[
+                      const Text('Choix retenus (facultatif)'),
+                      for (final option in widget.point.options)
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(option.label),
+                          value: selected.contains(option.id),
+                          onChanged: (checked) => refreshDialog(() {
+                            if (checked == true) {
+                              selected.add(option.id);
+                            } else {
+                              selected.remove(option.id);
+                            }
+                          }),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: controller.text.trim().isEmpty
+                    ? null
+                    : () => Navigator.of(dialogContext).pop({
+                        'summary': controller.text.trim(),
+                        'options': selected.toList(),
+                      }),
+                child: const Text('Enregistrer le résultat'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || answer == null) return;
+      _resolutionDraft = answer['summary'] as String;
+      _resolutionSelections
+        ..clear()
+        ..addAll((answer['options'] as List).cast<String>());
+      setState(() { _busy = true; _feedback = null; });
+      try {
+        await widget.repository.resolvePoint(
+          conversationId: widget.conversationId,
+          pointId: widget.point.id,
+          summary: _resolutionDraft,
+          selectedOptionIds: _resolutionSelections.toList(),
+        );
+        _resolutionDraft = '';
+        _resolutionSelections.clear();
+        if (mounted) {
+          setState(() => _feedback = 'Résultat de coordination enregistré.');
+        }
+      } on Object {
+        try {
+          await widget.repository.refreshDetail(widget.conversationId);
+        } on Object {
+          // Preserve the resolution draft for an explicit retry.
+        }
+        if (mounted) {
+          setState(() => _feedback =
+              'Résolution non confirmée. Votre texte est conservé ici.');
+        }
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    } finally {
+      controller.dispose();
     }
   }
 
