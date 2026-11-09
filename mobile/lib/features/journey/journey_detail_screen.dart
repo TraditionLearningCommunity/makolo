@@ -597,6 +597,24 @@ class _JourneyContent extends StatelessWidget {
             ),
           ),
         ],
+        if (presentation.practical?.hasContent == true) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          MakoloSection(
+            title: 'À retenir',
+            child: _JourneyPracticalCard(facts: presentation.practical!),
+          ),
+        ],
+        if (presentation.payment != null) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          MakoloSection(
+            title: 'Paiement',
+            child: _JourneyPaymentCard(
+              payment: presentation.payment!,
+              onOpenPaymentObligation: onOpenPaymentObligation,
+              onOpenCommerceOrder: onOpenCommerceOrder,
+            ),
+          ),
+        ],
         if (presentation.activity != null ||
             presentation.occurrence != null) ...[
           const SizedBox(height: MakoloSpacing.xl),
@@ -607,6 +625,7 @@ class _JourneyContent extends StatelessWidget {
                 if (presentation.activity != null)
                   _ReferenceCard(
                     reference: presentation.activity!,
+                    contextLabel: 'Activité',
                     onTap: presentation.activity!.link == null
                         ? null
                         : () => onOpenActivity(presentation.activity!),
@@ -617,6 +636,7 @@ class _JourneyContent extends StatelessWidget {
                 if (presentation.occurrence != null)
                   _ReferenceCard(
                     reference: presentation.occurrence!,
+                    contextLabel: 'Occurrence',
                     onTap: presentation.occurrence!.link == null
                         ? null
                         : () => onOpenOccurrence(presentation.occurrence!),
@@ -1078,21 +1098,21 @@ class _FormCard extends StatelessWidget {
     ];
     return MakoloCard(
       semanticLabel: 'Formulaire',
-      onTap: form.canComplete && form.detailLink.isNotEmpty
-          ? () => onOpen(form)
-          : null,
+      onTap: form.detailLink.isNotEmpty ? () => onOpen(form) : null,
       child: MakoloStatusMetadataAction(
-        title: 'Formulaire',
+        title: form.title,
         subtitle: form.canComplete
-            ? 'Une réponse est attendue.'
-            : 'Formulaire en lecture seule.',
+            ? 'À compléter'
+            : form.state == 'completed'
+            ? 'Terminé'
+            : null,
         status: MakoloHumanization.presentationLabel(form.state) == null
             ? null
             : MakoloStatus(
                 label: MakoloHumanization.presentationLabel(form.state)!,
               ),
         metadata: metadata,
-        action: form.canComplete && form.detailLink.isNotEmpty
+        action: form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
             : null,
       ),
@@ -1101,17 +1121,25 @@ class _FormCard extends StatelessWidget {
 }
 
 class _ReferenceCard extends StatelessWidget {
-  const _ReferenceCard({required this.reference, this.onTap});
+  const _ReferenceCard({
+    required this.reference,
+    this.onTap,
+    this.contextLabel,
+  });
 
   final JourneyReference reference;
   final VoidCallback? onTap;
+  final String? contextLabel;
 
   @override
   Widget build(BuildContext context) {
     return MakoloCard(
       onTap: onTap,
       child: MakoloStatusMetadataAction(
-        title: reference.label,
+        title: contextLabel ?? reference.label,
+        subtitle: contextLabel == null
+            ? (reference.isRequired ? 'Obligatoire' : null)
+            : reference.label,
         status: MakoloHumanization.presentationLabel(reference.state) == null
             ? null
             : MakoloStatus(
