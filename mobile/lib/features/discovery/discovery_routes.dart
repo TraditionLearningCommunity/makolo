@@ -175,21 +175,22 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'Ce détail n’est pas disponible sur cet appareil.',
         );
       }
-      // Stage 02 never falls back to personal N3 for a Space possibility.
-      // The shared Space N3 admission/handoff is handled in stage 03.
-      if (state.uri.queryParameters['context'] == 'space') {
+      final actorQuery = _routeQuery(state.uri.queryParameters, runtime);
+      if (actorQuery == null) {
         return const MakoloSecondaryScreen(
           title: 'Possibilité',
-          message: 'Ce détail n’est pas encore disponible dans cet Espace.',
+          message: 'Ce contexte de découverte n’est plus accessible.',
         );
       }
       return DiscoveryItemDetailScreen(
         key: ValueKey(
-          'discover-n2-${state.pathParameters['family']}-${state.pathParameters['id']}',
+          'discover-n3-${actorQuery.spaceId ?? 'personal'}-'
+          '${state.pathParameters['family']}-${state.pathParameters['id']}',
         ),
         family: state.pathParameters['family']!,
         id: state.pathParameters['id']!,
         repository: discovery,
+        actorQuery: actorQuery,
         authenticated: runtime.isAuthenticated,
       );
     },
