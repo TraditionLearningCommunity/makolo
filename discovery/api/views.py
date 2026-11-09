@@ -182,18 +182,26 @@ class DiscoveryItemDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
 
     def get(self, request, family, item_id):
         _reject_profile_override(request)
+        space = _exploration_space(request)
         projection = detail_projection(
             family,
             item_id,
             profile=request.user,
+            space=space,
         )
         if projection is None:
             raise NotFound("Possibilité introuvable.")
+        payload = {"item": projection}
+        if space is not None:
+            payload.update({
+                "actor": {"type": "space", "id": str(space.pk)},
+                "viewer": {"type": "profile", "id": str(request.user.pk)},
+            })
         return Response(
             projection_envelope(
                 projection="discovery.item",
-                scope=_scope_for(request),
-                data={"item": projection},
+                scope=_scope_for(request, space=space),
+                data=payload,
             )
         )
 
