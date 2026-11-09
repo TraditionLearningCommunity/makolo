@@ -141,6 +141,10 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         self.assertEqual(data["count"], 1)
         self.assertEqual(data["items"][0]["id"], str(self.proof.pk))
         self.assertIn("verify", data["items"][0]["links"])
+        self.assertEqual(
+            data["items"][0]["links"]["passport"],
+            reverse("personal-projections:passport"),
+        )
 
         revoked = self.client.get(
             reverse("personal-projections:proofs"),
@@ -148,6 +152,7 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         ).json()["data"]
         self.assertEqual(revoked["count"], 1)
         self.assertNotIn("verify", revoked["items"][0]["links"])
+        self.assertNotIn("passport", revoked["items"][0]["links"])
 
     def test_proof_detail_is_private_and_preserves_revocation_reason(self):
         response = self.client.get(
@@ -190,6 +195,10 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         self.assertEqual(item["title"], "Certificat Makolo")
         self.assertEqual(item["issuer"]["name"], "Institut Makolo")
         self.assertIn("verify", item["links"])
+        self.assertEqual(
+            item["links"]["passport"],
+            reverse("personal-projections:passport"),
+        )
 
     def test_title_detail_is_private_and_keeps_statement_and_revocation(self):
         response = self.client.get(
@@ -266,6 +275,7 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         )
         self.assertEqual(private_proof.status_code, 200)
         self.assertNotContains(private_proof, "data-makolo-share")
+        self.assertNotContains(private_proof, "Ouvrir mon Passeport")
 
         credential = self.client.get(
             reverse("trust:credential-detail", args=[self.credential.pk])
