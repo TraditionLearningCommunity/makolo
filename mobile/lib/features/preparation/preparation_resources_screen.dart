@@ -222,11 +222,12 @@ class _PreparationResourcesScreenState
           mimeType: resource.mimeType,
         );
       }
-      if (local == null) return;
+      final localPath = local?.path;
+      if (localPath == null) return;
       if (!_sameOwner(revision, repository, id)) return;
-      setState(() => _downloaded[resource.id] = local.path);
+      setState(() => _downloaded[resource.id] = localPath);
       await widget.onOpenDownloadedFile?.call(
-        local.path,
+        localPath,
         resource.mimeType,
         resource.title,
       );
