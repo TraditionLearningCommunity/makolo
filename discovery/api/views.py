@@ -67,6 +67,9 @@ def _exploration_space(request):
     slug = request.query_params.get("space")
     if context not in (None, "", "space", "personal", "public"):
         raise ValidationError({"context": ["Contexte Découvrir invalide."]})
+    if context == "personal" and not getattr(request.user, "is_authenticated", False):
+        from rest_framework.exceptions import NotAuthenticated
+        raise NotAuthenticated()
     if context == "public" and getattr(request.user, "is_authenticated", False):
         raise ValidationError({"context": ["Le contexte public ne remplace pas un Profil authentifié."]})
     if context != "space":
@@ -254,7 +257,7 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
         if request.query_params.get("spatial") == "1":
             if request.query_params.get("details") == "1":
                 return Response(spatial_discovery_projection(
-                    composition.rows, profile=candidate_profile
+                    composition.rows, profile=candidate_profile, space=space
                 ))
             # Compatibility path for existing Map consumers.
             return Response(spatial_index_from_rows(composition.rows))
