@@ -194,28 +194,31 @@
         {% if me_projection.resources.documents.items %}
           <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="documents" data-me-loaded="{{ me_projection.resources.documents.items|length }}" data-me-more="{{ me_projection.resources.documents.has_more|yesno:'true,false' }}">Documents <span>{{ me_projection.resources.documents.count }}</span></h3>
           {% for row in me_projection.resources.documents.items %}
-            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+            <a data-me-id="{{ row.id }}" class="mk-me-n1-person-row" href="{% url 'personal_assets:detail' row.id %}">
               <span class="mk-me-n1-document-icon" aria-hidden="true">▤</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.asset_kind_label }}</small></span>
-            </div>
+              <span aria-hidden="true">›</span>
+            </a>
           {% endfor %}
         {% endif %}
         {% if me_projection.resources.proofs.items %}
           <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="proofs" data-me-loaded="{{ me_projection.resources.proofs.items|length }}" data-me-more="{{ me_projection.resources.proofs.has_more|yesno:'true,false' }}">Preuves <span>{{ me_projection.resources.proofs.count }}</span></h3>
           {% for row in me_projection.resources.proofs.items %}
-            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+            <a data-me-id="{{ row.id }}" class="mk-me-n1-person-row" href="{% url 'trust:proof-detail' row.id %}">
               <span class="mk-me-n1-document-icon" aria-hidden="true">✓</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.proof_type_label }}</strong><small>{{ row.status_label }}</small></span>
-            </div>
+              <span aria-hidden="true">›</span>
+            </a>
           {% endfor %}
         {% endif %}
         {% if me_projection.resources.credentials.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="credentials" data-me-loaded="{{ me_projection.resources.credentials.items|length }}" data-me-more="{{ me_projection.resources.credentials.has_more|yesno:'true,false' }}">Attestations <span>{{ me_projection.resources.credentials.count }}</span></h3>
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="credentials" data-me-loaded="{{ me_projection.resources.credentials.items|length }}" data-me-more="{{ me_projection.resources.credentials.has_more|yesno:'true,false' }}">Titres <span>{{ me_projection.resources.credentials.count }}</span></h3>
           {% for row in me_projection.resources.credentials.items %}
-            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+            <a data-me-id="{{ row.id }}" class="mk-me-n1-person-row" href="{% url 'trust:credential-detail' row.id %}">
               <span class="mk-me-n1-document-icon" aria-hidden="true">✧</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.credential_type_label }}{% if row.status_label %} · {{ row.status_label }}{% endif %}</small></span>
-            </div>
+              <span aria-hidden="true">›</span>
+            </a>
           {% endfor %}
         {% endif %}
         {% if not me_projection.resources.documents.items and not me_projection.resources.proofs.items and not me_projection.resources.credentials.items %}
