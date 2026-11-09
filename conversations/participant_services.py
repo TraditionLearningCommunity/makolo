@@ -158,6 +158,13 @@ def search_invitation_candidates(*, actor, conversation, query, limit=18):
         public_name = (user.full_name or "").strip() if (
             user.profile.public_profile and visibility.field("name")
         ) else ""
+        # A private name must not act as a reverse lookup to the username.
+        # Only a visible name can justify a name-only suggestion.
+        username_matches = text.casefold() in user.username.casefold()
+        if not username_matches and (
+            not public_name or text.casefold() not in public_name.casefold()
+        ):
+            continue
         found.append({
             "kind": "profile", "identifier": user.username,
             "label": public_name or "Profil Makolo",
