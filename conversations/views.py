@@ -21,7 +21,10 @@ from .services import ensure_context_conversation
 from .core_models import ConversationContext, ConversationContextKind
 from organizations.models import Organization
 from .point_models import ConversationPoint, ConversationPointResponseMode
-from .point_services import acknowledge_point, create_exchange_entry, submit_point_response
+from .point_services import (
+    acknowledge_point, close_point_responses, create_exchange_entry,
+    point_visible_to, resolve_point, submit_point_response,
+)
 from .history import page_points_for_profile
 from .presentation import (
     catch_up_summary,
@@ -552,6 +555,48 @@ class PointAcknowledgeView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, str(exc))
         return redirect("conversations:detail", pk=point.conversation_id)
+
+
+class PointCloseResponsesView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, point_pk):
+        point = get_object_or_404(ConversationPoint.objects.select_related("conversation"), pk=point_pk)
+        if not point_visible_to(request.user, point):
+            raise Http404("Point inaccessible.")
+        try:
+            close_point_responses(actor=request.user, point=point)
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Les réponses ont été closes.")
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': point.conversation_id})}"
+            f"?focus={point.pk}#point-{point.pk}"
+        )
+
+
+class PointResolveView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, point_pk):
+        point = get_object_or_404(ConversationPoint.objects.select_related("conversation"), pk=point_pk)
+        if not point_visible_to(request.user, point):
+            raise Http404("Point inaccessible.")
+        try:
+            resolve_point(
+                actor=request.user, point=point,
+                summary=request.POST.get("summary", ""),
+                selected_option_ids=request.POST.getlist("selected_option_ids"),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        else:
+            messages.success(request, "Le résultat de coordination est enregistré.")
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': point.conversation_id})}"
+            f"?focus={point.pk}#point-{point.pk}"
+        )
 
 
 class PointExchangeView(LoginRequiredMixin, View):
