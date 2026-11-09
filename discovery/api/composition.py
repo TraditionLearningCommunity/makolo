@@ -102,13 +102,13 @@ def _continuation_context(params, *, profile=None, space=None) -> str:
         criteria = {
             key: sorted(str(value) for value in values)
             for key, values in params.lists()
-            if key not in {"page", "continuation", "include_spatial_index"}
+            if key not in {"page", "continuation", "include_spatial_index", "_correction"}
         }
     else:
         criteria = {
             str(key): [str(value)]
             for key, value in params.items()
-            if key not in {"page", "continuation", "include_spatial_index"}
+            if key not in {"page", "continuation", "include_spatial_index", "_correction"}
         }
     viewer = (
         str(profile.pk)
