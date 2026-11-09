@@ -106,10 +106,20 @@ class ConversationMediaGroup extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ),
-          if (visual.length == 1)
+          if (visual.length == 1 && attachments[visual.single]['kind'] == 'image')
             SizedBox(
               height: 206,
               child: visualTile(visual.single),
+            ),
+          if (visual.length == 1 && attachments[visual.single]['kind'] == 'video')
+            ConversationPointMediaTile(
+              attachment: attachments[visual.single],
+              onOpen: () => _open(context, visual.single),
+              preview: ConversationAttachmentViewer(
+                repository: repository,
+                attachment: attachments[visual.single],
+                inline: true,
+              ),
             ),
           if (visual.length > 1)
             SizedBox(
