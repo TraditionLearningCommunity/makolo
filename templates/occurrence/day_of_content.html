@@ -14,6 +14,16 @@
     </div>
   </header>
 
+  {% if projection.live.available and projection.knowledge.facts %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-live-synopsis">
+    <p class="mk-kicker">Suivi disponible · Couverture {{ projection.knowledge.coverage.state }}</p>
+    <h3 id="day-of-live-synopsis" class="mt-2 text-lg font-bold">{{ projection.knowledge.facts.0.label }}</h3>
+    <p class="mt-2 text-sm">{{ projection.knowledge.facts.0.value }}</p>
+    <p class="mt-2 text-xs" style="color:var(--mk-muted)">Source : {{ projection.knowledge.facts.0.source }} · Fait {{ projection.knowledge.facts.0.truth }}</p>
+    <a class="mk-action-button mt-3" data-variant="secondary" href="{{ live_url }}">Voir les faits Live</a>
+  </section>
+  {% endif %}
+
   {% if projection.actions %}
   <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-actions">
     <p class="mk-kicker">Mes actions utiles</p>
