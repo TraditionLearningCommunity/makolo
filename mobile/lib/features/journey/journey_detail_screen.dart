@@ -803,6 +803,44 @@ class _JourneyContent extends StatelessWidget {
   }
 }
 
+/// Terminal labels are solely the owner Journey state, never an invented
+/// success or a percentage computed from unrelated capabilities.
+class _JourneyOutcomeCard extends StatelessWidget {
+  const _JourneyOutcomeCard({required this.presentation});
+
+  final JourneyDetailPresentation presentation;
+
+  @override
+  Widget build(BuildContext context) {
+    final outcome = switch (presentation.stateCode) {
+      'fulfilled' => ('Démarche réalisée', Icons.check_circle_outline_rounded),
+      'rejected' => ('Demande refusée', Icons.info_outline_rounded),
+      'cancelled' => ('Démarche annulée', Icons.cancel_outlined),
+      'expired' => ('Démarche expirée', Icons.event_busy_outlined),
+      _ => ('Démarche', Icons.route_outlined),
+    };
+    return MakoloCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(outcome.$2, size: 28, color: const Color(0xFF5232DB)),
+          const SizedBox(width: MakoloSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(outcome.$1, style: Theme.of(context).textTheme.titleMedium),
+                if (presentation.journeyState.trim().isNotEmpty)
+                  Text(presentation.journeyState),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Only the owner projection stored in ProfileStore feeds this header.
 class _JourneyIdentity extends StatelessWidget {
   const _JourneyIdentity({required this.presentation});
@@ -987,7 +1025,7 @@ class _JourneyStepRow extends StatelessWidget {
       'in_progress' => 'En cours',
       'blocked' => 'Bloquée',
       'ready' => 'Prête',
-      'pending' => 'À venir',
+      'pending' => 'En attente',
       _ => null,
     };
     final icon = switch (step.status) {
