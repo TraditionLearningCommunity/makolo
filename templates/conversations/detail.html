@@ -50,54 +50,30 @@
     </section>
   {% endif %}
 
-  {% if essential_points %}
-    <section class="mb-8" aria-labelledby="essential-heading">
-      <h2 id="essential-heading" class="mb-3 text-lg font-extrabold">L’essentiel</h2>
-      <div class="space-y-3">
-        {% for point in essential_points %}
-          {% include 'conversations/_point.html' with point=point %}
-        {% endfor %}
+  <section id="conversation-points" class="mb-8" aria-labelledby="conversation-timeline-heading">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 id="conversation-timeline-heading" class="text-lg font-extrabold">Conversation</h2>
+        <p class="mt-1 text-xs" style="color:var(--mk-muted)">Fil chronologique · les plus anciens en haut, les plus récents en bas. Les Points terminés sont repliables à leur place.</p>
       </div>
-    </section>
-  {% endif %}
-
-  <div id="conversation-points">
-    {% if my_points %}
-      <section class="mb-8" aria-labelledby="mine-heading">
-        <h2 id="mine-heading" class="mb-3 text-lg font-extrabold">À vous</h2>
-        <div class="space-y-3">
-          {% for row in my_points %}
-            {% include 'conversations/_point.html' with point=row.point reason=row.reason %}
-          {% endfor %}
-        </div>
-      </section>
+      <a href="#conversation-compose" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
+    </div>
+    {% if timeline_older_query %}
+      <a class="mb-5 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)" href="{% url 'conversations:history' conversation.pk %}?{{ timeline_older_query }}">Voir les Points précédents</a>
     {% endif %}
-
-    {% if elsewhere_points %}
-      <section class="mb-8" aria-labelledby="elsewhere-heading">
-        <h2 id="elsewhere-heading" class="mb-3 text-lg font-extrabold">En cours ailleurs</h2>
-        <div class="space-y-3">
-          {% for point in elsewhere_points %}
-            {% include 'conversations/_point.html' with point=point %}
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-
-    {% if known_points %}
-      <section class="mb-8" aria-labelledby="known-heading">
-        <h2 id="known-heading" class="mb-3 text-lg font-extrabold">À savoir</h2>
-        <div class="space-y-3">
-          {% for row in known_points %}
-            {% include 'conversations/_point.html' with point=row.point reason=row.reason %}
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-    {% if not my_points and not elsewhere_points and not known_points and not essential_points and not focused_point %}
-      <p class="mb-7 text-sm font-semibold" style="color:var(--mk-muted)">Tout est en ordre. ✓</p>
-    {% endif %}
-  </div>
+    <div class="space-y-3">
+      {% for group in timeline_groups %}
+        {% ifchanged group.day %}
+          <p class="pt-3 text-center text-xs font-semibold" style="color:var(--mk-muted)">
+            {% if group.day %}{{ group.day|date:'d F Y' }}{% else %}Date inconnue{% endif %}
+          </p>
+        {% endifchanged %}
+        {% include 'conversations/_timeline_group.html' with group=group %}
+      {% empty %}
+        <p class="rounded-xl border p-4 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucun Point accessible pour le moment.</p>
+      {% endfor %}
+    </div>
+  </section>
 
   {% if composer.text_mode or composer.can_create or composer.can_form or composer.media_kinds %}
     {% include 'conversations/_composer.html' %}
