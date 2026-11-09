@@ -451,6 +451,10 @@ def maybe_auto_resolve(*, point, allow_open=False):
 @transaction.atomic
 def resolve_point(*, actor, point, summary, selected_option_ids=(), result_payload=None, method=ConversationPointResolutionMethod.MANUAL):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "resolution_audience").get(pk=point.pk)
+    if not can_manage_conversation(actor, locked.conversation):
+        raise PermissionDenied("La résolution exige l'autorité de gestion de la Conversation.")
+    if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
+        raise PermissionDenied("Vous ne faites pas partie de l'audience de résolution.")
     if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
         return locked.resolution
     if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
