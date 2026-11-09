@@ -441,8 +441,56 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
   }
 }
 
+class _HistoricalCompletedGroup extends StatelessWidget {
+  const _HistoricalCompletedGroup({
+    super.key,
+    required this.rows,
+    required this.onOpenPoint,
+  });
+
+  final List<Map<String, dynamic>> rows;
+  final ValueChanged<String> onOpenPoint;
+
+  @override
+  Widget build(BuildContext context) {
+    final latest = rows.last;
+    final summary = latest['timeline_summary']?.toString() ?? '';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        key: PageStorageKey<String>(
+          'history-expand-${rows.first['id']}-${rows.last['id']}',
+        ),
+        leading: const Icon(Icons.task_alt_rounded),
+        title: Text(
+          rows.length == 1 ? 'Point terminé' : '${rows.length} Points terminés',
+        ),
+        subtitle: Text(
+          summary.isEmpty ? 'Résultats accessibles' : summary,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        childrenPadding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          for (final row in rows)
+            _HistoricalPointRow(
+              key: ValueKey('history-expanded-${row['id']}'),
+              row: row,
+              onOpenRelated: onOpenPoint,
+              onOpen: () {
+                final id = row['id']?.toString();
+                if (id != null && id.isNotEmpty) onOpenPoint(id);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HistoricalPointRow extends StatelessWidget {
   const _HistoricalPointRow({
+    super.key,
     required this.row,
     required this.onOpen,
     required this.onOpenRelated,
@@ -475,6 +523,10 @@ class _HistoricalPointRow extends StatelessWidget {
     final resolution = row['resolution_summary']?.toString() ?? '';
     final subtitle = row['body']?.toString() ?? '';
     final replacement = row['replaced_by_point_id']?.toString();
+    final time = DateTime.tryParse(row['published_at']?.toString() ?? '')
+        ?.toLocal();
+    final author = row['author'];
+    final mine = author is Map && author['is_mine'] == true;
     return Semantics(
       button: true,
       label: [
@@ -526,6 +578,29 @@ class _HistoricalPointRow extends StatelessWidget {
                       onPressed: () => onOpenRelated(replacement),
                       icon: Icons.call_made_rounded,
                       appearance: MakoloActionAppearance.quiet,
+                    ),
+                  ),
+                if (time != null)
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          MaterialLocalizations.of(context).formatTimeOfDay(
+                            TimeOfDay.fromDateTime(time),
+                            alwaysUse24HourFormat: true,
+                          ),
+                          style: theme.textTheme.labelSmall,
+                        ),
+                        if (mine) ...[
+                          const SizedBox(width: 5),
+                          const Tooltip(
+                            message: 'Publication confirmée',
+                            child: Icon(Icons.check_rounded, size: 15),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 const Divider(height: 24),
