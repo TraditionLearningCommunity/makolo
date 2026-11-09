@@ -106,6 +106,27 @@ class PersonalLibraryMatureWebTests(TestCase):
         titles = [item["asset"].title for item in response.context["items"]]
         self.assertEqual(titles, sorted(titles))
 
+    def test_document_detail_preserves_only_its_safe_collection_return(self):
+        asset = self._asset("Document contextuel")
+        detail = reverse(
+            "personal_assets:detail",
+            kwargs={"asset_id": asset.pk},
+        )
+        expected = reverse("personal_assets:documents") + "?q=Document&sort=title"
+
+        response = self.client.get(detail, {"return": expected})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["return_url"], expected)
+
+        rejected = self.client.get(
+            detail,
+            {"return": "https://evil.example/library/documents/?q=secret"},
+        )
+        self.assertEqual(
+            rejected.context["return_url"],
+            reverse("personal_assets:documents"),
+        )
+
     def test_unknown_provenance_stays_unknown(self):
         asset = self._asset("Document sans provenance")
         response = self.client.get(
