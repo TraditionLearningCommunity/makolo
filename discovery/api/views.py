@@ -257,7 +257,10 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
         if request.query_params.get("spatial") == "1":
             if request.query_params.get("details") == "1":
                 return Response(spatial_discovery_projection(
-                    composition.rows, profile=candidate_profile, space=space
+                    composition.rows,
+                    profile=candidate_profile,
+                    space=space,
+                    viewer=request.user if space is not None else None,
                 ))
             # Compatibility path for existing Map consumers.
             return Response(spatial_index_from_rows(composition.rows))
