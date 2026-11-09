@@ -134,7 +134,7 @@ class DiscoveryContextualDetailTests(TestCase):
 
     def test_web_n3_reuses_same_detail_and_does_not_expose_personal_space_actions(self):
         journey = self._make_journey(self.viewer)
-        self.client.force_authenticate(self.viewer)
+        self.client.force_login(self.viewer)
         personal = self.client.get(self.web_url)
         self.assertEqual(personal.status_code, 200)
         self.assertContains(personal, "Reprendre ma démarche")
@@ -155,6 +155,6 @@ class DiscoveryContextualDetailTests(TestCase):
         self.assertEqual(Journey.objects.count(), 1)
 
     def test_web_space_detail_rejects_unauthorized_actor(self):
-        self.client.force_authenticate(self.outsider)
+        self.client.force_login(self.outsider)
         response = self.client.get(self.web_url + "?" + urlencode(self._space_query()))
         self.assertEqual(response.status_code, 404)
