@@ -2041,6 +2041,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                             _query,
                           )
                         : null,
+                    collectiveReadOnly: _query.isSpace,
                     allowOwnerActions:
                         !_query.isSpace &&
                         !_refreshing &&
