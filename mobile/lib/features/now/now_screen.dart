@@ -497,6 +497,7 @@ class NowView extends StatefulWidget {
 class _NowViewState extends State<NowView> {
   final ScrollController _fieldController = ScrollController();
   String? _selectedKey;
+  bool _newSituationsAvailable = false;
 
   @override
   void initState() {
@@ -522,6 +523,27 @@ class _NowViewState extends State<NowView> {
   @override
   void didUpdateWidget(covariant NowView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.profileId != widget.profileId) {
+      _newSituationsAvailable = false;
+    } else {
+      final previous = oldWidget.selection.situations
+          .map((item) => item.identity)
+          .toSet();
+      final newlyAdded = previous.isNotEmpty &&
+          widget.selection.situations.any(
+            (item) => !previous.contains(item.identity),
+          );
+      if (newlyAdded &&
+          _fieldController.hasClients &&
+          _fieldController.offset >= 120 &&
+          !_newSituationsAvailable) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_newSituationsAvailable) {
+            setState(() => _newSituationsAvailable = true);
+          }
+        });
+      }
+    }
     if (oldWidget.selection.situations.length !=
             widget.selection.situations.length ||
         oldWidget.loadingMore != widget.loadingMore ||
@@ -619,6 +641,16 @@ class _NowViewState extends State<NowView> {
       content: content,
     );
     final cues = <Widget>[
+      if (_newSituationsAvailable && _selected == null)
+        Align(
+          alignment: Alignment.center,
+          child: TextButton.icon(
+            key: const Key('now-new-situations'),
+            onPressed: _showRecentSituations,
+            icon: const Icon(Icons.arrow_upward_rounded),
+            label: const Text('De nouvelles informations'),
+          ),
+        ),
       if (state.refreshing)
         Semantics(
           label: 'Actualisation en cours',
@@ -653,6 +685,17 @@ class _NowViewState extends State<NowView> {
               ],
             ),
     );
+  }
+
+  void _showRecentSituations() {
+    if (_fieldController.hasClients) {
+      _fieldController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    setState(() => _newSituationsAvailable = false);
   }
 
   void _select(NowSituationPresentation situation) {
