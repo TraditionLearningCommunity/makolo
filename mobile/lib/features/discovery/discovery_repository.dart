@@ -1013,7 +1013,9 @@ class DiscoveryRepository {
       if (snapshot.schemaVersion != 1 ||
           viewer is! Map ||
           viewer['id'] != profileId ||
-          (surface != 'discover_me' && surface != 'discover_space') ||
+          (expectedSpaceId != null
+              ? surface != 'discover_space'
+              : surface != 'discover_me') ||
           actor is! Map ||
           (surface == 'discover_space' &&
               (actor['type'] != 'space' ||
