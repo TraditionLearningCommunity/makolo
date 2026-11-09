@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
+import '../occurrence/occurrence_continuity.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -21,6 +24,7 @@ class DayOfScreen extends StatefulWidget {
     super.key,
     required this.occurrenceId,
     required this.repository,
+    this.actorContext,
     required this.onOpenAccess,
     required this.onPresentCredential,
     this.onOpenLive,
@@ -31,6 +35,7 @@ class DayOfScreen extends StatefulWidget {
 
   final String occurrenceId;
   final DayOfRepository repository;
+  final ActorContextController? actorContext;
   final void Function(String accessId, String detailPath) onOpenAccess;
   final void Function(String accessId, String credentialPath)
   onPresentCredential;
@@ -48,45 +53,86 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
 
   bool _refreshing = false;
+  int _revision = 0;
+  Timer? _reconciliationTimer;
+
+  bool get _actorValid =>
+      widget.actorContext == null ||
+      widget.actorContext!.value is! SpaceActorContext;
+
+  void _onActorChanged() {
+    _revision++;
+    if (!mounted) return;
+    setState(() => _refreshing = false);
+    if (_actorValid) unawaited(_refresh());
+  }
+
+  void _startReconciliation() {
+    _reconciliationTimer?.cancel();
+    _reconciliationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (!mounted || !_actorValid) return;
+      setState(() {}); // Advance freshness and time-window interpretation.
+      if (timer.tick.isEven) unawaited(_refresh());
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.actorContext?.addListener(_onActorChanged);
+    _startReconciliation();
     unawaited(_refresh());
   }
 
   @override
   void didUpdateWidget(covariant DayOfScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.actorContext != widget.actorContext) {
+      oldWidget.actorContext?.removeListener(_onActorChanged);
+      widget.actorContext?.addListener(_onActorChanged);
+    }
     if (oldWidget.occurrenceId != widget.occurrenceId ||
-        oldWidget.repository != widget.repository) {
-      unawaited(_refresh());
+        oldWidget.repository != widget.repository ||
+        oldWidget.actorContext != widget.actorContext) {
+      _onActorChanged();
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _startReconciliation();
       unawaited(_refresh());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _reconciliationTimer?.cancel();
     }
   }
 
   @override
   void dispose() {
+    _revision++;
+    _reconciliationTimer?.cancel();
+    widget.actorContext?.removeListener(_onActorChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    if (_refreshing) return;
+    if (_refreshing || !_actorValid) return;
+    final revision = ++_revision;
+    final repository = widget.repository;
+    final id = widget.occurrenceId;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshDetail(widget.occurrenceId);
+      await repository.refreshDetail(id);
     } on Object {
-      // SyncSource records the owner failure and preserves the last snapshot.
+      // The owner source keeps a transport failure separate from a denial.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && revision == _revision && _actorValid) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
@@ -106,7 +152,29 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
               source: source,
               now: DateTime.now(),
             );
-            final available = presentation.available;
+            final scoped = _actorValid && projection != null &&
+                OccurrenceContinuity.matches(
+                  payload: projection.payload,
+                  occurrenceId: widget.occurrenceId,
+                  profileId: widget.repository.profileId,
+                  surface: 'day_of',
+                );
+            final available = scoped && !source.invalidated;
+            final globalState = SyncStatusScope.maybeOf(context)?.state;
+            final offline = globalState == SyncVisualState.offline ||
+                globalState == SyncVisualState.failed;
+            final actionsAllowed = OccurrenceContinuity.canOfferActions(
+              sourceInvalidated: source.invalidated,
+              reachability: source.reachability,
+              freshness: presentation.freshness,
+              systemOffline: offline,
+              liveEnded: false,
+            );
+            final readOnlyReason = actionsAllowed
+                ? null
+                : source.reachability != ReachabilityState.reachable || offline
+                    ? 'Connexion ou vérification indisponible : dernière information connue.'
+                    : 'Information ancienne : actualisez avant toute action.';
             final unavailableWithoutContent =
                 !available &&
                 (source.invalidated ||
@@ -156,16 +224,13 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                       ? 'Impossible de vérifier cette action. Consultez l’historique si elle est terminée.'
                       : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
-                  content: projection?.payload['surface'] == 'day_of'
+                  content: available && projection.payload['surface'] == 'day_of'
                       ? OccurrenceExperienceContent(
-                          payload: projection!.payload,
+                          payload: projection.payload,
                           live: false,
-                          remoteActionsAvailable:
-                              source.reachability != ReachabilityState.unreachable &&
-                              SyncStatusScope.maybeOf(context)?.state !=
-                                  SyncVisualState.offline &&
-                              SyncStatusScope.maybeOf(context)?.state !=
-                                  SyncVisualState.failed,
+                          remoteActionsAvailable: actionsAllowed,
+                          readOnlyReason: readOnlyReason,
+                          lastKnownAt: source.lastSuccessAt,
                           onOpenAccess: widget.onOpenAccess,
                           onPresentCredential: widget.onPresentCredential,
                           onOpenLive: widget.onOpenLive,
@@ -173,18 +238,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                           onOpenDepth: widget.onOpenDepth,
                           onOpenHistory: widget.onOpenHistory,
                         )
-                      : _DayOfContent(
-                          presentation: presentation,
-                          remoteActionsAvailable:
-                              source.reachability != ReachabilityState.unreachable &&
-                              SyncStatusScope.maybeOf(context)?.state !=
-                                  SyncVisualState.offline &&
-                              SyncStatusScope.maybeOf(context)?.state !=
-                                  SyncVisualState.failed,
-                          onOpenAccess: widget.onOpenAccess,
-                          onPresentCredential: widget.onPresentCredential,
-                          onOpenLive: widget.onOpenLive,
-                        ),
+                      : const SizedBox.shrink(),
                 ),
               ),
             );
