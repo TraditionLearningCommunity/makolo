@@ -11,7 +11,7 @@ from .models import (
     QuestionType,
 )
 from journeys.collaboration_services import validate_artifact_upload
-from conversations.media_services import validate_conversation_upload, _validate_kind_mime
+from core.private_media_validation import validate_recorded_media, ensure_media_kind
 
 
 def _can_manage(actor, version):
@@ -75,8 +75,8 @@ def add_questionnaire_media(
     if kind == "file" or kind == "image":
         data, mime, digest = validate_artifact_upload(uploaded_file)
     else:
-        data, mime, digest = validate_conversation_upload(uploaded_file, kind)
-    _validate_kind_mime(kind, mime)
+        data, mime, digest = validate_recorded_media(uploaded_file, kind)
+    ensure_media_kind(kind, mime)
     media = QuestionnaireMedia(
         form_version=version, question=question, choice_index=choice_index,
         caption=caption, position=position, kind=kind,
