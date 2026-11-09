@@ -2104,6 +2104,17 @@ class _PointCardState extends State<_PointCard> {
           const SizedBox(height: MakoloSpacing.sm),
           Text(_feedback!),
         ],
+        if (!canRespond &&
+            !point.hasRespondedForScope(widget.representedSpaceId) &&
+            point.responseHint != null &&
+            point.responseHint!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(
+              point.responseHint!,
+              style: theme.bodySmall?.copyWith(color: muted),
+            ),
+          ),
         if (point.acknowledged)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
@@ -2753,6 +2764,7 @@ class _ConversationPoint {
     this.pollResults = const {},
     this.representedResponses = const [],
     this.responseWindowOpen = false,
+    this.responseHint,
     this.canAcknowledge = false,
     this.acknowledged = false,
     this.canCloseResponses = false,
@@ -2799,6 +2811,7 @@ class _ConversationPoint {
   final Map<String, dynamic> pollResults;
   final List<Map<String, dynamic>> representedResponses;
   final bool responseWindowOpen;
+  final String? responseHint;
   final bool canAcknowledge;
   final bool acknowledged;
   final bool canCloseResponses;
@@ -2919,6 +2932,7 @@ class _ConversationPoint {
       pollResults: _map(row['poll_results']),
       representedResponses: _maps(row['represented_responses']),
       responseWindowOpen: row['response_window_open'] == true,
+      responseHint: _string(row['response_hint']),
       canAcknowledge: row['can_acknowledge'] == true,
       acknowledged: row['acknowledged'] == true,
       canCloseResponses: row['can_close_responses'] == true,
