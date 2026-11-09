@@ -150,6 +150,41 @@ ne modifie pas les états des Journey, ne simule pas une réussite externe et ne
 transmet aucun secret. Les dépendances nécessitent au moins deux Journey
 existantes, accessibles au porteur et reliées au même Dossier.
 
+### Schéma Django mis à jour : migrations avant génération
+
+Les commandes `plan` et `generate` des domaines Objectives et
+Journey/Access vérifient désormais les migrations en attente **et**
+l'existence effective de `journeys_journey.beneficiary_space_id`.
+L'absence de cette colonne signifie que le modèle `Journey` courant
+et la base SQLite visée ne correspondent pas. Ce n'est pas une erreur
+à contourner par une sélection partielle des champs.
+
+Depuis la racine du projet, sur la base **locale de démonstration** :
+
+```powershell
+# Identifier les migrations disponibles et les écarts de code.
+python manage.py showmigrations journeys
+python manage.py migrate --plan
+python manage.py makemigrations --check --dry-run
+
+# Après sauvegarde du fichier SQLite et arrêt des processus qui y écrivent,
+# appliquer seulement les migrations du projet réellement présentes.
+python manage.py migrate
+
+# Relire le jeu existant avant toute nouvelle génération.
+python -m scripts.demo_generation plan --domains objectives --profiles 100 --count 100
+```
+
+Si `migrate --plan` ne prévoit aucune opération mais que la colonne
+manque, vérifier que la migration du **nouveau modèle** existe et que
+la base configurée est bien celle attendue. Ne pas utiliser
+`--fake`, `--fake-initial` ou une instruction `ALTER TABLE` improvisée.
+Si Django propose de nouvelles migrations via
+`makemigrations --check --dry-run`, elles doivent être créées,
+examinées et versionnées par le chantier de modèle, puis appliquées avec
+une stratégie de sauvegarde. Le générateur ne déclenche jamais
+`makemigrations` ou `migrate` implicitement.
+
 ### SQLite occupée pendant `generate --domains objectives`
 
 Sur Windows, `django.db.utils.OperationalError: database is locked`
