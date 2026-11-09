@@ -849,6 +849,128 @@ class ConversationRepository {
     await _refreshPublished(conversationId);
   }
 
+  Future<List<Map<String, dynamic>>> searchInvitationCandidates({
+    required String conversationId,
+    required String query,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour rechercher.');
+    if (query.trim().length < 2) return const [];
+    final response = await engine.api.get(
+      'api/v1/conversations/$conversationId/candidates/'
+      '?q=${Uri.encodeQueryComponent(query.trim())}',
+    );
+    final rows = response.jsonObject()['results'];
+    return rows is List
+        ? [for (final row in rows) if (row is Map)
+            row.map((key, value) => MapEntry(key.toString(), value))]
+        : const [];
+  }
+
+  Future<Map<String, dynamic>> inviteIdentifier({
+    required String conversationId,
+    required String kind,
+    required String identifier,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour inviter.');
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/invite/',
+      body: {'kind': kind, 'identifier': identifier.trim()},
+    );
+    final result = response.jsonObject();
+    if (result['id'] == null || result['status'] == null) {
+      throw const FormatException('Invitation non confirmée.');
+    }
+    await refreshDetail(conversationId);
+    return result;
+  }
+
+  Future<void> manageConversationParticipant({
+    required String conversationId,
+    required String operation,
+    required String resourceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour modifier les participants.');
+    final route = switch (operation) {
+      'remove' => 'participants/$resourceId/remove/',
+      'cancel' => 'invitations/$resourceId/cancel/',
+      'revoke' => 'collectives/$resourceId/revoke/',
+      _ => throw ArgumentError.value(operation, 'operation'),
+    };
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/$route',
+    );
+    if (response.jsonObject()['status'] == null) {
+      throw const FormatException('Modification de participation non confirmée.');
+    }
+    await refreshDetail(conversationId);
+  }
+
+  Future<void> decideCollectiveInvitation({
+    required String accessId,
+    required bool accept,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour répondre.');
+    final response = await engine.api.post(
+      'api/v1/conversations/collective-invitations/$accessId/respond/',
+      body: {'decision': accept ? 'accept' : 'decline'},
+    );
+    if (response.jsonObject()['status'] == null) {
+      throw const FormatException('Décision non confirmée.');
+    }
+    try { await refreshInvitations(); } on Object { /* Owner will reconcile. */ }
+    try { await refreshList(); } on Object { /* Owner will reconcile. */ }
+  }
+
+  Future<void> decideJoinRequest({
+    required String conversationId,
+    required String requestId,
+    required bool approve,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour répondre.');
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/join-requests/$requestId/decide/',
+      body: {'decision': approve ? 'approve' : 'reject'},
+    );
+    if (response.jsonObject()['status'] == null) {
+      throw const FormatException('Décision non confirmée.');
+    }
+    await refreshDetail(conversationId);
+  }
+
+  Future<List<Map<String, dynamic>>> conversationJoinRequests(String id) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour voir les demandes.');
+    final response = await engine.api.get(
+      'api/v1/conversations/$id/join-requests/',
+    );
+    final rows = response.jsonObject()['results'];
+    return rows is List
+        ? [for (final row in rows) if (row is Map)
+            row.map((key, value) => MapEntry(key.toString(), value))]
+        : const [];
+  }
+
+  Future<void> conversationSelfEntry({
+    required String conversationId,
+    required String action,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion requise pour changer de participation.');
+    final response = await engine.api.post(
+      'api/v1/conversations/$conversationId/entry/',
+      body: {'action': action},
+    );
+    if (response.jsonObject()['status'] == null) {
+      throw const FormatException('État de participation non confirmé.');
+    }
+    await refreshDetail(conversationId);
+  }
+
   Future<String?> respondToInvitation({
     required String invitationId,
     required bool accept,
