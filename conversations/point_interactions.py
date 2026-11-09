@@ -5,6 +5,8 @@ notification or domain-owner status. No individual's answers are exposed except
 the viewer's own personal response. Aggregate poll counts respect visibility.
 """
 from django.utils import timezone
+from authorization.constants import PermissionCode
+from authorization.services import can
 
 from .core_models import ConversationLifecycle
 from .point_models import (
@@ -23,6 +25,7 @@ def point_interactions_for_profile(profile, point, *, at=None):
             "can_respond": False, "can_acknowledge": False,
             "can_close_responses": False, "can_resolve": False,
             "acknowledged": False, "my_response": None, "poll_results": None,
+            "response_window_open": False, "represented_responses": [],
         }
     mine = point.responses.filter(
         actor=profile, represented_space__isnull=True,
@@ -70,6 +73,26 @@ def point_interactions_for_profile(profile, point, *, at=None):
             ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
         }
     )
+    represented_responses = []
+    if point_response_allowed(profile, point, at=at):
+        for response in point.responses.filter(
+            status=ConversationPointResponseStatus.ACTIVE,
+            represented_space__isnull=False,
+        ).select_related("represented_space"):
+            if can(
+                profile, PermissionCode.SPACE_CONVERSATIONS_PUBLISH,
+                space=response.represented_space,
+            ):
+                represented_responses.append({
+                    "space_id": str(response.represented_space_id),
+                    "value": response.value,
+                    "submitted_at": response.submitted_at,
+                })
+    response_window_open = bool(
+        active and point.response_mode != ConversationPointResponseMode.NONE
+        and point.kind != ConversationPointKind.FORM_REQUEST
+        and point_response_allowed(profile, point, at=at)
+    )
     poll_results = None
     if point.kind == ConversationPointKind.POLL and (
         manager or point.response_visibility in {
@@ -93,6 +116,8 @@ def point_interactions_for_profile(profile, point, *, at=None):
         poll_results = {"response_count": total, "counts": counts}
     return {
         "can_respond": can_respond,
+        "response_window_open": response_window_open,
+        "represented_responses": represented_responses,
         "can_acknowledge": can_acknowledge,
         "can_close_responses": can_close,
         "can_resolve": can_resolve,
