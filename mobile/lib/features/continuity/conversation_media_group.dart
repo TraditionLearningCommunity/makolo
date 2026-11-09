@@ -10,11 +10,13 @@ import 'conversation_repository.dart';
 class ConversationMediaGroup extends StatelessWidget {
   const ConversationMediaGroup({
     super.key,
-    required this.repository,
+    this.repository,
+    this.download,
     required this.attachments,
   });
 
-  final ConversationRepository repository;
+  final ConversationRepository? repository;
+  final PrivateMediaDownloader? download;
   final List<Map<String, dynamic>> attachments;
 
   Future<void> _open(BuildContext context, int index) async {
@@ -26,6 +28,7 @@ class ConversationMediaGroup extends StatelessWidget {
         heightFactor: .92,
         child: ConversationAttachmentViewer(
           repository: repository,
+          download: download,
           attachment: attachments[index],
           gallery: attachments,
           initialIndex: index,
@@ -67,6 +70,7 @@ class ConversationMediaGroup extends StatelessWidget {
                     key: ValueKey('conversation-inline-image-' +
                         (attachment['id']?.toString() ?? index.toString())),
                     repository: repository,
+                    download: download,
                     attachment: attachment,
                     inline: true,
                   ),
