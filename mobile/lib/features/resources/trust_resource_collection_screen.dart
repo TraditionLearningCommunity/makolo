@@ -37,7 +37,9 @@ class _TrustResourceCollectionScreenState
   String _type = '';
   String _sort = 'recent';
 
+  bool _initializing = true;
   bool _refreshing = false;
+  bool _refreshFailed = false;
   bool _loadingMore = false;
   bool _loadFailed = false;
   bool _canLoadNext = false;
@@ -96,21 +98,33 @@ class _TrustResourceCollectionScreenState
   }
 
   Future<void> _ensureFirstPage() async {
-    final cached = await widget.repository.readCollectionPage(
-      family: widget.family,
-      query: _query,
-      status: _status,
-      type: _type,
-      sort: _sort,
-      offset: 0,
-    );
-    if (cached == null && mounted) await _refreshFirst();
+    if (mounted) {
+      setState(() {
+        _initializing = true;
+        _refreshFailed = false;
+      });
+    }
+    try {
+      await widget.repository.ensureCollectionPage(
+        family: widget.family,
+        query: _query,
+        status: _status,
+        type: _type,
+        sort: _sort,
+        offset: 0,
+      );
+    } on Object {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      if (mounted) setState(() => _initializing = false);
+    }
   }
 
   Future<void> _refreshFirst() async {
     if (_refreshing) return;
     setState(() {
       _refreshing = true;
+      _refreshFailed = false;
       _loadFailed = false;
       _completedRequest = null;
     });
@@ -222,6 +236,8 @@ class _TrustResourceCollectionScreenState
       _sort = nextSort;
       _completedRequest = null;
       _loadFailed = false;
+      _refreshFailed = false;
+      _initializing = true;
       _resetSource();
     });
     unawaited(_ensureFirstPage());
@@ -397,7 +413,10 @@ class _TrustResourceCollectionScreenState
 
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
-                child: ListView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: ListView(
                   controller: _scroll,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
@@ -440,19 +459,29 @@ class _TrustResourceCollectionScreenState
                         ),
                       ],
                     ),
-                    if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: MakoloSpacing.sm,
+                    if (view.hasSnapshot &&
+                        (source.reachability == ReachabilityState.unreachable ||
+                            _refreshFailed))
+                      const _TrustContinuityNotice(),
+                    if (!view.hasSnapshot && _initializing)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.xl,
                         ),
-                        child: Icon(
-                          Icons.cloud_off_outlined,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        child: Center(
+                          child: CircularProgressIndicator.adaptive(),
                         ),
-                      ),
-                    if (view.items.isEmpty)
+                      )
+                    else if (!view.hasSnapshot &&
+                        (_refreshFailed ||
+                            source.invalidated ||
+                            source.reachability == ReachabilityState.unreachable))
+                      _TrustUnavailable(
+                        family: widget.family,
+                        ownerDenied: source.ownerDenied,
+                        onRetry: _refreshFirst,
+                      )
+                    else if (view.items.isEmpty)
                       _EmptyTrustCollection(
                         family: widget.family,
                         query: _query,
@@ -488,6 +517,8 @@ class _TrustResourceCollectionScreenState
                         ),
                       ),
                   ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -496,6 +527,77 @@ class _TrustResourceCollectionScreenState
       ),
     );
   }
+}
+
+class _TrustContinuityNotice extends StatelessWidget {
+  const _TrustContinuityNotice();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: MakoloSpacing.xs),
+          Expanded(
+            child: Text(
+              'Données enregistrées sur cet appareil. '
+              'Mise à jour indisponible.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _TrustUnavailable extends StatelessWidget {
+  const _TrustUnavailable({
+    required this.family,
+    required this.ownerDenied,
+    required this.onRetry,
+  });
+
+  final TrustResourceFamily family;
+  final bool ownerDenied;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+    child: Column(
+      children: [
+        const Icon(Icons.cloud_off_outlined, size: 40),
+        const SizedBox(height: MakoloSpacing.sm),
+        Text(
+          ownerDenied
+              ? family == TrustResourceFamily.proofs
+                  ? 'Ces preuves ne sont plus disponibles.'
+                  : 'Ces titres ne sont plus disponibles.'
+              : family == TrustResourceFamily.proofs
+                  ? 'Impossible d’actualiser vos preuves.'
+                  : 'Impossible d’actualiser vos titres.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: MakoloSpacing.md),
+        MakoloActionButton(
+          label: 'Réessayer',
+          appearance: MakoloActionAppearance.quiet,
+          onPressed: onRetry,
+        ),
+      ],
+    ),
+  );
 }
 
 class _SortTile extends StatelessWidget {
@@ -599,6 +701,7 @@ class _TrustResourceCard extends StatelessWidget {
 
 class _TrustCollectionView {
   const _TrustCollectionView({
+    required this.hasSnapshot,
     required this.items,
     required this.typeOptions,
     required this.hasMore,
@@ -606,6 +709,7 @@ class _TrustCollectionView {
     required this.total,
   });
 
+  final bool hasSnapshot;
   final List<_TrustItem> items;
   final List<_TrustOption> typeOptions;
   final bool hasMore;
@@ -668,6 +772,7 @@ class _TrustCollectionView {
 
     if (selected.isEmpty) {
       return const _TrustCollectionView(
+        hasSnapshot: false,
         items: [],
         typeOptions: [],
         hasMore: false,
@@ -728,6 +833,7 @@ class _TrustCollectionView {
         : items;
 
     return _TrustCollectionView(
+      hasSnapshot: true,
       items: List.unmodifiable(visible),
       typeOptions: List.unmodifiable(typeOptions),
       hasMore: localSearch ? false : page['has_more'] == true,
