@@ -378,6 +378,26 @@ class TrustResourceRepository {
     ),
   );
 
+  Future<TrustResourceSourceState> readDetailSource(
+    TrustResourceFamily family,
+    String id,
+  ) async {
+    final row =
+        await (database.select(database.syncSources)..where(
+              (item) =>
+                  item.profileId.equals(profileId) &
+                  item.sourceKey.equals(detailSourceKey(family, id)),
+            ))
+            .getSingleOrNull();
+    return row == null
+        ? TrustResourceSourceState.unknown
+        : TrustResourceSourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
+
   Stream<TrustResourceSourceState> watchDetailSource(
     TrustResourceFamily family,
     String id,
