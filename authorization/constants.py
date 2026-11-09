@@ -88,6 +88,9 @@ class PermissionCode:
     ACTIVITY_SERVICES_NOTES_INTERNAL = "activity.services.notes.internal"
     ACTIVITY_SERVICES_OUTCOMES_MANAGE = "activity.services.outcomes.manage"
     ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY = "activity.services.payment_evidence.verify"
+    PROJECT_VIEW = "project.view"
+    PROJECT_MANAGE = "project.manage"
+    PROJECT_AUTHORITY_MANAGE = "project.authority.manage"
     DOSSIER_VIEW = "dossier.view"
     DOSSIER_MANAGE = "dossier.manage"
     DOSSIER_AUTHORITY_MANAGE = "dossier.authority.manage"
@@ -134,6 +137,9 @@ class SystemRoleCode:
     ACTIVITY_SERVICE_MANAGER = "activity-service-manager"
     ACTIVITY_SERVICE_FACILITATOR = "activity-service-facilitator"
     ACTIVITY_SERVICE_REVIEWER = "activity-service-reviewer"
+    PROJECT_VIEWER = "project-viewer"
+    PROJECT_MANAGER = "project-manager"
+    PROJECT_ADMIN = "project-admin"
     DOSSIER_VIEWER = "dossier-viewer"
     DOSSIER_MANAGER = "dossier-manager"
     DOSSIER_ADMIN = "dossier-admin"
@@ -184,6 +190,9 @@ ACTIVITY_PERMISSION_CODES = {
     PermissionCode.ACTIVITY_SERVICES_REVIEWS_MANAGE, PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL,
     PermissionCode.ACTIVITY_SERVICES_OUTCOMES_MANAGE, PermissionCode.ACTIVITY_SERVICES_PAYMENT_EVIDENCE_VERIFY,
 }
+PROJECT_PERMISSION_CODES = {
+    PermissionCode.PROJECT_VIEW, PermissionCode.PROJECT_MANAGE, PermissionCode.PROJECT_AUTHORITY_MANAGE,
+}
 DOSSIER_PERMISSION_CODES = {
     PermissionCode.DOSSIER_VIEW, PermissionCode.DOSSIER_MANAGE, PermissionCode.DOSSIER_AUTHORITY_MANAGE,
     PermissionCode.DOSSIER_CONVERSATIONS_PUBLISH, PermissionCode.DOSSIER_CONVERSATIONS_MODERATE,
@@ -193,12 +202,14 @@ SPACE_PERMISSION_CODES = {
     value for name, value in PermissionCode.__dict__.items()
     if name.isupper() and value not in PLATFORM_PERMISSION_CODES and value not in GROUP_PERMISSION_CODES
     and value not in ACTIVITY_PERMISSION_CODES and value not in DOSSIER_PERMISSION_CODES
+    and value not in PROJECT_PERMISSION_CODES
 }
 
 STANDARD_PLATFORM_ROLE_CODES = {SystemRoleCode.PLATFORM_ADMIN, SystemRoleCode.OPPORTUNITY_CURATOR}
 STANDARD_SPACE_ROLE_CODES = {SystemRoleCode.SPACE_OWNER, SystemRoleCode.SPACE_ADMIN, SystemRoleCode.ACTIVITY_MANAGER, SystemRoleCode.SPACE_COMMUNICATION_MANAGER, SystemRoleCode.FINANCE, SystemRoleCode.MARKETING, SystemRoleCode.ACCESS_MANAGER}
 STANDARD_GROUP_ROLE_CODES = {SystemRoleCode.GROUP_OWNER, SystemRoleCode.GROUP_ADMIN, SystemRoleCode.GROUP_MODERATOR, SystemRoleCode.GROUP_COMMUNICATION_MANAGER}
 STANDARD_ACTIVITY_ROLE_CODES = {SystemRoleCode.ACTIVITY_LOCAL_MANAGER, SystemRoleCode.ACTIVITY_COMMUNICATION_MANAGER, SystemRoleCode.ACTIVITY_SCANNER, SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_FINANCE, SystemRoleCode.ACTIVITY_SERVICE_MANAGER, SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR, SystemRoleCode.ACTIVITY_SERVICE_REVIEWER}
+STANDARD_PROJECT_ROLE_CODES = {SystemRoleCode.PROJECT_VIEWER, SystemRoleCode.PROJECT_MANAGER, SystemRoleCode.PROJECT_ADMIN}
 STANDARD_DOSSIER_ROLE_CODES = {SystemRoleCode.DOSSIER_VIEWER, SystemRoleCode.DOSSIER_MANAGER, SystemRoleCode.DOSSIER_ADMIN, SystemRoleCode.DOSSIER_COMMUNICATION_MANAGER}
 
 LEGACY_ORGANIZATION_ROLE_TO_SYSTEM_ROLE = {
