@@ -20,6 +20,9 @@ List<RouteBase> liveRoutes(AppRuntime runtime) => [
         repository: repository,
         onBackToDayOf: () =>
             context.go('/occurrences/${state.pathParameters['id']}/day-of'),
+        onOpenDepth: (kind) => context.push(
+          '/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
+        ),
       );
     },
   ),
