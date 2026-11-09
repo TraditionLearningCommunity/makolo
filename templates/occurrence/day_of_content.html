@@ -132,6 +132,38 @@
   </section>
   {% endif %}
 
+  {% if projection.depths %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-owner-depths">
+    <h3 id="day-of-owner-depths" class="text-xl font-bold">Mes outils et approfondissements</h3>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">Chaque ouverture vérifie de nouveau votre autorisation. Plusieurs responsabilités peuvent coexister.</p>
+    <div class="mt-4 flex flex-wrap gap-2">
+      {% for depth in projection.depths %}
+        {% if depth.kind == "scanner" %}
+          {% if projection.context.actor_space_id and scanner_url %}
+            <a class="mk-action-button" data-variant="primary" href="{{ scanner_url }}">Scanner les accès</a>
+          {% elif not projection.context.actor_space_id %}
+            <a class="mk-action-button" data-variant="primary" href="{% url 'core:participant-occurrence-scanner' occurrence.pk %}">Scanner les accès</a>
+          {% endif %}
+        {% elif projection.context.actor_space_id %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-occurrence-depth' space.slug occurrence.pk depth.kind %}">{{ depth.label }}</a>
+        {% else %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-occurrence-depth' occurrence.pk depth.kind %}">{{ depth.label }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if projection.phase == "after" %}
+  <nav class="mk-panel p-5" aria-label="Suites et historique">
+    {% if projection.context.actor_space_id %}
+    <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-history' space.slug %}">Historique de l'Espace</a>
+    {% else %}
+    <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-history' %}">Mon historique</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
   {% if can_configure_live %}
   <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-live-settings">
     <h3 id="day-of-live-settings" class="text-lg font-bold">Publication Makolo Live</h3>
