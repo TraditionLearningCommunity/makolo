@@ -11,6 +11,8 @@ const SECONDARY = [
   '/account/settings/',
   '/library/',
   '/library/documents/',
+  '/trust/proofs/',
+  '/trust/credentials/',
   '/conversations/',
   '/objectives/',
   '/objectives/projects/',
@@ -59,6 +61,14 @@ test('Group 2 owner-backed search uses common fields without client-only ranking
   await expect(page.locator('#library-search')).toHaveClass(/mk-interaction-field/);
   await expect(page.locator('#library-search').locator('xpath=ancestor::form[1]')).toHaveAttribute('method', 'get');
   await expect(page.locator('[data-mk-query-local="true"]')).toHaveCount(0);
+
+  await page.goto('/trust/proofs/');
+  await expect(page.locator('#proof-search')).toHaveClass(/mk-interaction-field/);
+  await expect(page.locator('#proof-search').locator('xpath=ancestor::form[1]')).toHaveAttribute('method', 'get');
+
+  await page.goto('/trust/credentials/');
+  await expect(page.locator('#credential-search')).toHaveClass(/mk-interaction-field/);
+  await expect(page.locator('#credential-search').locator('xpath=ancestor::form[1]')).toHaveAttribute('method', 'get');
 });
 
 test('Group 2 actions on Settings and organizer remain owner/CSRF backed', async ({ page }) => {
@@ -143,12 +153,14 @@ test('Group 2 secondary Me choices reuse shared link controls', async ({ page })
 });
 
 
-test('Group 2 History, Documents and Conversations reuse native owner-backed tabs', async ({ page }) => {
+test('Group 2 History, personal resources and Conversations reuse native owner-backed tabs', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
 
   for (const [path, label, firstOption] of [
     ['/me/history/', 'Filtrer l’historique', 'Tout'],
     ['/library/documents/', 'Vue des documents', 'Tous'],
+    ['/trust/proofs/', 'Vue des preuves', 'Toutes'],
+    ['/trust/credentials/', 'Vue des titres', 'Tous'],
     ['/conversations/', 'Conversations', 'Toutes'],
   ]) {
     await page.goto(path);
