@@ -45,7 +45,8 @@
         const image = document.createElement("img");
         image.src = inline;
         image.alt = item.dataset.mediaName || "Photo";
-        image.className = "max-h-[70vh] max-w-full object-contain";
+        image.className = "max-w-full object-contain";
+        image.style.maxHeight = "70vh";
         body.append(image);
       } else if ((kind === "voice" || kind === "audio") && inline) {
         const audio = document.createElement("audio");
@@ -59,7 +60,8 @@
         video.src = inline;
         video.controls = true;
         video.preload = "metadata";
-        video.className = "max-h-[70vh] max-w-full";
+        video.className = "max-w-full";
+        video.style.maxHeight = "70vh";
         body.append(video);
       } else if ((mime === "application/pdf" || mime === "text/plain") && inline) {
         const frame = document.createElement("iframe");
@@ -67,7 +69,8 @@
         frame.title = item.dataset.mediaName || "Document";
         frame.setAttribute("sandbox", "allow-same-origin");
         frame.setAttribute("referrerpolicy", "no-referrer");
-        frame.className = "h-[65vh] w-full bg-white";
+        frame.className = "w-full bg-white";
+        frame.style.height = "65vh";
         body.append(frame);
       } else {
         const message = document.createElement("p");
