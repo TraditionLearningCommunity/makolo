@@ -598,13 +598,30 @@ class DiscoveryRepository {
     );
   }
 
-  SyncSourceDefinition itemSource(String family, String id) {
+  String _detailResourceKey(String family, String id, DiscoveryQuery actorQuery) =>
+      actorQuery.isSpace
+          ? 'space:${actorQuery.spaceId}:$family:$id'
+          : '$family:$id';
+
+  SyncSourceDefinition itemSource(
+    String family,
+    String id, {
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
+  }) {
+    if (actorQuery.isSpace &&
+        (actorQuery.spaceId == null || actorQuery.spaceId!.isEmpty)) {
+      throw const FormatException('Missing verified Space actor for detail');
+    }
+    final resourceKey = _detailResourceKey(family, id, actorQuery);
+    final actorParams = actorQuery.isSpace
+        ? '?context=space&space=${Uri.encodeQueryComponent(actorQuery.spaceSlug!)}'
+        : '';
     return SyncSourceDefinition(
-      sourceKey: 'discovery-item:$family:$id',
+      sourceKey: 'discovery-item:$resourceKey',
       owner: 'Discovery',
-      path: 'api/v1/discovery/items/$family/$id/',
+      path: 'api/v1/discovery/items/$family/$id/$actorParams',
       projectionKind: itemProjectionKind,
-      resourceKey: '$family:$id',
+      resourceKey: resourceKey,
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: detailFreshness,
       parser: (response) {
@@ -612,9 +629,14 @@ class DiscoveryRepository {
         final envelope = ProjectionEnvelope.parse(
           json,
           expectedProjection: itemProjectionKind,
-          expectedScope: 'personal',
+          expectedScope: actorQuery.isSpace ? 'space' : 'personal',
         );
-        final item = DiscoveryWire.receiveItem(json, scope: 'personal');
+        final item = DiscoveryWire.receiveItem(
+          json,
+          scope: actorQuery.isSpace ? 'space' : 'personal',
+          expectedSpaceId: actorQuery.spaceId,
+          expectedViewerId: profileId,
+        );
         final identity = item['identity'] as Map;
         final resource = identity['resource'] as Map;
         if (identity['family'] != family || resource['id'] != id) {
@@ -622,7 +644,13 @@ class DiscoveryRepository {
         }
         return AcquiredProjection(
           schemaVersion: envelope.schemaVersion,
-          payload: {'item': item},
+          payload: {
+            'item': item,
+            if (actorQuery.isSpace) ...{
+              'actor': envelope.data['actor'],
+              'viewer': envelope.data['viewer'],
+            },
+          },
           sourceGeneratedAt: envelope.generatedAt,
         );
       },
