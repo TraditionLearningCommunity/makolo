@@ -12,6 +12,7 @@ from authorization.constants import PermissionCode
 from journeys.models import Journey
 from journeys.collaboration_services import can_access_case
 from .occurrence_experience_facts import compose_live_knowledge
+from .experience_insights import available_insights
 from authorization.services import can, effective_permission_codes, has_platform_authority
 from core.api.day_of_projection import build_personal_day_of_data
 from scanner.permissions import user_can_scan_activity
@@ -288,6 +289,53 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
             "url": f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
         })
 
+    # L5 owner handoffs: each read URL is a real, separately authorized API.
+    # Navigation is a new owner check, not a grant inferred from this listing.
+    occurrence_base = f"/api/v1/operations/occurrences/{occurrence.pk}"
+    depths = []
+    def add_depth(kind, label, territory, read_path, source):
+        depths.append({
+            "kind": kind,
+            "label": label,
+            "territory": territory,
+            "read_path": read_path,
+            "source": source,
+        })
+
+    if participant is not None:
+        if participant.get("queue"):
+            add_depth("my_queue", "Ma file", "participant",
+                      f"{occurrence_base}/queues/me/", "operations.queue")
+        if participant.get("placement"):
+            add_depth("my_placement", "Mon placement", "participant",
+                      f"{occurrence_base}/placements/me/", "operations.placement")
+        flow = participant.get("flow") or {}
+        if flow.get("checkpoints") or flow.get("next_checkpoint"):
+            add_depth("my_checkpoints", "Mes étapes", "participant",
+                      f"{occurrence_base}/checkpoints/me/", "operations.checkpoint")
+        add_depth("readiness", "Ma préparation", "participant",
+                  f"{occurrence_base}/readiness/", "readiness")
+    if operator is not None and ("organizer" in sections or "platform" in sections):
+        add_depth("operator_queue", "Gérer les files", "organizer",
+                  f"{occurrence_base}/queues/", "operations.queue")
+        add_depth("operator_placement", "Gérer les placements", "organizer",
+                  f"{occurrence_base}/placement-plans/", "operations.placement")
+        add_depth("operator_checkpoints", "Gérer les points de contrôle", "organizer",
+                  f"{occurrence_base}/checkpoints/", "operations.checkpoint")
+        if participant is None:
+            add_depth("readiness", "Préparation opérationnelle", "organizer",
+                      f"{occurrence_base}/readiness/", "readiness")
+    depths.extend(available_insights(
+        occurrence=occurrence, viewer=viewer,
+        organizer_scope=same_operator_space,
+    ))
+    if scanner_allowed:
+        add_depth("scanner", "Scanner les accès", "organizer",
+                  f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
+                  "scanner")
+    # No incident/media owner linked to this Occurrence has been verified here.
+    # Do not advertise fictitious pages or mutable endpoints for those domains.
+
     relations = {
         "participant": participant is not None,
         "institutional_beneficiary": bool(institutional),
@@ -335,6 +383,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
         "sections": sections,
         "capabilities": capabilities,
         "actions": actions,
+        "depths": depths,
         "presentation": {
             "role_switch_required": False,
             "simultaneous_sections": True,
