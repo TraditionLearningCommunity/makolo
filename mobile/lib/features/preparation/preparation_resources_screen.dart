@@ -204,14 +204,18 @@ class _PreparationResourcesScreenState
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
+      key: ValueKey('resources:${widget.repository.profileId}:${widget.journeyId}'),
       stream: widget.repository.watchResources(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
           stream: widget.repository.watchSource(widget.journeyId),
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
-            final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            final ownerDenied = source.invalidated &&
+                const {'permission_denied', 'not_found'}
+                    .contains(source.lastErrorCode);
+            final projection = ownerDenied ? null : projectionSnapshot.data;
             final items = _PreparationResource.fromProjection(projection);
             final freshness = projection == null
                 ? null
@@ -222,10 +226,7 @@ class _PreparationResourcesScreenState
                   );
             final available = projection != null;
             // Only an explicit owner denial withdraws this local depth.
-            final ownerDenied = !available &&
-                source.invalidated &&
-                const {'permission_denied', 'not_found'}
-                    .contains(source.lastErrorCode);
+
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
