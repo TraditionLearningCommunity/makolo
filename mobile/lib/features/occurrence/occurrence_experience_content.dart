@@ -131,6 +131,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
     final actions = _rows(payload['actions']);
     final knowledge = _map(payload['knowledge']);
     final coverage = _map(knowledge['coverage']);
+    final observedFacts = _rows(knowledge['facts']);
     final links = _map(payload['links']);
     final liveStatus = _map(payload['live']);
     final capabilities = _map(payload['capabilities']);
@@ -260,6 +261,14 @@ class OccurrenceExperienceContent extends StatelessWidget {
                       ? 'Des faits sont disponibles, mais leur couverture reste partielle.'
                       : 'Consulter les observations disponibles.',
                 ),
+                if (observedFacts.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    _text(observedFacts.first['label']) ?? 'Fait disponible',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(_value(observedFacts.first['value'])),
+                ],
                 const SizedBox(height: MakoloSpacing.md),
                 FilledButton.icon(
                   onPressed: remoteActionsAvailable
