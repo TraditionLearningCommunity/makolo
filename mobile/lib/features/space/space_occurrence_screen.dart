@@ -15,6 +15,7 @@ import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
+import '../occurrence/occurrence_experience_content.dart';
 import 'space_occurrence_repository.dart';
 
 class SpaceOccurrenceScreen extends StatefulWidget {
@@ -26,6 +27,8 @@ class SpaceOccurrenceScreen extends StatefulWidget {
     required this.live,
     this.onOpenLive,
     this.onOpenScanner,
+    this.onOpenAccess,
+    this.onPresentCredential,
     this.onBackToDayOf,
   });
 
@@ -35,6 +38,8 @@ class SpaceOccurrenceScreen extends StatefulWidget {
   final bool live;
   final VoidCallback? onOpenLive;
   final VoidCallback? onOpenScanner;
+  final void Function(String accessId, String path)? onOpenAccess;
+  final void Function(String accessId, String path)? onPresentCredential;
   final VoidCallback? onBackToDayOf;
 
   @override
@@ -147,14 +152,29 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                     ? 'Vous ne pouvez plus consulter cette réalisation dans le contexte actuel.'
                     : 'Vous n’avez pas accès à cette réalisation dans cet Espace.',
                 onRetry: _refresh,
-                content: _SpaceOccurrenceContent(
-                  payload: projection?.payload,
-                  freshness: selected?.freshness,
-                  live: widget.live,
-                  onOpenLive: widget.onOpenLive,
-                  onOpenScanner: widget.onOpenScanner,
-                  onBackToDayOf: widget.onBackToDayOf,
-                ),
+                content: projection?.payload['surface'] ==
+                        (widget.live ? 'live' : 'day_of')
+                    ? OccurrenceExperienceContent(
+                        payload: projection!.payload,
+                        live: widget.live,
+                        remoteActionsAvailable:
+                            state.reachability != ReachabilityState.unreachable,
+                        onOpenLive: widget.onOpenLive == null
+                            ? null
+                            : (_) => widget.onOpenLive!(),
+                        onOpenScanner: widget.onOpenScanner,
+                        onOpenAccess: widget.onOpenAccess,
+                        onPresentCredential: widget.onPresentCredential,
+                        onBackToDayOf: widget.onBackToDayOf,
+                      )
+                    : _SpaceOccurrenceContent(
+                        payload: projection?.payload,
+                        freshness: selected?.freshness,
+                        live: widget.live,
+                        onOpenLive: widget.onOpenLive,
+                        onOpenScanner: widget.onOpenScanner,
+                        onBackToDayOf: widget.onBackToDayOf,
+                      ),
               ),
             ),
           );
