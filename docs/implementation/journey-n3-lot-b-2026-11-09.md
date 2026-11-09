@@ -28,6 +28,7 @@ Journey reste le propriétaire du parcours. Readiness est dérivée ; Forms, Req
 - Requirements : libellé, état, caractère obligatoire et conséquence sont conservés depuis les Assessments propriétaires, avec handoff vers le détail réel.
 - Preparation : les ressources **ne sont pas recopiées dans la projection Journey**. `PreparationResourcesRepository` expose déjà `preparation.journey.resources` dans la BDD du Profil.
 - Le N3 Flutter observe cette projection locale et affiche jusqu'à trois documents / liens / instructions identifiés par leur titre et type, avec ouverture vers la profondeur Preparation existante ; un owner confirmé vide ne produit pas une fausse liste.
+- Les profondeurs Preparation « Documents et instructions » et « Élément nécessaire » restent lisibles sur projections locales en cas d'échec de transport. Une absence de donnée acquise donne un état neutre, tandis qu'un refus explicite 403/404 conserve son effet d'autorité ; elles ne montrent plus de blocage motivé seulement par la connectivité.
 - Le cycle de synchronisation personnelle prépare progressivement les ressources des Journey connues dans `personal.ongoing`, avec les mêmes clés de Profil et des budgets bornés, sans précharger indistinctement les fichiers privés ni stocker un cache de widget.
 - Un clic de ressource externe ne vaut pas accomplissement d'une Requirement ou d'une Journey.
 
@@ -57,6 +58,7 @@ Ce lot n'a ajouté ni modèle, ni migration, ni nouvelle API de paiement/permiss
 - `mobile/lib/features/journey/journey_selector.dart` : champs propriétaires et vues de préparation.
 - `mobile/lib/features/journey/journey_detail_screen.dart` : composition de B5–B7.
 - `mobile/lib/features/journey/journey_routes.dart` : handoffs Payment / Commerce et injection Preparation.
+- `mobile/lib/features/preparation/{preparation_resources_screen,requirement_detail_screen}.dart` : état local-first dans les profondeurs propriétaires.
 - `mobile/lib/app/sync_lifecycle.dart` : préparation bornée de Preparation dans la même BDD locale.
 - `core/test_journey_n3_lot_b.py`, `core/test_z5_detail_api.py` et `mobile/test/journey_reference_depth_test.dart` : garde-fous ciblés.
 
