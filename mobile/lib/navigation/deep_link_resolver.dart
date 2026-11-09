@@ -63,6 +63,26 @@ class DeepLinkResolver {
         return '/occurrences/${target.id}';
       case 'access':
         return '/accesses/${target.id}';
+      case 'resource':
+      case 'personal_asset':
+        return target.id.isEmpty
+            ? null
+            : '/me/resources/documents/${target.id}';
+      case 'proof':
+        return target.id.isEmpty
+            ? null
+            : '/me/resources/proofs/${target.id}';
+      case 'credential':
+        return target.id.isEmpty
+            ? null
+            : '/me/resources/titles/${target.id}';
+      case 'resource_collection':
+        return '/me/resources';
+      case 'proof_collection':
+        return '/me/resources/proofs';
+      case 'credential_collection':
+      case 'title_collection':
+        return '/me/resources/titles';
       case 'dossier':
         return '/dossiers/${target.id}';
       case 'project':
