@@ -9,6 +9,7 @@
     {% if conversation.purpose %}<p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ conversation.purpose }}</p>{% endif %}
     <div class="mt-5 flex items-center gap-4 text-sm">
       <a href="#conversation-points" style="color:var(--mk-brand)">Points</a>
+      <a href="{% url 'conversations:participants' conversation.pk %}" class="min-h-11 inline-flex items-center" style="color:var(--mk-brand)">Participants et invitations</a>
       <a href="{% url 'conversations:history' conversation.pk %}" class="min-h-11 inline-flex items-center focus-visible:outline-2" style="color:var(--mk-brand)">Rechercher · Historique</a>
     </div>
     <details class="mt-4 text-sm">
