@@ -1,7 +1,6 @@
 .mk-notification-inbox{max-width:840px;margin:0 auto;padding:clamp(16px,3vw,32px);color:inherit}
 .mk-notification-header,.mk-notification-toolbar,.mk-notification-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .mk-notification-header h1{font-size:clamp(26px,4vw,36px);font-weight:750;letter-spacing:-.035em}
-.mk-notification-header a,.mk-notification-actions a,.mk-notification-actions button,.mk-notification-toolbar button{color:#6652cf;font-weight:650}
 .mk-notification-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0}
 .mk-notification-stats p{border:1px solid rgba(128,128,128,.2);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:3px}
 .mk-notification-stats strong{font-size:26px;font-variant-numeric:tabular-nums}
