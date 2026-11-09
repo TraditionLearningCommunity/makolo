@@ -15,6 +15,8 @@ import sqlite3
 import sys
 from zoneinfo import ZoneInfo
 
+from .scope import DEMO_ACTIVITY_PREFIX
+
 UTC = dt.timezone.utc
 FIELDS = {
     'activities_occurrence': ('start_at','end_at','start_date','end_date','schedule_local_date'),
@@ -183,19 +185,79 @@ def ids(db, table, foreign_key, identifier):
         return []
     return [row[0] for row in db.execute(RELATION_QUERIES[(table, foreign_key)], (identifier,))]
 
-def move_occurrence(db, occ_id, delta):
-    counts={t:0 for t in FIELDS}
-    counts['activities_occurrence']+=update_occurrence(db,occ_id,delta)
-    accesses=ids(db,'access_access','occurrence_id',occ_id)
+def safe_eligible(db, occ_id):
+    """Never move an executed or terminal scenario in the ordinary mode."""
+    cols = table_columns(db, 'activities_occurrence')
+    if 'status' in cols:
+        status = db.execute(
+            'SELECT status FROM activities_occurrence WHERE id=?', (occ_id,)
+        ).fetchone()
+        if status and status[0] in ('cancelled', 'completed'):
+            return False
+    accesses = ids(db, 'access_access', 'occurrence_id', occ_id)
+    if ids(db, 'access_accessuse', 'occurrence_id', occ_id):
+        return False
     for aid in accesses:
-        counts['access_access']+=update_by_id(db,'access_access',aid,FIELDS['access_access'],delta)
-        for cred in ids(db,'access_accesscredential','access_id',aid):
-            counts['access_accesscredential']+=update_by_id(db,'access_accesscredential',cred,FIELDS['access_accesscredential'],delta)
-    uses=set(ids(db,'access_accessuse','occurrence_id',occ_id))
-    for aid in accesses: uses.update(ids(db,'access_accessuse','access_id',aid))
-    for uid in uses: counts['access_accessuse']+=update_by_id(db,'access_accessuse',uid,FIELDS['access_accessuse'],delta)
-    for jid in ids(db,'journeys_journey','occurrence_id',occ_id):
-        counts['journeys_journey']+=update_by_id(db,'journeys_journey',jid,FIELDS['journeys_journey'],delta)
+        if ids(db, 'access_accessuse', 'access_id', aid):
+            return False
+    jcols = table_columns(db, 'journeys_journey')
+    for jid in ids(db, 'journeys_journey', 'occurrence_id', occ_id):
+        if 'status' in jcols:
+            status = db.execute(
+                'SELECT status FROM journeys_journey WHERE id=?', (jid,)
+            ).fetchone()
+            if status and status[0] in ('fulfilled', 'rejected', 'cancelled', 'expired'):
+                return False
+    return True
+
+
+def move_occurrence(db, occ_id, delta, mode='safe'):
+    """Shift a synthetic occurrence and permitted dependent date windows.
+
+    safe preserves executed uses, credential issuance, revocation and Journey
+    lifecycle timestamps. full is explicit legacy scenario time-travel.
+    """
+    if mode not in ('safe', 'full'):
+        raise ValueError('Unknown timeline mode')
+    counts = {t: 0 for t in FIELDS}
+    if mode == 'safe' and not safe_eligible(db, occ_id):
+        return counts
+    counts['activities_occurrence'] += update_occurrence(db, occ_id, delta)
+    if not counts['activities_occurrence']:
+        return counts
+    accesses = ids(db, 'access_access', 'occurrence_id', occ_id)
+    for aid in accesses:
+        counts['access_access'] += update_by_id(
+            db, 'access_access', aid, FIELDS['access_access'], delta
+        )
+        for cred in ids(db, 'access_accesscredential', 'access_id', aid):
+            if mode == 'full':
+                fields = FIELDS['access_accesscredential']
+            else:
+                fields = ('expired_at',)
+                if 'status' in table_columns(db, 'access_accesscredential'):
+                    state = db.execute(
+                        'SELECT status FROM access_accesscredential WHERE id=?',
+                        (cred,),
+                    ).fetchone()
+                    if not state or state[0] != 'active':
+                        continue
+            counts['access_accesscredential'] += update_by_id(
+                db, 'access_accesscredential', cred, fields, delta
+            )
+    if mode == 'full':
+        uses = set(ids(db, 'access_accessuse', 'occurrence_id', occ_id))
+        for aid in accesses:
+            uses.update(ids(db, 'access_accessuse', 'access_id', aid))
+        for uid in uses:
+            counts['access_accessuse'] += update_by_id(
+                db, 'access_accessuse', uid, FIELDS['access_accessuse'], delta
+            )
+    for jid in ids(db, 'journeys_journey', 'occurrence_id', occ_id):
+        fields = FIELDS['journeys_journey'] if mode == 'full' else ('expires_at',)
+        counts['journeys_journey'] += update_by_id(
+            db, 'journeys_journey', jid, fields, delta
+        )
     return counts
 
 def target_for(occ_id, now, duration):
@@ -275,6 +337,10 @@ def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--database',required=True,help='SQLite source')
     p.add_argument('--apply',action='store_true',help='Effectuer les changements (sinon apercu)')
+    p.add_argument('--mode',choices=('safe','full'),default='safe',
+                   help='safe conserve les faits historiques; full deplace les dates historiques explicitement')
+    p.add_argument('--activity-prefix',default=DEMO_ACTIVITY_PREFIX,
+                   help='Prefixe des Activities synthetiques a recaler')
     p.add_argument('--in-place',action='store_true',help='Alias historique: modifier la source (deja le comportement par defaut)')
     p.add_argument('--backup',action='store_true',help='Creer une sauvegarde avant modification (option explicite)')
     p.add_argument('--output',help='Creer explicitement une copie de travail a ce chemin (non utilise par defaut)')
@@ -285,6 +351,16 @@ def main(argv=None):
     p.add_argument('--demo-live',action='store_true',help='Garantir des creneaux temporels autour de maintenant, aujourd hui et demain; auditer la couverture operationnelle')
     p.add_argument('--demo-slots',type=int,default=120,help='Nombre de candidats affectes aux creneaux garantis (defaut 120)')
     a=p.parse_args(argv)
+    if not a.activity_prefix.startswith(DEMO_ACTIVITY_PREFIX) or not all(
+        ch.islower() or ch.isdigit() or ch == '-' for ch in a.activity_prefix
+    ):
+        p.error('--activity-prefix doit commencer par demo- et contenir a-z, 0-9 ou -')
+    if a.limit < 0 or not 1 <= a.demo_slots <= 10000:
+        p.error('--limit >= 0 et --demo-slots 1..10000')
+    if a.include_existing and a.apply and not a.backup:
+        p.error('--include-existing --apply exige --backup')
+    if a.include_existing and a.mode == 'full':
+        p.error('--mode full ne peut pas etre combine a --include-existing')
     source=Path(a.database).resolve()
     if not source.is_file(): p.error('Base introuvable: '+str(source))
     if a.in_place and a.output: p.error('--in-place et --output sont incompatibles')
@@ -308,8 +384,8 @@ def main(argv=None):
     try:
         cols=table_columns(db,'activities_occurrence')
         if not {'id','start_at','end_at'}<=cols: p.error('Schema Occurrence incompatible')
-        # Les donnees ajoutees dans le premier lot sont identifiees par Activity.slug demo-2026-q4-.
-        # En l'absence de cette signature, selection volontairement vide par defaut.
+        # Toutes les verticales utilisent le namespace interne demo-*.
+        # Le prefixe peut etre restreint explicitement par l'operateur.
         acols=table_columns(db,'activities_activity')
         if not a.include_existing and not {'slug','id'}<=acols:
             p.error('Activity.slug introuvable; utiliser --include-existing seulement si voulu')
@@ -317,25 +393,32 @@ def main(argv=None):
             'SELECT o.id,o.start_at,o.end_at FROM activities_occurrence o '
             'JOIN activities_activity a ON a.id=o.activity_id '
             'WHERE o.start_at IS NOT NULL AND o.schedule_id IS NULL AND (? OR a.slug LIKE ?) ORDER BY o.id LIMIT ?',
-            (int(a.include_existing), 'demo-2026-q4-%', a.limit if a.limit>0 else -1),
+            (int(a.include_existing), a.activity_prefix + '%', a.limit if a.limit>0 else -1),
         ).fetchall()
-        # Autres lots synthetiques peuvent utiliser un prefixe different : voir --include-existing.
-        print('Occurrences selectionnees (hors recurrents):',len(rows),'| mode:', 'MODIFICATION' if a.apply else 'APERCU')
+        print('Occurrences selectionnees (hors recurrents):',len(rows),
+              '| mode:', a.mode, '|', 'MODIFICATION' if a.apply else 'APERCU')
         print('Reference UTC:',now.isoformat(),'| base:',source)
         if a.apply:
             db.execute('PRAGMA foreign_keys=ON')
             db.execute('BEGIN IMMEDIATE')
         totals={t:0 for t in FIELDS}
+        skipped=0
+        eligible=0
         for index,(occ_id,start,end) in enumerate(rows):
             old=parsed(start)
             if not old: continue
             duration=(parsed(end)-old) if parsed(end) else dt.timedelta(hours=2)
             if duration.total_seconds()<0: continue
+            if a.mode == 'safe' and not safe_eligible(db,occ_id):
+                skipped+=1
+                continue
+            eligible+=1
             new_start=(demo_slot(occ_id,index,now,tz) if a.demo_live and index<a.demo_slots else target_for(occ_id,now,duration))
             delta=new_start-old
             if a.apply:
-                result=move_occurrence(db,occ_id,delta)
+                result=move_occurrence(db,occ_id,delta,mode=a.mode)
                 for k,n in result.items(): totals[k]+=n
+        print('TIMELINE eligible:',eligible,'protected/skipped:',skipped)
         if a.apply:
             failures=db.execute('PRAGMA foreign_key_check').fetchmany(3)
             if failures: raise RuntimeError('Foreign key check echec: '+str(failures))
