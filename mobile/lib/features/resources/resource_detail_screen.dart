@@ -388,13 +388,12 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                     PopupMenuButton<String>(
                       tooltip: 'Plus',
                       onSelected: (value) {
-                        switch (value) {
-                          case 'reuse':
-                            _reuse(detail);
-                          case 'archive':
-                            _archive(detail);
-                          case 'refresh':
-                            _refresh();
+                        if (value == 'reuse') {
+                          _reuse(detail);
+                        } else if (value == 'archive') {
+                          _archive(detail);
+                        } else if (value == 'refresh') {
+                          _refresh();
                         }
                       },
                       itemBuilder: (context) => [
