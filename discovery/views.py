@@ -641,6 +641,16 @@ class DiscoveryHomeView(TemplateView):
 
         page_rows = tuple(data.pop("_page_rows", ()))
         all_rows = tuple(data.pop("_all_rows", ()))
+        if space is not None:
+            # Keep the existing Space Web projection contract while the
+            # presentation itself is the shared Discovery page.
+            context["projection"] = {
+                **data,
+                "responsibility": self.selected_responsibility["key"],
+            }
+            context["projection_state"] = (
+                "content" if data.get("results") else "empty"
+            )
         exploration = data.get("exploration") or {}
         intent = _discovery_intent_from_projection(exploration)
         results = data.get("results") or []
