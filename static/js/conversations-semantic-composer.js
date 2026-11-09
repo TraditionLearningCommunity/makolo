@@ -130,7 +130,17 @@
           labels.forEach((label, index) => choices.append(makeChoiceRow(index, label)));
         } else {
           existing.forEach((row, index) => {
-            row.querySelector("[data-semantic-option-label]").textContent = labels[index];
+            const heading = row.querySelector("[data-semantic-option-label]");
+            if (heading.textContent !== labels[index]) {
+              const input = row.querySelector("[data-semantic-option-files]");
+              if (input.files.length) {
+                input.value = "";
+                row.querySelector("[data-semantic-option-captions]").replaceChildren();
+                status.textContent =
+                  "Choix modifié : vérifiez et rattachez ses médias avant de publier.";
+              }
+              heading.textContent = labels[index];
+            }
           });
         }
         for (const input of choices.querySelectorAll("[data-semantic-option-files]")) {
