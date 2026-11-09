@@ -112,9 +112,12 @@ class OccurrenceExperienceContent extends StatelessWidget {
     final title = _text(occurrence['label']) ??
         _text(activity['title']) ??
         'Occurrence';
+    final previouslyLive = _map(payload['live'])['available'] == true;
+    final livePhaseExpired = previouslyLive && liveWindowEnded;
     return ListView(
       key: PageStorageKey<String>(
         'occurrence:${_text(_map(payload['identity'])['id']) ?? 'unknown'}:'
+        '${_text(_map(payload['context'])['viewer_profile_id']) ?? 'viewer'}:'
         '${_text(_map(payload['context'])['actor_space_id']) ?? 'personal'}:'
         '${live ? 'live' : 'day_of'}',
       ),
@@ -132,7 +135,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: MakoloSpacing.xs),
         Text(
-          '${_text(activity['title']) ?? ''} · ${_phase(_text(payload['phase']))}',
+          '${_text(activity['title']) ?? ''} · ${livePhaseExpired ? 'Fenêtre Live terminée — à actualiser' : _phase(_text(payload['phase']))}',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: MakoloSpacing.lg),
@@ -376,23 +379,32 @@ class OccurrenceExperienceContent extends StatelessWidget {
     return MakoloSection(
       title: live ? 'Profondeurs autorisées' : 'Approfondir et agir',
       child: MakoloCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final depth in depths) ...[
-              OutlinedButton.icon(
-                onPressed: !remoteActionsAvailable || onOpenDepth == null
-                    ? null
-                    : () => onOpenDepth!(_text(depth['kind'])!),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                ),
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: Text(_text(depth['label']) ?? 'Consulter'),
-              ),
-              const SizedBox(height: MakoloSpacing.xs),
-            ],
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final buttonWidth = width < 700
+                ? width : (width - MakoloSpacing.sm) / 2;
+            return Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.sm,
+              children: [
+                for (final depth in depths)
+                  SizedBox(
+                    width: buttonWidth,
+                    child: OutlinedButton.icon(
+                      onPressed: !remoteActionsAvailable || onOpenDepth == null
+                          ? null
+                          : () => onOpenDepth!(_text(depth['kind'])!),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: Text(_text(depth['label']) ?? 'Consulter'),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -441,10 +453,12 @@ class OccurrenceExperienceContent extends StatelessWidget {
                     onPresentCredential != null) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   FilledButton.icon(
-                    onPressed: () => onPresentCredential!(
-                      _text(_map(access['identity'])['id']) ?? '',
-                      _text(_map(access['links'])['credential'])!,
-                    ),
+                    onPressed: remoteActionsAvailable
+                        ? () => onPresentCredential!(
+                            _text(_map(access['identity'])['id']) ?? '',
+                            _text(_map(access['links'])['credential'])!,
+                          )
+                        : null,
                     icon: const Icon(Icons.qr_code_2_rounded),
                     label: const Text('Présenter mon accès'),
                   ),
@@ -626,7 +640,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
                           Text(_value(fact['value'])),
                           const SizedBox(height: MakoloSpacing.sm),
                           Text(
-                            '${_truth(_text(fact['truth']))} · Source : ${_text(fact['source']) ?? 'non renseignée'}'
+                            '${readOnlyReason != null && _text(fact['truth']) == 'live' ? 'Dernière observation connue' : _truth(_text(fact['truth']))} · Source : ${_text(fact['source']) ?? 'non renseignée'}'
                             '${fact['occurred_at'] == null ? ' · Heure inconnue' : ' · ${fact['occurred_at']}'}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
