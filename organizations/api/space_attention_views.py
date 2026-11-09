@@ -44,6 +44,10 @@ class SpaceDiscoverAPIView(_SpaceAttentionAPIView):
     def get(self, request, slug):
         if "profile_id" in request.query_params:
             raise ValidationError({"profile_id": ["Le Profil actif est résolu par le serveur."]})
+        if request.query_params.get("context") not in (None, "", "space"):
+            raise ValidationError({"context": ["Contexte Space incompatible."]})
+        if request.query_params.get("space") not in (None, "", slug):
+            raise ValidationError({"space": ["Space incompatible avec la route."]})
         space = self.get_space(request, slug)
         try:
             payload = build_space_discover_projection(
