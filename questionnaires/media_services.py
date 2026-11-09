@@ -7,7 +7,7 @@ from django.db.models import Q
 from authorization.constants import PermissionCode
 from authorization.services import can
 from .models import (
-    FormVersion, FormVersionStatus, FormQuestion, FormRequest, QuestionnaireMedia,
+    FormVersion, FormVersionStatus, FormQuestion, FormRequest, FormRequestStatus, QuestionnaireMedia,
     QuestionType,
 )
 from journeys.collaboration_services import validate_artifact_upload
@@ -24,7 +24,9 @@ def ensure_media_access(actor, media):
         raise PermissionDenied("Connexion requise.")
     if _can_manage(actor, media.form_version):
         return
-    if not FormRequest.objects.filter(form_version=media.form_version).filter(
+    if not FormRequest.objects.filter(
+        form_version=media.form_version,
+    ).exclude(status=FormRequestStatus.CANCELLED).filter(
         Q(target_profile=actor) | Q(journey__beneficiary=actor)
     ).exists():
         raise PermissionDenied("Média de questionnaire inaccessible.")
