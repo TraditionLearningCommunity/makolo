@@ -174,7 +174,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertNotContains(response, ">unknown</dd>")
         self.assertContains(
             response,
-            "Le calendrier de l&#x27;Occurrence est une prévision, non une observation.",
+            "Le calendrier de l'Occurrence est une prévision, non une observation.",
         )
         self.assertNotContains(response, "Date.now")
         self.assertNotContains(response, "setInterval")
