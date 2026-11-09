@@ -213,6 +213,54 @@ class DiscoverySpaceAcquisitionTests(TestCase):
         self.assertEqual(second.status_code, 200, second.data)
         self.assertEqual(second.data["data"]["page"], 2)
 
+    def test_revoked_member_loses_list_map_and_detail_space_authority(self):
+        from django.test import Client
+        from authorization.services import revoke_mandate
+
+        member = User.objects.create_user(
+            username="discovery-revoked-member",
+            email="discovery-revoked@test.local",
+        )
+        mandate = grant_space_role(
+            profile=member, space=self.space,
+            role=SystemRoleCode.SPACE_ADMIN, granted_by=self.viewer,
+        )
+        self.client.force_authenticate(member)
+        initial = self.client.get(self.items_url, self._space_query())
+        self.assertEqual(initial.status_code, 200, initial.data)
+        self.assertTrue(initial.data["data"]["items"])
+        item = initial.data["data"]["items"][0]["identity"]
+        detail_url = reverse("discovery_api:item-detail", kwargs={
+            "family": item["family"], "item_id": item["resource"]["id"],
+        })
+        self.assertEqual(
+            self.client.get(detail_url, self._space_query()).status_code, 200,
+        )
+
+        revoke_mandate(mandate=mandate, actor=self.viewer)
+        self.assertEqual(
+            self.client.get(self.items_url, self._space_query()).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("discovery_api:map"), self._space_query(spatial="1")
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(detail_url, self._space_query()).status_code,
+            404,
+        )
+        web = Client()
+        web.force_login(member)
+        self.assertEqual(
+            web.get(reverse(
+                "organizations:space-discover", kwargs={"slug": self.space.slug},
+            )).status_code,
+            404,
+        )
+
     def test_signed_cursor_is_bound_to_space_and_viewer(self):
         self.client.force_authenticate(self.viewer)
         first = self.client.get(self.items_url, self._space_query(page_size=1))
