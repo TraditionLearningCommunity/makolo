@@ -15,7 +15,10 @@ from scanner.permissions import user_can_scan_activity
 
 from .occurrence_live import occurrence_live_phase, resolve_occurrence_live
 from .participant_occurrence_live import resolve_participant_occurrence_live
-from .permissions import user_can_view_activity_operations
+from .permissions import (
+    user_can_manage_activity_operations,
+    user_can_view_activity_operations,
+)
 
 
 _LIVE_PHASES = {"arrival", "live"}
@@ -70,6 +73,18 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         )
     )
     operations_allowed = operator is not None
+    operations_manage = user_can_manage_activity_operations(
+        viewer, occurrence.activity,
+    )
+    finance_manage = can(
+        viewer, PermissionCode.ACTIVITY_FINANCE_MANAGE,
+        activity=occurrence.activity, include_platform=False,
+    ) or bool(
+        occurrence.activity.space_id and can(
+            viewer, PermissionCode.FINANCE_MANAGE,
+            occurrence.activity.space, include_platform=False,
+        )
+    )
     platform_allowed = has_platform_authority(viewer)
 
     sections = {}
@@ -97,6 +112,16 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "source": "authorization.services",
             "permission": PermissionCode.ACTIVITY_FINANCE_VIEW,
         }
+    if operations_manage:
+        capabilities["operations_manage"] = {
+            "source": "operations.permissions",
+            "permission": PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
+        }
+    if finance_manage:
+        capabilities["finance_manage"] = {
+            "source": "authorization.services",
+            "permission": PermissionCode.ACTIVITY_FINANCE_MANAGE,
+        }
     if operations_allowed:
         capabilities["operations_view"] = {
             "source": "operations.permissions",
@@ -108,7 +133,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
 
     relations = {
         "participant": participant is not None,
-        "organizer": bool(operator is not None or scanner_allowed or finance_allowed),
+        "organizer": bool(operator is not None or scanner_allowed or finance_allowed or finance_manage or operations_manage),
         "platform": bool(platform_allowed),
     }
     return {
@@ -125,7 +150,5 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "role_switch_required": False,
             "simultaneous_sections": True,
         },
-        # A verified business coverage state cannot be inferred merely from
-        # endpoint reachability or the existence of a planned date.
-        "coverage": {"state": "unavailable", "reason": "not_established_by_owner"},
+        # No coverage status is claimed until an owner computes it.
     }
