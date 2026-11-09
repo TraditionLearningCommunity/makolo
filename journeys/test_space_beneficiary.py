@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from activities.models import Activity, Occurrence
@@ -115,3 +116,44 @@ class SpaceBeneficiaryJourneyTests(TestCase):
         client.force_authenticate(user=self.member)
         revoke_mandate(mandate=self.member_mandate, actor=self.owner)
         self.assertEqual(client.get(url).status_code, 404)
+
+    def test_space_beneficiary_can_use_web_day_of_for_external_provider(self):
+        occurrence = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() - timedelta(minutes=5),
+            end_at=timezone.now() + timedelta(hours=2),
+        )
+        journey = self._create(occurrence=occurrence)
+        self.assertEqual(journey.beneficiary_space_id, self.space.pk)
+        url = reverse(
+            "organizations:space-occurrence-day-of",
+            kwargs={"slug": self.space.slug, "occurrence_id": occurrence.pk},
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Démarches de l'Espace")
+        self.assertContains(response, self.space.name)
+
+    def test_selected_space_cannot_read_another_spaces_institutional_journey(self):
+        occurrence = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() - timedelta(minutes=5),
+            end_at=timezone.now() + timedelta(hours=2),
+        )
+        self._create(occurrence=occurrence)
+        unrelated_space = Organization.objects.create(
+            name="Autre client", created_by=self.member,
+        )
+        grant_space_role(
+            profile=self.member, space=unrelated_space,
+            role=SystemRoleCode.SPACE_OWNER,
+        )
+        url = (
+            f"/api/v1/operations/occurrences/{occurrence.pk}/experience/day-of/"
+            f"?actor_space={unrelated_space.pk}"
+        )
+        client = APIClient()
+        client.force_authenticate(user=self.member)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 404)
