@@ -42,6 +42,7 @@ class LiveScreen extends StatefulWidget {
 class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
   bool refreshing = false;
   int _revision = 0;
+  DateTime? _actorSwitchedAt;
   Timer? _reconciliationTimer;
 
   bool get _actorValid =>
@@ -49,6 +50,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       widget.actorContext!.value is! SpaceActorContext;
 
   void _onActorChanged() {
+    _actorSwitchedAt = DateTime.now().toUtc();
     _revision++;
     if (!mounted) return;
     setState(() => refreshing = false);
@@ -148,7 +150,11 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
               profileId: widget.repository.profileId,
               surface: 'live',
             );
-        final available = scoped && !source.invalidated;
+        final available = scoped && !source.invalidated &&
+            OccurrenceContinuity.verifiedAfterActorSwitch(
+              lastSuccessAt: source.lastSuccessAt,
+              actorSwitchedAt: _actorSwitchedAt,
+            );
         final liveEnded = scoped && OccurrenceContinuity.liveWindowEnded(
           projection!.payload,
           now: DateTime.now(),
