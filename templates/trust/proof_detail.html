@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-3xl space-y-4">
   <header class="flex items-center justify-between gap-3">
     <div class="flex min-w-0 items-center gap-2">
-      <a href="{% url 'trust:my-proofs' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes preuves"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
+      <a href="{{ return_url }}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes preuves"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
       <div class="min-w-0">
         <span class="mk-kicker">Mes preuves</span>
         <h1 class="truncate text-2xl font-extrabold">{{ proof.get_proof_type_display }}</h1>
