@@ -795,6 +795,16 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final knowledge = _maps(focus['to_know']);
     if (count == 0 && knowledge.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
+    String subtitleFor(Map<String, dynamic> item) {
+      final reason = item['reason_label']?.toString() ?? '';
+      final raw = item['deadline_at']?.toString();
+      final date = raw == null ? null : DateTime.tryParse(raw)?.toLocal();
+      if (date == null) return reason;
+      final local = MaterialLocalizations.of(context);
+      final deadline = '${local.formatShortDate(date)} '
+          '${local.formatTimeOfDay(TimeOfDay.fromDateTime(date), alwaysUse24HourFormat: true)}';
+      return '$reason · Échéance : $deadline';
+    }
     Widget group(String name, List<Map<String, dynamic>> entries) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -814,7 +824,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: Text(item['reason_label']?.toString() ?? ''),
+            subtitle: Text(subtitleFor(item)),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
             onTap: () => _openAttentionPoint(item['id']?.toString() ?? ''),
           ),
@@ -848,6 +858,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   group('Pour moi', mine),
                   group('À régler', decisions),
                   group('À savoir', knowledge),
+                  if (focus['more_actions'] == true)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'D’autres actions restent accessibles dans le fil '
+                        'et dans l’historique de la conversation.',
+                      ),
+                    ),
                   const SizedBox(height: 8),
                 ],
               ),
