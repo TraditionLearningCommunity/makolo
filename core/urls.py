@@ -5,7 +5,11 @@ from commerce.order_web_views import PersonalCommerceOrderWebDetailView
 from .home_views import MatureParticipantHomeView
 from .transverse_search_web import PersonalSearchWebView
 from .interoperability_views import PersonalConnectionsView
-from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
+from .m8c_participant_views import ParticipantJourneyDetailView
+from .occurrence_experience_web import (
+    PersonalOccurrenceDayOfView,
+    PersonalOccurrenceLiveView,
+)
 from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView, MatureParticipantConsiderationsView
 from .participant_views import (
     ParticipantAccessDetailView,
@@ -50,8 +54,13 @@ urlpatterns = [
         name="participant-invitation-decline",
     ),
     path(
+        "me/occurrences/<uuid:pk>/day-of/",
+        PersonalOccurrenceDayOfView.as_view(),
+        name="participant-occurrence-day-of",
+    ),
+    path(
         "me/occurrences/<uuid:pk>/live/",
-        ParticipantOccurrenceLiveView.as_view(),
+        PersonalOccurrenceLiveView.as_view(),
         name="participant-occurrence-live",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
