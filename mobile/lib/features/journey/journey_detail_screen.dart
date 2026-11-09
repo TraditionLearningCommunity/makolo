@@ -73,6 +73,13 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   bool _respondingInvitation = false;
   String? _invitationNotice;
   bool _requestedInitialRefresh = false;
+  int _identityRevision = 0;
+
+  bool _isCurrent(int revision, String id, JourneyRepository repository) =>
+      mounted &&
+      revision == _identityRevision &&
+      id == widget.journeyId &&
+      identical(repository, widget.repository);
 
   @override
   void initState() {
@@ -85,6 +92,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.journeyId != widget.journeyId ||
         oldWidget.repository != widget.repository) {
+      // Old owner responses must not change another Journey/Profile's page.
+      _identityRevision++;
+      _refreshing = false;
+      _respondingInvitation = false;
+      _invitationNotice = null;
       _requestedInitialRefresh = false;
       unawaited(_acquireOrRefresh());
     }
@@ -93,16 +105,16 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-
-    final local = await widget.repository.readDetail(widget.journeyId);
-    final source = await widget.repository.readSource(widget.journeyId);
-    if (!mounted) return;
-
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    final local = await repository.readDetail(id);
+    final source = await repository.readSource(id);
+    if (!_isCurrent(revision, id, repository)) return;
     if (local == null) {
       await _refresh();
       return;
     }
-
     final presentation = _selector.select(
       projection: local,
       source: source,
@@ -116,86 +128,89 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshDetail(widget.journeyId);
+      await repository.refreshDetail(id);
     } on Object {
-      // SyncSource records the failure while preserving usable local content.
+      // Local content stays available independently of a transport result.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (_isCurrent(revision, id, repository)) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
   Future<void> _respondToInvitation(String decision) async {
-    if (_respondingInvitation || widget.api == null) return;
+    final api = widget.api;
+    if (_respondingInvitation || api == null) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() {
       _respondingInvitation = true;
       _invitationNotice = null;
     });
     try {
-      final id = Uri.encodeComponent(widget.journeyId);
-      final endpoint = 'api/v1/me/journeys/$id/invitation/';
-      // The network owner is authoritative. A cached action is never enough.
-      final current = (await widget.api!.get(endpoint)).jsonObject();
+      final endpoint = 'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/';
+      final current = (await api.get(endpoint)).jsonObject();
+      if (!_isCurrent(revision, id, repository)) return;
       final actions = current['capabilities'];
-      if (current['journey_id'] != widget.journeyId ||
+      if (current['journey_id'] != id ||
           actions is! List ||
           !actions.contains(decision)) {
         await _refresh();
-        if (mounted) {
-          setState(
-            () => _invitationNotice =
-                'Cette invitation a changé. Consultez son état actuel.',
-          );
+        if (_isCurrent(revision, id, repository)) {
+          setState(() => _invitationNotice =
+              'Cette invitation a changé. Consultez son état actuel.');
         }
         return;
       }
-      final result = (await widget.api!.post(
+      final result = (await api.post(
         endpoint,
         body: {'decision': decision},
       )).jsonObject();
-      if (result['journey_id'] != widget.journeyId ||
+      if (!_isCurrent(revision, id, repository)) return;
+      if (result['journey_id'] != id ||
           (decision == 'accept' && result['status'] != 'confirmed') ||
           (decision == 'decline' && result['status'] != 'cancelled')) {
         throw const FormatException('Unconfirmed Journey invitation');
       }
       await _refresh();
-      if (mounted) {
-        setState(
-          () => _invitationNotice = decision == 'accept'
-              ? 'Invitation acceptée.'
-              : 'Invitation refusée.',
-        );
+      if (_isCurrent(revision, id, repository)) {
+        setState(() => _invitationNotice = decision == 'accept'
+            ? 'Invitation acceptée.'
+            : 'Invitation refusée.');
       }
     } on Object {
-      // Even a lost response may follow a successful owner mutation.
-      // Reconcile rather than implying the action failed.
+      // A lost acknowledgement cannot be treated as failure or success.
+      if (!_isCurrent(revision, id, repository)) return;
       try {
-        final id = Uri.encodeComponent(widget.journeyId);
-        final current = (await widget.api!.get(
-          'api/v1/me/journeys/$id/invitation/',
+        final current = (await api.get(
+          'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/',
         )).jsonObject();
+        if (!_isCurrent(revision, id, repository)) return;
         await _refresh();
-        if (mounted) {
+        if (_isCurrent(revision, id, repository)) {
           final status = current['status'];
-          setState(
-            () => _invitationNotice = status == 'confirmed'
-                ? 'Invitation acceptée.'
-                : status == 'cancelled'
-                ? 'Invitation refusée.'
-                : 'Vérifiez votre invitation avant de réessayer.',
-          );
+          setState(() => _invitationNotice = status == 'confirmed'
+              ? 'Invitation acceptée.'
+              : status == 'cancelled'
+              ? 'Invitation refusée.'
+              : 'Vérifiez votre invitation avant de réessayer.');
         }
       } on Object {
-        if (mounted) {
-          setState(
-            () => _invitationNotice =
-                'Aucune confirmation pour le moment. Vous pouvez réessayer.',
-          );
+        if (_isCurrent(revision, id, repository)) {
+          setState(() => _invitationNotice =
+              'Aucune confirmation pour le moment. Vous pouvez réessayer.');
         }
       }
     } finally {
-      if (mounted) setState(() => _respondingInvitation = false);
+      if (_isCurrent(revision, id, repository)) {
+        setState(() => _respondingInvitation = false);
+      }
     }
   }
 
