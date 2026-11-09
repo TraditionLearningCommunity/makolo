@@ -78,6 +78,7 @@ def build_parser():
     r.add_argument("--space-id")
     r.add_argument("--per-profile",type=int,default=3)
     r.add_argument("--seed",type=int,default=2026)
+    r.add_argument("--direction",choices=("add","trim"),default="add")
     time_options(r)
     m=sub.add_parser("maintain",help="Completer, rafraichir ou archiver des scenarios demo")
     m.add_argument("--action",dest="maintenance_action",required=True,choices=("complete","refresh","retire","restore"))
@@ -132,7 +133,8 @@ def run(a):
             raise SystemExit("Les options temporelles exigent --target periods.")
         options=["--target",a.target,"--count",str(a.count),
                  "--profiles",str(a.profiles),"--per-profile",str(a.per_profile),
-                 "--seed",str(a.seed),"--activity-prefix",a.activity_prefix]
+                 "--seed",str(a.seed),"--direction",a.direction,
+                 "--activity-prefix",a.activity_prefix]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
         if a.space_id: options.extend(["--space-id",a.space_id])
         if a.backup: options.append("--backup")
