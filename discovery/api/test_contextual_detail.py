@@ -70,6 +70,13 @@ class DiscoveryContextualDetailTests(TestCase):
             status=status,
         )
 
+    def test_guest_detail_remains_public_without_private_journey_relation(self):
+        self._make_journey(self.viewer)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["meta"]["scope"], "public")
+        self.assertNotIn("journey_continuation", response.data["data"]["item"])
+
     def test_opening_personal_detail_does_not_create_a_journey(self):
         self.client.force_authenticate(self.viewer)
         before = Journey.objects.count()
@@ -163,6 +170,17 @@ class DiscoveryContextualDetailTests(TestCase):
         self.assertNotContains(collective, "J’enregistre")
         self.assertNotContains(collective, "Créer Journey")
         self.assertEqual(Journey.objects.count(), 1)
+
+    def test_space_listing_points_to_the_same_contextual_web_detail(self):
+        self.client.force_login(self.viewer)
+        listing = self.client.get(
+            reverse("organizations:space-discover", kwargs={"slug": self.space.slug}),
+        )
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(
+            listing,
+            self.web_url + "?context=space&amp;space=" + self.space.slug,
+        )
 
     def test_web_space_detail_rejects_unauthorized_actor(self):
         self.client.force_login(self.outsider)
