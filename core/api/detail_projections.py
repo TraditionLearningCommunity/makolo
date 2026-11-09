@@ -107,11 +107,23 @@ def _request_payload(request):
 def _occurrence_ref(occurrence):
     if occurrence is None:
         return None
+    places = list(occurrence.place_links.all())
+    primary = next((link for link in places if link.role == "primary"), None)
+    place = (primary or places[0]).place if places else None
     return {
         "kind": "occurrence",
         "id": str(occurrence.pk),
         "label": occurrence.label or None,
         "state": occurrence.status,
+        "place": (
+            {
+                "name": place.name,
+                "address": place.address_line,
+                "locality": place.locality,
+                "instructions": place.access_instructions,
+            }
+            if place is not None else None
+        ),
         "timing": {
             "kind": occurrence.timing_kind,
             "start_date": _date(occurrence.start_date),
@@ -328,9 +340,11 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         form_links.append(
             {
                 "id": str(row.pk),
+                "title": row.form_version.title,
                 "required": bool(row.required),
                 "state": row.status,
                 "due_at": _iso(row.due_at),
+                "opens_at": _iso(row.opens_at),
                 "capabilities": row_capabilities,
                 "links": row_links,
             }
