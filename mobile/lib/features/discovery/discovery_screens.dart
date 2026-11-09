@@ -2481,6 +2481,18 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                   path != '/journeys/$journeyId') {
                                 return const SizedBox.shrink();
                               }
+                              // An existing owner "continue" action already
+                              // opens the canonical Journey: never show two
+                              // buttons for the same handoff.
+                              final primary = item.engagement?['primary_action'];
+                              final destination = primary is Map ? primary['destination'] : null;
+                              if (destination is Map &&
+                                  primary is Map &&
+                                  primary['code'] == 'continue' &&
+                                  destination['kind'] == 'native' &&
+                                  destination['path'] == path) {
+                                return const SizedBox.shrink();
+                              }
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: MakoloSpacing.md,
