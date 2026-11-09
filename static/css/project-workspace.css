@@ -88,3 +88,36 @@
   .mk-project__view-switch svg {width:16px;height:16px}
 }
 @media (prefers-reduced-motion:reduce) {.mk-project * {transition:none!important}}
+
+/* One Project workspace for personal and Space contexts; only authority differs. */
+.mk-project__hero {padding-bottom:14px;gap:12px}
+.mk-project__symbol {width:43px;height:43px;border-radius:12px}
+.mk-project__symbol svg {width:23px;height:23px}
+.mk-project__identity {gap:11px}
+.mk-project__hero h1 {font-size:clamp(23px,2.7vw,32px)}
+.mk-project__desc {margin-top:8px}
+.mk-project__facts {margin-top:10px}
+.mk-project__facts span {padding:4px 8px}
+.mk-project__commands {margin:5px 0 15px}
+.mk-project__view-switch {margin-bottom:15px}
+.mk-project__number {padding:11px 13px;min-width:115px}
+.mk-project__card {padding:12px}
+.mk-project__card-meta {margin-top:6px}
+.mk-project__people {margin-top:20px;border-top:1px solid var(--edge);padding-top:18px}
+.mk-project__people-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mk-project__people-heading h2 {font-size:18px;margin:0 0 5px}
+.mk-project__person {display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--edge)}
+.mk-project__person strong {font-size:14px}
+.mk-project__person small {display:block;margin-top:4px;color:var(--quiet);font-size:12px}
+.mk-project__person details {font-size:12px}
+.mk-project__person details summary {cursor:pointer;color:var(--violet)}
+.mk-project__person details form {margin-top:6px}
+.mk-project__person details button {font-size:12px}
+@media (max-width:470px) {
+  .mk-project__path {margin-bottom:12px}
+  .mk-project__hero {gap:8px}
+  .mk-project__symbol {width:40px;height:40px}
+  .mk-project__view-switch {gap:0}
+  .mk-project__view-switch button {min-width:0}
+  .mk-project__people-heading {align-items:center}
+}
