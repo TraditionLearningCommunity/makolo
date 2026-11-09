@@ -15,10 +15,11 @@ on:
       - ".github/workflows/mobile-android-build.yml"
   workflow_dispatch:
 
-# The latest PR head owns the APK. Cancel superseded builds to save runners.
+# Allow the active Android build to finish so frequent unrelated PR commits
+# cannot repeatedly abort APK production; only retain the newest pending run.
 concurrency:
   group: mobile-android-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
