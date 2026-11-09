@@ -1663,7 +1663,7 @@ def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
     }
 
 
-def spatial_discovery_projection(rows, *, profile=None) -> dict:
+def spatial_discovery_projection(rows, *, profile=None, space=None) -> dict:
     """Compose canonical public location facts with viewer-authorized N2 facts.
 
     The spatial index owns place publication and roles, while project_rows
@@ -1681,6 +1681,8 @@ def spatial_discovery_projection(rows, *, profile=None) -> dict:
         if key in by_key
     ]
     projected = project_rows(admitted, profile=profile)
+    if space is not None:
+        _space_read_only_items(projected)
     results = []
     for owner_item in projected:
         key = owner_item["identity"]["candidate_key"]
@@ -1704,6 +1706,25 @@ def spatial_discovery_projection(rows, *, profile=None) -> dict:
         "results": results,
     }
 
+def _space_read_only_items(items):
+    """Remove personal mutations and engagements from Space acquisition."""
+    for item in items:
+        item["capabilities"] = ["view"]
+        item["saved"] = {"state": "unknown"}
+        item["watch"] = {"state": "unavailable"}
+        item["links"] = {
+            key: value for key, value in (item.get("links") or {}).items()
+            if key not in {"saved", "web_saved"}
+        }
+        item["engagement"] = {
+            "state": "owner_contract",
+            "capabilities": [],
+            "links": {},
+        }
+        item["engagement"]["primary_action"] = _primary_action_for_projection(item)
+    return items
+
+
 def paginated_projection(
     params,
     *,
@@ -1724,22 +1745,7 @@ def paginated_projection(
     page_rows = composition.rows[start:end]
     results = project_rows(page_rows, profile=candidate_profile)
     if space is not None:
-        # Space acquisition is read-only until a Space owner action contract is
-        # verified. Never expose a personal Save, Journey or mutable handoff.
-        for item in results:
-            item["capabilities"] = ["view"]
-            item["saved"] = {"state": "unknown"}
-            item["watch"] = {"state": "unavailable"}
-            item["links"] = {
-                key: value for key, value in (item.get("links") or {}).items()
-                if key not in {"saved", "web_saved"}
-            }
-            item["engagement"] = {
-                "state": "owner_contract",
-                "capabilities": [],
-                "links": {},
-            }
-            item["engagement"]["primary_action"] = _primary_action_for_projection(item)
+        _space_read_only_items(results)
     count = len(composition.rows)
     has_next = end < count
     authenticated = _authenticated(profile)
@@ -1813,7 +1819,7 @@ def paginated_projection(
                 )
                 if params.get("include_spatial_index") == "compact"
                 else spatial_discovery_projection(
-                    composition.rows, profile=candidate_profile,
+                    composition.rows, profile=candidate_profile, space=space,
                 )
             ),
         } if page == 1 and params.get("include_spatial_index") in {"1", "compact"} else {}),
