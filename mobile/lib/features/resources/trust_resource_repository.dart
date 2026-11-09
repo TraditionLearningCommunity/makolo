@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
@@ -46,6 +47,7 @@ class TrustResourceRepository {
     required this.store,
     required this.profileId,
     required this.sync,
+    this.api,
   });
 
   static const defaultLimit = 24;
@@ -55,6 +57,7 @@ class TrustResourceRepository {
   final ProfileStore store;
   final String profileId;
   final SyncEngine? sync;
+  final MakoloApiClient? api;
 
   String collectionScopeKey({
     required TrustResourceFamily family,
