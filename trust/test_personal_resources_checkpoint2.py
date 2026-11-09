@@ -278,6 +278,31 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         self.assertEqual(proof_detail.status_code, 404)
         self.assertEqual(title_detail.status_code, 404)
 
+    def test_trust_details_preserve_only_owner_collection_return_context(self):
+        proof_detail = reverse("trust:proof-detail", args=[self.proof.pk])
+        proof_return = reverse("trust:my-proofs") + "?status=active&q=Formation"
+        response = self.client.get(proof_detail, {"return": proof_return})
+        self.assertEqual(response.context["return_url"], proof_return)
+
+        title_detail = reverse(
+            "trust:credential-detail",
+            args=[self.credential.pk],
+        )
+        title_return = (
+            reverse("trust:my-credentials") + "?status=issued&sort=title"
+        )
+        response = self.client.get(title_detail, {"return": title_return})
+        self.assertEqual(response.context["return_url"], title_return)
+
+        rejected = self.client.get(
+            proof_detail,
+            {"return": "https://evil.example/trust/proofs/?q=private"},
+        )
+        self.assertEqual(
+            rejected.context["return_url"],
+            reverse("trust:my-proofs"),
+        )
+
     def test_resource_details_only_offer_public_representation_sharing(self):
         before = ShareEnvelope.objects.count()
 
