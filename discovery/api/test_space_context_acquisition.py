@@ -44,6 +44,18 @@ class DiscoverySpaceAcquisitionTests(TestCase):
             activity=activity, start_at=start, end_at=start + timedelta(hours=2),
             timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED,
         )
+        other_activity = Activity.objects.create(
+            space=self.space, created_by=self.viewer,
+            title="Discovery Space second published activity",
+            short_description="Second public activity",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        Occurrence.objects.create(
+            activity=other_activity, start_at=start + timedelta(days=1),
+            end_at=start + timedelta(days=1, hours=2),
+            timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED,
+        )
         self.client = APIClient()
         self.items_url = reverse("discovery_api:items")
         self.space_url = f"/api/v1/organizations/workspaces/{self.space.slug}/discover/"
@@ -105,15 +117,28 @@ class DiscoverySpaceAcquisitionTests(TestCase):
         ):
             self.assertEqual(self.client.get(self.items_url, params).status_code, 400)
 
+    def test_space_endpoint_returns_400_for_invalid_cursor(self):
+        self.client.force_authenticate(self.viewer)
+        result = self.client.get(self.space_url, {"continuation": "invalid"})
+        self.assertEqual(result.status_code, 400)
+
+    def test_map_details_do_not_expose_personal_action_handoffs(self):
+        self.client.force_authenticate(self.viewer)
+        response = self.client.get(
+            reverse("discovery_api:map"),
+            self._space_query(spatial="1", details="1"),
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        for item in response.data["results"]:
+            self.assertEqual(item["capabilities"], ["view"])
+            self.assertEqual(item["engagement"]["capabilities"], [])
+
     def test_signed_cursor_is_bound_to_space_and_viewer(self):
         self.client.force_authenticate(self.viewer)
         first = self.client.get(self.items_url, self._space_query(page_size=1))
         self.assertEqual(first.status_code, 200, first.data)
         token = first.data["data"]["continuation"]["token"]
-        if not token:
-            # Only one candidate; the collection still has no phantom continuation.
-            self.assertFalse(first.data["data"]["has_next"])
-            return
+        self.assertTrue(token, first.data["data"])
         second_context = self.client.get(
             self.items_url, self._space_query(page_size=1, continuation=token),
         )
