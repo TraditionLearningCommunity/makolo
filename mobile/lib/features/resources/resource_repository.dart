@@ -925,33 +925,7 @@ String _safeExportName(String stem, String extension) {
   final safeStem = stem
       .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]+'), '-')
       .replaceAll(RegExp(r'\s+'), ' ')
-      .replaceAll(RegExp(r'^[. ]+|[. ]+
-  if (value is Map<String, dynamic>) return value;
-  if (value is Map) {
-    return value.map((key, item) => MapEntry(key.toString(), item));
-  }
-  return const {};
-}
-
-String? _string(Object? value) {
-  final text = value?.toString().trim();
-  return text == null || text.isEmpty ? null : text;
-}
-
-List<ResourceOption> _options(Object? value) {
-  if (value is! List) return const [];
-  final options = <ResourceOption>[];
-  for (final raw in value) {
-    final row = _map(raw);
-    final id = _string(row['id']);
-    final label = _string(row['label']);
-    if (id != null && label != null) {
-      options.add(ResourceOption(id: id, label: label));
-    }
-  }
-  return options;
-}
-), '')
+      .replaceAll(RegExp(r'^[. ]+|[. ]+$'), '')
       .trim();
   final bounded = safeStem.isEmpty
       ? 'Document Makolo'
