@@ -6,6 +6,9 @@ import '../resources/document_form_screen.dart';
 import '../resources/documents_screen.dart';
 import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
+import '../resources/trust_resource_collection_screen.dart';
+import '../resources/trust_resource_detail_screen.dart';
+import '../resources/trust_resource_repository.dart';
 import '../continuity/objective_collection_screen.dart';
 import '../continuity/objective_organizer_screen.dart';
 import '../continuity/objective_create_screen.dart';
@@ -336,6 +339,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             return ResourcesScreen(
               repository: repository,
               onOpenDocuments: () => context.push('/me/resources/documents'),
+              onOpenProofs: () => context.push('/me/resources/proofs'),
+              onOpenTitles: () => context.push('/me/resources/titles'),
             );
           },
           routes: [
@@ -456,7 +461,85 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   ],
                 ),
               ],
+,
+            GoRoute(
+              path: 'proofs',
+              builder: (context, state) {
+                final repository = runtime.trustResources;
+                if (repository == null) {
+                  return const MakoloSecondaryScreen(
+                    title: 'Mes preuves',
+                    message: 'Vos preuves ne sont pas disponibles sur cet appareil.',
+                  );
+                }
+                return TrustResourceCollectionScreen(
+                  family: TrustResourceFamily.proofs,
+                  repository: repository,
+                  onOpenItem: (id) =>
+                      context.push('/me/resources/proofs/$id'),
+                );
+              },
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final repository = runtime.trustResources;
+                    if (repository == null) {
+                      return const MakoloSecondaryScreen(
+                        title: 'Preuve',
+                        message: 'Cette preuve n’est pas disponible sur cet appareil.',
+                      );
+                    }
+                    return TrustResourceDetailScreen(
+                      family: TrustResourceFamily.proofs,
+                      id: state.pathParameters['id']!,
+                      repository: repository,
+                      onOpenJourney: (journeyId) =>
+                          context.push('/journeys/$journeyId'),
+                    );
+                  },
+                ),
+              ],
             ),
+            GoRoute(
+              path: 'titles',
+              builder: (context, state) {
+                final repository = runtime.trustResources;
+                if (repository == null) {
+                  return const MakoloSecondaryScreen(
+                    title: 'Mes titres',
+                    message: 'Vos titres ne sont pas disponibles sur cet appareil.',
+                  );
+                }
+                return TrustResourceCollectionScreen(
+                  family: TrustResourceFamily.titles,
+                  repository: repository,
+                  onOpenItem: (id) =>
+                      context.push('/me/resources/titles/$id'),
+                );
+              },
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final repository = runtime.trustResources;
+                    if (repository == null) {
+                      return const MakoloSecondaryScreen(
+                        title: 'Titre',
+                        message: 'Ce titre n’est pas disponible sur cet appareil.',
+                      );
+                    }
+                    return TrustResourceDetailScreen(
+                      family: TrustResourceFamily.titles,
+                      id: state.pathParameters['id']!,
+                      repository: repository,
+                      onOpenJourney: (journeyId) =>
+                          context.push('/journeys/$journeyId'),
+                    );
+                  },
+                ),
+              ],
+            )            ),
           ],
         ),
       ],
