@@ -10,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.db import transaction
 
 from journeys.collaboration_services import validate_artifact_upload
+from core.private_media_validation import ensure_media_kind, validate_recorded_media
 
 from .media_models import ConversationAttachmentKind, ConversationPointAttachment
 from .point_models import ConversationExchangeModerationState, ConversationResponseVisibility
@@ -27,49 +28,17 @@ KIND_POLICY_FIELD = {
 
 
 def _validate_kind_mime(kind, mime_type):
-    if kind == ConversationAttachmentKind.IMAGE and not mime_type.startswith("image/"):
-        raise ValidationError("Une pièce jointe Image doit contenir une image.")
-    if kind in {ConversationAttachmentKind.AUDIO, ConversationAttachmentKind.VOICE} and not mime_type.startswith("audio/"):
-        raise ValidationError("Une pièce jointe audio/vocale doit contenir un fichier audio.")
-    if kind == ConversationAttachmentKind.VIDEO and not mime_type.startswith("video/"):
-        raise ValidationError("Une pièce jointe Vidéo doit contenir une vidéo.")
+    return ensure_media_kind(kind, mime_type)
 
 
 def validate_conversation_upload(uploaded_file, kind):
-    """Conversation audio is not a JourneyArtifact and needs its own validation.
-
-    The Journey validator remains the owner of document/image validation.
-    No uploaded MIME declaration alone is trusted for recorded media.
-    """
-    if kind not in {ConversationAttachmentKind.AUDIO, ConversationAttachmentKind.VOICE, ConversationAttachmentKind.VIDEO}:
+    # Technical validation is shared. Conversation owns its policy and files.
+    if kind not in {
+        ConversationAttachmentKind.AUDIO, ConversationAttachmentKind.VOICE,
+        ConversationAttachmentKind.VIDEO,
+    }:
         return validate_artifact_upload(uploaded_file)
-    if uploaded_file is None:
-        raise ValidationError("Un fichier est obligatoire.")
-    bound = int(getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 12 * 1024 * 1024))
-    size = int(getattr(uploaded_file, "size", 0) or 0)
-    if size <= 0 or size > bound:
-        raise ValidationError("Taille de média non prise en charge.")
-    mime = (getattr(uploaded_file, "content_type", "") or "").split(";", 1)[0].strip().lower()
-    signatures = {
-        "audio/webm": lambda b: b.startswith(b"\x1a\x45\xdf\xa3") and b"A_OPUS" in b[:8192],
-        "audio/ogg": lambda b: b.startswith(b"OggS") and (b"OpusHead" in b[:4096] or b"vorbis" in b[:4096]),
-        "audio/mp4": lambda b: len(b) >= 12 and b[4:8] == b"ftyp",
-        "audio/x-m4a": lambda b: len(b) >= 12 and b[4:8] == b"ftyp",
-        "audio/wav": lambda b: b.startswith(b"RIFF") and b[8:12] == b"WAVE",
-        "audio/mpeg": lambda b: b.startswith(b"ID3") or (len(b) > 2 and b[0] == 255 and b[1] & 0xE0 == 0xE0),
-        "video/mp4": lambda b: len(b) >= 12 and b[4:8] == b"ftyp",
-        "video/webm": lambda b: b.startswith(b"\x1a\x45\xdf\xa3"),
-    }
-    allowed = (
-        {"video/mp4", "video/webm"} if kind == ConversationAttachmentKind.VIDEO
-        else {"audio/webm", "audio/ogg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/mpeg"}
-    )
-    uploaded_file.seek(0)
-    data = uploaded_file.read(bound + 1)
-    uploaded_file.seek(0)
-    if mime not in allowed or len(data) != size or not signatures[mime](data):
-        raise ValidationError("Format ou signature du média non pris en charge.")
-    return data, mime, hashlib.sha256(data).hexdigest()
+    return validate_recorded_media(uploaded_file, kind)
 
 
 def _ensure_policy(point, kind):
