@@ -574,7 +574,9 @@ class _ConversationInvitationCardState
               invitationId: widget.invitation.id, accept: accept,
             );
       if (!mounted) return;
-      if (accept && conversationId != null) widget.onOpen(conversationId);
+      if (accept && conversationId != null && !widget.invitation.collective) {
+        widget.onOpen(conversationId);
+      }
     } on Object {
       if (!mounted) return;
       setState(
