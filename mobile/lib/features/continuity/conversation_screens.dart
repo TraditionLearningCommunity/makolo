@@ -665,6 +665,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _newMessagesAvailable = false;
   String? _lastTimelinePointId;
   String? _lastReceivedPointId;
+  final List<_ConversationPoint> _olderPoints = [];
+  String? _olderCursor;
+  String? _olderBaseSignature;
+  String? _activeTimelineSignature;
+  bool _olderLoaded = false;
+  bool _loadingOlder = false;
+  String? _olderError;
+  final Set<String> _expandedCompletedGroups = {};
 
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
@@ -828,6 +836,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         _newMessagesAvailable = false;
         _lastTimelinePointId = null;
         _lastReceivedPointId = null;
+        _olderPoints.clear();
+        _olderCursor = null;
+        _olderBaseSignature = null;
+        _activeTimelineSignature = null;
+        _olderLoaded = false;
+        _loadingOlder = false;
+        _olderError = null;
+        _expandedCompletedGroups.clear();
         if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
       }
       _handledFocus = null;
@@ -950,6 +966,82 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         onOpenRelatedPoint: widget.onOpenRelatedPoint,
       ),
     );
+  }
+
+  String _timelineSignature(_ConversationDetail detail) {
+    if (!detail.hasTimeline) return '';
+    return [
+      detail.timelineNextCursor ?? '',
+      for (final point in detail.timeline)
+        '${point.id}:${point.updatedAt?.toIso8601String() ?? ''}:'
+        '${point.lifecycle ?? ''}:${point.timelineCompact}:'
+        '${point.responseStatus['responded'] == true}',
+    ].join('|');
+  }
+
+  String? _olderAvailableCursor(_ConversationDetail detail) {
+    if (!detail.hasTimeline) return null;
+    final signature = _timelineSignature(detail);
+    return _olderLoaded && _olderBaseSignature == signature
+        ? _olderCursor
+        : detail.timelineNextCursor;
+  }
+
+  Future<void> _loadOlderPoints(_ConversationDetail detail) async {
+    if (_loadingOlder || !detail.hasTimeline) return;
+    final signature = _timelineSignature(detail);
+    final cursor = _olderAvailableCursor(detail);
+    if (cursor == null || cursor.isEmpty) return;
+    final previousMax = _timelineScroll.hasClients
+        ? _timelineScroll.position.maxScrollExtent : 0.0;
+    final previousOffset = _timelineScroll.hasClients
+        ? _timelineScroll.offset : 0.0;
+    setState(() {
+      _loadingOlder = true;
+      _olderError = null;
+    });
+    try {
+      final result = await widget.repository.pointDepth(
+        conversationId: widget.id, section: 'all',
+        cursor: cursor, limit: 40,
+      );
+      if (!mounted || _activeTimelineSignature != signature) return;
+      final older = _maps(result['results'])
+          .map(_ConversationPoint.fromMap)
+          .where((point) => point.id.isNotEmpty)
+          .toList(growable: false);
+      setState(() {
+        if (!_olderLoaded || _olderBaseSignature != signature) {
+          _olderPoints.clear();
+        }
+        final known = {
+          for (final point in _olderPoints) point.id,
+          for (final point in detail.timeline) point.id,
+        };
+        for (final point in older) {
+          if (known.add(point.id)) _olderPoints.add(point);
+        }
+        _olderLoaded = true;
+        _olderBaseSignature = signature;
+        _olderCursor = _string(result['next_cursor']);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_timelineScroll.hasClients) return;
+        final delta = _timelineScroll.position.maxScrollExtent - previousMax;
+        final target = (previousOffset + delta).clamp(
+          _timelineScroll.position.minScrollExtent,
+          _timelineScroll.position.maxScrollExtent,
+        );
+        _timelineScroll.jumpTo(target);
+      });
+    } on Object {
+      if (mounted) {
+        setState(() => _olderError =
+          'Impossible de charger les Points précédents. Vous pouvez réessayer.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingOlder = false);
+    }
   }
 
   // Preserve owner-selected read-only behavior while moving the presentation
