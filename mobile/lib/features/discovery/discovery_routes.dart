@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../app/runtime/actor_context.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../navigation/secondary_screen.dart';
 import '../personal/placeholder_screen.dart';
@@ -9,9 +10,15 @@ import 'discovery_screens.dart';
 import 'discovery_repository.dart';
 import 'discovery_watch_screens.dart';
 
-DiscoveryQuery? _routeQuery(Map<String, String> params) {
+DiscoveryQuery? _routeQuery(Map<String, String> params, AppRuntime runtime) {
   try {
-    return DiscoveryQuery.fromRouteParameters(params);
+    final query = DiscoveryQuery.fromRouteParameters(params);
+    if (!query.isSpace) return query;
+    final actor = runtime.actorContext?.value;
+    if (actor is! SpaceActorContext || actor.space.slug != query.spaceSlug) {
+      return null;
+    }
+    return query.copyWith(spaceId: actor.space.id);
   } on FormatException {
     return null;
   }
@@ -57,7 +64,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La recherche n’est pas disponible pour le moment.',
         );
       }
-      final query = _routeQuery(state.uri.queryParameters);
+      final query = _routeQuery(state.uri.queryParameters, runtime);
       if (query == null) {
         return const MakoloSecondaryScreen(
           title: 'Recherche',
@@ -86,7 +93,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La carte n’est pas disponible pour le moment.',
         );
       }
-      final query = _routeQuery(state.uri.queryParameters);
+      final query = _routeQuery(state.uri.queryParameters, runtime);
       if (query == null) {
         return const MakoloSecondaryScreen(
           title: 'Carte',
@@ -157,6 +164,14 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         return const MakoloSecondaryScreen(
           title: 'Possibilité',
           message: 'Ce détail n’est pas disponible sur cet appareil.',
+        );
+      }
+      // Stage 02 never falls back to personal N3 for a Space possibility.
+      // The shared Space N3 admission/handoff is handled in stage 03.
+      if (state.uri.queryParameters['context'] == 'space') {
+        return const MakoloSecondaryScreen(
+          title: 'Possibilité',
+          message: 'Ce détail n’est pas encore disponible dans cet Espace.',
         );
       }
       return DiscoveryItemDetailScreen(
