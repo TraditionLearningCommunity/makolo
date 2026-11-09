@@ -18,13 +18,14 @@ from .audience_services import profile_in_audience
 from .services import can_manage_conversation
 
 
-def point_interactions_for_profile(profile, point, *, at=None):
+def _calculate_point_interactions(profile, point, *, at=None):
     at = at or timezone.now()
     if not point_visible_to(profile, point, at=at):
         return {
             "can_respond": False, "can_acknowledge": False,
             "can_close_responses": False, "can_resolve": False,
-            "acknowledged": False, "my_response": None, "poll_results": None,
+            "acknowledged": False, "revisit": False,
+            "my_response": None, "poll_results": None,
             "response_window_open": False, "represented_responses": [],
             "response_hint": None,
         }
@@ -146,9 +147,27 @@ def point_interactions_for_profile(profile, point, *, at=None):
         "can_close_responses": can_close,
         "can_resolve": can_resolve,
         "acknowledged": bool(state and state.acknowledged_at),
+        "revisit": bool(state and state.revisit_at),
         "my_response": (
             {"value": mine.value, "submitted_at": mine.submitted_at}
             if mine is not None else None
         ),
         "poll_results": poll_results,
     }
+
+
+def point_interactions_for_profile(profile, point, *, at=None):
+    """Memoize repeated Web/Flutter projection reads on this Point instance only.
+
+    The same instance belongs to one request; never cache across HTTP requests,
+    Profiles or explicit time-based permission evaluations.
+    """
+    if at is not None:
+        return _calculate_point_interactions(profile, point, at=at)
+    viewer = getattr(profile, "pk", None)
+    cached = getattr(point, "_profile_point_interactions_cache", None)
+    if cached is not None and cached[0] == viewer:
+        return cached[1]
+    result = _calculate_point_interactions(profile, point)
+    point._profile_point_interactions_cache = (viewer, result)
+    return result
