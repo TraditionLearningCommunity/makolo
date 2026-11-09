@@ -235,6 +235,7 @@ class DemoIntegrationTests(TestCase):
         )
         kw = dict(actor=self.owner, kind=ConversationContextKind.ACTIVITY,
                   activity=activity, purpose_key="demo-preparation",
+                  separation_reason="Échanges de préparation distincts de la coordination de l'activité.",
                   mode_preset=ConversationModePreset.MIXED)
         conversation = ensure_context_conversation(**kw)
         self.assertEqual(conversation.pk, ensure_context_conversation(**kw).pk)

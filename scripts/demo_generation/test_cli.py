@@ -294,8 +294,10 @@ class DemoGenerationCLITests(unittest.TestCase):
              patch("scripts.demo_generation.live.main"), \
              patch("scripts.demo_generation.community.main"), \
              patch("scripts.demo_generation.engagement.main"), \
-             patch("scripts.demo_generation.media.main"):
+             patch("scripts.demo_generation.media.main"), \
+             patch("scripts.demo_generation.conversations.main") as conversations:
             run(args)
+        self.assertIn("--profile-username", conversations.call_args.args[0])
         self.assertIn("--profile-username", personal.call_args.args[0])
         self.assertIn("--profile-username", ecosystem.call_args.args[0])
 
