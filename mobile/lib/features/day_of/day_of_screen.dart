@@ -10,6 +10,8 @@ import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
+import '../../selectors/projection_selector.dart';
+import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
 import '../occurrence/occurrence_experience_content.dart';
 import 'day_of_repository.dart';

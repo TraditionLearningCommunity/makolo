@@ -12,6 +12,7 @@ import '../../design/surface_states.dart';
 import '../../data/local/profile_store.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
+import '../../sync/freshness.dart';
 import '../occurrence/occurrence_experience_content.dart';
 import 'live_repository.dart';
 

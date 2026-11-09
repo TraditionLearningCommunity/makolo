@@ -14,6 +14,7 @@ import '../../design/behavior_states.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
+import '../../sync/freshness.dart';
 import '../occurrence/occurrence_experience_content.dart';
 import 'space_occurrence_repository.dart';
 

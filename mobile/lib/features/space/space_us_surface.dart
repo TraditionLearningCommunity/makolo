@@ -193,8 +193,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           target: route('team'),
           count:
               team?['active_members'] is int &&
-                  (team['active_members'] as int) >= 0
-              ? team['active_members'] as int
+                  (team?['active_members'] as int) >= 0
+              ? team?['active_members'] as int
               : null,
           previews: [
             if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
@@ -223,8 +223,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Documents et outils de cet Espace',
           icon: Icons.folder_copy_outlined,
           target: resourcesTarget,
-          count: resources?['count'] is int && (resources['count'] as int) >= 0
-              ? resources['count'] as int
+          count: resources?['count'] is int && (resources?['count'] as int) >= 0
+              ? resources?['count'] as int
               : null,
           previews: [
             if (resourceRows.isEmpty) 'Aucune ressource dans cet aperçu.',
