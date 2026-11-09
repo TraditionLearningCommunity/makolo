@@ -39,3 +39,21 @@ def synthetic_owner(activity):
         and owner.username.startswith(DEMO_PROFILE_PREFIX)
         and not owner.is_staff and not owner.is_superuser
     )
+
+
+def backup_demo_sqlite(connection):
+    """Online SQLite backup, explicitly requested before an upkeep write."""
+    import sqlite3
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    if connection.vendor != "sqlite":
+        raise ValueError("Demo backup requires SQLite")
+    source = Path(str(connection.settings_dict["NAME"])).resolve()
+    if not source.is_file():
+        raise ValueError("SQLite source file not found")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+    destination = source.with_name(source.name + ".demo-backup-" + stamp)
+    with sqlite3.connect(source) as src, sqlite3.connect(destination) as dst:
+        src.backup(dst)
+    return destination
