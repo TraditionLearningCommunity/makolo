@@ -46,7 +46,28 @@ def depth_page(*, occurrence, actor, projection, kind):
     elif kind == "operator_queue":
         rows = operator.get("queue") or []
     elif kind == "operator_placement":
-        rows = operator.get("placement") or []
+        from .placement_selectors import get_operator_placement_plans
+
+        rows = []
+        for plan in get_operator_placement_plans(actor, occurrence):
+            units = []
+            for unit in plan.units.all():
+                units.append({
+                    "id": str(unit.pk), "label": unit.label,
+                    "kind": unit.kind,
+                    "assignments": [
+                        {
+                            "id": str(assignment.pk),
+                            "beneficiary": assignment.beneficiary_display_name,
+                        }
+                        for assignment in plan.active_assignments
+                        if assignment.unit_id == unit.pk
+                    ],
+                })
+            rows.append({
+                "id": str(plan.pk), "label": plan.label,
+                "active": plan.active, "units": units,
+            })
     elif kind == "operator_checkpoints":
         rows = operator.get("checkpoints") or []
     elif kind == "readiness":
