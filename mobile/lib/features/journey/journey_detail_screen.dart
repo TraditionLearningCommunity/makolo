@@ -540,10 +540,11 @@ class _JourneyContent extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.lg),
         ],
-        if (presentation.actorInterventions.isNotEmpty ||
-            presentation.blockers.isNotEmpty ||
-            presentation.waiting.isNotEmpty ||
-            presentation.ready.isNotEmpty) ...[
+        if (!presentation.isTerminal &&
+            (presentation.actorInterventions.isNotEmpty ||
+             presentation.blockers.isNotEmpty ||
+             presentation.waiting.isNotEmpty ||
+             presentation.ready.isNotEmpty)) ...[
           MakoloSection(
             title: 'Préparation',
             child: _ReadinessGroups(
