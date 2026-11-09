@@ -637,7 +637,7 @@ class _VersionSummary extends StatelessWidget {
     child: MakoloCard(
       child: Row(
       children: [
-        const Icon(Icons.history_rounded),
+        Icon(_fileIconForMime(version.mimeType)),
         const SizedBox(width: MakoloSpacing.md),
         Expanded(
           child: Column(
@@ -939,6 +939,18 @@ String? _displayIsoDate(String? value) {
   final month = date.month.toString().padLeft(2, '0');
   return '$day/$month/${date.year}';
 }
+
+IconData _fileIconForMime(String? mimeType) => switch (mimeType) {
+  'application/pdf' => Icons.picture_as_pdf_outlined,
+  'image/jpeg' ||
+  'image/png' ||
+  'image/webp' ||
+  'image/gif' => Icons.image_outlined,
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+    Icons.article_outlined,
+  'text/plain' => Icons.notes_outlined,
+  _ => Icons.description_outlined,
+};
 
 String _extensionForMime(String? mimeType) => switch (mimeType) {
   'application/pdf' => 'pdf',
