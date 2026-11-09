@@ -32,7 +32,7 @@
             <summary class="cursor-pointer text-sm font-semibold">Lire le PDF dans la conversation</summary>
             <iframe title="Document PDF : {{ attachment.original_name }}" loading="lazy"
                     sandbox="allow-same-origin" referrerpolicy="no-referrer"
-                    class="mt-2 h-72 w-full rounded-lg bg-white"
+                    class="mt-2 w-full rounded-lg bg-white" style="height:18rem"
                     src="{% url 'conversations:attachment-inline' attachment.pk %}"></iframe>
           </details>
         {% elif attachment.mime_type == 'text/plain' %}
@@ -40,7 +40,7 @@
             <summary class="cursor-pointer text-sm font-semibold">Lire le document texte</summary>
             <iframe title="Document texte : {{ attachment.original_name }}" loading="lazy"
                     sandbox="allow-same-origin" referrerpolicy="no-referrer"
-                    class="mt-2 h-56 w-full rounded-lg bg-white"
+                    class="mt-2 w-full rounded-lg bg-white" style="height:14rem"
                     src="{% url 'conversations:attachment-inline' attachment.pk %}"></iframe>
           </details>
         {% else %}
@@ -71,7 +71,7 @@
     {% endfor %}
   </div>
   <dialog data-conversation-media-dialog
-          class="w-[min(96vw,980px)] max-w-none rounded-2xl border p-0 shadow-xl backdrop:bg-black/70"
+          class="max-w-none rounded-2xl border p-0 shadow-xl backdrop:bg-black/70" style="width:min(96vw,980px)"
           aria-label="Visionneuse des médias">
     <div class="p-3 sm:p-4">
       <div class="flex items-center justify-between gap-2">
