@@ -1273,13 +1273,85 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
             appearance: MakoloActionAppearance.quiet,
           ),
+        const SizedBox(height: 12),
+        _peopleSection(project),
+      ],
+    );
+  }
+
+  Widget _peopleSection(Map<String, dynamic> project) {
+    final collaboration = _map(project['collaboration']);
+    final members = _list(collaboration['members']);
+    final contributors = _list(collaboration['contributors']);
+    final canManage = _has(project, 'project.authority.manage');
+    if (members.isEmpty && contributors.isEmpty && !canManage) {
+      return const SizedBox.shrink();
+    }
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Personnes et responsabilités',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (canManage)
+              MakoloActionButton(
+                label: 'Gérer les accès',
+                appearance: MakoloActionAppearance.quiet,
+                onPressed: _enabled ? () => _projectAccess(project) : null,
+              ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Accès au Projet et interventions dans les Dossiers '
+          'sont deux responsabilités distinctes.',
+          style: textTheme.bodySmall,
+        ),
+        if (members.isEmpty && canManage)
+          const ListTile(
+            dense: true,
+            title: Text('Aucun mandat Projet actif à afficher.'),
+          ),
+        for (final member in members)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.admin_panel_settings_outlined),
+            title: Text(_text(member['label'])),
+            subtitle: Text('Accès Projet · ${_text(member['role'])}'),
+          ),
+        for (final contributor in contributors)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.person_outline),
+            title: Text(_text(contributor['label'])),
+            subtitle: Text(
+              'Coordination de Dossier · '
+              '${contributor['dossier_ids'] is List ? (contributor['dossier_ids'] as List).length : 0} Dossiers visibles',
+            ),
+          ),
+        if (collaboration['contributors_partial'] == true)
+          Text(
+            'Les interventions présentées concernent les Dossiers acquis '
+            'sur cette page. Elles ne représentent pas un total.',
+            style: textTheme.bodySmall,
+          ),
       ],
     );
   }
 
   Widget _metric(int count, String title) => Container(
-    constraints: const BoxConstraints(minWidth: 125),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    constraints: const BoxConstraints(minWidth: 112),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
     decoration: BoxDecoration(
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       borderRadius: BorderRadius.circular(14),
@@ -1677,11 +1749,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                       'Données locales disponibles hors ligne.',
                                     ),
                                   ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 9),
                                 _actionBar(project),
-                                const SizedBox(height: 23),
+                                const SizedBox(height: 14),
                                 _tabs(),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 12),
                                 if (_mode == _ProjectMode.summary)
                                   _summary(project, rows, more)
                                 else if (_mode == _ProjectMode.dossiers)
