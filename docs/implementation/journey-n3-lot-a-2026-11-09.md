@@ -44,6 +44,9 @@ La projection personnelle Journey peut maintenant contenir `steps` provenant de 
 
 L'application mobile **se compose à partir de la base locale du Profil**, via `watchDetail`/`readDetail`. Une réponse réseau n'est pas une condition de rendu. Une actualisation peut enrichir la base, mais ne remplace pas la projection locale par un état d'écran « hors ligne » ou un cache de widget.
 
+- Les racines personnelles déjà stockées peuvent identifier des Journey actives. `JourneyRepository.knownJourneyIdsFromOngoing` sélectionne uniquement les références Journey valides de `personal.ongoing`, en respectant le Profil courant.
+- Après `refreshRoots`, `SyncLifecycle` prépare progressivement au plus six détails propriétaires (`personal.journey.detail`) parmi ce corpus connu. Le budget initial des sources préparées est plafonné à quinze lectures. Ces détails sont enregistrés dans la même BDD de Profil et restent accessibles lors des visites suivantes, sans dépendre d'une réponse réseau à l'ouverture de la page.
+- L'acquisition est bornée et progressive : les détails jamais acquis et les Journeys absentes du corpus local ne peuvent pas être fabriqués. Une ouverture sans détail local affiche un état neutre, sans transformer une panne réseau en écran d'erreur métier.
 - Une panne de transport avec une projection locale conservée laisse le contenu intact, sans tutoriel ni message technique dans la page.
 - Le seul indicateur général de réseau reste celui du shell existant.
 - Une absence réelle de détail local possède un état vide non technique ; on n'invente pas de démarche pour le combler.
@@ -58,6 +61,8 @@ Le Web participant reste rendu par Django : ce lot n'affirme pas lui avoir inven
 - `core/api/detail_views.py` — préchargement des dépendances.
 - `core/participant_views.py` — remplacement de la progression synthétique Web.
 - `templates/core/participant_journey_detail.html` — identité et étapes réelles Web.
+- `mobile/lib/features/journey/journey_repository.dart` — extraction des Journey connues dans la BDD locale et préparation bornée des sources propriétaires.
+- `mobile/lib/app/sync_lifecycle.dart` — acquisition progressive des détails au cours du cycle personnel.
 - `mobile/lib/features/journey/journey_selector.dart` — lecture du nouveau payload local.
 - `mobile/lib/features/journey/journey_detail_screen.dart` — identité, chemin et état absent/refus, sans dépendance réseau pour le rendu.
 - `mobile/test/journey_reference_depth_test.dart` — tests de sélection et rendu sur `ProfileStore` sans client réseau.
