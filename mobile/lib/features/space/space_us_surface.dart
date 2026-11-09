@@ -191,11 +191,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Les personnes avec qui nous travaillons',
           icon: Icons.groups_outlined,
           target: route('team'),
-          count:
-              team?['active_members'] is int &&
-                  (team?['active_members'] as int) >= 0
-              ? team?['active_members'] as int
-              : null,
+          count: _nonNegativeCount(team?['active_members']),
           previews: [
             if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
             for (final item in teamRows.take(3))
@@ -223,9 +219,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Documents et outils de cet Espace',
           icon: Icons.folder_copy_outlined,
           target: resourcesTarget,
-          count: resources?['count'] is int && (resources?['count'] as int) >= 0
-              ? resources?['count'] as int
-              : null,
+          count: _nonNegativeCount(resources?['count']),
           previews: [
             if (resourceRows.isEmpty) 'Aucune ressource dans cet aperçu.',
             for (final item in resourceRows.take(3))
@@ -614,3 +608,6 @@ class _SpaceUsTerritory {
   final int? count;
   final List<String> previews;
 }
+
+int? _nonNegativeCount(Object? value) =>
+    value is int && value >= 0 ? value : null;
