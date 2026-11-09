@@ -15,6 +15,7 @@ _METADATA_IDENTIFIER_KEYS = (
     "access_id",
     "occurrence_id",
     "conversation_id",
+    "point_id",
     "group_id",
     "partner_id",
     "dossier_id",
