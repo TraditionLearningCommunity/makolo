@@ -21,6 +21,41 @@ void main() {
     expect(find.byIcon(Icons.apartment_rounded), findsOneWidget);
   });
 
+  testWidgets('Space can bound its summary without truncating Moi by default', (
+    tester,
+  ) async {
+    const summary = 'Un collectif qui accompagne de nombreux projets et '
+        'rencontres dans plusieurs quartiers du territoire.';
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              MakoloIdentityPortrait(
+                name: 'Moi',
+                leading: Icon(Icons.person_outline),
+                subtitle: summary,
+              ),
+              MakoloIdentityPortrait(
+                name: 'Notre collectif',
+                leading: Icon(Icons.apartment_rounded),
+                subtitle: summary,
+                subtitleMaxLines: 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final summaries = tester.widgetList<Text>(
+      find.text(summary),
+    ).toList(growable: false);
+    expect(summaries.length, 2);
+    expect(summaries.first.maxLines, isNull);
+    expect(summaries.last.maxLines, 2);
+    expect(summaries.last.data, summary);
+  });
+
   testWidgets('Passport gateway opens only an owner supplied action', (tester) async {
     var opens = 0;
     await tester.pumpWidget(

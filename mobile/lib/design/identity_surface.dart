@@ -10,6 +10,7 @@ class MakoloIdentityPortrait extends StatelessWidget {
     required this.leading,
     this.eyebrow,
     this.subtitle,
+    this.subtitleMaxLines,
     this.detail,
     this.trailing,
     this.padding = const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
@@ -19,6 +20,9 @@ class MakoloIdentityPortrait extends StatelessWidget {
   final Widget leading;
   final String? eyebrow;
   final String? subtitle;
+  /// Limit long institutional summaries without changing owner data.
+  /// Omitted for personal identity to preserve its existing presentation.
+  final int? subtitleMaxLines;
   final String? detail;
   final Widget? trailing;
   final EdgeInsetsGeometry padding;
@@ -62,6 +66,10 @@ class MakoloIdentityPortrait extends StatelessWidget {
                     const SizedBox(height: MakoloSpacing.xs),
                     Text(
                       subtitle!,
+                      maxLines: subtitleMaxLines,
+                      overflow: subtitleMaxLines == null
+                          ? null
+                          : TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),

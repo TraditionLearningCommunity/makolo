@@ -282,8 +282,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         return ListView(
           key: const Key('space-us-projection'),
           padding: const EdgeInsets.symmetric(
-            horizontal: MakoloSpacing.lg,
-            vertical: MakoloSpacing.md,
+            horizontal: MakoloLayout.edgeCompact,
+            vertical: MakoloSpacing.sm,
           ),
           children: [
             Center(
@@ -301,28 +301,30 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
                     Container(
+                      key: const Key('space-us-identity-card'),
                       width: double.infinity,
-                      padding: const EdgeInsets.all(MakoloSpacing.lg),
+                      padding: const EdgeInsets.all(MakoloSpacing.compact),
                       decoration: BoxDecoration(
                         color: scheme.primaryContainer.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(MakoloRadii.card),
                       ),
                       child: MakoloIdentityPortrait(
                         name: name,
                         eyebrow: institutionalLabel,
                         subtitle: description,
+                        subtitleMaxLines: 2,
                         detail: place.isNotEmpty ? place : null,
                         padding: EdgeInsets.zero,
                         leading: Container(
-                          width: 58,
-                          height: 58,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
                             color: scheme.primary,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             Icons.apartment_rounded,
-                            size: 30,
+                            size: 26,
                             color: scheme.onPrimary,
                           ),
                         ),
@@ -349,7 +351,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                       const SizedBox(height: MakoloSpacing.lg),
                       _passportCard(context, passportTarget, open),
                     ],
-                    const SizedBox(height: MakoloSpacing.xl),
+                    const SizedBox(height: MakoloSpacing.inner),
                     Row(
                       children: [
                         Expanded(
@@ -396,9 +398,12 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                     else
                       LayoutBuilder(
                         builder: (context, field) {
-                          final twoColumns = field.maxWidth >= 320;
+                          // The index has the same compact two-up composition
+                          // as Moi even after Space's responsive shell margins.
+                          // At very narrow widths prefer readable single cards.
+                          final twoColumns = field.maxWidth >= 260;
                           final itemWidth = twoColumns
-                              ? (field.maxWidth - 12) / 2
+                              ? (field.maxWidth - 10) / 2
                               : field.maxWidth;
                           return Wrap(
                             key: const Key('space-us-territories-grid'),
@@ -419,6 +424,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                     ),
                                     countDescription: entry.count == null
                                         ? null
+                                        : entry.count == 1
+                                        ? '1 élément visible'
                                         : '${entry.count} éléments visibles',
                                     onOpen: entry.target == null
                                         ? null
@@ -441,30 +448,38 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                       ),
                     ],
                     if (subscriptionTarget != null)
-                      _action(
+                      _managementAction(
                         context,
                         'Abonnement de cet Espace',
+                        'Formule et services de cet Espace',
+                        Icons.workspace_premium_outlined,
                         subscriptionTarget,
                         open,
                       ),
                     if (connectionsTarget != null)
-                      _action(
+                      _managementAction(
                         context,
                         'Gérer les connexions de cet Espace',
+                        'Services connectés au collectif',
+                        Icons.hub_outlined,
                         connectionsTarget,
                         open,
                       ),
                     if (settingsTarget != null)
-                      _action(
+                      _managementAction(
                         context,
                         'Modifier les informations collectives',
+                        'Identité et informations institutionnelles',
+                        Icons.settings_outlined,
                         settingsTarget,
                         open,
                       ),
                     if (pilotTarget != null)
-                      _action(
+                      _managementAction(
                         context,
                         'Comprendre notre activité',
+                        'Suivre les activités du collectif',
+                        Icons.analytics_outlined,
                         pilotTarget,
                         open,
                       ),
@@ -522,51 +537,25 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     String title,
     String subtitle,
   ) {
-    final scheme = Theme.of(context).colorScheme;
-    final icon = switch (title) {
-      'Passeport Makolo' => Icons.badge_outlined,
-      'Ma place dans cet Espace' => Icons.assignment_ind_outlined,
-      'L’équipe' => Icons.groups_outlined,
-      'Personnes & relations' => Icons.hub_outlined,
-      'Nos ressources' => Icons.folder_outlined,
-      'Gouvernance' => Icons.admin_panel_settings_outlined,
-      'Confiance' => Icons.verified_user_outlined,
-      'Informations et gestion' => Icons.settings_outlined,
-      _ => Icons.diversity_3_outlined,
-    };
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: MakoloSpacing.compact),
-      padding: const EdgeInsets.symmetric(
-        horizontal: MakoloSpacing.md,
-        vertical: MakoloSpacing.compact,
-      ),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-      ),
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, MakoloSpacing.compact),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, color: scheme.primary, size: 23),
-              const SizedBox(width: MakoloSpacing.compact),
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
           if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: MakoloSpacing.xs),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ],
@@ -592,41 +581,22 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     ),
   );
 
-  static Widget _action(
+  static Widget _managementAction(
     BuildContext context,
-    String label,
+    String title,
+    String subtitle,
+    IconData icon,
     String target,
     ValueChanged<String> open,
-  ) => Semantics(
-    button: true,
-    child: InkWell(
-      onTap: () => open(target),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: MakoloSpacing.md,
-          vertical: MakoloSpacing.compact,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ],
-        ),
-      ),
-    ),
+  ) => MakoloTerritoryListCard(
+    tapKey: Key('space-us-manage-${target.split('/').last}'),
+    title: title,
+    subtitle: subtitle,
+    symbol: Icon(icon, color: Theme.of(context).colorScheme.primary),
+    onOpen: () => open(target),
+    headerVerticalPadding: MakoloSpacing.compact,
   );
+
 }
 
 /// A display-only adaptation of facts already scoped by the Space owner.

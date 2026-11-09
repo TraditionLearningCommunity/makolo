@@ -156,6 +156,114 @@ void main() {
     });
   }
 
+  for (final width in [320.0, 360.0, 393.0]) {
+    testWidgets('Nous compact grid stays two-up at width $width', (tester) async {
+      tester.view.physicalSize = Size(width, 940);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routes = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            body: SpaceUsSurface(
+              payload: _projection(),
+              fallbackSpaceName: 'Fallback',
+              onOpen: routes.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+      await tester.tap(find.byIcon(Icons.grid_view_rounded));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
+
+      final first = find.byKey(const Key('space-us-grid-responsibilities'));
+      final second = find.byKey(const Key('space-us-grid-team'));
+      expect(first, findsOneWidget);
+      expect(second, findsOneWidget);
+      await tester.ensureVisible(first);
+      await tester.pumpAndSettle();
+      final firstPosition = tester.getTopLeft(first);
+      final secondPosition = tester.getTopLeft(second);
+      expect(secondPosition.dx, greaterThan(firstPosition.dx));
+      expect((secondPosition.dy - firstPosition.dy).abs(), lessThan(2.0));
+      expect(tester.getSize(first).width, lessThan(width / 2));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(second);
+      expect(routes.last, '/space/atelier/us/team');
+    });
+  }
+
+  testWidgets('Nous identity truncates presentation visually, not owner facts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 940);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final projection = _projection();
+    final description = List.filled(
+      12,
+      'Notre Espace accompagne des rencontres et des activités collectives.',
+    ).join(' ');
+    (projection['identity'] as Map<String, dynamic>)['description'] =
+        description;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(description), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('space-us-identity-card'))).height,
+      lessThan(200),
+    );
+    expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Nous management uses shared cards and real Space handoffs', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: _projection(),
+            fallbackSpaceName: 'Fallback',
+            onOpen: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final settings = find.byKey(const Key('space-us-manage-settings'));
+    await tester.scrollUntilVisible(
+      settings,
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(settings);
+    expect(opened.single, '/space/atelier/us/settings');
+    expect(find.text('Informations et gestion'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('activity-only projection never shows institution data', (
     tester,
   ) async {
