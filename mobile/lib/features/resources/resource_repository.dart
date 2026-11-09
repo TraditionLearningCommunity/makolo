@@ -28,6 +28,10 @@ class ResourceSourceState {
     lastErrorCode: lastErrorCode,
   );
 
+  bool get ownerDenied =>
+      invalidated &&
+      (lastErrorCode == 'permission_denied' || lastErrorCode == 'not_found');
+
   static const unknown = ResourceSourceState();
 }
 
@@ -90,7 +94,11 @@ class ResourceRepository {
   static const detailProjectionKind = 'personal.resource.detail';
   static const defaultLimit = 24;
   static const versionLimit = 24;
-  static const freshnessPolicy = FreshnessPolicy(id: 'personal-resources');
+  static const freshnessPolicy = FreshnessPolicy(
+    id: 'personal-resources',
+    refreshRecommendedAfter: Duration(hours: 2),
+    usableButOldAfter: Duration(days: 7),
+  );
 
   final MakoloDatabase database;
   final ProfileStore store;
@@ -265,6 +273,99 @@ class ResourceRepository {
       } on Object {
         break;
       }
+    }
+  }
+
+  Future<bool> shouldRefreshCollectionPage({
+    required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
+    int offset = 0,
+    int limit = defaultLimit,
+    DateTime? now,
+  }) async {
+    final projection = await readCollectionPage(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+    final source = await readCollectionSource(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+    if (source.ownerDenied) return false;
+    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+      return true;
+    }
+    return freshnessPolicy.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<bool> shouldRefreshDetail(
+    String assetId, {
+    DateTime? now,
+  }) async {
+    final projection = await readDetail(assetId);
+    final source = await readDetailSource(assetId);
+    if (source.ownerDenied) return false;
+    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+      return true;
+    }
+    return freshnessPolicy.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureCollectionPage({
+    required String query,
+    String view = 'current',
+    String kind = '',
+    String sensitivity = '',
+    String sort = 'recent',
+    int offset = 0,
+    int limit = defaultLimit,
+  }) async {
+    if (!await shouldRefreshCollectionPage(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    )) {
+      return;
+    }
+    await refreshCollectionPage(
+      query: query,
+      view: view,
+      kind: kind,
+      sensitivity: sensitivity,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+  }
+
+  Future<void> ensureDetail(String assetId) async {
+    if (await shouldRefreshDetail(assetId)) {
+      await refreshDetail(assetId);
     }
   }
 
