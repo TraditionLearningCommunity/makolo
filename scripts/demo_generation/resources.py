@@ -9,8 +9,6 @@ Plan by default; --apply writes to the configured demo SQLite directly.
 """
 import argparse
 from collections import Counter
-from datetime import timedelta
-from io import BytesIO
 
 KINDS = ("documents", "proofs", "credentials")
 DOCUMENT_TITLES = (
@@ -81,8 +79,10 @@ def main(argv=None):
     parser.add_argument("--profile-username", help="Existing target profile username")
     parser.add_argument("--include-test-users", action="store_true",
                         help="Include existing synthetic beta_* and mobile_mature_* accounts")
-    parser.add_argument("--reuse-avatar", action="store_true",
-                        help="Copy the selected user's own local avatar if available")
+    parser.add_argument("--reuse-avatar", action="store_true", default=True,
+                        help="Use the selected user's own avatar if available (default)")
+    parser.add_argument("--no-reuse-avatar", dest="reuse_avatar", action="store_false",
+                        help="Use generated demo text documents only")
     parser.add_argument("--backup", action="store_true")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
@@ -100,8 +100,7 @@ def main(argv=None):
     from django.core.exceptions import ValidationError, PermissionDenied
     from django.db import connection, transaction
     from django.db.models import Q
-    from django.core.files.uploadedfile import SimpleUploadedFile
-    from personal_assets.models import PersonalAsset, PersonalAssetVersion
+    from personal_assets.models import PersonalAsset
     from personal_assets.services import create_personal_asset, create_personal_asset_version
     from journeys.collaboration_models import JourneyArtifactKind
     from journeys.models import Journey, JourneyStatus
