@@ -94,6 +94,11 @@ L'écran :
 - présente un résumé repliable pour chaque suite de Points terminés
   du même jour, avec accès intégral à chaque Point déplié ;
 - conserve les médias et les interactions des Lots 1–3 ;
+- **entrelace les publications en Outbox** et les Points autorisés selon
+  leurs dates réelles d'observation/publication, même si une publication
+  locale non confirmée est plus ancienne qu'un Point reçu ensuite ;
+  les Points en attente coupent naturellement les groupes terminés,
+  et ne sont pas annoncés comme publiés sans confirmation du serveur ;
 - suit les derniers messages si l'utilisateur est déjà en bas, sinon
   propose un saut explicite plutôt que de lui déplacer le défilement ;
 - peut charger les pages plus anciennes par le même cursor C5
