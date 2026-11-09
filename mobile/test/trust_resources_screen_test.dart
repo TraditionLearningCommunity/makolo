@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
@@ -15,6 +16,23 @@ MakoloApiClient _testApi() => MakoloApiClient(
   baseUri: Uri.parse('https://makolo.test/'),
   tokenStore: MemoryTokenStore(),
 );
+
+Future<void> _markDetailReachable(
+  MakoloDatabase database,
+  TrustResourceRepository repository,
+  TrustResourceFamily family,
+  String id,
+) async {
+  final source = repository.detailSourceFor(family, id);
+  await database.into(database.syncSources).insert(
+    SyncSourcesCompanion.insert(
+      profileId: 'profile-a',
+      sourceKey: source.sourceKey,
+      route: source.path,
+      lastSuccessAt: Value(DateTime.now().toUtc()),
+    ),
+  );
+}
 
 class _RecordingShareGateway implements ShareGateway {
   final List<String> texts = [];
@@ -231,6 +249,12 @@ void main() {
         },
       },
     );
+    await _markDetailReachable(
+      database,
+      repository,
+      TrustResourceFamily.proofs,
+      'proof-1',
+    );
 
     var openedJourney = false;
     var openedPassport = false;
@@ -319,6 +343,12 @@ void main() {
           'passport': '/api/v1/me/passport/',
         },
       },
+    );
+    await _markDetailReachable(
+      database,
+      repository,
+      TrustResourceFamily.titles,
+      'credential-1',
     );
 
     await tester.pumpWidget(
