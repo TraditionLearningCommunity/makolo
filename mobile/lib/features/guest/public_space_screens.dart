@@ -829,6 +829,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 }
