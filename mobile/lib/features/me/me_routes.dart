@@ -118,8 +118,17 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             context.push('/me/resources');
             return true;
           }
-          if (destination.kind == 'personal_asset') {
+          if (destination.kind == 'personal_asset' ||
+              destination.kind == 'resource') {
             context.push('/me/resources/documents/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'proof') {
+            context.push('/me/resources/proofs/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'credential') {
+            context.push('/me/resources/titles/${destination.id}');
             return true;
           }
           return false;
@@ -496,6 +505,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                       repository: repository,
                       onOpenJourney: (journeyId) =>
                           context.push('/journeys/$journeyId'),
+                      onOpenPassport: () => context.push('/me/passport'),
                     );
                   },
                 ),
@@ -535,6 +545,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                       repository: repository,
                       onOpenJourney: (journeyId) =>
                           context.push('/journeys/$journeyId'),
+                      onOpenPassport: () => context.push('/me/passport'),
                     );
                   },
                 ),
