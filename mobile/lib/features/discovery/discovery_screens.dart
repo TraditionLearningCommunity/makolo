@@ -1823,6 +1823,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     DiscoveryItemPresentation candidate,
   ) async {
     final current = _query;
+    // A Space map cannot acquire a personal N3 authority as a shortcut.
+    // Its published N1/map facts remain visible without this owner fetch.
+    if (current.isSpace) return null;
     final startedAt = DateTime.now().toUtc();
     try {
       // A fully projected item from N1 or another Carte view is already
