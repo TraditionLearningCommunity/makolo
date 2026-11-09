@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_components.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/resources/document_form_screen.dart';
 import 'package:makolo_mobile/features/resources/documents_screen.dart';
@@ -71,6 +72,83 @@ void main() {
     expect(openedTitles, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'Mes ressources prefers dedicated Trust counts over a stale aggregate',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final repository = ResourceRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await store.putProjection(
+        kind: ResourceRepository.collectionProjectionKind,
+        resourceKey: repository.collectionResourceKey(query: '', offset: 0),
+        schemaVersion: 1,
+        payload: {
+          'documents': {
+            'count': 0,
+            'query': null,
+            'view': 'current',
+            'sort': 'recent',
+            'filters': {'kind': null, 'sensitivity': null},
+            'items': const [],
+            'page': {'offset': 0, 'limit': 24, 'has_more': false},
+          },
+          'proofs': {'count': 0, 'items': const []},
+          'credentials': {'count': 0, 'items': const []},
+        },
+      );
+      await store.putProjection(
+        kind: 'personal.titles',
+        resourceKey: 'titles%7C%7Call%7C%7Crecent:0:24',
+        schemaVersion: 1,
+        payload: {
+          'query': null,
+          'status': 'all',
+          'credential_type': null,
+          'sort': 'recent',
+          'count': 8,
+          'items': const [],
+          'page': {
+            'offset': 0,
+            'limit': 24,
+            'count': 8,
+            'has_more': false,
+          },
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: ResourcesScreen(
+            repository: repository,
+            onOpenDocuments: () {},
+            onOpenProofs: () {},
+            onOpenTitles: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final titleCard = find.ancestor(
+        of: find.text('Mes titres'),
+        matching: find.byType(MakoloCard),
+      );
+      expect(
+        find.descendant(of: titleCard, matching: find.text('8')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: titleCard, matching: find.text('0')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('Mes documents keeps search views filter and sort compact', (
     tester,
