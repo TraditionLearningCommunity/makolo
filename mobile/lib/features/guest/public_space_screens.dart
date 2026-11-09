@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../presentation/fields/geo_autocomplete_field.dart';
 import '../../presentation/fields/search_filter_bar.dart';
@@ -650,6 +651,32 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     }
   }
 
+  Future<void> _openPublicPassport() async {
+    final api = widget.runtime.api;
+    final slug = _field(_space, 'slug');
+    if (api == null || slug.isEmpty) return;
+    // Public Passport is resolved by its canonical server route. Its
+    // publication and field visibility are enforced by that owner.
+    final uri = api.baseUri.resolve(
+      '${Uri.encodeComponent(slug)}/?variant=public',
+    );
+    if (uri.scheme != 'https' && uri.scheme != 'http') return;
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Passeport public indisponible.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Passeport public indisponible.')),
+        );
+      }
+    }
+  }
+
   void _loadNextPage() {
     if (_loading || _error != null || !_hasNext) return;
     setState(() => _page++);
@@ -668,9 +695,24 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PublicExperienceShell(
-      current: 2,
-      child: LoadMoreOnScroll(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Présentation de l’Espace'),
+        leading: IconButton(
+          key: const Key('public-space-back'),
+          tooltip: 'Retour',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/spaces');
+            }
+          },
+        ),
+      ),
+      body: SafeArea(
+        child: LoadMoreOnScroll(
         hasMore: _hasNext && _error == null,
         loading: _loading,
         loadMore: _loadNextPage,
@@ -680,26 +722,6 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
             key: const Key('guest-public-space-detail'),
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.lg,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/spaces');
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Tous les Espaces'),
-                  ),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.md),
               if (_loading && _space.isEmpty)
                 const Center(child: CircularProgressIndicator())
               else if (_error != null && _space.isEmpty) ...[
@@ -711,6 +733,18 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                     horizontal: MakoloSpacing.lg,
                   ),
                   child: _PublicSpaceIdentity(space: _space),
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MakoloSpacing.lg,
+                  ),
+                  child: OutlinedButton.icon(
+                    key: const Key('public-space-passport-action'),
+                    onPressed: _openPublicPassport,
+                    icon: const Icon(Icons.badge_outlined),
+                    label: const Text('Voir le Passeport'),
+                  ),
                 ),
                 if (_field(_space, 'description').isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.lg),
@@ -786,6 +820,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
