@@ -202,7 +202,11 @@ def _credential_payload(credential, *, detail=False):
         "credential_type": credential.credential_type,
         "credential_type_label": credential.get_credential_type_display(),
         "status": credential.status,
-        "status_label": credential.get_status_display(),
+        "status_label": (
+            "Valide"
+            if credential.status == CredentialStatus.ISSUED
+            else "Révoqué"
+        ),
         "verification_state": credential.verification_state,
         "issued_at": credential.issued_at,
         "revoked_at": credential.revoked_at,
