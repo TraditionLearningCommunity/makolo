@@ -18,6 +18,7 @@ final class DiscoveryWire {
   static DiscoveryWire receive(
     Map<String, dynamic> response, {
     required String scope,
+    String? expectedSpaceId,
   }) {
     final envelope = ProjectionEnvelope.parse(
       response,
@@ -41,6 +42,18 @@ final class DiscoveryWire {
           !_nonEmpty(actor?['id']) ||
           actor?['id'] != viewer?['id']) {
         throw const FormatException('Invalid personal Discovery context');
+      }
+    } else if (scope == 'space') {
+      final actor = _map(data['actor']);
+      final viewer = _map(data['viewer']);
+      if (data['surface'] != 'discover_space' ||
+          actor?['type'] != 'space' ||
+          viewer?['type'] != 'profile' ||
+          !_nonEmpty(actor?['id']) ||
+          !_nonEmpty(viewer?['id']) ||
+          expectedSpaceId == null ||
+          actor?['id'] != expectedSpaceId) {
+        throw const FormatException('Invalid Space Discovery context');
       }
     } else {
       throw const FormatException('Unsupported Discovery scope');
