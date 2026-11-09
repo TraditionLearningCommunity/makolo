@@ -1155,10 +1155,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   );
 
   Widget _row(OrganizerEntry item, Map<String, OrganizerEntry> byKey) {
+    final visibleParents = item.dossierIds
+        .map((id) => byKey['dossier:$id'])
+        .whereType<OrganizerEntry>();
     final parent = item.kind == 'dossier' && item.projectId != null
         ? byKey['project:${item.projectId}']
-        : item.kind == 'journey' && item.dossierIds.isNotEmpty
-        ? byKey['dossier:${item.dossierIds.first}']
+        : item.kind == 'journey' && visibleParents.isNotEmpty
+        ? visibleParents.first
         : null;
     return Column(
       children: [
@@ -1173,7 +1176,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             [
               item.kindLabel,
               item.humanState,
-              if (item.kind == 'journey' && item.dossierIds.length > 1)
+              if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
                 'Liée à ${item.dossierIds.toSet().length} dossiers'
               else if (parent != null)
                 'Dans : ${parent.title}',
@@ -1246,7 +1249,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   subtitle: Text([
                     item.kindLabel,
                     item.humanState,
-                    if (item.kind == 'journey' && item.dossierIds.length > 1)
+                    if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
                       'Liée à ${item.dossierIds.toSet().length} dossiers',
                     if (item.kind == 'journey' &&
                         item.dossierIds.isNotEmpty &&
