@@ -59,6 +59,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Départ 08 h",
+            live_enabled=True,
             start_at=self.now - timedelta(minutes=10),
             end_at=self.now + timedelta(hours=2),
             status=OccurrenceStatus.SCHEDULED,
@@ -135,13 +136,17 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             html=False,
         )
 
-    def test_day_of_is_occurrence_scoped_and_non_current_is_not_promoted(self):
+    def test_future_day_of_remains_available_but_does_not_imply_live(self):
         self.client.force_login(self.operator)
         self.assertEqual(
             self.client.get(
                 self._url("organizations:space-occurrence-day-of", self.future)
             ).status_code,
-            404,
+            200,
+        )
+        self.assertNotContains(
+            self.client.get(self._url("organizations:space-occurrence-day-of", self.future)),
+            "Consulter Makolo Live",
         )
         self.assertEqual(
             self.client.get(
@@ -162,14 +167,14 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             self._url("organizations:space-occurrence-live", self.occurrence)
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["projection"]["perspective"], "operator")
+        self.assertIn("organizer", response.context["projection"]["sections"])
         self.assertEqual(response.context["projection"]["phase"], "live")
-        self.assertContains(response, "Makolo Live · Suivi")
+        self.assertContains(response, "Makolo Live · Lecture du réel")
         self.assertNotContains(response, "Makolo Live · Occurrence")
         self.assertNotContains(response, ">unknown</dd>")
         self.assertContains(
             response,
-            "Une planification n’est jamais présentée comme une observation live.",
+            "Le calendrier de l&#x27;Occurrence est une prévision, non une observation.",
         )
         self.assertNotContains(response, "Date.now")
         self.assertNotContains(response, "setInterval")
@@ -296,7 +301,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertContains(second, "avec le rôle « finance ».")
         self.assertContains(second, "Confirmer cette action")
 
-    def test_ended_occurrence_closes_day_of_naturally_without_archive_route(self):
+    def test_ended_occurrence_keeps_day_of_but_not_a_live_link(self):
         self.occurrence.status = OccurrenceStatus.COMPLETED
         self.occurrence.start_at = self.now - timedelta(hours=3)
         self.occurrence.end_at = self.now - timedelta(minutes=5)
@@ -307,4 +312,6 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         response = self.client.get(
             self._url("organizations:space-occurrence-day-of", self.occurrence)
         )
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Terminé")
+        self.assertNotContains(response, "Consulter Makolo Live")
