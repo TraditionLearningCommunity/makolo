@@ -97,72 +97,69 @@ def point_attention_reason(
     conversation_visibility_cache=None,
     conversation_manage_cache=None,
 ):
+    """Only an authorized, currently possible action may count as attention.
+
+    Incoming audience membership alone does not imply a right to reply.
+    A Point outside FROM_JOIN history must never enter attention/Now.
+    Upcoming windows are not work due *now*; they can be shown as context.
+    """
+    from .point_interactions import point_interactions_for_profile
+    from .point_services import point_visible_to
+
     at = at or timezone.now()
-    # A closed Conversation may be read, but it must no longer demand a
-    # response, acknowledgement, resolution or other unfinished action.
     if point.conversation.lifecycle != ConversationLifecycle.OPEN:
         return None
     if point.lifecycle not in ATTENTION_LIFECYCLES:
         return None
-    if not _conversation_visible(
-        profile,
-        point.conversation,
-        cache=conversation_visibility_cache,
-    ):
+    if point.valid_until and point.valid_until <= at:
         return None
-    if point.visibility_audience_id and not _profile_in_audience(
-        profile,
-        point.visibility_audience,
-        at=at,
-        cache=audience_membership_cache,
-    ):
-        return None
-    if point.valid_until and at >= point.valid_until:
+    if not point_visible_to(profile, point, at=at):
         return None
 
+    capabilities = point_interactions_for_profile(profile, point, at=at)
     expected = bool(
         point.expected_action_audience_id
         and _profile_in_audience(
-            profile,
-            point.expected_action_audience,
-            at=at,
-            cache=audience_membership_cache,
+            profile, point.expected_action_audience,
+            at=at, cache=audience_membership_cache,
         )
     )
+    future = point.opens_at is not None and at < point.opens_at
     state = _profile_state(point, profile)
-
-    if point.requires_acknowledgement and expected:
-        if state is None or state.acknowledged_at is None:
-            return "acknowledge"
-
-    if point.lifecycle == ConversationPointLifecycle.OPEN and expected:
-        future = point.opens_at is not None and at < point.opens_at
+    if expected and capabilities["can_acknowledge"]:
+        return "acknowledge"
+    if expected and point.lifecycle == ConversationPointLifecycle.OPEN:
         if point.kind == ConversationPointKind.FORM_REQUEST:
-            from .form_services import form_request_completed_for_profile
-
-            if not form_request_completed_for_profile(point, profile):
-                if not point.deadline_at or at < point.deadline_at:
-                    return "upcoming" if future else "form"
-        elif point.response_mode != "none" and not _subject_has_active_response(point, profile):
-            if not point.deadline_at or at < point.deadline_at:
-                return "upcoming" if future else "respond"
-
-    if point.resolution_audience_id and _profile_in_audience(
-        profile,
-        point.resolution_audience,
-        at=at,
-        cache=audience_membership_cache,
-    ):
-        if _conversation_manageable(
-            profile,
-            point.conversation,
-            cache=conversation_manage_cache,
+            from .form_services import form_request_completed_for_profile, form_request_for_profile
+            if not future and (not point.deadline_at or at < point.deadline_at):
+                if form_request_for_profile(point, profile) is not None and not form_request_completed_for_profile(point, profile):
+                    return "form"
+        elif (
+            point.response_mode != "none"
+            and not future
+            and capabilities["can_respond"]
+            and capabilities["my_response"] is None
         ):
-            return "resolve"
+            return "respond"
 
+    # Resolution is a real manager action, not a counter for every open
+    # informational Point. Closing a response window creates a decision.
+    if capabilities["can_resolve"] and (
+        point.lifecycle == ConversationPointLifecycle.RESPONSE_CLOSED
+        or (point.resolution_audience_id and not future)
+        or (
+            point.response_mode == "none"
+            and point.kind not in {
+                ConversationPointKind.INFORMATION, ConversationPointKind.EXCHANGE,
+            }
+            and not future
+        )
+    ):
+        return "resolve"
     if state is not None and state.revisit_at is not None:
         return "revisit"
     return None
+
 
 def attention_points_for_profile(profile, *, at=None, limit=100):
     if not getattr(profile, "is_authenticated", False):
@@ -237,10 +234,10 @@ def has_conversation_attention(profile, *, at=None):
 
 
 def conversation_attention_count(profile, *, at=None, limit=1000):
-    return len(attention_points_for_profile(profile, at=at, limit=limit))
+    return sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=limit))
 
 
 def conversation_attention_badge_count(profile, *, at=None, cap=10):
     """Return a UI badge count capped at the requested bound."""
     cap = max(int(cap), 1)
-    return len(attention_points_for_profile(profile, at=at, limit=cap))
+    return sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))) if cap < 1 else min(cap, sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))))
