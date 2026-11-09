@@ -38,6 +38,10 @@ class TrustResourceSourceState {
     lastErrorCode: lastErrorCode,
   );
 
+  bool get ownerDenied =>
+      invalidated &&
+      (lastErrorCode == 'permission_denied' || lastErrorCode == 'not_found');
+
   static const unknown = TrustResourceSourceState();
 }
 
@@ -51,7 +55,11 @@ class TrustResourceRepository {
   });
 
   static const defaultLimit = 24;
-  static const freshnessPolicy = FreshnessPolicy(id: 'personal-trust-resources');
+  static const freshnessPolicy = FreshnessPolicy(
+    id: 'personal-trust-resources',
+    refreshRecommendedAfter: Duration(minutes: 30),
+    usableButOldAfter: Duration(hours: 24),
+  );
 
   final MakoloDatabase database;
   final ProfileStore store;
@@ -187,6 +195,100 @@ class TrustResourceRepository {
     TrustResourceFamily family,
     String id,
   ) => store.readProjection(family.detailProjection, resourceKey: id);
+
+  Future<bool> shouldRefreshCollectionPage({
+    required TrustResourceFamily family,
+    required String query,
+    String status = 'all',
+    String type = '',
+    String sort = 'recent',
+    int offset = 0,
+    int limit = defaultLimit,
+    DateTime? now,
+  }) async {
+    final projection = await readCollectionPage(
+      family: family,
+      query: query,
+      status: status,
+      type: type,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+    final source = await readCollectionSource(
+      family: family,
+      query: query,
+      status: status,
+      type: type,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+    if (source.ownerDenied) return false;
+    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+      return true;
+    }
+    return freshnessPolicy.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<bool> shouldRefreshDetail(
+    TrustResourceFamily family,
+    String id, {
+    DateTime? now,
+  }) async {
+    final projection = await readDetail(family, id);
+    final source = await readDetailSource(family, id);
+    if (source.ownerDenied) return false;
+    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+      return true;
+    }
+    return freshnessPolicy.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureCollectionPage({
+    required TrustResourceFamily family,
+    required String query,
+    String status = 'all',
+    String type = '',
+    String sort = 'recent',
+    int offset = 0,
+    int limit = defaultLimit,
+  }) async {
+    if (!await shouldRefreshCollectionPage(
+      family: family,
+      query: query,
+      status: status,
+      type: type,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    )) {
+      return;
+    }
+    await refreshCollectionPage(
+      family: family,
+      query: query,
+      status: status,
+      type: type,
+      sort: sort,
+      offset: offset,
+      limit: limit,
+    );
+  }
+
+  Future<void> ensureDetail(TrustResourceFamily family, String id) async {
+    if (await shouldRefreshDetail(family, id)) {
+      await refreshDetail(family, id);
+    }
+  }
 
   Future<void> refreshCollectionPage({
     required TrustResourceFamily family,
