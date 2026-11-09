@@ -204,6 +204,18 @@ String organizerSharedLinksLabel(int count) =>
         ? '1 démarche également liée, présentée dans un autre dossier'
         : '$count démarches également liées, présentées dans un autre dossier';
 
+/// Describe only the acquired direct children, with grammatical counts.
+String organizerMoreChildrenLabel(OrganizerEntry parent, int count) {
+  if (parent.kind == 'project') {
+    return count == 1
+        ? 'Et 1 autre dossier chargé'
+        : 'Et $count autres dossiers chargés';
+  }
+  return count == 1
+      ? 'Et 1 autre démarche chargée'
+      : 'Et $count autres démarches chargées';
+}
+
 /// Local pages are identity-checked and only consumed while contiguous.
 class OrganizerPage {
   const OrganizerPage({
