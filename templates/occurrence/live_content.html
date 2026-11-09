@@ -75,6 +75,23 @@
   </section>
   {% endif %}
 
+  {% if projection.depths %}
+  <section class="mk-panel p-5 sm:p-6">
+    <h3 class="text-xl font-bold">Examiner auprès du propriétaire</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for depth in projection.depths %}
+        {% if depth.kind != "scanner" %}
+          {% if projection.context.actor_space_id %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'organizations:space-occurrence-depth' space.slug occurrence.pk depth.kind %}">{{ depth.label }}</a>
+          {% else %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-occurrence-depth' occurrence.pk depth.kind %}">{{ depth.label }}</a>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <div class="flex flex-wrap gap-2">
     <a class="mk-action-button" data-variant="secondary" href="{{ day_of_url }}">Retour à mes actions Jour J</a>
     {% if space_work_url %}<a class="mk-action-button" data-variant="secondary" href="{{ space_work_url }}">Retour au métier</a>{% endif %}
