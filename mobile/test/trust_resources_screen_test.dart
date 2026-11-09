@@ -225,7 +225,10 @@ void main() {
         'journey': {'id': 'journey-1'},
         'occurrence': {'label': 'Session finale'},
         'revocation': {'revoked_at': null, 'reason': null},
-        'links': {'verify': '/trust/proofs/verify/public-proof/'},
+        'links': {
+          'verify': '/trust/proofs/verify/public-proof/',
+          'passport': '/api/v1/me/passport/',
+        },
       },
     );
 
@@ -311,7 +314,10 @@ void main() {
           'revoked_at': '2026-11-05T10:00:00Z',
           'reason': 'Titre remplacé',
         },
-        'links': {'verify': '/trust/credentials/verify/public-title/'},
+        'links': {
+          'verify': '/trust/credentials/verify/public-title/',
+          'passport': '/api/v1/me/passport/',
+        },
       },
     );
 
