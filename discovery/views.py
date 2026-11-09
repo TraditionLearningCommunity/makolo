@@ -1,5 +1,6 @@
 from datetime import datetime, time
 from types import SimpleNamespace
+from urllib.parse import urlencode
 
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -22,6 +23,7 @@ from core.participant_selectors import participant_state_context
 from core.web_navigation import safe_post_next
 from funding.discovery import present_funding_card, public_funding_discovery_items
 from opportunities.models import OpportunitySave
+from organizations.api.workspace_projection import build_space_workspace, workspace_spaces
 from social.models import ActionNeed, ActionNeedIntakePolicy, ActionNeedStatus, ActionNeedVisibility
 
 from .card_contract import present_occurrence_card, present_opportunity_card, present_service_card
@@ -655,6 +657,10 @@ class DiscoveryHomeView(TemplateView):
         intent = _discovery_intent_from_projection(exploration)
         results = data.get("results") or []
         discovery_cards = [_web_discovery_card(item) for item in results]
+        if space is not None:
+            for card in discovery_cards:
+                card.n2_url += "?" + urlencode({"context": "space", "space": space.slug})
+                card.url = card.n2_url
 
         paginator = Paginator(
             all_rows,
@@ -750,7 +756,12 @@ class DiscoveryHomeView(TemplateView):
                             "cta_label": engagement_presentation.get("label"),
                             "url": (
                                 (item.get("links") or {}).get("web")
-                                if space is None else None
+                                if space is None else (
+                                    reverse("discovery:possibility-detail", kwargs={
+                                        "family": identity.get("family"),
+                                        "item_id": identity.get("resource", {}).get("id"),
+                                    }) + "?" + urlencode({"context": "space", "space": space.slug})
+                                )
                             ),
                         }
                     )
@@ -825,8 +836,23 @@ class DiscoveryPossibilityDetailView(TemplateView):
         family, item_id = kwargs["family"], kwargs["item_id"]
         if family not in self.allowed_families:
             raise Http404
+        actor_context = self.request.GET.get("context")
+        space_slug = self.request.GET.get("space")
+        if actor_context not in (None, "", "personal", "space") or (
+            actor_context != "space" and space_slug
+        ):
+            raise Http404
+        space = None
+        if actor_context == "space":
+            if not self.request.user.is_authenticated or not space_slug:
+                raise Http404
+            space = workspace_spaces(self.request.user).filter(slug=space_slug).first()
+            if space is None:
+                raise Http404
         try:
-            projection = detail_projection(family, item_id, profile=self.request.user)
+            projection = detail_projection(
+                family, item_id, profile=self.request.user, space=space,
+            )
         except (ObjectDoesNotExist, ValidationError, ValueError, TypeError) as exc:
             raise Http404 from exc
         if projection is None:
@@ -835,20 +861,50 @@ class DiscoveryPossibilityDetailView(TemplateView):
             "base/app.html" if self.request.user.is_authenticated
             else "base/public.html"
         )
+        context["discovery_space"] = space is not None
+        if space is not None:
+            workspace = build_space_workspace(self.request.user, space)
+            if workspace is None:
+                raise Http404
+            def space_url(name):
+                return reverse(name, kwargs={"slug": space.slug})
+            context.update({
+                "space": space,
+                "organization": space,
+                "space_web": True,
+                "space_context": True,
+                "space_workspace": workspace,
+                "space_nav_key": "discover",
+                "space_page_title": "Découvrir",
+                "space_business_label": (workspace.get("operating_preset") or {}).get("primary_business_label") or "Métier",
+                "space_root_url": space_url("organizations:console-entry"),
+                "space_discover_url": space_url("organizations:space-discover"),
+                "space_work_url": space_url("organizations:space-work"),
+                "space_us_url": space_url("organizations:space-us"),
+                "space_mark_url": space_url("organizations:space-mark"),
+            })
         context["n2_item"] = projection
         context["card"] = _web_discovery_card(projection)
         context["n2"] = build_n2_presentation(projection)
         requested_return = self.request.GET.get("from", "")
+        default_return = (
+            reverse("organizations:space-discover", kwargs={"slug": space.slug})
+            if space is not None else reverse("discovery:home")
+        )
+        allowed_return = (
+            (requested_return == default_return or requested_return.startswith(default_return + "?"))
+            if space is not None else requested_return.startswith("/discover/")
+        )
         context["return_url"] = (
             requested_return
-            if requested_return.startswith("/discover/")
+            if allowed_return
             and not requested_return.startswith("//")
             and url_has_allowed_host_and_scheme(
                 requested_return,
                 allowed_hosts={self.request.get_host()},
                 require_https=self.request.is_secure(),
             )
-            else reverse("discovery:home")
+            else default_return
         )
         return context
 
