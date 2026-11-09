@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from authorization.models import AuthorityScope, Role
 from objectives.models import DossierJourneyDependencyState
+from objectives.context import resolve_objective_context
 from objectives.selectors import (
     active_assignments_for_dossier, active_project_for_dossier,
     collaboration_candidates_for_dossier, current_dossier_authority_mandates,
@@ -116,7 +117,8 @@ class DossierActionsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        dossier = get_object_or_404(dossiers_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        dossier = get_object_or_404(context.filter(dossiers_for_profile(request.user)), pk=pk)
         form = DossierActionInput(data=request.data)
         form.is_valid(raise_exception=True)
         values = form.validated_data
@@ -215,7 +217,7 @@ class DossierActionsAPIView(APIView):
                         )
                 else:
                     target = get_object_or_404(
-                        projects_for_profile(actor), pk=target_id,
+                        context.filter(projects_for_profile(actor)), pk=target_id,
                     )
                     if current is None:
                         link_dossier_to_project(

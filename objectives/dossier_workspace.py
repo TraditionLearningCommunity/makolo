@@ -45,7 +45,7 @@ def _choices(queryset, *, label, maximum=50):
     )
 
 
-def dossier_workspace(viewer, dossier):
+def dossier_workspace(viewer, dossier, *, actor_context=None):
     readiness = resolve_dossier_readiness(dossier, viewer=viewer)
     manage = can_manage_dossier(viewer, dossier)
     authority = can_manage_dossier_authority(viewer, dossier)
@@ -180,7 +180,10 @@ def dossier_workspace(viewer, dossier):
         candidates["assignees_partial"] = len(people) > 50
     if project_manage:
         # Only Projects the viewer can manage are valid destinations.
-        eligible = list(projects_for_profile(viewer).filter(
+        project_choices = projects_for_profile(viewer)
+        if actor_context is not None:
+            project_choices = actor_context.filter(project_choices)
+        eligible = list(project_choices.filter(
             lifecycle__in=PROJECT_LINKABLE_LIFECYCLES,
         ).exclude(
             pk=current_project.pk if current_project is not None else None,
@@ -224,10 +227,18 @@ def dossier_workspace(viewer, dossier):
         "deadline": _iso(dossier.deadline),
         "created_at": _iso(dossier.created_at),
         "updated_at": _iso(dossier.updated_at),
+        "viewer": {"kind": "profile", "id": str(viewer.pk)},
+        "actor_context": (
+            actor_context.describe(dossier) if actor_context is not None
+            else {"kind": "personal"}
+        ),
         "owner": {
             "kind": "space" if dossier.owning_space_id else "profile",
+            "id": str(dossier.owning_space_id or dossier.owner_profile_id),
             "label": dossier.owning_space.name if dossier.owning_space_id
                      else "Dossier personnel",
+            **({"slug": dossier.owning_space.slug}
+               if dossier.owning_space_id else {}),
         },
         "parent_project": {
             "id": str(visible_project.pk), "title": visible_project.title,
@@ -285,6 +296,10 @@ def dossier_workspace(viewer, dossier):
             + (["dossier.authority.manage"] if authority else [])
         ),
         "candidates": candidates,
-        "links": {"self": f"/api/v1/objectives/dossiers/{dossier.pk}/",
-                  "actions": f"/api/v1/objectives/dossiers/{dossier.pk}/actions/"},
+        "links": {
+            "self": (f"/api/v1/objectives/dossiers/{dossier.pk}/"
+                     + (actor_context.query_suffix() if actor_context else "")),
+            "actions": (f"/api/v1/objectives/dossiers/{dossier.pk}/actions/"
+                        + (actor_context.query_suffix() if actor_context else "")),
+        },
     }

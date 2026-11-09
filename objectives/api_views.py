@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from core.api.projections import projection_envelope
 from objectives.organizer import build_organizer_page
+from objectives.context import resolve_objective_context
 from objectives.services import create_dossier, create_project
 from organizations.models import Organization
 from objectives.readiness import resolve_dossier_readiness
@@ -32,10 +33,11 @@ class DossierDetailAPIView(APIView):
     def get(self, request, pk):
         from objectives.dossier_workspace import dossier_workspace
 
-        dossier = get_object_or_404(dossiers_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        dossier = get_object_or_404(context.filter(dossiers_for_profile(request.user)), pk=pk)
         return Response(projection_envelope(
             projection="objective.dossier.detail",
-            data=dossier_workspace(request.user, dossier),
+            data=dossier_workspace(request.user, dossier, actor_context=context),
             generated_at=timezone.now(),
             scope="authorized",
         ))
@@ -43,7 +45,8 @@ class DossierDetailAPIView(APIView):
     def patch(self, request, pk):
         from objectives.dossier_api import edit_dossier
 
-        dossier = get_object_or_404(dossiers_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        dossier = get_object_or_404(context.filter(dossiers_for_profile(request.user)), pk=pk)
         return edit_dossier(request, dossier)
 
 
@@ -53,11 +56,14 @@ class ProjectDetailAPIView(APIView):
     def get(self, request, pk):
         from objectives.project_workspace import project_workspace
 
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
+        data = project_workspace(request.user, project)
+        data["actor_context"] = context.describe(project)
         return Response(
             projection_envelope(
                 projection="objective.project.detail",
-                data=project_workspace(request.user, project),
+                data=data,
                 generated_at=timezone.now(),
                 scope="authorized",
             )
@@ -66,7 +72,8 @@ class ProjectDetailAPIView(APIView):
     def patch(self, request, pk):
         from objectives.project_api import edit_project
 
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         return edit_project(request, project)
 
 
@@ -94,10 +101,11 @@ class _ObjectiveCollectionAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         limit, offset = args
+        context = resolve_objective_context(request.query_params)
         if self.kind == "dossier":
-            visible = dossiers_for_profile(request.user)
+            visible = context.filter(dossiers_for_profile(request.user))
         else:
-            visible = projects_for_profile(request.user)
+            visible = context.filter(projects_for_profile(request.user))
         page = list(
             visible.order_by("-updated_at", "id")[offset : offset + limit + 1]
         )
@@ -134,6 +142,7 @@ class _ObjectiveCollectionAPIView(APIView):
                 projection=f"objective.{self.kind}.collection",
                 data={
                     "actor": {"type": "profile", "id": str(request.user.pk)},
+                    "actor_context": context.describe(),
                     "items": entries,
                     "page": {
                         "offset": offset,
