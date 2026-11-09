@@ -61,13 +61,13 @@ class DiscoveryContextualDetailTests(TestCase):
     def _space_query(self):
         return {"context": "space", "space": self.space.slug}
 
-    def _make_journey(self, beneficiary):
+    def _make_journey(self, beneficiary, *, status=JourneyStatus.IN_PROGRESS):
         return Journey.objects.create(
             activity=self.activity,
             initiated_by=beneficiary,
             beneficiary=beneficiary,
             workflow=WorkflowKind.REGISTRATION,
-            status=JourneyStatus.IN_PROGRESS,
+            status=status,
         )
 
     def test_opening_personal_detail_does_not_create_a_journey(self):
@@ -98,6 +98,16 @@ class DiscoveryContextualDetailTests(TestCase):
             reverse("core:participant-journey-detail", kwargs={"pk": own_journey.pk}),
         )
         self.assertNotEqual(continuation["resource"]["id"], str(outsider_journey.pk))
+
+    def test_finished_personal_journey_is_viewable_but_not_resumable(self):
+        journey = self._make_journey(self.viewer, status=JourneyStatus.FULFILLED)
+        self.client.force_authenticate(self.viewer)
+        result = self.client.get(self.url)
+        self.assertEqual(result.status_code, 200, result.data)
+        continuation = result.data["data"]["item"]["journey_continuation"]
+        self.assertEqual(continuation["state"], "finished")
+        self.assertEqual(continuation["label"], "Voir ma démarche")
+        self.assertEqual(continuation["resource"]["id"], str(journey.pk))
 
     def test_space_detail_is_same_endpoint_with_read_only_space_actor(self):
         self._make_journey(self.viewer)
