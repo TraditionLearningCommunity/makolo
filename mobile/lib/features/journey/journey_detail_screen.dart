@@ -414,18 +414,47 @@ class _JourneyContent extends StatelessWidget {
             ),
             child: Text(invitationNotice!),
           ),
-        if (presentation.nextActionLabel != null) ...[
+        if (!presentation.isTerminal &&
+            presentation.nextActionLabel != null) ...[
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
             ),
             child: MakoloAttentionBlock(
-              title: 'À faire maintenant',
+              title: 'Pour avancer',
               body: presentation.nextActionLabel!,
               action: _nextActionButton(),
             ),
           ),
-          const SizedBox(height: MakoloSpacing.xl),
+          const SizedBox(height: MakoloSpacing.lg),
+        ],
+        if (presentation.rejectedRequests > 0) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: MakoloAttentionBlock(
+              title: 'Une demande a été refusée',
+              body: 'Consultez les informations de votre démarche.',
+              icon: Icons.info_outline_rounded,
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
+        ],
+        if (presentation.pendingRequests > 0 &&
+            presentation.waiting.isEmpty &&
+            presentation.actorInterventions.isEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: const MakoloAttentionBlock(
+              title: 'En attente de réponse',
+              body: 'Votre demande suit son cours.',
+              icon: Icons.hourglass_bottom_rounded,
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
         ],
         if (presentation.liveLink != null ||
             presentation.dayOfLink != null) ...[
@@ -434,49 +463,91 @@ class _JourneyContent extends StatelessWidget {
               horizontal: MakoloSpacing.inner,
             ),
             child: MakoloAttentionBlock(
-              title: presentation.liveLink != null
-                  ? 'Ce qui se passe maintenant'
-                  : 'Jour J',
-              body: presentation.liveLink != null
-                  ? 'Cette occurrence est en cours. Retrouvez uniquement ce qui aide à agir maintenant.'
-                  : 'Les informations utiles pour vivre cette occurrence sont disponibles.',
+              title: presentation.liveLink != null ? 'Makolo Live' : 'Jour J',
+              body: presentation.occurrence?.label ?? 'Votre rendez-vous',
               icon: presentation.liveLink != null
                   ? Icons.bolt_rounded
                   : Icons.today_rounded,
-              action: FilledButton.icon(
+              action: MakoloActionButton(
+                label: presentation.liveLink != null
+                    ? 'Ouvrir Makolo Live'
+                    : 'Ouvrir Jour J',
                 onPressed: presentation.liveLink != null
                     ? () => onOpenLive(presentation.liveLink!)
                     : () => onOpenDayOf(presentation.dayOfLink!),
-                icon: Icon(
-                  presentation.liveLink != null
-                      ? Icons.play_arrow_rounded
-                      : Icons.arrow_forward_rounded,
-                ),
-                label: Text(
-                  presentation.liveLink != null
-                      ? 'Ouvrir Makolo Live'
-                      : 'Ouvrir Jour J',
-                ),
+                appearance: MakoloActionAppearance.primary,
               ),
             ),
           ),
-          const SizedBox(height: MakoloSpacing.xl),
+          const SizedBox(height: MakoloSpacing.lg),
         ],
-        MakoloSection(
-          title: 'Préparation',
-          child: _ReadinessGroups(presentation: presentation),
-        ),
+        if (presentation.actorInterventions.isNotEmpty ||
+            presentation.blockers.isNotEmpty ||
+            presentation.waiting.isNotEmpty ||
+            presentation.ready.isNotEmpty) ...[
+          MakoloSection(
+            title: 'Préparation',
+            child: _ReadinessGroups(
+              presentation: presentation,
+              ownerAction: _ownerActionForLink,
+            ),
+          ),
+        ],
         if (presentation.resourcesLink != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
+          const SizedBox(height: MakoloSpacing.lg),
           MakoloSection(
             title: 'Documents et instructions',
             child: MakoloCard(
-              semanticLabel: 'Ouvrir les documents et instructions',
+              semanticLabel: 'Voir les documents et instructions',
               onTap: () => onOpenResources(presentation.resourcesLink!),
-              child: const MakoloStatusMetadataAction(
-                title: 'Ressources de préparation',
-                subtitle: 'Consultez ce que le propriétaire de la démarche a rendu disponible.',
-                action: Icon(Icons.chevron_right_rounded),
+              child: Column(
+                children: [
+                  for (final resource in resourcesPreview.take(3))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        switch (resource.kind) {
+                          'file' => Icons.insert_drive_file_outlined,
+                          'url' => Icons.link_rounded,
+                          'text' => Icons.notes_rounded,
+                          _ => Icons.description_outlined,
+                        },
+                        color: const Color(0xFF5232DB),
+                      ),
+                      title: Text(resource.title),
+                      subtitle: resource.description == null
+                          ? null : Text(
+                              resource.description!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                    ),
+                  if (resourcesPreview.isEmpty)
+                    const MakoloStatusMetadataAction(
+                      title: 'Documents et instructions',
+                      action: Icon(Icons.chevron_right_rounded),
+                    ),
+                  if (resourcesPreview.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            resourcesPreview.length > 3
+                                ? 'Voir les ${resourcesPreview.length} ressources'
+                                : 'Voir les ressources',
+                            style: const TextStyle(
+                              color: Color(0xFF5232DB),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
