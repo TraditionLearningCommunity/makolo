@@ -25,6 +25,16 @@ from .api_views import (
 )
 
 
+from .participant_api import (
+    ConversationIdentitySearchAPIView, ConversationParticipantsAPIView,
+    ConversationInviteIdentifierAPIView, ConversationRemoveParticipationAPIView,
+    ConversationCancelInvitationAPIView, ConversationCollectiveRevokeAPIView,
+    ConversationCollectiveInboxAPIView, ConversationCollectiveRespondAPIView,
+    ConversationSelfEntryAPIView, ConversationJoinRequestsAPIView,
+    ConversationJoinRequestDecisionAPIView,
+)
+
+
 app_name = "conversations-api"
 
 urlpatterns = [
@@ -33,6 +43,18 @@ urlpatterns = [
     path("by-context/<str:kind>/<str:context_pk>/", ConversationContextLookupAPIView.as_view(), name="by-context"),
     path("by-context/<str:kind>/<str:context_pk>/ensure/", ConversationContextEnsureAPIView.as_view(), name="context-ensure"),
     path("<uuid:pk>/", ConversationDetailAPIView.as_view(), name="detail"),
+    path("<uuid:pk>/candidates/", ConversationIdentitySearchAPIView.as_view(), name="identity-search"),
+    path("<uuid:pk>/participants/", ConversationParticipantsAPIView.as_view(), name="participants"),
+    path("<uuid:pk>/invite/", ConversationInviteIdentifierAPIView.as_view(), name="invite-identifier"),
+    path("<uuid:pk>/participants/<uuid:participation_pk>/remove/", ConversationRemoveParticipationAPIView.as_view(), name="participant-remove"),
+    path("<uuid:pk>/invitations/<uuid:invitation_pk>/cancel/", ConversationCancelInvitationAPIView.as_view(), name="invite-cancel"),
+    path("<uuid:pk>/collectives/<uuid:access_pk>/revoke/", ConversationCollectiveRevokeAPIView.as_view(), name="collective-revoke"),
+    path("collective-invitations/", ConversationCollectiveInboxAPIView.as_view(), name="collective-inbox"),
+    path("collective-invitations/<uuid:access_pk>/respond/", ConversationCollectiveRespondAPIView.as_view(), name="collective-respond"),
+    path("<uuid:pk>/entry/", ConversationSelfEntryAPIView.as_view(), name="self-entry"),
+    path("<uuid:pk>/join-requests/", ConversationJoinRequestsAPIView.as_view(), name="join-requests"),
+    path("<uuid:pk>/join-requests/<uuid:join_request_pk>/decide/", ConversationJoinRequestDecisionAPIView.as_view(), name="join-decision"),
+
     path("<uuid:pk>/points/", ConversationPointsDepthAPIView.as_view(), name="point-depth"),
     path("<uuid:pk>/compose/", ConversationComposeAPIView.as_view(), name="compose"),
     path("<uuid:pk>/forms/options/", ConversationFormOptionsAPIView.as_view(), name="form-options"),
