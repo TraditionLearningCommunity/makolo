@@ -764,7 +764,7 @@ class ConversationRepository {
         'Une connexion est nécessaire pour envoyer cette réponse.',
       );
     }
-    await engine.api.post(
+    final response = await engine.api.post(
       'api/v1/conversations/points/$pointId/respond/',
       body: {
         'value': value,
@@ -772,6 +772,11 @@ class ConversationRepository {
         'represented_space_id': ?representedSpaceId,
       },
     );
+    final payload = response.jsonObject();
+    if (payload['point_id']?.toString() != pointId ||
+        payload['id'] == null || payload['status'] != 'active') {
+      throw const FormatException('Réponse non confirmée par Conversations.');
+    }
     await _refreshPublished(conversationId);
   }
 
@@ -785,7 +790,14 @@ class ConversationRepository {
         'Une connexion est nécessaire pour confirmer la lecture.',
       );
     }
-    await engine.api.post('api/v1/conversations/points/$pointId/acknowledge/');
+    final response = await engine.api.post(
+      'api/v1/conversations/points/$pointId/acknowledge/',
+    );
+    final confirmed = response.jsonObject();
+    if (confirmed['point_id']?.toString() != pointId ||
+        confirmed['acknowledged_at'] == null) {
+      throw const FormatException('Prise de connaissance non confirmée.');
+    }
     await _refreshPublished(conversationId);
   }
 
