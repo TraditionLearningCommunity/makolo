@@ -190,7 +190,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         if (mounted) {
           setState(
             () => _invitationNotice =
-                'Action à vérifier. Réessayez lorsque la connexion revient.',
+                'Aucune confirmation pour le moment. Vous pouvez réessayer.',
           );
         }
       }
