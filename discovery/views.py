@@ -99,6 +99,7 @@ def _saved_opportunity_ids(user, opportunity_ids):
 def _query_without_page(request):
     params = request.GET.copy()
     params.pop("page", None)
+    params.pop("continuation", None)
     params.pop("focus", None)
     params.pop("_correction", None)
     return params.urlencode()
@@ -813,6 +814,7 @@ class DiscoveryHomeView(TemplateView):
                     and (item.get("saved") or {}).get("state") == "saved"
                 },
                 "pagination_query": _query_without_page(self.request),
+                "next_continuation": (data.get("continuation") or {}).get("token"),
                 "map_config": {
                     "tile_url": settings.MAP_TILE_URL,
                     "attribution": settings.MAP_TILE_ATTRIBUTION,
