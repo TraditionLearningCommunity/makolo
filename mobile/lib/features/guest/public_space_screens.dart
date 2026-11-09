@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../platform/links/external_url_opener.dart';
 
 import '../../presentation/fields/geo_autocomplete_field.dart';
