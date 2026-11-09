@@ -801,10 +801,12 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final date = raw == null ? null : DateTime.tryParse(raw)?.toLocal();
       if (date == null) return reason;
       final local = MaterialLocalizations.of(context);
-      final deadline = '${local.formatShortDate(date)} '
+      final deadline =
+          '${local.formatShortDate(date)} '
           '${local.formatTimeOfDay(TimeOfDay.fromDateTime(date), alwaysUse24HourFormat: true)}';
       return '$reason · Échéance : $deadline';
     }
+
     Widget group(String name, List<Map<String, dynamic>> entries) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

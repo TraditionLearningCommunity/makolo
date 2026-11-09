@@ -1161,13 +1161,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 itemBuilder: (_) => [
                   if (_has(row, 'unlink'))
                     const PopupMenuItem(
-                      value: 'unlink', child: Text('Détacher'),
+                      value: 'unlink',
+                      child: Text('Détacher'),
                     ),
                   if (_has(row, 'move') &&
                       _list(project['move_targets']).isNotEmpty)
-                    const PopupMenuItem(
-                      value: 'move', child: Text('Déplacer'),
-                    ),
+                    const PopupMenuItem(value: 'move', child: Text('Déplacer')),
                 ],
                 onSelected: (value) => _manageDossier(row, project, value),
               )

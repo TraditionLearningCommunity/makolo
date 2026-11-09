@@ -13,7 +13,6 @@ import 'discovery_save_icon.dart';
 
 export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
 
- 
 /// Ephemeral viewer-scoped UI feedback shared by cards of the same publisher.
 /// Server Discovery remains authoritative; no relationships are persisted here.
 class DiscoveryFollowScope extends StatefulWidget {
@@ -26,10 +25,9 @@ class DiscoveryFollowScope extends StatefulWidget {
   final String? profileId;
   final Widget child;
 
-  static DiscoveryFollowController? maybeOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<_DiscoveryFollowInherited>()
-          ?.controller;
+  static DiscoveryFollowController? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_DiscoveryFollowInherited>()
+      ?.controller;
 
   @override
   State<DiscoveryFollowScope> createState() => _DiscoveryFollowScopeState();
@@ -272,7 +270,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
   }
 
-
   /// Only a signed-in viewer can act on a server-projected public owner.
   Map<String, dynamic>? get _followTarget {
     if (!widget.allowOwnerActions ||
@@ -307,8 +304,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (_followingBusy || target == null || api == null) return;
     final key = '${target['kind']}:${target['id']}';
     final followScope = DiscoveryFollowScope.maybeOf(context);
-    final currentlyFollowed = followScope?.followedFor(key) ??
-        _confirmedFollowed ?? (target['followed'] == true);
+    final currentlyFollowed =
+        followScope?.followedFor(key) ??
+        _confirmedFollowed ??
+        (target['followed'] == true);
     final endpoint =
         'api/v1/organizations/follows/targets/${target['kind']}/${target['id']}/';
     setState(() => _followingBusy = true);
@@ -322,8 +321,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       }
       if (!mounted) return;
       final current = _followTarget;
-      if (current != null &&
-          '${current['kind']}:${current['id']}' == key) {
+      if (current != null && '${current['kind']}:${current['id']}' == key) {
         final confirmed = result['followed'] as bool;
         setState(() => _confirmedFollowed = confirmed);
         followScope?.confirm(key, confirmed);
@@ -765,7 +763,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final followKey = followTarget == null
         ? null
         : '${followTarget['kind']}:${followTarget['id']}';
-    final followed = (followKey == null
+    final followed =
+        (followKey == null
             ? null
             : DiscoveryFollowScope.maybeOf(context)?.followedFor(followKey)) ??
         _confirmedFollowed ??

@@ -39,8 +39,9 @@ class NotificationRouter {
         final pointId = navigation['point_id']?.toString();
         if (pointId != null &&
             pointId.length == 36 &&
-            RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')
-                .hasMatch(pointId)) {
+            RegExp(
+              r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+            ).hasMatch(pointId)) {
           return path + '?focus=' + Uri.encodeQueryComponent(pointId);
         }
       }
