@@ -24,6 +24,7 @@ class DayOfScreen extends StatefulWidget {
     required this.onOpenAccess,
     required this.onPresentCredential,
     this.onOpenLive,
+    this.onOpenScanner,
   });
 
   final String occurrenceId;
@@ -32,6 +33,7 @@ class DayOfScreen extends StatefulWidget {
   final void Function(String accessId, String credentialPath)
   onPresentCredential;
   final void Function(String livePath)? onOpenLive;
+  final VoidCallback? onOpenScanner;
 
   @override
   State<DayOfScreen> createState() => _DayOfScreenState();
@@ -163,6 +165,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                           onOpenAccess: widget.onOpenAccess,
                           onPresentCredential: widget.onPresentCredential,
                           onOpenLive: widget.onOpenLive,
+                          onOpenScanner: widget.onOpenScanner,
                         )
                       : _DayOfContent(
                           presentation: presentation,
