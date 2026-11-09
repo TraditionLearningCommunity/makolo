@@ -224,9 +224,9 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                       ? 'Impossible de vérifier cette action. Consultez l’historique si elle est terminée.'
                       : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
-                  content: available && projection.payload['surface'] == 'day_of'
+                  content: available && projection?.payload['surface'] == 'day_of'
                       ? OccurrenceExperienceContent(
-                          payload: projection.payload,
+                          payload: projection!.payload,
                           live: false,
                           remoteActionsAvailable: actionsAllowed,
                           readOnlyReason: readOnlyReason,
