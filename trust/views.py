@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -50,6 +52,16 @@ from .services import (
     submit_feedback,
     triage_report,
 )
+
+
+def _safe_collection_return(candidate, *, fallback):
+    candidate = (candidate or "").strip()
+    if not candidate:
+        return fallback
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc or parsed.fragment or parsed.path != fallback:
+        return fallback
+    return candidate
 
 
 def _error_text(exc):
@@ -284,6 +296,11 @@ class ProofDetailView(LoginRequiredMixin, TemplateView):
         if proof is None:
             raise Http404
         context["proof"] = proof
+        fallback = reverse("trust:my-proofs")
+        context["return_url"] = _safe_collection_return(
+            self.request.GET.get("return"),
+            fallback=fallback,
+        )
         return context
 
 
