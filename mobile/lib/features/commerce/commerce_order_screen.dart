@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../network/api_error.dart';
+import '../journey/journey_repository.dart';
 
 /// Private read of the Commerce owner truth; never interpret an order as paid.
 class CommerceOrderScreen extends StatefulWidget {
@@ -28,7 +30,47 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(_prepare());
+  }
+
+  /// Display the Profile's acquired Commerce fact from an authorized Journey.
+  /// The Commerce owner is still responsible for confirmation and actions.
+  Future<void> _prepare() async {
+    final store = widget.runtime.store;
+    if (store != null) {
+      try {
+        final journeys = await store.readProjections(
+          JourneyRepository.projectionKind,
+        );
+        for (final local in journeys) {
+          final source = await widget.runtime.journeys?.readSource(
+            local.resourceKey,
+          );
+          if (source?.invalidated == true &&
+              const {'permission_denied', 'not_found'}
+                  .contains(source?.lastErrorCode)) continue;
+          final payment = local.payload['payment'];
+          if (payment is! Map) continue;
+          final order = payment['order'];
+          if (order is! Map || order['id'] != widget.orderId) continue;
+          if (!mounted) return;
+          setState(() => _order = {
+            'id': widget.orderId,
+            'kind': 'commerce_order',
+            'status': order['state'],
+            'checkout': {
+              'total': order['total'],
+              'currency': order['currency'],
+              'payment_mode': order['payment_mode'],
+            },
+          });
+          break;
+        }
+      } on Object {
+        // A missing local summary does not invalidate another owner fact.
+      }
+    }
+    if (mounted) unawaited(_load());
   }
 
   Future<void> _load() async {
@@ -48,11 +90,23 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
         _order = order;
         _loading = false;
       });
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      final denied = error.statusCode == 403 || error.statusCode == 404;
+      setState(() {
+        _loading = false;
+        if (denied) _order = null;
+        _error = _order == null
+            ? 'Cette commande ne peut pas être consultée pour le moment.'
+            : null;
+      });
     } on Object {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Cette commande ne peut pas être consultée pour le moment.';
+        _error = _order == null
+            ? 'Cette commande ne peut pas être consultée pour le moment.'
+            : null;
       });
     }
   }
@@ -78,10 +132,14 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (_loading) const Center(child: CircularProgressIndicator()),
+          if (_loading && _order == null)
+            const Center(child: CircularProgressIndicator()),
+          if (_loading && _order != null) const LinearProgressIndicator(),
           if (_order != null) ...[
             Text(
-              'Commande ${_order!['reference'] ?? ''}',
+              _order!['reference'] == null
+                  ? 'Ma commande'
+                  : 'Commande ${_order!['reference']}',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
