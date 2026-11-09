@@ -153,7 +153,7 @@ class MakoloFollowIconButton extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     tooltip: followed ? 'Ne plus suivre' : 'Suivre',
     onPressed: onPressed,
-    icon: Icon(followed ? Icons.wifi_rounded : Icons.wifi_outlined),
+    icon: Icon(followed ? Icons.wifi_rounded : Icons.wifi_off_rounded),
     color: followed
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.onSurfaceVariant,
