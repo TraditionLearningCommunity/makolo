@@ -415,6 +415,8 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
             history_cache=history_cache,
         )
         seen.update(point.pk for point in elsewhere)
+        timeline = recent_timeline_for_profile(request.user, conversation)
+        visible_timeline_ids = {point.pk for point in timeline["points"]}
         focused_point = None
         focused_raw = (request.query_params.get("focus_point") or "").strip()
         if focused_raw:
@@ -424,13 +426,14 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 raise DRFValidationError({"focus_point": "Point invalide."})
             focused = ConversationPoint.objects.filter(
                 pk=focused_id, conversation=conversation,
-            ).select_related("published_by", "represented_space", "visibility_audience", "response_audience", "resolution_audience").prefetch_related("options", "responses").first()
-            if focused and point_visible_to(request.user, focused):
-                if focused.pk not in seen:
-                    focused_point = _serialize_point(focused, profile=request.user, section="focus")
-        timeline = recent_timeline_for_profile(request.user, conversation)
-        if focused_point and any(str(point.pk) == focused_point["id"] for point in timeline["points"]):
-            focused_point = None
+            ).select_related(
+                "published_by", "represented_space", "visibility_audience",
+                "response_audience", "resolution_audience",
+            ).prefetch_related("options", "responses").first()
+            if focused and focused.pk not in visible_timeline_ids and point_visible_to(request.user, focused):
+                focused_point = _serialize_point(
+                    focused, profile=request.user, section="focus",
+                )
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
         return Response({
