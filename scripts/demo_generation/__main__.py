@@ -126,6 +126,10 @@ def run(a):
         clock.main(options)
         return
     if a.action == "rebalance":
+        if (a.database != "db.sqlite3" or a.demo_live or a.limit or
+                a.mode != "safe" or a.include_existing or a.output or a.now or
+                a.timezone != "Africa/Kinshasa" or a.demo_slots != 120):
+            raise SystemExit("Les options temporelles exigent --target periods.")
         options=["--target",a.target,"--count",str(a.count),
                  "--profiles",str(a.profiles),"--per-profile",str(a.per_profile),
                  "--seed",str(a.seed),"--activity-prefix",a.activity_prefix]
