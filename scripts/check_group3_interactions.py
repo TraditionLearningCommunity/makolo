@@ -89,6 +89,35 @@ def inspect(root: Path = ROOT) -> list[str]:
         errors.append("Space Nous: view switch does not use shared tabs")
     if "mk-us-n1-layout-switch" in us_css:
         errors.append("Space Nous: duplicate local view-switch button styles")
+    # The Dossier and Projet view selectors are shared tabs. Their CSS may
+    # still position the tabs but must not recreate selected/button skins.
+    for template, selector in (
+        ("objectives/templates/objectives/dossier_detail.html", "mk-dossier__tabs"),
+        ("objectives/templates/objectives/project_detail.html", "mk-project__view-switch"),
+    ):
+        source = (root / template).read_text(encoding="utf-8")
+        if f'class="{selector} mk-interaction-tabs"' not in source:
+            errors.append(f"{template}: view selector must adopt shared tabs")
+    for stylesheet, old_prefix in (
+        ("static/css/dossier-workspace.css", "mk-dossier"),
+        ("static/css/project-workspace.css", "mk-project"),
+    ):
+        source = (root / stylesheet).read_text(encoding="utf-8")
+        if ":not(.mk-action-button)" in source:
+            errors.append(f"{stylesheet}: duplicate button skin remains")
+        if f".{old_prefix}__tabs button[aria-pressed" in source or f".{old_prefix}__view-switch button[aria-pressed" in source:
+            errors.append(f"{stylesheet}: duplicate selected-tab skin remains")
+    for js_file, expected in (
+        ("static/js/dossier-workspace.js", "button.dataset.variant"),
+        ("static/js/project-workspace.js", "confirm.dataset.variant"),
+    ):
+        source = (root / js_file).read_text(encoding="utf-8")
+        if expected not in source or "mk-action-button" not in source:
+            errors.append(f"{js_file}: generated owner controls lack shared skin")
+    for stylesheet in ("static/css/notifications-inbox.css",):
+        source = (root / stylesheet).read_text(encoding="utf-8")
+        if ".mk-notification-actions button{" in source:
+            errors.append(f"{stylesheet}: local action skin overrides shared actions")
     for relative in (
         "templates/organizations/console/access_grant.html",
         "templates/organizations/console/team_form.html",
