@@ -1738,12 +1738,8 @@ def paginated_projection(
                 "state": "owner_contract",
                 "capabilities": [],
                 "links": {},
-                "primary_action": {
-                    "code": "detail",
-                    "state": "available",
-                    "destination": {"path": item["links"].get("detail")},
-                },
             }
+            item["engagement"]["primary_action"] = _primary_action_for_projection(item)
     count = len(composition.rows)
     has_next = end < count
     authenticated = _authenticated(profile)
