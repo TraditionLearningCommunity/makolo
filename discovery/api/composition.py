@@ -1627,7 +1627,7 @@ def spatial_index_from_rows(rows) -> dict:
     }
 
 
-def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
+def compact_spatial_discovery_projection(rows, *, profile=None, viewer=None) -> dict:
     """Small spatial representation of the already-admitted Discovery field.
 
     Preserve every published spatial role, place and canonical identity. The
@@ -1657,13 +1657,13 @@ def compact_spatial_discovery_projection(rows, *, profile=None) -> dict:
         **spatial,
         "detail_available": False,
         "viewer": (
-            {"type": "profile", "id": str(profile.pk)}
-            if _authenticated(profile) else None
+            {"type": "profile", "id": str((viewer or profile).pk)}
+            if _authenticated(viewer or profile) else None
         ),
     }
 
 
-def spatial_discovery_projection(rows, *, profile=None, space=None) -> dict:
+def spatial_discovery_projection(rows, *, profile=None, space=None, viewer=None) -> dict:
     """Compose canonical public location facts with viewer-authorized N2 facts.
 
     The spatial index owns place publication and roles, while project_rows
@@ -1700,8 +1700,8 @@ def spatial_discovery_projection(rows, *, profile=None, space=None) -> dict:
         "total_results": spatial["total_results"],
         "detail_available": True,
         "viewer": (
-            {"type": "profile", "id": str(profile.pk)}
-            if _authenticated(profile) else None
+            {"type": "profile", "id": str((viewer or profile).pk)}
+            if _authenticated(viewer or profile) else None
         ),
         "results": results,
     }
@@ -1815,11 +1815,11 @@ def paginated_projection(
         **({
             "spatial_index": (
                 compact_spatial_discovery_projection(
-                    composition.rows, profile=candidate_profile,
+                    composition.rows, profile=candidate_profile, viewer=profile,
                 )
                 if params.get("include_spatial_index") == "compact"
                 else spatial_discovery_projection(
-                    composition.rows, profile=candidate_profile, space=space,
+                    composition.rows, profile=candidate_profile, space=space, viewer=profile,
                 )
             ),
         } if page == 1 and params.get("include_spatial_index") in {"1", "compact"} else {}),
