@@ -105,6 +105,16 @@ class Z5DetailAPIContractTests(TestCase):
             status=status,
         )
 
+    def test_web_n3_uses_canonical_goal_and_does_not_invent_progress(self):
+        journey = self.journey()
+        self.client.force_login(self.user)
+        response = self.client.get(f"/me/journeys/{journey.pk}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mon objectif")
+        self.assertContains(response, "mk-journey-hero")
+        self.assertContains(response, self.activity.title)
+        self.assertNotContains(response, "Progression de la démarche")
+
     def test_journey_detail_is_scoped_and_preserves_waiting_blocked_and_date_only(self):
         occurrence = create_occurrence(
             activity=self.activity,
