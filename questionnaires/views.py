@@ -156,13 +156,21 @@ class ManageQuestionnairesView(LoginRequiredMixin, TemplateView):
                     FormVersion.objects.select_related("form__activity"),
                     pk=request.POST.get("version_id"), form__activity=activity,
                 )
-                question_id = request.POST.get("question_id") or None
-                question = (
-                    get_object_or_404(FormQuestion, pk=question_id, form_version=version)
-                    if question_id else None
-                )
-                raw_index = request.POST.get("choice_index")
-                index = int(raw_index) if raw_index not in (None, "") else None
+                target = (request.POST.get("media_target") or "form").split(":")
+                if len(target) == 1 and target[0] == "form":
+                    question, index = None, None
+                elif len(target) in (2, 3) and target[0] in {"question", "choice"}:
+                    question = get_object_or_404(
+                        FormQuestion, pk=target[1], form_version=version,
+                    )
+                    if target[0] == "choice" and len(target) == 3:
+                        index = int(target[2])
+                    elif target[0] == "question" and len(target) == 2:
+                        index = None
+                    else:
+                        raise ValidationError("Emplacement du média invalide.")
+                else:
+                    raise ValidationError("Emplacement du média invalide.")
                 upload = request.FILES.get("file")
                 if upload is None:
                     raise ValidationError("Choisissez un média.")
