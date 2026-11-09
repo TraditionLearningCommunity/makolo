@@ -1,6 +1,6 @@
 # Jour J & Makolo Live Mature — plan d'implémentation par lots
 
-**Statut :** L1–L4 développés sur la branche #522, sans exécution de CI ni certification technique ; L5–L7 restent à réaliser.  
+**Statut :** L1–L5 développés sur la branche #522, sans exécution de CI ni certification technique ; L6–L7 restent à réaliser.  
 **Date :** 9 novembre 2026.  
 **Branche de rattachement :** PR #522, `fix/discover-a-continuation-context-20261014`.  
 **Contrat cible :** `docs/ux/Makolo_Jour_J_et_Live_Contrat_Cible_Mature_Unifie_2026-11-09.md`.  
@@ -170,6 +170,51 @@ L7 Scénarios finaux / validation / intégration
 
 **Sortie L4 :** Live capable de dire ce qui se produit, ce qu'on sait, ce qu'on ignore et ce qui a changé, sans simuler un flux temps réel.
 
+## État d'exécution — L5 (9 novembre 2026)
+
+**L5 a reçu sa passe d'implémentation sur la branche de #522.** Les tests ont été ajoutés mais non exécutés ; aucun rendu Flutter ou Web n'a été vérifié par démarrage de l'application. Il s'agit d'une implémentation versionnée, pas d'une certification ni d'un déploiement.
+
+### Propriétaires réellement réutilisés
+
+| Besoin | Intégration faite | Frontière du domaine |
+| --- | --- | --- |
+| Scanner | `scanner.canonical_services.scan_access_credential`, `AccessUse`, `scanner/occurrence_access.py` ; GET contexte et POST `/api/v1/scanner/occurrences/<id>/control/` | Valide une Activity/Occurrence même hors Event ; l'affectation n'accorde pas une permission |
+| Checkpoint lié à un contrôle | `operations.checkpoint_services.observe_checkpoint` avec `AccessUse` accepté | Même checkpoint et mandat vérifiés, dans la transaction ; aucun nouveau statut parallèle |
+| File | `operations.queue_api` et services de file existants | La file opérationnelle n'est pas une waitlist Commerce |
+| Placement | `operations.placement_api` et `placement_services` | Bénéficiaire Profil ou externe vérifié, pas de placement inventé pour Space |
+| Préparation | `operations.live_api` / Readiness owner | Lecture contextualisée, pas de validation simulée |
+| Capacity | `capacity.selectors` | Agrégation consultation seulement, aucune nouvelle réserve |
+| Commerce | `commerce.selectors` / Offer et CommerceOrder | Consultation Offer et comptes par statut ; achat et paiement restent dans leurs propriétaires |
+| Finance | `payments.models` via agrégats bornés par Occurrence, protégés par mandat | Aucun paiement ou remboursement exécuté depuis Jour J, aucune coordonnée de payeur projetée |
+| Orientation / lieux | `OccurrencePlace` et Geography, accès existant Jour J | Lieu prévu, pas position réelle inventée |
+| Access / credential | Pages de détail et présentation QR Access existantes | Le token n'est jamais inséré dans la projection Jour J |
+| Historique | Handoff Web / Flutter vers Historique déjà présent | Pas de second journal d'événements |
+| Incident / média | Aucune profondeur nouvelle annoncée sans owner publiable lié à l'Occurrence | `unavailable` ou omis, jamais média ou incident fictif |
+
+### Présentation et parcours
+
+- `operations/occurrence_experience.py` expose `depths[]` avec `kind`, `territory`, `read_path`, `source` et `can_manage`, sans exiger de mode financier/scanneur/logisticien.
+- Deux vues de profondeur Web réutilisent `operations/occurrence_web_depth.py` et un fragment commun, en conservant l'Occurrence et le contexte Profil/Space ; les mutations passent par Operations, jamais par une copie.
+- Flutter possède `OccurrenceOwnerDepthScreen` qui revalide le catalogue avant lecture puis avant mutation ; confirme les actions sensibles et renvoie à la page précédente par navigation native.
+- Flutter possède `OccurrenceScannerScreen` avec caméra **opt-in** et saisie manuelle, confirmation avant consommation, nouvelle lecture du mandat avant POST, résultat explicite ; aucun stockage local du code QR.
+- Scanner Web réutilise la console caméra du projet pour le Space et pour une Activity personnelle, avec un résultat minimal du propriétaire canonique.
+- Un Space bénéficiaire d'une Journey externe peut voir Jour J institutionnel mais ne peut ni scanner ni modifier les ressources du fournisseur dans le contexte de ce Space.
+- Live reste facultatif selon `Occurrence.live_enabled` ; aucune de ces profondeurs ne publie Live ou ne fabrique une observation.
+
+### Vérifications ajoutées mais non exécutées
+
+- `scanner/test_occurrence_control_l5.py` : scan sans Event, idempotence, révocation, affectation insuffisante seule, passage checkpoint lié à AccessUse, absence de divulgation de token.
+- `operations/test_experience_depths_l5.py` : droits Finance/Operations/Scanner distincts et cumulables, profondeur refusée à l'outsider et après révocation, mutation Web refusée.
+- `mobile/test/occurrence_experience_content_test.dart` : boutons de profondeurs indépendants dans Jour J.
+- Des tests ciblés et scénarios existants devront encore être **exécutés** pour vérifier syntaxe, rendu, permissions réelles, schéma, accessibilité et non-régression. La CI n'a pas été lancée à la demande du propriétaire.
+
+### Limites explicites (pas de fonctionnalité inventée)
+
+- Les panneaux Capacity, Commerce, Finance et lieux sont **en lecture seule** ; les opérations avancées sont réalisées par les modules métier propriétaires et leurs écrans établis, non par une mutation créée dans L5.
+- La représentation multi-tuteurs d'un bénéficiaire externe, ainsi que le droit d'admission physique d'un Space, ne sont pas étendus ici.
+- Il n'existe pas de rattachement propriétaire confirmé pour publier un incident ou média autorisé de cette Occurrence dans la nouvelle page ; aucun faux flux n'est rendu.
+- L5 n'est **pas certifié** sans exécution des validations. L6 et L7 restent ouverts ; ne pas merger #522 à ce titre.
+
 ### L5 — Profondeurs secondaires et actions owner-backed (P1)
 
 - **L5.1** Catalogue et routage des profondeurs réellement nécessaires : orientation, accès/credential, file, placement, checkpoint, readiness, capacity, scanner, opérations financières/logistiques, incident, média, Historique.
@@ -224,4 +269,4 @@ L7 Scénarios finaux / validation / intégration
 - Aucun lot ne doit imposer une nouvelle migration, nouvelle API ou nouveau domaine sans démonstration de nécessité après L0.
 - Chaque changement de code devra être annoncé avant commit/push ; préserver la branche et la CI, ne pas modifier `main` directement.
 
-**État de ce document : L1–L4 sont développés sur #522, non certifiés faute d'exécution des validations ; L5–L7 ne sont pas clôturés.**
+**État de ce document : L1–L5 sont développés sur #522, non certifiés faute d'exécution des validations ; L6–L7 ne sont pas clôturés.**
