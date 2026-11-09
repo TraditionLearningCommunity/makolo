@@ -716,6 +716,7 @@ class MeSelector {
     final status = _string(raw['status_label']);
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'proof', id: id),
+      canOpen: true,
       title: title,
       subtitle: [
         ?activity,
@@ -733,6 +734,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'credential', id: id),
+      canOpen: true,
       title: title,
       subtitle: [
         _string(raw['credential_type_label']) ?? 'Titre',
