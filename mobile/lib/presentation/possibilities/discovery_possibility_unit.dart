@@ -13,6 +13,80 @@ import 'discovery_save_icon.dart';
 
 export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
 
+ 
+/// Ephemeral viewer-scoped UI feedback shared by cards of the same publisher.
+/// Server Discovery remains authoritative; no relationships are persisted here.
+class DiscoveryFollowScope extends StatefulWidget {
+  const DiscoveryFollowScope({
+    super.key,
+    required this.profileId,
+    required this.child,
+  });
+
+  final String? profileId;
+  final Widget child;
+
+  static DiscoveryFollowController? maybeOf(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_DiscoveryFollowInherited>()
+          ?.controller;
+
+  @override
+  State<DiscoveryFollowScope> createState() => _DiscoveryFollowScopeState();
+}
+
+class DiscoveryFollowController extends ChangeNotifier {
+  final Map<String, bool> _confirmed = <String, bool>{};
+
+  bool? followedFor(String key) => _confirmed[key];
+
+  void confirm(String key, bool followed) {
+    _confirmed[key] = followed;
+    notifyListeners();
+  }
+
+  void clear() {
+    _confirmed.clear();
+    notifyListeners();
+  }
+}
+
+class _DiscoveryFollowScopeState extends State<DiscoveryFollowScope> {
+  final DiscoveryFollowController _controller = DiscoveryFollowController();
+
+  @override
+  void didUpdateWidget(covariant DiscoveryFollowScope oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.profileId != widget.profileId) {
+      _controller.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _DiscoveryFollowInherited(
+    controller: _controller,
+    notifier: _controller,
+    child: widget.child,
+  );
+}
+
+class _DiscoveryFollowInherited
+    extends InheritedNotifier<DiscoveryFollowController> {
+  const _DiscoveryFollowInherited({
+    required this.controller,
+    required super.notifier,
+    required super.child,
+  });
+
+  final DiscoveryFollowController controller;
+}
+
 /// Locale-aware compact label for the time a possibility was *added*.
 ///
 /// This is intentionally unrelated to the timing of an Occurrence. The exact
@@ -232,7 +306,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final api = widget.shareApi;
     if (_followingBusy || target == null || api == null) return;
     final key = '${target['kind']}:${target['id']}';
-    final currentlyFollowed = _confirmedFollowed ?? (target['followed'] == true);
+    final followScope = DiscoveryFollowScope.maybeOf(context);
+    final currentlyFollowed = followScope?.followedFor(key) ??
+        _confirmedFollowed ?? (target['followed'] == true);
     final endpoint =
         'api/v1/organizations/follows/targets/${target['kind']}/${target['id']}/';
     setState(() => _followingBusy = true);
@@ -248,7 +324,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final current = _followTarget;
       if (current != null &&
           '${current['kind']}:${current['id']}' == key) {
-        setState(() => _confirmedFollowed = result['followed'] as bool);
+        final confirmed = result['followed'] as bool;
+        setState(() => _confirmedFollowed = confirmed);
+        followScope?.confirm(key, confirmed);
       }
     } on Object {
       if (mounted) {
@@ -684,7 +762,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         : null;
     final nativePath = ownerLinks is Map ? ownerLinks['native'] : null;
     final followTarget = _followTarget;
-    final followed = _confirmedFollowed ?? (followTarget?['followed'] == true);
+    final followKey = followTarget == null
+        ? null
+        : '${followTarget['kind']}:${followTarget['id']}';
+    final followed = (followKey == null
+            ? null
+            : DiscoveryFollowScope.maybeOf(context)?.followedFor(followKey)) ??
+        _confirmedFollowed ??
+        (followTarget?['followed'] == true);
     final navigable =
         owner?['capabilities'] is List &&
         (owner!['capabilities'] as List).contains('view_public') &&
