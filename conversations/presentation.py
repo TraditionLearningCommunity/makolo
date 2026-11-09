@@ -7,7 +7,7 @@ from django.db.models import Prefetch, Q
 from rest_framework.exceptions import NotFound
 from django.utils import timezone
 
-from .attention import point_attention_reason
+from .attention import ACTION_REASONS, point_attention_reason
 from .core_models import (
     Conversation,
     ConversationContextKind,
@@ -236,12 +236,13 @@ def conversation_rows_for_profile(profile, *, archived=False, only_attention=Fal
                 "visibility_audience", "response_audience", "expected_action_audience", "resolution_audience"
             )[:200]
         for point in points[:200]:
-            if point_attention_reason(
+            reason = point_attention_reason(
                 profile, point, at=at,
                 audience_membership_cache=audience_membership_cache,
                 conversation_visibility_cache=conversation_visibility_cache,
                 conversation_manage_cache=conversation_manage_cache,
-            ):
+            )
+            if reason in ACTION_REASONS:
                 attention += 1
         if only_attention and not attention:
             continue
@@ -292,7 +293,7 @@ def now_points_for_profile(profile, conversation, *, limit=100, visibility_cache
         )
         if reason is None and point.kind != ConversationPointKind.INFORMATION:
             continue
-        section = "pour_moi" if reason in {"respond", "acknowledge", "form", "revisit"} else "a_regler" if reason == "resolve" else "a_savoir"
+        section = "pour_moi" if reason in {"respond", "acknowledge", "form"} else "a_regler" if reason == "resolve" else "a_savoir"
         rows.append({"point": point, "reason": reason, "section": section})
         if len(rows) >= limit:
             break
