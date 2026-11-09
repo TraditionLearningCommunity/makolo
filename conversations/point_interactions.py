@@ -81,6 +81,8 @@ def _calculate_point_interactions(profile, point, *, at=None):
             ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
         }
         and point.requires_acknowledgement
+        and (point.opens_at is None or point.opens_at <= at)
+        and (point.valid_until is None or point.valid_until > at)
         and not (state and state.acknowledged_at)
         and (not point.expected_action_audience_id
              or profile_in_audience(profile, point.expected_action_audience, at=at))
