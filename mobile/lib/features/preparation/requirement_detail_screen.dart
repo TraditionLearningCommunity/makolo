@@ -102,6 +102,11 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   );
             final presentation = _RequirementPresentation.from(projection);
             final available = projection != null;
+            // Only an explicit owner denial withdraws this local depth.
+            final ownerDenied = !available &&
+                source.invalidated &&
+                const {'permission_denied', 'not_found'}
+                    .contains(source.lastErrorCode);
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -113,19 +118,14 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
               ),
               availability: available
                   ? MakoloAvailabilityCue.content
-                  : _refreshing
+                  : _refreshing ||
+                        projectionSnapshot.connectionState ==
+                            ConnectionState.waiting
                   ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
+                  : MakoloAvailabilityCue.empty,
               reachability: source.reachability,
-              failure:
-                  !available &&
-                      (source.invalidated ||
-                          source.reachability ==
-                              ReachabilityState.unreachable) &&
-                      !_refreshing
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: ownerDenied
+                  ? MakoloFailureCue.permissionDenied
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -146,6 +146,10 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   state: surface,
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de l’élément nécessaire…',
+                  ),
+                  empty: const MakoloEmptyState(
+                    title: 'Élément non disponible',
+                    body: 'Aucune information à afficher pour le moment.',
                   ),
                   blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
                   onRetry: _refresh,
