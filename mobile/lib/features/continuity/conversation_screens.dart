@@ -1820,8 +1820,13 @@ class _PointCardState extends State<_PointCard> {
         for (final response in point.responseMedia)
           if (_maps(response['attachments']).isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
-            Text('Média joint à une réponse accessible',
-                style: theme.labelSmall),
+            Text('Réponse accessible', style: theme.labelSmall),
+            if ((_string(response['label']) ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                child: Text(_string(response['label'])!,
+                    style: theme.bodyMedium),
+              ),
             ConversationMediaGroup(
               repository: widget.repository,
               attachments: _maps(response['attachments']),
