@@ -31,6 +31,11 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         journeyId: journeyId,
         repository: repository,
         api: runtime.api,
+        resourcesRepository: runtime.preparationResources,
+        onOpenPaymentObligation: (id) =>
+            context.push('/payments/obligations/${Uri.encodeComponent(id)}'),
+        onOpenCommerceOrder: (id) =>
+            context.push('/commerce/orders/${Uri.encodeComponent(id)}'),
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenForm: (form) =>
