@@ -276,6 +276,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     resourcesPreview: JourneyResourcePreview.fromProjection(
                       resourcesSnapshot.data,
                     ),
+                    resourcesKnown: resourcesSnapshot.data != null,
                     onOpenPaymentObligation: widget.onOpenPaymentObligation,
                     onOpenCommerceOrder: widget.onOpenCommerceOrder,
                     invitationEnabled:
@@ -316,6 +317,7 @@ class _JourneyContent extends StatelessWidget {
   const _JourneyContent({
     required this.presentation,
     required this.resourcesPreview,
+    required this.resourcesKnown,
     this.onOpenPaymentObligation,
     this.onOpenCommerceOrder,
     required this.invitationEnabled,
@@ -335,6 +337,7 @@ class _JourneyContent extends StatelessWidget {
   final Widget? conversationEntry;
   final JourneyDetailPresentation presentation;
   final List<JourneyResourcePreview> resourcesPreview;
+  final bool resourcesKnown;
   final ValueChanged<String>? onOpenPaymentObligation;
   final ValueChanged<String>? onOpenCommerceOrder;
   final bool invitationEnabled;
@@ -493,7 +496,8 @@ class _JourneyContent extends StatelessWidget {
             ),
           ),
         ],
-        if (presentation.resourcesLink != null) ...[
+        if (presentation.resourcesLink != null &&
+            (!resourcesKnown || resourcesPreview.isNotEmpty)) ...[
           const SizedBox(height: MakoloSpacing.lg),
           MakoloSection(
             title: 'Documents et instructions',
