@@ -7,7 +7,7 @@
       <div class="flex items-center justify-between gap-4">
         <div>
           <span class="mk-kicker">Makolo</span>
-          <h1 class="mt-2 text-2xl font-extrabold">Preuve vérifiée</h1>
+          <h1 class="mt-2 text-2xl font-extrabold">{% if proof.status == 'active' %}Preuve valide{% else %}Preuve révoquée{% endif %}</h1>
         </div>
         <i data-lucide="{% if proof.status == 'active' %}circle-check{% else %}circle-alert{% endif %}" class="h-8 w-8" aria-hidden="true"></i>
       </div>
