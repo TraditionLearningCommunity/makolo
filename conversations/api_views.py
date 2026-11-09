@@ -24,6 +24,7 @@ from .core_models import Conversation, ConversationContext, ConversationContextK
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .form_services import form_request_for_profile
 from .media_services import attachment_for_download, can_download_attachment
+from .semantic_media import publish_semantic_point_with_media
 from .rich_services import (
     available_form_versions, can_prepare_form, publish_conversation_form,
     readable_exchange_entries, serialize_attachment, upload_conversation_media,
@@ -579,6 +580,71 @@ class ConversationFormComposeAPIView(PrivateNoStoreMixin, views.APIView):
             raise
         except ValidationError as exc:
             return _service_error(exc)
+
+
+class ConversationSemanticMediaAPIView(PrivateNoStoreMixin, views.APIView):
+    """Atomic upload of media associated to a Point and specific Poll choices."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        try:
+            options = json.loads(request.data.get("options", "[]"))
+            manifest = json.loads(request.data.get("media_manifest", "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise DRFValidationError({"media_manifest": "Structure invalide."}) from exc
+        if not isinstance(options, list) or not all(isinstance(value, str) for value in options):
+            raise DRFValidationError({"options": "Choix invalides."})
+        if not isinstance(manifest, list) or not 1 <= len(manifest) <= 24:
+            raise DRFValidationError({"media_manifest": "Prévoyez entre 1 et 24 médias."})
+        if len(request.FILES) != len(manifest):
+            raise DRFValidationError({"media_manifest": "Fichiers et légendes incohérents."})
+        entries, file_fields = [], set()
+        for index, raw in enumerate(manifest):
+            if not isinstance(raw, dict):
+                raise DRFValidationError({"media_manifest": "Entrée invalide."})
+            field = raw.get("field")
+            if field != f"media_{index}" or field in file_fields:
+                raise DRFValidationError({"media_manifest": "Champ de fichier invalide."})
+            file_fields.add(field)
+            uploaded = request.FILES.get(field)
+            if uploaded is None:
+                raise DRFValidationError({field: "Fichier absent."})
+            declared_mime = raw.get("mime_type")
+            if (isinstance(declared_mime, str) and declared_mime
+                    and uploaded.content_type in {"", "application/octet-stream"}):
+                uploaded.content_type = declared_mime
+            entries.append({
+                "scope": raw.get("scope"),
+                "option_index": raw.get("option_index"),
+                "kind": raw.get("kind"),
+                "caption": raw.get("caption", ""),
+                "uploaded_file": uploaded,
+            })
+        try:
+            point, attachments = publish_semantic_point_with_media(
+                actor=request.user, conversation=conversation,
+                kind=request.data.get("kind"),
+                title=request.data.get("title", ""), body=request.data.get("body", ""),
+                client_reference=request.data.get("client_reference"),
+                options=options,
+                multiple_choice=_request_boolean(request, "multiple_choice"),
+                audience_id=request.data.get("audience_id") or None,
+                represented_space=_represented_space_from_request(request),
+                media_items=entries,
+            )
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return _service_error(exc)
+        return Response({
+            "kind": "point",
+            "point_id": str(point.pk),
+            "id": str(point.pk),
+            "attachments": [serialize_attachment(item) for item in attachments],
+        })
 
 
 class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
