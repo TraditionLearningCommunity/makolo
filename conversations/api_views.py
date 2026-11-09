@@ -36,7 +36,8 @@ from .rich_services import (
     submit_point_media_response,
 )
 from .point_services import (
-    acknowledge_point, close_point_responses, point_response_allowed,
+    acknowledge_point, update_point_personal_state,
+    close_point_responses, point_response_allowed,
     point_visible_to, point_resolution_visible_to, resolve_point, submit_point_response,
 )
 from .presentation import (
@@ -143,6 +144,7 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "represented_responses": interactions["represented_responses"],
         "poll_results": interactions["poll_results"],
         "acknowledged": interactions["acknowledged"],
+        "revisit": interactions["revisit"],
         "can_acknowledge": interactions["can_acknowledge"],
         "can_close_responses": interactions["can_close_responses"],
         "can_resolve": interactions["can_resolve"],
@@ -959,6 +961,31 @@ class ConversationPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
             "archived": bool(state.archived_at),
             "pinned": bool(state.pinned_at),
             "revisit": bool(state.revisit_at),
+        })
+
+
+class ConversationPointPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        allowed = {"revisit", "pinned"}
+        if not request.data or set(request.data) - allowed:
+            raise DRFValidationError({"detail": "État personnel de Point inconnu."})
+        changes = {}
+        for key in allowed:
+            if key in request.data:
+                changes[key] = _request_boolean(request, key)
+        try:
+            state = update_point_personal_state(
+                actor=request.user, point=point, **changes,
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            return _service_error(exc)
+        return Response({
+            "point_id": str(point.pk),
+            "revisit": bool(state.revisit_at),
+            "pinned": bool(state.pinned_at),
         })
 
 
