@@ -54,16 +54,47 @@ def build_parser():
         s.add_argument("--orders",type=int,default=None)
         s.add_argument("--grant-roles",action="store_true",help="Concession explicite des Mandates demo")
         s.add_argument("--max-db-mb",type=int,default=450)
-    t=sub.add_parser("timeline",help="Recalage temporel independant (jamais automatique)")
-    t.add_argument("--database",default="db.sqlite3")
-    t.add_argument("--demo-live",action="store_true")
-    t.add_argument("--limit",type=int,default=0)
-    t.add_argument("--apply",action="store_true")
+    def time_options(command):
+        command.add_argument("--database", default="db.sqlite3")
+        command.add_argument("--demo-live", action="store_true")
+        command.add_argument("--limit", type=int, default=0)
+        command.add_argument("--mode", choices=("safe", "full"), default="safe")
+        command.add_argument("--activity-prefix", default="demo-")
+        command.add_argument("--include-existing", action="store_true")
+        command.add_argument("--backup", action="store_true")
+        command.add_argument("--output")
+        command.add_argument("--now")
+        command.add_argument("--timezone", default="Africa/Kinshasa")
+        command.add_argument("--demo-slots", type=int, default=120)
+        command.add_argument("--apply", action="store_true")
+
+    t=sub.add_parser("timeline",help="Recalage explicite des scenarios temporels")
+    time_options(t)
+    r=sub.add_parser("rebalance",help="Reequilibrer les relations ou les periodes demo")
+    r.add_argument("--target",required=True,choices=("profiles","spaces","periods"))
+    r.add_argument("--count",type=int,default=50)
+    r.add_argument("--profiles",type=int,default=30)
+    r.add_argument("--profile-username")
+    r.add_argument("--space-id")
+    r.add_argument("--per-profile",type=int,default=3)
+    r.add_argument("--seed",type=int,default=2026)
+    time_options(r)
+    m=sub.add_parser("maintain",help="Completer, rafraichir ou archiver des scenarios demo")
+    m.add_argument("--action",dest="maintenance_action",required=True,choices=("complete","refresh","retire","restore"))
+    m.add_argument("--domains",default="all")
+    m.add_argument("--count",type=int,default=50)
+    m.add_argument("--profiles",type=int,default=30)
+    m.add_argument("--profile-username")
+    m.add_argument("--space-id")
+    m.add_argument("--older-than-days",type=int,default=30)
+    m.add_argument("--edition",type=int,default=1)
+    m.add_argument("--grant-roles",action="store_true")
+    m.add_argument("--apply",action="store_true")
     return p
 
 
 def run(a):
-    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections, conversations
+    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections, conversations, rebalance, maintenance
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
@@ -75,12 +106,43 @@ def run(a):
     if a.action=="audit":
         audit.main(["--at",a.at] if a.at else [])
         return
-    if a.action=="timeline":
-        options=["--database",a.database]
+    if a.action in ("timeline", "rebalance") and (
+        a.action == "timeline" or a.target == "periods"
+    ):
+        if a.action == "rebalance" and a.space_id:
+            raise SystemExit("--space-id is not valid for periods")
+        options=["--database",a.database, "--mode",a.mode,
+                 "--activity-prefix",a.activity_prefix,
+                 "--timezone",a.timezone,"--demo-slots",str(a.demo_slots)]
+        if a.now: options.extend(["--now",a.now])
+        if a.output: options.extend(["--output",a.output])
+        if a.backup: options.append("--backup")
+        if a.include_existing: options.append("--include-existing")
         if a.demo_live: options.append("--demo-live")
         if a.limit: options.extend(["--limit",str(a.limit)])
         if a.apply: options.append("--apply")
         clock.main(options)
+        return
+    if a.action == "rebalance":
+        options=["--target",a.target,"--count",str(a.count),
+                 "--profiles",str(a.profiles),"--per-profile",str(a.per_profile),
+                 "--seed",str(a.seed)]
+        if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if a.space_id: options.extend(["--space-id",a.space_id])
+        if a.apply: options.append("--apply")
+        rebalance.main(options)
+        return
+    if a.action == "maintain":
+        options=["--action",a.maintenance_action,
+                 "--domains",a.domains,"--count",str(a.count),
+                 "--profiles",str(a.profiles),
+                 "--older-than-days",str(a.older_than_days),
+                 "--edition",str(a.edition)]
+        if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if a.space_id: options.extend(["--space-id",a.space_id])
+        if a.grant_roles: options.append("--grant-roles")
+        if a.apply: options.append("--apply")
+        maintenance.main(options)
         return
 
     try:
