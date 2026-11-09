@@ -664,6 +664,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   bool _nearLatest = true;
   bool _newMessagesAvailable = false;
   String? _lastTimelinePointId;
+  String? _lastReceivedPointId;
 
   final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
@@ -785,11 +786,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final latestId = outgoing.isNotEmpty
         ? outgoing.last.reference
         : entries.last.point.id;
+    final receivedId = entries.isEmpty ? null : entries.last.point.id;
     final hasNewMessages =
         _timelinePositioned &&
-        _lastTimelinePointId != latestId &&
-        !_nearLatest &&
-        entries.isNotEmpty;
+        _lastReceivedPointId != null &&
+        receivedId != null &&
+        _lastReceivedPointId != receivedId &&
+        !_nearLatest;
+    _lastReceivedPointId = receivedId;
     final shouldFollow =
         !_timelinePositioned ||
         (_lastTimelinePointId != latestId && _nearLatest);
@@ -823,6 +827,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         _nearLatest = true;
         _newMessagesAvailable = false;
         _lastTimelinePointId = null;
+        _lastReceivedPointId = null;
         if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
       }
       _handledFocus = null;
