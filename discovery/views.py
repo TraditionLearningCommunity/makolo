@@ -632,7 +632,11 @@ class DiscoveryHomeView(TemplateView):
                 "organizations:space-discover", kwargs={"slug": space.slug},
             )
             return redirect(url + ("?" + params.urlencode() if params else ""))
-        elif requested not in (None, "", "personal") or slug:
+        elif (
+            requested not in (None, "", "personal")
+            or slug
+            or (requested == "personal" and not request.user.is_authenticated)
+        ):
             raise Http404
         return super().get(request, *args, **kwargs)
 
@@ -872,6 +876,8 @@ class DiscoveryPossibilityDetailView(TemplateView):
         space_slug = self.request.GET.get("space")
         if actor_context not in (None, "", "personal", "space") or (
             actor_context != "space" and space_slug
+        ) or (
+            actor_context == "personal" and not self.request.user.is_authenticated
         ):
             raise Http404
         space = None
