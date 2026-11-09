@@ -217,6 +217,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
+      key: ValueKey('journey:${widget.repository.profileId}:${widget.journeyId}'),
       stream: widget.repository.watchDetail(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<JourneySourceState>(
