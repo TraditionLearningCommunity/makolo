@@ -222,6 +222,8 @@ class Occurrence(models.Model):
     end_at = models.DateTimeField(null=True, blank=True)
     timezone = models.CharField(max_length=100, default="Africa/Lubumbashi", validators=[validate_timezone_name])
     status = models.CharField(max_length=20, choices=OccurrenceStatus.choices, default=OccurrenceStatus.DRAFT)
+    # Opt-in per Occurrence: a schedule alone never creates a Live experience.
+    live_enabled = models.BooleanField(default=False)
     schedule = models.ForeignKey(OccurrenceSchedule, on_delete=models.SET_NULL, related_name="generated_occurrences", null=True, blank=True)
     schedule_local_date = models.DateField(null=True, blank=True)
     places = models.ManyToManyField("geography.Place", through="OccurrencePlace", related_name="occurrences", blank=True)
