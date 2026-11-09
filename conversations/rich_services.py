@@ -173,7 +173,7 @@ def visible_attachments_for_profile(profile, point, *, limit=30):
     if not point_visible_to(profile, point):
         return []
     candidates = point.attachments.select_related(
-        "response", "exchange_entry", "point__conversation__context",
+        "response", "exchange_entry", "option", "point__conversation__context",
     ).order_by("created_at", "pk")[:max(1, min(limit, 100))]
     return [attachment for attachment in candidates if can_download_attachment(profile, attachment)]
 
@@ -183,6 +183,8 @@ def serialize_attachment(attachment):
         "id": str(attachment.pk),
         "kind": attachment.kind,
         "name": attachment.original_name,
+        "caption": attachment.caption,
+        "option_id": str(attachment.option_id) if attachment.option_id else None,
         "mime_type": attachment.mime_type,
         "size": attachment.size,
         "download_path": f"api/v1/conversations/attachments/{attachment.pk}/download/",
