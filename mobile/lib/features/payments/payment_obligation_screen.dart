@@ -4,6 +4,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../journey/journey_repository.dart';
+import '../journey/journey_selector.dart';
 
 /// Native payment depth backed by the canonical PaymentObligation and Payment
 /// services. A success screen is shown only after the owner confirms it.
@@ -42,7 +44,50 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(_prepare());
+  }
+
+  /// Use an already authorized Journey owner projection as a read-only
+  /// summary. A payment operation still requires a fresh Payment owner read.
+  Future<void> _prepare() async {
+    final store = widget.runtime.store;
+    if (store != null) {
+      try {
+        final projections = await store.readProjections(
+          JourneyRepository.projectionKind,
+        );
+        for (final projection in projections) {
+          final source = await widget.runtime.journeys?.readSource(
+            projection.resourceKey,
+          );
+          if (source?.invalidated == true &&
+              const {'permission_denied', 'not_found'}
+                  .contains(source?.lastErrorCode)) continue;
+          final journey = const JourneyDetailSelector().select(
+            projection: projection,
+            source: source ?? JourneySourceState.unknown,
+            now: DateTime.now(),
+          );
+          for (final payment in journey.payments) {
+            if (payment.obligationId != widget.obligationId) continue;
+            if (!mounted) return;
+            setState(() => _obligation = {
+              'id': payment.obligationId,
+              'amount': payment.amount,
+              'currency': payment.currency,
+              'status': payment.state,
+              'label': 'Paiement',
+              'capabilities': <String>[],
+            });
+            break;
+          }
+          if (_obligation != null) break;
+        }
+      } on Object {
+        // A partial local snapshot never removes other owner information.
+      }
+    }
+    if (mounted) unawaited(_load());
   }
 
   Future<void> _load() async {
@@ -83,7 +128,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Paiement indisponible.';
+        _error = _obligation == null ? 'Paiement indisponible.' : null;
       });
     }
   }
@@ -190,11 +235,12 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (_loading)
+          if (_loading && obligation == null)
             const Center(child: CircularProgressIndicator())
           else if (obligation == null)
             OutlinedButton(onPressed: _load, child: const Text('Réessayer'))
           else ...[
+            if (_loading) const LinearProgressIndicator(),
             Text(
               obligation['label']?.toString() ?? 'Paiement',
               style: Theme.of(context).textTheme.headlineSmall,
