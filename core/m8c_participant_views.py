@@ -7,6 +7,7 @@ from django.views.generic import TemplateView
 from activities.models import Occurrence
 from journeys.models import JourneyStatus
 from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from operations.occurrence_live import occurrence_live_phase
 
 from .participant_action_presentation import journey_action_presentation, occurrence_live_presentation
 from .participant_presentation import occurrence_timing
@@ -25,8 +26,16 @@ class ParticipantJourneyDetailView(BaseParticipantJourneyDetailView):
                 occurrence=journey.occurrence,
                 actor=self.request.user,
             )
-            if journey.occurrence
+            if (
+                journey.occurrence
+                and journey.occurrence.live_enabled
+                and occurrence_live_phase(journey.occurrence) in {"arrival", "live"}
+            )
             else None
+        )
+        context["day_of_url"] = (
+            reverse("core:participant-occurrence-day-of", kwargs={"pk": journey.occurrence_id})
+            if journey.occurrence_id else None
         )
         context["live"] = live
         context["mature"] = journey_action_presentation(
