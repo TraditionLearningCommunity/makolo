@@ -198,6 +198,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('MON OBJECTIF'), findsOneWidget);
       expect(find.text('Où j’en suis'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Pour avancer'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Pour avancer'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
