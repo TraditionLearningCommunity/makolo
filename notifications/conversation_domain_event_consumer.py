@@ -11,6 +11,7 @@ from conversations.audience_services import (
     resolve_audience_ids,
 )
 from conversations.core_models import ConversationInvitation, ConversationUserState
+from conversations.point_services import point_visible_to
 from conversations.point_models import (
     ConversationPoint,
     ConversationPointKind,
@@ -47,11 +48,29 @@ def _muted_profile_ids(conversation, *, at=None):
     )
 
 
-def _notify_profiles(*, event, conversation, profile_ids, title, message, template_key):
+def _notify_profiles(*, event, conversation, profile_ids, title, message, template_key, point=None):
+    """In-app signal stays available when muted; external delivery is silenced.
+
+    Never persist a notification pointing to an inaccessible Point.
+    Actual push dispatch checks authorization again.
+    """
+    from conversations.attention import ACTION_REASONS, point_attention_reason
+
     muted = _muted_profile_ids(conversation)
-    recipients = User.objects.filter(pk__in=set(profile_ids) - muted, is_active=True)
-    action_url = reverse("conversations:detail", kwargs={"pk": conversation.pk})
+    recipients = User.objects.filter(pk__in=set(profile_ids), is_active=True)
     for recipient in recipients:
+        if point is not None and not point_visible_to(recipient, point):
+            continue
+        if (
+            point is not None and template_key == "conversation.point.action_required"
+            and point_attention_reason(recipient, point) not in ACTION_REASONS
+        ):
+            continue
+        action_url = reverse("conversations:detail", kwargs={"pk": conversation.pk})
+        metadata = {"conversation_id": str(conversation.pk)}
+        if point is not None:
+            action_url += f"?focus={point.pk}#point-{point.pk}"
+            metadata["point_id"] = str(point.pk)
         create_notification(
             recipient=recipient,
             kind=NotificationKind.SYSTEM,
@@ -60,8 +79,9 @@ def _notify_profiles(*, event, conversation, profile_ids, title, message, templa
             message=message,
             action_url=action_url,
             dedup_key=f"conversation:{event.pk}:{recipient.pk}",
-            metadata={"conversation_id": str(conversation.pk)},
+            metadata=metadata,
             queue_email=False,
+            queue_push=recipient.pk not in muted,
             domain_event=event,
             template_key=template_key,
         )
@@ -139,6 +159,7 @@ def _consume_point(event):
             title="Une action vous attend",
             message="Un Point dans une Conversation Makolo attend votre réponse ou confirmation.",
             template_key="conversation.point.action_required",
+            point=point,
         )
         return
 
@@ -153,6 +174,7 @@ def _consume_point(event):
             title="Une coordination reste à régler",
             message="Des actions attendues sont restées incomplètes à la clôture d’un Point.",
             template_key="conversation.point.escalation",
+            point=point,
         )
         return
 
@@ -167,6 +189,7 @@ def _consume_point(event):
         title="Un Point a été résolu",
         message="Une décision ou un résultat est maintenant disponible dans cette Conversation.",
         template_key="conversation.point.resolved",
+        point=point,
     )
 
 
