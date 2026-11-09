@@ -235,6 +235,52 @@ def _claim_delivery(delivery_id):
         return delivery
 
 
+def _conversation_delivery_allowed(notification):
+    """Live permission and mute recheck for queued external Conversation delivery.
+
+    A previously queued push can outlive membership, an audience, a response
+    or a mute setting. The historical in-app notification is not deleted.
+    """
+    metadata = notification.metadata or {}
+    conversation_id = metadata.get("conversation_id")
+    if not conversation_id:
+        return True
+    from django.db.models import Q
+    from conversations.core_models import Conversation, ConversationUserState
+    from conversations.point_models import ConversationPoint
+    from conversations.services import can_view_conversation
+    from conversations.point_services import point_visible_to, point_resolution_visible_to
+    from conversations.attention import ACTION_REASONS, point_attention_reason
+
+    conversation = Conversation.objects.select_related("context").filter(
+        pk=conversation_id,
+    ).first()
+    recipient = notification.recipient
+    if conversation is None or not can_view_conversation(recipient, conversation):
+        return False
+    if ConversationUserState.objects.filter(
+        conversation=conversation,
+        profile=recipient,
+        muted_at__isnull=False,
+    ).filter(Q(muted_until__isnull=True) | Q(muted_until__gt=timezone.now())).exists():
+        return False
+    point_id = metadata.get("point_id")
+    if not point_id:
+        return True
+    point = ConversationPoint.objects.select_related(
+        "conversation", "conversation__context",
+        "visibility_audience", "response_audience",
+        "expected_action_audience", "resolution_audience",
+    ).filter(pk=point_id, conversation=conversation).first()
+    if point is None or not point_visible_to(recipient, point):
+        return False
+    if notification.template_key == "conversation.point.resolved":
+        return point_resolution_visible_to(recipient, point)
+    if notification.template_key == "conversation.point.action_required":
+        return point_attention_reason(recipient, point) in ACTION_REASONS
+    return True
+
+
 def dispatch_delivery(delivery_id) -> str:
     delivery = _claim_delivery(delivery_id)
     if not delivery:
@@ -243,7 +289,8 @@ def dispatch_delivery(delivery_id) -> str:
     notification = delivery.notification
     # Recheck at dispatch: a preference disabled after queueing still wins.
     if (
-        not _external_attention_warranted(
+        not _conversation_delivery_allowed(notification)
+        or not _external_attention_warranted(
             kind=notification.kind,
             category=notification.category,
             template_key=notification.template_key,
