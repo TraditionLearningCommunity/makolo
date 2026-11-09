@@ -102,3 +102,62 @@ class MakoloIconActionButton extends StatelessWidget {
     style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
   );
 }
+
+ 
+/// Consistent empty pill around one existing N1 action.
+/// An affirmed Save can be lightly tinted; opening and sharing stay unfilled.
+class MakoloRoundedActionSlot extends StatelessWidget {
+  const MakoloRoundedActionSlot({
+    super.key,
+    required this.child,
+    this.active = false,
+  });
+
+  final Widget child;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 48,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: active
+            ? scheme.primary.withValues(alpha: 0.08)
+            : Colors.transparent,
+        border: Border.all(
+          color: active
+              ? scheme.primary.withValues(alpha: 0.48)
+              : scheme.outlineVariant,
+        ),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Center(child: child),
+    );
+  }
+}
+
+/// A relationship is visible only with a real, enabled follow callback.
+/// This icon does not infer authority or a follow state from the owner's name.
+class MakoloFollowIconButton extends StatelessWidget {
+  const MakoloFollowIconButton({
+    super.key,
+    required this.followed,
+    required this.onPressed,
+  });
+
+  final bool followed;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: followed ? 'Ne plus suivre' : 'Suivre',
+    onPressed: onPressed,
+    icon: Icon(followed ? Icons.wifi_rounded : Icons.wifi_outlined),
+    color: followed
+        ? Theme.of(context).colorScheme.primary
+        : Theme.of(context).colorScheme.onSurfaceVariant,
+    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+  );
+}
