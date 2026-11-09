@@ -630,5 +630,23 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--backup", options)
 
 
+    def test_full_timeline_requires_a_backup_or_copy(self):
+        from scripts.demo_generation.clock import main as timeline
+        with self.assertRaises(SystemExit):
+            timeline(["--database", "/does-not-exist/demo.sqlite",
+                      "--mode", "full", "--apply"])
+
+    def test_trim_requires_backup_before_loading_database(self):
+        from scripts.demo_generation.rebalance import main as rebalance
+        with self.assertRaises(SystemExit):
+            rebalance(["--target", "profiles", "--direction", "trim",
+                       "--apply"])
+
+    def test_rebalance_refuses_non_demo_profiles(self):
+        from scripts.demo_generation.rebalance import main as rebalance
+        with self.assertRaises(SystemExit):
+            rebalance(["--target", "profiles", "--profile-username", "real-person"])
+
+
 if __name__ == "__main__":
     unittest.main()
