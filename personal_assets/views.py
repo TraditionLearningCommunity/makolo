@@ -35,6 +35,12 @@ from .services import (
 )
 
 
+def _private_render(request, template_name, context=None, **kwargs):
+    response = render(request, template_name, context, **kwargs)
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 def _safe_collection_return(request, candidate, *, fallback):
     candidate = (candidate or "").strip()
     if not candidate:
@@ -59,7 +65,7 @@ def _asset_for_request(request, asset_id, *, include_archived=False):
 
 @login_required
 def resources_hub(request):
-    return render(
+    return _private_render(
         request,
         "personal_assets/hub.html",
         {
@@ -133,7 +139,7 @@ def library_list(request):
         {"asset": asset, "latest": _latest_version(asset)}
         for asset in page.object_list
     ]
-    return render(
+    return _private_render(
         request,
         "personal_assets/list.html",
         {
@@ -157,7 +163,7 @@ def library_detail(request, asset_id):
     versions = list(personal_asset_versions_for_controller(request.user, asset).order_by("-version"))
     latest = versions[0] if versions else None
     fallback = reverse("personal_assets:documents")
-    return render(
+    return _private_render(
         request,
         "personal_assets/detail.html",
         {
@@ -215,7 +221,7 @@ def library_reuse(request, asset_id):
             )
             return redirect("core:participant-journey-detail", pk=journey.pk)
 
-    return render(
+    return _private_render(
         request,
         "personal_assets/reuse.html",
         {"asset": asset, "version": version, "journeys": journeys},
@@ -246,7 +252,7 @@ def library_add(request):
             return redirect("personal_assets:detail", asset_id=asset.pk)
         except ValidationError as exc:
             form.add_error(None, exc)
-    return render(request, "personal_assets/form.html", {"form": form, "heading": "Ajouter un document", "submit_label": "Ajouter"})
+    return _private_render(request, "personal_assets/form.html", {"form": form, "heading": "Ajouter un document", "submit_label": "Ajouter"})
 
 
 @login_required
@@ -266,7 +272,7 @@ def library_add_version(request, asset_id):
             return redirect("personal_assets:detail", asset_id=asset.pk)
         except ValidationError as exc:
             form.add_error(None, exc)
-    return render(request, "personal_assets/form.html", {"form": form, "heading": f"Nouvelle version — {asset.title}", "submit_label": "Créer la nouvelle version", "asset": asset})
+    return _private_render(request, "personal_assets/form.html", {"form": form, "heading": f"Nouvelle version — {asset.title}", "submit_label": "Créer la nouvelle version", "asset": asset})
 
 
 @login_required
@@ -309,7 +315,7 @@ def library_use_in_journey(request, journey_id):
         else:
             messages.success(request, "Document ajouté à la démarche.")
             return redirect("journeys:artifact-download", artifact_id=artifact.pk)
-    return render(request, "personal_assets/use_in_journey.html", {"journey": journey, "items": items})
+    return _private_render(request, "personal_assets/use_in_journey.html", {"journey": journey, "items": items})
 
 
 @login_required
@@ -339,4 +345,4 @@ def journey_artifact_save_to_library(request, artifact_id):
         else:
             messages.success(request, "Artifact conservé dans Ma Bibliothèque sans modifier la Journey.")
             return redirect("personal_assets:detail", asset_id=version.asset_id)
-    return render(request, "personal_assets/save_artifact.html", {"artifact": artifact, "form": form, "assets": assets})
+    return _private_render(request, "personal_assets/save_artifact.html", {"artifact": artifact, "form": form, "assets": assets})
