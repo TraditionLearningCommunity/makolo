@@ -617,3 +617,67 @@ python -m scripts.demo_generation maintain --action restore --count 10 --apply
 Ces commandes permettent de maintenir un univers de démo vivant, sans
 supprimer les historiques ni fabriquer des attestations externes. Une
 couverture réaliste n'exige ni table entièrement remplie ni volume arbitraire.
+
+
+## Mes ressources : documents, preuves et titres (novembre 2026)
+
+Les trois tuiles de « Moi > Mes ressources » reposent sur des domaines
+canoniques différents : `PersonalAsset` et `PersonalAssetVersion` pour
+« Mes documents », `Trust Proof` pour « Mes preuves », et `Trust Credential`
+pour « Mes titres ». Il ne faut pas simuler leur compteur dans le client.
+
+La commande `resources` enrichit la SQLite de démonstration **en place**
+uniquement si `--apply` est fourni. Sans ce drapeau, elle présente un aperçu.
+Elle n'effectue aucune sauvegarde par défaut ; `--backup` en crée une
+uniquement lorsqu'il est demandé.
+
+```powershell
+# Cibler le compte affiché dans l'émulateur (username à vérifier dans la DB).
+python -m scripts.demo_generation resources --profile-username beta_alain
+python -m scripts.demo_generation resources --profile-username beta_alain --apply
+
+# Cibler seulement les documents.
+python -m scripts.demo_generation resources --domains documents --profile-username beta_alain --count 4 --apply
+
+# Couvrir les profils world_* existants.
+python -m scripts.demo_generation resources --profiles 30 --count 4 --apply
+
+# Inclure aussi les profils beta_* et mobile_mature_* existants.
+python -m scripts.demo_generation resources --include-test-users --profiles 50 --apply
+
+# Documents texte uniquement, ou sauvegarde choisie explicitement.
+python -m scripts.demo_generation resources --profile-username beta_alain --no-reuse-avatar --apply
+python -m scripts.demo_generation resources --profile-username beta_alain --apply --backup
+```
+
+### Sources et cohérence
+
+- **Documents :** un texte de démonstration original (`.txt`), dont les octets
+  passent par les validations et le stockage privé des services PersonalAsset.
+  Si le Profil cible possède déjà un avatar JPEG/PNG valide dans son stockage,
+  le générateur peut en **copier les octets** comme « Copie de ma photo de
+  profil ». Il ne copie pas l'avatar d'un tiers et ne se contente pas de
+  remplir une URL fictive. `--no-reuse-avatar` désactive cette possibilité.
+  Aucun téléchargement depuis un site internet n'est effectué.
+- **Preuves :** uniquement si une Journey existante a été accomplie, ou si un
+  AccessUse accepté établit un fait éligible ; utilisation du service
+  `trust.services.issue_proof`. Le générateur ne fabrique ni AccessUse accepté
+  ni Journey accomplie pour remplir artificiellement cette rubrique.
+- **Titres :** une attestation de complétion/participation exige la Journey et
+  le fait canonique correspondant. Pour tester les titres sans prétendre
+  qu'une Journey a été accomplie, le générateur peut aussi émettre une
+  **attestation générique explicitement fictive** depuis une Activity
+  synthétique publiée, exclusivement si un émetteur possède réellement le
+  Mandate requis par `issue_credential`. Aucun droit n'est créé par ce script.
+- **Relance :** les titres d'éléments sont stables ; la commande réutilise les
+  documents, Proofs et Credentials déjà présents plutôt que de créer des
+  doublons. Le nombre `--count` fixe le maximum par rubrique et par Profil
+  sélectionné.
+- **Portée :** le username ciblé est recherché parmi les comptes existants et
+  actifs, hors staff et superutilisateurs. Sans username, seuls `world_*`
+  sont sélectionnés, sauf opt-in `--include-test-users`. Aucun compte n'est
+  créé et aucune preuve privée d'un autre Profil n'est copiée.
+
+Une rubrique peut rester vide si les faits ou les autorités nécessaires
+n'existent pas ; c'est différent de la génération des documents, qui ne
+requiert pas de Journey.
