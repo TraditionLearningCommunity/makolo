@@ -144,18 +144,7 @@ class ConversationPointShell extends StatelessWidget {
                             color: scheme.onSurfaceVariant,
                           ),
                         ],
-                        const Spacer(),
-                        if (statusIcon != null) ...[
-                          statusIcon!,
-                          const SizedBox(width: 5),
-                        ],
-                        if (time != null)
-                          Text(
-                            time,
-                            style: theme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
+
                       ],
                     ),
                     if (!isOrdinary) ...[
@@ -177,6 +166,28 @@ class ConversationPointShell extends StatelessWidget {
                     ],
                     const SizedBox(height: 9),
                     child,
+                    if (time != null || statusIcon != null) ...[
+                      const SizedBox(height: 5),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (time != null)
+                              Text(
+                                time,
+                                style: theme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            if (statusIcon != null) ...[
+                              const SizedBox(width: 5),
+                              statusIcon!,
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
