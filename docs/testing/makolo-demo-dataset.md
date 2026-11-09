@@ -417,6 +417,9 @@ python -m scripts.demo_generation timeline --activity-prefix demo-generation- --
 python -m scripts.demo_generation rebalance --target profiles --per-profile 3 --count 50
 python -m scripts.demo_generation rebalance --target profiles --per-profile 3 --count 50 --apply
 python -m scripts.demo_generation rebalance --target spaces --per-profile 2 --count 50 --apply --backup
+# Reduire volontairement les favoris/suivis synthetiques en excedent.
+python -m scripts.demo_generation rebalance --target profiles --direction trim --per-profile 3 --count 50
+python -m scripts.demo_generation rebalance --target spaces --direction trim --per-profile 2 --count 50 --apply --backup
 python -m scripts.demo_generation rebalance --target periods --demo-live --limit 30 --apply
 
 # Actualisation éditoriale déterministe et répétable pour une édition donnée.
@@ -442,9 +445,12 @@ python -m scripts.demo_generation maintain --action restore --count 10 --apply
 - `--include-existing` pour inclure les Occurrences non synthétiques reste
   une option exceptionnelle : une application exige `--backup` et ne peut
   pas être combinée avec `--mode full`.
-- `rebalance --target profiles` ajoute au plus `--per-profile` favoris de
-  démonstration par utilisateur `world_*` ; `spaces` équilibre les suivis
-  d'Espaces synthétiques par ces profils. Ces opérations **ne changent pas**
+- `rebalance --target profiles` ajuste les favoris synthétiques des
+  utilisateurs `world_*` ; `spaces` ajuste leurs suivis d'Espaces de démo.
+  `--direction add` (défaut) complète jusqu'à `--per-profile`, tandis que
+  `--direction trim` réduit seulement les relations en excès, après aperçu
+  et avec sauvegarde obligatoire à l'application. `--activity-prefix` permet
+  de limiter la famille d'Activity. Ces opérations **ne changent pas**
   les propriétaires, l'appartenance Team, les Mandates, les Journey ou Payment.
 - `maintain --action complete` **réutilise** les générateurs existants et leurs
   chemins idempotents, sans moteur ORM parallèle. Selon le domaine, il peut
