@@ -1,4 +1,5 @@
 <section class="space-y-5" aria-labelledby="day-of-heading">
+  {% include 'occurrence/continuity_guard.html' %}
   <header class="mk-panel p-5 sm:p-7">
     <p class="mk-kicker">Jour J · {{ activity.title }}</p>
     <h2 id="day-of-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
