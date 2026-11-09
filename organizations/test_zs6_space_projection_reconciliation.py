@@ -101,11 +101,11 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         self.assertEqual(discover.status_code, 200, discover.data)
         self.assertEqual(discover.data["items"], [])
         self.assertFalse(discover.data["has_more"])
-        self.assertEqual(discover.data["selection"]["state"], "unavailable")
-        self.assertEqual(
-            discover.data["selection"]["reason"],
-            "no_safe_selection_contract",
-        )
+        self.assertEqual(discover.data["selection"]["state"], "empty")
+        self.assertEqual(discover.data["selection"]["reason"], "no_current_proposal")
+        self.assertEqual(discover.data["surface"], "discover_space")
+        self.assertEqual(discover.data["actor"]["id"], str(self.space.pk))
+        self.assertEqual(discover.data["viewer"]["id"], str(self.owner.pk))
         for response in (now, discover):
             serialized = str(response.data).lower()
             for forbidden in (
