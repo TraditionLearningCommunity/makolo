@@ -467,10 +467,6 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
         raise ValidationError("Ce Point ne peut pas être résolu dans son état actuel.")
     if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
         raise ValidationError("La Conversation est fermée.")
-    if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
-        raise PermissionDenied("Vous ne faites pas partie de l’audience de résolution.")
-    if not can_manage_conversation(actor, locked.conversation):
-        raise PermissionDenied("La résolution exige l’autorité de gestion de la Conversation.")
     return _create_resolution(
         point=locked, method=method, summary=summary, resolved_by=actor,
         result_payload=result_payload or {}, selected_option_ids=selected_option_ids,
