@@ -8,17 +8,20 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../sync/freshness.dart';
 import 'resource_repository.dart';
+import 'trust_resource_repository.dart';
 
 class ResourcesScreen extends StatefulWidget {
   const ResourcesScreen({
     super.key,
     required this.repository,
     required this.onOpenDocuments,
+    this.trustRepository,
     this.onOpenProofs,
     this.onOpenTitles,
   });
 
   final ResourceRepository repository;
+  final TrustResourceRepository? trustRepository;
   final VoidCallback onOpenDocuments;
   final VoidCallback? onOpenProofs;
   final VoidCallback? onOpenTitles;
@@ -30,12 +33,16 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   bool _refreshing = false;
   late Stream<List<StoredProjection>> _pages;
+  late Stream<List<StoredProjection>> _proofPages;
+  late Stream<List<StoredProjection>> _titlePages;
   late Stream<ResourceSourceState> _source;
 
   @override
   void initState() {
     super.initState();
     _pages = widget.repository.watchCollectionPages();
+    _proofPages = widget.repository.store.watchProjections('personal.proofs');
+    _titlePages = widget.repository.store.watchProjections('personal.titles');
     _source = widget.repository.watchCollectionSource(query: '', offset: 0);
     unawaited(_ensure());
   }
@@ -45,16 +52,47 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
       _pages = widget.repository.watchCollectionPages();
+      _proofPages = widget.repository.store.watchProjections('personal.proofs');
+      _titlePages = widget.repository.store.watchProjections('personal.titles');
       _source = widget.repository.watchCollectionSource(query: '', offset: 0);
       unawaited(_ensure());
     }
   }
 
   Future<void> _ensure() async {
-    try {
-      await widget.repository.ensureCollectionPage(query: '', offset: 0);
-    } on Object {
-      // The hub remains a navigation surface even when counts cannot refresh.
+    await _refreshOwners(ensureOnly: true);
+  }
+
+  Future<void> _refreshOwners({required bool ensureOnly}) async {
+    final tasks = <Future<void>>[
+      ensureOnly
+          ? widget.repository.ensureCollectionPage(query: '', offset: 0)
+          : widget.repository.refreshCollectionPage(query: '', offset: 0),
+    ];
+    final trust = widget.trustRepository;
+    if (trust != null) {
+      for (final family in TrustResourceFamily.values) {
+        tasks.add(
+          ensureOnly
+              ? trust.ensureCollectionPage(
+                  family: family,
+                  query: '',
+                  offset: 0,
+                )
+              : trust.refreshCollectionPage(
+                  family: family,
+                  query: '',
+                  offset: 0,
+                ),
+        );
+      }
+    }
+    for (final task in tasks) {
+      try {
+        await task;
+      } on Object {
+        // Each owner remains independent; one failure must not block the hub.
+      }
     }
   }
 
@@ -62,9 +100,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshCollectionPage(query: '', offset: 0);
-    } on Object {
-      // Keep the last owner projection when the network is unavailable.
+      await _refreshOwners(ensureOnly: false);
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -86,9 +122,21 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       body: StreamBuilder<List<StoredProjection>>(
         stream: _pages,
         initialData: const [],
-        builder: (context, snapshot) {
-          final counts = _ResourceCounts.fromPages(snapshot.data ?? const []);
-          return StreamBuilder<ResourceSourceState>(
+        builder: (context, documentSnapshot) {
+          return StreamBuilder<List<StoredProjection>>(
+            stream: _proofPages,
+            initialData: const [],
+            builder: (context, proofSnapshot) {
+              return StreamBuilder<List<StoredProjection>>(
+                stream: _titlePages,
+                initialData: const [],
+                builder: (context, titleSnapshot) {
+                  final counts = _ResourceCounts.fromPages(
+                    documentSnapshot.data ?? const [],
+                    proofPages: proofSnapshot.data ?? const [],
+                    titlePages: titleSnapshot.data ?? const [],
+                  );
+                  return StreamBuilder<ResourceSourceState>(
             stream: _source,
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
@@ -149,6 +197,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     ),
                   ),
                 ),
+              );
+            },
+          );
+                },
               );
             },
           );
@@ -229,7 +281,11 @@ class _ResourceCounts {
   final int? proofs;
   final int? titles;
 
-  factory _ResourceCounts.fromPages(List<StoredProjection> pages) {
+  factory _ResourceCounts.fromPages(
+    List<StoredProjection> pages, {
+    List<StoredProjection> proofPages = const [],
+    List<StoredProjection> titlePages = const [],
+  }) {
     for (final page in pages.reversed) {
       if (page.kind != ResourceRepository.collectionProjectionKind) continue;
       final documents = _map(page.payload['documents']);
@@ -246,12 +302,46 @@ class _ResourceCounts {
       final credentials = _map(page.payload['credentials']);
       return _ResourceCounts(
         documents: documentCount,
-        proofs: _int(proofs['count']),
-        titles: _int(credentials['count']),
+        proofs:
+            _trustOwnerCount(
+              proofPages,
+              projectionKind: 'personal.proofs',
+              typeKey: 'proof_type',
+            ) ??
+            _int(proofs['count']),
+        titles:
+            _trustOwnerCount(
+              titlePages,
+              projectionKind: 'personal.titles',
+              typeKey: 'credential_type',
+            ) ??
+            _int(credentials['count']),
       );
     }
     return const _ResourceCounts();
   }
+}
+
+int? _trustOwnerCount(
+  List<StoredProjection> pages, {
+  required String projectionKind,
+  required String typeKey,
+}) {
+  StoredProjection? latest;
+  for (final page in pages) {
+    if (page.kind != projectionKind) continue;
+    final payload = page.payload;
+    if ((_string(payload['query']) ?? '').isNotEmpty) continue;
+    if ((_string(payload['status']) ?? 'all') != 'all') continue;
+    if ((_string(payload[typeKey]) ?? '').isNotEmpty) continue;
+    if ((_string(payload['sort']) ?? 'recent') != 'recent') continue;
+    final pageMeta = _map(payload['page']);
+    if ((_int(pageMeta['offset']) ?? 0) != 0) continue;
+    if (latest == null || page.receivedAt.isAfter(latest.receivedAt)) {
+      latest = page;
+    }
+  }
+  return latest == null ? null : _int(latest.payload['count']);
 }
 
 Map<String, dynamic> _map(Object? value) {
