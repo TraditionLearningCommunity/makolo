@@ -8,6 +8,7 @@ import '../../design/action_controls.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../platform/downloads/device_downloads.dart';
+import '../../platform/sharing/share_gateway.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import 'resource_repository.dart';
@@ -21,6 +22,7 @@ class ResourceDetailScreen extends StatefulWidget {
     required this.onOpenJourney,
     required this.onAddVersion,
     required this.onArchived,
+    this.sharing = const SystemShareGateway(),
   });
 
   final String assetId;
@@ -29,6 +31,7 @@ class ResourceDetailScreen extends StatefulWidget {
   final ValueChanged<String> onOpenJourney;
   final VoidCallback onAddVersion;
   final VoidCallback onArchived;
+  final ShareGateway sharing;
 
   @override
   State<ResourceDetailScreen> createState() => _ResourceDetailScreenState();
@@ -37,6 +40,7 @@ class ResourceDetailScreen extends StatefulWidget {
 class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _refreshing = false;
   bool _downloading = false;
+  bool _sharing = false;
   bool _archiving = false;
   double? _downloadProgress;
   _ResourceDetail? _cachedSummary;
@@ -175,6 +179,56 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     }
   }
 
+  Future<void> _share(
+    _ResourceDetail detail,
+    _ResourceVersion version,
+  ) async {
+    final path = version.downloadPath;
+    if (path == null || _sharing) return;
+    setState(() {
+      _sharing = true;
+      _downloadProgress = null;
+    });
+    String? temporaryPath;
+    try {
+      temporaryPath = await widget.repository.downloadVersionForExplicitExport(
+        path: path,
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
+        retainOfflineCopy: false,
+        fileExtension: _extensionForMime(version.mimeType),
+        onProgress: (transferred, total) {
+          if (!mounted || total <= 0) return;
+          setState(() => _downloadProgress = transferred / total);
+        },
+      );
+      await widget.sharing.shareFiles(
+        paths: [temporaryPath],
+        text: detail.title,
+      );
+    } on Object {
+      if (mounted) _message('Partage impossible.');
+    } finally {
+      if (temporaryPath != null) {
+        final temporary = File(temporaryPath);
+        if (await temporary.exists()) {
+          try {
+            await temporary.delete();
+          } on Object {
+            // Staging cleanup is best-effort and never changes owner truth.
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _sharing = false;
+          _downloadProgress = null;
+        });
+      }
+    }
+  }
+
   Future<void> _reuse(_ResourceDetail detail) async {
     final reusePath = detail.reusePath;
     if (reusePath == null || detail.currentVersion == null) return;
@@ -264,6 +318,14 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                   onPressed: _downloading
                       ? null
                       : () => _download(detail!, detail.currentVersion!),
+                ),
+              if (detail?.currentVersion?.downloadPath != null)
+                MakoloIconActionButton(
+                  tooltip: 'Partager',
+                  icon: Icons.send_outlined,
+                  onPressed: _sharing
+                      ? null
+                      : () => _share(detail!, detail.currentVersion!),
                 ),
               if (detail?.reusePath != null)
                 MakoloIconActionButton(
@@ -357,7 +419,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                 ),
                             ],
                           ),
-                          if (_downloading && _downloadProgress != null) ...[
+                          if ((_downloading || _sharing) &&
+                              _downloadProgress != null) ...[
                             const SizedBox(height: MakoloSpacing.md),
                             LinearProgressIndicator(value: _downloadProgress),
                           ],
