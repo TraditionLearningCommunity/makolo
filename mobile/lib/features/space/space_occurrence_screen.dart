@@ -59,6 +59,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
     with WidgetsBindingObserver {
   bool refreshing = false;
   int _revision = 0;
+  DateTime? _actorSwitchedAt;
   Timer? _reconciliationTimer;
 
   bool get _actorValid =>
@@ -67,6 +68,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
        (widget.actorContext!.value as SpaceActorContext).space == widget.space);
 
   void _onActorChanged() {
+    _actorSwitchedAt = DateTime.now().toUtc();
     _revision++;
     if (!mounted) return;
     setState(() => refreshing = false);
@@ -184,7 +186,11 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                 actorSpaceId: widget.space.id,
                 surface: widget.live ? 'live' : 'day_of',
               );
-          final available = scoped && !state.invalidated;
+          final available = scoped && !state.invalidated &&
+              OccurrenceContinuity.verifiedAfterActorSwitch(
+                lastSuccessAt: state.lastSuccessAt,
+                actorSwitchedAt: _actorSwitchedAt,
+              );
           final liveEnded = scoped &&
               OccurrenceContinuity.liveWindowEnded(
                 projection!.payload, now: DateTime.now(),
