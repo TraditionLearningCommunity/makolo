@@ -604,14 +604,21 @@ class _JourneyContent extends StatelessWidget {
             child: _JourneyPracticalCard(facts: presentation.practical!),
           ),
         ],
-        if (presentation.payment != null) ...[
+        if (presentation.payments.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           MakoloSection(
             title: 'Paiement',
-            child: _JourneyPaymentCard(
-              payment: presentation.payment!,
-              onOpenPaymentObligation: onOpenPaymentObligation,
-              onOpenCommerceOrder: onOpenCommerceOrder,
+            child: Column(
+              children: [
+                for (final item in presentation.payments) ...[
+                  _JourneyPaymentCard(
+                    payment: item,
+                    onOpenPaymentObligation: onOpenPaymentObligation,
+                    onOpenCommerceOrder: onOpenCommerceOrder,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
+              ],
             ),
           ),
         ],
