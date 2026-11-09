@@ -105,6 +105,10 @@ void main() {
     final shell = File('lib/features/space/space_shell_routes.dart').readAsStringSync();
     final routes = File('lib/features/discovery/discovery_routes.dart').readAsStringSync();
     final screens = File('lib/features/discovery/discovery_screens.dart').readAsStringSync();
+    final appShell = File('lib/app/app_shell.dart').readAsStringSync();
+    expect(appShell, contains('enableSpaceDiscoveryActions'));
+    expect(appShell, contains("discoveryQuery.routeLocation('/discover/search')"));
+    expect(appShell, contains("discoveryQuery.routeLocation('/discover/map')"));
     expect(shell, contains('return DiscoveryScreen('));
     expect(shell, contains('initialQuery: query'));
     expect(routes, contains('DiscoverySearchScreen('));
