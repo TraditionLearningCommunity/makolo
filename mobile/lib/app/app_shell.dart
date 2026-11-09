@@ -13,7 +13,6 @@ import '../navigation/active_context_avatar.dart';
 import '../navigation/destination.dart';
 import '../navigation/shell_header.dart';
 import '../sync/sync_status.dart';
-import '../sync/outbox/outbox_repository.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
 import 'runtime/actor_context.dart';
@@ -216,100 +215,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     );
   }
 
-  String _conflictCause(String? code) => switch (code) {
-    'permission_denied' || 'forbidden' => 'Cette action n’est plus autorisée.',
-    'not_found' => 'L’élément concerné n’est plus disponible.',
-    'version_conflict' || 'conflict' || 'stale_version' =>
-      'L’élément a changé depuis votre modification.',
-    'validation_error' || 'invalid_request' =>
-      'Les informations envoyées doivent être vérifiées.',
-    'authentication_required' => 'Votre session doit être vérifiée.',
-    _ => 'Cette modification n’a pas pu être confirmée.',
-  };
-
-  Future<void> _showConflicts() async {
-    final repository = widget.runtime.outbox;
-    if (repository == null) return;
-    final conflicts = await repository.readConflicts();
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text('Modifications à vérifier',
-                style: Theme.of(sheetContext).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            const Text(
-              'Certaines actions enregistrées sur cet appareil n’ont pas été confirmées. '
-              'Vos autres informations restent disponibles.',
-            ),
-            const SizedBox(height: 12),
-            if (conflicts.isEmpty)
-              const Text('Aucune modification en conflit actuellement.')
-            else
-              for (final conflict in conflicts)
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: Text(conflict.operationKind.replaceAll('_', ' ')),
-                  subtitle: Text(_conflictCause(conflict.errorCode)),
-                ),
-            const SizedBox(height: 8),
-            const Text(
-              'Ouvrez la rubrique concernée pour vérifier les informations '
-              'avant de refaire une action. Aucune modification n’est renvoyée automatiquement.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _content(SyncStatus? syncStatus, ActorContext actor) {
     return SafeArea(
       top: false,
       child: Column(
         children: [
-          if (syncStatus != null) ...[
-            NetworkStateCue(status: syncStatus),
-            if (syncStatus.state == SyncVisualState.pending ||
-                syncStatus.state == SyncVisualState.conflict)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.md,
-                  MakoloSpacing.sm,
-                  MakoloSpacing.md,
-                  0,
-                ),
-                child: syncStatus.state == SyncVisualState.conflict
-                    ? Semantics(
-                        button: true,
-                        label: 'Voir les modifications à vérifier',
-                        child: InkWell(
-                          key: const Key('outbox-conflict-details'),
-                          onTap: _showConflicts,
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Une action n’a pas été confirmée. Voir les détails',
-                                  ),
-                                ),
-                                Icon(Icons.chevron_right),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    : NetworkStateIndicator(status: syncStatus),
-              ),
-          ],
+          // Technical retry/conflict state stays in the local outbox.
+          // A user-facing failure belongs beside the affected action, not
+          // above every destination (Now, Discover, Conversations, etc.).
+          // Offline/failed refreshes never hide an already known projection.
           Expanded(child: widget.navigationShell),
         ],
       ),
