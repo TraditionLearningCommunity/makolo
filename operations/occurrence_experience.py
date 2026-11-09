@@ -92,7 +92,9 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         return None
 
     phase = occurrence_live_phase(occurrence, now=observed_at)
-    if surface == "live" and phase not in _LIVE_PHASES:
+    # Live is an explicit per-Occurrence opt-in, never implied by schedule.
+    live_available = bool(getattr(occurrence, "live_enabled", False)) and phase in _LIVE_PHASES
+    if surface == "live" and not live_available:
         return None
 
     participant = resolve_participant_occurrence_live(
@@ -286,6 +288,13 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         },
         "surface": surface,
         "phase": phase,
+        "live": {
+            "available": live_available,
+            "enabled": bool(getattr(occurrence, "live_enabled", False)),
+            "reason": None if live_available else (
+                "not_enabled" if not getattr(occurrence, "live_enabled", False) else "outside_live_window"
+            ),
+        },
         "relations": relations,
         "sections": sections,
         "capabilities": capabilities,
@@ -308,7 +317,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             ),
             **({
                 "live": f"/api/v1/operations/occurrences/{occurrence.pk}/experience/live/",
-            } if phase in _LIVE_PHASES else {}),
+            } if live_available else {}),
             **({
                 "scanner": f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
             } if scanner_allowed else {}),
