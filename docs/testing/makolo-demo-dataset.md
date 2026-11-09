@@ -76,7 +76,56 @@ python -m scripts.demo_generation plan --domains all --count 20 --profiles 20 --
 
 **Groupes :** un Groupe personnel de demonstration peut etre cree par un `world_*` actif, et ses membres ajoutes par le service. Membership n'accorde pas Mandate.
 
-**Dossiers/Projets :** chaque porteur conserve son propre Dossier/Project; les Journey liees doivent etre accessibles au porteur. Ce n'est pas un task manager artificiel.
+**Dossiers/Projets :** le domaine `objectives` de `scripts.demo_generation`
+crée plusieurs Projets et Dossiers par Profil synthétique, y compris des Dossiers
+indépendants, des Journey canoniques liées et des dépendances entre démarches.
+Les services Objectives contrôlent chaque création, rattachement et dépendance.
+Ce n'est pas un task manager artificiel et le seed ne crée aucune Journey.
+
+### Mes démarches — jeu volumineux et sélection des profils
+
+**Toujours commencer par le mode plan (lecture seule).** Les exemples suivants
+s'exécutent depuis la racine du dépôt dans PowerShell, sur une **base SQLite de
+démonstration isolée** :
+
+```powershell
+# Un profil world_ précis, avec 6 Projets et plusieurs Dossiers par Projet
+python -m scripts.demo_generation plan --domains objectives --profile-username world_011_divine --count 1 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+python -m scripts.demo_generation generate --domains objectives --profile-username world_011_divine --count 1 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+
+# Sans username : sélection des profils world_* existants (jusqu'à 100)
+python -m scripts.demo_generation plan --domains objectives --profiles 100 --count 100
+python -m scripts.demo_generation generate --domains objectives --profiles 100 --count 100
+
+# Vérifier les modèles et les données disponibles
+python -m scripts.demo_generation inventory
+python -m scripts.demo_generation audit
+```
+
+Les options du domaine `objectives` sont :
+`--objectives-projects` (1–8, défaut 4),
+`--objectives-dossiers-per-project` (1–6, défaut 3),
+`--objectives-independent` (0–6, défaut 2) et
+`--objectives-journeys-per-dossier` (0–4, défaut 2).
+
+`--count` borne le nombre de Profils traités, `--profiles` borne les Profils
+`world_*` candidats. `--profile-username` prend priorité pour cibler un
+Profil synthétique unique. Aucun identifiant de compte n'est codé en dur.
+Une cible explicitement nommée mais non reconnue comme Profil de démonstration
+est refusée.
+
+Les scénarios sont déterministes et idempotents par Profil/titre. Le générateur
+préserve les rattachements existants même si un Dossier a été déplacé. Il
+ne modifie pas les états des Journey, ne simule pas une réussite externe et ne
+transmet aucun secret. Les dépendances nécessitent au moins deux Journey
+existantes, accessibles au porteur et reliées au même Dossier.
+
+La commande Django `seed_mobile_objectives_demo`, auparavant proposée,
+**n'est plus disponible** : elle dépendait d'un persona codé en dur et d'une
+validation de tout `demo_seed` sans rapport direct avec Objectives.
+Utiliser exclusivement la CLI unique ci-dessus.
+
+
 
 **Notifications :** deduplication par Journey, notification interne contextuelle uniquement ; aucun email ou push reel n'est envoye depuis le generateur.
 
