@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/features/journey/journey_detail_screen.dart';
 import 'package:makolo_mobile/features/journey/journey_repository.dart';
 import 'package:makolo_mobile/features/journey/journey_selector.dart';
 import 'package:makolo_mobile/sync/freshness.dart';
@@ -351,6 +353,69 @@ void main() {
     expect(result.steps, isEmpty);
     expect(result.isTerminal, isTrue);
     expect(result.nextActionLabel, isNull);
+  });
+
+  testWidgets('Journey N3 renders from ProfileStore without any remote client', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    await store.putProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-local',
+      schemaVersion: 1,
+      payload: const {
+        'identity': {'workflow': 'registration'},
+        'representation': {'title': 'Recevoir mon badge'},
+        'state': {'code': 'in_progress', 'label': 'En cours'},
+        'readiness': {
+          'state': 'waiting',
+          'ready': [],
+          'actor_interventions': [],
+          'waiting': [],
+          'blockers': [],
+        },
+        'steps': [
+          {
+            'id': 'step-local',
+            'title': 'Envoyer ma demande',
+            'kind': 'submission',
+            'status': 'in_progress',
+            'depends_on': [],
+          },
+        ],
+        'forms': [],
+        'requirements': [],
+        'capabilities': [],
+      },
+    );
+    final repository = JourneyRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JourneyDetailScreen(
+          journeyId: 'journey-local',
+          repository: repository,
+          onOpenForm: (_) {},
+          onOpenRequirement: (_) {},
+          onOpenResources: (_) {},
+          onOpenActivity: (_) {},
+          onOpenOccurrence: (_) {},
+          onOpenAccess: (_) {},
+          onOpenDayOf: (_) {},
+          onOpenLive: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('MON OBJECTIF'), findsOneWidget);
+    expect(find.text('Recevoir mon badge'), findsOneWidget);
+    expect(find.text('Où j’en suis'), findsOneWidget);
+    expect(find.text('Envoyer ma demande'), findsOneWidget);
   });
 
 }
