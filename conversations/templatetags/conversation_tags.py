@@ -119,6 +119,38 @@ def conversation_point_attachments(point, profile):
 
 
 @register.simple_tag
+def conversation_point_media_sections(point, profile):
+    """One ACL-filtered semantic projection for a Web Point.
+
+    Point media, ordered Poll assertions and response media must not be
+    flattened into one trailing collection. Never expose another respondent
+    through their file without the canonical owner permission.
+    """
+    from conversations.rich_services import visible_attachments_for_profile
+    visible = visible_attachments_for_profile(profile, point, limit=100)
+    root, option_map, response_map = [], {}, {}
+    for attachment in visible:
+        if attachment.exchange_entry_id:
+            continue
+        if attachment.response_id:
+            response_map.setdefault(str(attachment.response_id), []).append(attachment)
+        elif attachment.option_id:
+            option_map.setdefault(str(attachment.option_id), []).append(attachment)
+        else:
+            root.append(attachment)
+    choices = [
+        {"id": str(option.pk), "label": option.label,
+         "files": option_map.get(str(option.pk), [])}
+        for option in point.options.all()
+    ]
+    return {
+        "root": root,
+        "choices": choices,
+        "responses": list(response_map.values()),
+    }
+
+
+@register.simple_tag
 def conversation_exchange_attachments(entry, profile):
     from conversations.media_services import can_download_attachment
     return [
