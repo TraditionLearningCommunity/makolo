@@ -111,7 +111,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final team = _map(payload['team']);
     final ownership = _map(payload['ownership']);
     final relations = _map(payload['relationships']);
-    final relationSections = _map(relations?['sections']) ?? {};
+    final relationSections = relations?['visibility'] == 'visible'
+        ? _map(relations?['sections']) ?? <String, dynamic>{}
+        : <String, dynamic>{};
     final displayedRelations = relationSections.entries
         .where(
           (entry) =>
@@ -124,12 +126,12 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         .toList(growable: false);
     final teamVisible =
         !limited &&
-        team?['visibility'] != 'restricted' &&
+        team?['visibility'] == 'visible' &&
         team?['items'] is List;
     final teamRows = teamVisible
         ? _rows(team?['items'])
         : const <Map<String, dynamic>>[];
-    final ownershipRows = !limited && ownership?['visibility'] != 'restricted'
+    final ownershipRows = !limited && ownership?['visibility'] == 'visible'
         ? _rows(ownership?['items'])
         : const <Map<String, dynamic>>[];
     final slug = _value(identity?['slug']);

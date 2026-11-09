@@ -61,14 +61,14 @@
         <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Notre équipe</h3></div>
         {% if projection.team.visibility == "visible" %}<strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>{% endif %}
       </div>
-      {% if projection.team.items %}
+      {% if projection.team.visibility == 'visible' and projection.team.items %}
         <ul class="mk-ws4-list">
           {% for member in projection.team.items %}
           {% if forloop.counter <= 3 %}<li><span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="user-round"></i></span><div><strong>{{ member.profile.name }}</strong><small>Travaille avec nous</small></div></li>{% endif %}
           {% endfor %}
         </ul>
         {% if projection.team.has_more or projection.team.items|length > 3 %}<p class="mk-ws4-note">D’autres personnes sont à retrouver dans l’équipe.</p>{% endif %}
-      {% elif projection.capabilities.manage_team %}
+      {% elif projection.capabilities.manage_team and projection.team.visibility == 'visible' %}
         <p class="mk-ws4-empty">Aucun membre actif dans l’équipe principale pour le moment.</p>
       {% else %}
         <p class="mk-ws4-note">Les détails de l’équipe ne sont pas accessibles.</p>
@@ -93,7 +93,7 @@
       {% if us_owner_links.authority %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.authority }}">Comprendre mes autorisations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
 
-    {% if projection.relationships.sections %}
+    {% if projection.relationships.visibility == 'visible' and projection.relationships.sections %}
     <section class="mk-ws4-card" aria-labelledby="space-us-relations">
       <div class="mk-ws4-card-head">
         <div><span class="mk-ws4-eyebrow">Réseau collectif</span><h3 id="space-us-relations">Nos relations</h3></div>
@@ -135,7 +135,7 @@
   </section>
   {% endif %}
 
-    {% if projection.ownership.items %}
+    {% if projection.ownership.visibility == 'visible' and projection.ownership.items %}
     <section class="mk-ws4-card" aria-labelledby="space-us-ownership">
       <div class="mk-ws4-card-head">
         <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Notre gouvernance</h3></div>

@@ -40,6 +40,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
   },
   'relationships': {
     'label': 'Personnes & relations',
+    'visibility': limited ? 'restricted' : 'visible',
     'sections': limited
         ? {}
         : {
@@ -228,6 +229,36 @@ void main() {
     expect(find.text('Atelier collectif'), findsOneWidget);
     expect(find.text('Amina'), findsNothing);
     expect(find.text('Notre équipe'), findsNothing);
+  });
+
+  testWidgets('unknown Space visibility never leaks cached institution rows', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['team'] as Map<String, dynamic>)['visibility'] = 'unavailable';
+    (projection['ownership'] as Map<String, dynamic>)['visibility'] = 'unknown';
+    (projection['relationships'] as Map<String, dynamic>)['visibility'] =
+        'restricted';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) => fail('No restricted institution destination may open'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Coordination'), findsOneWidget);
+    expect(find.text('Amina'), findsNothing);
+    expect(find.text('Kasa'), findsNothing);
+    expect(find.text('Partenaires'), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-ownership')), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
   });
 
   testWidgets('sparse relations avoid empty preview rows', (tester) async {

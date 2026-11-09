@@ -142,6 +142,39 @@ class WS4SpaceWebTests(TestCase):
         self.assertNotContains(response, 'data-us-layout-choice="objectives"')
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
+    def test_nous_web_does_not_disclose_stale_institution_rows(self):
+        self.client.force_login(self.owner)
+        initial = self.client.get(self.url("organizations:space-us"))
+        projection = initial.context["projection"]
+        projection["team"]["visibility"] = "unavailable"
+        projection["team"]["items"] = [
+            {"profile": {"name": "NEVER_SHOW_TEAM_MEMBER"}}
+        ]
+        projection["ownership"]["visibility"] = "restricted"
+        projection["ownership"]["items"] = [
+            {
+                "profile": {"name": "NEVER_SHOW_OWNER"},
+                "responsibility": {"label": "Owner"},
+            }
+        ]
+        projection["relationships"]["visibility"] = "restricted"
+        projection["relationships"]["sections"] = {
+            "partners": {
+                "items": [{"name": "NEVER_SHOW_RELATION"}],
+                "has_more": False,
+            }
+        }
+        with patch(
+            "organizations.space_web_views.build_space_us_projection",
+            return_value=projection,
+        ):
+            response = self.client.get(self.url("organizations:space-us"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "NEVER_SHOW_TEAM_MEMBER")
+        self.assertNotContains(response, "NEVER_SHOW_OWNER")
+        self.assertNotContains(response, "NEVER_SHOW_RELATION")
+        self.assertContains(response, "Les détails de l’équipe ne sont pas accessibles.")
+
     def test_n3_authority_web_revalidates_selection_without_disclosing_n1(self):
         self.client.force_login(self.owner)
         root = self.client.get(self.url("organizations:space-us"))

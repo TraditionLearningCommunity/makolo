@@ -21,6 +21,8 @@ Ordre :
 4. Entrées `Ma place dans cet Espace`, `Notre équipe`, `Nos relations`, `Nos ressources`, `Notre gouvernance`, `Notre confiance` lorsque les faits et permissions les rendent visibles ;
 5. `Informations et gestion` secondaire : abonnement, connexions, paramètres, pilotage selon handoffs réels.
 
+La visibilité `visible` est exigée explicitement pour les aperçus Team, Relations et Ownership, sur Flutter comme sur Web. Un champ `items` résiduel sous une visibilité `restricted`, `unknown` ou `unavailable` ne doit pas être rendu.
+
 Les aperçus sont limités à trois valeurs réellement projetées. Les totaux sont affichés seulement quand le serveur les fournit explicitement et que la famille est visible. Aucun item personnel n'est copié vers Space.
 
 Les liens N2/N3 sont acceptés uniquement sous la forme exacte `/space/<slug>/us/<depth>` prévue par l'owner, ou les handoffs institutionnels autorisés déjà existants. Les liens forgés cross-Space sont neutralisés. Une collection sans handoff reste informative, pas artificiellement actionnable.
