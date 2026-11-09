@@ -261,7 +261,7 @@ class _ResourceEntry extends StatelessWidget {
             ],
           ),
         ),
-        if (count != null) ...[
+        if (count != null && count! > 0) ...[
           const SizedBox(width: MakoloSpacing.sm),
           Text(
             '$count',
