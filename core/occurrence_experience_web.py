@@ -85,6 +85,52 @@ class PersonalOccurrenceDayOfView(_PersonalOccurrenceExperienceView):
         return redirect("core:participant-occurrence-day-of", pk=self.get_occurrence().pk)
 
 
+class PersonalOccurrenceDepthView(_PersonalOccurrenceExperienceView):
+    """Focused owner depth; re-evaluates all mandates on read and mutation."""
+    template_name = "core/occurrence_depth.html"
+    surface = "day_of"
+
+    def get_context_data(self, **kwargs):
+        from operations.occurrence_web_depth import depth_page
+
+        context = super().get_context_data(**kwargs)
+        kind = self.kwargs["kind"]
+        context.update(depth_page(
+            occurrence=self.get_occurrence(),
+            actor=self.request.user,
+            projection=context["projection"],
+            kind=kind,
+        ))
+        context["depth_kind"] = kind
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from django.core.exceptions import ValidationError
+        from operations.occurrence_web_depth import execute_depth_action
+
+        occurrence = self.get_occurrence()
+        projection = resolve_occurrence_experience(
+            occurrence=occurrence, viewer=request.user,
+            surface="day_of", observed_at=timezone.now(),
+        )
+        if projection is None:
+            raise Http404
+        kind = self.kwargs["kind"]
+        try:
+            execute_depth_action(
+                occurrence=occurrence, actor=request.user,
+                projection=projection, kind=kind, submitted=request.POST,
+            )
+            messages.success(request, "Opération confirmée par le propriétaire.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        return redirect(
+            "core:participant-occurrence-depth",
+            pk=occurrence.pk, kind=kind,
+        )
+
+
 class PersonalOccurrenceLiveView(_PersonalOccurrenceExperienceView):
     template_name = "core/occurrence_live.html"
     surface = "live"
