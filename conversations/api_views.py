@@ -17,6 +17,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
+from .attention_projection import conversation_attention_sections
 from .point_interactions import point_interactions_for_profile
 from .participant_services import collective_invitation_inbox
 from .detail_presentation import conversation_detail_extra_for_profile
@@ -293,6 +294,15 @@ class ConversationAttentionPresenceAPIView(PrivateNoStoreMixin, views.APIView):
         return Response({"has_attention": has_conversation_attention(request.user)})
 
 
+class ConversationAttentionAPIView(PrivateNoStoreMixin, views.APIView):
+    """The current action lens; not a second Point feed or a notification store."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        return Response(conversation_attention_sections(request.user, conversation))
+
+
 class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -482,6 +492,9 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 for point in timeline["points"]
             ],
             "timeline_next_cursor": timeline["next_cursor"],
+            "attention": conversation_attention_sections(
+                request.user, conversation,
+            ),
             "composer": composer_capabilities(request.user, conversation),
             "personal_state": {
                 "muted": bool(state and state.muted_at),
