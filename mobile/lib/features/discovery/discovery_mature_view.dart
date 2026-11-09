@@ -62,6 +62,7 @@ class DiscoveryExplorationView extends StatefulWidget {
   final MakoloApiClient? shareApi;
   final String? profileId;
   final bool allowOwnerActions;
+  final bool collectiveReadOnly;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
@@ -567,6 +568,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
     this.onDirections,
     this.shareApi,
     this.shareAuthenticated = false,
+    this.collectiveReadOnly = false,
     this.baseUri,
   });
 
@@ -580,6 +582,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
   final VoidCallback? onDirections;
   final MakoloApiClient? shareApi;
   final bool shareAuthenticated;
+  final bool collectiveReadOnly;
   final Uri? baseUri;
 
   @override
@@ -674,7 +677,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
             const Divider(height: 1),
             Row(
               children: [
-                Expanded(
+                if (!collectiveReadOnly) Expanded(
                   child: IconButton(
                     key: const Key('discover-map-save'),
                     tooltip: saving
@@ -697,7 +700,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     icon: Icons.arrow_forward_rounded,
                   ),
                 ),
-                Expanded(
+                if (!collectiveReadOnly) Expanded(
                   child: Center(
                     child: DiscoveryShareControl(
                       key: ValueKey(
@@ -739,6 +742,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.shareAuthenticated = false,
     this.profileId,
     this.allowOwnerActions = true,
+    this.collectiveReadOnly = false,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -1764,6 +1768,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView>
                             : () => unawaited(_saveSelected()),
                         shareApi: widget.shareApi,
                         shareAuthenticated: widget.shareAuthenticated,
+                        collectiveReadOnly: widget.collectiveReadOnly,
                         baseUri: widget.baseUri,
                       ),
                     ),
