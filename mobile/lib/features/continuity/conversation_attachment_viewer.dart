@@ -55,7 +55,7 @@ class _ConversationAttachmentViewerState
   void initState() {
     super.initState();
     _index = widget.gallery.isEmpty
-        ? 0 : widget.initialIndex.clamp(0, widget.gallery.length - 1);
+        ? 0 : widget.initialIndex.clamp(0, widget.gallery.length - 1).toInt();
     if (!widget.inline || _attachment['kind'] == 'image') _download();
   }
 
@@ -78,8 +78,12 @@ class _ConversationAttachmentViewerState
             final player = AudioPlayer();
             try {
               await player.setFilePath(file.path);
-              _audio = player;
-              if (playAudio) unawaited(player.play());
+              if (mounted && generation == _generation) {
+                _audio = player;
+                if (playAudio) unawaited(player.play());
+              } else {
+                await player.dispose();
+              }
             } on Object {
               await player.dispose();
               _error = 'Lecture audio indisponible.';
@@ -90,7 +94,11 @@ class _ConversationAttachmentViewerState
             );
             try {
               await player.initialize();
-              _video = player;
+              if (mounted && generation == _generation) {
+                _video = player;
+              } else {
+                await player.dispose();
+              }
             } on Object {
               await player.dispose();
               _error = 'Lecture vidéo indisponible.';
@@ -99,6 +107,7 @@ class _ConversationAttachmentViewerState
           if (!mounted || generation != _generation) {
             throw StateError('Média abandonné.');
           }
+          setState(() {});
           return file;
         });
   }
@@ -230,7 +239,7 @@ class _ConversationAttachmentViewerState
                   ),
                 ),
                 Slider(
-                  value: position.inMilliseconds.toDouble().clamp(0, maximum),
+                  value: position.inMilliseconds.toDouble().clamp(0, maximum).toDouble(),
                   max: maximum,
                   onChanged: duration > Duration.zero
                       ? (v) => player.seek(Duration(milliseconds: v.round()))
@@ -282,7 +291,7 @@ class _ConversationAttachmentViewerState
                     Expanded(
                       child: Slider(
                         value: value.position.inMilliseconds
-                            .toDouble().clamp(0, maximum),
+                            .toDouble().clamp(0, maximum).toDouble(),
                         max: maximum,
                         onChanged: (v) => player.seekTo(
                           Duration(milliseconds: v.round()),
