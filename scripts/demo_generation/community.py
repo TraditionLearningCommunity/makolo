@@ -16,6 +16,10 @@ def main(argv=None):
     p.add_argument("--count", type=int, default=30)
     p.add_argument("--profiles", type=int, default=30)
     p.add_argument("--profile-username")
+    p.add_argument("--objectives-projects", type=int, default=4)
+    p.add_argument("--objectives-dossiers-per-project", type=int, default=3)
+    p.add_argument("--objectives-independent", type=int, default=2)
+    p.add_argument("--objectives-journeys-per-dossier", type=int, default=2)
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
@@ -23,6 +27,11 @@ def main(argv=None):
         p.error("Domains: groups,objectives,notifications,trust,contributions,sharing")
     if not 1 <= a.count <= 2000 or not 1 <= a.profiles <= 100:
         p.error("count 1..2000 and profiles 2..100 required")
+    if not (1 <= a.objectives_projects <= 8
+            and 1 <= a.objectives_dossiers_per_project <= 6
+            and 0 <= a.objectives_independent <= 6
+            and 0 <= a.objectives_journeys_per_dossier <= 4):
+        p.error("Objectives: projects 1..8, dossiers-per-project 1..6, independent 0..6, journeys-per-dossier 0..4")
     import django
     django.setup()
     from django.contrib.auth import get_user_model
@@ -30,9 +39,6 @@ def main(argv=None):
     from django.db import connection, transaction
     from groups.models import Group, GroupMembership
     from groups.services import create_group, add_member
-    from objectives.models import Dossier, Project, DossierJourneyLink, ProjectDossierLink
-    from objectives.services import (create_dossier, create_project, link_journey,
-                                     link_dossier_to_project)
     from journeys.models import Journey
     from notifications.models import Notification, NotificationCategory, NotificationKind
     from notifications.services import create_notification
@@ -45,7 +51,8 @@ def main(argv=None):
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
     from .selection import demo_profiles
-    from .editorial import group_name, objective_titles
+    from .editorial import group_name
+    from .objectives import generate as generate_objectives
     users = demo_profiles(username=a.profile_username, limit=a.profiles)
 
 
@@ -87,40 +94,15 @@ def main(argv=None):
                     counts["members_rejected"] += 1
 
     if "objectives" in selected:
-        for owner in users[:min(a.count, len(users))]:
-            title, long_title = objective_titles(owner)
-            dossier = (Dossier.objects.filter(owner_profile=owner, title=title).first()
-                       or Dossier.objects.filter(owner_profile=owner, title="[DEMO] Preparer une demarche - " + owner.username).first()
-                       or Dossier.objects.filter(owner_profile=owner, title="Preparer une demarche - " + owner.username).first())
-            project = (Project.objects.filter(owner_profile=owner, title=long_title).first()
-                       or Project.objects.filter(owner_profile=owner, title="[DEMO] Projet d'action - " + owner.username).first()
-                       or Project.objects.filter(owner_profile=owner, title="Projet d'action - " + owner.username).first())
-            if not a.apply:
-                counts["dossiers_planned"] += int(dossier is None)
-                counts["projects_planned"] += int(project is None)
-                continue
-            try:
-                with transaction.atomic():
-                    if project is None:
-                        project = create_project(actor=owner, owner_profile=owner,
-                            title=long_title, description="Développer une trajectoire durable reliant les actions et les démarches utiles.")
-                        counts["projects_created"] += 1
-                    if dossier is None:
-                        dossier = create_dossier(actor=owner, owner_profile=owner,
-                            title=title, description="Préparer les étapes nécessaires et réunir les informations pour avancer.")
-                        counts["dossiers_created"] += 1
-                    if not ProjectDossierLink.objects.filter(
-                        project=project, dossier=dossier, is_active=True).exists():
-                        link_dossier_to_project(actor=owner, project=project, dossier=dossier)
-                        counts["project_links_created"] += 1
-                    journey = Journey.objects.filter(beneficiary=owner,
-                        activity__slug__startswith="demo-").order_by("-created_at").first()
-                    if journey and not DossierJourneyLink.objects.filter(
-                        dossier=dossier, journey=journey, is_active=True).exists():
-                        link_journey(actor=owner, dossier=dossier, journey=journey)
-                        counts["journey_links_created"] += 1
-            except (ValidationError, PermissionDenied):
-                counts["objectives_rejected"] += 1
+        counts.update(generate_objectives(
+            users,
+            count=a.count,
+            projects_per_profile=a.objectives_projects,
+            dossiers_per_project=a.objectives_dossiers_per_project,
+            independent_dossiers=a.objectives_independent,
+            journeys_per_dossier=a.objectives_journeys_per_dossier,
+            apply=a.apply,
+        ))
 
     if "notifications" in selected:
         rows = Journey.objects.filter(
