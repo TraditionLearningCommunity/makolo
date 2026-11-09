@@ -338,6 +338,32 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
 
 
 @transaction.atomic
+@transaction.atomic
+def update_point_personal_state(*, actor, point, revisit=None, pinned=None):
+    """Viewer-owned state only; does not close, resolve or reorder the Point."""
+    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
+        "conversation", "conversation__context", "visibility_audience",
+    ).get(pk=point.pk)
+    if not point_visible_to(actor, locked):
+        raise PermissionDenied("Ce Point n'est plus accessible.")
+    if revisit is None and pinned is None:
+        raise ValidationError("Aucun changement personnel demandé.")
+    state, _ = ConversationPointUserState.objects.select_for_update().get_or_create(
+        point=locked, profile=actor,
+    )
+    now = timezone.now()
+    if revisit is not None:
+        if not isinstance(revisit, bool):
+            raise ValidationError({"revisit": "Valeur booléenne attendue."})
+        state.revisit_at = now if revisit else None
+    if pinned is not None:
+        if not isinstance(pinned, bool):
+            raise ValidationError({"pinned": "Valeur booléenne attendue."})
+        state.pinned_at = now if pinned else None
+    state.save(update_fields=["revisit_at", "pinned_at", "updated_at"])
+    return state
+
+
 def acknowledge_point(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "visibility_audience").get(pk=point.pk)
     if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
