@@ -81,6 +81,19 @@ def is_beneficiary(actor, journey):
 def can_access_case(actor, journey, *, write=False, restricted=False):
     if is_beneficiary(actor, journey):
         return not write
+    # A Journey held by a Space is one shared business case. Its members use
+    # current Space mandates, not one JourneyAssignment per team member.
+    # This grant is read-only and never exposes restricted artifacts.
+    beneficiary_space_id = getattr(journey, "beneficiary_space_id", None)
+    if beneficiary_space_id and not write and not restricted:
+        beneficiary_space = journey.beneficiary_space
+        if (
+            can(actor, PermissionCode.SPACE_ACTIVITIES_VIEW,
+                beneficiary_space, include_platform=False)
+            or can(actor, PermissionCode.SPACE_MANAGE,
+                   beneficiary_space, include_platform=False)
+        ):
+            return True
     permission = CASE_WRITE_PERMISSION if (write or restricted) else CASE_READ_PERMISSION
     return _active_assignment_exists(actor, journey) and can(actor, permission, activity=journey.activity)
 
