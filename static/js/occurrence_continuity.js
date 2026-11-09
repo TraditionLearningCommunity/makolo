@@ -56,6 +56,16 @@
     }
   }
 
+  document.addEventListener('submit', event => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) ||
+        !form.matches('[data-sensitive-action="true"]')) return;
+    if (marked ||
+        !window.confirm('Confirmer cette action ? Le propriétaire métier vérifiera à nouveau vos droits.')) {
+      event.preventDefault();
+    }
+  }, true);
+
   refresh?.addEventListener('click', () => window.location.reload());
   window.addEventListener('pageshow', event => {
     if (event.persisted) window.location.reload();
