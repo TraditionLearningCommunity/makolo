@@ -22,8 +22,8 @@
       <h3 id="live-timing" class="text-lg font-bold">Temps · Prévu</h3>
       <p class="mt-2 text-sm" style="color:var(--mk-muted)">Le calendrier de l'Occurrence est une prévision, non une observation.</p>
       <dl class="mt-3 space-y-3 text-sm">
-        <div><dt style="color:var(--mk-muted)">Début prévu</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.start_at|default:"À préciser" }}</dd></div>
-        <div><dt style="color:var(--mk-muted)">Fin prévue</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.end_at|default:"À préciser" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Début prévu</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.start_at|default:projection.knowledge.planned_timing.start_date|default:"À préciser" }}</dd></div>
+        <div><dt style="color:var(--mk-muted)">Fin prévue</dt><dd class="font-semibold">{{ projection.knowledge.planned_timing.end_at|default:projection.knowledge.planned_timing.end_date|default:"À préciser" }}</dd></div>
         <div><dt style="color:var(--mk-muted)">Début réellement observé</dt><dd class="font-semibold">{% if projection.knowledge.temporal_observation.truth == "unknown" %}Inconnu{% else %}{{ projection.knowledge.temporal_observation.truth }}{% endif %}</dd></div>
       </dl>
     </section>
