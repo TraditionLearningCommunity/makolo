@@ -606,6 +606,36 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
 class DiscoveryHomeView(TemplateView):
     template_name = "discovery/home.html"
 
+    def get(self, request, *args, **kwargs):
+        """Keep the shared Web Discovery route from silently changing actor."""
+        route_space = getattr(self, "space", None)
+        requested = request.GET.get("context")
+        slug = request.GET.get("space")
+        if route_space is not None:
+            if requested not in (None, "", "space") or slug not in (
+                None, "", route_space.slug,
+            ):
+                raise Http404
+        elif requested == "space":
+            if not request.user.is_authenticated or not slug:
+                raise Http404
+            space = workspace_spaces(request.user).filter(slug=slug).first()
+            if space is None:
+                raise Http404
+            params = request.GET.copy()
+            params.pop("context", None)
+            params.pop("space", None)
+            # A cursor created for another URL/actor is never reused.
+            params.pop("page", None)
+            params.pop("continuation", None)
+            url = reverse(
+                "organizations:space-discover", kwargs={"slug": space.slug},
+            )
+            return redirect(url + ("?" + params.urlencode() if params else ""))
+        elif requested not in (None, "", "personal") or slug:
+            raise Http404
+        return super().get(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         space = getattr(self, "space", None)
