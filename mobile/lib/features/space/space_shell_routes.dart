@@ -235,7 +235,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                   );
             if (freshness == FreshnessState.expired) {
               return MakoloErrorState(
-                message: 'Cette observation a expiré.',
+                message: 'Ces informations ne sont plus à jour.',
                 onRetry: _refresh,
               );
             }
@@ -254,7 +254,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            projection == null ? 'Actualisation indisponible.' : 'Impossible d’actualiser. Les dernières informations enregistrées restent affichées.',
+                            projection == null ? 'Impossible d’afficher les informations.' : 'Les informations affichées peuvent avoir changé.',
                           ),
                         ),
                         MakoloActionButton(
@@ -336,10 +336,8 @@ class _SpaceProjectionBody extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const MakoloEmptyState(
-            title: 'Aucune situation établie dans cette perspective.',
-            body:
-                'La couverture actuelle reste partielle. Makolo ne peut pas '
-                'encore conclure que tout est en ordre pour cet Espace.',
+            title: 'Rien à afficher pour le moment.',
+            body: 'Vous pouvez actualiser pour voir les dernières informations.',
             icon: Icons.info_outline_rounded,
           ),
           MakoloActionButton(
@@ -821,7 +819,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Action indisponible. Le serveur n’a pas confirmé la modification.',
+              'Cette modification n’a pas été enregistrée.',
             ),
           ),
         );
@@ -1065,8 +1063,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Retirer ce collaborateur ?'),
         content: Text(
-          'Retirer ${_depthRowLabel(row)} peut révoquer ses Mandates. '
-          'Le serveur protège les contraintes de propriété du Space.',
+          'Retirer ${_depthRowLabel(row)} peut également lui retirer '
+          'ses responsabilités dans cet Espace.',
         ),
         actions: [
           MakoloActionButton(
@@ -1152,7 +1150,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 .evaluate(snapshot.data!, now: DateTime.now());
             if (freshness == FreshnessState.expired) {
               return MakoloErrorState(
-                message: 'Cette observation n’est plus assez récente pour être utilisée.',
+                message: 'Ces informations doivent être actualisées.',
                 onRetry: _retryDepth,
               );
             }
@@ -1387,7 +1385,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     )
               else
                 const MakoloEmptyState(
-                  title: 'Faits de vérification indisponibles.',
+                  title: 'Vérifications indisponibles.',
                 ),
             const Text(
               'Ces faits ne constituent pas un score global de confiance.',
