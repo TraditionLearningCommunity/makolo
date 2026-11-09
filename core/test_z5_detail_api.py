@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
 
 from rest_framework.test import APIClient
 
@@ -108,7 +109,7 @@ class Z5DetailAPIContractTests(TestCase):
     def test_web_n3_uses_canonical_goal_and_does_not_invent_progress(self):
         journey = self.journey()
         self.client.force_login(self.user)
-        response = self.client.get(f"/me/journeys/{journey.pk}/")
+        response = self.client.get(reverse("core:participant-journey-detail", args=[journey.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon objectif")
         self.assertContains(response, "mk-journey-hero")
