@@ -85,14 +85,18 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
+      key: ValueKey('requirement:${widget.repository.profileId}:${widget.assessmentId}'),
       stream: widget.repository.watchDetail(widget.assessmentId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
           stream: widget.repository.watchSource(widget.assessmentId),
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
-            final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            final ownerDenied = source.invalidated &&
+                const {'permission_denied', 'not_found'}
+                    .contains(source.lastErrorCode);
+            final projection = ownerDenied ? null : projectionSnapshot.data;
             final freshness = projection == null
                 ? null
                 : RequirementRepository.freshnessPolicy.evaluate(
@@ -103,10 +107,7 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
             final presentation = _RequirementPresentation.from(projection);
             final available = projection != null;
             // Only an explicit owner denial withdraws this local depth.
-            final ownerDenied = !available &&
-                source.invalidated &&
-                const {'permission_denied', 'not_found'}
-                    .contains(source.lastErrorCode);
+
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
