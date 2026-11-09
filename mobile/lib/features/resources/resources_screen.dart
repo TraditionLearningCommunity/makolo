@@ -94,6 +94,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         // Each owner remains independent; one failure must not block the hub.
       }
     }
+    try {
+      await widget.repository.sync?.refreshPersonalMe();
+    } on Object {
+      // Moi keeps its last acquired projection if the root refresh is unavailable.
+    }
   }
 
   Future<void> _refresh() async {
