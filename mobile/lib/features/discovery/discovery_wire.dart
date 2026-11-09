@@ -68,12 +68,26 @@ final class DiscoveryWire {
   static Map<String, dynamic> receiveItem(
     Map<String, dynamic> response, {
     required String scope,
+    String? expectedSpaceId,
+    String? expectedViewerId,
   }) {
     final envelope = ProjectionEnvelope.parse(
       response,
       expectedProjection: 'discovery.item',
       expectedScope: scope,
     );
+    if (scope == 'space') {
+      final actor = _map(envelope.data['actor']);
+      final viewer = _map(envelope.data['viewer']);
+      if (expectedSpaceId == null ||
+          expectedViewerId == null ||
+          actor?['type'] != 'space' ||
+          actor?['id'] != expectedSpaceId ||
+          viewer?['type'] != 'profile' ||
+          viewer?['id'] != expectedViewerId) {
+        throw const FormatException('Unverified Space Discovery detail');
+      }
+    }
     final item = _map(envelope.data['item']);
     if (item == null) {
       throw const FormatException('Missing Discovery detail');
