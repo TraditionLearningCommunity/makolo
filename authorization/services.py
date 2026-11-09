@@ -11,6 +11,7 @@ from .constants import (
     PermissionCode,
     STANDARD_ACTIVITY_ROLE_CODES,
     STANDARD_DOSSIER_ROLE_CODES,
+    PROJECT_PERMISSION_CODES,
     STANDARD_PROJECT_ROLE_CODES,
     STANDARD_GROUP_ROLE_CODES,
     STANDARD_SPACE_ROLE_CODES,
@@ -100,6 +101,10 @@ def can(profile, permission_code: str, space=None, *, group=None, activity=None,
         return False
     if getattr(profile, "is_superuser", False):
         return True
+    # A Project permission is meaningful only for a specific Project.
+    # Never widen a mandate on Project A into authority over Project B.
+    if permission_code in PROJECT_PERMISSION_CODES and project is None:
+        return False
     if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, dossier=dossier, project=project, at=at, include_platform=include_platform):
         return True
     if activity is not None and getattr(activity, "space_id", None):
