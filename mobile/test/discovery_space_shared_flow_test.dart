@@ -169,6 +169,57 @@ void main() {
     expect(repository, contains("page.payload['surface'] != 'discover_space'"));
   });
 
+  test('a Space route keeps actor identity through list/map/search and page', () {
+    const actor = DiscoveryQuery(
+      spaceSlug: 'atelier',
+      spaceId: 'space-a',
+      text: 'atelier',
+      place: 'Kinshasa',
+      pageSize: 2,
+    );
+    final next = actor.copyWith(page: 2, continuation: 'opaque-signed-cursor');
+    expect(next.isSpace, isTrue);
+    expect(next.parameters['space'], 'atelier');
+    expect(next.parameters['continuation'], 'opaque-signed-cursor');
+    expect(next.fingerprint, isNot(actor.fingerprint));
+    expect(next.mapFingerprint, actor.mapFingerprint);
+    for (final path in ['/discover/search', '/discover/map']) {
+      final route = Uri.parse(next.routeLocation(path));
+      expect(route.queryParameters['context'], 'space');
+      expect(route.queryParameters['space'], 'atelier');
+      expect(route.queryParameters['page'], '2');
+      final restored = DiscoveryQuery.fromRouteParameters(route.queryParameters)
+          .copyWith(spaceId: actor.spaceId);
+      expect(restored.fingerprint, next.fingerprint);
+    }
+    expect(
+      next.copyWith(text: 'festival', page: 1, clearContinuation: true).spaceId,
+      'space-a',
+    );
+    expect(next.watchCriteria, isNot(contains('context')));
+    expect(next.watchCriteria, isNot(contains('continuation')));
+  });
+
+  test('actor guard and read-only map controls survive route changes', () {
+    final appRouter = File('lib/app/router.dart').readAsStringSync();
+    final discoveryRoutes =
+        File('lib/features/discovery/discovery_routes.dart').readAsStringSync();
+    final screens =
+        File('lib/features/discovery/discovery_screens.dart').readAsStringSync();
+    final map =
+        File('lib/features/discovery/discovery_mature_view.dart').readAsStringSync();
+    final repository =
+        File('lib/features/discovery/discovery_repository.dart').readAsStringSync();
+    expect(appRouter, contains("parameters.containsKey('context')"));
+    expect(discoveryRoutes, contains('actor is SpaceActorContext ? null : query'));
+    expect(discoveryRoutes, contains("_contextualItemRoute('activity', id, query)"));
+    expect(screens, contains('collectiveReadOnly: _query.isSpace'));
+    expect(map, contains('if (!collectiveReadOnly) Expanded('));
+    expect(repository, contains("field['surface'] != 'discover_space'"));
+    expect(repository, contains("field['surface'] != 'discover_me'"));
+    expect(screens, contains('await repository.readItem('));
+  });
+
   test('Space shell reuses canonical N1 and generic search/map routes', () {
     final shell = File('lib/features/space/space_shell_routes.dart').readAsStringSync();
     final routes = File('lib/features/discovery/discovery_routes.dart').readAsStringSync();
