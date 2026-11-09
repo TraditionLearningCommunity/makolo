@@ -306,11 +306,13 @@ class Z5DetailAPIContractTests(TestCase):
     def test_occurrence_live_link_requires_actual_participant_projection(self):
         occurrence = create_occurrence(
             activity=self.activity,
-            start_at=timezone.now() + timedelta(hours=2),
-            end_at=timezone.now() + timedelta(hours=4),
+            start_at=timezone.now() - timedelta(minutes=5),
+            end_at=timezone.now() + timedelta(hours=2),
             timezone="Africa/Lubumbashi",
             status=OccurrenceStatus.SCHEDULED,
         )
+        occurrence.live_enabled = True
+        occurrence.save(update_fields=["live_enabled", "updated_at"])
         self.journey(occurrence=occurrence)
 
         self.client.force_authenticate(self.user)
