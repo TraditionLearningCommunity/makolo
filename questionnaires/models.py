@@ -254,3 +254,7 @@ class FormAnswer(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+# Imported after the canonical owners to register private questionnaire media.
+from .media_models import QuestionnaireMedia  # noqa: E402,F401
