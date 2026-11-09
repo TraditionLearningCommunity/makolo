@@ -202,7 +202,7 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
         space = Organization.objects.filter(slug__iexact=identifier).first()
         if not space or not _eligible_space(space) or not (
             (space.public_profile and space.searchable)
-            or can(actor, PermissionCode.SPACE_CONVERSATIONS_VIEW, space=space)
+            or can(actor, PermissionCode.SPACE_VIEW, space=space)
         ):
             raise ValidationError("Cet identifiant Makolo n'est pas disponible.")
         target = {"space": space, "group": None}
