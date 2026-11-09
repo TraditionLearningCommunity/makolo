@@ -134,6 +134,17 @@ class DiscoveryContextualDetailTests(TestCase):
         self.assertNotIn("saved", item["links"])
         self.assertNotIn("web_saved", item["links"])
 
+    def test_space_parameter_cannot_trigger_personal_save_mutation(self):
+        saved_url = reverse(
+            "discovery_api:item-saved",
+            kwargs={"family": "activity", "item_id": self.activity.pk},
+        ) + "?" + urlencode(self._space_query())
+        self.client.force_authenticate(self.viewer)
+        put = self.client.put(saved_url)
+        delete = self.client.delete(saved_url)
+        self.assertEqual(put.status_code, 400)
+        self.assertEqual(delete.status_code, 400)
+
     def test_forged_or_revoked_space_context_never_falls_back_to_personal(self):
         self.client.force_authenticate(self.outsider)
         self.assertEqual(self.client.get(self.url, self._space_query()).status_code, 404)
