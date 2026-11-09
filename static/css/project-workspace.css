@@ -21,13 +21,7 @@
 .mk-project__facts {display:flex;gap:7px;flex-wrap:wrap;margin-top:16px}
 .mk-project__facts span {border:1px solid var(--edge);border-radius:9px;padding:7px 10px;color:#595369;font-size:12px;font-weight:650}
 .mk-project__hero-actions {display:flex;flex-wrap:wrap;gap:7px;align-items:center}
-.mk-project__quiet:not(.mk-action-button) {display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--violet)!important;font-size:13px;font-weight:700;padding:10px;cursor:pointer;border-radius:10px}
-.mk-project__quiet:not(.mk-action-button):hover {background:var(--soft)}
 .mk-project__commands {display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 27px}
-.mk-project__action:not(.mk-action-button) {display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:45px;border:1px solid #c2b7ef;border-radius:12px;padding:10px 15px;background:#fff;color:var(--violet);font-size:13px;font-weight:750;cursor:pointer}
-.mk-project__action:not(.mk-action-button):hover {background:var(--soft)}
-.mk-project__action--primary:not(.mk-action-button) {background:var(--violet);color:#fff;border-color:var(--violet)}
-.mk-project__action--primary:not(.mk-action-button):hover {background:var(--deep)}
 .mk-project__view-switch {display:inline-flex;gap:4px;border-radius:13px;background:#f2f0f7;padding:4px;margin-bottom:25px}
 .mk-project__view-switch button {display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;background:transparent;min-height:42px;padding:10px 16px;cursor:pointer;color:#6d6b7b;font-size:13px;font-weight:750}
 .mk-project__view-switch button[aria-pressed=true] {color:var(--violet);background:#fff;box-shadow:0 2px 7px #20124d10}
@@ -48,8 +42,6 @@
 .mk-project__card-meta span {background:var(--soft);padding:6px 9px;border-radius:8px;color:#554a67;font-size:11px;font-weight:650}
 .mk-project__card p {font-size:13px;line-height:1.6;color:var(--quiet);margin:12px 0 0}
 .mk-project__card-menu {margin-left:auto; flex:none;display:flex;gap:5px;align-items:center}
-.mk-project__card-menu button {background:#fff;border:1px solid var(--edge);border-radius:9px;min-width:36px;min-height:36px;display:grid;place-items:center;cursor:pointer;color:var(--quiet)}
-.mk-project__card-menu button:hover {color:var(--violet);background:var(--soft)}
 .mk-project__filters {display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:17px 0}
 .mk-project__filters label {display:grid;gap:6px;font-size:12px;color:var(--quiet);font-weight:650}
 .mk-project__filters :is(input,select) {background:white;border:1px solid var(--edge);padding:10px 11px;min-height:44px;border-radius:10px;max-width:100%;font-size:13px;color:var(--ink)}
@@ -74,7 +66,6 @@
 .mk-project__milestone small {color:var(--quiet)}
 .mk-project__more {text-align:center;margin:24px auto;font-size:13px;color:var(--quiet)}
 .mk-project__more[hidden] {display:none}
-.mk-project__more button {border:1px solid #c2b7ef;border-radius:11px;background:white;padding:11px 18px;color:var(--violet);font-weight:700;cursor:pointer}
 .mk-project__dialog {border:1px solid var(--edge);border-radius:18px;padding:0;box-shadow:0 24px 90px #160a4050;width:min(95%,540px);max-height:90vh;overflow:auto;color:var(--ink)}
 .mk-project__dialog::backdrop {background:rgba(14,12,35,.46)}
 .mk-project__dialog form {padding:25px;display:grid;gap:17px}
@@ -84,9 +75,6 @@
 .mk-project__field label {font-size:13px;font-weight:750}
 .mk-project__field :is(input,select,textarea) {width:100%;border:1px solid #d0cedb;border-radius:10px;padding:11px 12px;color:var(--ink);font:inherit;font-size:14px}
 .mk-project__dialog-actions {display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:8px}
-.mk-project__dialog-actions button:not(.mk-action-button) {min-height:43px;border:1px solid var(--edge);border-radius:10px;padding:9px 15px;background:#fff;color:var(--ink);font-weight:700;cursor:pointer}
-.mk-project__dialog-actions .mk-project__submit:not(.mk-action-button) {background:var(--violet);color:white;border-color:var(--violet)}
-.mk-project__dialog-actions .mk-project__danger {border-color:#cc4939;color:#ad3025}
 .mk-project__alert {font-size:13px;color:#ad3025}
 @media (max-width:800px) {
   .mk-project__hero {flex-direction:column}
