@@ -117,6 +117,15 @@ class DiscoverySpaceAcquisitionTests(TestCase):
         ):
             self.assertEqual(self.client.get(self.items_url, params).status_code, 400)
 
+    def test_space_endpoint_rejects_conflicting_actor_parameters(self):
+        self.client.force_authenticate(self.viewer)
+        for params in (
+            {"context": "personal"},
+            {"space": self.other_space.slug},
+            {"profile_id": str(self.outsider.pk)},
+        ):
+            self.assertEqual(self.client.get(self.space_url, params).status_code, 400)
+
     def test_space_endpoint_returns_400_for_invalid_cursor(self):
         self.client.force_authenticate(self.viewer)
         result = self.client.get(self.space_url, {"continuation": "invalid"})
