@@ -46,6 +46,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
         live = (
             True
             if journey.occurrence_id
+            and journey.occurrence.live_enabled
             and participant_occurrence_live_available(
                 occurrence=journey.occurrence,
                 actor=request.user,
