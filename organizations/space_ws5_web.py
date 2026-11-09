@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError
 from django.http import Http404, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
@@ -11,8 +11,10 @@ from django.views import View
 from access.models import AccessUseResult
 from access.services import resolve_access_credential, validate_access
 from activities.models import Occurrence
-from operations.occurrence_live import resolve_occurrence_live
-from operations.space_day_of import build_space_operator_day_of
+from operations.occurrence_experience import resolve_occurrence_experience
+from activities.services import set_occurrence_live_enabled
+from authorization.constants import PermissionCode
+from authorization.services import can
 from scanner.permissions import user_can_scan_activity
 from scanner.space_context import build_scanner_context
 
@@ -66,34 +68,62 @@ class SpaceOccurrenceDayOfView(_SpaceOccurrenceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        projection = build_space_operator_day_of(
-            occurrence=self.get_occurrence(),
-            actor=self.request.user,
+        occurrence = self.get_occurrence()
+        projection = resolve_occurrence_experience(
+            occurrence=occurrence,
+            viewer=self.request.user,
+            surface="day_of",
             observed_at=timezone.now(),
         )
         if projection is None:
             raise Http404
         context["projection"] = projection
+        context["can_configure_live"] = (
+            can(self.request.user, PermissionCode.ACTIVITY_MANAGE,
+                activity=occurrence.activity, include_platform=False)
+            or can(self.request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                   self.space, include_platform=False)
+        )
         return context
+
+    def post(self, request, *args, **kwargs):
+        # HTML form is a presentation handoff; the domain service rechecks
+        # canonical authority, including when this request bypasses the form.
+        if request.POST.get("action") != "configure_live":
+            raise Http404
+        enabled = request.POST.get("enabled")
+        if enabled not in {"0", "1"}:
+            raise Http404
+        set_occurrence_live_enabled(
+            occurrence=self.get_occurrence(),
+            actor=request.user,
+            enabled=enabled == "1",
+        )
+        return redirect(
+            "organizations:space-occurrence-day-of",
+            slug=self.space.slug,
+            occurrence_id=self.get_occurrence().pk,
+        )
 
 
 class SpaceOccurrenceLiveView(_SpaceOccurrenceWebMixin):
     template_name = "organizations/space/live.html"
     space_nav_key = ""
-    space_page_title = "Live"
+    space_page_title = "Makolo Live"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        generated_at = timezone.now()
-        projection = resolve_occurrence_live(
+        now = timezone.now()
+        projection = resolve_occurrence_experience(
             occurrence=self.get_occurrence(),
-            actor=self.request.user,
-            observed_at=generated_at,
+            viewer=self.request.user,
+            surface="live",
+            observed_at=now,
         )
-        if projection is None or projection.get("perspective") not in {"space", "operator"}:
+        if projection is None:
             raise Http404
         context["projection"] = projection
-        context["generated_at"] = generated_at
+        context["generated_at"] = now
         return context
 
 
