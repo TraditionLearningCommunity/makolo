@@ -26,11 +26,15 @@ class JourneyPaymentSummary {
     required this.currency,
     required this.state,
     this.reason,
+    this.obligationId,
+    this.orderId,
   });
   final String amount;
   final String currency;
   final String state;
   final String? reason;
+  final String? obligationId;
+  final String? orderId;
 }
 
 class JourneyPracticalFacts {
@@ -360,6 +364,8 @@ class JourneyDetailSelector {
       currency: currency,
       state: state,
       reason: _string(obligation['reason']),
+      obligationId: _string(obligation['id']),
+      orderId: _string(order['id']),
     );
   }
 
