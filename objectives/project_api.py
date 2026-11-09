@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from core.api.projections import projection_envelope
 from objectives.models import ProjectDossierLink
+from objectives.context import resolve_objective_context
 from objectives.project_workspace import project_dossier_page
 from objectives.selectors import (
     dossiers_for_profile, projects_for_profile,
@@ -92,7 +93,8 @@ class ProjectAuthorityAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         if not can_manage_project_authority(request.user, project):
             return Response({"detail": "Action non autorisée."},
                             status=status.HTTP_403_FORBIDDEN)
@@ -147,20 +149,24 @@ class ProjectDossiersAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         args = _page_args(request.query_params)
         if args is None:
             return Response({"detail": "Pagination invalide."},
                             status=status.HTTP_400_BAD_REQUEST)
         limit, offset = args
+        data = project_dossier_page(request.user, project, limit=limit, offset=offset)
+        data["actor_context"] = context.describe(project)
         return Response(projection_envelope(
             projection="objective.project.dossiers.collection",
-            data=project_dossier_page(request.user, project, limit=limit, offset=offset),
+            data=data,
             generated_at=timezone.now(), scope="authorized",
         ))
 
     def post(self, request, pk):
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         if not can_manage_project(request.user, project):
             return Response({"detail": "Action non autorisée."},
                             status=status.HTTP_403_FORBIDDEN)
@@ -178,7 +184,8 @@ class ProjectDossiersAPIView(APIView):
                     )
                 else:
                     dossier = get_object_or_404(
-                        dossiers_for_profile(request.user), pk=values["dossier_id"],
+                        context.filter(dossiers_for_profile(request.user)),
+                        pk=values["dossier_id"],
                     )
                 link_dossier_to_project(actor=request.user, project=project, dossier=dossier)
         except (PermissionDenied, ValidationError) as exc:
@@ -193,7 +200,8 @@ class ProjectDossierActionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk, dossier_id):
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         dossier = get_object_or_404(
             dossiers_for_profile(request.user)
             .filter(project_links__project=project, project_links__is_active=True),
@@ -209,7 +217,7 @@ class ProjectDossierActionAPIView(APIView):
                 )
             else:
                 target = get_object_or_404(
-                    projects_for_profile(request.user),
+                    context.filter(projects_for_profile(request.user)),
                     pk=values["target_project_id"],
                 )
                 move_dossier_to_project(
@@ -226,7 +234,8 @@ class ProjectLifecycleAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        project = get_object_or_404(projects_for_profile(request.user), pk=pk)
+        context = resolve_objective_context(request.query_params)
+        project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         command = ProjectLifecycleInput(data=request.data)
         command.is_valid(raise_exception=True)
         try:

@@ -123,6 +123,48 @@ class DossierActorContextTests(TestCase):
         self.dossier.refresh_from_db()
         self.assertEqual(self.dossier.title, "Dossier unique")
 
+    def test_explicit_space_creation_and_personal_compatibility(self):
+        url = reverse("objectives_api:dossier-list")
+        response = self.client.post(
+            url + "?context=space&space=" + self.a.slug,
+            {"title": "Dossier créé en contexte A"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        from objectives.models import Dossier
+        created = Dossier.objects.get(pk=response.data["id"])
+        self.assertEqual(created.owning_space_id, self.a.pk)
+        self.assertIsNone(created.owner_profile_id)
+        wrong = self.client.post(
+            url + "?context=space&space=" + self.a.slug,
+            {"title": "Mauvaise portée", "owning_space_id": str(self.b.pk)},
+            format="json",
+        )
+        self.assertEqual(wrong.status_code, 400)
+        personal = self.client.post(
+            url, {"title": "Création personnelle"}, format="json",
+        )
+        self.assertEqual(personal.status_code, 201)
+        self.assertEqual(
+            Dossier.objects.get(pk=personal.data["id"]).owner_profile_id,
+            self.viewer.pk,
+        )
+
+    def test_space_organizer_composes_only_real_authorized_references(self):
+        response = self.client.get(
+            reverse("objectives_api:organizer"), self.scope(self.a),
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        data = response.data["data"]
+        self.assertEqual(data["actor"]["id"], str(self.viewer.pk))
+        self.assertEqual(data["actor_context"]["kind"], "space")
+        listed = {(item["kind"], item["id"]) for item in data["items"]}
+        self.assertIn(("project", str(self.project_a.pk)), listed)
+        self.assertIn(("dossier", str(self.dossier.pk)), listed)
+        self.assertNotIn(("project", str(self.project_b.pk)), listed)
+        self.assertNotIn(("dossier", str(self.other_dossier.pk)), listed)
+        self.assertNotIn(("dossier", str(self.personal.pk)), listed)
+
     def test_rejects_invalid_or_impostor_context_and_denies_outsider(self):
         for query in (
             {"space": self.a.slug},

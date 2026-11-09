@@ -183,9 +183,12 @@ class OrganizerCollectionAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         limit, offset = args
+        context = resolve_objective_context(request.query_params)
         return Response(projection_envelope(
             projection="objective.organizer.collection",
-            data=build_organizer_page(request.user, limit=limit, offset=offset),
+            data=build_organizer_page(
+                request.user, limit=limit, offset=offset, actor_context=context,
+            ),
             generated_at=timezone.now(),
             scope="authorized",
         ))
@@ -216,8 +219,18 @@ def _create_objective(request, kind):
     command = serializer(data=request.data)
     command.is_valid(raise_exception=True)
     values = dict(command.validated_data)
+    context = resolve_objective_context(request.query_params)
     space_id = values.pop("owning_space_id", None)
-    space = get_object_or_404(Organization, pk=space_id) if space_id else None
+    if context.kind == "space":
+        # A Space lens cannot silently create a personal objective or place
+        # an objective in another Space. Services still enforce real authority.
+        space = get_object_or_404(Organization, slug=context.space_slug)
+        if space_id is not None and space_id != space.pk:
+            raise serializers.ValidationError({
+                "owning_space_id": "Le contexte Espace ne correspond pas.",
+            })
+    else:
+        space = get_object_or_404(Organization, pk=space_id) if space_id else None
     common = {
         "actor": request.user,
         "owner_profile": None if space else request.user,

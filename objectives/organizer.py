@@ -20,7 +20,7 @@ def _iso(value):
     return value.isoformat() if value is not None else None
 
 
-def build_organizer_page(profile, *, limit=50, offset=0):
+def build_organizer_page(profile, *, limit=50, offset=0, actor_context=None):
     """A synchronized window per kind, with truthful partial-coverage flags.
 
     Offset is shared for the three independently ordered collections. A page
@@ -30,6 +30,15 @@ def build_organizer_page(profile, *, limit=50, offset=0):
     visible_projects = projects_for_profile(profile)
     visible_dossiers = dossiers_for_profile(profile)
     visible_journeys = participant_journeys(profile).prefetch_related(None)
+    if actor_context is not None and actor_context.kind == "space":
+        visible_projects = actor_context.filter(visible_projects)
+        visible_dossiers = actor_context.filter(visible_dossiers)
+        # Only Journeys visible to this participant and genuinely linked
+        # to visible Dossiers of the selected Space are indexed.
+        visible_journeys = visible_journeys.filter(
+            dossier_links__is_active=True,
+            dossier_links__dossier_id__in=visible_dossiers.values_list("pk", flat=True),
+        ).distinct()
     projects = list(visible_projects.order_by("-updated_at", "id")[offset:offset + limit + 1])
     dossiers = list(visible_dossiers.order_by("-updated_at", "id")[offset:offset + limit + 1])
     journeys = list(visible_journeys.order_by("-updated_at", "id")[offset:offset + limit + 1])
@@ -117,6 +126,8 @@ def build_organizer_page(profile, *, limit=50, offset=0):
     spaces = Organization.objects.order_by("name", "id")
     if manageable is not None:
         spaces = spaces.filter(pk__in=manageable)
+    if actor_context is not None and actor_context.kind == "space":
+        spaces = spaces.filter(slug=actor_context.space_slug)
 
     return {
         "manageable_spaces": [
@@ -124,6 +135,8 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             for space in spaces[:50]
         ] if offset == 0 else [],
         "actor": {"type": "profile", "id": str(profile.pk)},
+        "actor_context": (actor_context.describe() if actor_context
+                          else {"kind": "personal"}),
         "items": items,
         "page": {
             "offset": offset,
