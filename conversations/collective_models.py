@@ -76,7 +76,7 @@ class ConversationCollectiveAccess(models.Model):
         indexes = [
             models.Index(
                 fields=["conversation", "status"],
-                name="conv_collective_conv_status_idx",
+                name="conv_coll_conv_status_idx",
             ),
         ]
 
