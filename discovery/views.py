@@ -748,7 +748,10 @@ class DiscoveryHomeView(TemplateView):
                                 ),
                             },
                             "cta_label": engagement_presentation.get("label"),
-                            "url": (item.get("links") or {}).get("web"),
+                            "url": (
+                                (item.get("links") or {}).get("web")
+                                if space is None else None
+                            ),
                         }
                     )
 
