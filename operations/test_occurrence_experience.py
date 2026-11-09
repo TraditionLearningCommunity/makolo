@@ -6,6 +6,8 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from django.utils import timezone
 
+from authorization.constants import PermissionCode
+
 from .occurrence_experience import resolve_occurrence_experience
 from .occurrence_experience_facts import compose_live_knowledge
 
@@ -30,14 +32,18 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
     ):
         participant = participant
         institutional = [] if institutional is None else institutional
-        # _owner_permission is called in order: finance view,
-        # operations view, finance manage.
+        def owner_permission(_viewer, _occurrence, permission, _space_permission=None):
+            return (
+                (permission == PermissionCode.ACTIVITY_FINANCE_VIEW and finance)
+                or (permission == PermissionCode.ACTIVITY_OPERATIONS_VIEW and owner_operations)
+            )
+
         with (
             patch("operations.occurrence_experience.occurrence_live_phase", return_value=phase),
             patch("operations.occurrence_experience.resolve_participant_occurrence_live", return_value=participant),
             patch("operations.occurrence_experience.user_can_view_activity_operations", return_value=operator is not None),
             patch("operations.occurrence_experience.resolve_occurrence_live", return_value=operator),
-            patch("operations.occurrence_experience._owner_permission", side_effect=[finance, owner_operations, False]),
+            patch("operations.occurrence_experience._owner_permission", side_effect=owner_permission),
             patch("operations.occurrence_experience.user_can_manage_activity_operations", return_value=False),
             patch("operations.occurrence_experience.user_can_scan_activity", return_value=scanner),
             patch("operations.occurrence_experience.has_platform_authority", return_value=platform),
