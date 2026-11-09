@@ -32,8 +32,7 @@ def timeline_presentation(profile, point, *, interactions=None):
         profile, point,
     )
     lifecycle = point.lifecycle
-    state = point.user_states.filter(profile=profile).first()
-    if state and state.revisit_at and lifecycle not in TERMINAL_LIFECYCLES:
+    if actions.get("revisit") and lifecycle not in TERMINAL_LIFECYCLES:
         return {"compact": False, "summary": ""}
     if point.shared_pinned_at and lifecycle not in TERMINAL_LIFECYCLES:
         return {"compact": False, "summary": ""}
