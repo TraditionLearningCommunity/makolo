@@ -107,7 +107,29 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         )
         self.revoked_credential.full_clean()
         self.revoked_credential.save()
+        self.asset = PersonalAsset.objects.create(
+            controller=self.participant,
+            subject_profile=self.participant,
+            title="CV Makolo",
+        )
         self.client.force_login(self.participant)
+
+    def test_moi_preview_handoffs_open_canonical_resource_depths(self):
+        response = self.client.get(reverse("core:participant-me"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse("personal_assets:detail", args=[self.asset.pk]),
+        )
+        self.assertContains(
+            response,
+            reverse("trust:proof-detail", args=[self.proof.pk]),
+        )
+        self.assertContains(
+            response,
+            reverse("trust:credential-detail", args=[self.credential.pk]),
+        )
+        self.assertContains(response, "Titres")
 
     def test_hub_links_to_distinct_proof_and_title_surfaces(self):
         response = self.client.get(reverse("personal_assets:list"))
