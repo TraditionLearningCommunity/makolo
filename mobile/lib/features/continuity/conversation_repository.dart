@@ -863,8 +863,11 @@ class ConversationRepository {
     );
     final rows = response.jsonObject()['results'];
     return rows is List
-        ? [for (final row in rows) if (row is Map)
-            row.map((key, value) => MapEntry(key.toString(), value))]
+        ? [
+            for (final row in rows)
+              if (row is Map)
+                row.map((key, value) => MapEntry(key.toString(), value)),
+          ]
         : const [];
   }
 
@@ -897,7 +900,8 @@ class ConversationRepository {
     required String resourceId,
   }) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion requise pour modifier les participants.');
+    if (engine == null)
+      throw StateError('Connexion requise pour modifier les participants.');
     final route = switch (operation) {
       'remove' => 'participants/$resourceId/remove/',
       'cancel' => 'invitations/$resourceId/cancel/',
@@ -908,9 +912,13 @@ class ConversationRepository {
       'api/v1/conversations/$conversationId/$route',
     );
     if (response.jsonObject()['status'] == null) {
-      throw const FormatException('Modification de participation non confirmée.');
+      throw const FormatException(
+        'Modification de participation non confirmée.',
+      );
     }
-    try { await refreshDetail(conversationId); } on Object {
+    try {
+      await refreshDetail(conversationId);
+    } on Object {
       // Confirmed removal can itself revoke this Profile's access.
     }
   }
@@ -928,8 +936,16 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('Décision non confirmée.');
     }
-    try { await refreshInvitations(); } on Object { /* Owner will reconcile. */ }
-    try { await refreshList(); } on Object { /* Owner will reconcile. */ }
+    try {
+      await refreshInvitations();
+    } on Object {
+      /* Owner will reconcile. */
+    }
+    try {
+      await refreshList();
+    } on Object {
+      /* Owner will reconcile. */
+    }
   }
 
   Future<void> decideJoinRequest({
@@ -946,21 +962,27 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('Décision non confirmée.');
     }
-    try { await refreshDetail(conversationId); } on Object {
+    try {
+      await refreshDetail(conversationId);
+    } on Object {
       // Keep the confirmed decision, allow next owner acquisition.
     }
   }
 
   Future<List<Map<String, dynamic>>> conversationJoinRequests(String id) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion requise pour voir les demandes.');
+    if (engine == null)
+      throw StateError('Connexion requise pour voir les demandes.');
     final response = await engine.api.get(
       'api/v1/conversations/$id/join-requests/',
     );
     final rows = response.jsonObject()['results'];
     return rows is List
-        ? [for (final row in rows) if (row is Map)
-            row.map((key, value) => MapEntry(key.toString(), value))]
+        ? [
+            for (final row in rows)
+              if (row is Map)
+                row.map((key, value) => MapEntry(key.toString(), value)),
+          ]
         : const [];
   }
 
@@ -969,7 +991,8 @@ class ConversationRepository {
     required String action,
   }) async {
     final engine = sync;
-    if (engine == null) throw StateError('Connexion requise pour changer de participation.');
+    if (engine == null)
+      throw StateError('Connexion requise pour changer de participation.');
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/entry/',
       body: {'action': action},
@@ -977,7 +1000,9 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('État de participation non confirmé.');
     }
-    try { await refreshDetail(conversationId); } on Object {
+    try {
+      await refreshDetail(conversationId);
+    } on Object {
       // Leaving can legitimately revoke the current viewer's detail.
     }
   }

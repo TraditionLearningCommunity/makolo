@@ -567,11 +567,15 @@ class _ConversationInvitationCardState
     });
     try {
       final conversationId = widget.invitation.collective
-          ? await widget.repository.decideCollectiveInvitation(
-              accessId: widget.invitation.id, accept: accept,
-            ).then((_) => widget.invitation.conversationId)
+          ? await widget.repository
+                .decideCollectiveInvitation(
+                  accessId: widget.invitation.id,
+                  accept: accept,
+                )
+                .then((_) => widget.invitation.conversationId)
           : await widget.repository.respondToInvitation(
-              invitationId: widget.invitation.id, accept: accept,
+              invitationId: widget.invitation.id,
+              accept: accept,
             );
       if (!mounted) return;
       if (accept && conversationId != null && !widget.invitation.collective) {
@@ -3434,30 +3438,37 @@ class _ConversationInvitation {
     for (final row in _maps(projection?.payload['results'])) {
       final id = _string(row['id']);
       if (id == null || id.isEmpty) continue;
-      results.add(_ConversationInvitation(
-        id: id,
-        conversationId: _string(row['conversation_id']) ?? '',
-        status: _string(row['status']) ?? '',
-        expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
-        createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
-      ));
+      results.add(
+        _ConversationInvitation(
+          id: id,
+          conversationId: _string(row['conversation_id']) ?? '',
+          status: _string(row['status']) ?? '',
+          expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+          createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
+        ),
+      );
     }
     for (final row in _maps(projection?.payload['collective_results'])) {
       final id = _string(row['id']);
       if (id == null || id.isEmpty) continue;
-      results.add(_ConversationInvitation(
-        id: id,
-        conversationId: _string(row['conversation_id']) ?? '',
-        status: _string(row['status']) ?? '',
-        collective: true,
-        label: _string(row['label']),
-        identifier: _string(row['identifier']),
-        expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
-        createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
-      ));
+      results.add(
+        _ConversationInvitation(
+          id: id,
+          conversationId: _string(row['conversation_id']) ?? '',
+          status: _string(row['status']) ?? '',
+          collective: true,
+          label: _string(row['label']),
+          identifier: _string(row['identifier']),
+          expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+          createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
+        ),
+      );
     }
-    results.sort((a, b) => (a.createdAt ?? DateTime(2000))
-        .compareTo(b.createdAt ?? DateTime(2000)));
+    results.sort(
+      (a, b) => (a.createdAt ?? DateTime(2000)).compareTo(
+        b.createdAt ?? DateTime(2000),
+      ),
+    );
     return results;
   }
 }

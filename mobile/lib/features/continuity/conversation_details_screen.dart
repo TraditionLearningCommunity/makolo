@@ -341,7 +341,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       changed.value++;
       try {
         final results = await widget.repository.searchInvitationCandidates(
-          conversationId: widget.conversationId, query: q,
+          conversationId: widget.conversationId,
+          query: q,
         );
         if (request == generation) {
           candidates = results;
@@ -376,8 +377,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Inviter par identifiant Makolo',
-                        style: Theme.of(sheetContext).textTheme.titleLarge),
+                    Text(
+                      'Inviter par identifiant Makolo',
+                      style: Theme.of(sheetContext).textTheme.titleLarge,
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       'Aucun contact obligatoire. Les noms sont des indications : '
@@ -388,17 +391,23 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                     DropdownButtonFormField<String>(
                       value: kind,
                       decoration: const InputDecoration(
-                        labelText: 'Type', border: OutlineInputBorder(),
+                        labelText: 'Type',
+                        border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'profile', child: Text('Profil')),
+                        DropdownMenuItem(
+                          value: 'profile',
+                          child: Text('Profil'),
+                        ),
                         DropdownMenuItem(value: 'space', child: Text('Espace')),
                         DropdownMenuItem(value: 'group', child: Text('Groupe')),
                       ],
-                      onChanged: sending ? null : (value) {
-                        kind = value ?? 'profile';
-                        changed.value++;
-                      },
+                      onChanged: sending
+                          ? null
+                          : (value) {
+                              kind = value ?? 'profile';
+                              changed.value++;
+                            },
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -417,14 +426,16 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         search();
                       },
                     ),
-                    if (searching)
-                      const LinearProgressIndicator(minHeight: 2),
+                    if (searching) const LinearProgressIndicator(minHeight: 2),
                     if (error != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(error!, style: TextStyle(
-                          color: Theme.of(sheetContext).colorScheme.error,
-                        )),
+                        child: Text(
+                          error!,
+                          style: TextStyle(
+                            color: Theme.of(sheetContext).colorScheme.error,
+                          ),
+                        ),
                       ),
                     Expanded(
                       child: ListView(
@@ -432,15 +443,27 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                           for (final candidate in candidates)
                             if (candidate['kind'] == kind)
                               ListTile(
-                                title: Text(candidate['label']?.toString() ?? 'Makolo'),
-                                subtitle: Text(candidate['description']?.toString() ??
-                                  candidate['identifier']?.toString() ?? ''),
-                                onTap: sending ? null : () {
-                                  kind = candidate['kind']?.toString() ?? kind;
-                                  input.text = candidate['identifier']?.toString() ?? '';
-                                  candidates = [];
-                                  changed.value++;
-                                },
+                                title: Text(
+                                  candidate['label']?.toString() ?? 'Makolo',
+                                ),
+                                subtitle: Text(
+                                  candidate['description']?.toString() ??
+                                      candidate['identifier']?.toString() ??
+                                      '',
+                                ),
+                                onTap: sending
+                                    ? null
+                                    : () {
+                                        kind =
+                                            candidate['kind']?.toString() ??
+                                            kind;
+                                        input.text =
+                                            candidate['identifier']
+                                                ?.toString() ??
+                                            '';
+                                        candidates = [];
+                                        changed.value++;
+                                      },
                               ),
                           if (!searching && candidates.isEmpty)
                             const Padding(
@@ -454,33 +477,42 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       ),
                     ),
                     FilledButton.icon(
-                      onPressed: sending || input.text.trim().isEmpty ? null : () async {
-                        sending = true;
-                        error = null;
-                        changed.value++;
-                        try {
-                          await widget.repository.inviteIdentifier(
-                            conversationId: widget.conversationId,
-                            kind: kind, identifier: input.text.trim(),
-                          );
-                          if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text(
-                                'Invitation enregistrée. Une acceptation est nécessaire.',
-                              )),
-                            );
-                          }
-                        } on Object {
-                          error = 'Invitation non confirmée. Vérifiez l’identifiant '
-                            'et les règles de confidentialité.';
-                        } finally {
-                          sending = false;
-                          changed.value++;
-                        }
-                      },
+                      onPressed: sending || input.text.trim().isEmpty
+                          ? null
+                          : () async {
+                              sending = true;
+                              error = null;
+                              changed.value++;
+                              try {
+                                await widget.repository.inviteIdentifier(
+                                  conversationId: widget.conversationId,
+                                  kind: kind,
+                                  identifier: input.text.trim(),
+                                );
+                                if (sheetContext.mounted)
+                                  Navigator.of(sheetContext).pop();
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Invitation enregistrée. Une acceptation est nécessaire.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } on Object {
+                                error =
+                                    'Invitation non confirmée. Vérifiez l’identifiant '
+                                    'et les règles de confidentialité.';
+                              } finally {
+                                sending = false;
+                                changed.value++;
+                              }
+                            },
                       icon: const Icon(Icons.person_add_alt_rounded),
-                      label: Text(sending ? 'Envoi…' : 'Envoyer une invitation'),
+                      label: Text(
+                        sending ? 'Envoi…' : 'Envoyer une invitation',
+                      ),
                     ),
                   ],
                 ),
@@ -519,15 +551,21 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       ),
     );
     if (!mounted || approved != true) return;
-    setState(() { _busy = operation; _error = null; });
+    setState(() {
+      _busy = operation;
+      _error = null;
+    });
     try {
       await widget.repository.manageConversationParticipant(
         conversationId: widget.conversationId,
-        operation: operation, resourceId: resourceId,
+        operation: operation,
+        resourceId: resourceId,
       );
     } on Object {
-      if (mounted) setState(() => _error =
-        'Action non confirmée. Actualisez les participants.');
+      if (mounted)
+        setState(
+          () => _error = 'Action non confirmée. Actualisez les participants.',
+        );
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -547,13 +585,16 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true, useSafeArea: true,
+      showDragHandle: true,
+      useSafeArea: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, refresh) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Demandes d’entrée',
-                style: Theme.of(sheetContext).textTheme.titleLarge),
+            Text(
+              'Demandes d’entrée',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
             for (final row in entries)
               ListTile(
                 title: Text(row['label']?.toString() ?? 'Profil'),
@@ -566,11 +607,14 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         try {
                           await widget.repository.decideJoinRequest(
                             conversationId: widget.conversationId,
-                            requestId: row['id'].toString(), approve: false,
+                            requestId: row['id'].toString(),
+                            approve: false,
                           );
                           entries.remove(row);
                           refresh(() {});
-                        } on Object { /* Owner state unchanged. */ }
+                        } on Object {
+                          /* Owner state unchanged. */
+                        }
                       },
                       child: const Text('Refuser'),
                     ),
@@ -579,20 +623,22 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         try {
                           await widget.repository.decideJoinRequest(
                             conversationId: widget.conversationId,
-                            requestId: row['id'].toString(), approve: true,
+                            requestId: row['id'].toString(),
+                            approve: true,
                           );
                           entries.remove(row);
                           refresh(() {});
-                        } on Object { /* Owner state unchanged. */ }
+                        } on Object {
+                          /* Owner state unchanged. */
+                        }
                       },
                       child: const Text('Accepter'),
                     ),
                   ],
                 ),
               ),
-            if (entries.isEmpty) const ListTile(
-              title: Text('Aucune demande en attente'),
-            ),
+            if (entries.isEmpty)
+              const ListTile(title: Text('Aucune demande en attente')),
           ],
         ),
       ),
@@ -601,14 +647,21 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
 
   Future<void> _selfEntry(String action) async {
     if (_busy != null) return;
-    setState(() { _busy = action; _error = null; });
+    setState(() {
+      _busy = action;
+      _error = null;
+    });
     try {
       await widget.repository.conversationSelfEntry(
-        conversationId: widget.conversationId, action: action,
+        conversationId: widget.conversationId,
+        action: action,
       );
     } on Object {
-      if (mounted) setState(() => _error =
-        'Demande non confirmée. Actualisez pour connaître votre état.');
+      if (mounted)
+        setState(
+          () => _error =
+              'Demande non confirmée. Actualisez pour connaître votre état.',
+        );
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -642,7 +695,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ),
           const SizedBox(height: 18),
         ],
-        if (data['can_join'] == true || data['can_request_entry'] == true ||
+        if (data['can_join'] == true ||
+            data['can_request_entry'] == true ||
             data['entry_request_status'] == 'pending') ...[
           Wrap(
             spacing: 8,
@@ -664,8 +718,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ),
           const SizedBox(height: 14),
         ],
-        Text('Participants',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text('Participants', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (restricted)
           ListTile(
@@ -673,7 +726,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             title: const Text('Liste privée'),
             subtitle: Text(
               members['explanation']?.toString() ??
-                'Les personnes concernées dépendent du contexte.',
+                  'Les personnes concernées dépendent du contexte.',
             ),
           )
         else ...[
@@ -690,15 +743,17 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               title: Text(member['label']?.toString() ?? 'Profil'),
               subtitle: Text(
                 '@${member['identifier'] ?? ''}' +
-                (member['is_me'] == true ? ' · Vous' : ''),
+                    (member['is_me'] == true ? ' · Vous' : ''),
               ),
               trailing: manage && member['participation_id'] != null
                   ? IconButton(
                       tooltip: 'Retirer cette participation explicite',
-                      onPressed: _busy != null ? null : () =>
-                          _manageParticipant(
-                            'remove', member['participation_id'].toString(),
-                          ),
+                      onPressed: _busy != null
+                          ? null
+                          : () => _manageParticipant(
+                              'remove',
+                              member['participation_id'].toString(),
+                            ),
                       icon: const Icon(Icons.person_remove_outlined),
                     )
                   : null,
@@ -717,8 +772,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         ],
         if (manage) ...[
           const Divider(height: 26),
-          Text('Invitations individuelles',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Invitations individuelles',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
           if (invitations.isEmpty)
             const ListTile(title: Text('Aucune invitation en attente')),
@@ -729,15 +786,21 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               subtitle: Text(item['status']?.toString() ?? 'En attente'),
               trailing: item['status'] == 'pending'
                   ? TextButton(
-                      onPressed: _busy != null ? null : () =>
-                          _manageParticipant('cancel', item['id'].toString()),
+                      onPressed: _busy != null
+                          ? null
+                          : () => _manageParticipant(
+                              'cancel',
+                              item['id'].toString(),
+                            ),
                       child: const Text('Annuler'),
                     )
                   : null,
             ),
           const Divider(height: 26),
-          Text('Espaces et Groupes',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Espaces et Groupes',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           Text(
             'Les membres actuels sont dérivés après acceptation du collectif.',
             style: Theme.of(context).textTheme.bodySmall,
@@ -746,16 +809,25 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             const ListTile(title: Text('Aucun collectif invité')),
           for (final item in collectives)
             ListTile(
-              leading: Icon(item['kind'] == 'space'
-                  ? Icons.apartment_rounded : Icons.groups_rounded),
+              leading: Icon(
+                item['kind'] == 'space'
+                    ? Icons.apartment_rounded
+                    : Icons.groups_rounded,
+              ),
               title: Text(item['label']?.toString() ?? 'Collectif'),
-              subtitle: Text('${item['identifier'] ?? ''} · '
-                  '${item['status'] ?? ''}'),
-              trailing: item['status'] == 'pending' ||
-                      item['status'] == 'active'
+              subtitle: Text(
+                '${item['identifier'] ?? ''} · '
+                '${item['status'] ?? ''}',
+              ),
+              trailing:
+                  item['status'] == 'pending' || item['status'] == 'active'
                   ? TextButton(
-                      onPressed: _busy != null ? null : () =>
-                          _manageParticipant('revoke', item['id'].toString()),
+                      onPressed: _busy != null
+                          ? null
+                          : () => _manageParticipant(
+                              'revoke',
+                              item['id'].toString(),
+                            ),
                       child: const Text('Retirer'),
                     )
                   : null,
@@ -767,23 +839,30 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             label: const Text('Gérer les demandes d’entrée'),
           ),
         ],
-        if (people.any((item) => item['is_me'] == true &&
-            item['participation_id'] != null)) ...[
+        if (people.any(
+          (item) => item['is_me'] == true && item['participation_id'] != null,
+        )) ...[
           const SizedBox(height: 18),
           OutlinedButton(
-            onPressed: _busy != null ? null : () async {
-              setState(() => _busy = 'leave');
-              try {
-                await widget.repository.conversationSelfEntry(
-                  conversationId: widget.conversationId, action: 'leave',
-                );
-              } on Object {
-                if (mounted) setState(() =>
-                  _error = 'Sortie non confirmée. Vérifiez votre accès.');
-              } finally {
-                if (mounted) setState(() => _busy = null);
-              }
-            },
+            onPressed: _busy != null
+                ? null
+                : () async {
+                    setState(() => _busy = 'leave');
+                    try {
+                      await widget.repository.conversationSelfEntry(
+                        conversationId: widget.conversationId,
+                        action: 'leave',
+                      );
+                    } on Object {
+                      if (mounted)
+                        setState(
+                          () => _error =
+                              'Sortie non confirmée. Vérifiez votre accès.',
+                        );
+                    } finally {
+                      if (mounted) setState(() => _busy = null);
+                    }
+                  },
             child: const Text('Quitter ma participation explicite'),
           ),
         ],
