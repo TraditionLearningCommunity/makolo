@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
@@ -12,7 +14,17 @@ from journeys.models import Journey
 from organizations.models import Organization
 
 from .forms import DisputeStaffForm, FeedbackForm, ReportForm, ReportStaffForm, VerificationDecisionForm, VerificationRequestForm
-from .models import Dispute, Feedback, Proof, Report, TrustEvidence, VerificationClaim, VerificationClaimType
+from .models import (
+    Dispute,
+    Feedback,
+    Proof,
+    ProofStatus,
+    ProofType,
+    Report,
+    TrustEvidence,
+    VerificationClaim,
+    VerificationClaimType,
+)
 from .selectors import (
     dispute_visible_to,
     get_operator_trust_summary,
@@ -206,7 +218,72 @@ class MyProofsView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["proofs"] = proofs_for_profile(self.request.user)
+        query = (self.request.GET.get("q") or "").strip()[:120]
+        status = self.request.GET.get("status", "all")
+        proof_type = self.request.GET.get("type", "")
+        sort = self.request.GET.get("sort", "recent")
+        if status not in {"all", *ProofStatus.values}:
+            status = "all"
+        if proof_type not in {"", *ProofType.values}:
+            proof_type = ""
+        if sort not in {"recent", "oldest", "title"}:
+            sort = "recent"
+
+        proofs = proofs_for_profile(self.request.user)
+        if query:
+            matching_types = [
+                value
+                for value, label in ProofType.choices
+                if query.casefold() in label.casefold()
+                or query.casefold() in value.casefold()
+            ]
+            proofs = proofs.filter(
+                Q(journey__activity__title__icontains=query)
+                | Q(proof_type__in=matching_types)
+            )
+        if status != "all":
+            proofs = proofs.filter(status=status)
+        if proof_type:
+            proofs = proofs.filter(proof_type=proof_type)
+
+        if sort == "oldest":
+            proofs = proofs.order_by("issued_at", "id")
+        elif sort == "title":
+            proofs = proofs.order_by(
+                "proof_type",
+                "journey__activity__title",
+                "id",
+            )
+        else:
+            proofs = proofs.order_by("-issued_at", "id")
+
+        page = Paginator(proofs, 24).get_page(self.request.GET.get("page"))
+        context.update(
+            {
+                "proofs": page.object_list,
+                "page": page,
+                "query": query,
+                "active_status": status,
+                "active_type": proof_type,
+                "active_sort": sort,
+                "type_options": ProofType.choices,
+            }
+        )
+        return context
+
+
+class ProofDetailView(LoginRequiredMixin, TemplateView):
+    template_name = "trust/proof_detail.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        proof = proofs_for_profile(self.request.user).filter(
+            pk=kwargs["proof_id"]
+        ).first()
+        if proof is None:
+            raise Http404
+        context["proof"] = proof
         return context
 
 
