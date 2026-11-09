@@ -247,14 +247,14 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     freshness,
                   ),
                 ),
-                if (status.data?.lastErrorCode != null)
+                if (status.data?.lastErrorCode != null && projection == null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
-                            projection == null ? 'Impossible d’afficher les informations.' : 'Les informations affichées peuvent avoir changé.',
+                            'Impossible d’afficher les informations.'
                           ),
                         ),
                         MakoloActionButton(
@@ -1305,7 +1305,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           if (observationOnly) ...[
             const SizedBox(height: MakoloSpacing.md),
             const MakoloStatus(
-              label: 'Dernières informations enregistrées. Les actions nécessitent une connexion.',
+              label: 'Consultation uniquement pour le moment.',
               tone: MakoloStatusTone.info,
               icon: Icons.cloud_off_outlined,
             ),
