@@ -354,6 +354,7 @@ class _JourneyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final action = _nextActionButton();
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
@@ -447,7 +448,7 @@ class _JourneyContent extends StatelessWidget {
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                   Text(presentation.nextActionLabel!),
-                  if (_nextActionButton() case final action?) ...[
+                  if (action != null) ...[
                     const SizedBox(height: MakoloSpacing.md),
                     action,
                   ],
