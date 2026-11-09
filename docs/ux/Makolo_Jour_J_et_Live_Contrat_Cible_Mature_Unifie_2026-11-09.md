@@ -10,7 +10,7 @@
 
 ## 1. Principe central : deux pages, pas six
 
-**Une Occurrence. Une page Jour J. Une page Makolo Live. Plusieurs perspectives légitimes.**
+**Une Occurrence. Une page Jour J. Une page Makolo Live. Toutes les capacités légitimes coexistent dans la page, sans sélecteur de casquette obligatoire.**
 
 - **Jour J :** « Où en suis-je et que dois-je faire pour accomplir correctement cette Occurrence ? » C'est la page **d'action et d'orientation**.
 - **Makolo Live :** « Qu'est-ce qui est effectivement connu ou observé, qu'est-ce qui évolue et quelle est la qualité de cette connaissance ? » C'est la page **de réalité observée**.
@@ -30,11 +30,11 @@ Un **Profil** peut être participant et/ou organisateur. Un **Space** peut être
 
 Un Profil qui opère pour un Space doit posséder une délégation réelle ; choisir un Space dans l'interface ne transfère pas les permissions. Les capacités d'un organisateur ne sont pas uniformes : un membre chargé du scan ne reçoit pas automatiquement la gestion des capacités ou l'accès aux données privées.
 
-**Double position sur la même Occurrence :** une personne ou un Space peut légitimement participer et organiser. L'interface rend la perspective active explicite et permet le changement seulement lorsqu'il est autorisé. Chaque changement déclenche une revalidation de l'acteur, de la relation, du mandat et de la projection : **aucune union opportuniste de données privées**. La perspective plateforme, si applicable, demeure distincte.
+**Cumul et coexistence sur la même Occurrence :** une personne ou un Space peut légitimement être bénéficiaire **et** organisateur, et cumuler les mandats d'organisation (finance, logistique, Scanner, administration, etc.). **Aucun mode ni sélecteur « participant / organisateur / financier / logisticien / scanneur » n'est nécessaire pour révéler ses commandes.** Les faits et actions que l'acteur est autorisé à voir coexistent dans la même page, regroupés selon leur sens et hiérarchisés par l'utilité et l'urgence. Deux actions essentielles, l'une pour l'accomplissement personnel et l'autre pour l'organisation, peuvent être visibles simultanément. Le serveur vérifie chaque capacité, chaque donnée et chaque mutation séparément : la coexistence d'affichage n'est ni une fusion des droits, ni un droit d'accès à des données privées supplémentaires. La supervision plateforme conserve une portée et une finalité distinctes.
 
 ## 3. Parcours d'entrée, de sortie et de continuité
 
-Les accès peuvent venir de Maintenant, En cours, Métier, Makolo Mark, d'un lien contextualisé ou d'une notification légitime ; Découvrir ne contourne pas la démarche d'admission. Chaque entrée vise une **Occurrence identifiée**, un **acteur effectif** et une **perspective autorisée**.
+Les accès peuvent venir de Maintenant, En cours, Métier, Makolo Mark, d'un lien contextualisé ou d'une notification légitime ; Découvrir ne contourne pas la démarche d'admission. Chaque entrée vise une **Occurrence identifiée** et un **acteur effectif**. Les responsabilités et relations autorisées sont résolues ensemble, sans imposer un choix de mode avant l'entrée.
 
 ```text
 Contexte d'origine → Occurrence → JOUR J → MAKOLO LIVE
@@ -52,9 +52,9 @@ Après fin / annulation → En cours, Historique ou owner légitime
 
 ### 4.1. Invariant commun
 
-Une hiérarchie stable, quel que soit l'acteur : **contexte → situation → mouvement principal → orientation et moyens → contraintes → suivi utile → suite**. Une seule action dominante P3 lorsqu'elle existe ; `CURRENT_MOVE = NONE` est un état légitime et paisible.
+Une hiérarchie stable, quel que soit l'acteur : **contexte → situation → actions réellement importantes → orientation et moyens → contraintes → suivi utile → suite**. L'accomplissement garde une priorité lisible, **sans règle arbitraire d'un seul bouton visible** : si une action de participation et une action d'organisation sont toutes deux essentielles et autorisées, elles apparaissent ensemble avec des libellés, contextes et regroupements sans ambiguïté. Les opérations supplémentaires (finance, logistique, Scanner...) sont directement accessibles sans changer de rôle ; les commandes secondaires ne doivent pas écraser les priorités. `CURRENT_MOVE = NONE` demeure un état légitime pour un territoire même si des actions existent dans un autre.
 
-1. **Contexte de l'Occurrence :** nom humain, Activity associée, phase, date et destination utiles, acteur/perspective actifs sans affichage d'UUID bruts.
+1. **Contexte de l'Occurrence :** nom humain, Activity associée, phase, date et destination utiles, acteur effectif et responsabilités pertinentes sans affichage d'UUID bruts ni menu préalable de casquettes.
 2. **État actuel :** ce qui est effectivement établi, pas un récit inventé de progression.
 3. **Prochain mouvement :** libellé compréhensible, possibilité réelle, éventuel blocage, action owner-backed et résultat confirmé. Ne pas faire d'une prévision une instruction confirmée.
 4. **Orientation :** destination, zone, emplacement, instructions et mobilité selon leur vérité respective. Carte facultative et utile ; position actuelle inconnue si non observée.
@@ -65,7 +65,9 @@ Une hiérarchie stable, quel que soit l'acteur : **contexte → situation → mo
 
 Une **waitlist** n'est pas une **Live Queue**. Un nombre d'entrées dans la projection n'est pas une position de file. Une capacité n'est ni nécessairement commerciale ni nécessairement payante. L'absence de paiement n'est pas un défaut d'accomplissement.
 
-### 4.2. Composition par perspective
+### 4.2. Composition simultanée des responsabilités autorisées
+
+La matrice ci-dessous décrit les **sources possibles de contenus et d'actions**, pas trois modes exclusifs. Pour une Occurrence et un acteur effectif donnés, les colonnes applicables peuvent être présentées **ensemble**. Les mandats organisateurs (finance, logistique, Scanner, gouvernance) sont agrégés dans la même zone d'organisation, avec des contrôles visibles seulement si autorisés. Une commande participant importante n'est pas cachée lorsque l'acteur organise aussi. Les commandes organisationnelles peuvent être prioritaires dans un contexte de conduite, **sans effacer une action de bénéficiaire urgente**.
 
 | Territoire | Participant / bénéficiaire | Organisateur / opérateur | Plateforme Makolo |
 | --- | --- | --- | --- |
@@ -111,7 +113,7 @@ La **couverture globale** de la lecture Live se distingue des états individuels
 - **Organisateur :** lecture des flux et états opérationnels du périmètre mandaté, et des changements vérifiés qui appellent une décision ; les actions demeurent chez leurs owners.
 - **Plateforme :** faits nécessaires à la supervision, la conformité, l'assistance ou la modération, selon permissions staff et finalité. Aucune omniscience ou accès aux secrets par principe.
 
-**Différence obligatoire avec Jour J :** Live explique le réel et ses évolutions ; Jour J organise la prochaine action. Un même fait peut apparaître sur les deux avec une focalisation différente, sans dupliquer une source d'autorité.
+**Différence obligatoire avec Jour J :** Live explique le réel et ses évolutions ; Jour J organise les actions importantes réellement possibles, y compris plusieurs actions essentielles de responsabilités différentes. Un même fait peut apparaître sur les deux avec une focalisation différente, sans dupliquer une source d'autorité.
 
 ## 6. Profondeurs secondaires — catalogue de capacités, pas obligation de nouvelles pages
 
@@ -130,7 +132,7 @@ Une profondeur n'existe que si l'information ou l'opération exige un focus déd
 | Média | Preuve ou instruction utile à l'action | Observation visuelle publiée | Owner média, visibilité et provenance |
 | Historique / conséquences | Suite de l'accomplissement | Sortie du Live terminé | Owner historique / progression |
 
-Les profondeurs héritent de l'acteur et de la perspective **mais revalident leur propre autorité**. Un participant, un organisateur ou un staff n'accède qu'aux éléments compatibles avec son mandat réel.
+Les profondeurs héritent de l'acteur effectif et du contexte de l'Occurrence et **revalident leur propre autorité par donnée et par action**. Une personne peut accéder depuis la même page à ses profondeurs de bénéficiaire et à ses profondeurs organisationnelles autorisées, sans changement de mode. Le staff n'accède qu'aux éléments compatibles avec un mandat plateforme réel.
 
 ## 7. Layout, interaction et accessibilité
 
@@ -145,8 +147,8 @@ Les profondeurs héritent de l'acteur et de la perspective **mais revalident leu
 
 ## 8. Local-first, révocation et sécurité
 
-- Les snapshots utiles peuvent être conservés par acteur/profil et contexte, selon la politique de chaque propriétaire, avec horodatage et indication de fraîcheur. Offline ne signifie ni actualité garantie ni action serveur confirmée.
-- Le changement d'acteur/perspective ne doit pas faire fuiter une projection, un média, un credential ou une action d'un autre contexte.
+- Les snapshots utiles peuvent être conservés par acteur/profil, périmètre de données et contexte, selon la politique de chaque propriétaire, avec horodatage et indication de fraîcheur. Offline ne signifie ni actualité garantie ni action serveur confirmée.
+- Le changement d'acteur effectif (Profil / Space mandaté) ne doit pas faire fuiter une projection, un média, un credential ou une action d'un autre contexte. Le cumul de relations et de fonctions sur une Occurrence n'autorise pas une fusion des données privées ; les éléments sont vérifiés par portée, relation, propriétaire et autorité.
 - La perte de permission, la révocation, la fin de fenêtre Live et les changements d'état déclenchent revalidation et suppression/masquage des données dérivées devenues illégitimes.
 - Les protections contre le TOCTOU et les contrôles des mutations sont côté serveur ; une `capability` affichée n'est pas une autorisation.
 - Les messages de refus, absence de données, indisponibilité source et contexte terminé restent distincts et compréhensibles.
@@ -156,15 +158,27 @@ Les profondeurs héritent de l'acteur et de la perspective **mais revalident leu
 La cible est atteinte lorsque les scénarios suivants sont démontrés **par tests et expérience utilisateur**, sans supposer la présence de nouvelles données :
 
 1. Un **Profil participant**, un **Profil organisateur**, un **Space participant** et un **Space organisateur** consultent les **mêmes deux expériences** avec des informations et opérations adaptées.
-2. Une personne à **double perspective** change explicitement de rôle sur une même Occurrence, sans fuite de données ni fusion des autorisations.
+2. Une personne ou un Space **participant et organisateur** voit simultanément les deux familles de contenus et les deux actions essentielles lorsqu'elles existent, **sans changer de mode**, sans fuite de données ni élévation d'autorité. Plusieurs mandats d'organisation composent une seule expérience et ne requièrent aucun sélecteur préalable.
 3. La perspective **plateforme** est ouverte seulement aux mandats staff vérifiés et respecte ses finalités.
-4. Jour J montre **une situation compréhensible et au plus une action dominante**, des accès/attentes/placements correctement nommés, puis une sortie naturelle.
+4. Jour J montre **une situation compréhensible et les actions importantes réellement autorisées**, simultanément lorsque nécessaire, avec une hiérarchie claire ; accès, attentes et placements sont correctement nommés, puis la sortie reste naturelle.
 5. Live distingue systématiquement **faits, prévisions, estimations, inconnu, indisponible, couverture et fraîcheur** ; il montre les changements significatifs seulement quand ils sont établis.
 6. Les deux pages possèdent **des hiérarchies visuelles distinctes** ; les profondeurs et retours restent cohérents.
 7. Aucun credential, position, incident, observation ou succès n'est inventé ou divulgué.
 8. Les refus, révocations, contextes multi-acteurs, double rôle, hors-ligne, fin/annulation, retour depuis background, Compact/Medium/Wide et accessibilité sont validés sur Web et Flutter.
 9. Les owners existants gardent leurs responsabilités : Activity/Occurrence, Journey, Access, Operations, Capacity, Scanner, Readiness, Geography, Notifications, Domain Events et autres domaines canoniques.
 10. Aucune seconde source de vérité ni nouveau modèle JourJ/Live générique n'est introduit pour réaliser la présentation.
+
+
+## 11. Décision produit : cumul de capacités sans « mode » préalable
+
+- **Cas fonctions d'organisation :** financier + logisticien + scanneur voient toutes les opérations effectivement autorisées, regroupées par objet et priorité. Les commandes sont découvertes directement dans Jour J ou leurs profondeurs ; aucun choix « je suis financier » n'est nécessaire.
+- **Cas bénéficiaire + organisateur :** même acteur, même Occurrence, même Jour J et même Live. Les informations d'accomplissement personnel et d'opération coexistent. Deux CTA importants peuvent être affichés côte à côte ou successivement selon l'écran ; l'un ne supprime pas l'autre. Le contexte visuel (« Mon accès », « Contrôle des entrées ») prévient l'ambiguïté.
+- **Hiérarchie :** une responsabilité opérationnelle active peut devenir prioritaire, mais la priorité n'est pas une exclusivité. La présentation arbitre l'espace, la densité et les regroupements, pas les droits.
+- **Règle sécurité :** chaque contenu et commande est accordé par ses owners ; aucune autorité n'est ajoutée par le client. L'absence d'un bouton pour un acteur non autorisé découle du serveur, comme l'impossibilité d'envoyer un message quand une permission est désactivée, et non d'un mode UX à activer.
+- **Plateforme :** les opérations staff doivent rester identifiables et justifiées par un mandat spécifique ; elles peuvent être accessibles dans la même expérience seulement si les frontières de finalité, journalisation et confidentialité sont garanties, sans masquer les autres capacités légitimes.
+- **Anti-feature explicite :** ne jamais demander à l'utilisateur de sélectionner son métier ou sa casquette uniquement pour faire apparaître un bouton déjà autorisé.
+
+Ce contrat est la **cible produit** ; les scénarios, lots et gates d'implémentation sont suivis séparément dans `docs/implementation/jour-j-live-mature-plan-lots-2026-11-09.md`.
 
 ## 10. Statut et frontière
 
