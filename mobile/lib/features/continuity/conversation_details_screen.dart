@@ -412,14 +412,29 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.all(6),
-                          child: ConversationAttachmentViewer(
-                            key: ValueKey(
-                              'conversation-details-media-preview-${attachment['id']?.toString() ?? index.toString()}',
-                            ),
-                            repository: widget.repository,
-                            attachment: attachment,
-                            inline: true,
-                          ),
+                          child: attachment['kind'] == 'image'
+                              ? IgnorePointer(
+                                  child: ConversationAttachmentViewer(
+                                    key: ValueKey(
+                                      'conversation-details-media-preview-${attachment['id']?.toString() ?? index.toString()}',
+                                    ),
+                                    repository: widget.repository,
+                                    attachment: attachment,
+                                    inline: true,
+                                  ),
+                                )
+                              : Icon(
+                                  attachment['kind'] == 'video'
+                                      ? Icons.ondemand_video_outlined
+                                      : attachment['kind'] == 'audio' ||
+                                              attachment['kind'] == 'voice'
+                                          ? Icons.graphic_eq_outlined
+                                          : attachment['mime_type'] == 'application/pdf'
+                                              ? Icons.picture_as_pdf_outlined
+                                              : Icons.description_outlined,
+                                  color: colors.primary,
+                                  size: 38,
+                                ),
                         ),
                       ),
                       Padding(
