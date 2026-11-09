@@ -129,6 +129,15 @@ class FormQuestion(models.Model):
                 errors["choices"] = "Les choix doivent être uniques."
         elif self.choices:
             errors["choices"] = "Seules les questions à choix acceptent des options."
+        if self.pk and not self._state.adding:
+            previous_choices = FormQuestion.objects.filter(pk=self.pk).values_list(
+                "choices", flat=True,
+            ).first()
+            if (previous_choices is not None and previous_choices != self.choices
+                    and self.media.filter(choice_index__isnull=False).exists()):
+                errors["choices"] = (
+                    "Retirez les médias des choix avant de modifier leurs assertions."
+                )
         if errors:
             raise ValidationError(errors)
 
