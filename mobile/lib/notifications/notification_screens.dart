@@ -44,6 +44,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   bool _pageFailed = false;
   bool _onlyUnread = false;
   bool _requestedUnread = false;
+  int? _previousUnreadCount;
+  bool _newNotificationsAvailable = false;
 
   @override
   void initState() {
@@ -107,6 +109,36 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
         if (_requestedUnread != _onlyUnread) unawaited(_acquire());
       }
     }
+  }
+
+  void _noticeNewNotifications(Object? count) {
+    if (count is! num) return;
+    final current = count.toInt();
+    final previous = _previousUnreadCount;
+    _previousUnreadCount = current;
+    if (previous == null ||
+        current <= previous ||
+        !_scroll.hasClients ||
+        _scroll.offset < 120 ||
+        _newNotificationsAvailable) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_newNotificationsAvailable) {
+        setState(() => _newNotificationsAvailable = true);
+      }
+    });
+  }
+
+  void _showNewNotifications() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    setState(() => _newNotificationsAvailable = false);
   }
 
   void _maybeLoadMore() {
@@ -236,6 +268,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
             );
             final total = projection?.payload['total_count'];
             final unread = projection?.payload['unread_count'];
+            _noticeNewNotifications(unread);
             final filteredCount = projection?.payload['count'];
             final remaining =
                 filteredCount is num && filteredCount.toInt() > rows.length
@@ -296,6 +329,13 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   onRetry: _refresh,
                   content: Column(
                     children: [
+                      if (_newNotificationsAvailable)
+                        TextButton.icon(
+                          key: const Key('notification-new-items'),
+                          onPressed: _showNewNotifications,
+                          icon: const Icon(Icons.arrow_upward_rounded),
+                          label: const Text('Nouvelles notifications'),
+                        ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
                           MakoloSpacing.inner,
