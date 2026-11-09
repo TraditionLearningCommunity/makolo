@@ -1,11 +1,24 @@
+from urllib.parse import urlsplit
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
+from django.urls import reverse
 from django.views.generic import TemplateView
 
 from .credential_models import CredentialStatus, CredentialType
 from .credential_selectors import credentials_for_profile, public_credential_by_id
+
+def _safe_collection_return(candidate, *, fallback):
+    candidate = (candidate or "").strip()
+    if not candidate:
+        return fallback
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc or parsed.fragment or parsed.path != fallback:
+        return fallback
+    return candidate
+
 
 
 class MyCredentialsView(LoginRequiredMixin, TemplateView):
@@ -83,6 +96,11 @@ class CredentialDetailView(LoginRequiredMixin, TemplateView):
         if credential is None:
             raise Http404
         context["credential"] = credential
+        fallback = reverse("trust:my-credentials")
+        context["return_url"] = _safe_collection_return(
+            self.request.GET.get("return"),
+            fallback=fallback,
+        )
         return context
 
 
