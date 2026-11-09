@@ -245,6 +245,12 @@ def _conversation_delivery_allowed(notification):
     conversation_id = metadata.get("conversation_id")
     if not conversation_id:
         return True
+    from uuid import UUID
+    try:
+        conversation_id = UUID(str(conversation_id))
+        point_id = UUID(str(metadata["point_id"])) if metadata.get("point_id") else None
+    except (ValueError, TypeError, AttributeError):
+        return False
     from django.db.models import Q
     from conversations.core_models import Conversation, ConversationUserState
     from conversations.point_models import ConversationPoint
@@ -264,7 +270,6 @@ def _conversation_delivery_allowed(notification):
         muted_at__isnull=False,
     ).filter(Q(muted_until__isnull=True) | Q(muted_until__gt=timezone.now())).exists():
         return False
-    point_id = metadata.get("point_id")
     if not point_id:
         return True
     point = ConversationPoint.objects.select_related(
