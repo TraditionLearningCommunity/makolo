@@ -18,7 +18,7 @@ from .participant_services import (
     invite_identifier, revoke_collective_access,
 )
 from .services import (
-    can_manage_conversation, can_view_conversation,
+    can_manage_conversation, can_view_conversation, context_base_eligible,
     create_join_request, join_conversation, leave_conversation,
     remove_participation, respond_to_join_request,
 )
@@ -40,7 +40,26 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         conversation = self.get_conversation()
         managing = can_manage_conversation(self.request.user, conversation)
+        eligible = context_base_eligible(self.request.user, conversation.context)
+        active = ConversationParticipation.objects.filter(
+            conversation=conversation, profile=self.request.user,
+            status=ConversationParticipationStatus.ACTIVE,
+        ).exists()
+        requested = ConversationJoinRequest.objects.filter(
+            conversation=conversation, requester=self.request.user,
+            status="pending",
+        ).exists()
         context.update({
+            "can_join": (
+                eligible and not active and conversation.lifecycle == "open"
+                and conversation.entry_mode == "join"
+            ),
+            "can_request_entry": (
+                eligible and not active and not requested
+                and conversation.lifecycle == "open"
+                and conversation.entry_mode == "request"
+            ),
+            "entry_request_pending": requested,
             "conversation": conversation,
             "members": conversation_members_for_profile(
                 self.request.user, conversation,
