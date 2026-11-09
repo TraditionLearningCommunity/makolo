@@ -1,4 +1,9 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.http import FileResponse
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from .media_services import add_questionnaire_media, ensure_media_access, serialize_media, media_sections
+from .models import FormVersion, FormQuestion, QuestionnaireMedia
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -27,6 +32,7 @@ def _request_for(user, pk):
 def _serialize(form_request):
     response = getattr(form_request, "response", None)
     answers = {answer.question.key: answer.value for answer in response.answers.all()} if response else {}
+    root_media, by_question, by_choice = media_sections(form_request.form_version)
     return {
         "id": str(form_request.pk),
         "journey_id": str(form_request.journey_id) if form_request.journey_id else None,
@@ -41,6 +47,7 @@ def _serialize(form_request):
             "version": form_request.form_version.version,
             "title": form_request.form_version.title,
             "description": form_request.form_version.description,
+            "media": [serialize_media(item) for item in root_media],
             "questions": [
                 {
                     "key": question.key,
@@ -54,6 +61,14 @@ def _serialize(form_request):
                     "min_value": str(question.min_value) if question.min_value is not None else None,
                     "max_value": str(question.max_value) if question.max_value is not None else None,
                     "choices": question.choices,
+                    "media": [serialize_media(item) for item in by_question.get(question.pk, [])],
+                    "choice_media": [
+                        {
+                            "index": index, "label": label,
+                            "media": [serialize_media(item) for item in by_choice.get((question.pk, index), [])],
+                        }
+                        for index, label in enumerate(question.choices)
+                    ],
                 }
                 for question in form_request.form_version.questions.all()
             ],
@@ -114,3 +129,67 @@ class FormResponseSubmitAPIView(APIView):
             return Response({"errors": exc.message_dict if hasattr(exc, "message_dict") else exc.messages}, status=status.HTTP_400_BAD_REQUEST)
         form_request = _request_for(request.user, pk)
         return Response(_serialize(form_request))
+
+
+
+class QuestionnaireMediaUploadAPIView(APIView):
+    """Authoring is restricted to Activity managers and draft FormVersions."""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, version_pk):
+        version = get_object_or_404(
+            FormVersion.objects.select_related("form__activity"), pk=version_pk,
+        )
+        files = request.FILES.getlist("file")
+        if len(files) != 1:
+            raise DRFValidationError({"file": "Un seul média est attendu."})
+        try:
+            raw_question = request.data.get("question_id")
+            question = get_object_or_404(FormQuestion, pk=raw_question) if raw_question else None
+            index = request.data.get("choice_index")
+            index = int(index) if index not in (None, "") else None
+            position = int(request.data.get("position") or 0)
+            upload = files[0]
+            declared = request.data.get("mime_type")
+            if declared and upload.content_type in {"", "application/octet-stream"}:
+                upload.content_type = str(declared)
+            media = add_questionnaire_media(
+                actor=request.user, version=version, question=question,
+                choice_index=index, position=position, uploaded_file=upload,
+                kind=request.data.get("kind", "file"),
+                caption=request.data.get("caption", ""),
+            )
+        except (TypeError, ValueError):
+            raise DRFValidationError({"position": "Index ou position invalide."})
+        except ValidationError as exc:
+            return Response({
+                "errors": exc.message_dict if hasattr(exc, "message_dict") else exc.messages,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except PermissionDenied:
+            raise
+        return Response(serialize_media(media), status=status.HTTP_201_CREATED)
+
+
+class QuestionnaireMediaDownloadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, media_pk):
+        media = get_object_or_404(
+            QuestionnaireMedia.objects.select_related(
+                "form_version__form__activity", "question",
+            ), pk=media_pk,
+        )
+        ensure_media_access(request.user, media)
+        # Only browser-safe media and PDF may render inline. Unknown documents
+        # remain attachments; the file remains private and no URL is signed.
+        inline = (media.mime_type.startswith(("image/", "audio/", "video/"))
+                  or media.mime_type in {"application/pdf", "text/plain"})
+        response = FileResponse(
+            media.file.open("rb"), as_attachment=not inline,
+            filename=media.original_name, content_type=media.mime_type,
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        return response
