@@ -116,6 +116,20 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         self.assertContains(response, "Mes preuves")
         self.assertContains(response, "Mes titres")
 
+        projection = self.client.get(
+            reverse("personal-projections:resources"),
+        )
+        self.assertEqual(projection.status_code, 200)
+        data = projection.json()["data"]
+        self.assertEqual(
+            data["proofs"]["links"]["collection"],
+            reverse("personal-projections:proofs"),
+        )
+        self.assertEqual(
+            data["credentials"]["links"]["collection"],
+            reverse("personal-projections:titles"),
+        )
+
     def test_proof_collection_filters_searches_and_exposes_only_public_verify(self):
         response = self.client.get(
             reverse("personal-projections:proofs"),
