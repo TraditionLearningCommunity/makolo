@@ -79,9 +79,17 @@ def control_occurrence_access(*, occurrence, actor, token, client_reference=""):
                 user_can_scan_activity(
                     user, cp.occurrence.activity, occurrence=cp.occurrence,
                 ) and
-                get_active_assignment(
-                    user, activity=cp.occurrence.activity, occurrence=cp.occurrence
-                ) is not None
+                (
+                    (
+                        current_assignment := get_active_assignment(
+                            user,
+                            activity=cp.occurrence.activity,
+                            occurrence=cp.occurrence,
+                        )
+                    ) is not None
+                    and current_assignment.pk == assignment.pk
+                    and current_assignment.checkpoint_id == cp.pk
+                )
             ),
         )
     return {
