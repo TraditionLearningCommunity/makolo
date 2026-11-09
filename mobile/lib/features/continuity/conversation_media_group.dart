@@ -51,6 +51,7 @@ class ConversationMediaGroup extends StatelessWidget {
     Widget visualTile(int index, {bool compact = false}) {
       final attachment = attachments[index];
       final image = attachment['kind'] == 'image';
+      final caption = attachment['caption']?.toString().trim() ?? '';
       return Material(
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
@@ -76,14 +77,22 @@ class ConversationMediaGroup extends StatelessWidget {
                   size: compact ? 34 : 52,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-              if (!image)
+              if (!image || caption.isNotEmpty)
                 Align(
                   alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 7, horizontal: 9,
+                    ),
+                    color: Colors.black54,
                     child: Text(
-                      'Vidéo',
-                      style: Theme.of(context).textTheme.labelMedium,
+                      caption.isNotEmpty ? caption : 'Vidéo',
+                      maxLines: compact ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white, fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
