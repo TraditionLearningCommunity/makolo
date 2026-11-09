@@ -15,6 +15,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
     this.onPresentCredential,
     this.onOpenLive,
     this.onOpenScanner,
+    this.onOpenDepth,
     this.onBackToDayOf,
   });
 
@@ -25,6 +26,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
   final void Function(String accessId, String path)? onPresentCredential;
   final ValueChanged<String>? onOpenLive;
   final VoidCallback? onOpenScanner;
+  final ValueChanged<String>? onOpenDepth;
   final VoidCallback? onBackToDayOf;
 
   static Map<String, dynamic> _map(Object? value) =>
@@ -252,6 +254,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
         ),
         const SizedBox(height: MakoloSpacing.lg),
       ],
+      if (_rows(payload['depths']).any((depth) => depth['kind'] != 'scanner') &&
+          onOpenDepth != null) ...[
+        _depthSection(context),
+        const SizedBox(height: MakoloSpacing.lg),
+      ],
       if (liveStatus['available'] == true &&
           links['live'] is String &&
           onOpenLive != null) ...[
@@ -288,6 +295,32 @@ class OccurrenceExperienceContent extends StatelessWidget {
         ),
       ],
     ];
+  }
+
+  Widget _depthSection(BuildContext context) {
+    final depths = _rows(payload['depths'])
+        .where((item) => item['kind'] != 'scanner')
+        .toList();
+    return MakoloSection(
+      title: live ? 'Profondeurs autorisées' : 'Approfondir et agir',
+      child: MakoloCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final depth in depths) ...[
+              OutlinedButton.icon(
+                onPressed: !remoteActionsAvailable || onOpenDepth == null
+                    ? null
+                    : () => onOpenDepth!(_text(depth['kind'])!),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: Text(_text(depth['label']) ?? 'Consulter'),
+              ),
+              const SizedBox(height: MakoloSpacing.xs),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _participantSection(
@@ -530,6 +563,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
                 ],
         ),
       ),
+      if (_rows(payload['depths']).any((depth) => depth['kind'] != 'scanner') &&
+          onOpenDepth != null) ...[
+        const SizedBox(height: MakoloSpacing.lg),
+        _depthSection(context),
+      ],
       if (transitions['state'] == 'unavailable') ...[
         const SizedBox(height: MakoloSpacing.lg),
         const MakoloSection(
