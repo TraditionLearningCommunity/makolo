@@ -174,6 +174,41 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     final store = widget.runtime.store;
     if (store == null || !_actorValid) return [];
     final rows = <Map<String, dynamic>>[];
+
+    void addTrustRows(Object? raw, {required bool credentials}) {
+      if (raw is! Map || raw['items'] is! List) return;
+      for (final value in raw['items'] as List) {
+        if (value is! Map) continue;
+        final id = value['id']?.toString();
+        if (id == null || id.isEmpty) continue;
+        final activity = value['activity'];
+        final issuer = value['issuer'];
+        final title = credentials
+            ? value['title']?.toString()
+            : value['proof_type_label']?.toString();
+        if (title == null || title.isEmpty) continue;
+        rows.add({
+          'source': {
+            'kind': credentials ? 'credential' : 'proof',
+            'id': id,
+          },
+          'title': title,
+          'human_type': credentials ? 'Titre' : 'Preuve',
+          'relation': credentials ? 'Mon titre' : 'Ma preuve',
+          'historical': false,
+          'search_text': [
+            title,
+            if (activity is Map) activity['title']?.toString(),
+            if (issuer is Map)
+              issuer['name']?.toString() ?? issuer['display_name']?.toString(),
+            value['credential_type_label']?.toString(),
+            value['proof_type_label']?.toString(),
+            value['status_label']?.toString(),
+          ].whereType<String>().join(' '),
+        });
+      }
+    }
+
     if (!_isSpace) {
       if (widget.history) return [];
       final pages = await store.readProjections('personal.history');
@@ -204,6 +239,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         final data = snapshot.payload;
         final resources = data['resources'];
         if (resources is Map) {
+          addTrustRows(resources['proofs'], credentials: false);
+          addTrustRows(resources['credentials'], credentials: true);
           final documents = resources['documents'];
           if (documents is Map && documents['items'] is List) {
             for (final value in documents['items'] as List) {
@@ -244,6 +281,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       }
       final resources = await store.readProjections('personal.me.resources');
       for (final snapshot in resources) {
+        addTrustRows(snapshot.payload['proofs'], credentials: false);
+        addTrustRows(snapshot.payload['credentials'], credentials: true);
         final documents = snapshot.payload['documents'];
         if (documents is! Map || documents['items'] is! List) continue;
         for (final value in documents['items'] as List) {
@@ -259,6 +298,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
             'historical': false,
           });
         }
+      }
+      for (final snapshot in await store.readProjections('personal.proofs')) {
+        addTrustRows(snapshot.payload, credentials: false);
+      }
+      for (final snapshot in await store.readProjections('personal.titles')) {
+        addTrustRows(snapshot.payload, credentials: true);
       }
     } else {
       final actor = widget.spaceActor!;
@@ -386,7 +431,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     if (!widget.history && query.isEmpty) return [];
     final normalized = query.toLowerCase();
     final filtered = rows.where((row) {
-      final text = (row['title'] ?? '').toString().toLowerCase();
+      final text = (
+        row['search_text'] ?? row['title'] ?? ''
+      ).toString().toLowerCase();
       return normalized.isEmpty || text.contains(normalized);
     });
     return _deduplicate(filtered.toList());
