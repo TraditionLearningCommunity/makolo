@@ -275,9 +275,11 @@ def _conversation_delivery_allowed(notification):
     if point is None or not point_visible_to(recipient, point):
         return False
     if notification.template_key == "conversation.point.resolved":
-        return point_resolution_visible_to(recipient, point)
+        return point.lifecycle == "resolved" and point_resolution_visible_to(recipient, point)
     if notification.template_key == "conversation.point.action_required":
         return point_attention_reason(recipient, point) in ACTION_REASONS
+    if notification.template_key == "conversation.point.escalation":
+        return point_attention_reason(recipient, point) == "resolve"
     return True
 
 
