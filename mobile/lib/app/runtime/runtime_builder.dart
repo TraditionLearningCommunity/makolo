@@ -15,6 +15,7 @@ import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
 import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../../features/resources/resource_repository.dart';
+import '../../features/resources/trust_resource_repository.dart';
 import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
@@ -233,6 +234,13 @@ Future<AppRuntime> buildAppRuntime({
     sync: sync,
     api: api,
   );
+  final trustResources = TrustResourceRepository(
+    database: database,
+    store: store,
+    profileId: profileId,
+    sync: sync,
+    api: api,
+  );
   final space = buildWorkspaceContextRepository(
     database: database,
     store: store,
@@ -268,6 +276,20 @@ Future<AppRuntime> buildAppRuntime({
       )
       ..registerPreparedSource(
         resources.collectionSourceFor(query: '', offset: 0),
+      )
+      ..registerPreparedSource(
+        trustResources.collectionSourceFor(
+          family: TrustResourceFamily.proofs,
+          query: '',
+          offset: 0,
+        ),
+      )
+      ..registerPreparedSource(
+        trustResources.collectionSourceFor(
+          family: TrustResourceFamily.titles,
+          query: '',
+          offset: 0,
+        ),
       )
       ..registerPreparedSource(continuity.conversations.listSource())
       ..registerPreparedSource(notifications.listSource())
@@ -328,6 +350,7 @@ Future<AppRuntime> buildAppRuntime({
     requirements: preparation.requirements,
     preparationResources: preparation.resources,
     resources: resources,
+    trustResources: trustResources,
     questionnaires: questionnaires.repository,
     drafts: drafts,
     questionnaireSubmit: questionnaires.submit,
