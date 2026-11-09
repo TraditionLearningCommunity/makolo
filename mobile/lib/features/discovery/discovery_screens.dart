@@ -77,7 +77,10 @@ Future<void> _saveDiscoveryPossibility(
 
 /// Device presentation cursor only; the signed server continuation stays
 /// opaque. Never synthesize new possibilities or authorization from it.
-DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
+DiscoveryQuery? retainedDiscoveryPosition(
+  StoredProjection? marker, {
+  DiscoveryQuery initialQuery = const DiscoveryQuery(),
+}) {
   if (marker?.kind != 'discovery.presentation-position' ||
       marker?.schemaVersion != 1) {
     return null;
@@ -90,7 +93,7 @@ DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
       continuation.isEmpty) {
     return null;
   }
-  return const DiscoveryQuery().copyWith(
+  return initialQuery.copyWith(
     page: page,
     continuation: continuation,
   );
@@ -123,8 +126,10 @@ class DiscoveryScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenActivity,
     required this.onOpenItem,
+    this.initialQuery = const DiscoveryQuery(),
   });
 
+  final DiscoveryQuery initialQuery;
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenActivity;
   final void Function(String family, String id) onOpenItem;
@@ -135,7 +140,7 @@ class DiscoveryScreen extends StatefulWidget {
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _selector = DiscoverySelector();
-  DiscoveryQuery _query = const DiscoveryQuery();
+  late DiscoveryQuery _query;
   bool _refreshing = false;
   bool _acquisitionFailed = false;
   String? _verifiedFieldKey;
@@ -176,6 +181,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void initState() {
     super.initState();
+    _query = widget.initialQuery;
     _fieldScroll.addListener(() {
       _positionDebounce?.cancel();
       _positionDebounce = Timer(const Duration(milliseconds: 650), () {
@@ -189,9 +195,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void didUpdateWidget(covariant DiscoveryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.repository, widget.repository)) {
-      // Viewer-scoped content and focus cannot survive a profile switch.
-      _query = const DiscoveryQuery();
+    if (!identical(oldWidget.repository, widget.repository) ||
+        oldWidget.initialQuery.mapFingerprint != widget.initialQuery.mapFingerprint) {
+      // Another viewer or actor cannot inherit a field, position or cursor.
+      _query = widget.initialQuery;
       _verifiedFieldKey = null;
       _boundFieldKey = null;
       _boundRepository = null;
@@ -303,7 +310,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       if (!current()) return;
       _pendingScrollRestore = retainedDiscoveryScrollOffset(marker);
       _focusedCandidateKey = retainedDiscoveryFocusedCandidate(marker);
-      final restored = retainedDiscoveryPosition(marker);
+      final restored = retainedDiscoveryPosition(marker, initialQuery: initial);
       if (restored != null) {
         final known = await repository.readItems(restored);
         final source = await repository.readSource(
@@ -337,7 +344,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     try {
       await widget.repository.store.putProjection(
         kind: _positionProjection,
-        resourceKey: const DiscoveryQuery().mapFingerprint,
+        resourceKey: current.mapFingerprint,
         schemaVersion: 1,
         payload: {
           'page': current.page,
@@ -407,10 +414,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       if (source.lastErrorCode == 'continuation_rejected') {
         await repository.store.deleteProjection(
           _positionProjection,
-          resourceKey: const DiscoveryQuery().mapFingerprint,
+          resourceKey: current.mapFingerprint,
         );
         if (!active() || !identical(current, _query)) return;
-        setState(() => _query = const DiscoveryQuery());
+        setState(() => _query = widget.initialQuery);
         repository.rememberExploration(_query);
       }
       final refreshed = _query;
@@ -686,7 +693,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               child: DiscoveryExplorationView(
                 selection: displaySelection,
                 onOpen: _open,
-                onSave: (item) =>
+                onSave: _query.isSpace ? null : (item) =>
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
@@ -696,7 +703,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     _verifiedFieldKey == _query.mapFingerprint &&
                     sourceState.lastErrorCode == null &&
                     !sourceState.invalidated,
-                onWatch: _query.watchCriteria.isEmpty
+                onWatch: _query.isSpace || _query.watchCriteria.isEmpty
                     ? null
                     : () => unawaited(
                         _startDiscoveryWatch(
@@ -816,7 +823,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     super.initState();
     _query = widget.initialQuery;
     _watchesStream = widget.repository.watchWatches();
-    unawaited(_refreshSavedWatches());
+    if (!_query.isSpace) unawaited(_refreshSavedWatches());
     widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (_query.page > 1 && _query.continuation != null) {
@@ -855,7 +862,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       _date = _query.date;
       _price = _query.price;
       _vertical = _query.vertical;
-      unawaited(_refreshSavedWatches());
+      if (!_query.isSpace) unawaited(_refreshSavedWatches());
       if (_query.hasCriteria) {
         _refreshing = true;
         _searchCoordinator.changed(immediate: true);
@@ -954,7 +961,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (query.hasCriteria) _searchCoordinator.changed(immediate: true);
   }
 
-  Widget _watchFilter() => StreamBuilder<StoredProjection?>(
+  Widget _watchFilter() => _query.isSpace
+      ? const SizedBox.shrink()
+      : StreamBuilder<StoredProjection?>(
     stream: _watchesStream,
     builder: (context, snapshot) {
       final results = snapshot.data?.payload['results'];
@@ -1357,7 +1366,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     _price = '';
     _vertical = '';
     setState(() {
-      _query = const DiscoveryQuery();
+      _query = DiscoveryQuery(
+        spaceSlug: widget.initialQuery.spaceSlug,
+        spaceId: widget.initialQuery.spaceId,
+      );
       widget.repository.rememberExploration(_query);
       _locationMessage = null;
     });
@@ -1492,7 +1504,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
           children: [
             OutlinedButton.icon(
               key: const Key('discover-search-clarify'),
-              onPressed: _clarifying || _search.text.trim().isEmpty
+              onPressed: _query.isSpace || _clarifying || _search.text.trim().isEmpty
                   ? null
                   : () => unawaited(_clarifySearch()),
               icon: _clarifying
@@ -1525,7 +1537,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             key: const Key('discover-search-sources'),
-            onPressed: _researching || _search.text.trim().isEmpty
+            onPressed: _query.isSpace || _researching || _search.text.trim().isEmpty
                 ? null
                 : () => unawaited(_researchSources()),
             icon: _researching
@@ -1613,7 +1625,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
-                            onSave: (item) => _saveDiscoveryPossibility(
+                            onSave: _query.isSpace ? null : (item) => _saveDiscoveryPossibility(
                               widget.repository,
                               item,
                               _query,
@@ -1626,7 +1638,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                                 _verifiedFieldKey == _query.mapFingerprint &&
                                 sourceState.lastErrorCode == null &&
                                 !sourceState.invalidated,
-                            onWatch: _query.watchCriteria.isEmpty
+                            onWatch: _query.isSpace || _query.watchCriteria.isEmpty
                                 ? null
                                 : () => unawaited(
                                     _startDiscoveryWatch(
