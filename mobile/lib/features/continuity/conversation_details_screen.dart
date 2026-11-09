@@ -320,6 +320,285 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     );
   }
 
+  Future<void> _inviteByIdentifier() async {
+    final input = TextEditingController();
+    var kind = 'profile';
+    var candidates = <Map<String, dynamic>>[];
+    var searching = false;
+    var sending = false;
+    var generation = 0;
+    String? error;
+    final changed = ValueNotifier<int>(0);
+    Future<void> search() async {
+      final q = input.text.trim();
+      final request = ++generation;
+      if (q.length < 2) {
+        candidates = [];
+        changed.value++;
+        return;
+      }
+      searching = true;
+      changed.value++;
+      try {
+        final results = await widget.repository.searchInvitationCandidates(
+          conversationId: widget.conversationId, query: q,
+        );
+        if (request == generation) {
+          candidates = results;
+          searching = false;
+          changed.value++;
+        }
+      } on Object {
+        if (request == generation) {
+          searching = false;
+          error = 'Suggestions indisponibles. Utilisez un identifiant exact.';
+          changed.value++;
+        }
+      }
+    }
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        showDragHandle: true,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: ValueListenableBuilder<int>(
+            valueListenable: changed,
+            builder: (sheetContext, _, child) => SizedBox(
+              height: MediaQuery.sizeOf(sheetContext).height * .72,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Inviter par identifiant Makolo',
+                        style: Theme.of(sheetContext).textTheme.titleLarge),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Aucun contact obligatoire. Les noms sont des indications : '
+                      'seul le username ou slug exact sera utilisé.',
+                      style: Theme.of(sheetContext).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: kind,
+                      decoration: const InputDecoration(
+                        labelText: 'Type', border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'profile', child: Text('Profil')),
+                        DropdownMenuItem(value: 'space', child: Text('Espace')),
+                        DropdownMenuItem(value: 'group', child: Text('Groupe')),
+                      ],
+                      onChanged: sending ? null : (value) {
+                        kind = value ?? 'profile';
+                        changed.value++;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: input,
+                      enabled: !sending,
+                      maxLength: 200,
+                      autocorrect: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Identifiant Makolo',
+                        hintText: 'username ou slug',
+                        prefixIcon: Icon(Icons.alternate_email_rounded),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) {
+                        error = null;
+                        search();
+                      },
+                    ),
+                    if (searching)
+                      const LinearProgressIndicator(minHeight: 2),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(error!, style: TextStyle(
+                          color: Theme.of(sheetContext).colorScheme.error,
+                        )),
+                      ),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          for (final candidate in candidates)
+                            if (candidate['kind'] == kind)
+                              ListTile(
+                                title: Text(candidate['label']?.toString() ?? 'Makolo'),
+                                subtitle: Text(candidate['description']?.toString() ??
+                                  candidate['identifier']?.toString() ?? ''),
+                                onTap: sending ? null : () {
+                                  kind = candidate['kind']?.toString() ?? kind;
+                                  input.text = candidate['identifier']?.toString() ?? '';
+                                  candidates = [];
+                                  changed.value++;
+                                },
+                              ),
+                          if (!searching && candidates.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Text(
+                                'Saisissez un identifiant exact connu, ou '
+                                'recherchez un Profil, Espace ou Groupe découvrable.',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: sending || input.text.trim().isEmpty ? null : () async {
+                        sending = true;
+                        error = null;
+                        changed.value++;
+                        try {
+                          await widget.repository.inviteIdentifier(
+                            conversationId: widget.conversationId,
+                            kind: kind, identifier: input.text.trim(),
+                          );
+                          if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text(
+                                'Invitation enregistrée. Une acceptation est nécessaire.',
+                              )),
+                            );
+                          }
+                        } on Object {
+                          error = 'Invitation non confirmée. Vérifiez l’identifiant '
+                            'et les règles de confidentialité.';
+                        } finally {
+                          sending = false;
+                          changed.value++;
+                        }
+                      },
+                      icon: const Icon(Icons.person_add_alt_rounded),
+                      label: Text(sending ? 'Envoi…' : 'Envoyer une invitation'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      ++generation;
+      input.dispose();
+      changed.dispose();
+    }
+  }
+
+  Future<void> _manageParticipant(String operation, String resourceId) async {
+    if (_busy != null) return;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirmer cette modification ?'),
+        content: const Text(
+          'Les droits de participation sont recalculés côté serveur. '
+          'Un accès issu du contexte peut continuer d’exister.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || approved != true) return;
+    setState(() { _busy = operation; _error = null; });
+    try {
+      await widget.repository.manageConversationParticipant(
+        conversationId: widget.conversationId,
+        operation: operation, resourceId: resourceId,
+      );
+    } on Object {
+      if (mounted) setState(() => _error =
+        'Action non confirmée. Actualisez les participants.');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  Future<void> _openJoinRequests() async {
+    if (_busy != null) return;
+    List<Map<String, dynamic>> entries;
+    try {
+      entries = await widget.repository.conversationJoinRequests(
+        widget.conversationId,
+      );
+    } on Object {
+      if (mounted) setState(() => _error = 'Demandes d’entrée indisponibles.');
+      return;
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true, useSafeArea: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, refresh) => ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text('Demandes d’entrée',
+                style: Theme.of(sheetContext).textTheme.titleLarge),
+            for (final row in entries)
+              ListTile(
+                title: Text(row['label']?.toString() ?? 'Profil'),
+                subtitle: Text('@${row['identifier'] ?? ''}'),
+                trailing: Wrap(
+                  spacing: 6,
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        try {
+                          await widget.repository.decideJoinRequest(
+                            conversationId: widget.conversationId,
+                            requestId: row['id'].toString(), approve: false,
+                          );
+                          entries.remove(row);
+                          refresh(() {});
+                        } on Object { /* Owner state unchanged. */ }
+                      },
+                      child: const Text('Refuser'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        try {
+                          await widget.repository.decideJoinRequest(
+                            conversationId: widget.conversationId,
+                            requestId: row['id'].toString(), approve: true,
+                          );
+                          entries.remove(row);
+                          refresh(() {});
+                        } on Object { /* Owner state unchanged. */ }
+                      },
+                      child: const Text('Accepter'),
+                    ),
+                  ],
+                ),
+              ),
+            if (entries.isEmpty) const ListTile(
+              title: Text('Aucune demande en attente'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _members(BuildContext context, Map<String, dynamic> data) {
     final members = _map(data['members']);
     final scope = members['scope']?.toString() ?? 'restricted';
