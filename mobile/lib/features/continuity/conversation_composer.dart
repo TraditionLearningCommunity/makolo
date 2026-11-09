@@ -661,6 +661,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   String? _mediaPath;
   String? _mediaFilename;
   String? _mediaKind;
+  String _mainMediaCaption = '';
+  final List<Map<String, dynamic>> _additionalMedia = [];
+  final Map<int, List<Map<String, dynamic>>> _optionMedia = {};
   bool _sending = false;
   bool _multipleChoice = false;
   Future<void> _draftWrites = Future<void>.value();
@@ -725,7 +728,9 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     super.dispose();
   }
 
-  Future<void> _chooseMedia(String mode) async {
+  Future<void> _chooseMedia(
+    String mode, {int? optionIndex, bool append = false}
+  ) async {
     if (_sending) return;
     try {
       String? path;
@@ -745,17 +750,30 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           type: FileType.custom,
           allowedExtensions: mode == 'voice'
               ? const ['m4a', 'mp3', 'wav', 'ogg', 'webm']
-              : const ['pdf', 'txt', 'doc', 'docx'],
+              : mode == 'video'
+                  ? const ['mp4', 'webm']
+                  : const ['pdf', 'txt', 'doc', 'docx'],
         );
         path = picked?.path;
         name = picked?.name;
-        kind = mode == 'voice' ? 'voice' : 'file';
+        kind = mode == 'voice'
+            ? 'voice' : mode == 'video' ? 'video' : 'file';
       }
       if (!mounted || path == null || name == null) return;
       setState(() {
-        _mediaPath = path;
-        _mediaFilename = name;
-        _mediaKind = kind;
+        if (optionIndex != null) {
+          _optionMedia.putIfAbsent(optionIndex, () => []).add({
+            'path': path, 'filename': name, 'kind': kind, 'caption': '',
+          });
+        } else if (append) {
+          _additionalMedia.add({
+            'path': path, 'filename': name, 'kind': kind, 'caption': '',
+          });
+        } else {
+          _mediaPath = path;
+          _mediaFilename = name;
+          _mediaKind = kind;
+        }
         _reference = null;
         _error = null;
       });
