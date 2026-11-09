@@ -72,6 +72,17 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             occurrence.activity.space, include_platform=False,
         )
     )
+    platform_allowed = has_platform_authority(viewer)
+    # Platform supervision is not automatically an organizer relationship.
+    owner_operations_allowed = can(
+        viewer, PermissionCode.ACTIVITY_OPERATIONS_VIEW,
+        activity=occurrence.activity, include_platform=False,
+    ) or bool(
+        occurrence.activity.space_id and can(
+            viewer, PermissionCode.SPACE_MANAGE,
+            occurrence.activity.space, include_platform=False,
+        )
+    )
     operations_allowed = operator is not None
     operations_manage = user_can_manage_activity_operations(
         viewer, occurrence.activity,
@@ -85,8 +96,6 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             occurrence.activity.space, include_platform=False,
         )
     )
-    platform_allowed = has_platform_authority(viewer)
-
     sections = {}
     if participant is not None:
         sections["participant"] = (
@@ -96,8 +105,11 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             if surface == "day_of" else participant
         )
     if operations_allowed:
-        # The owner projection already applies operations authorization.
-        sections["organizer"] = operator
+        # Keep platform-only supervision distinct from owner-scoped organization.
+        if owner_operations_allowed:
+            sections["organizer"] = operator
+        elif platform_allowed:
+            sections["platform"] = operator
 
     # Scanner and finance can be held independently of operations-view.
     # Announce only the verified capability, never confidential owner facts.
@@ -112,7 +124,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "source": "authorization.services",
             "permission": PermissionCode.ACTIVITY_FINANCE_VIEW,
         }
-    if operations_manage:
+    if operations_manage and (owner_operations_allowed or not platform_allowed):
         capabilities["operations_manage"] = {
             "source": "operations.permissions",
             "permission": PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
@@ -122,18 +134,18 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "source": "authorization.services",
             "permission": PermissionCode.ACTIVITY_FINANCE_MANAGE,
         }
-    if operations_allowed:
+    if operations_allowed and owner_operations_allowed:
         capabilities["operations_view"] = {
             "source": "operations.permissions",
             "permission": PermissionCode.ACTIVITY_OPERATIONS_VIEW,
         }
 
-    if not sections and not capabilities and not platform_allowed:
+    if not sections and not capabilities:
         return None
 
     relations = {
         "participant": participant is not None,
-        "organizer": bool(operator is not None or scanner_allowed or finance_allowed or finance_manage or operations_manage),
+        "organizer": bool(owner_operations_allowed or scanner_allowed or finance_allowed or finance_manage or (operations_manage and not platform_allowed)),
         "platform": bool(platform_allowed),
     }
     return {
