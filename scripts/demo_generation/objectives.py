@@ -5,9 +5,11 @@ remains the canonical activity workflow. No parallel task or synthetic Journey
 is invented by this module. The caller chooses authorized demo users.
 """
 from collections import Counter
+from time import sleep
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import connection, connections, transaction
+from django.db.utils import OperationalError
 
 from journeys.models import Journey
 from objectives.models import (
@@ -115,6 +117,102 @@ def _find_dossier(owner, title):
     ).order_by("pk").first()
 
 
+def _apply_one_profile(owner, profile_plan, journeys):
+    """Write one owner graph atomically; retries must start outside this block."""
+    profile_stats = Counter()
+    with transaction.atomic():
+        sequence = 0
+        for project_index, (project_title, dossier_titles) in enumerate(profile_plan):
+            project = None
+            if project_title is not None:
+                project = _find_project(owner, project_title)
+                if project is None:
+                    project = create_project(
+                        actor=owner, owner_profile=owner,
+                        title=project_title,
+                        description="Un horizon composé de résultats concrets.",
+                    )
+                    profile_stats["projects_created"] += 1
+                    # An active horizon is not a claim of external success.
+                    if project_index % 3 != 2:
+                        set_project_lifecycle(
+                            actor=owner, project=project, lifecycle="active",
+                        )
+                else:
+                    profile_stats["projects_existing"] += 1
+
+            for dossier_index, title in enumerate(dossier_titles):
+                dossier = _find_dossier(owner, title)
+                if dossier is None:
+                    dossier = create_dossier(
+                        actor=owner, owner_profile=owner,
+                        title=title,
+                        description=(
+                            "Un résultat concret à préparer et à suivre."
+                        ),
+                    )
+                    profile_stats["dossiers_created"] += 1
+                    if sequence % 5 != 4:
+                        set_dossier_lifecycle(
+                            actor=owner, dossier=dossier, lifecycle="active",
+                        )
+                else:
+                    profile_stats["dossiers_existing"] += 1
+
+                if project is not None:
+                    linked = ProjectDossierLink.objects.filter(
+                        dossier=dossier, is_active=True,
+                    ).first()
+                    if linked is None:
+                        link_dossier_to_project(
+                            actor=owner, project=project, dossier=dossier,
+                        )
+                        profile_stats["project_links_created"] += 1
+                    elif linked.project_id != project.pk:
+                        # Do not move an owner-modified Dossier on rerun.
+                        profile_stats["existing_parent_preserved"] += 1
+
+                # Some Dossiers are intentionally independent or empty.
+                # Other Dossiers have real Journeys and a causal chain.
+                links = []
+                if journeys and sequence % 5 != 3:
+                    for step in range(min(journeys_per_dossier, len(journeys))):
+                        journey = journeys[(sequence * 2 + step) % len(journeys)]
+                        existing = DossierJourneyLink.objects.filter(
+                            dossier=dossier, journey=journey,
+                            is_active=True,
+                        ).first()
+                        link = existing or link_journey(
+                            actor=owner, dossier=dossier, journey=journey,
+                        )
+                        links.append(link)
+                        profile_stats[
+                            "journey_links_existing" if existing
+                            else "journey_links_created"
+                        ] += 1
+
+                if len(links) >= 2 and dossier.lifecycle == "active":
+                    dependency = DossierJourneyDependency.objects.filter(
+                        dossier=dossier, dependent_link=links[1],
+                        required_link=links[0],
+                    ).exists()
+                    if not dependency:
+                        add_dependency(
+                            actor=owner, dossier=dossier,
+                            dependent_link=links[1],
+                            required_link=links[0],
+                        )
+                        profile_stats["dependencies_created"] += 1
+                sequence += 1
+    return profile_stats
+
+
+def _sqlite_busy(exc):
+    """Retry only the known SQLite contention error, never arbitrary failures."""
+    message = str(exc).lower()
+    return "database is locked" in message or "database table is locked" in message
+
+
 def generate(users, *, count, projects_per_profile=4,
              dossiers_per_project=3, independent_dossiers=2,
              journeys_per_dossier=2, apply=False):
@@ -169,96 +267,30 @@ def generate(users, *, count, projects_per_profile=4,
                         stats["project_links_planned"] += 1
             continue
 
-        # A failure never leaves half an owner's Project/Dossier graph or
-        # inflate success counters with work that was rolled back.
-        profile_stats = Counter()
-        try:
-            with transaction.atomic():
-                sequence = 0
-                for project_index, (project_title, dossier_titles) in enumerate(profile_plan):
-                    project = None
-                    if project_title is not None:
-                        project = _find_project(owner, project_title)
-                        if project is None:
-                            project = create_project(
-                                actor=owner, owner_profile=owner,
-                                title=project_title,
-                                description="Un horizon composé de résultats concrets.",
-                            )
-                            profile_stats["projects_created"] += 1
-                            # An active horizon is not a claim of external success.
-                            if project_index % 3 != 2:
-                                set_project_lifecycle(
-                                    actor=owner, project=project, lifecycle="active",
-                                )
-                        else:
-                            profile_stats["projects_existing"] += 1
-
-                    for dossier_index, title in enumerate(dossier_titles):
-                        dossier = _find_dossier(owner, title)
-                        if dossier is None:
-                            dossier = create_dossier(
-                                actor=owner, owner_profile=owner,
-                                title=title,
-                                description=(
-                                    "Un résultat concret à préparer et à suivre."
-                                ),
-                            )
-                            profile_stats["dossiers_created"] += 1
-                            if sequence % 5 != 4:
-                                set_dossier_lifecycle(
-                                    actor=owner, dossier=dossier, lifecycle="active",
-                                )
-                        else:
-                            profile_stats["dossiers_existing"] += 1
-
-                        if project is not None:
-                            linked = ProjectDossierLink.objects.filter(
-                                dossier=dossier, is_active=True,
-                            ).first()
-                            if linked is None:
-                                link_dossier_to_project(
-                                    actor=owner, project=project, dossier=dossier,
-                                )
-                                profile_stats["project_links_created"] += 1
-                            elif linked.project_id != project.pk:
-                                # Do not move an owner-modified Dossier on rerun.
-                                profile_stats["existing_parent_preserved"] += 1
-
-                        # Some Dossiers are intentionally independent or empty.
-                        # Other Dossiers have real Journeys and a causal chain.
-                        links = []
-                        if journeys and sequence % 5 != 3:
-                            for step in range(min(journeys_per_dossier, len(journeys))):
-                                journey = journeys[(sequence * 2 + step) % len(journeys)]
-                                existing = DossierJourneyLink.objects.filter(
-                                    dossier=dossier, journey=journey,
-                                    is_active=True,
-                                ).first()
-                                link = existing or link_journey(
-                                    actor=owner, dossier=dossier, journey=journey,
-                                )
-                                links.append(link)
-                                profile_stats[
-                                    "journey_links_existing" if existing
-                                    else "journey_links_created"
-                                ] += 1
-
-                        if len(links) >= 2 and dossier.lifecycle == "active":
-                            dependency = DossierJourneyDependency.objects.filter(
-                                dossier=dossier, dependent_link=links[1],
-                                required_link=links[0],
-                            ).exists()
-                            if not dependency:
-                                add_dependency(
-                                    actor=owner, dossier=dossier,
-                                    dependent_link=links[1],
-                                    required_link=links[0],
-                                )
-                                profile_stats["dependencies_created"] += 1
-                        sequence += 1
-        except (ValidationError, PermissionDenied):
-            stats["profiles_rejected"] += 1
-        else:
-            stats.update(profile_stats)
+        # Concurrent Django runservers, database viewers or other scripts can
+        # hold SQLite locks. A long read-then-write transaction cannot always
+        # recover from a changed snapshot by waiting. Roll it back and replay
+        # from the beginning, with fresh connections and bounded backoff.
+        for attempt in range(3):
+            try:
+                profile_stats = _apply_one_profile(owner, profile_plan, journeys)
+            except OperationalError as exc:
+                if connection.vendor != "sqlite" or not _sqlite_busy(exc):
+                    raise
+                if attempt == 2:
+                    raise RuntimeError(
+                        "La base SQLite de démonstration est toujours occupée. "
+                        "Arrêtez les serveurs/processus qui utilisent le même "
+                        "fichier SQLite, fermez les outils qui gardent une "
+                        "transaction ouverte, puis relancez cette commande. "
+                        "Aucune écriture partielle de ce Profil n'a été validée."
+                    ) from exc
+                connections.close_all()
+                sleep(0.4 * (attempt + 1))
+            except (ValidationError, PermissionDenied):
+                stats["profiles_rejected"] += 1
+                break
+            else:
+                stats.update(profile_stats)
+                break
     return stats
