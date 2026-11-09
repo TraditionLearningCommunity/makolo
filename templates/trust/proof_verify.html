@@ -3,7 +3,7 @@
 {% block content %}
 <main class="mx-auto max-w-2xl px-4 py-10 sm:py-14">
   <section class="mk-panel overflow-hidden">
-    <div class="p-6 sm:p-8 {% if proof.status == 'active' %}" style="background:var(--mk-brand-soft)"{% else %}"{% endif %}>
+    <div class="p-6 sm:p-8" {% if proof.status == 'active' %}style="background:var(--mk-brand-soft)"{% endif %}>
       <div class="flex items-center justify-between gap-4">
         <div>
           <span class="mk-kicker">Makolo</span>
