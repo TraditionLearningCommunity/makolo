@@ -90,6 +90,54 @@ class ObjectivesDemoGeneratorTests(TestCase):
         stranger = build_organizer_page(self.other, limit=50)
         self.assertFalse(stranger["items"])
 
+    def test_mobile_mature_persona_links_its_existing_journeys(self):
+        mobile = User.objects.create_user(
+            username="beta_synthetic_mobile",
+            email="beta_synthetic_mobile@makolo.test",
+            password="Example-only-test-password",
+            metadata={"seed": "mobile-mature-universe", "persona": "primary"},
+        )
+        for index in range(4):
+            activity = Activity.objects.create(
+                title=f"Activité mobile synthétique {index}",
+                slug=f"mobile-mature-objectives-contract-{index}",
+                owner_profile=mobile,
+                created_by=mobile,
+            )
+            Journey.objects.create(
+                beneficiary=mobile, initiated_by=mobile, activity=activity,
+                workflow=WorkflowKind.SERVICE, status=JourneyStatus.DRAFT,
+            )
+        before = Journey.objects.count()
+        result = generate(
+            [mobile], count=1,
+            projects_per_profile=2, dossiers_per_project=2,
+            independent_dossiers=1, journeys_per_dossier=2, apply=True,
+        )
+        self.assertEqual(result["eligible_journeys"], 4)
+        self.assertGreater(result["journey_links_created"], 0)
+        self.assertEqual(Journey.objects.count(), before)
+        page = build_organizer_page(mobile, limit=50)
+        self.assertEqual(
+            {row["kind"] for row in page["items"]},
+            {"project", "dossier", "journey"},
+        )
+        self.assertTrue(
+            any(row.get("dossier_ids") for row in page["items"]
+                if row["kind"] == "journey")
+        )
+
+    def test_synthetic_activity_scope_does_not_include_other_namespaces(self):
+        from scripts.demo_generation.scope import synthetic_journey_activity_prefixes
+        self.assertEqual(
+            synthetic_journey_activity_prefixes(self.owner), ("demo-",),
+        )
+        ordinary = User.objects.create_user(
+            username="ordinary_beta_user", email="ordinary_beta@makolo.test",
+            password="Example-only-test-password",
+        )
+        self.assertEqual(synthetic_journey_activity_prefixes(ordinary), ())
+
     def test_explicit_non_demo_profile_refused(self):
         ordinary = User.objects.create_user(
             username="normal_account", email="ordinary@makolo.test",
