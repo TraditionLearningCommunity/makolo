@@ -82,35 +82,6 @@ Les contenus publics peuvent être référencés sans recopier leurs octets. Le 
 
 Une URL publique de référence ne signifie jamais qu'une relation personnelle fictive d'Alain est un fait public.
 
-## Projets, Dossiers et démarches — Moi > Mes démarches
-
-Le même profil fictif comprend désormais un ensemble d'Objectives suffisamment
-dense pour examiner les **trois vues** du client : Cartes, Liste et Explorateur.
-
-- **6 Projets** avec des horizons et états différents ;
-- **28 Dossiers**, dont **24 rattachés** à des Projets et **4 indépendants** ;
-- des Dossiers sans Journey, d'autres avec 2 à 4 Journeys canoniques déjà
-  présentes dans le corpus Mobile Mature ;
-- des **prérequis entre Journeys** du même Dossier via
-  `DossierJourneyDependency`, sans reproduire les tâches dans Objectives ;
-- des états draft, active, completed, cancelled et archived, exercés par les
-  services de transition canoniques.
-
-Les Project et Dossier sont personnels au persona synthétique. Les liens sont
-créés par les services de domaine ; les identités Objectif du seed sont stables
-et la réexécution ne multiplie pas les entités ou les liens. Aucun score
-Mayele/Molongo ni règle de présentation client n'est ajouté.
-
-La projection qui alimente cet écran est
-`GET /api/v1/objectives/organizer/?limit=50&offset=0`. Le client conserve
-ses pages acquises localement. Pour explorer le volume après seeding, ouvrir
-**Moi → Mes démarches** puis sélectionner Cartes, Liste et Explorateur.
-
-**Attention :** ces éléments sont ajoutés par les commandes **déjà existantes**
-`seed_mobile_mature_demo` et `seed_makolo_demo --scale beta`. Ne jamais
-lancer un seed sur les données réelles d'un utilisateur : utiliser exclusivement
-une base de démonstration ou de test isolée, après vérification de sa cible.
-
 ## API mobile
 
 Les surfaces existantes restent propriétaires :
@@ -118,9 +89,6 @@ Les surfaces existantes restent propriétaires :
 - `GET /api/v1/me/now/`
 - `GET /api/v1/me/ongoing/`
 - `GET /api/v1/me/`
-- `GET /api/v1/objectives/organizer/?limit=50&offset=0`
-- `GET /api/v1/objectives/projects/<uuid>/`
-- `GET /api/v1/objectives/dossiers/<uuid>/`
 - `GET /api/v1/discovery/items/`
 - `GET /api/v1/preparation/journeys/<journey>/resources/`
 
@@ -145,16 +113,7 @@ Le client n'a pas à recalculer la pertinence ni à reconstruire une vérité m�
 Exemple local :
 
 ```bash
-# Pour le corpus complet de démonstration bêta :
 python manage.py seed_makolo_demo --scale beta --as-of 2026-10-03 --demo-password "<password-local>"
-
-# Ou, pour le corpus autonome destiné au client mobile :
-# MAKOLO_DEMO_PASSWORD est injecté depuis l'environnement de test isolé.
-python manage.py seed_mobile_mature_demo --as-of 2026-10-03
-
-# Si le corpus Mobile Mature existe déjà et qu'on veut seulement ajouter
-# Projets et Dossiers, sans toucher aux identifiants de connexion :
-python manage.py seed_mobile_objectives_demo --as-of 2026-10-03 --confirm-demo-database
 ```
 
 Le seed doit rester :
