@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -25,6 +27,7 @@ from .console_scanner import _accepted_at, _scanner_message
 from .space_web_views import SpaceWebMixin
 
 
+@method_decorator(never_cache, name='dispatch')
 class _SpaceOccurrenceWebMixin(SpaceWebMixin):
     """Occurrence-scoped Space depth that keeps WS1 authority/context semantics."""
 
