@@ -10,8 +10,6 @@ def build_scanner_context(*, occurrence, actor, observed_at=None):
     now = observed_at or timezone.now()
     activity = occurrence.activity
     space = activity.space
-    if space is None:
-        return None
 
     can_scan = user_can_scan_activity(actor, activity, occurrence=occurrence)
     assignment = get_active_assignment(
@@ -23,20 +21,22 @@ def build_scanner_context(*, occurrence, actor, observed_at=None):
         return None
 
     event = Event.objects.filter(activity=activity).first()
-    capabilities = []
-    links = {}
-    if event is not None:
-        capabilities.append("scan")
-        links["scan"] = "/api/v1/scanner/scan/"
+    capabilities = ["scan"]
+    links = {
+        "scan": f"/api/v1/scanner/occurrences/{occurrence.pk}/control/",
+    }
 
     return {
         "identity": {"kind": "occurrence", "id": str(occurrence.pk)},
-        "space": {
-            "kind": "space",
-            "id": str(space.pk),
-            "slug": space.slug,
-            "name": space.name,
-        },
+        "space": (
+            {
+                "kind": "space",
+                "id": str(space.pk),
+                "slug": space.slug,
+                "name": space.name,
+            }
+            if space else None
+        ),
         "activity": {
             "kind": "activity",
             "id": str(activity.pk),
@@ -66,17 +66,12 @@ def build_scanner_context(*, occurrence, actor, observed_at=None):
             "legacy_event_adapter": event is not None,
         },
         "next_scan": {
-            "state": "available" if "scan" in capabilities else "unavailable",
-            "reason": (
-                "owner_endpoint_available"
-                if "scan" in capabilities
-                else "no_owner_scan_endpoint_for_activity"
-            ),
+            "state": "available",
+            "reason": "canonical_access_control",
         },
         "capabilities": capabilities,
         "links": {
             **links,
-            "day_of": f"/api/v1/operations/occurrences/{occurrence.pk}/day-of/",
-            "live": f"/api/v1/operations/occurrences/{occurrence.pk}/live/",
+            "day_of": f"/api/v1/operations/occurrences/{occurrence.pk}/experience/day-of/",
         },
     }
