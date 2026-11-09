@@ -48,3 +48,28 @@ class OccurrenceExperienceDayOfAPIView(_OccurrenceExperienceAPIView):
 
 class OccurrenceExperienceLiveAPIView(_OccurrenceExperienceAPIView):
     surface = "live"
+
+class OccurrenceExperienceLiveConfigurationAPIView(APIView):
+    """Owner-only Live opt-in. Viewer authority never comes from a UI mode."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, occurrence_id):
+        from rest_framework.exceptions import ValidationError
+        from activities.services import set_occurrence_live_enabled
+
+        enabled = request.data.get("enabled")
+        if not isinstance(enabled, bool):
+            raise ValidationError({"enabled": "Un booléen est obligatoire."})
+        occurrence = get_object_or_404(
+            Occurrence.objects.select_related("activity", "activity__space"),
+            pk=occurrence_id,
+        )
+        updated = set_occurrence_live_enabled(
+            occurrence=occurrence, actor=request.user, enabled=enabled,
+        )
+        response = Response({
+            "occurrence_id": str(updated.pk),
+            "live_enabled": updated.live_enabled,
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
