@@ -19,6 +19,84 @@ class JourneyReadinessItem {
   final String? nextLink;
 }
 
+/// Non-actionable owner facts are not turned into client-side commands.
+class JourneyPaymentSummary {
+  const JourneyPaymentSummary({
+    required this.amount,
+    required this.currency,
+    required this.state,
+    this.reason,
+  });
+  final String amount;
+  final String currency;
+  final String state;
+  final String? reason;
+}
+
+class JourneyPracticalFacts {
+  const JourneyPracticalFacts({
+    this.startAt,
+    this.startDate,
+    this.startTime,
+    this.timezone,
+    this.placeName,
+    this.placeAddress,
+    this.placeLocality,
+    this.accessInstructions,
+  });
+  final DateTime? startAt;
+  final String? startDate;
+  final String? startTime;
+  final String? timezone;
+  final String? placeName;
+  final String? placeAddress;
+  final String? placeLocality;
+  final String? accessInstructions;
+
+  bool get hasContent =>
+      startAt != null ||
+      startDate != null ||
+      placeName != null ||
+      placeAddress != null ||
+      accessInstructions != null;
+}
+
+class JourneyResourcePreview {
+  const JourneyResourcePreview({
+    required this.id,
+    required this.title,
+    required this.kind,
+    this.description,
+  });
+  final String id;
+  final String title;
+  final String kind;
+  final String? description;
+
+  static List<JourneyResourcePreview> fromProjection(
+    StoredProjection? projection,
+  ) {
+    final raw = projection?.payload['items'];
+    if (raw is! List) return const [];
+    final rows = <JourneyResourcePreview>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final id = item['id']?.toString().trim() ?? '';
+      final title = item['title']?.toString().trim() ?? '';
+      if (id.isEmpty || title.isEmpty) continue;
+      final kind = item['kind']?.toString() ?? '';
+      final description = item['description']?.toString().trim();
+      rows.add(JourneyResourcePreview(
+        id: id,
+        title: title,
+        kind: kind,
+        description: description?.isNotEmpty == true ? description : null,
+      ));
+    }
+    return List.unmodifiable(rows);
+  }
+}
+
 /// A JourneyStep is an owner fact, never a locally invented task or percentage.
 class JourneyStepSummary {
   const JourneyStepSummary({
@@ -47,12 +125,14 @@ class JourneyFormSummary {
     required this.state,
     required this.canComplete,
     required this.detailLink,
+    this.title = 'Formulaire',
     this.dueAt,
     this.saveLink,
     this.submitLink,
   });
 
   final String id;
+  final String title;
   final bool required;
   final String state;
   final DateTime? dueAt;
@@ -93,6 +173,10 @@ class JourneyDetailPresentation {
     required this.freshness,
     required this.sourceInvalidated,
     this.canRespondInvitation = false,
+    this.pendingRequests = 0,
+    this.rejectedRequests = 0,
+    this.payment,
+    this.practical,
     this.workflowKind = '',
     this.stateCode = '',
     this.steps = const [],
@@ -134,6 +218,10 @@ class JourneyDetailPresentation {
   final FreshnessState? freshness;
   final bool sourceInvalidated;
   final bool canRespondInvitation;
+  final int pendingRequests;
+  final int rejectedRequests;
+  final JourneyPaymentSummary? payment;
+  final JourneyPracticalFacts? practical;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
   bool get isTerminal =>
@@ -184,6 +272,7 @@ class JourneyDetailSelector {
     final access = _map(payload['access']);
     final resources = _map(payload['resources']);
     final links = _map(payload['links']);
+    final requests = _map(payload['requests']);
     final capabilities = _strings(payload['capabilities']).toSet();
 
     final title = _string(representation['title']) ?? 'Démarche';
@@ -195,6 +284,10 @@ class JourneyDetailSelector {
       workflowKind: _string(identity['workflow']) ?? '',
       stateCode: _string(state['code']) ?? '',
       steps: _steps(payload['steps']),
+      pendingRequests: _maps(requests['pending']).length,
+      rejectedRequests: _maps(requests['rejected']).length,
+      payment: _payment(payload['payment']),
+      practical: _practical(occurrence),
       summary: summary != null && summary.toLowerCase() != title.toLowerCase()
           ? summary
           : null,
@@ -248,6 +341,45 @@ class JourneyDetailSelector {
     );
   }
 
+  static JourneyPaymentSummary? _payment(Object? value) {
+    final payment = _map(value);
+    if (payment.isEmpty) return null;
+    final order = _map(payment['order']);
+    final latest = _map(payment['payment']);
+    final obligations = _maps(payment['obligations']);
+    final obligation = obligations.isEmpty ? const <String, dynamic>{} : obligations.first;
+    final amount = _string(obligation['amount']) ?? _string(order['total']);
+    final currency = _string(obligation['currency']) ?? _string(order['currency']);
+    final state = _string(latest['state']) ??
+        _string(_map(obligation['payment'])['state']) ??
+        _string(obligation['state']) ??
+        _string(order['state']);
+    if (amount == null || currency == null || state == null) return null;
+    return JourneyPaymentSummary(
+      amount: amount,
+      currency: currency,
+      state: state,
+      reason: _string(obligation['reason']),
+    );
+  }
+
+  static JourneyPracticalFacts? _practical(Map<String, dynamic> occurrence) {
+    if (occurrence.isEmpty) return null;
+    final timing = _map(occurrence['timing']);
+    final place = _map(occurrence['place']);
+    final result = JourneyPracticalFacts(
+      startAt: _dateTime(timing['start_at']),
+      startDate: _string(timing['start_date']),
+      startTime: _string(timing['start_time']),
+      timezone: _string(timing['timezone']),
+      placeName: _string(place['name']),
+      placeAddress: _string(place['address']),
+      placeLocality: _string(place['locality']),
+      accessInstructions: _string(place['instructions']),
+    );
+    return result.hasContent ? result : null;
+  }
+
   static List<JourneyStepSummary> _steps(Object? value) {
     return _maps(value).map((row) {
       return JourneyStepSummary(
@@ -283,6 +415,7 @@ class JourneyDetailSelector {
           final capabilities = _strings(row['capabilities']);
           return JourneyFormSummary(
             id: _string(row['id']) ?? '',
+            title: _string(row['title']) ?? 'Formulaire',
             required: row['required'] == true,
             state: _string(row['state']) ?? '',
             dueAt: _dateTime(row['due_at']),
