@@ -3,6 +3,7 @@ from pathlib import Path
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
+from django.db.models import Q
 from authorization.constants import PermissionCode
 from authorization.services import can
 from .models import (
@@ -24,8 +25,7 @@ def ensure_media_access(actor, media):
     if _can_manage(actor, media.form_version):
         return
     if not FormRequest.objects.filter(form_version=media.form_version).filter(
-        __import__("django.db.models", fromlist=["Q"]).Q(target_profile=actor) |
-        __import__("django.db.models", fromlist=["Q"]).Q(journey__beneficiary=actor)
+        Q(target_profile=actor) | Q(journey__beneficiary=actor)
     ).exists():
         raise PermissionDenied("Média de questionnaire inaccessible.")
 
