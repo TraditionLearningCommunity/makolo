@@ -271,8 +271,51 @@ class _SyncLifecycleState extends State<SyncLifecycle>
           runtime.preparationResources!.sourceFor(journeyId: id),
         );
       }
-      // Existing collection sources, Journey detail and Preparation metadata
-      // are all bounded and can be resumed on subsequent lifecycle cycles.
+      // A known local Journey also contains authoritative links to its
+      // Questionnaires and Requirements. Prepare those owners independently,
+      // without ever deriving a mutation permission or copying their data.
+      var preparedForms = 0;
+      var preparedRequirements = 0;
+      for (final journeyId in knownJourneyIds) {
+        final localDetail = await runtime.store?.readProjection(
+          JourneyRepository.projectionKind,
+          resourceKey: journeyId,
+        );
+        if (runtime.questionnaires != null && preparedForms < 6) {
+          final forms = JourneyRepository.knownFormLinksFromDetail(
+            localDetail,
+            limit: 6 - preparedForms,
+          );
+          for (final entry in forms.entries) {
+            sync.registerPreparedSource(
+              runtime.questionnaires!.sourceFor(
+                requestId: entry.key,
+                detailPath: entry.value,
+              ),
+            );
+            preparedForms++;
+          }
+        }
+        if (runtime.requirements != null && preparedRequirements < 6) {
+          final requirements = JourneyRepository.knownRequirementLinksFromDetail(
+            localDetail,
+            journeyId: journeyId,
+            limit: 6 - preparedRequirements,
+          );
+          for (final entry in requirements.entries) {
+            sync.registerPreparedSource(
+              runtime.requirements!.sourceFor(
+                journeyId: journeyId,
+                assessmentId: entry.key,
+                detailPath: entry.value,
+              ),
+            );
+            preparedRequirements++;
+          }
+        }
+      }
+      // Existing collection sources, Journey detail, Preparation, forms and
+      // Requirements are all bounded and resume across lifecycle cycles.
       // bounded and resumed on later lifecycle passes.
       final workingSetSucceeded = await sync.refreshPreparedSources(
         maxRequests: 15,
