@@ -8,6 +8,8 @@ from django.http import Http404
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from discovery.views import DiscoveryHomeView
+
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from intelligence.interoperability import project_provider_connection, provider_connections_for_space
@@ -187,11 +189,12 @@ class SpaceNowView(SpaceProjectionViewMixin):
     projection_builder = staticmethod(build_space_now_projection)
 
 
-class SpaceDiscoverView(SpaceProjectionViewMixin):
-    template_name = "organizations/space/discover.html"
+class SpaceDiscoverView(SpaceWebMixin, DiscoveryHomeView):
+    """Use the existing Discovery Web field with verified Space context."""
+
+    template_name = "discovery/home.html"
     space_nav_key = "discover"
     space_page_title = "Découvrir"
-    projection_builder = staticmethod(build_space_discover_projection)
 
 
 class SpaceWorkView(SpaceWebMixin):
