@@ -8,6 +8,7 @@ from .interoperability_views import PersonalConnectionsView
 from .m8c_participant_views import ParticipantJourneyDetailView
 from .occurrence_experience_web import (
     PersonalOccurrenceDayOfView,
+    PersonalOccurrenceDepthView,
     PersonalOccurrenceLiveView,
 )
 from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView, MatureParticipantConsiderationsView
@@ -62,6 +63,11 @@ urlpatterns = [
         "me/occurrences/<uuid:pk>/live/",
         PersonalOccurrenceLiveView.as_view(),
         name="participant-occurrence-live",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/depth/<str:kind>/",
+        PersonalOccurrenceDepthView.as_view(),
+        name="participant-occurrence-depth",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(
