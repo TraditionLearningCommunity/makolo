@@ -41,6 +41,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.shareApi,
     this.profileId,
     this.allowOwnerActions = true,
+    this.collectiveReadOnly = false,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -777,6 +778,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final bool shareAuthenticated;
   final String? profileId;
   final bool allowOwnerActions;
+  final bool collectiveReadOnly;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
