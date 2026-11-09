@@ -181,8 +181,9 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted ||
             generation != _generation ||
-            !_scrollController.hasClients)
+            !_scrollController.hasClients) {
           return;
+        }
         if (reset) {
           _scrollController.jumpTo(0);
         } else {

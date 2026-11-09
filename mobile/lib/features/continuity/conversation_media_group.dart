@@ -68,8 +68,7 @@ class ConversationMediaGroup extends StatelessWidget {
                 IgnorePointer(
                   child: ConversationAttachmentViewer(
                     key: ValueKey(
-                      'conversation-inline-image-' +
-                          (attachment['id']?.toString() ?? index.toString()),
+                      'conversation-inline-image-${attachment['id']?.toString() ?? index}',
                     ),
                     repository: repository,
                     download: download,
@@ -116,7 +115,7 @@ class ConversationMediaGroup extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                attachments.length.toString() + ' médias associés',
+                '${attachments.length} médias associés',
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ),
@@ -163,7 +162,7 @@ class ConversationMediaGroup extends StatelessWidget {
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              '+' + remaining.toString(),
+                              '+$remaining',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 25,
@@ -180,8 +179,7 @@ class ConversationMediaGroup extends StatelessWidget {
           for (final index in other)
             ConversationPointMediaTile(
               key: ValueKey(
-                'conversation-inline-file-' +
-                    (attachments[index]['id']?.toString() ?? index.toString()),
+                'conversation-inline-file-${attachments[index]['id']?.toString() ?? index}',
               ),
               attachment: attachments[index],
               onOpen: () => _open(context, index),

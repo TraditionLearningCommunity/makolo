@@ -86,8 +86,9 @@ GoRouter createMakoloRouter(
   DiscoveryQuery? publicDiscoveryQuery(Map<String, String> parameters) {
     // Guest routes may never silently reinterpret an explicit Profile or
     // Space request as a public field.
-    if (parameters.containsKey('context') || parameters.containsKey('space'))
+    if (parameters.containsKey('context') || parameters.containsKey('space')) {
       return null;
+    }
     try {
       return DiscoveryQuery.fromRouteParameters(parameters);
     } on FormatException {

@@ -147,8 +147,9 @@ class _ConversationAttachmentViewerState
     if (widget.gallery.isEmpty ||
         next < 0 ||
         next >= widget.gallery.length ||
-        _exporting)
+        _exporting) {
       return;
+    }
     ++_generation;
     await _release();
     if (!mounted) return;
@@ -180,7 +181,7 @@ class _ConversationAttachmentViewerState
         );
         if (mounted) {
           ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Enregistré : ' + saved)));
+              .showSnackBar(SnackBar(content: Text('Enregistré : $saved')));
         }
       }
     } on Object {
@@ -208,7 +209,7 @@ class _ConversationAttachmentViewerState
   String _time(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
-    return minutes.toString() + ':' + seconds;
+    return '$minutes:$seconds';
   }
 
   Widget _read(File file) {
@@ -270,7 +271,7 @@ class _ConversationAttachmentViewerState
                       ? (v) => player.seek(Duration(milliseconds: v.round()))
                       : null,
                 ),
-                Text(_time(position) + ' / ' + _time(duration)),
+                Text('${_time(position)} / ${_time(duration)}'),
               ],
             );
           },
@@ -328,7 +329,7 @@ class _ConversationAttachmentViewerState
                             player.seekTo(Duration(milliseconds: v.round())),
                       ),
                     ),
-                    Text(_time(value.position) + '/' + _time(value.duration)),
+                    Text('${_time(value.position)}/${_time(value.duration)}'),
                   ],
                 ),
               ],
@@ -454,11 +455,7 @@ class _ConversationAttachmentViewerState
         appBar: AppBar(
           title: Text(
             galleryLength > 1
-                ? title +
-                      ' · ' +
-                      (_index + 1).toString() +
-                      '/' +
-                      galleryLength.toString()
+                ? '$title · ${_index + 1}/$galleryLength'
                 : title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

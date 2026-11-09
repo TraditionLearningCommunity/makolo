@@ -2019,8 +2019,9 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         pointId: widget.point.id,
       );
-      if (mounted)
+      if (mounted) {
         setState(() => _feedback = 'Prise de connaissance enregistrée.');
+      }
     } on Object {
       try {
         await widget.repository.refreshDetail(widget.conversationId);

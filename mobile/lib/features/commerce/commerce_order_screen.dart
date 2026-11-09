@@ -50,8 +50,9 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
               const {
                 'permission_denied',
                 'not_found',
-              }.contains(source?.lastErrorCode))
+              }.contains(source?.lastErrorCode)) {
             continue;
+          }
           final payment = local.payload['payment'];
           if (payment is! Map) continue;
           final order = payment['order'];

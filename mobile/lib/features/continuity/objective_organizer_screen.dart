@@ -764,7 +764,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             final entries = page.entries;
             final hierarchy = OrganizerHierarchy(entries);
             final byKey = hierarchy.byKey;
-            final children = (OrganizerEntry parent) =>
+            List<OrganizerEntry> children(OrganizerEntry parent) =>
                 _ordered(hierarchy.childrenOf(parent));
 
             // Include ancestors of matching descendants. With search or type
