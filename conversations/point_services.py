@@ -303,7 +303,7 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
         "conversation", "visibility_audience", "response_audience", "expected_action_audience"
     ).get(pk=point.pk)
-    at = _active_window(locked)
+    at = timezone.now()
     if not point_response_allowed(actor, locked, at=at):
         raise PermissionDenied("Vous ne pouvez pas répondre à ce Point.")
     _validate_represented_space(actor, represented_space)
@@ -316,6 +316,9 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
             if existing.point_id == locked.pk and same_subject and existing.value == normalized:
                 return existing
             raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
+    # A confirmed response replay is valid even if the Point closed meanwhile.
+    # A new response must still pass the current owner lifecycle gate.
+    at = _active_window(locked, at=at)
     filters = {"represented_space": represented_space} if represented_space else {"actor": actor, "represented_space__isnull": True}
     previous = ConversationPointResponse.objects.select_for_update().filter(point=locked, status=ConversationPointResponseStatus.ACTIVE, **filters).first()
     if previous and not locked.allow_response_change:
@@ -343,6 +346,12 @@ def acknowledge_point(*, actor, point):
         raise ValidationError("Ce Point ne demande pas de confirmation de lecture.")
     if not point_visible_to(actor, locked):
         raise PermissionDenied("Ce Point n’est pas accessible.")
+    if locked.expected_action_audience_id and not point_expected_from(actor, locked):
+        raise PermissionDenied("Cette confirmation de lecture ne vous est pas destinée.")
+    if locked.lifecycle not in {
+        ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
+    }:
+        raise ValidationError("Ce Point n'attend plus de confirmation de lecture.")
     state, _ = ConversationPointUserState.objects.select_for_update().get_or_create(point=locked, profile=actor)
     now = timezone.now()
     state.seen_at = state.seen_at or now
@@ -431,7 +440,10 @@ def maybe_auto_resolve(*, point, allow_open=False):
     option_ids, payload = selection
     return _create_resolution(
         point=locked, method=ConversationPointResolutionMethod.AUTOMATIC,
-        summary="Résultat déterminé selon la règle configurée.", resolved_by=None,
+        summary=(
+            "Choix retenu : " + (locked.options.filter(pk=option_ids[0]).values_list("label", flat=True).first() or "Résultat")
+            if option_ids else "Résultat déterminé selon la règle configurée."
+        ), resolved_by=None,
         result_payload=payload, selected_option_ids=option_ids,
     )
 
@@ -441,6 +453,12 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "resolution_audience").get(pk=point.pk)
     if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
         return locked.resolution
+    if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
+        raise ValidationError({"summary": "Résumez le résultat en 1 à 500 caractères."})
+    if not isinstance(selected_option_ids, (list, tuple)) or len(selected_option_ids) > 12:
+        raise ValidationError({"selected_option_ids": "Choix retenus invalides."})
+    if selected_option_ids and locked.kind != ConversationPointKind.POLL:
+        raise ValidationError({"selected_option_ids": "Seul un sondage permet de retenir des choix."})
     if locked.lifecycle not in {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}:
         raise ValidationError("Ce Point ne peut pas être résolu dans son état actuel.")
     if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
@@ -462,6 +480,8 @@ def close_point_responses(*, actor, point):
         raise ValidationError("La Conversation est fermée.")
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas fermer les réponses de ce Point.")
+    if locked.response_mode == ConversationPointResponseMode.NONE or locked.kind == ConversationPointKind.FORM_REQUEST:
+        raise ValidationError("Ce Point n'a pas de réponses Conversation à clore.")
     if locked.lifecycle != ConversationPointLifecycle.OPEN:
         return locked
     locked.lifecycle = ConversationPointLifecycle.RESPONSE_CLOSED
