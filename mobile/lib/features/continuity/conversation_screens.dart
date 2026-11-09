@@ -2119,6 +2119,30 @@ class _PointCardState extends State<_PointCard> {
     return _clientReference!;
   }
 
+  Future<void> _toggleRevisit() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _feedback = null;
+    });
+    try {
+      await widget.repository.updatePointRevisit(
+        conversationId: widget.conversationId,
+        pointId: widget.point.id,
+        revisit: !widget.point.revisit,
+      );
+      if (mounted) setState(() => _feedback =
+        widget.point.revisit
+            ? 'Repère personnel retiré.'
+            : 'Point enregistré dans « À savoir ».');
+    } on Object {
+      if (mounted) setState(() => _feedback =
+        'Repère non confirmé. Réessayez après actualisation.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _acknowledge() async {
     if (_busy) return;
     setState(() {
@@ -2635,6 +2659,26 @@ class _PointCardState extends State<_PointCard> {
               style: theme.bodySmall?.copyWith(color: muted),
             ),
           ),
+        if (!widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: MakoloActionButton(
+              key: Key('conversation-point-revisit-${point.id}'),
+              label: _busy
+                  ? 'Mise à jour…'
+                  : point.revisit
+                      ? 'Ne plus revoir ce Point'
+                      : 'Revoir ce Point',
+              icon: point.revisit
+                  ? Icons.bookmark_added_rounded
+                  : Icons.bookmark_add_outlined,
+              onPressed: _busy ? null : _toggleRevisit,
+              busy: _busy,
+              appearance: MakoloActionAppearance.quiet,
+            ),
+          ),
+        ],
         if (point.acknowledged)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
@@ -3311,6 +3355,7 @@ class _ConversationPoint {
     this.responseHint,
     this.canAcknowledge = false,
     this.acknowledged = false,
+    this.revisit = false,
     this.canCloseResponses = false,
     this.canResolve = false,
     this.canChangeResponse = false,
@@ -3360,6 +3405,7 @@ class _ConversationPoint {
   final String? responseHint;
   final bool canAcknowledge;
   final bool acknowledged;
+  final bool revisit;
   final bool canCloseResponses;
   final bool canResolve;
   final bool canChangeResponse;
@@ -3485,6 +3531,7 @@ class _ConversationPoint {
       responseHint: _string(row['response_hint']),
       canAcknowledge: row['can_acknowledge'] == true,
       acknowledged: row['acknowledged'] == true,
+      revisit: row['revisit'] == true,
       canCloseResponses: row['can_close_responses'] == true,
       canResolve: row['can_resolve'] == true,
       canChangeResponse: row['can_change_response'] == true,
