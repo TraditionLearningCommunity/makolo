@@ -147,6 +147,22 @@ class ObjectivesDemoGeneratorTests(TestCase):
             generate([ordinary], count=1, apply=True)
         self.assertFalse(Project.objects.exists())
 
+    def test_journey_link_count_is_forwarded_to_atomic_generator(self):
+        # Regression: the extracted helper previously referenced an unbound
+        # journeys_per_dossier local variable, raising NameError on generate.
+        with patch(
+            "scripts.demo_generation.objectives._apply_one_profile",
+            return_value=Counter({"profiles_completed": 1}),
+        ) as apply_one:
+            result = generate(
+                [self.owner], count=1, projects_per_profile=2,
+                dossiers_per_project=2, independent_dossiers=1,
+                journeys_per_dossier=3, apply=True,
+            )
+        apply_one.assert_called_once()
+        self.assertEqual(apply_one.call_args.args[3], 3)
+        self.assertEqual(result["profiles_completed"], 1)
+
     def test_sqlite_lock_retries_whole_owner_transaction_without_duplicate_counts(self):
         # The mocked first attempt must fail before any transaction commits;
         # the retry contributes exactly one successful owner's counts.
