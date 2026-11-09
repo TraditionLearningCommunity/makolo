@@ -77,6 +77,11 @@ def main(argv=None):
 
     if connection.vendor != "sqlite":
         parser.error("Interdit hors SQLite de demonstration")
+    from .schema import DemoSchemaNotReady, assert_demo_schema_ready
+    try:
+        assert_demo_schema_ready()
+    except DemoSchemaNotReady as exc:
+        parser.error(str(exc))
     db_path = Path(connection.settings_dict["NAME"]).resolve()
     if not db_path.is_file():
         parser.error("Base SQLite Django introuvable : " + str(db_path))
