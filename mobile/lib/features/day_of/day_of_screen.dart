@@ -172,7 +172,9 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                 );
             final globalState = SyncStatusScope.maybeOf(context)?.state;
             final offline = globalState == SyncVisualState.offline ||
-                globalState == SyncVisualState.failed;
+                globalState == SyncVisualState.failed ||
+                globalState == SyncVisualState.conflict ||
+                globalState == SyncVisualState.stale;
             final actionsAllowed = OccurrenceContinuity.canOfferActions(
               sourceInvalidated: source.invalidated,
               reachability: source.reachability,
