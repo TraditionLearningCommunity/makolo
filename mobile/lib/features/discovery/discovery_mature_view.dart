@@ -267,6 +267,7 @@ class DiscoveryFieldView extends StatelessWidget {
         onResetCriteria: onResetCriteria,
       ),
       content: DiscoveryFollowScope(
+        key: ValueKey<String?>(profileId),
         profileId: profileId,
         child: _DiscoveryScrollableField(
           selection: selection,
