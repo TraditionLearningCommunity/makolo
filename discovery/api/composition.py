@@ -1723,6 +1723,27 @@ def paginated_projection(
     end = start + page_size
     page_rows = composition.rows[start:end]
     results = project_rows(page_rows, profile=candidate_profile)
+    if space is not None:
+        # Space acquisition is read-only until a Space owner action contract is
+        # verified. Never expose a personal Save, Journey or mutable handoff.
+        for item in results:
+            item["capabilities"] = ["view"]
+            item["saved"] = {"state": "unknown"}
+            item["watch"] = {"state": "unavailable"}
+            item["links"] = {
+                key: value for key, value in (item.get("links") or {}).items()
+                if key not in {"saved", "web_saved"}
+            }
+            item["engagement"] = {
+                "state": "owner_contract",
+                "capabilities": [],
+                "links": {},
+                "primary_action": {
+                    "code": "detail",
+                    "state": "available",
+                    "destination": {"path": item["links"].get("detail")},
+                },
+            }
     count = len(composition.rows)
     has_next = end < count
     authenticated = _authenticated(profile)
