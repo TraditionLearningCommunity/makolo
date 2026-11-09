@@ -80,7 +80,11 @@
       if (shareDataPromise) return shareDataPromise;
       if (publicUrl) {
         try {
-          const url = new URL(publicUrl, window.location.origin).toString();
+          const target = new URL(publicUrl, window.location.origin);
+          if (target.origin !== window.location.origin) {
+            throw new Error('share-url-origin-mismatch');
+          }
+          const url = target.toString();
           shareDataPromise = Promise.resolve({
             title: root.dataset.shareTitle || 'Makolo',
             text: root.dataset.shareText || '',
