@@ -19,7 +19,11 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
         self.activity = SimpleNamespace(pk="activity", space_id=None)
         self.occurrence = SimpleNamespace(
             pk="occurrence",
+            activity_id="activity",
             activity=self.activity,
+            label="Session",
+            status="scheduled",
+            live_enabled=True,
             start_at=self.now + timedelta(minutes=20),
             end_at=self.now + timedelta(hours=2),
             timezone="Africa/Kinshasa",
@@ -28,9 +32,9 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
     def _resolve(
         self, *, participant=None, operator=None, institutional=None,
         owner_operations=False, finance=False, scanner=False, platform=False,
-        phase="live", surface="day_of", extra_grants=(),
+        phase="live", surface="day_of", extra_grants=(), live_enabled=True,
     ):
-        participant = participant
+        self.occurrence.live_enabled = live_enabled
         institutional = [] if institutional is None else institutional
         def owner_permission(_viewer, _occurrence, permission, _space_permission=None):
             return (
@@ -146,6 +150,19 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
         self.assertIsNone(self._resolve())
         self.viewer.is_authenticated = True
         self.assertIsNone(self._resolve())
+
+    def test_live_is_optional_even_when_the_day_of_exists(self):
+        data = self._resolve(
+            participant={"access": [{"status": "valid"}]},
+            live_enabled=False,
+        )
+        self.assertIsNotNone(data)
+        self.assertFalse(data["live"]["available"])
+        self.assertNotIn("live", data["links"])
+        self.assertIsNone(self._resolve(
+            participant={"access": [{"status": "valid"}]},
+            live_enabled=False, surface="live",
+        ))
 
     def test_live_closed_after_occurrence(self):
         self.assertIsNone(self._resolve(
