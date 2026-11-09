@@ -23,6 +23,7 @@ from discovery.services import (
 )
 from discovery.watches import execute_watch, normalize_watch_criteria, ensure_discovery_watch
 from objectives.models import Dossier
+from organizations.api.workspace_projection import workspace_spaces
 
 from .composition import (
     compose_discovery,
@@ -54,8 +55,30 @@ class PrivateDiscoveryResponseBoundary:
 MAX_MAP_POINTS = 100
 
 
-def _scope_for(request):
+def _scope_for(request, *, space=None):
+    if space is not None:
+        return "space"
     return "personal" if getattr(request.user, "is_authenticated", False) else "public"
+
+
+def _exploration_space(request):
+    """Resolve a requested Space from current server authority, never from a client profile ID."""
+    context = request.query_params.get("context")
+    slug = request.query_params.get("space")
+    if context not in (None, "", "space", "personal", "public"):
+        raise ValidationError({"context": ["Contexte Découvrir invalide."]})
+    if context == "public" and getattr(request.user, "is_authenticated", False):
+        raise ValidationError({"context": ["Le contexte public ne remplace pas un Profil authentifié."]})
+    if context != "space":
+        if slug:
+            raise ValidationError({"space": ["Un Space exige context=space."]})
+        return None
+    if not isinstance(slug, str) or not slug.strip():
+        raise ValidationError({"space": ["Space requis."]})
+    if not getattr(request.user, "is_authenticated", False):
+        from rest_framework.exceptions import NotAuthenticated
+        raise NotAuthenticated()
+    return get_object_or_404(workspace_spaces(request.user), slug=slug)
 
 
 def _reject_profile_override(request):
@@ -133,17 +156,19 @@ class DiscoveryItemsAPIView(PrivateDiscoveryResponseBoundary, APIView):
 
     def get(self, request):
         _reject_profile_override(request)
+        space = _exploration_space(request)
         try:
             data = paginated_projection(
                 request.query_params,
                 profile=request.user,
+                space=space,
             )
         except DjangoValidationError as exc:
             raise ValidationError({"discovery": exc.messages}) from exc
         return Response(
             projection_envelope(
                 projection="discovery.items",
-                scope=_scope_for(request),
+                scope=_scope_for(request, space=space),
                 data=data,
             )
         )
@@ -215,10 +240,12 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
 
     def get(self, request):
         _reject_profile_override(request)
+        space = _exploration_space(request)
+        candidate_profile = None if space is not None else request.user
         try:
             composition = compose_discovery(
                 request.query_params,
-                profile=request.user,
+                profile=candidate_profile,
             )
         except DjangoValidationError as exc:
             raise ValidationError({"discovery": exc.messages}) from exc
@@ -227,7 +254,7 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
         if request.query_params.get("spatial") == "1":
             if request.query_params.get("details") == "1":
                 return Response(spatial_discovery_projection(
-                    composition.rows, profile=request.user
+                    composition.rows, profile=candidate_profile
                 ))
             # Compatibility path for existing Map consumers.
             return Response(spatial_index_from_rows(composition.rows))
