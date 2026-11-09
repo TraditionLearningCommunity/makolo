@@ -29,11 +29,13 @@ class ResourcesScreen extends StatefulWidget {
 class _ResourcesScreenState extends State<ResourcesScreen> {
   bool _refreshing = false;
   late Stream<List<StoredProjection>> _pages;
+  late Stream<ResourceSourceState> _source;
 
   @override
   void initState() {
     super.initState();
     _pages = widget.repository.watchCollectionPages();
+    _source = widget.repository.watchCollectionSource(query: '', offset: 0);
     unawaited(_ensure());
   }
 
@@ -42,6 +44,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
       _pages = widget.repository.watchCollectionPages();
+      _source = widget.repository.watchCollectionSource(query: '', offset: 0);
       unawaited(_ensure());
     }
   }
@@ -84,13 +87,41 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         initialData: const [],
         builder: (context, snapshot) {
           final counts = _ResourceCounts.fromPages(snapshot.data ?? const []);
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(MakoloSpacing.inner),
-              children: [
-                _ResourceEntry(
+          return StreamBuilder<ResourceSourceState>(
+            stream: _source,
+            initialData: ResourceSourceState.unknown,
+            builder: (context, sourceSnapshot) {
+              final source =
+                  sourceSnapshot.data ?? ResourceSourceState.unknown;
+              return RefreshIndicator(
+                onRefresh: _refresh,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(MakoloSpacing.inner),
+                      children: [
+                        if (source.reachability ==
+                                ReachabilityState.unreachable ||
+                            source.invalidated) ...[
+                          Semantics(
+                            liveRegion: true,
+                            child: Text(
+                              source.ownerDenied
+                                  ? 'Les compteurs de ressources ne sont plus disponibles.'
+                                  : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: MakoloSpacing.md),
+                        ],
+                        _ResourceEntry(
                   icon: Icons.folder_copy_outlined,
                   title: 'Mes documents',
                   subtitle: 'Fichiers et pièces personnelles',
@@ -113,8 +144,12 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                   count: counts.titles,
                   onTap: widget.onOpenTitles,
                 ),
-              ],
-            ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
