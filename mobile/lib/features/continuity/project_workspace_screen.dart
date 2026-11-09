@@ -1149,7 +1149,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           '${_search.text.trim().isNotEmpty || _stateFilter != 'all' || _readinessFilter != 'all'
               ? (filtered.length == 1 ? 'résultat' : 'résultats')
               : (filtered.length == 1 ? 'dossier' : 'dossiers')} '
-          (filtered.length == 1 ? 'chargé' : 'chargés'),
+          '${filtered.length == 1 ? 'chargé' : 'chargés'}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
