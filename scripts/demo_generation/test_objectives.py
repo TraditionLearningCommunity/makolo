@@ -1,4 +1,8 @@
 """Django integration contracts for demo_generation Objectives scenarios."""
+from unittest.mock import patch
+from collections import Counter
+
+from django.db.utils import OperationalError
 from django.test import TestCase
 
 from accounts.models import User
@@ -94,6 +98,47 @@ class ObjectivesDemoGeneratorTests(TestCase):
         with self.assertRaisesRegex(ValueError, "n'est pas un Profil de démonstration"):
             generate([ordinary], count=1, apply=True)
         self.assertFalse(Project.objects.exists())
+
+    def test_sqlite_lock_retries_whole_owner_transaction_without_duplicate_counts(self):
+        # The mocked first attempt must fail before any transaction commits;
+        # the retry contributes exactly one successful owner's counts.
+        with patch(
+            "scripts.demo_generation.objectives._apply_one_profile",
+            side_effect=[
+                OperationalError("database is locked"),
+                Counter({"projects_created": 3, "dossiers_created": 8}),
+            ],
+        ) as apply_one, patch(
+            "scripts.demo_generation.objectives.connections.close_all"
+        ) as close, patch(
+            "scripts.demo_generation.objectives.sleep"
+        ) as pause:
+            result = self._generate(apply=True)
+        self.assertEqual(apply_one.call_count, 2)
+        close.assert_called_once()
+        pause.assert_called_once()
+        self.assertEqual(result["projects_created"], 3)
+        self.assertEqual(result["dossiers_created"], 8)
+
+    def test_sqlite_lock_stops_after_bounded_attempts(self):
+        with patch(
+            "scripts.demo_generation.objectives._apply_one_profile",
+            side_effect=OperationalError("database is locked"),
+        ) as apply_one, patch(
+            "scripts.demo_generation.objectives.connections.close_all"
+        ), patch("scripts.demo_generation.objectives.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "toujours occupée"):
+                self._generate(apply=True)
+        self.assertEqual(apply_one.call_count, 3)
+
+    def test_non_lock_database_error_is_never_retried(self):
+        with patch(
+            "scripts.demo_generation.objectives._apply_one_profile",
+            side_effect=OperationalError("no such table"),
+        ) as apply_one:
+            with self.assertRaisesRegex(OperationalError, "no such table"):
+                self._generate(apply=True)
+        apply_one.assert_called_once()
 
     def test_names_are_unique_even_when_themes_repeat_common_words(self):
         pairs = list(planned_titles(
