@@ -27,6 +27,7 @@ from .point_services import (
 )
 from .history import page_points_for_profile
 from .timeline import recent_timeline_for_profile, group_timeline_points
+from .participant_services import collective_invitation_inbox
 from .presentation import (
     catch_up_summary,
     conversation_context_label,
@@ -93,6 +94,10 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 "tab": tab,
                 "q": q,
                 "pending_invitations": invitations,
+                "pending_collective_invitations": (
+                    collective_invitation_inbox(self.request.user)
+                    if not q and tab != "archived" else []
+                ),
                 "rows": conversation_rows_for_profile(
                     self.request.user,
                     archived=tab == "archived",
