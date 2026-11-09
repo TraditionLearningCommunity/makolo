@@ -22,8 +22,15 @@
     marked = true;
     note.textContent = message;
     note.hidden = false;
+    note.classList.remove('hidden');
     refresh.hidden = false;
-    root.closest('main')?.querySelectorAll(
+    refresh.classList.remove('hidden');
+    document.getElementById('stop-camera')?.click();
+    const startCamera = document.getElementById('start-camera');
+    if (startCamera) startCamera.disabled = true;
+    const upload = document.getElementById('qr-image');
+    if (upload) upload.disabled = true;
+    (root.closest('main') || document).querySelectorAll(
       'form[method="post"] button[type="submit"], ' +
       'form[method="post"] button:not([type])'
     ).forEach(button => {
