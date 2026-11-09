@@ -183,6 +183,8 @@ def main(argv=None):
                            beneficiary__username__startswith="world_")
         else:
             qs = qs.filter(beneficiary=profiles[0])
+            if "mobile-mature-" not in prefixes:
+                qs = qs.filter(occurrence__end_at__gt=now)
         qs = qs.select_related(
             "activity", "occurrence", "beneficiary").order_by("-occurrence__end_at", "id")
         for journey in qs[:args.accesses]:
