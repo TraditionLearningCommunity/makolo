@@ -455,10 +455,21 @@ def resolve_point(*, actor, point, summary, selected_option_ids=(), result_paylo
         raise PermissionDenied("La résolution exige l'autorité de gestion de la Conversation.")
     if locked.resolution_audience_id and not profile_in_audience(actor, locked.resolution_audience):
         raise PermissionDenied("Vous ne faites pas partie de l'audience de résolution.")
-    if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
-        return locked.resolution
     if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
         raise ValidationError({"summary": "Résumez le résultat en 1 à 500 caractères."})
+    if locked.lifecycle == ConversationPointLifecycle.RESOLVED:
+        existing = locked.resolution
+        current_options = {
+            str(option_id) for option_id in existing.selected_option_links.values_list(
+                "option_id", flat=True,
+            )
+        }
+        requested_options = {str(option_id) for option_id in selected_option_ids}
+        if existing.summary != summary.strip() or current_options != requested_options:
+            raise ValidationError(
+                "Ce Point est déjà résolu avec un autre résultat. Actualisez son état."
+            )
+        return existing
     if not isinstance(selected_option_ids, (list, tuple)) or len(selected_option_ids) > 12:
         raise ValidationError({"selected_option_ids": "Choix retenus invalides."})
     if selected_option_ids and locked.kind != ConversationPointKind.POLL:
