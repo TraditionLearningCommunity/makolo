@@ -122,12 +122,12 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       await switch (widget.surface) {
         SpaceShellSurface.now => repository.refreshNow(
           actor.space,
-          actor.perspective,
+          const ActorPerspective.all(),
         ),
         SpaceShellSurface.discover => repository.refreshDiscover(actor.space),
         SpaceShellSurface.work => repository.refreshWork(
           actor.space,
-          actor.perspective,
+          const ActorPerspective.all(),
         ),
         SpaceShellSurface.us => repository.refreshUs(actor.space),
       };
@@ -142,12 +142,12 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
   ) => switch (widget.surface) {
     SpaceShellSurface.now => repository.watchNow(
       actor.space,
-      actor.perspective,
+      const ActorPerspective.all(),
     ),
     SpaceShellSurface.discover => repository.watchDiscover(actor.space),
     SpaceShellSurface.work => repository.watchWork(
       actor.space,
-      actor.perspective,
+      const ActorPerspective.all(),
     ),
     SpaceShellSurface.us => repository.watchUs(actor.space),
   };
@@ -200,12 +200,12 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
     final source = switch (widget.surface) {
       SpaceShellSurface.now => repository.nowSource(
         actor.space,
-        actor.perspective,
+        const ActorPerspective.all(),
       ),
       SpaceShellSurface.discover => repository.discoverSource(actor.space),
       SpaceShellSurface.work => repository.workSource(
         actor.space,
-        actor.perspective,
+        const ActorPerspective.all(),
       ),
       SpaceShellSurface.us => repository.usSource(actor.space),
     };
@@ -222,7 +222,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
         return StreamBuilder<StoredProjection?>(
           key: ValueKey(
             '${widget.surface.name}:${actor.space.id}:'
-            '${SpaceSyncKeys.perspectiveKey(actor.perspective)}',
+            'all',
           ),
           stream: _stream(repository, actor),
           builder: (context, snapshot) {
@@ -920,20 +920,17 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final roles = _teamRoleOptions(payload);
     final id = _text(row['id']);
     if (api == null || roles.isEmpty || id == null) return;
-    final currentRole = _text(row['responsibility']);
-    String? selected = roles.any((role) => role['code'] == currentRole)
-        ? currentRole
-        : null;
+    String? selected;
     final chosen = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
-          title: const Text('Changer la responsabilité'),
+          title: const Text('Ajouter un rôle'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(_depthRowLabel(row)),
-              const Text('Ce changement peut modifier l’autorité du membre.'),
+              const Text('Ce rôle s’ajoute aux mandats existants. Les autorisations déjà accordées restent actives.'),
               DropdownButtonFormField<String>(
                 initialValue: selected,
                 isExpanded: true,
@@ -958,7 +955,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               appearance: MakoloActionAppearance.quiet,
             ),
             MakoloActionButton(
-              label: 'Confirmer le changement',
+              label: 'Ajouter ce rôle',
               onPressed: selected == null
                   ? null
                   : () => Navigator.pop(context, selected),
@@ -1201,33 +1198,6 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     }
   }
 
-  Future<void> _openResponsibility(String key) async {
-    final controller = widget.runtime.actorContext;
-    final current = controller?.value;
-    if (current is! SpaceActorContext ||
-        _space == null ||
-        current.space.id != _space!.id ||
-        !key.startsWith('mandate:')) {
-      return;
-    }
-    try {
-      // This changes only the selected perspective. Authorization is always
-      // recomputed by the owner endpoint, never granted by this UI.
-      await controller!.selectPerspective(ActorPerspective.opaque(key));
-      if (mounted) context.go('/space/work');
-    } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Impossible de sélectionner cette responsabilité pour le moment.',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
   Widget _depthBody(
     BuildContext context,
     Map<String, dynamic> payload, {
@@ -1454,22 +1424,6 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                               _depthRowDetail(row),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
-                            if (widget.depth == 'responsibilities' &&
-                                _text(_map(row)?['key'])
-                                        ?.startsWith('mandate:') ==
-                                    true) ...[
-                              const SizedBox(height: MakoloSpacing.sm),
-                              MakoloActionButton(
-                                label: 'Voir ce que je porte',
-                                onPressed: observationOnly
-                                    ? null
-                                    : () => _openResponsibility(
-                                        _text(_map(row)?['key'])!,
-                                      ),
-                                appearance: MakoloActionAppearance.quiet,
-                                icon: Icons.arrow_forward_rounded,
-                              ),
-                            ],
                             if (canManageTeam &&
                                 _fullTeam != null &&
                                 _map(row) != null &&
@@ -1484,7 +1438,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                                 spacing: MakoloSpacing.sm,
                                 children: [
                                   MakoloActionButton(
-                                    label: 'Responsabilité',
+                                    label: 'Ajouter un rôle',
                                     onPressed: _teamMutating
                                         ? null
                                         : () => _changeTeamRole(
@@ -1554,6 +1508,16 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   String _depthRowDetail(Object? value) {
     final row = _map(value);
+    if (widget.depth == 'team') {
+      final rawRoles = row?['roles'];
+      if (rawRoles is List) {
+        final labels = rawRoles
+            .map((item) => _text(_map(item)?['label']))
+            .whereType<String>()
+            .toList(growable: false);
+        if (labels.isNotEmpty) return labels.join(' · ');
+      }
+    }
     final responsibility = _map(row?['responsibility']);
     final activity = _map(row?['activity']);
     return _text(responsibility?['label']) ??
@@ -1561,7 +1525,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         (widget.depth == 'team'
             ? 'Membre de l’équipe'
             : widget.depth == 'ownership'
-            ? 'Mandate de propriétaire'
+            ? 'Mandat de propriétaire'
             : 'Portée collective');
   }
 

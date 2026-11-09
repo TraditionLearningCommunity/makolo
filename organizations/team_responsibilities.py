@@ -16,7 +16,7 @@ from authorization.services import (
     can,
     get_system_role,
     grant_activity_role,
-    replace_standard_space_role,
+    grant_standard_space_role,
     revoke_all_space_mandates,
     revoke_mandate,
 )
@@ -101,7 +101,7 @@ def _sync_legacy_space_role(*, membership, space, role_code, actor):
 
 @transaction.atomic
 def update_member_space_responsibility(*, membership, actor, role_code):
-    """Replace one member's standard Space responsibility without touching membership history."""
+    """Add one Space Mandate without removing other current responsibilities."""
 
     space = _lock_space(membership.team.organization)
     membership = _lock_membership(membership=membership, space=space)
@@ -116,7 +116,7 @@ def update_member_space_responsibility(*, membership, actor, role_code):
     if current_owner or target_role.code == SystemRoleCode.SPACE_OWNER:
         _require_ownership_management(actor=actor, space=space)
 
-    mandate = replace_standard_space_role(
+    mandate = grant_standard_space_role(
         profile=membership.user,
         space=space,
         role_code=target_role.code,
@@ -266,7 +266,7 @@ def transfer_space_ownership(*, membership, actor, relinquish_current_owner=True
     if not _is_current_owner(profile=actor, space=space):
         raise PermissionDenied("Le transfert doit être initié par un Owner actuel.")
 
-    target_owner = replace_standard_space_role(
+    target_owner = grant_standard_space_role(
         profile=target.user,
         space=space,
         role_code=SystemRoleCode.SPACE_OWNER,
@@ -295,7 +295,25 @@ def transfer_space_ownership(*, membership, actor, relinquish_current_owner=True
         )
         if actor_membership is None:
             raise ValidationError("L'Owner courant doit rester un collaborateur actif pendant le transfert.")
-        replace_standard_space_role(
+        # Explicitly relinquish only the Owner mandate. Other active roles,
+        # including custom Space mandates, continue to coexist unchanged.
+        owner_mandate = (
+            current_mandates()
+            .select_for_update()
+            .filter(
+                profile=actor,
+                space=space,
+                scope_type=AuthorityScope.SPACE,
+                role__is_system=True,
+                role__code=SystemRoleCode.SPACE_OWNER,
+            )
+            .order_by("pk")
+            .first()
+        )
+        if owner_mandate is None:
+            raise ValidationError("Le mandat Owner courant n'est plus actif.")
+        revoke_mandate(mandate=owner_mandate, actor=actor)
+        grant_standard_space_role(
             profile=actor,
             space=space,
             role_code=SystemRoleCode.SPACE_ADMIN,

@@ -360,17 +360,39 @@ def revoke_mandate(*, mandate, actor=None) -> Mandate:
 
 
 @transaction.atomic
-def replace_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
-    target_role = get_system_role(role_code, scope_type=AuthorityScope.SPACE)
-    if target_role.code not in STANDARD_SPACE_ROLE_CODES:
+def grant_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
+    """Add one current standard Space Mandate without revoking coexisting ones.
+
+    Authority accumulates across the Profile's active Mandates. Removing one
+    Mandate, transferring ownership, and leaving a Space remain separate
+    explicit operations with their own server-side authorization checks.
+    """
+    role = get_system_role(role_code, scope_type=AuthorityScope.SPACE)
+    if role.code not in STANDARD_SPACE_ROLE_CODES:
         raise ValidationError("Ce rôle n'est pas un rôle standard d'Espace.")
-    current = list(Mandate.objects.select_for_update().filter(profile=profile, space=space, scope_type=AuthorityScope.SPACE, status=MandateStatus.ACTIVE, role__code__in=STANDARD_SPACE_ROLE_CODES).order_by())
-    for mandate in current:
-        if mandate.role_id == target_role.pk:
-            continue
-        _assert_owner_can_be_removed(mandate)
-        mandate.status = MandateStatus.REVOKED; mandate.revoked_at = timezone.now(); mandate.save(update_fields=["status", "revoked_at", "updated_at"])
-    return grant_space_role(profile=profile, space=space, role=target_role, granted_by=granted_by, source=source)
+    return grant_space_role(
+        profile=profile,
+        space=space,
+        role=role,
+        granted_by=granted_by,
+        source=source,
+    )
+
+
+@transaction.atomic
+def replace_standard_space_role(*, profile, space, role_code: str, granted_by=None, source="team-service") -> Mandate:
+    """Compatibility entry point: Space grants are additive, never exclusive.
+
+    Historical callers used "replace" to mean "assign". Explicit revocation,
+    membership departure and ownership relinquishment retain dedicated services.
+    """
+    return grant_standard_space_role(
+        profile=profile,
+        space=space,
+        role_code=role_code,
+        granted_by=granted_by,
+        source=source,
+    )
 
 
 @transaction.atomic

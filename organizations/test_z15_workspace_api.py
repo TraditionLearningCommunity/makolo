@@ -297,7 +297,12 @@ class Z15WorkspaceContractTests(TestCase):
         )
         self.assertEqual(updated.status_code, 200, updated.data)
         self.assertTrue(can(target, PermissionCode.MARKETING_MANAGE, self.space))
-        self.assertFalse(can(target, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertTrue(can(target, PermissionCode.FINANCE_VIEW, self.space))
+        self.assertEqual(
+            {row["code"] for row in updated.data["roles"]},
+            {SystemRoleCode.FINANCE, SystemRoleCode.MARKETING},
+        )
+        self.assertEqual(updated.data["responsibility"], SystemRoleCode.MARKETING)
 
         self.client.force_authenticate(self.member)
         self.assertEqual(

@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from authorization.constants import PermissionCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope
 from authorization.selectors import current_mandates
 from authorization.services import can
@@ -175,7 +175,7 @@ def _require_team_manage(user, space):
 
 
 def _team_membership_row(membership, space):
-    standard = (
+    standards = list(
         current_mandates()
         .filter(
             profile=membership.user,
@@ -183,8 +183,13 @@ def _team_membership_row(membership, space):
             space=space,
             role__is_system=True,
         )
-        .order_by("pk")
-        .first()
+        .select_related("role")
+        .order_by("role__name", "pk")
+    )
+    # A single compatibility label must never hide the additive role set.
+    primary = next(
+        (item for item in standards if item.role.code == SystemRoleCode.SPACE_OWNER),
+        max(standards, key=lambda item: item.pk) if standards else None,
     )
     return {
         "id": str(membership.pk),
@@ -194,7 +199,11 @@ def _team_membership_row(membership, space):
             "email": membership.user.email,
         },
         "status": membership.status,
-        "responsibility": standard.role.code if standard else None,
+        "responsibility": primary.role.code if primary else None,
+        "roles": [
+            {"code": item.role.code, "label": item.role.name}
+            for item in standards
+        ],
     }
 
 

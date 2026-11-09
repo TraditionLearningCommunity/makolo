@@ -12,7 +12,7 @@ from authorization.constants import (
 from authorization.services import (
     can,
     grant_space_role,
-    replace_standard_space_role,
+    grant_standard_space_role,
     revoke_all_space_mandates,
 )
 
@@ -195,7 +195,7 @@ def sync_legacy_membership_to_authority(membership: OrganizationMembership):
         return team_membership
 
     role_code = _canonical_role_code(membership.role)
-    replace_standard_space_role(
+    grant_standard_space_role(
         profile=membership.user,
         space=membership.organization,
         role_code=role_code,
@@ -318,7 +318,7 @@ def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembers
     membership.full_clean()
     membership.save()
 
-    replace_standard_space_role(
+    grant_standard_space_role(
         profile=user,
         space=organization,
         role_code=canonical_role,

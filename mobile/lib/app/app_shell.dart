@@ -12,7 +12,6 @@ import '../navigation/avatar_sheet.dart';
 import '../navigation/active_context_avatar.dart';
 import '../navigation/destination.dart';
 import '../navigation/shell_header.dart';
-import '../navigation/space_context_bar.dart';
 import '../sync/sync_status.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
@@ -221,8 +220,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       top: false,
       child: Column(
         children: [
-          if (actor is SpaceActorContext)
-            MakoloSpaceContextBar(runtime: widget.runtime, actor: actor),
           if (syncStatus != null) ...[
             NetworkStateCue(status: syncStatus),
             if (syncStatus.state == SyncVisualState.pending ||

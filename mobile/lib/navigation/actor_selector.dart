@@ -180,15 +180,8 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
           workspaceState.lastErrorCode != null) {
         throw StateError('Contexte Space non vérifié.');
       }
-      final current = controller.value;
-      await controller.selectSpace(
-        summary.identity,
-        perspective:
-            current is SpaceActorContext &&
-                current.space.id == summary.identity.id
-            ? current.perspective
-            : const ActorPerspective.all(),
-      );
+      // Selecting an actor never selects one Mandate over the others.
+      await controller.selectSpace(summary.identity);
       if (mounted) Navigator.of(context).pop();
     } on Object {
       if (mounted) {
