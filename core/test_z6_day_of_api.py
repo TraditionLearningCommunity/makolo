@@ -51,6 +51,7 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.occurrence = Occurrence.objects.create(
             activity=self.activity,
             label="Départ principal",
+            live_enabled=True,
             start_at=self.now + timedelta(hours=4),
             end_at=self.now + timedelta(hours=7),
             timezone="Africa/Lubumbashi",
