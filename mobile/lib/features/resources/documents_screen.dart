@@ -36,7 +36,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String _sensitivity = '';
   String _sort = 'recent';
 
+  bool _initializing = true;
   bool _refreshing = false;
+  bool _refreshFailed = false;
   bool _loadingMore = false;
   bool _loadFailed = false;
   bool _canLoadNext = false;
@@ -97,21 +99,33 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   }
 
   Future<void> _ensureFirstPage() async {
-    final cached = await widget.repository.readCollectionPage(
-      query: _query,
-      view: _view,
-      kind: _kind,
-      sensitivity: _sensitivity,
-      sort: _sort,
-      offset: 0,
-    );
-    if (cached == null && mounted) await _refreshFirst();
+    if (mounted) {
+      setState(() {
+        _initializing = true;
+        _refreshFailed = false;
+      });
+    }
+    try {
+      await widget.repository.ensureCollectionPage(
+        query: _query,
+        view: _view,
+        kind: _kind,
+        sensitivity: _sensitivity,
+        sort: _sort,
+        offset: 0,
+      );
+    } on Object {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      if (mounted) setState(() => _initializing = false);
+    }
   }
 
   Future<void> _refreshFirst() async {
     if (_refreshing) return;
     setState(() {
       _refreshing = true;
+      _refreshFailed = false;
       _loadFailed = false;
       _completedRequest = null;
     });
@@ -125,6 +139,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         offset: 0,
       );
     } on Object {
+      if (mounted) setState(() => _refreshFailed = true);
       // The last acquired owner projection stays visible.
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -214,6 +229,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       _sort = nextSort;
       _completedRequest = null;
       _loadFailed = false;
+      _refreshFailed = false;
+      _initializing = true;
       _resetSource();
     });
     unawaited(_ensureFirstPage());
@@ -407,7 +424,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               });
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
-                child: ListView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: ListView(
                   controller: _scroll,
                   key: PageStorageKey<String>(
                     'documents:$_query:$_view:$_kind:$_sensitivity:$_sort',
@@ -473,19 +493,32 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ),
                       ],
                     ),
-                    if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: MakoloSpacing.sm,
-                        ),
-                        child: Icon(
-                          Icons.cloud_off_outlined,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                    if (view.hasSnapshot &&
+                        (source.reachability == ReachabilityState.unreachable ||
+                            _refreshFailed))
+                      const _ResourceContinuityNotice(
+                        message:
+                            'Données enregistrées sur cet appareil. '
+                            'Mise à jour indisponible.',
                       ),
-                    if (view.items.isEmpty)
+                    if (!view.hasSnapshot && _initializing)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.xl,
+                        ),
+                        child: Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      )
+                    else if (!view.hasSnapshot &&
+                        (_refreshFailed ||
+                            source.invalidated ||
+                            source.reachability == ReachabilityState.unreachable))
+                      _ResourceUnavailable(
+                        ownerDenied: source.ownerDenied,
+                        onRetry: _refreshFirst,
+                      )
+                    else if (view.items.isEmpty)
                       _EmptyDocuments(
                         query: _query,
                         archived: _view == 'archived',
@@ -523,6 +556,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         ),
                       ),
                   ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -531,6 +566,72 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       ),
     );
   }
+}
+
+class _ResourceContinuityNotice extends StatelessWidget {
+  const _ResourceContinuityNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.cloud_off_outlined,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: MakoloSpacing.xs),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ResourceUnavailable extends StatelessWidget {
+  const _ResourceUnavailable({
+    required this.ownerDenied,
+    required this.onRetry,
+  });
+
+  final bool ownerDenied;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+    child: Column(
+      children: [
+        const Icon(Icons.cloud_off_outlined, size: 40),
+        const SizedBox(height: MakoloSpacing.sm),
+        Text(
+          ownerDenied
+              ? 'Ces documents ne sont plus disponibles.'
+              : 'Impossible d’actualiser vos documents.',
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: MakoloSpacing.md),
+        MakoloActionButton(
+          label: 'Réessayer',
+          appearance: MakoloActionAppearance.quiet,
+          onPressed: onRetry,
+        ),
+      ],
+    ),
+  );
 }
 
 class _ViewChip extends StatelessWidget {
@@ -663,6 +764,7 @@ class _DocumentCard extends StatelessWidget {
 
 class _DocumentsView {
   const _DocumentsView({
+    required this.hasSnapshot,
     required this.items,
     required this.kindOptions,
     required this.sensitivityOptions,
@@ -671,6 +773,7 @@ class _DocumentsView {
     required this.total,
   });
 
+  final bool hasSnapshot;
   final List<_DocumentItem> items;
   final List<_Option> kindOptions;
   final List<_Option> sensitivityOptions;
@@ -734,6 +837,7 @@ class _DocumentsView {
 
     if (selected.isEmpty) {
       return const _DocumentsView(
+        hasSnapshot: false,
         items: [],
         kindOptions: [],
         sensitivityOptions: [],
@@ -785,6 +889,7 @@ class _DocumentsView {
         : items;
 
     return _DocumentsView(
+      hasSnapshot: true,
       items: List.unmodifiable(visibleItems),
       kindOptions: List.unmodifiable(kindOptions),
       sensitivityOptions: List.unmodifiable(sensitivityOptions),
