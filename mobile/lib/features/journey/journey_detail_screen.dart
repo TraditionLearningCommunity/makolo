@@ -641,90 +641,84 @@ class _JourneyContent extends StatelessWidget {
     );
   }
 
-  Widget? _nextActionButton() {
-    final link = presentation.nextActionLink;
-    if (link == null || link.isEmpty) return null;
+  Widget? _nextActionButton() => _ownerActionForLink(
+    presentation.nextActionLabel ?? 'Continuer',
+    presentation.nextActionLink,
+    primary: true,
+  );
 
-    JourneyFormSummary? form;
-    for (final item in presentation.forms) {
-      if (item.detailLink == link) {
-        form = item;
-        break;
+  /// Follow only links exposed by the actual owner projection. An unknown
+  /// next-action URL remains visible as information, never as a false CTA.
+  Widget? _ownerActionForLink(
+    String label,
+    String? link, {
+    bool primary = false,
+  }) {
+    if (link == null || link.isEmpty || presentation.isTerminal) return null;
+    final appearance = primary
+        ? MakoloActionAppearance.primary
+        : MakoloActionAppearance.secondary;
+
+    for (final form in presentation.forms) {
+      if (form.canComplete && form.detailLink == link) {
+        return MakoloActionButton(
+          appearance: appearance,
+          label: label,
+          onPressed: () => onOpenForm(form),
+        );
       }
     }
-    final matchedForm = form;
-    if (matchedForm != null) {
-      return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
-        onPressed: () => onOpenForm(matchedForm),
-        label: presentation.nextActionLabel ?? 'Continuer',
-      );
-    }
-
-    JourneyReference? requirement;
-    for (final item in presentation.requirements) {
-      if (item.link == link) {
-        requirement = item;
-        break;
+    for (final requirement in presentation.requirements) {
+      if (requirement.link == link) {
+        return MakoloActionButton(
+          appearance: appearance,
+          label: label,
+          onPressed: () => onOpenRequirement(requirement),
+        );
       }
     }
-    final matchedRequirement = requirement;
-    if (matchedRequirement != null) {
-      return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
-        onPressed: () => onOpenRequirement(matchedRequirement),
-        label: presentation.nextActionLabel ?? 'Continuer',
-      );
-    }
-
     if (presentation.resourcesLink == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenResources(link),
-        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
-
     if (presentation.activity?.link == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenActivity(presentation.activity!),
-        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
-
     if (presentation.occurrence?.link == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenOccurrence(presentation.occurrence!),
-        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
-
     if (presentation.access?.link == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenAccess(presentation.access!),
-        label: presentation.nextActionLabel ?? 'Continuer',
       );
     }
-
     if (presentation.liveLink == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenLive(link),
-        label: presentation.nextActionLabel ?? 'Ouvrir Makolo Live',
       );
     }
-
     if (presentation.dayOfLink == link) {
       return MakoloActionButton(
-        appearance: MakoloActionAppearance.primary,
+        appearance: appearance,
+        label: label,
         onPressed: () => onOpenDayOf(link),
-        label: presentation.nextActionLabel ?? 'Ouvrir Jour J',
       );
     }
-
     return null;
   }
 }
@@ -967,70 +961,100 @@ class _JourneyStepRow extends StatelessWidget {
 }
 
 class _ReadinessGroups extends StatelessWidget {
-  const _ReadinessGroups({required this.presentation});
+  const _ReadinessGroups({
+    required this.presentation,
+    required this.ownerAction,
+  });
 
   final JourneyDetailPresentation presentation;
+  final Widget? Function(String label, String? link) ownerAction;
 
   @override
   Widget build(BuildContext context) {
-    final primary = presentation.nextActionLabel?.trim();
     final actorInterventions = [
       for (final item in presentation.actorInterventions)
-        if (primary == null || item.summary.trim() != primary) item,
+        if (item.nextLink != presentation.nextActionLink ||
+            item.nextLink == null ||
+            presentation.nextActionLink == null) item,
     ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
-      ('Demande votre attention', actorInterventions, Icons.bolt_rounded),
-      ('Bloque la suite', presentation.blockers, Icons.block_rounded),
-      ('En attente', presentation.waiting, Icons.schedule_rounded),
-      ('En ordre', presentation.ready, Icons.check_circle_outline_rounded),
+      ('De votre côté', actorInterventions, Icons.touch_app_outlined),
+      ('Bloque la suite', presentation.blockers, Icons.report_gmailerrorred_rounded),
+      ('En attente', presentation.waiting, Icons.hourglass_empty_rounded),
     ];
-    final visible = groups.where((group) => group.$2.isNotEmpty).toList();
-
-    if (visible.isEmpty) {
-      final isCalm =
-          (presentation.readinessState == 'ready' ||
-              presentation.readinessState == 'complete') &&
-          presentation.freshness == FreshnessState.fresh;
-      return MakoloCard(
-        child: Text(
-          isCalm
-              ? 'Tout est en ordre pour le moment. ✓'
-              : 'Aucun détail de préparation supplémentaire.',
-        ),
-      );
-    }
-
+    final visible = groups.where((item) => item.$2.isNotEmpty).toList();
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0; index < visible.length; index++) ...[
+        for (final group in visible) ...[
           MakoloCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(visible[index].$3, size: 20),
+                    Icon(group.$3, size: 20, color: const Color(0xFF5232DB)),
                     const SizedBox(width: MakoloSpacing.sm),
                     Expanded(
                       child: Text(
-                        visible[index].$1,
-                        style: Theme.of(context).textTheme.titleLarge,
+                        group.$1,
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
-                for (final item in visible[index].$2)
+                for (final item in group.$2)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                    child: Text('• ${item.summary}'),
+                    padding: const EdgeInsets.only(
+                      bottom: MakoloSpacing.sm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.summary),
+                        if (item.nextLabel != null &&
+                            item.nextLink != presentation.nextActionLink)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: MakoloSpacing.sm,
+                            ),
+                            child: ownerAction(
+                                  item.nextLabel!,
+                                  item.nextLink,
+                                ) ??
+                                const SizedBox.shrink(),
+                          ),
+                      ],
+                    ),
                   ),
               ],
             ),
           ),
-          if (index < visible.length - 1)
-            const SizedBox(height: MakoloSpacing.sm),
+          const SizedBox(height: MakoloSpacing.sm),
         ],
+        if (presentation.ready.isNotEmpty)
+          Card(
+            margin: EdgeInsets.zero,
+            child: ExpansionTile(
+              leading: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF5232DB),
+              ),
+              title: Text('En ordre · ${presentation.ready.length}'),
+              children: [
+                for (final item in presentation.ready)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.check_rounded,
+                      color: Color(0xFF5232DB),
+                    ),
+                    title: Text(item.summary),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
