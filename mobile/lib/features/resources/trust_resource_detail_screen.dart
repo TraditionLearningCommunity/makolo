@@ -131,7 +131,7 @@ class _TrustResourceDetailScreenState
           appBar: AppBar(
             title: Text(_title),
             actions: [
-              if (detail?.verifyPath != null)
+              if (detail?.verifyPath != null && widget.repository.api != null)
                 MakoloIconActionButton(
                   tooltip: 'Vérifier',
                   icon: Icons.verified_outlined,
