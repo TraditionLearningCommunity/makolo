@@ -19,6 +19,7 @@ urlpatterns = [
     path("projects/<uuid:project_id>/dossiers/<uuid:dossier_id>/move/", views.project_move_dossier, name="project-move-dossier"),
     path("projects/<uuid:project_id>/dossiers/link/", views.project_link_dossier, name="project-link-dossier"),
     path("projects/<uuid:project_id>/dossiers/<uuid:dossier_id>/unlink/", views.project_unlink_dossier, name="project-unlink-dossier"),
+    path("projects/<uuid:project_id>/authority/", views.project_authority, name="project-authority"),
     path("projects/<uuid:project_id>/lifecycle/", views.project_lifecycle, name="project-lifecycle"),
     path("<uuid:dossier_id>/", views.dossier_detail, name="dossier-detail"),
     path("<uuid:dossier_id>/edit/", views.dossier_edit, name="dossier-edit"),
