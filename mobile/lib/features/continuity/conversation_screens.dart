@@ -2741,6 +2741,8 @@ class _ConversationPoint {
     this.responseStatus = const {},
     this.myResponse = const {},
     this.pollResults = const {},
+    this.representedResponses = const [],
+    this.responseWindowOpen = false,
     this.canAcknowledge = false,
     this.acknowledged = false,
     this.canCloseResponses = false,
@@ -2785,6 +2787,8 @@ class _ConversationPoint {
   final Map<String, dynamic> responseStatus;
   final Map<String, dynamic> myResponse;
   final Map<String, dynamic> pollResults;
+  final List<Map<String, dynamic>> representedResponses;
+  final bool responseWindowOpen;
   final bool canAcknowledge;
   final bool acknowledged;
   final bool canCloseResponses;
@@ -2797,22 +2801,36 @@ class _ConversationPoint {
       ? (responseStatus['response_count'] as num).toInt()
       : null;
 
-  Set<String> get mySelectedOptions {
-    final value = myResponse['value'];
+  Map<String, dynamic> responseForScope(String? spaceId) {
+    if (spaceId == null || spaceId.isEmpty) return myResponse;
+    for (final response in representedResponses) {
+      if (_string(response['space_id']) == spaceId) return response;
+    }
+    return const {};
+  }
+
+  bool hasRespondedForScope(String? spaceId) =>
+      responseForScope(spaceId).containsKey('submitted_at');
+
+  Set<String> selectedOptionsForScope(String? spaceId) {
+    final value = responseForScope(spaceId)['value'];
     if (value is List) return value.map((item) => item.toString()).toSet();
     return value == null ? <String>{} : {value.toString()};
   }
+
+  Set<String> get mySelectedOptions => selectedOptionsForScope(null);
 
   int? pollCountFor(String optionId) {
     final count = _map(pollResults['counts'])[optionId];
     return count is num ? count.toInt() : null;
   }
 
-  String? get myResponseLabel {
-    if (!myResponse.containsKey('value')) return null;
-    final value = myResponse['value'];
+  String? responseLabelForScope(String? spaceId) {
+    final response = responseForScope(spaceId);
+    if (!response.containsKey('value')) return null;
+    final value = response['value'];
     if (responseMode == 'single_choice' || responseMode == 'multiple_choice') {
-      final selected = mySelectedOptions;
+      final selected = selectedOptionsForScope(spaceId);
       return options.where((option) => selected.contains(option.id))
           .map((option) => option.label).join(', ');
     }
@@ -2824,6 +2842,8 @@ class _ConversationPoint {
     }
     return value?.toString();
   }
+
+  String? get myResponseLabel => responseLabelForScope(null);
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -2887,6 +2907,8 @@ class _ConversationPoint {
       responseStatus: _map(row['response_status']),
       myResponse: _map(row['my_response']),
       pollResults: _map(row['poll_results']),
+      representedResponses: _maps(row['represented_responses']),
+      responseWindowOpen: row['response_window_open'] == true,
       canAcknowledge: row['can_acknowledge'] == true,
       acknowledged: row['acknowledged'] == true,
       canCloseResponses: row['can_close_responses'] == true,
