@@ -36,9 +36,6 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
   bool _denied = false;
   int _epoch = 0;
 
-  static const _operatorKinds = {
-    'operator_queue', 'operator_placement', 'operator_checkpoints',
-  };
   static const _readKinds = {
     'my_queue', 'my_placement', 'my_checkpoints', 'readiness',
     'operator_queue', 'operator_placement', 'operator_checkpoints',
@@ -105,6 +102,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
     setState(() {
       _payload = null;
       _depth = null;
+      _busy = false;
       _denied = false;
     });
     if (_actorValid) unawaited(_load());
@@ -184,6 +182,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
     Map<String, dynamic>? body,
   }) async {
     if (_busy || !_actorValid || _depth == null) return;
+    if (widget.kind != 'my_queue' && _depth!['can_manage'] != true) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -221,6 +220,11 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
         throw StateError('Mandat ou contexte retiré');
       }
       if (!_actorValid) throw StateError('Acteur modifié');
+      final currentDepth = (data['depths'] as List).whereType<Map>()
+          .firstWhere((item) => item['kind'] == widget.kind);
+      if (widget.kind != 'my_queue' && currentDepth['can_manage'] != true) {
+        throw StateError('Droit de modification retiré');
+      }
       if (method == 'POST') {
         await api.post(path, body: body);
       } else if (method == 'PATCH') {
@@ -280,7 +284,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('${entry.key} : ${_summary(entry.value)}'),
               ),
-            if (widget.kind == 'operator_queue' && data['id'] != null) ...[
+            if (widget.kind == 'operator_queue' && _depth?['can_manage'] == true && data['id'] != null) ...[
               const SizedBox(height: 8),
               FilledButton.tonal(
                 onPressed: _busy ? null : () => _operate(
@@ -303,7 +307,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                   ),
               ]),
             ],
-            if (widget.kind == 'operator_checkpoints' && data['id'] != null)
+            if (widget.kind == 'operator_checkpoints' && _depth?['can_manage'] == true && data['id'] != null)
               Wrap(spacing: 6, children: [
                 for (final action in ['open', 'pause', 'resume', 'close'])
                   OutlinedButton(
@@ -326,7 +330,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                 ),
                 child: const Text('Quitter la file'),
               ),
-            if (widget.kind == 'operator_placement')
+            if (widget.kind == 'operator_placement' && _depth?['can_manage'] == true)
               for (final unit in _rows(data['units'])) ...[
                 const Divider(),
                 Text(
