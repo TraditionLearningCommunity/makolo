@@ -1002,37 +1002,116 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
               for (var index = 0; index < _optionControllers.length; index++)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          key: Key('conversation-compose-option-$index'),
-                          controller: _optionControllers[index],
-                          minLines: 1,
-                          maxLines: 3,
-                          maxLength: 220,
-                          decoration: InputDecoration(
-                            labelText: 'Choix ${index + 1}',
-                            border: const OutlineInputBorder(),
-                            counterText: '',
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              key: Key('conversation-compose-option-$index'),
+                              controller: _optionControllers[index],
+                              minLines: 1,
+                              maxLines: 3,
+                              maxLength: 220,
+                              decoration: InputDecoration(
+                                labelText: 'Choix ${index + 1}',
+                                border: const OutlineInputBorder(),
+                                counterText: '',
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Supprimer ce choix',
+                            onPressed: _sending || _optionControllers.length <= 2
+                                ? null
+                                : () => setState(() {
+                                    final removed = _optionControllers.removeAt(index);
+                                    removed.removeListener(_changed);
+                                    removed.dispose();
+                                    _optionMedia.remove(index);
+                                    final shifted = <int, List<Map<String, dynamic>>>{};
+                                    for (final entry in _optionMedia.entries) {
+                                      shifted[entry.key > index
+                                          ? entry.key - 1 : entry.key] = entry.value;
+                                    }
+                                    _optionMedia..clear()..addAll(shifted);
+                                    _changed();
+                                  }),
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                        ],
+                      ),
+                      for (final media in _optionMedia[index] ??
+                          <Map<String, dynamic>>[]) ...[
+                        ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.attach_file_rounded),
+                          title: Text(media['filename']?.toString() ?? 'Média',
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: IconButton(
+                            tooltip: 'Retirer ce média du choix',
+                            onPressed: _sending ? null : () => setState(() {
+                              _optionMedia[index]!.remove(media);
+                              _reference = null;
+                            }),
+                            icon: const Icon(Icons.close_rounded),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Supprimer ce choix',
-                        onPressed: _sending || _optionControllers.length <= 2
-                            ? null
-                            : () => setState(() {
-                                final removed = _optionControllers.removeAt(
-                                  index,
-                                );
-                                removed.removeListener(_changed);
-                                removed.dispose();
-                                _changed();
-                              }),
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
+                        TextFormField(
+                          initialValue: media['caption']?.toString() ?? '',
+                          maxLength: 5000,
+                          decoration: const InputDecoration(
+                            labelText: 'Légende du média (facultatif)',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            media['caption'] = value;
+                            _reference = null;
+                          },
+                        ),
+                      ],
+                      if ((widget.capabilities['media_kinds'] as List?)
+                              ?.isNotEmpty == true)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: PopupMenuButton<String>(
+                            enabled: !_sending,
+                            tooltip: 'Ajouter un média à ce choix',
+                            onSelected: (mode) =>
+                                _chooseMedia(mode, optionIndex: index),
+                            itemBuilder: (context) => [
+                              if ((widget.capabilities['media_kinds'] as List)
+                                  .contains('image'))
+                                const PopupMenuItem(
+                                    value: 'photo', child: Text('Photo')),
+                              if ((widget.capabilities['media_kinds'] as List)
+                                  .contains('file'))
+                                const PopupMenuItem(
+                                    value: 'document', child: Text('Document')),
+                              if ((widget.capabilities['media_kinds'] as List)
+                                  .contains('voice'))
+                                const PopupMenuItem(
+                                    value: 'voice', child: Text('Audio')),
+                              if ((widget.capabilities['media_kinds'] as List)
+                                  .contains('video'))
+                                const PopupMenuItem(
+                                    value: 'video', child: Text('Vidéo')),
+                            ],
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 7),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add_photo_alternate_outlined, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Média de ce choix'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
