@@ -44,6 +44,7 @@ class _PreparationResourcesScreenState
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  int _identityRevision = 0;
   final Set<String> _downloading = <String>{};
   final Map<String, String> _downloaded = <String, String>{};
 
@@ -73,14 +74,17 @@ class _PreparationResourcesScreenState
   }
 
   Future<void> _restoreLocalFiles(StoredProjection? projection) async {
+    final revision = _identityRevision;
+    final repository = widget.repository;
     final resources = _PreparationResource.fromProjection(projection);
     final paths = <String, String>{};
     for (final item in resources) {
       if (item.downloadUrl == null) continue;
-      final stored = await widget.repository.readLocalResourceFile(item.id);
+      final stored = await repository.readLocalResourceFile(item.id);
       if (stored != null) paths[item.id] = stored.path;
     }
-    if (!mounted) return;
+    if (!mounted || revision != _identityRevision ||
+        !identical(repository, widget.repository)) return;
     setState(() {
       _downloaded
         ..clear()
@@ -93,6 +97,7 @@ class _PreparationResourcesScreenState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.journeyId != widget.journeyId ||
         oldWidget.repository != widget.repository) {
+      _identityRevision++;
       _requestedInitialRefresh = false;
       _downloaded.clear();
       unawaited(_acquireOrRefresh());
@@ -179,7 +184,7 @@ class _PreparationResourcesScreenState
       }
       if (local == null) return;
       if (!mounted) return;
-      setState(() => _downloaded[resource.id] = local!.path);
+      setState(() => _downloaded[resource.id] = local.path);
       await widget.onOpenDownloadedFile?.call(
         local.path,
         resource.mimeType,
@@ -281,6 +286,7 @@ class _PreparationResourcesScreenState
                       downloading: _downloading.contains(items[index].id),
                       downloaded: _downloaded.containsKey(items[index].id),
                       onOpenFile: () => _openFile(items[index]),
+                      onExportFile: () => _download(items[index]),
                     ),
                   ),
                 ),
@@ -300,6 +306,7 @@ class _PreparationResourceCard extends StatelessWidget {
     required this.downloading,
     required this.downloaded,
     required this.onOpenFile,
+    required this.onExportFile,
   });
 
   final _PreparationResource resource;
@@ -307,6 +314,7 @@ class _PreparationResourceCard extends StatelessWidget {
   final bool downloading;
   final bool downloaded;
   final VoidCallback onOpenFile;
+  final VoidCallback onExportFile;
 
   @override
   Widget build(BuildContext context) {
@@ -366,6 +374,12 @@ class _PreparationResourceCard extends StatelessWidget {
                           : Icons.download_rounded,
                     ),
               label: Text(downloading ? 'Ouverture…' : 'Ouvrir le document'),
+            ),
+            const SizedBox(height: MakoloSpacing.sm),
+            TextButton.icon(
+              onPressed: downloading ? null : onExportFile,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Enregistrer une copie'),
             ),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
