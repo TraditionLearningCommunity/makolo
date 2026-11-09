@@ -11,6 +11,7 @@ import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'objective_organizer_data.dart';
+import 'organizer_view_switcher.dart';
 import 'objective_repository.dart';
 
 class ObjectiveOrganizerScreen extends StatefulWidget {
@@ -362,32 +363,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     });
   }
 
-  Widget _compactMode(OrganizerMode mode, IconData icon, String name) {
-    final active = _mode == mode;
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      selected: active,
-      child: IconButton(
-        key: Key('organizer-view-${mode.name}'),
-        tooltip: 'Vue $name',
-        onPressed: () => _setMode(mode),
-        icon: Icon(icon, size: 19),
-        color: active ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
-        style: IconButton.styleFrom(
-          fixedSize: const Size(44, 44),
-          padding: EdgeInsets.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          backgroundColor: active
-              ? scheme.primaryContainer
-              : Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _showContentFilters() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -652,22 +627,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         _createQuickAction('project', 'Projet'),
       ],
     );
-    final modes = Container(
-      key: const Key('organizer-view-toggle'),
-      decoration: BoxDecoration(
-        border: Border.all(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
-          _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
-          _compactMode(
-            OrganizerMode.explorer, Icons.account_tree_rounded, 'Explorateur',
-          ),
-        ],
-      ),
+    final modes = OrganizerViewSwitcher(
+      selected: _mode,
+      onSelected: _setMode,
     );
     return Container(
       width: double.infinity,
