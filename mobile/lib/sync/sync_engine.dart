@@ -1045,6 +1045,17 @@ class SyncEngine {
       if (deniedSpace != null || deniedInventory) {
         await _withdrawSpaceFacts(spaceId: deniedSpace, code: code);
       }
+      if (source.projectionKind == 'objective.project.detail') {
+        // Project access may have been revoked while a prior owner-scoped
+        // collection still contains its title, members or Dossier links.
+        // Withdraw replaceable projections for this Profile on explicit 403/404.
+        // Never purge them solely on a transport timeout.
+        await store.deleteProjectionsOfKind('objective.project.collection');
+        await store.deleteProjectionsOfKind('objective.organizer.collection');
+        await store.deleteProjectionsOfKind(
+          'objective.project.dossiers.collection',
+        );
+      }
       if (source.projectionKind == 'personal.access.detail') {
         await _redactAccessFromCollections(source.resourceKey);
       }
