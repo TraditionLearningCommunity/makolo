@@ -12,6 +12,7 @@ import '../../data/local/profile_store.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
+import '../occurrence/occurrence_experience_content.dart';
 import 'live_repository.dart';
 
 class LiveScreen extends StatefulWidget {
@@ -124,13 +125,19 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
               ),
               blockingErrorMessage: source.invalidated
                   ? 'Cette Occurrence n’est plus dans sa fenêtre Live. Retrouvez ses conséquences dans Jour J et Historique.'
-                  : 'La situation en direct n’est pas disponible dans ce contexte.',
+                  : 'Makolo Live n’est pas activé ou accessible pour cette Occurrence. Jour J reste disponible.',
               onRetry: _refresh,
-              content: _LiveContent(
-                payload: projection?.payload,
-                freshness: base?.freshness,
-                onBackToDayOf: widget.onBackToDayOf,
-              ),
+              content: projection?.payload['surface'] == 'live'
+                  ? OccurrenceExperienceContent(
+                      payload: projection!.payload,
+                      live: true,
+                      onBackToDayOf: widget.onBackToDayOf,
+                    )
+                  : _LiveContent(
+                      payload: projection?.payload,
+                      freshness: base?.freshness,
+                      onBackToDayOf: widget.onBackToDayOf,
+                    ),
             ),
           ),
         );
