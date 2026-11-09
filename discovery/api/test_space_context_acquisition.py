@@ -142,6 +142,77 @@ class DiscoverySpaceAcquisitionTests(TestCase):
             self.assertEqual(item["capabilities"], ["view"])
             self.assertEqual(item["engagement"]["capabilities"], [])
 
+    def test_web_space_list_pagination_uses_signed_continuation(self):
+        from urllib.parse import quote
+
+        self.client.force_login(self.viewer)
+        web_url = reverse(
+            "organizations:space-discover", kwargs={"slug": self.space.slug},
+        )
+        first = self.client.get(web_url, {"page_size": 1})
+        self.assertEqual(first.status_code, 200)
+        token = first.context["next_continuation"]
+        self.assertTrue(token)
+        self.assertContains(first, "continuation=" + quote(token, safe=""))
+        second = self.client.get(
+            web_url,
+            {"page_size": 1, "page": 2, "continuation": token},
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.context["page_obj"].number, 2)
+        self.assertNotEqual(
+            first.context["discovery_cards"][0].candidate_key,
+            second.context["discovery_cards"][0].candidate_key,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("discovery:home"),
+                {"page_size": 1, "page": 2, "continuation": token},
+            ).context["search_errors"] != [],
+            True,
+        )
+
+    def test_web_space_query_context_never_falls_back_to_personal(self):
+        self.client.force_login(self.viewer)
+        personal_url = reverse("discovery:home")
+        response = self.client.get(
+            personal_url,
+            {"context": "space", "space": self.space.slug, "q": "published"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith(
+            reverse("organizations:space-discover", kwargs={"slug": self.space.slug})
+        ))
+        self.assertIn("q=published", response["Location"])
+        self.assertNotIn("context=space", response["Location"])
+        self.assertEqual(
+            self.client.get(personal_url, {"context": "space"}).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                reverse("organizations:space-discover", kwargs={"slug": self.space.slug}),
+                {"context": "personal"},
+            ).status_code,
+            404,
+        )
+
+    def test_pagination_correction_marker_does_not_invalidate_cursor(self):
+        self.client.force_authenticate(self.viewer)
+        first = self.client.get(
+            self.items_url,
+            self._space_query(page_size=1, _correction="client-presentational"),
+        )
+        self.assertEqual(first.status_code, 200)
+        token = first.data["data"]["continuation"]["token"]
+        self.assertTrue(token)
+        second = self.client.get(
+            self.items_url,
+            self._space_query(page_size=1, continuation=token),
+        )
+        self.assertEqual(second.status_code, 200, second.data)
+        self.assertEqual(second.data["data"]["page"], 2)
+
     def test_signed_cursor_is_bound_to_space_and_viewer(self):
         self.client.force_authenticate(self.viewer)
         first = self.client.get(self.items_url, self._space_query(page_size=1))
