@@ -782,6 +782,31 @@ class ConversationRepository {
     await _refreshPublished(conversationId);
   }
 
+  Future<void> updatePointRevisit({
+    required String conversationId,
+    required String pointId,
+    required bool revisit,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion requise pour modifier ce repère personnel.');
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/points/$pointId/personal-state/',
+      body: {'revisit': revisit},
+    );
+    final owner = response.jsonObject();
+    if (owner['point_id']?.toString() != pointId ||
+        owner['revisit'] != revisit) {
+      throw const FormatException('Repère personnel non confirmé.');
+    }
+    try {
+      await refreshDetail(conversationId, focusPointId: pointId);
+    } on Object {
+      // The owner's confirmed state must not turn into an apparent failure.
+    }
+  }
+
   Future<void> acknowledgePoint({
     required String conversationId,
     required String pointId,
