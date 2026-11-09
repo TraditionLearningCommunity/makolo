@@ -475,6 +475,37 @@ class ConversationPointMediaWebView(LoginRequiredMixin, View):
         )
 
 
+class ConversationPointPersonalStateWebView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, point_pk):
+        from .point_services import update_point_personal_state, point_visible_to
+
+        point = get_object_or_404(
+            ConversationPoint.objects.select_related(
+                "conversation", "conversation__context",
+                "visibility_audience",
+            ), pk=point_pk,
+        )
+        if not point_visible_to(request.user, point):
+            raise Http404("Point inaccessible.")
+        state = point.user_states.filter(profile=request.user).first()
+        action = request.POST.get("action")
+        if action != "revisit":
+            raise Http404("Action personnelle inconnue.")
+        try:
+            update_point_personal_state(
+                actor=request.user, point=point,
+                revisit=not bool(state and state.revisit_at),
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(request, str(exc))
+        return redirect(
+            f"{reverse('conversations:detail', kwargs={'pk': point.conversation_id})}"
+            f"?focus={point.pk}#point-{point.pk}"
+        )
+
+
 class ConversationInvitationRespondView(LoginRequiredMixin, View):
     login_url = "core:login"
 
