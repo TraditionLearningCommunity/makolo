@@ -17,6 +17,24 @@ from .media_services import (
 from .point_models import ConversationPointKind
 
 
+def response_media_label(point, response):
+    """Human-readable answer only for viewers already authorized for its media."""
+    if response is None:
+        return ""
+    value = response.value
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Oui" if value else "Non"
+    if point.response_mode in {"single_choice", "multiple_choice"}:
+        known = {str(option.pk): option.label for option in point.options.all()}
+        values = value if isinstance(value, list) else [value]
+        return ", ".join(known.get(str(item), "Choix") for item in values)
+    if isinstance(value, (str, int, float)):
+        return str(value)[:500]
+    return ""
+
+
 @transaction.atomic
 def publish_semantic_point_with_media(
     *, actor, conversation, kind, title, body, client_reference, media_items,
