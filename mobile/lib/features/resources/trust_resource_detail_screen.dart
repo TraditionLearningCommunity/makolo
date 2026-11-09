@@ -17,12 +17,16 @@ class TrustResourceDetailScreen extends StatefulWidget {
     required this.id,
     required this.repository,
     required this.onOpenJourney,
+    this.onOpenPassport,
+    this.sharing = const SystemShareGateway(),
   });
 
   final TrustResourceFamily family;
   final String id;
   final TrustResourceRepository repository;
   final ValueChanged<String> onOpenJourney;
+  final VoidCallback? onOpenPassport;
+  final ShareGateway sharing;
 
   @override
   State<TrustResourceDetailScreen> createState() =>
@@ -88,10 +92,10 @@ class _TrustResourceDetailScreenState
     }
   }
 
-  Future<void> _verify(_TrustDetail detail) async {
+  Uri? _verificationUri(_TrustDetail detail) {
     final link = detail.verifyPath;
     final api = widget.repository.api;
-    if (link == null || api == null) return;
+    if (link == null || api == null) return null;
     final relative = Uri.tryParse(link);
     if (relative == null ||
         relative.hasScheme ||
@@ -99,16 +103,35 @@ class _TrustResourceDetailScreenState
         relative.hasQuery ||
         relative.hasFragment ||
         !relative.path.startsWith('/trust/')) {
+      return null;
+    }
+    return api.baseUri.resolveUri(relative);
+  }
+
+  Future<void> _verify(_TrustDetail detail) async {
+    final target = _verificationUri(detail);
+    if (target == null) {
       _message('Vérification indisponible.');
       return;
     }
     try {
-      final opened = await const SystemShareGateway().openExternal(
-        api.baseUri.resolveUri(relative),
-      );
+      final opened = await widget.sharing.openExternal(target);
       if (!opened && mounted) _message('Vérification indisponible.');
     } on Object {
       if (mounted) _message('Vérification indisponible.');
+    }
+  }
+
+  Future<void> _shareVerification(_TrustDetail detail) async {
+    final target = _verificationUri(detail);
+    if (target == null) {
+      _message('Partage indisponible.');
+      return;
+    }
+    try {
+      await widget.sharing.shareText('${detail.title}\n$target');
+    } on Object {
+      if (mounted) _message('Partage indisponible.');
     }
   }
 
@@ -136,6 +159,12 @@ class _TrustResourceDetailScreenState
                   tooltip: 'Vérifier',
                   icon: Icons.verified_outlined,
                   onPressed: () => _verify(detail!),
+                ),
+              if (detail?.verifyPath != null && widget.repository.api != null)
+                MakoloIconActionButton(
+                  tooltip: 'Partager',
+                  icon: Icons.send_outlined,
+                  onPressed: () => _shareVerification(detail!),
                 ),
               MakoloIconActionButton(
                 tooltip: 'Actualiser',
@@ -277,17 +306,30 @@ class _TrustResourceDetailScreenState
                               ],
                             ),
                           ),
-                          if (detail.journeyId != null) ...[
+                          if (widget.onOpenPassport != null ||
+                              detail.journeyId != null) ...[
                             const SizedBox(height: MakoloSpacing.md),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: MakoloActionButton(
-                                label: 'Voir la démarche',
-                                icon: Icons.route_outlined,
-                                appearance: MakoloActionAppearance.quiet,
-                                onPressed: () =>
-                                    widget.onOpenJourney(detail.journeyId!),
-                              ),
+                            Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: MakoloSpacing.sm,
+                              runSpacing: MakoloSpacing.sm,
+                              children: [
+                                if (widget.onOpenPassport != null)
+                                  MakoloActionButton(
+                                    label: 'Passeport',
+                                    icon: Icons.badge_outlined,
+                                    appearance: MakoloActionAppearance.quiet,
+                                    onPressed: widget.onOpenPassport,
+                                  ),
+                                if (detail.journeyId != null)
+                                  MakoloActionButton(
+                                    label: 'Voir la démarche',
+                                    icon: Icons.route_outlined,
+                                    appearance: MakoloActionAppearance.quiet,
+                                    onPressed: () =>
+                                        widget.onOpenJourney(detail.journeyId!),
+                                  ),
+                              ],
                             ),
                           ],
                         ],
