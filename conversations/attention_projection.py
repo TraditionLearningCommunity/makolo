@@ -87,41 +87,33 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
     info_from = at - timedelta(days=14)
     if opened is not None and opened > info_from:
         info_from = opened
-    points_qs = (
-        ConversationPoint.objects.filter(
-            conversation=conversation,
-        ).filter(
-            # Completed work is not actionable; only a recent result can
-            # appear as knowledge.
-            lifecycle__in={
-                ConversationPointLifecycle.OPEN,
-                ConversationPointLifecycle.RESPONSE_CLOSED,
-                ConversationPointLifecycle.RESOLVED,
-            },
-        ).select_related(
-            "conversation", "visibility_audience", "response_audience",
-            "expected_action_audience", "resolution_audience", "published_by",
-        ).prefetch_related("options", "responses").order_by(
-            "-published_at", "-id",
-        )
+    base = ConversationPoint.objects.filter(
+        conversation=conversation,
+    ).select_related(
+        "conversation", "visibility_audience", "response_audience",
+        "expected_action_audience", "resolution_audience", "published_by",
     )
-    points = list(points_qs[: max(limit * 6, 240)])
-    # Explicitly revisited older Points are also meaningful today, even if
-    # they fell outside the newest visible publication window.
-    older_revisit = list(
-        ConversationPoint.objects.filter(
-            conversation=conversation,
-            user_states__profile=profile,
-            user_states__revisit_at__isnull=False,
-        ).select_related(
-            "conversation", "visibility_audience", "response_audience",
-            "expected_action_audience", "resolution_audience", "published_by",
-        ).distinct().order_by("-user_states__revisit_at")[:limit]
-    )
-    seen = {point.pk for point in points}
-    points.extend(point for point in older_revisit if point.pk not in seen)
+    # Old open Points still carry real actions irrespective of publication age.
+    active = list(base.filter(lifecycle__in={
+        ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
+    }).order_by("deadline_at", "pk"))
+    recent_results = list(base.filter(
+        lifecycle=ConversationPointLifecycle.RESOLVED,
+        resolved_at__gte=info_from,
+    ).order_by("-resolved_at", "-pk")[:max(limit * 2, 100)])
+    older_revisit = list(base.filter(
+        user_states__profile=profile,
+        user_states__revisit_at__isnull=False,
+    ).distinct().order_by("-user_states__revisit_at")[:max(limit * 2, 100)])
+    seen = set()
+    points = []
+    for point in (*active, *recent_results, *older_revisit):
+        if point.pk not in seen:
+            seen.add(point.pk)
+            points.append(point)
     sections = {"for_me": [], "to_resolve": [], "to_know": []}
     visibility_cache, audience_cache, history_cache = {}, {}, {}
+    total_actions = 0
     for point in points:
         if not point_visible_to(
             profile, point, at=at, visibility_cache=visibility_cache,
@@ -158,6 +150,8 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
                 + f"?focus={point.pk}#point-{point.pk}"
             ),
         }
+        if reason in ACTION_REASONS:
+            total_actions += 1
         if len(sections[bucket]) < limit:
             sections[bucket].append(entry)
 
@@ -168,9 +162,10 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
         return (deadline is None, deadline or at, item["published_at"] or at)
     for bucket in ("for_me", "to_resolve"):
         sections[bucket].sort(key=order)
-    action_count = len(sections["for_me"]) + len(sections["to_resolve"])
+    displayed_actions = len(sections["for_me"]) + len(sections["to_resolve"])
     return {
         **sections,
-        "action_count": action_count,
-        "all_clear": action_count == 0,
+        "action_count": total_actions,
+        "more_actions": total_actions > displayed_actions,
+        "all_clear": total_actions == 0,
     }
