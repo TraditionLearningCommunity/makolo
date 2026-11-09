@@ -74,6 +74,7 @@ class SpaceOccurrenceDayOfView(_SpaceOccurrenceWebMixin):
             viewer=self.request.user,
             surface="day_of",
             observed_at=timezone.now(),
+            actor_space_id=self.space.pk,
         )
         if projection is None:
             raise Http404
@@ -119,6 +120,7 @@ class SpaceOccurrenceLiveView(_SpaceOccurrenceWebMixin):
             viewer=self.request.user,
             surface="live",
             observed_at=now,
+            actor_space_id=self.space.pk,
         )
         if projection is None:
             raise Http404
