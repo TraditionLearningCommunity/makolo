@@ -17,6 +17,7 @@ from activities.services import set_occurrence_live_enabled
 from authorization.constants import PermissionCode
 from authorization.services import can
 from scanner.permissions import user_can_scan_activity
+from scanner.occurrence_access import control_occurrence_access
 from scanner.space_context import build_scanner_context
 
 from .api.space_mark_projection import orchestrate_space_mark
@@ -172,93 +173,36 @@ class SpaceOccurrenceScannerActionView(_SpaceOccurrenceWebMixin, View):
 
     def post(self, request, *args, **kwargs):
         occurrence = self.get_occurrence()
-        activity = occurrence.activity
-
-        # Capability GETs are advisory. Revalidate canonical authority at mutation time.
-        if not user_can_scan_activity(request.user, activity, occurrence=occurrence):
+        if not user_can_scan_activity(
+            request.user, occurrence.activity, occurrence=occurrence
+        ):
             raise Http404
-
-        scanner = build_scanner_context(
-            occurrence=occurrence,
-            actor=request.user,
-            observed_at=timezone.now(),
-        )
-        if scanner is None or "scan" not in scanner.get("capabilities", ()):
-            return JsonResponse(
-                {
-                    "accepted": False,
-                    "result": "unavailable",
-                    "message": "Le scan n’est pas disponible pour cette Occurrence.",
-                },
-                status=409,
-            )
-
         token = (request.POST.get("token") or "").strip()
-        client_reference = (request.POST.get("client_reference") or "").strip()[:64]
+        client_reference = (request.POST.get("client_reference") or "").strip()
         if not token:
-            return JsonResponse(
-                {
-                    "accepted": False,
-                    "result": AccessUseResult.INVALID_CREDENTIAL,
-                    "message": "QR invalide ou non reconnu.",
-                },
-                status=400,
-            )
-
+            return JsonResponse({
+                "accepted": False,
+                "result": AccessUseResult.INVALID_CREDENTIAL,
+                "message": "QR invalide ou non reconnu.",
+            }, status=400)
         try:
-            credential = resolve_access_credential(token)
-            outcome = validate_access(
-                access=credential.access,
-                credential=credential,
-                controller=request.user,
-                authority_check=lambda actor, access: user_can_scan_activity(
-                    actor,
-                    access.activity,
-                    occurrence=occurrence,
-                ),
-                expected_activity=activity,
-                expected_occurrence=occurrence,
-                source="space_ws5",
+            outcome = control_occurrence_access(
+                occurrence=occurrence,
+                actor=request.user,
+                token=token,
                 client_reference=client_reference,
             )
         except DjangoPermissionDenied:
             raise Http404
         except ValidationError:
-            return JsonResponse(
-                {
-                    "accepted": False,
-                    "result": AccessUseResult.INVALID_CREDENTIAL,
-                    "message": "QR invalide ou non reconnu.",
-                },
-                status=400,
-            )
-
-        accepted_at = _accepted_at(outcome.access)
-        return JsonResponse(
-            {
-                "accepted": outcome.accepted,
-                "result": outcome.result,
-                "message": _scanner_message(outcome, activity),
-                "controlled_at": outcome.use.used_at.isoformat() if outcome.use else None,
-                "accepted_at": accepted_at.isoformat() if accepted_at else None,
-                "valid_from": (
-                    outcome.access.valid_from.isoformat()
-                    if outcome.access and outcome.access.valid_from
-                    else None
-                ),
-                "access": (
-                    {
-                        "beneficiary": (
-                            outcome.access.beneficiary.full_name
-                            or "Bénéficiaire"
-                        ),
-                        "status": outcome.access.status,
-                    }
-                    if outcome.access
-                    else None
-                ),
-            }
-        )
+            return JsonResponse({
+                "accepted": False,
+                "result": AccessUseResult.INVALID_CREDENTIAL,
+                "message": "QR invalide ou non reconnu.",
+            }, status=400)
+        response = JsonResponse(outcome)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class SpaceMarkWS5View(SpaceWebMixin):
