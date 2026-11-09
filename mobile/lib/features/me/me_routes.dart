@@ -347,6 +347,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             }
             return ResourcesScreen(
               repository: repository,
+              trustRepository: runtime.trustResources,
               onOpenDocuments: () => context.push('/me/resources/documents'),
               onOpenProofs: () => context.push('/me/resources/proofs'),
               onOpenTitles: () => context.push('/me/resources/titles'),
