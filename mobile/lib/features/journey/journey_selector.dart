@@ -249,7 +249,12 @@ class JourneyDetailSelector {
     required JourneySourceState source,
     required DateTime now,
   }) {
-    if (projection == null) {
+    // An explicit owner denial is authoritative even if a stale snapshot
+    // is still in a stream during SQLite invalidation.
+    final ownerDenied = source.invalidated &&
+        const {'permission_denied', 'not_found'}
+            .contains(source.lastErrorCode);
+    if (projection == null || ownerDenied) {
       return JourneyDetailPresentation(
         available: false,
         title: '',
