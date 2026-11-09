@@ -4,6 +4,7 @@ import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/journey/journey_detail_screen.dart';
 import 'package:makolo_mobile/features/journey/journey_repository.dart';
+import 'package:makolo_mobile/features/preparation/preparation_repository.dart';
 import 'package:makolo_mobile/features/journey/journey_selector.dart';
 import 'package:makolo_mobile/sync/freshness.dart';
 
@@ -556,6 +557,80 @@ void main() {
     expect(items.first.kind, 'file');
     expect(items.last.title, 'Consignes pratiques');
     expect(JourneyResourcePreview.fromProjection(null), isEmpty);
+  });
+
+  testWidgets('Lot B renders Preparation preview from the same Profile database', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-b');
+    await store.putProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-b',
+      schemaVersion: 1,
+      payload: const {
+        'representation': {'title': 'Préparer ma visite'},
+        'state': {'code': 'in_progress', 'label': 'En cours'},
+        'readiness': {
+          'state': 'ready',
+          'ready': [],
+          'actor_interventions': [],
+          'waiting': [],
+          'blockers': [],
+        },
+        'resources': {
+          'link': '/api/v1/preparation/journeys/journey-b/resources/',
+        },
+        'forms': [],
+        'requirements': [],
+        'capabilities': [],
+      },
+    );
+    await store.putProjection(
+      kind: PreparationResourcesRepository.projectionKind,
+      resourceKey: 'journey-b',
+      schemaVersion: 1,
+      payload: const {
+        'items': [
+          {'id': 'resource-1', 'kind': 'file', 'title': 'Guide de préparation'},
+        ],
+      },
+    );
+    final journeys = JourneyRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-b',
+    );
+    final preparation = PreparationResourcesRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-b',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JourneyDetailScreen(
+          journeyId: 'journey-b',
+          repository: journeys,
+          resourcesRepository: preparation,
+          onOpenForm: (_) {},
+          onOpenRequirement: (_) {},
+          onOpenResources: (_) {},
+          onOpenActivity: (_) {},
+          onOpenOccurrence: (_) {},
+          onOpenAccess: (_) {},
+          onOpenDayOf: (_) {},
+          onOpenLive: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Guide de préparation'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Guide de préparation'), findsOneWidget);
   });
 
 }
