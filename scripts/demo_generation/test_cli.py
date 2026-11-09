@@ -72,6 +72,42 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertNotIn("--apply", community.call_args.args[0])
         self.assertNotIn("--apply", engagement.call_args.args[0])
 
+    def test_objectives_plan_routes_volume_and_username_to_existing_domain(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "objectives", "--count", "8",
+            "--profiles", "100", "--profile-username", "world_011_divine",
+            "--objectives-projects", "6",
+            "--objectives-dossiers-per-project", "4",
+            "--objectives-independent", "3",
+            "--objectives-journeys-per-dossier", "2",
+        ])
+        with patch("scripts.demo_generation.community.main") as community:
+            run(args)
+        argv = community.call_args.args[0]
+        self.assertIn("--profile-username", argv)
+        self.assertIn("world_011_divine", argv)
+        for token in ("--objectives-projects", "--objectives-dossiers-per-project",
+                      "--objectives-independent", "--objectives-journeys-per-dossier"):
+            self.assertIn(token, argv)
+        self.assertNotIn("--apply", argv)
+
+    def test_objectives_generate_applies_only_with_explicit_generate(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "objectives", "--count", "1",
+            "--profile-username", "world_011_divine",
+        ])
+        with patch("scripts.demo_generation.community.main") as community:
+            run(args)
+        self.assertIn("--apply", community.call_args.args[0])
+
+    def test_objectives_reject_unbounded_generation_parameters(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "objectives",
+            "--objectives-projects", "100",
+        ])
+        with self.assertRaises(SystemExit):
+            run(args)
+
     def test_model_inventory_uses_complete_catalog(self):
         args = build_parser().parse_args(["inventory"])
         with patch("scripts.demo_generation.catalog.main") as catalog:
