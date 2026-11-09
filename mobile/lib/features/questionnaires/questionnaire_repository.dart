@@ -383,25 +383,13 @@ class QuestionnaireRepository {
     if (engine == null) {
       throw StateError('Connexion nécessaire pour lire ce média de questionnaire.');
     }
-    if (!RegExp(r'^[0-9a-fA-F-]{36}
-    final trimmed = value.trim();
-    if (trimmed.startsWith('/')) return trimmed.substring(1);
-    return trimmed;
-  }
-}
-).hasMatch(attachmentId)) {
+    if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(attachmentId)) {
       throw const FormatException('Identifiant de média invalide.');
     }
     final basename = filename.split(RegExp(r'[/\\]')).last;
     final dot = basename.lastIndexOf('.');
     final ext = dot > 0 ? basename.substring(dot) : '.bin';
-    final safeExt = RegExp(r'^\.[A-Za-z0-9]{1,9}
-    final trimmed = value.trim();
-    if (trimmed.startsWith('/')) return trimmed.substring(1);
-    return trimmed;
-  }
-}
-).hasMatch(ext)
+    final safeExt = RegExp(r'^\.[A-Za-z0-9]{1,9}$').hasMatch(ext)
         ? ext : '.bin';
     final temp = await getTemporaryDirectory();
     final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
@@ -422,7 +410,6 @@ class QuestionnaireRepository {
       rethrow;
     }
   }
-
   static String _relativeApiPath(String value) {
     final trimmed = value.trim();
     if (trimmed.startsWith('/')) return trimmed.substring(1);
