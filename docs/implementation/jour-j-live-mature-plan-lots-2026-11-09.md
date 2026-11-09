@@ -26,6 +26,18 @@ La coexistence visuelle **n'est pas une fusion de permission**. Les domaines own
 - **Frontière de livraison :** les pages Web/Flutter consomment encore les routes historiques ; la bascule de présentation appartient à L3/L4. Les capacités financières ou Scanner sont signalées lorsqu'autorisées, sans inventer des liens d'opération. L'ensemble est une fondation de données, pas encore la page unifiée finale.
 - **Validation non effectuée :** tests ciblés, Django, Flutter, intégration API, CI et smoke tests. Le code ne doit pas être considéré « certifié » ou prêt au merge.
 
+## Évolution canonique Journey — bénéficiaire Space (passe ciblée)
+
+**Décision :** une Journey autonome représente une démarche réelle, sans Dossier ni Projet obligatoire. Son bénéficiaire est exactement un Profil, un externe ou un Space. Les membres du Space ne reçoivent pas chacun une Journey. Ils peuvent consulter le cas institutionnel selon leurs **mandats Space actifs**, sans être automatiquement affectés individuellement par `JourneyAssignment`. Les opérations restreintes, les artefacts sensibles et les mutations ne sont pas déverrouillés par cette seule lecture.
+
+**Mise en code :** champ nullable `Journey.beneficiary_space`, contrainte DB « exactement un des trois », migration expand-compatible `journeys/migrations/0006_space_beneficiary.py`, validation du service `create_journey` via permissions canoniques du Space, événement de domaine portant `beneficiary_space_id`, lecture du cas via `can_access_case`, et scénarios de test ciblés.
+
+**Conservation :** `Access` continue de représenter un droit individuel Profil/externe. `JourneyAssignment` et les capacités Dossier existantes ne sont pas dupliquées. Les membres ne reçoivent pas automatiquement l'accès aux contenus de Services, à la finance ou aux opérations d'un autre owner.
+
+**Limites à réconcilier séparément :** découverte UI d'une Journey institutionnelle, projection Jour J/Live d'un Space bénéficiaire, gestion de délégations pour un enfant ou externe, éventuelle bénéficience institutionnelle dans d'autres workflows (notamment Commerce/Access), et adaptation des consommateurs Services existants. La prise en charge d'un Space bénéficiaire dans le noyau Journey **n'atteste pas** que ces intégrations sont déjà disponibles.
+
+**Validation :** tests ajoutés mais non exécutés ; aucune CI ni migration n'a été appliquée à une base dans cette passe.
+
 ## Ordre des lots et dépendances
 
 ```text
