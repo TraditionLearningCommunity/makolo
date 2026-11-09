@@ -783,10 +783,17 @@ class DiscoveryRepository {
     }
     final actor = field['viewer'];
     if (actor is! Map || actor['id'] != profileId) return null;
+    final scopeActor = field['actor'];
     if (query.isSpace) {
-      final spaceActor = field['actor'];
-      if (spaceActor is! Map || spaceActor['type'] != 'space' ||
-          spaceActor['id'] != query.spaceId) return null;
+      if (field['surface'] != 'discover_space' ||
+          scopeActor is! Map ||
+          scopeActor['type'] != 'space' ||
+          scopeActor['id'] != query.spaceId) return null;
+    } else {
+      if (field['surface'] != 'discover_me' ||
+          scopeActor is! Map ||
+          scopeActor['type'] != 'profile' ||
+          scopeActor['id'] != profileId) return null;
     }
     return StoredProjection(
       kind: itemsProjectionKind,
