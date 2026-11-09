@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -249,9 +251,10 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                             projection == null ? 'Actualisation indisponible.' : 'Impossible d’actualiser. Les dernières informations enregistrées restent affichées.',
                           ),
                         ),
-                        TextButton(
+                        MakoloActionButton(
+                          label: 'Réessayer',
                           onPressed: _refresh,
-                          child: const Text('Réessayer'),
+                          appearance: MakoloActionAppearance.quiet,
                         ),
                       ],
                     ),
@@ -333,10 +336,11 @@ class _SpaceProjectionBody extends StatelessWidget {
                 'encore conclure que tout est en ordre pour cet Espace.',
             icon: Icons.info_outline_rounded,
           ),
-          TextButton.icon(
+          MakoloActionButton(
+            label: 'Actualiser',
             onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Actualiser'),
+            appearance: MakoloActionAppearance.quiet,
+            icon: Icons.refresh_rounded,
           ),
         ],
       );
@@ -376,10 +380,11 @@ class _SpaceProjectionBody extends StatelessWidget {
               horizontal: MakoloSpacing.md,
               vertical: MakoloSpacing.sm,
             ),
-            child: TextButton.icon(
+            child: MakoloActionButton(
+              label: 'Poursuivre dans Métier',
               onPressed: () => context.go('/space/work'),
-              icon: const Icon(Icons.arrow_forward_rounded),
-              label: const Text('Poursuivre dans Métier'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.arrow_forward_rounded,
             ),
           ),
       ],
@@ -865,11 +870,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               ],
             ),
             actions: [
-              TextButton(
+              MakoloActionButton(
+                label: 'Annuler',
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
+                appearance: MakoloActionAppearance.quiet,
               ),
-              FilledButton(
+              MakoloActionButton(
+                label: 'Confirmer l’ajout',
                 onPressed: () {
                   if (email.text.trim().isEmpty || selected == null) return;
                   Navigator.pop(context, {
@@ -877,7 +884,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     'role': selected!,
                   });
                 },
-                child: const Text('Confirmer l’ajout'),
+                appearance: MakoloActionAppearance.primary,
               ),
             ],
           ),
@@ -939,15 +946,17 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
               onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
+              appearance: MakoloActionAppearance.quiet,
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Confirmer le changement',
               onPressed: selected == null
                   ? null
                   : () => Navigator.pop(context, selected),
-              child: const Text('Confirmer le changement'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -1016,18 +1025,20 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            MakoloActionButton(
+              label: 'Annuler',
               onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
+              appearance: MakoloActionAppearance.quiet,
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Confirmer le transfert',
               onPressed: chosenId == null
                   ? null
                   : () => Navigator.pop(context, <String, Object>{
                       'target_membership_id': chosenId!,
                       'relinquish_current_owner': relinquish,
                     }),
-              child: const Text('Confirmer le transfert'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -1055,13 +1066,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           'Le serveur protège les contraintes de propriété du Space.',
         ),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Annuler',
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
+            appearance: MakoloActionAppearance.quiet,
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'Confirmer le retrait',
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmer le retrait'),
+            appearance: MakoloActionAppearance.danger,
           ),
         ],
       ),
@@ -1230,10 +1243,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                   ),
                   if (widget.runtime.api != null &&
                       widget.runtime.space?.sync != null)
-                    TextButton.icon(
+                    MakoloActionButton(
+                      label: 'Réessayer',
                       onPressed: _retryDepth,
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Réessayer'),
+                      appearance: MakoloActionAppearance.quiet,
+                      icon: Icons.refresh_rounded,
                     ),
                 ],
               )
@@ -1305,12 +1319,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               _map(payload['handoffs'])?['authority'] ==
                   '/space/${widget.slug}/us/authority') ...[
             const SizedBox(height: MakoloSpacing.md),
-            OutlinedButton.icon(
+            MakoloActionButton(
+              label: 'Voir mes autorisations',
               onPressed: observationOnly
                   ? null
                   : () => context.push('/space/${widget.slug}/us/authority'),
-              icon: const Icon(Icons.shield_outlined),
-              label: const Text('Voir mes autorisations'),
+              appearance: MakoloActionAppearance.secondary,
+              icon: Icons.shield_outlined,
             ),
           ],
           if (observationOnly) ...[
@@ -1323,38 +1338,42 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           ],
           const SizedBox(height: MakoloSpacing.lg),
           if (canManageTeam) ...[
-            FilledButton.icon(
+            MakoloActionButton(
+              label: 'Ajouter un collaborateur',
               onPressed: _teamMutating ? null : () => _addTeamMember(payload),
-              icon: const Icon(Icons.person_add_alt_1_outlined),
-              label: const Text('Ajouter un collaborateur'),
+              appearance: MakoloActionAppearance.primary,
+              icon: Icons.person_add_alt_1_outlined,
             ),
             const SizedBox(height: MakoloSpacing.md),
           ],
           if (canTransferOwnership) ...[
             if (_fullTeam == null)
-              OutlinedButton.icon(
+              MakoloActionButton(
+                label: 'Choisir un nouveau propriétaire',
                 onPressed: _teamMutating ? null : () => _loadTeam(_space!),
-                icon: const Icon(Icons.group_add_outlined),
-                label: const Text('Choisir un nouveau propriétaire'),
+                appearance: MakoloActionAppearance.secondary,
+                icon: Icons.group_add_outlined,
               )
             else if (_fullTeam!.any(
               (row) =>
                   _text(row['id']) != null &&
                   row['responsibility'] != 'space_owner',
             ))
-              FilledButton.icon(
+              MakoloActionButton(
+                label: 'Transférer la propriété',
                 onPressed: _teamMutating
                     ? null
                     : () => _transferOwnership(payload),
-                icon: const Icon(Icons.verified_user_outlined),
-                label: const Text('Transférer la propriété'),
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.verified_user_outlined,
               )
             else
               const Text('Aucun collaborateur éligible à ce transfert.'),
             if (_teamUnavailable)
-              TextButton(
+              MakoloActionButton(
+                label: 'Réessayer de charger les collaborateurs',
                 onPressed: () => _loadTeam(_space!),
-                child: const Text('Réessayer de charger les collaborateurs'),
+                appearance: MakoloActionAppearance.quiet,
               ),
             const SizedBox(height: MakoloSpacing.md),
           ],
@@ -1434,14 +1453,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                                         ?.startsWith('mandate:') ==
                                     true) ...[
                               const SizedBox(height: MakoloSpacing.sm),
-                              TextButton.icon(
+                              MakoloActionButton(
+                                label: 'Voir ce que je porte',
                                 onPressed: observationOnly
                                     ? null
                                     : () => _openResponsibility(
                                         _text(_map(row)?['key'])!,
                                       ),
-                                icon: const Icon(Icons.arrow_forward_rounded),
-                                label: const Text('Voir ce que je porte'),
+                                appearance: MakoloActionAppearance.quiet,
+                                icon: Icons.arrow_forward_rounded,
                               ),
                             ],
                             if (canManageTeam &&
@@ -1457,20 +1477,22 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                               Wrap(
                                 spacing: MakoloSpacing.sm,
                                 children: [
-                                  TextButton(
+                                  MakoloActionButton(
+                                    label: 'Responsabilité',
                                     onPressed: _teamMutating
                                         ? null
                                         : () => _changeTeamRole(
                                             _map(row)!,
                                             payload,
                                           ),
-                                    child: const Text('Responsabilité'),
+                                    appearance: MakoloActionAppearance.quiet,
                                   ),
-                                  TextButton(
+                                  MakoloActionButton(
+                                    label: 'Retirer',
                                     onPressed: _teamMutating
                                         ? null
                                         : () => _removeTeamMember(_map(row)!),
-                                    child: const Text('Retirer'),
+                                    appearance: MakoloActionAppearance.danger,
                                   ),
                                 ],
                               ),
@@ -1489,10 +1511,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               'Aperçu partiel : tous les membres ne sont pas chargés.',
             ),
           if (widget.depth == 'team' && _teamUnavailable)
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Réessayer de charger l’équipe',
               onPressed: () => _loadTeam(_space!),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer de charger l’équipe'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.refresh_rounded,
             ),
           if (widget.depth == 'ownership' && section?['has_more'] == true)
             const Text('Aperçu partiel de la gouvernance institutionnelle.'),

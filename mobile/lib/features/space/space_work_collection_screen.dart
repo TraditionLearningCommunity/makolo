@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/behavior_states.dart';
@@ -235,9 +237,10 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                                     'chaque ouverture sera revérifiée.',
                         ),
                       ),
-                      TextButton(
+                      MakoloActionButton(
+                        label: 'Réessayer',
                         onPressed: loadPage,
-                        child: const Text('Réessayer'),
+                        appearance: MakoloActionAppearance.quiet,
                       ),
                     ],
                   ),

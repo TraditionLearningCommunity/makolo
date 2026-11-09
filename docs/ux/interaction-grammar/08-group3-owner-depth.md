@@ -1,7 +1,7 @@
 # Groupe 3 — Profondeurs propriétaires N1/N2/N3 et Space
 
 **Branche :** `fix/discover-a-continuation-context-20261014`, PR #522.  
-**Statut :** migration transversale engagée, partiellement implémentée ; consoles métiers spécialisées et certaines commandes contextuelles encore à compléter.  
+**Statut :** migration d'implémentation des commandes transversales recensées terminée sur la branche #522 (9 novembre 2026), sans attestation de tests instrumentés ni de CI. Les widgets spécialisés restent propriétaires.  
 **Dépendance :** contrats A–D, F1, F2 et Groupes 1–2.
 
 ## Règle d'architecture
@@ -65,3 +65,70 @@ Un seul socle de contrôle ne signifie pas une surface unique : les panneaux Spa
 - `mobile/test/interaction_group3_depth_test.dart` confirme à l'échelle widget que l'action owner d'une offre n'apparaît qu'avec la capacité correspondante et que la pagination G3 utilise la commande partagée tout en transmettant le bon offset au propriétaire.
 
 Ces éléments complètent l'intégration sans signifier que toutes les consoles et les profondeurs spécialisées sont déjà migrées.
+
+## Clôture d'implémentation des reliquats — 9 novembre 2026
+
+Une passe supplémentaire a comparé les contrôles de toutes les consoles Space, des
+profondeurs Space/Nous, des écrans Scanner et des surfaces Flutter Space/Continuité.
+Elle termine **l'adoption des commandes transversales encore inventoriées** sur
+la branche de #522, sans migration de domaine et sans passage sur main.
+
+### Web — commandes et formulaires propriétaires
+
+- Harmonisation des CTA et retours des consoles Access Grant, Activity Detail,
+  Analytics, Audience, Automation, Capability Hub, Control, CRM, Funding, Groups,
+  Member Responsibilities, pagination, Places, Promotions, Subscriptions et Team
+  Forms, plus les formulaires/listes Scanner d'affectations, de portes et Live Access.
+- Les classes locales qui redéfinissaient les skins de boutons sont remplacées par
+  `mk-action-button` avec variantes `primary`, `secondary` et `link`.
+  Les liens-carte, cartes de pilotage, formulaires de scan et sélecteurs métiers
+  spécialisés conservent leur **composition**.
+- Space Nous : la bascule Liste/Grille adopte `mk-interaction-tabs` tout en
+  conservant `data-us-layout-choice`, `aria-pressed`, le script et la clé
+  de préférence existants. Les CSS locaux de boutons du basculeur ont été
+  retirés. Les liens de profondeur de Nous, Relations, Ressources et Pilotage
+  utilisent la variante de navigation commune.
+- Space Mark : champs de clarification et confirmation utilisent les
+  primitives communes ; les champs métier, l'interpréteur et le POST restent
+  inchangés. Aucun geste n'exécute seul une mutation propriétaire.
+
+### Flutter — commandes encore dispersées
+
+- `space_shell_routes.dart` : contrôles des vues et de gouvernance Team,
+  retour, rafraîchissement, ajout, transfert de propriété et retrait adoptent
+  `MakoloActionButton`. Le retrait est présenté en `danger` ; les actions
+  disponibles restent conditionnées par les capacités du serveur.
+- `space_create_screen.dart`, `space_work_collection_screen.dart` et
+  `space_work_g1_realizations.dart` : formulaires, états incertains,
+  reprise et pagination adoptent les boutons partagés sans modifier
+  les callbacks ni le comportement du DraftRepository.
+- `dossier_workspace_screen.dart` et `project_workspace_screen.dart` :
+  actions de date, navigation, zoom, retrait de liens, recherche, pagination et
+  chargement adoptent les boutons partagés. Les commandes à icône seule ont
+  désormais un tooltip et une cible standard ; le chargement en cours conserve
+  son état `busy`, sans confirmation inventée.
+
+### Frontières conservées
+
+- MOVE, REORDER, EDIT, UNDO et actions groupées exigent les capacités et
+  transports owners existants. Les primitives F2 n'autorisent aucune mutation
+  à elles seules et ne classent pas localement une pagination partielle.
+- Les liens-carte Space, QR/Scanner, cartes, graphes, calendriers et détails
+  à forte densité sont des compositions ou widgets spécialisés, **pas des
+  définitions locales supplémentaires de bouton générique**.
+- La visibilité et la révocation restent validées par le serveur. Aucun
+  nouvel endpoint, modèle, champ, migration ou règle de permissions.
+
+### Garde-fous de migration
+
+- `scripts/check_group3_interactions.py` contrôle les marqueurs de la
+  fondation, l'absence de boutons Material directs dans les six écrans Flutter
+  migrés, la disparition du CSS de basculeur local et les marqueurs CSRF.
+- `mobile/test/interaction_group3_depth_test.dart` couvre en plus
+  la pagination G1 et la transmission exacte des offsets au propriétaire.
+- Les E2E de Groupe 3 et les tests propriétaires préexistants restent en
+  place. **Ni tests instrumentés, ni rendu visuel, ni CI globale ne sont
+  déclarés exécutés ou verts pour cette passe.**
+
+La clôture concerne **l'implémentation des contrôles communs recensés** ;
+elle ne préjuge ni de la validation finale de la PR #522 ni d'une fusion.

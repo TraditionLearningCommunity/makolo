@@ -279,13 +279,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.event_outlined),
-                      label: Text(
-                        deadline == null
+                    MakoloActionButton(
+                      label: deadline == null
                             ? 'Échéance facultative'
                             : _humanDate(deadline!),
-                      ),
                       onPressed: () async {
                         final picked = await showDatePicker(
                           context: dialog,
@@ -295,6 +292,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         );
                         if (picked != null) update(() => deadline = picked);
                       },
+                      appearance: MakoloActionAppearance.secondary,
+                      icon: Icons.event_outlined,
                     ),
                     if (deadline != null)
                       MakoloActionButton(
@@ -313,7 +312,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Créer et rattacher',
               onPressed: () {
                 if (!(form.currentState?.validate() ?? false)) return;
                 Navigator.pop(dialog, <String, dynamic>{
@@ -323,7 +323,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   if (deadline != null) 'deadline': _iso(deadline),
                 });
               },
-              child: const Text('Créer et rattacher'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -510,9 +510,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                   : 'Fin : ${end == null ? 'non définie' : _humanDate(end!)}',
                             ),
                           ),
-                          IconButton(
+                          MakoloIconActionButton(
                             tooltip: 'Choisir une date',
-                            icon: const Icon(Icons.calendar_month_outlined),
+                            icon: Icons.calendar_month_outlined,
                             onPressed: () async {
                               final picked = await showDatePicker(
                                 context: dialog,
@@ -532,9 +532,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                               }
                             },
                           ),
-                          IconButton(
+                          MakoloIconActionButton(
                             tooltip: 'Effacer cette date',
-                            icon: const Icon(Icons.close_rounded),
+                            icon: Icons.close_rounded,
                             onPressed: () => update(() {
                               if (isStart) {
                                 start = null;
@@ -556,7 +556,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Enregistrer',
               onPressed: () {
                 if (!(form.currentState?.validate() ?? false)) return;
                 if (start != null && end != null && start!.isAfter(end!)) {
@@ -574,7 +575,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   'ends_on': _iso(end),
                 });
               },
-              child: const Text('Enregistrer'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -910,9 +911,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 ],
                 onSelected: (value) => _manageDossier(row, project, value),
               ),
-            IconButton(
+            MakoloIconActionButton(
               tooltip: 'Ouvrir le Dossier',
-              icon: const Icon(Icons.chevron_right_rounded),
+              icon: Icons.chevron_right_rounded,
               onPressed: () => widget.onOpenDossier(_text(row['id'])),
             ),
           ],
@@ -1024,9 +1025,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         else
           for (final row in rows.take(6)) _dossierCard(row, project),
         if (rows.length > 6)
-          TextButton(
+          MakoloActionButton(
+            label: 'Voir tous les Dossiers acquis',
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
-            child: const Text('Voir tous les Dossiers acquis'),
+            appearance: MakoloActionAppearance.quiet,
           ),
       ],
     );
@@ -1096,10 +1098,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
             suffixIcon: _search.text.isEmpty
                 ? null
-                : IconButton(
-                    onPressed: _search.clear,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
+                : MakoloIconActionButton(
+                  tooltip: 'Effacer la recherche',
+                  icon: Icons.close_rounded,
+                  onPressed: _search.clear,
+                ),
           ),
         ),
         const SizedBox(height: 11),
@@ -1245,10 +1248,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 label: Text(label),
                 onSelected: (_) => setState(() => _time = mode),
               ),
-            TextButton.icon(
+            MakoloActionButton(
+              label: 'Aujourd’hui',
               onPressed: () => setState(() => _time = _ProjectTime.next30),
-              icon: const Icon(Icons.today_outlined),
-              label: const Text('Aujourd’hui'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.today_outlined,
             ),
           ],
         ),
@@ -1374,12 +1378,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               return Center(
                 child: _refreshing
                     ? const CircularProgressIndicator.adaptive()
-                    : TextButton(
-                        onPressed: _refresh,
-                        child: Text(
-                          _failed ? 'Réessayer' : 'Charger ce Projet',
-                        ),
-                      ),
+                    : MakoloActionButton(
+                      label: _failed ? 'Réessayer' : 'Charger ce Projet',
+                      onPressed: _refresh,
+                      appearance: MakoloActionAppearance.quiet,
+                    ),
               );
             }
             return StreamBuilder<List<StoredProjection>>(
@@ -1428,30 +1431,21 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                               if (more)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 18),
-                                  child: OutlinedButton.icon(
+                                  child: MakoloActionButton(
+                                    label: _offline ? 'Suite après reconnexion' : 'Charger davantage de dossiers visibles',
                                     onPressed: _offline || _loadingMore
                                         ? null
                                         : () => _more(offset),
-                                    icon: _loadingMore
-                                        ? const SizedBox(
-                                            width: 18,
-                                            height: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : const Icon(Icons.add_rounded),
-                                    label: Text(
-                                      _offline ? 'Suite après reconnexion' : 'Charger davantage de dossiers visibles',
-                                    ),
+                                    appearance: MakoloActionAppearance.secondary,
+                                    icon: Icons.add_rounded,
+                                    busy: _loadingMore,
                                   ),
                                 ),
                               if (_failed)
-                                TextButton(
+                                MakoloActionButton(
+                                  label: 'Actualisation impossible · Réessayer',
                                   onPressed: _refresh,
-                                  child: const Text(
-                                    'Actualisation impossible · Réessayer',
-                                  ),
+                                  appearance: MakoloActionAppearance.quiet,
                                 ),
                               if (_busy) const LinearProgressIndicator(),
                             ],

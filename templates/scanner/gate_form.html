@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
   <div>
-    <a href="{% url 'scanner:gates' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Portes d’accès</a>
+    <a href="{% url 'scanner:gates' %}" class="mk-action-button" data-variant="link">← Portes d’accès</a>
     <h1 class="mt-2 text-4xl font-black">{% if object %}Modifier {{ object.name }}{% else %}Créer une porte d’accès{% endif %}</h1>
     <p class="mt-2 text-zinc-500">Configurez le débit cible et le seuil de refus utilisés par Smart Access pour détecter les anomalies opérationnelles.</p>
   </div>
@@ -26,7 +26,7 @@
       </div>
       {% endfor %}
     </div>
-    <div class="flex justify-end gap-3"><a href="{% url 'scanner:gates' %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700">Annuler</a><button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white">Enregistrer</button></div>
+    <div class="flex justify-end gap-3"><a href="{% url 'scanner:gates' %}" class="mk-action-button" data-variant="secondary">Annuler</a><button class="mk-action-button" data-variant="primary">Enregistrer</button></div>
   </form>
 </div>
 {% endblock %}

@@ -5,7 +5,7 @@
     <span class="mk-kicker">Nous · Ressources</span>
     <h2 id="space-us-resources-title">Nos ressources</h2>
     <p>Les ressources de notre collectif.</p>
-    <a class="mk-ws4-deep-link" href="{{ resources_back_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i> Retour à Nous</a>
+    <a class="mk-action-button" data-variant="link" href="{{ resources_back_url }}"><i data-lucide="arrow-left" aria-hidden="true"></i> Retour à Nous</a>
   </header>
 
   <a class="mk-ws4-action" href="{{ resources_documents_url }}">
@@ -43,14 +43,14 @@
       <p class="mk-ws4-empty">Aucune ressource dans cette catégorie.</p>
     {% endif %}
     {% if resources_depth.has_more %}
-      <a class="mk-ws4-deep-link" href="{{ resources_base_url }}&amp;kind={{ resources_depth.kind|urlencode }}&amp;offset={{ resources_depth.next_offset }}">Voir les suivantes <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      <a class="mk-action-button" data-variant="link" href="{{ resources_base_url }}&amp;kind={{ resources_depth.kind|urlencode }}&amp;offset={{ resources_depth.next_offset }}">Voir les suivantes <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% endif %}
     {% if resources_depth.kind == 'document' %}
-      <a class="mk-ws4-deep-link" href="{{ resources_documents_url }}">Ouvrir les documents <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      <a class="mk-action-button" data-variant="link" href="{{ resources_documents_url }}">Ouvrir les documents <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% elif resources_depth.kind == 'passport' %}
-      <a class="mk-ws4-deep-link" href="{{ resources_passport_url }}">Ouvrir le Passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      <a class="mk-action-button" data-variant="link" href="{{ resources_passport_url }}">Ouvrir le Passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% else %}
-      <a class="mk-ws4-deep-link" href="{{ resources_presentation_url }}">Ouvrir la bibliothèque de présentation <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      <a class="mk-action-button" data-variant="link" href="{{ resources_presentation_url }}">Ouvrir la bibliothèque de présentation <i data-lucide="arrow-right" aria-hidden="true"></i></a>
     {% endif %}
   </section>
 </section>

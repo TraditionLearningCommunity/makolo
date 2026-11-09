@@ -15,7 +15,7 @@
     {% if mark_result.question.code == "which_occurrence" or mark_result.state == "needs_clarification" and mark_result.question.code == "which_occurrence" %}
     <div class="mt-4 space-y-3">
       <label for="mark-occurrence">Date ou séance concernée</label>
-      <input id="mark-occurrence" name="occurrence_id" type="text" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off">
+      <input id="mark-occurrence" name="occurrence_id" type="text" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off" class="mk-interaction-field">
     </div>
     {% endif %}
 
@@ -23,11 +23,11 @@
     <div class="mk-mark-support">
       <div>
         <label for="mark-team-email">E-mail du collaborateur</label>
-        <input id="mark-team-email" name="team_member_email" type="email" autocomplete="email">
+        <input id="mark-team-email" name="team_member_email" type="email" autocomplete="email" class="mk-interaction-field">
       </div>
       <div>
         <label for="mark-team-role">Rôle à attribuer</label>
-        <input id="mark-team-role" name="team_member_role" type="text" autocomplete="off">
+        <input id="mark-team-role" name="team_member_role" type="text" autocomplete="off" class="mk-interaction-field">
       </div>
     </div>
     {% endif %}
@@ -42,9 +42,9 @@
         <strong>Confirmation nécessaire</strong>
         <p>{{ mark_result.action.consequence }}</p>
       </section>
-      <button type="submit" class="mk-now-cta">Confirmer cette action</button>
+      <button type="submit" class="mk-action-button" data-variant="primary">Confirmer cette action</button>
     {% else %}
-      <button type="submit" class="mk-now-cta">Continuer</button>
+      <button type="submit" class="mk-action-button" data-variant="primary">Continuer</button>
     {% endif %}
   </form>
 

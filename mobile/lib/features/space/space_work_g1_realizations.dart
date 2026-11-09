@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/contracts/space_presentation.dart';
@@ -64,15 +66,17 @@ class SpaceWorkG1Realizations extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   if (offset > 0)
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Précédentes',
                       onPressed: () =>
                           onPageChange(offset > limit ? offset - limit : 0),
-                      child: const Text('Précédentes'),
+                      appearance: MakoloActionAppearance.secondary,
                     ),
                   if (hasMore)
-                    OutlinedButton(
+                    MakoloActionButton(
+                      label: 'Voir les suivantes',
                       onPressed: () => onPageChange(offset + limit),
-                      child: const Text('Voir les suivantes'),
+                      appearance: MakoloActionAppearance.secondary,
                     ),
                 ],
               ),

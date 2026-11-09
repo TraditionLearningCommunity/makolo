@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
     <div>
-        <a href="{% url 'scanner:assignments' %}" class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">← Agents scanner</a>
+        <a href="{% url 'scanner:assignments' %}" class="mk-action-button" data-variant="link">← Agents scanner</a>
         <h1 class="mt-2 text-4xl font-black text-zinc-900 dark:text-white">{% if object %}Modifier l’affectation{% else %}Affecter un agent scanner{% endif %}</h1>
     </div>
 
@@ -28,8 +28,8 @@
         </div>
 
         <div class="flex flex-wrap justify-end gap-3">
-            <a href="{% url 'scanner:assignments' %}" class="rounded-2xl border border-zinc-300 px-5 py-3 font-semibold dark:border-zinc-700">Annuler</a>
-            <button class="rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-500">Enregistrer</button>
+            <a href="{% url 'scanner:assignments' %}" class="mk-action-button" data-variant="secondary">Annuler</a>
+            <button class="mk-action-button" data-variant="primary">Enregistrer</button>
         </div>
     </form>
 </div>

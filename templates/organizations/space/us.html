@@ -33,10 +33,10 @@
 
   {% conversation_context_entry request.user 'space' projection.identity.id as space_conversation %}
   {% if space_conversation %}
-    <a href="{% url 'conversations:by-context' 'space' projection.identity.id %}" class="mk-ws4-deep-link">Échanger avec cet Espace</a>
+    <a href="{% url 'conversations:by-context' 'space' projection.identity.id %}" class="mk-action-button" data-variant="link">Échanger avec cet Espace</a>
   {% else %}
     {% conversation_context_can_ensure request.user 'space' projection.identity.id as can_open_space_conversation %}
-    {% if can_open_space_conversation %}<form method="post" action="{% url 'conversations:context-ensure' 'space' projection.identity.id %}">{% csrf_token %}<button type="submit" class="mk-ws4-deep-link">Échanger avec cet Espace</button></form>{% endif %}
+    {% if can_open_space_conversation %}<form method="post" action="{% url 'conversations:context-ensure' 'space' projection.identity.id %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="link">Échanger avec cet Espace</button></form>{% endif %}
   {% endif %}
   {% if us_owner_links.passport %}
   <section class="mk-ws4-card mk-ws4-card--passport" aria-labelledby="space-us-passport">
@@ -46,9 +46,9 @@
 
   <div class="mk-us-n1-hub-heading">
     <h3 id="space-us-territories-heading">Notre espace</h3>
-    <div class="mk-us-n1-layout-switch" role="group" aria-label="Présentation des territoires">
-      <button type="button" data-us-layout-choice="list" aria-pressed="true" title="Afficher en liste"><i data-lucide="list" aria-hidden="true"></i><span>Liste</span></button>
-      <button type="button" data-us-layout-choice="grid" aria-pressed="false" title="Afficher en grille"><i data-lucide="layout-grid" aria-hidden="true"></i><span>Grille</span></button>
+    <div class="mk-interaction-tabs" role="group" aria-label="Présentation des territoires">
+      <button type="button" class="mk-action-button" data-variant="ghost" data-us-layout-choice="list" aria-pressed="true" title="Afficher en liste"><i data-lucide="list" aria-hidden="true"></i><span>Liste</span></button>
+      <button type="button" class="mk-action-button" data-variant="ghost" data-us-layout-choice="grid" aria-pressed="false" title="Afficher en grille"><i data-lucide="layout-grid" aria-hidden="true"></i><span>Grille</span></button>
     </div>
   </div>
   <div class="mk-ws4-grid mk-ws4-grid--us mk-us-n1-grid" data-us-territories data-us-layout="list" data-us-space-id="{{ projection.identity.id }}" aria-labelledby="space-us-territories-heading">
@@ -73,7 +73,7 @@
       {% else %}
         <p class="mk-ws4-note">Les détails de l’équipe ne sont pas accessibles.</p>
       {% endif %}
-      {% if us_owner_links.team %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if us_owner_links.team %}<a class="mk-action-button" data-variant="link" href="{{ us_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -90,7 +90,7 @@
           <li><p class="mk-ws4-empty">Aucune responsabilité à afficher.</p></li>
         {% endfor %}
       </ul>
-      {% if us_owner_links.authority %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.authority }}">Comprendre mes autorisations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if us_owner_links.authority %}<a class="mk-action-button" data-variant="link" href="{{ us_owner_links.authority }}">Comprendre mes autorisations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
 
     {% if projection.relationships.visibility == 'visible' and projection.relationships.sections %}
@@ -106,7 +106,7 @@
           </div></li>{% endif %}
         {% endfor %}
       </ul>
-      {% if us_owner_links.relationships %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.relationships }}">Explorer ces relations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if us_owner_links.relationships %}<a class="mk-action-button" data-variant="link" href="{{ us_owner_links.relationships }}">Explorer ces relations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -131,7 +131,7 @@
     {% else %}
       <p class="mk-ws4-empty">Aucun document ou modèle institutionnel disponible pour le moment.</p>
     {% endif %}
-    <a class="mk-ws4-deep-link" href="{{ us_owner_links.resources }}">Consulter les ressources <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+    <a class="mk-action-button" data-variant="link" href="{{ us_owner_links.resources }}">Consulter les ressources <i data-lucide="arrow-right" aria-hidden="true"></i></a>
   </section>
   {% endif %}
 
@@ -145,7 +145,7 @@
         <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><div><strong>{{ owner.profile.name }}</strong><small>{{ owner.responsibility.label }}</small></div></li>
         {% endfor %}
       </ul>
-      {% if us_owner_links.ownership %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.ownership }}">Voir la gouvernance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if us_owner_links.ownership %}<a class="mk-action-button" data-variant="link" href="{{ us_owner_links.ownership }}">Voir la gouvernance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -158,7 +158,7 @@
       {% else %}
         <p class="mk-ws4-empty">Aucune vérification publique active à afficher.</p>
       {% endif %}
-      {% if us_owner_links.trust %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.trust }}">Ouvrir Confiance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      {% if us_owner_links.trust %}<a class="mk-action-button" data-variant="link" href="{{ us_owner_links.trust }}">Ouvrir Confiance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
   </div>
 

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -260,13 +262,15 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
           'effectué cette vérification.',
         ),
         actions: [
-          TextButton(
+          MakoloActionButton(
+            label: 'Annuler',
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuler'),
+            appearance: MakoloActionAppearance.quiet,
           ),
-          FilledButton(
+          MakoloActionButton(
+            label: 'J’ai vérifié mes Espaces',
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('J’ai vérifié mes Espaces'),
+            appearance: MakoloActionAppearance.primary,
           ),
         ],
       ),
@@ -410,32 +414,35 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                   ),
                 ),
               const SizedBox(height: MakoloSpacing.lg),
-              FilledButton(
+              MakoloActionButton(
+                label: _saving ? 'Création…' : 'Créer cet Espace',
                 onPressed: _saving || _restoring || _creationAttempted
                     ? null
                     : _create,
-                child: Text(_saving ? 'Création…' : 'Créer cet Espace'),
+                appearance: MakoloActionAppearance.primary,
               ),
               if (_creationAttempted && !_created) ...[
-                TextButton(
+                MakoloActionButton(
+                  label: 'Consulter mes Espaces depuis Moi',
                   onPressed: () => context.go('/me'),
-                  child: const Text('Consulter mes Espaces depuis Moi'),
+                  appearance: MakoloActionAppearance.quiet,
                 ),
-                OutlinedButton(
+                MakoloActionButton(
+                  label: 'Après vérification, reprendre le brouillon',
                   onPressed: _saving ? null : _unlockAfterManualVerification,
-                  child: const Text(
-                    'Après vérification, reprendre le brouillon',
-                  ),
+                  appearance: MakoloActionAppearance.secondary,
                 ),
               ],
               if (_created) ...[
-                OutlinedButton(
+                MakoloActionButton(
+                  label: 'Vérifier mon accès',
                   onPressed: _saving ? null : _retryVerification,
-                  child: const Text('Vérifier mon accès'),
+                  appearance: MakoloActionAppearance.secondary,
                 ),
-                TextButton(
+                MakoloActionButton(
+                  label: 'Revenir à Moi',
                   onPressed: () => context.go('/me'),
-                  child: const Text('Revenir à Moi'),
+                  appearance: MakoloActionAppearance.quiet,
                 ),
               ],
             ],

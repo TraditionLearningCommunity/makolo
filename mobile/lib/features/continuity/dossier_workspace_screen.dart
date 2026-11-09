@@ -362,13 +362,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(
-                        deadline == null
+                    MakoloActionButton(
+                      label: deadline == null
                             ? 'Échéance facultative'
                             : 'Échéance : ${_dateLabel(dialog, deadline!)}',
-                      ),
                       onPressed: () async {
                         final result = await showDatePicker(
                           context: dialog,
@@ -378,6 +375,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         );
                         if (result != null) update(() => deadline = result);
                       },
+                      appearance: MakoloActionAppearance.secondary,
+                      icon: Icons.calendar_today_outlined,
                     ),
                     if (deadline != null)
                       MakoloActionButton(
@@ -396,7 +395,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Enregistrer',
               onPressed: () {
                 if (!(form.currentState?.validate() ?? false)) return;
                 Navigator.pop(dialog, {
@@ -405,7 +405,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   'deadline': deadline == null ? null : _iso(deadline),
                 });
               },
-              child: const Text('Enregistrer'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -515,13 +515,14 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               appearance: MakoloActionAppearance.quiet,
               onPressed: () => Navigator.pop(dialog),
             ),
-            FilledButton(
+            MakoloActionButton(
+              label: 'Lever',
               onPressed: () {
                 if (form.currentState?.validate() ?? false) {
                   Navigator.pop(dialog, input.text.trim());
                 }
               },
-              child: const Text('Lever'),
+              appearance: MakoloActionAppearance.primary,
             ),
           ],
         ),
@@ -675,10 +676,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (parent.isNotEmpty && widget.onOpenProject != null)
-          TextButton.icon(
+          MakoloActionButton(
+            label: _text(parent['title']),
             onPressed: () => widget.onOpenProject!(_text(parent['id'])),
-            icon: const Icon(Icons.arrow_back_rounded, size: 17),
-            label: Text(_text(parent['title'])),
+            appearance: MakoloActionAppearance.quiet,
+            icon: Icons.arrow_back_rounded,
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -997,11 +999,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 if (next['journey_id'] != null)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
+                    child: MakoloActionButton(
+                      label: 'Voir la démarche',
                       onPressed: () =>
                           widget.onOpenJourney(_text(next['journey_id'])),
-                      icon: const Icon(Icons.arrow_forward_rounded),
-                      label: const Text('Voir la démarche'),
+                      appearance: MakoloActionAppearance.quiet,
+                      icon: Icons.arrow_forward_rounded,
                     ),
                   ),
                 if (_text(readiness['hidden_signal']).isNotEmpty)
@@ -1045,10 +1048,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         else
           for (final row in items.take(7)) _journeyTile(row, compact: true),
         if (items.length > 7)
-          TextButton.icon(
+          MakoloActionButton(
+            label: 'Voir toutes les démarches',
             onPressed: () => setState(() => _mode = _DossierMode.list),
-            icon: const Icon(Icons.list_rounded),
-            label: const Text('Voir toutes les démarches'),
+            appearance: MakoloActionAppearance.quiet,
+            icon: Icons.list_rounded,
           ),
         _collaboration(data),
       ],
@@ -1178,10 +1182,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
             suffixIcon: _search.text.isEmpty
                 ? null
-                : IconButton(
-                    onPressed: _search.clear,
-                    icon: const Icon(Icons.close_rounded),
-                  ),
+                : MakoloIconActionButton(
+                  tooltip: 'Effacer la recherche',
+                  icon: Icons.close_rounded,
+                  onPressed: _search.clear,
+                ),
           ),
         ),
         const SizedBox(height: 10),
@@ -1442,20 +1447,23 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             spacing: 7,
             runSpacing: 7,
             children: [
-              OutlinedButton.icon(
+              MakoloActionButton(
+                label: 'Zoom +',
                 onPressed: () => _graphZoom(1.2),
-                icon: const Icon(Icons.zoom_in_rounded),
-                label: const Text('Zoom +'),
+                appearance: MakoloActionAppearance.secondary,
+                icon: Icons.zoom_in_rounded,
               ),
-              OutlinedButton.icon(
+              MakoloActionButton(
+                label: 'Zoom −',
                 onPressed: () => _graphZoom(1 / 1.2),
-                icon: const Icon(Icons.zoom_out_rounded),
-                label: const Text('Zoom −'),
+                appearance: MakoloActionAppearance.secondary,
+                icon: Icons.zoom_out_rounded,
               ),
-              TextButton.icon(
+              MakoloActionButton(
+                label: 'Recentrer',
                 onPressed: () => _transform.value = Matrix4.identity(),
-                icon: const Icon(Icons.center_focus_strong_outlined),
-                label: const Text('Recentrer'),
+                appearance: MakoloActionAppearance.quiet,
+                icon: Icons.center_focus_strong_outlined,
               ),
             ],
           ),
@@ -1687,18 +1695,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 runSpacing: 7,
                 children: [
                   if (_cap(dep, 'remove'))
-                    TextButton(
+                    MakoloActionButton(
+                      label: 'Retirer le lien',
                       onPressed: _canMutate
                           ? () => _dependencyAction(dep, 'remove')
                           : null,
-                      child: const Text('Retirer le lien'),
+                      appearance: MakoloActionAppearance.danger,
                     ),
                   if (_cap(dep, 'waive'))
-                    TextButton(
+                    MakoloActionButton(
+                      label: 'Lever le prérequis',
                       onPressed: _canMutate
                           ? () => _dependencyAction(dep, 'waive')
                           : null,
-                      child: const Text('Lever le prérequis'),
+                      appearance: MakoloActionAppearance.danger,
                     ),
                 ],
               ),
@@ -1740,12 +1750,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               return Center(
                 child: _refreshing
                     ? const CircularProgressIndicator.adaptive()
-                    : TextButton(
-                        onPressed: _refresh,
-                        child: Text(
-                          _failed ? 'Réessayer' : 'Charger ce Dossier',
-                        ),
-                      ),
+                    : MakoloActionButton(
+                      label: _failed ? 'Réessayer' : 'Charger ce Dossier',
+                      onPressed: _refresh,
+                      appearance: MakoloActionAppearance.quiet,
+                    ),
               );
             }
             final data = snapshot.payload;
@@ -1789,12 +1798,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                               child: LinearProgressIndicator(),
                             ),
                           if (_failed)
-                            TextButton.icon(
+                            MakoloActionButton(
+                              label: 'Actualisation impossible · Réessayer',
                               onPressed: _refresh,
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text(
-                                'Actualisation impossible · Réessayer',
-                              ),
+                              appearance: MakoloActionAppearance.quiet,
+                              icon: Icons.refresh_rounded,
                             ),
                         ],
                       ),
