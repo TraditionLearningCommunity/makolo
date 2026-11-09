@@ -453,4 +453,109 @@ void main() {
     expect(JourneyRepository.knownJourneyIdsFromOngoing(null), isEmpty);
   });
 
+  test('Lot B selects owner payments, requests, named forms and timing', () {
+    final now = DateTime.utc(2026, 11, 9, 10);
+    final projection = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-b',
+      schemaVersion: 1,
+      receivedAt: now,
+      payload: const {
+        'identity': {'workflow': 'registration'},
+        'representation': {'title': 'Recevoir un badge'},
+        'state': {'code': 'in_progress', 'label': 'En cours'},
+        'readiness': {
+          'state': 'action_required',
+          'ready': [{'key': 'ready', 'summary': 'Inscription reçue'}],
+          'actor_interventions': [{
+            'key': 'form_request.request-1',
+            'summary': 'Compléter le formulaire',
+            'next': {
+              'label': 'Répondre',
+              'link': '/api/v1/questionnaires/requests/request-1/',
+            },
+          }],
+          'waiting': [],
+          'blockers': [],
+        },
+        'requests': {
+          'pending': [{'id': 'request', 'state': 'pending'}],
+          'rejected': [],
+        },
+        'forms': [{
+          'id': 'request-1',
+          'title': 'Informations du participant',
+          'required': true,
+          'state': 'requested',
+          'capabilities': ['complete_form'],
+          'links': {'detail': '/api/v1/questionnaires/requests/request-1/'},
+        }],
+        'requirements': [{
+          'id': 'assessment-1',
+          'label': 'Pièce d’identité',
+          'required': true,
+          'state': 'missing',
+          'consequence': 'blocking',
+          'link': '/api/v1/me/journeys/journey-b/requirements/assessment-1/',
+        }],
+        'payment': {
+          'obligations': [
+            {'id': 'obligation-1', 'amount': '15.00', 'currency': 'USD', 'state': 'pending'},
+            {'id': 'obligation-2', 'amount': '5.00', 'currency': 'USD', 'state': 'satisfied'},
+          ],
+        },
+        'occurrence': {
+          'id': 'occurrence-1',
+          'timing': {
+            'start_date': '2026-12-11',
+            'start_time': '13:06:00',
+            'timezone': 'Africa/Lubumbashi',
+          },
+          'place': {
+            'name': 'Centre de conférence',
+            'locality': 'Lubumbashi',
+          },
+        },
+        'capabilities': [],
+      },
+    );
+    final result = const JourneyDetailSelector().select(
+      projection: projection,
+      source: JourneySourceState.unknown,
+      now: now,
+    );
+    expect(result.pendingRequests, 1);
+    expect(result.forms.single.title, 'Informations du participant');
+    expect(result.forms.single.canComplete, isTrue);
+    expect(result.requirements.single.isRequired, isTrue);
+    expect(result.requirements.single.consequence, 'blocking');
+    expect(result.payments.length, 2);
+    expect(result.payments.last.obligationId, 'obligation-2');
+    expect(result.practical?.startDate, '2026-12-11');
+    expect(result.practical?.placeName, 'Centre de conférence');
+    expect(result.actorInterventions.single.nextLink,
+        '/api/v1/questionnaires/requests/request-1/');
+  });
+
+  test('Lot B previews only Preparation resources from its local projection', () {
+    final preview = StoredProjection(
+      kind: 'preparation.journey.resources',
+      resourceKey: 'journey-b',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 9),
+      payload: const {
+        'items': [
+          {'id': 'r1', 'title': 'Guide de participation', 'kind': 'file'},
+          {'id': 'r2', 'title': 'Consignes pratiques', 'kind': 'text'},
+          {'id': '', 'title': 'Incomplete', 'kind': 'file'},
+        ],
+      },
+    );
+    final items = JourneyResourcePreview.fromProjection(preview);
+    expect(items.length, 2);
+    expect(items.first.kind, 'file');
+    expect(items.last.title, 'Consignes pratiques');
+    expect(JourneyResourcePreview.fromProjection(null), isEmpty);
+  });
+
 }
