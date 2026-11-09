@@ -91,6 +91,8 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Comprendre mes autorisations")
         self.assertContains(response, "Gouvernance")
         self.assertContains(response, "Passeport de cet Espace")
+        self.assertContains(response, 'class="mk-identity-passport-gateway"')
+        self.assertContains(response, 'class="mk-identity-passport-action"')
         self.assertContains(
             response,
             reverse("sharing:passport-space", kwargs={"slug": self.space.slug}),

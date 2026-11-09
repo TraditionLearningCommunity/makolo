@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
+import '../../design/identity_surface.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -398,98 +399,59 @@ class _MeIdentity extends StatelessWidget {
 
     final theme = Theme.of(context);
     final name = selection.presentation.identityLabel;
-    return Semantics(
-      container: true,
-      label: name,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
-        child: Row(
-          children: [
-            Semantics(
-              button: onAvatarTap != null,
-              label: 'Modifier ma photo',
-              child: InkWell(
-                onTap: onAvatarTap,
-                borderRadius: BorderRadius.circular(40),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    _MeAvatar(
-                      name: name,
-                      imageUrl: selection.identityAvatarUrl,
-                      profileId: avatarProfileId,
-                      api: avatarApi,
-                      revision: avatarRevision,
-                    ),
-                    if (onAvatarTap != null)
-                      Positioned(
-                        right: -2,
-                        bottom: -2,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: theme.colorScheme.surface,
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            color: Colors.white,
-                            size: 13,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+    return MakoloIdentityPortrait(
+      name: name,
+      subtitle: selection.identitySubtitle,
+      detail: selection.identityDetail,
+      leading: Semantics(
+        button: onAvatarTap != null,
+        label: 'Modifier ma photo',
+        child: InkWell(
+          onTap: onAvatarTap,
+          borderRadius: BorderRadius.circular(40),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _MeAvatar(
+                name: name,
+                imageUrl: selection.identityAvatarUrl,
+                profileId: avatarProfileId,
+                api: avatarApi,
+                revision: avatarRevision,
               ),
-            ),
-            const SizedBox(width: MakoloSpacing.compact),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
+              if (onAvatarTap != null)
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.surface,
+                        width: 2,
+                      ),
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                      size: 13,
+                    ),
                   ),
-                  if (selection.identitySubtitle != null) ...[
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(
-                      selection.identitySubtitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                  if (selection.identityDetail != null) ...[
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(
-                      selection.identityDetail!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (onEdit != null)
-              MakoloIconActionButton(
-                tooltip: 'Modifier mon profil',
-                onPressed: onEdit,
-                icon: Icons.edit_outlined,
-                color: theme.colorScheme.primary,
-              ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
+      trailing: onEdit == null
+          ? null
+          : MakoloIconActionButton(
+              tooltip: 'Modifier mon profil',
+              onPressed: onEdit,
+              icon: Icons.edit_outlined,
+              color: theme.colorScheme.primary,
+            ),
     );
   }
 }
@@ -694,73 +656,11 @@ class _MeTerritory extends StatelessWidget {
     final onOpen = firstItem != null && firstItem.canOpen && hasOwnerNavigation
         ? () => onSelectItem(firstItem)
         : null;
-    final textTheme = Theme.of(context).textTheme;
-    return Semantics(
-      button: onOpen != null,
-      label: 'Passeport Makolo. Ouvrir mon passeport.',
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(MakoloRadii.card),
-        clipBehavior: Clip.antiAlias,
-        child: Ink(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [MakoloColors.indigo, MakoloColors.deep],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.all(Radius.circular(MakoloRadii.card)),
-          ),
-          child: InkWell(
-            onTap: onOpen,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.md,
-                vertical: MakoloSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.badge_outlined,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                  const SizedBox(width: MakoloSpacing.compact),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Mon passeport',
-                          style: textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: MakoloSpacing.xs),
-                        Text(
-                          'À partager selon votre choix',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (onOpen != null) ...[
-                    const SizedBox(width: MakoloSpacing.sm),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return MakoloPassportGateway(
+      title: 'Mon passeport',
+      subtitle: 'À partager selon votre choix',
+      onOpen: onOpen,
+      semanticLabel: 'Passeport Makolo. Ouvrir mon passeport.',
     );
   }
 

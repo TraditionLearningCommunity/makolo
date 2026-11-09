@@ -10,7 +10,7 @@
     <h2 id="space-us-heading">Qui sommes-nous, avec qui fonctionnons-nous et comment sommes-nous organisés ?</h2>
   </header>
 
-  <article class="mk-ws4-hero" aria-labelledby="space-us-identity">
+  <article class="mk-ws4-hero mk-identity-portrait" aria-labelledby="space-us-identity">
     <div class="mk-ws4-identity-mark" aria-hidden="true"><i data-lucide="building-2"></i></div>
     <div class="mk-ws4-identity-copy">
       <span class="mk-ws4-eyebrow">{{ projection.organization.operating_preset.label }}</span>
@@ -38,9 +38,7 @@
   {% endif %}
   {% if us_owner_links.passport %}
   <section class="mk-ws4-card mk-ws4-card--passport" aria-labelledby="space-us-passport">
-    <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Passeport Makolo</span><h3 id="space-us-passport">Passeport de cet Espace</h3></div><i data-lucide="badge-check" aria-hidden="true"></i></div>
-    <p>Présenter notre collectif avec les faits disponibles.</p>
-    <a class="mk-ws4-deep-link" href="{{ us_owner_links.passport }}">Consulter notre passeport <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+    {% include 'partials/identity_passport_gateway.html' with eyebrow="Passeport Makolo" title="Passeport de cet Espace" subtitle="Présenter notre collectif avec les faits disponibles." href=us_owner_links.passport action_label="Consulter notre passeport" heading_id="space-us-passport" only %}
   </section>
   {% endif %}
 

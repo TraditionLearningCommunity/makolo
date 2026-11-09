@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/identity_surface.dart';
 import '../../navigation/destination.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../sync/owner_source_state.dart';
 import 'me_selector.dart';
-
-enum _MeLayout { list, grid }
 
 /// Moi is a compact personal index. Domain facts remain in their owner depths.
 class MeHub extends StatefulWidget {
@@ -34,7 +33,7 @@ class MeHub extends StatefulWidget {
 
 class _MeHubState extends State<MeHub> {
   static const _storage = FlutterSecureStorage();
-  _MeLayout _layout = _MeLayout.list;
+  MakoloTerritoryLayout _layout = MakoloTerritoryLayout.list;
   StreamSubscription<List<StoredProjection>>? _accessSubscription;
   StreamSubscription<List<StoredProjection>>? _historySubscription;
   StreamSubscription<OwnerSourceState>? _accessSourceSubscription;
@@ -69,7 +68,7 @@ class _MeHubState extends State<MeHub> {
   void didUpdateWidget(covariant MeHub oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.profileId != oldWidget.profileId) {
-      _layout = _MeLayout.list;
+      _layout = MakoloTerritoryLayout.list;
       _restoreLayout();
     }
     if (widget.store != oldWidget.store ||
@@ -198,13 +197,13 @@ class _MeHubState extends State<MeHub> {
     try {
       final saved = await _storage.read(key: key);
       if (!mounted || key != _storageKey) return;
-      if (saved == 'grid') setState(() => _layout = _MeLayout.grid);
+      if (saved == 'grid') setState(() => _layout = MakoloTerritoryLayout.grid);
     } on Object {
       // A missing native store never blocks the personal index.
     }
   }
 
-  void _chooseLayout(_MeLayout next) {
+  void _chooseLayout(MakoloTerritoryLayout next) {
     if (_layout == next) return;
     setState(() => _layout = next);
     final key = _storageKey;
@@ -213,11 +212,11 @@ class _MeHubState extends State<MeHub> {
     }
   }
 
-  Future<void> _storeLayout(String key, _MeLayout value) async {
+  Future<void> _storeLayout(String key, MakoloTerritoryLayout value) async {
     try {
       await _storage.write(
         key: key,
-        value: value == _MeLayout.grid ? 'grid' : 'list',
+        value: value == MakoloTerritoryLayout.grid ? 'grid' : 'list',
       );
     } on Object {
       // The view stays usable even when a device preference cannot be saved.
@@ -334,66 +333,15 @@ class _MeHubState extends State<MeHub> {
     ];
   }
 
-  Widget _organizerEntry(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        key: const Key('me-shortcut-organizer'),
-        borderRadius: BorderRadius.circular(18),
-        onTap: widget.canNavigate
-            ? () => _open('organizer_collection', 'Mes démarches')
-            : null,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 94),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: scheme.primary.withValues(alpha: .25)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: .085),
-                  borderRadius: BorderRadius.circular(13),
-                ),
-                child: Icon(
-                  Icons.folder_copy_outlined,
-                  color: scheme.primary,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Mes démarches',
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'Projets, dossiers et démarches',
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_rounded, color: scheme.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _organizerEntry(BuildContext context) => MakoloPrimaryShortcut(
+    tapKey: const Key('me-shortcut-organizer'),
+    title: 'Mes démarches',
+    subtitle: 'Projets, dossiers et démarches',
+    icon: Icons.folder_copy_outlined,
+    onOpen: widget.canNavigate
+        ? () => _open('organizer_collection', 'Mes démarches')
+        : null,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -415,28 +363,15 @@ class _MeHubState extends State<MeHub> {
                       ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
-              SegmentedButton<_MeLayout>(
-                key: const Key('me-layout-toggle'),
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: _MeLayout.list,
-                    icon: Icon(Icons.view_list_outlined, size: 18),
-                    tooltip: 'Liste',
-                  ),
-                  ButtonSegment(
-                    value: _MeLayout.grid,
-                    icon: Icon(Icons.grid_view_rounded, size: 18),
-                    tooltip: 'Grille',
-                  ),
-                ],
-                selected: {_layout},
-                onSelectionChanged: (value) => _chooseLayout(value.first),
+              MakoloTerritoryViewToggle(
+                toggleKey: const Key('me-layout-toggle'),
+                value: _layout,
+                onChanged: _chooseLayout,
               ),
             ],
           ),
           const SizedBox(height: 10),
-          if (_layout == _MeLayout.list)
+          if (_layout == MakoloTerritoryLayout.list)
             Column(
               key: const Key('me-navigation-list'),
               children: [
@@ -515,112 +450,28 @@ class _MeHubListEntry extends StatelessWidget {
   final ValueChanged<MeItemPresentation> onOpenPreview;
 
   @override
-  Widget build(BuildContext context) {
-    final preview = entry.previews.take(3).toList(growable: false);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: scheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: scheme.outlineVariant),
+  Widget build(BuildContext context) => MakoloTerritoryListCard(
+    tapKey: Key('me-entry-' + entry.kind),
+    title: entry.title,
+    subtitle: entry.subtitle,
+    count: entry.count,
+    symbol: _MeHubSymbol(
+      kind: entry.kind,
+      fallback: entry.icon,
+      size: 24,
+      color: scheme.primary,
+    ),
+    onOpen: canNavigate ? onOpen : null,
+    previews: [
+      for (final item in entry.previews.take(3))
+        MakoloTerritoryPreview(
+          title: item.title,
+          onOpen: canNavigate && item.canOpen
+              ? () => onOpenPreview(item)
+              : null,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            InkWell(
-              key: Key('me-entry-${entry.kind}'),
-              onTap: canNavigate ? onOpen : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    _MeHubSymbol(
-                      kind: entry.kind,
-                      fallback: entry.icon,
-                      size: 24,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.title,
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            entry.subtitle,
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (entry.count != null && entry.count! > 0) ...[
-                      Text(
-                        '${entry.count}',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    if (canNavigate)
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (preview.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(48, 0, 12, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final item in preview)
-                      InkWell(
-                        onTap: canNavigate && item.canOpen
-                            ? () => onOpenPreview(item)
-                            : null,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 7),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ),
-                              if (canNavigate && item.canOpen)
-                                Icon(
-                                  Icons.arrow_outward_rounded,
-                                  size: 16,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+    ],
+  );
 }
 
 class _MeHubGridEntry extends StatelessWidget {
@@ -639,78 +490,29 @@ class _MeHubGridEntry extends StatelessWidget {
     if (count == null || count <= 0) return null;
     return switch (entry.kind) {
       'saved_collection' =>
-        '$count ${count == 1 ? 'opportunité' : 'opportunités'}',
-      'collectives' => '$count ${count == 1 ? 'collectif' : 'collectifs'}',
+        count.toString() + (count == 1 ? ' opportunité' : ' opportunités'),
+      'collectives' =>
+        count.toString() + (count == 1 ? ' collectif' : ' collectifs'),
       'resource_collection' =>
-        '$count ${count == 1 ? 'ressource' : 'ressources'}',
+        count.toString() + (count == 1 ? ' ressource' : ' ressources'),
       _ => null,
     };
   }
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final countDescription = _countDescription;
-    return Material(
-      color: scheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: Key('me-grid-${entry.kind}'),
-        onTap: canNavigate ? onOpen : null,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 150),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Center(
-                  child: _MeHubSymbol(
-                    kind: entry.kind,
-                    fallback: entry.icon,
-                    size: 32,
-                    color: scheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 11),
-                Text(
-                  entry.title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  entry.subtitle,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-                if (countDescription != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    countDescription,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(color: scheme.primary),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MakoloTerritoryGridCard(
+    tapKey: Key('me-grid-' + entry.kind),
+    title: entry.title,
+    subtitle: entry.subtitle,
+    countDescription: _countDescription,
+    symbol: _MeHubSymbol(
+      kind: entry.kind,
+      fallback: entry.icon,
+      size: 32,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+    onOpen: canNavigate ? onOpen : null,
+  );
 }
 
 /// Three recognizable owner-domain silhouettes, shared by both view modes.

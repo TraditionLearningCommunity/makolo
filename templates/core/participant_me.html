@@ -4,7 +4,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">{% endblock %}
 {% block content %}
 <main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
-  <header class="mk-me-n1-identity">
+  <header class="mk-me-n1-identity mk-identity-portrait">
     <a class="mk-me-n1-avatar mk-me-n1-avatar-action" href="{% url 'account:profile' %}" aria-label="Modifier ma photo">
       {% if me_projection.identity.avatar_url %}
         <img src="{{ me_projection.identity.avatar_url }}" alt="" width="84" height="84" loading="eager" decoding="async">
@@ -31,26 +31,17 @@
         <h2 id="me-passport">Passeport Makolo</h2>
       </div>
       <div class="mk-me-n1-panel mk-me-n1-passport">
-        <div class="mk-me-n1-passport-symbol" aria-hidden="true">M</div>
-        <div class="mk-me-n1-panel-copy">
-          <strong>Mon passeport</strong>
-          <span>À partager selon votre choix</span>
-        </div>
         {% if me_projection.passport.available %}
-          <a class="mk-me-n1-arrow" href="{{ passport_url }}" aria-label="Ouvrir le Passeport Makolo">↗</a>
+          {% include 'partials/identity_passport_gateway.html' with title="Mon passeport" subtitle="À partager selon votre choix" href=passport_url action_label="Ouvrir le Passeport Makolo" only %}
+        {% else %}
+          {% include 'partials/identity_passport_gateway.html' with title="Mon passeport" subtitle="À partager selon votre choix" only %}
         {% endif %}
       </div>
     </section>
 
     <section class="mk-me-n1-section mk-me-n1-objectives" aria-labelledby="me-objectives">
-      <a class="mk-me-n1-objectives-entry" href="{% url 'objectives:organizer' %}">
-        <span class="mk-me-n1-objectives-icon" aria-hidden="true"><i data-lucide="folders"></i></span>
-        <span class="mk-me-n1-objectives-copy">
-          <strong id="me-objectives">Mes démarches</strong>
-          <small>Projets, dossiers et démarches</small>
-        </span>
-        <span class="mk-me-n1-objectives-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></span>
-      </a>
+      {% url 'objectives:organizer' as organizer_url %}
+      {% include 'partials/identity_primary_shortcut.html' with href=organizer_url title="Mes démarches" subtitle="Projets, dossiers et démarches" heading_id="me-objectives" only %}
     </section>
 
     <section class="mk-me-n1-section" aria-labelledby="me-considerations">

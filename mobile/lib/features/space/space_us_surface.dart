@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../design/makolo_theme.dart';
+import '../../design/identity_surface.dart';
 
 /// The collective identity of the active Space. All rows originate in
 /// server-scoped owner projections; this widget never infers authority.
@@ -135,69 +136,25 @@ class SpaceUsSurface extends StatelessWidget {
                         color: scheme.primaryContainer.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(24),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 58,
-                            height: 58,
-                            decoration: BoxDecoration(
-                              color: scheme.primary,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            child: Icon(
-                              Icons.apartment_rounded,
-                              size: 30,
-                              color: scheme.onPrimary,
-                            ),
+                      child: MakoloIdentityPortrait(
+                        name: name,
+                        eyebrow: institutionalLabel,
+                        subtitle: description,
+                        detail: place.isNotEmpty ? place : null,
+                        padding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(18),
                           ),
-                          const SizedBox(width: MakoloSpacing.md),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (institutionalLabel != null) ...[
-                                  Text(
-                                    institutionalLabel,
-                                    style: text.labelMedium?.copyWith(
-                                      color: scheme.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                ],
-                                Text(
-                                  name,
-                                  style: text.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                if (description != null) ...[
-                                  const SizedBox(height: MakoloSpacing.sm),
-                                  Text(description, style: text.bodyMedium),
-                                ],
-                                if (place.isNotEmpty) ...[
-                                  const SizedBox(height: MakoloSpacing.sm),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.place_outlined,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          place,
-                                          style: text.bodySmall,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
+                          child: Icon(
+                            Icons.apartment_rounded,
+                            size: 30,
+                            color: scheme.onPrimary,
                           ),
-                        ],
+                        ),
                       ),
                     ),
                     if (lifecycle == 'suspended' ||
@@ -463,47 +420,11 @@ class SpaceUsSurface extends StatelessWidget {
     BuildContext context,
     String target,
     ValueChanged<String> open,
-  ) {
-    final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: colors.primary,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () => open(target),
-        child: Padding(
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          child: Row(
-            children: [
-              Icon(Icons.badge_outlined, color: colors.onPrimary, size: 32),
-              const SizedBox(width: MakoloSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Passeport de cet Espace',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: colors.onPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Présenter notre collectif avec les faits disponibles',
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(color: colors.onPrimary),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_rounded, color: colors.onPrimary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  ) => MakoloPassportGateway(
+    title: 'Passeport de cet Espace',
+    subtitle: 'Présenter notre collectif avec les faits disponibles',
+    onOpen: () => open(target),
+  );
 
   static Map<String, dynamic>? _map(Object? value) {
     if (value is! Map) return null;
