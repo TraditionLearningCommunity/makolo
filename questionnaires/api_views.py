@@ -2,7 +2,7 @@ from django.core.exceptions import ValidationError, PermissionDenied
 from django.http import FileResponse
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from .media_services import add_questionnaire_media, ensure_media_access, serialize_media, media_sections
+from .media_services import add_questionnaire_media, remove_questionnaire_media, ensure_media_access, serialize_media, media_sections
 from .models import FormVersion, FormQuestion, QuestionnaireMedia
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -169,6 +169,23 @@ class QuestionnaireMediaUploadAPIView(APIView):
         except PermissionDenied:
             raise
         return Response(serialize_media(media), status=status.HTTP_201_CREATED)
+
+
+
+class QuestionnaireMediaManageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, media_pk):
+        media = get_object_or_404(QuestionnaireMedia, pk=media_pk)
+        try:
+            remove_questionnaire_media(actor=request.user, media=media)
+        except PermissionDenied:
+            raise
+        except ValidationError as exc:
+            return Response({
+                "errors": exc.message_dict if hasattr(exc, "message_dict") else exc.messages,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class QuestionnaireMediaDownloadAPIView(APIView):
