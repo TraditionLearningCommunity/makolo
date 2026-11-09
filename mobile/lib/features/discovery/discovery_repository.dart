@@ -518,6 +518,9 @@ class DiscoveryRepository {
   }
 
   SyncSourceDefinition itemsSource(DiscoveryQuery query) {
+    if (query.isSpace && (query.spaceId == null || query.spaceId!.isEmpty)) {
+      throw const FormatException('Missing verified Space actor');
+    }
     return SyncSourceDefinition(
       sourceKey: 'discovery:${query.fingerprint}',
       owner: 'Discovery',
@@ -531,7 +534,8 @@ class DiscoveryRepository {
       parser: (response) {
         final wire = DiscoveryWire.receive(
           response.jsonObject(),
-          scope: 'personal',
+          scope: query.isSpace ? 'space' : 'personal',
+          expectedSpaceId: query.spaceId,
         );
         final viewer = wire.data['viewer'];
         if (viewer is! Map || viewer['id'] != profileId) {
@@ -961,9 +965,16 @@ class DiscoveryRepository {
     if ((await readSource(source)).ownerUnavailable) return null;
     if (source.projectionKind == itemsProjectionKind) {
       final viewer = snapshot.payload['viewer'];
+      final actor = snapshot.payload['actor'];
+      final surface = snapshot.payload['surface'];
       if (snapshot.schemaVersion != 1 ||
           viewer is! Map ||
-          viewer['id'] != profileId) {
+          viewer['id'] != profileId ||
+          (surface != 'discover_me' && surface != 'discover_space') ||
+          actor is! Map ||
+          (surface == 'discover_space' && actor['type'] != 'space') ||
+          (surface == 'discover_me' &&
+              (actor['type'] != 'profile' || actor['id'] != profileId))) {
         return null;
       }
       try {
