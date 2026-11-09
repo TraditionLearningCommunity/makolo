@@ -299,6 +299,9 @@ class MakoloTerritoryListCard extends StatelessWidget {
     this.tapKey,
     this.onOpen,
     this.previews = const [],
+    this.bottomSpacing = 8,
+    this.headerVerticalPadding = 14,
+    this.previewVerticalPadding = 7,
   });
 
   final String title;
@@ -308,12 +311,15 @@ class MakoloTerritoryListCard extends StatelessWidget {
   final Key? tapKey;
   final VoidCallback? onOpen;
   final List<MakoloTerritoryPreview> previews;
+  final double bottomSpacing;
+  final double headerVerticalPadding;
+  final double previewVerticalPadding;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: bottomSpacing),
       child: Material(
         color: scheme.surface,
         shape: RoundedRectangleBorder(
@@ -327,7 +333,10 @@ class MakoloTerritoryListCard extends StatelessWidget {
               key: tapKey,
               onTap: onOpen,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: headerVerticalPadding,
+                ),
                 child: Row(
                   children: [
                     symbol,
@@ -374,7 +383,9 @@ class MakoloTerritoryListCard extends StatelessWidget {
                       InkWell(
                         onTap: item.onOpen,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          padding: EdgeInsets.symmetric(
+                            vertical: previewVerticalPadding,
+                          ),
                           child: Row(
                             children: [
                               Expanded(
