@@ -14,6 +14,18 @@ Deux **expériences/pages canoniques** : Jour J (accomplir) et Makolo Live (comp
 
 La coexistence visuelle **n'est pas une fusion de permission**. Les domaines owners contrôlent chaque donnée, action et mutation. La plateforme conserve ses règles de finalité et de supervision. **Unicité UX n'impose pas endpoint, projection ou classe Dart unique** ; préserver l'isolation et la compatibilité des API tant qu'une alternative n'est pas prouvée.
 
+## État d'exécution — socle L1 + L2 (9 novembre 2026)
+
+**Travail de code commencé sur la PR #522, sans exécution de tests ni CI à la demande du propriétaire.** Les lots L1/L2 ne sont **pas certifiés fermés**.
+
+- `operations/occurrence_experience.py` : résolveur additif pour un Profil authentifié, combinant indépendamment les projections bénéficiaire et opérations autorisées ; capacités scanner, consultation/gestion financière et opérations selon permissions canoniques ; aucune bascule de mode.
+- `operations/occurrence_experience_api.py` et `operations/api/urls.py` : nouveaux GET `/api/v1/operations/occurrences/<uuid>/experience/day-of/` et `/api/v1/operations/occurrences/<uuid>/experience/live/` ; enveloppe de projection, no-store, refus 404 sans relation autorisée.
+- Les quatre contrats API historiques restent inchangés. La surface Jour J peut coexposer les sections participant et organisateur ; Live est limité à la fenêtre arrival/live.
+- La supervision plateforme ne devient pas automatiquement une relation organisatrice. Les facts restent filtrés par les résolveurs existants, non par la sélection UI. Aucune couverture Live n'est inférée depuis la présence d'une projection.
+- **Frontière métier confirmée :** `Journey` et `Access` actuels portent un bénéficiaire Profile ou externe, mais pas un bénéficiaire Space canonique. Une participation autonome de Space et son mandat de représentation ne peuvent donc pas être déclarés livrés dans ce sous-lot sans réconciliation owner et éventuel contrat de domaine. Ne pas bricoler un Profile de substitution.
+- **Frontière de livraison :** les pages Web/Flutter consomment encore les routes historiques ; la bascule de présentation appartient à L3/L4. Les capacités financières ou Scanner sont signalées lorsqu'autorisées, sans inventer des liens d'opération. L'ensemble est une fondation de données, pas encore la page unifiée finale.
+- **Validation non effectuée :** tests ciblés, Django, Flutter, intégration API, CI et smoke tests. Le code ne doit pas être considéré « certifié » ou prêt au merge.
+
 ## Ordre des lots et dépendances
 
 ```text
