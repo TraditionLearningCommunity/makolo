@@ -68,6 +68,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="conversationcollectiveaccess",
             index=models.Index(fields=("conversation", "status"),
-                name="conv_collective_conv_status_idx"),
+                name="conv_coll_conv_status_idx"),
         ),
     ]
