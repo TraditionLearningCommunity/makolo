@@ -293,13 +293,14 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
     # Navigation is a new owner check, not a grant inferred from this listing.
     occurrence_base = f"/api/v1/operations/occurrences/{occurrence.pk}"
     depths = []
-    def add_depth(kind, label, territory, read_path, source):
+    def add_depth(kind, label, territory, read_path, source, *, can_manage=False):
         depths.append({
             "kind": kind,
             "label": label,
             "territory": territory,
             "read_path": read_path,
             "source": source,
+            "can_manage": bool(can_manage),
         })
 
     if participant is not None:
@@ -317,11 +318,14 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
                   f"{occurrence_base}/readiness/", "readiness")
     if operator is not None and ("organizer" in sections or "platform" in sections):
         add_depth("operator_queue", "Gérer les files", "organizer",
-                  f"{occurrence_base}/queues/", "operations.queue")
+                  f"{occurrence_base}/queues/", "operations.queue",
+                  can_manage=operations_manage)
         add_depth("operator_placement", "Gérer les placements", "organizer",
-                  f"{occurrence_base}/placement-plans/", "operations.placement")
+                  f"{occurrence_base}/placement-plans/", "operations.placement",
+                  can_manage=operations_manage)
         add_depth("operator_checkpoints", "Gérer les points de contrôle", "organizer",
-                  f"{occurrence_base}/checkpoints/", "operations.checkpoint")
+                  f"{occurrence_base}/checkpoints/", "operations.checkpoint",
+                  can_manage=operations_manage)
         if participant is None:
             add_depth("readiness", "Préparation opérationnelle", "organizer",
                       f"{occurrence_base}/readiness/", "readiness")
