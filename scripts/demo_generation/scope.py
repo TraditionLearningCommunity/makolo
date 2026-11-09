@@ -3,8 +3,6 @@
 The prefix is internal: it does not change public titles or owner authority.
 Only synthetic Activities and synthetic-owned Spaces are eligible for upkeep.
 """
-from django.db.models import Q
-
 DEMO_ACTIVITY_PREFIX = "demo-"
 DEMO_PROFILE_PREFIX = "world_"
 
@@ -16,6 +14,7 @@ def demo_activities(queryset):
 
 def demo_spaces(queryset, people):
     """Spaces created by demo profiles using the existing ecosystem naming."""
+    from django.db.models import Q
     from .editorial import space_name
 
     names = [space_name(profile) for profile in people]
