@@ -1065,25 +1065,38 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       }
     }
 
-    add(
-      detail.points.where(
-        (point) =>
-            point.section == 'pour_moi' || point.attentionReason == 'resolve',
-      ),
-      readOnly: false,
-    );
-    add(
-      detail.points.where(
-        (point) =>
-            point.section != 'pour_moi' && point.attentionReason != 'resolve',
-      ),
-      readOnly: true,
-    );
-    add(detail.essential, readOnly: true);
-    add(detail.elsewhere, readOnly: true);
+    if (detail.hasTimeline) {
+      // The server supplied a profile-scoped, cursor-bounded true chronology.
+      // Never rebuild it from priority / attention sections again.
+      if (_olderLoaded &&
+          _olderBaseSignature == _timelineSignature(detail)) {
+        add(_olderPoints, readOnly: false);
+      }
+      add(detail.timeline, readOnly: false);
+    } else {
+      // Compatibility with offline projections acquired before Lot 4.
+      add(
+        detail.points.where(
+          (point) =>
+              point.section == 'pour_moi' ||
+              point.attentionReason == 'resolve',
+        ),
+        readOnly: false,
+      );
+      add(
+        detail.points.where(
+          (point) =>
+              point.section != 'pour_moi' &&
+              point.attentionReason != 'resolve',
+        ),
+        readOnly: true,
+      );
+      add(detail.essential, readOnly: true);
+      add(detail.elsewhere, readOnly: true);
+    }
+
     final focus = detail.focusedPoint;
     if (focus != null) add([focus], readOnly: false);
-
     entries.sort((a, b) {
       final left = a.point.publishedAt ?? a.point.updatedAt;
       final right = b.point.publishedAt ?? b.point.updatedAt;
@@ -1095,7 +1108,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       } else if (right != null) {
         return -1;
       }
-      return a.order.compareTo(b.order);
+      // UUID order is the server's keyset tie-breaker, not priority order.
+      final byId = a.point.id.compareTo(b.point.id);
+      return byId != 0 ? byId : a.order.compareTo(b.order);
     });
     return entries;
   }
