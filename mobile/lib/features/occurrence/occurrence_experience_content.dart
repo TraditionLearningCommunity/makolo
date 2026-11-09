@@ -464,8 +464,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Début prévu : ${_text(planned['start_at']) ?? 'à préciser'}'),
-              Text('Fin prévue : ${_text(planned['end_at']) ?? 'à préciser'}'),
+              Text('Début prévu : ${_text(planned['start_at'] ?? planned['start_date']) ?? 'à préciser'}'),
+              Text('Fin prévue : ${_text(planned['end_at'] ?? planned['end_date']) ?? 'à préciser'}'),
               Text(
                 'Début réellement observé : ${_truth(_text(temporal['truth']))}',
               ),
