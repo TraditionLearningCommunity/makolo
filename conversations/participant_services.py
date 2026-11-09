@@ -43,12 +43,40 @@ def _identity(raw):
     return identifier
 
 
-def _blocked_by_profile(actor, target):
-    return profiles_blocked(actor, target)
+def _context_space(conversation):
+    context = conversation.context
+    if context.kind == "space":
+        return context.space
+    if context.kind == "group":
+        return context.group.space
+    if context.kind == "activity":
+        return context.activity.space
+    if context.kind == "occurrence":
+        return context.occurrence.activity.space
+    if context.kind == "journey":
+        return context.journey.activity.space
+    return None
+
+
+def _blocked_by_profile(actor, target, conversation=None):
+    if profiles_blocked(actor, target):
+        return True
+    space = _context_space(conversation) if conversation else None
+    return bool(space and ActionNetworkBlock.objects.filter(
+        Q(blocker_space=space, blocked_profile=target)
+        | Q(blocker_profile=target, blocked_space=space)
+    ).exists())
+
+
+def _blocked_collective(actor, space):
+    return bool(space and ActionNetworkBlock.objects.filter(
+        Q(blocker_space=space, blocked_profile=actor)
+        | Q(blocker_profile=actor, blocked_space=space)
+    ).exists())
 
 
 def _target_can_be_invited(actor, target, conversation):
-    if not target.is_active or actor.pk == target.pk or _blocked_by_profile(actor, target):
+    if not target.is_active or actor.pk == target.pk or _blocked_by_profile(actor, target, conversation):
         raise ValidationError("Cette invitation n'est pas disponible.")
     policy = ProfileContactPolicy.objects.filter(profile=target).first()
     if policy and (not policy.valid_until or timezone.now() < policy.valid_until):
@@ -114,7 +142,7 @@ def search_invitation_candidates(*, actor, conversation, query, limit=18):
         | Q(last_name__icontains=text)
     ).distinct().order_by("username")[:limit * 3]
     for user in users:
-        if user.pk == actor.pk or _blocked_by_profile(actor, user):
+        if user.pk == actor.pk or _blocked_by_profile(actor, user, conversation):
             continue
         policy = ProfileContactPolicy.objects.filter(profile=user).first()
         if policy and policy.mode == ContactPolicyMode.CLOSED and (
@@ -134,6 +162,8 @@ def search_invitation_candidates(*, actor, conversation, query, limit=18):
         lifecycle=SpaceLifecycle.ACTIVE, public_profile=True, searchable=True,
     ).filter(Q(slug__icontains=text) | Q(name__icontains=text)).order_by("slug")[:limit]
     for space in spaces:
+        if _blocked_collective(actor, space):
+            continue
         found.append({
             "kind": "space", "identifier": space.slug,
             "label": space.name, "description": "Espace · " + space.slug,
@@ -142,7 +172,7 @@ def search_invitation_candidates(*, actor, conversation, query, limit=18):
         Q(slug__icontains=text) | Q(name__icontains=text),
     ).select_related("space").order_by("slug")[:limit * 2]
     for group in groups:
-        if not _visible_group(actor, group):
+        if not _visible_group(actor, group) or _blocked_collective(actor, group.space):
             continue
         found.append({
             "kind": "group", "identifier": group.slug,
@@ -198,9 +228,15 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
         )
         return ("profile", invitation)
 
+    if conversation.context.kind in {
+        "direct", "journey", "action_proposal", "dossier",
+    }:
+        raise ValidationError(
+            "L'ajout d'un collectif n'est pas disponible pour ce contexte privé."
+        )
     if kind == "space":
         space = Organization.objects.filter(slug__iexact=identifier).first()
-        if not space or not _eligible_space(space) or not (
+        if not space or not _eligible_space(space) or _blocked_collective(actor, space) or not (
             (space.public_profile and space.searchable)
             or can(actor, PermissionCode.SPACE_VIEW, space=space)
         ):
@@ -208,7 +244,7 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
         target = {"space": space, "group": None}
     elif kind == "group":
         group = Group.objects.filter(slug__iexact=identifier).first()
-        if not group or not _visible_group(actor, group, exact=True):
+        if not group or not _visible_group(actor, group, exact=True) or _blocked_collective(actor, group.space):
             raise ValidationError("Cet identifiant Makolo n'est pas disponible.")
         target = {"space": None, "group": group}
     else:
