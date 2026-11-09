@@ -373,8 +373,9 @@ class JourneyDetailSelector {
             JourneyPaymentSummary(
               amount: _string(row['amount'])!,
               currency: _string(row['currency'])!,
-              state: _string(_map(row['payment'])['state']) ??
-                  _string(row['state'])!,
+              // The obligation owns its state. A payment attempt cannot
+              // silently mark an unpaid obligation as settled.
+              state: _string(row['state'])!,
               reason: _string(row['reason']),
               obligationId: _string(row['id']),
             ),
@@ -393,10 +394,10 @@ class JourneyDetailSelector {
     final obligation = obligations.isEmpty ? const <String, dynamic>{} : obligations.first;
     final amount = _string(obligation['amount']) ?? _string(order['total']);
     final currency = _string(obligation['currency']) ?? _string(order['currency']);
-    final state = _string(latest['state']) ??
+    final state = _string(obligation['state']) ??
+        _string(order['state']) ??
         _string(_map(obligation['payment'])['state']) ??
-        _string(obligation['state']) ??
-        _string(order['state']);
+        _string(latest['state']);
     if (amount == null || currency == null || state == null) return null;
     return JourneyPaymentSummary(
       amount: amount,
