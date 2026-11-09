@@ -6,6 +6,7 @@ import '../../data/local/profile_store.dart';
 import '../../design/action_controls.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
+import '../../sync/freshness.dart';
 import 'resource_repository.dart';
 
 class ResourcesScreen extends StatefulWidget {
