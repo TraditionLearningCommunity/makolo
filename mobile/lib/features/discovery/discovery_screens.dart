@@ -170,6 +170,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   Future<void>? _unseenLoad;
 
   final ScrollController _fieldScroll = ScrollController();
+  Set<String>? _knownCandidateKeys;
+  String? _knownCandidateField;
+  bool _newPossibilitiesAvailable = false;
   Timer? _positionDebounce;
   double? _pendingScrollRestore;
   String? _focusedCandidateKey;
@@ -204,6 +207,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       _boundRepository = null;
       _unseenReserve = null;
       _unseenField = null;
+      _knownCandidateKeys = null;
+      _knownCandidateField = null;
+      _newPossibilitiesAvailable = false;
       _pendingScrollRestore = null;
       _focusedCandidateKey = null;
       _pageRequests.clear();
@@ -223,6 +229,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     unawaited(_rememberPosition(_query));
     _fieldScroll.dispose();
     super.dispose();
+  }
+
+  void _showNewPossibilities() {
+    if (_fieldScroll.hasClients) {
+      _fieldScroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    setState(() => _newPossibilitiesAvailable = false);
   }
 
   static int _initialReveal(int count) =>
@@ -625,6 +642,31 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               sourceErrorCode: sourceState.lastErrorCode,
             );
             final full = selection.collection;
+            final candidateField = _query.mapFingerprint;
+            if (_knownCandidateField != candidateField) {
+              _knownCandidateField = candidateField;
+              _knownCandidateKeys = null;
+              _newPossibilitiesAvailable = false;
+            }
+            if (projection != null && _query.page == 1) {
+              final currentKeys = full.items.map((item) => item.candidateKey).toSet();
+              final previous = _knownCandidateKeys;
+              if (previous != null &&
+                  previous.isNotEmpty &&
+                  currentKeys.any((key) => !previous.contains(key)) &&
+                  _fieldScroll.hasClients &&
+                  _fieldScroll.offset >= 120 &&
+                  !_newPossibilitiesAvailable) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted &&
+                      _query.mapFingerprint == candidateField &&
+                      !_newPossibilitiesAvailable) {
+                    setState(() => _newPossibilitiesAvailable = true);
+                  }
+                });
+              }
+              _knownCandidateKeys = currentKeys;
+            }
             final currentReserve = _unseenField == _query.mapFingerprint
                 ? _unseenReserve
                 : null;
@@ -688,9 +730,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 );
               });
             }
-            return RefreshIndicator(
-              onRefresh: _refreshItems,
-              child: DiscoveryExplorationView(
+            return Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: _refreshItems,
+                  child: DiscoveryExplorationView(
                 selection: displaySelection,
                 onOpen: _open,
                 onSave: _query.isSpace ? null : (item) =>
@@ -735,6 +779,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 loadMoreFailed: _loadMoreFailed,
                 onRetry: () => unawaited(_refreshItems()),
               ),
+                ),
+                if (_newPossibilitiesAvailable)
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: TextButton.icon(
+                      key: const Key('discovery-new-possibilities'),
+                      onPressed: _showNewPossibilities,
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                      label: const Text('De nouvelles possibilités'),
+                    ),
+                  ),
+              ],
             );
           },
         );
