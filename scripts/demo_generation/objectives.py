@@ -87,7 +87,7 @@ def planned_titles(owner, projects, per_project, independent):
         )
         dossiers = [
             legacy_dossier if project_idx == 0 and idx == 0
-            else dossier_titles[idx]
+            else f"{dossier_titles[idx]} — {theme}"
             for idx in range(per_project)
         ]
         yield project_title, dossiers
@@ -126,6 +126,22 @@ def generate(users, *, count, projects_per_profile=4,
     """
     stats = Counter()
     for owner in users[:min(count, len(users))]:
+        # The shared selector allows a named profile outside world_* for
+        # other domains. Objectives writes are intentionally more restrictive:
+        # a named ordinary user is never a synthetic demo target.
+        metadata = getattr(owner, "metadata", None)
+        synthetic = owner.username.startswith("world_") or (
+            isinstance(metadata, dict)
+            and metadata.get("seed") in {
+                "mobile-mature-universe",
+                "makolo-world-2025-2026-v1",
+                "makolo-demo-2024-2027",
+            }
+        )
+        if not synthetic:
+            raise ValueError(
+                f"Refus Objectives : {owner.username} n'est pas un Profil de démonstration reconnu."
+            )
         profile_plan = list(planned_titles(
             owner, projects_per_profile, dossiers_per_project,
             independent_dossiers,
@@ -153,7 +169,9 @@ def generate(users, *, count, projects_per_profile=4,
                         stats["project_links_planned"] += 1
             continue
 
-        # A failure never leaves half an owner's Project/Dossier graph.
+        # A failure never leaves half an owner's Project/Dossier graph or
+        # inflate success counters with work that was rolled back.
+        profile_stats = Counter()
         try:
             with transaction.atomic():
                 sequence = 0
@@ -167,14 +185,14 @@ def generate(users, *, count, projects_per_profile=4,
                                 title=project_title,
                                 description="Un horizon composé de résultats concrets.",
                             )
-                            stats["projects_created"] += 1
+                            profile_stats["projects_created"] += 1
                             # An active horizon is not a claim of external success.
                             if project_index % 3 != 2:
                                 set_project_lifecycle(
                                     actor=owner, project=project, lifecycle="active",
                                 )
                         else:
-                            stats["projects_existing"] += 1
+                            profile_stats["projects_existing"] += 1
 
                     for dossier_index, title in enumerate(dossier_titles):
                         dossier = _find_dossier(owner, title)
@@ -186,13 +204,13 @@ def generate(users, *, count, projects_per_profile=4,
                                     "Un résultat concret à préparer et à suivre."
                                 ),
                             )
-                            stats["dossiers_created"] += 1
+                            profile_stats["dossiers_created"] += 1
                             if sequence % 5 != 4:
                                 set_dossier_lifecycle(
                                     actor=owner, dossier=dossier, lifecycle="active",
                                 )
                         else:
-                            stats["dossiers_existing"] += 1
+                            profile_stats["dossiers_existing"] += 1
 
                         if project is not None:
                             linked = ProjectDossierLink.objects.filter(
@@ -202,10 +220,10 @@ def generate(users, *, count, projects_per_profile=4,
                                 link_dossier_to_project(
                                     actor=owner, project=project, dossier=dossier,
                                 )
-                                stats["project_links_created"] += 1
+                                profile_stats["project_links_created"] += 1
                             elif linked.project_id != project.pk:
                                 # Do not move an owner-modified Dossier on rerun.
-                                stats["existing_parent_preserved"] += 1
+                                profile_stats["existing_parent_preserved"] += 1
 
                         # Some Dossiers are intentionally independent or empty.
                         # Other Dossiers have real Journeys and a causal chain.
@@ -221,7 +239,7 @@ def generate(users, *, count, projects_per_profile=4,
                                     actor=owner, dossier=dossier, journey=journey,
                                 )
                                 links.append(link)
-                                stats[
+                                profile_stats[
                                     "journey_links_existing" if existing
                                     else "journey_links_created"
                                 ] += 1
@@ -237,8 +255,10 @@ def generate(users, *, count, projects_per_profile=4,
                                     dependent_link=links[1],
                                     required_link=links[0],
                                 )
-                                stats["dependencies_created"] += 1
+                                profile_stats["dependencies_created"] += 1
                         sequence += 1
         except (ValidationError, PermissionDenied):
             stats["profiles_rejected"] += 1
+        else:
+            stats.update(profile_stats)
     return stats
