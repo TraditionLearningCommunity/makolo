@@ -105,7 +105,12 @@
     {% endif %}
 
     {% if n2.freshness %}<p class="text-xs" style="color:var(--mk-muted)">Vérification : {{ n2.freshness }}</p>{% endif %}
-    {% if n2_item.links.web and n2_item.links.web != "#" %}
+    {% if not discovery_space and n2_item.journey_continuation.state == 'active' and n2_item.journey_continuation.links.web %}
+    <div class="border-t pt-4" style="border-color:var(--mk-border)" data-discovery-journey-continuation>
+      <a href="{{ n2_item.journey_continuation.links.web }}" class="mk-action-button" data-variant="primary">Reprendre ma démarche</a>
+    </div>
+    {% endif %}
+    {% if not discovery_space and n2_item.links.web and n2_item.links.web != "#" %}
     <div class="border-t pt-4" style="border-color:var(--mk-border)">
       <a href="{{ n2_item.links.web }}" class="mk-action-button" data-variant="secondary">Voir le détail</a>
     </div>
