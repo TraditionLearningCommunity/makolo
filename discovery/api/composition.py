@@ -92,7 +92,7 @@ def _authenticated(profile) -> bool:
     return bool(getattr(profile, "is_authenticated", False))
 
 
-def _continuation_context(params, *, profile=None) -> str:
+def _continuation_context(params, *, profile=None, space=None) -> str:
     """Bind a cursor to the exact request criteria and authenticated viewer.
 
     Page and continuation are navigation controls, not exploration criteria.
@@ -116,7 +116,7 @@ def _continuation_context(params, *, profile=None) -> str:
         else None
     )
     canonical = json.dumps(
-        {"criteria": criteria, "viewer": viewer},
+        {"criteria": criteria, "viewer": viewer, **({"space": str(space.pk)} if space is not None else {})},
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
@@ -124,7 +124,7 @@ def _continuation_context(params, *, profile=None) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def parse_page_params(params, *, profile=None) -> tuple[int, int]:
+def parse_page_params(params, *, profile=None, space=None) -> tuple[int, int]:
     """A request without parameters is valid; a cursor must match its context."""
     try:
         continuation = params.get("continuation")
@@ -137,7 +137,7 @@ def parse_page_params(params, *, profile=None) -> tuple[int, int]:
             if (
                 not isinstance(cursor, dict)
                 or cursor.get("context") != _continuation_context(
-                    params, profile=profile
+                    params, profile=profile, space=space
                 )
             ):
                 raise ValueError("Contexte de continuation incompatible.")
@@ -1709,15 +1709,20 @@ def paginated_projection(
     *,
     profile=None,
     include_internal_rows=False,
+    space=None,
 ) -> dict:
     # Reject invalid/expired or cross-viewer continuations before executing
     # the expensive owner search and aggregation.
-    page, page_size = parse_page_params(params, profile=profile)
-    composition = compose_discovery(params, profile=profile)
+    page, page_size = parse_page_params(params, profile=profile, space=space)
+    # Space exploration does not inherit the viewer's personal Saves, Journeys,
+    # Group admission or personal handoffs. Until a collective owner admission
+    # contract exists, only the already-public candidate field is eligible.
+    candidate_profile = None if space is not None else profile
+    composition = compose_discovery(params, profile=candidate_profile)
     start = (page - 1) * page_size
     end = start + page_size
     page_rows = composition.rows[start:end]
-    results = project_rows(page_rows, profile=profile)
+    results = project_rows(page_rows, profile=candidate_profile)
     count = len(composition.rows)
     has_next = end < count
     authenticated = _authenticated(profile)
@@ -1734,10 +1739,10 @@ def paginated_projection(
     if field_empty:
         selection_reason = "no_match" if has_exploration else "no_current_proposal"
     payload = {
-        "surface": "discover_me" if authenticated else "discover_public",
+        "surface": "discover_space" if space is not None else "discover_me" if authenticated else "discover_public",
         "actor": (
-            {"type": "profile", "id": profile_id}
-            if authenticated
+            {"type": "space", "id": str(space.pk)} if space is not None
+            else {"type": "profile", "id": profile_id} if authenticated
             else None
         ),
         "viewer": (
@@ -1787,11 +1792,11 @@ def paginated_projection(
         **({
             "spatial_index": (
                 compact_spatial_discovery_projection(
-                    composition.rows, profile=profile,
+                    composition.rows, profile=candidate_profile,
                 )
                 if params.get("include_spatial_index") == "compact"
                 else spatial_discovery_projection(
-                    composition.rows, profile=profile,
+                    composition.rows, profile=candidate_profile,
                 )
             ),
         } if page == 1 and params.get("include_spatial_index") in {"1", "compact"} else {}),
@@ -1799,7 +1804,7 @@ def paginated_projection(
             "state": "more" if has_next else "end",
             "token": (
                 signing.dumps(
-                    {"page": page + 1, "context": _continuation_context(params, profile=profile)},
+                    {"page": page + 1, "context": _continuation_context(params, profile=profile, space=space)},
                     salt=DISCOVERY_CONTINUATION_SALT,
                     compress=True,
                 )
@@ -1809,7 +1814,8 @@ def paginated_projection(
             "watch": {
                 "state": (
                     "available"
-                    if _authenticated(profile)
+                    if _authenticated(profile) and space is None
+                    else "unavailable" if space is not None
                     else "authentication_required"
                 ),
                 "link": reverse("discovery_api:watches"),
