@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/resources/resource_repository.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_repository.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 
