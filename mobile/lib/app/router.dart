@@ -109,6 +109,7 @@ GoRouter createMakoloRouter(
   }
 
   bool isProtectedPath(String path) {
+    if (path.startsWith('/me/')) return true;
     // These routes are public read-only projections, even when deep-linked.
     // The authenticated router still uses the canonical personal depths.
     if (path.startsWith('/commerce/activities/') ||
