@@ -32,6 +32,7 @@ def main(argv=None):
     parser.add_argument("--per-profile", type=int, default=3,
                         help="Desired maximum synthetic relations per profile")
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--activity-prefix", default="demo-")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--backup", action="store_true", help="Create a SQLite backup before applying")
     args = parser.parse_args(argv)
@@ -41,6 +42,16 @@ def main(argv=None):
         parser.error("--per-profile 1..30")
     if args.space_id and args.target != "spaces":
         parser.error("--space-id requires --target spaces")
+    if not args.activity_prefix.startswith("demo-"):
+        parser.error("--activity-prefix must start with demo-")
+    if args.target == "spaces" and args.activity_prefix != "demo-":
+        parser.error("--activity-prefix is only meaningful for profiles")
+    if args.space_id:
+        import uuid
+        try:
+            uuid.UUID(args.space_id)
+        except ValueError:
+            parser.error("--space-id must be a UUID")
 
     import django
     django.setup()
@@ -66,10 +77,11 @@ def main(argv=None):
     if args.target == "profiles":
         activities = list(demo_activities(Activity.objects).filter(
             status=ActivityStatus.PUBLISHED, visibility=ActivityVisibility.PUBLIC,
+            slug__startswith=args.activity_prefix,
         ).select_related("space", "owner_profile")[:10000])
         for person in people:
             existing = set(ActivityBookmark.objects.filter(
-                user=person, activity__slug__startswith="demo-"
+                user=person, activity__slug__startswith=args.activity_prefix
             ).values_list("activity_id", flat=True))
             missing = max(0, args.per_profile - len(existing))
             for activity in rank_items(person, activities, args.seed):
