@@ -267,6 +267,294 @@ class SyncEngine {
       source.projectionKind == 'activity.detail' ||
       source.projectionKind == 'occurrence.detail';
 
+  static const _personalResourceDetailKinds = <String>{
+    'personal.resource.detail',
+    'personal.proof.detail',
+    'personal.title.detail',
+  };
+
+  static const _personalResourceCollectionKinds = <String>{
+    'personal.me.resources',
+    'personal.proofs',
+    'personal.titles',
+  };
+
+  static bool _isPersonalResourceProjection(String kind) =>
+      kind == 'personal.me' ||
+      _personalResourceDetailKinds.contains(kind) ||
+      _personalResourceCollectionKinds.contains(kind);
+
+  static String? _resourceFamilyForDetail(String kind) => switch (kind) {
+    'personal.resource.detail' => 'documents',
+    'personal.proof.detail' => 'proofs',
+    'personal.title.detail' => 'credentials',
+    _ => null,
+  };
+
+  static String? _resourceFamilyForCollection(String kind) => switch (kind) {
+    'personal.me.resources' => 'all',
+    'personal.proofs' => 'proofs',
+    'personal.titles' => 'credentials',
+    _ => null,
+  };
+
+  static Map<String, dynamic>? _resourceMap(Object? value) {
+    if (value is Map<String, dynamic>) {
+      return Map<String, dynamic>.from(value);
+    }
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    return null;
+  }
+
+  Future<Map<String, Set<String>>> _deniedPersonalResourceIds() async {
+    final denied = <String, Set<String>>{
+      'documents': <String>{},
+      'proofs': <String>{},
+      'credentials': <String>{},
+    };
+    final rows = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    for (final row in rows) {
+      if (!row.invalidated || !_deniedOwnerState(row.lastErrorCode)) continue;
+      final key = row.sourceKey;
+      if (key.startsWith('resource:')) {
+        denied['documents']!.add(key.substring('resource:'.length));
+      } else if (key.startsWith('trust:proofs:')) {
+        denied['proofs']!.add(key.substring('trust:proofs:'.length));
+      } else if (key.startsWith('trust:titles:')) {
+        denied['credentials']!.add(key.substring('trust:titles:'.length));
+      }
+    }
+    return denied;
+  }
+
+  Map<String, dynamic> _filterResourceFamilyPayload(
+    Map<String, dynamic> payload,
+    String family,
+    Set<String> denied,
+  ) {
+    if (denied.isEmpty) return payload;
+    final familyPayload = _resourceMap(payload[family]);
+    final items = familyPayload?['items'];
+    if (familyPayload == null || items is! List) return payload;
+    final retained = items.where((row) {
+      if (row is! Map) return true;
+      final id = row['id']?.toString();
+      return id == null || !denied.contains(id);
+    }).toList(growable: false);
+    if (retained.length == items.length) return payload;
+    final removed = items.length - retained.length;
+    final updatedFamily = <String, dynamic>{
+      ...familyPayload,
+      'items': retained,
+    };
+    final count = familyPayload['count'];
+    if (count is int) {
+      updatedFamily['count'] = (count - removed).clamp(0, count);
+    }
+    final page = _resourceMap(familyPayload['page']);
+    if (page != null) {
+      final pageCount = page['count'];
+      updatedFamily['page'] = {
+        ...page,
+        if (pageCount is int) 'count': (pageCount - removed).clamp(0, pageCount),
+      };
+    }
+    return {...payload, family: updatedFamily};
+  }
+
+  Map<String, dynamic> _filterFlatResourcePayload(
+    Map<String, dynamic> payload,
+    Set<String> denied,
+  ) {
+    if (denied.isEmpty) return payload;
+    final items = payload['items'];
+    if (items is! List) return payload;
+    final retained = items.where((row) {
+      if (row is! Map) return true;
+      final id = row['id']?.toString();
+      return id == null || !denied.contains(id);
+    }).toList(growable: false);
+    if (retained.length == items.length) return payload;
+    final removed = items.length - retained.length;
+    final updated = <String, dynamic>{...payload, 'items': retained};
+    final count = payload['count'];
+    if (count is int) updated['count'] = (count - removed).clamp(0, count);
+    final page = _resourceMap(payload['page']);
+    if (page != null) {
+      final pageCount = page['count'];
+      updated['page'] = {
+        ...page,
+        if (pageCount is int) 'count': (pageCount - removed).clamp(0, pageCount),
+      };
+    }
+    return updated;
+  }
+
+  Future<AcquiredProjection> _withoutRevokedPersonalResources(
+    AcquiredProjection acquired,
+    String projectionKind,
+  ) async {
+    if (!_isPersonalResourceProjection(projectionKind) ||
+        _personalResourceDetailKinds.contains(projectionKind)) {
+      return acquired;
+    }
+    final denied = await _deniedPersonalResourceIds();
+    var payload = Map<String, dynamic>.from(acquired.payload);
+    if (projectionKind == 'personal.proofs') {
+      payload = _filterFlatResourcePayload(payload, denied['proofs']!);
+    } else if (projectionKind == 'personal.titles') {
+      payload = _filterFlatResourcePayload(payload, denied['credentials']!);
+    } else if (projectionKind == 'personal.me.resources') {
+      for (final family in const ['documents', 'proofs', 'credentials']) {
+        payload = _filterResourceFamilyPayload(
+          payload,
+          family,
+          denied[family]!,
+        );
+      }
+    } else if (projectionKind == 'personal.me') {
+      final resources = _resourceMap(payload['resources']);
+      if (resources != null) {
+        var filtered = resources;
+        for (final family in const ['documents', 'proofs', 'credentials']) {
+          filtered = _filterResourceFamilyPayload(
+            filtered,
+            family,
+            denied[family]!,
+          );
+        }
+        payload['resources'] = filtered;
+      }
+    }
+    if (identical(payload, acquired.payload) || payload == acquired.payload) {
+      return acquired;
+    }
+    return AcquiredProjection(
+      schemaVersion: acquired.schemaVersion,
+      payload: payload,
+      sourceGeneratedAt: acquired.sourceGeneratedAt,
+      sourceUpdatedAt: acquired.sourceUpdatedAt,
+      freshUntil: acquired.freshUntil,
+      expiresAt: acquired.expiresAt,
+    );
+  }
+
+  Future<void> _storeProjectionPreservingMetadata(
+    StoredProjection projection,
+    Map<String, dynamic> payload,
+  ) => store.putProjection(
+    kind: projection.kind,
+    resourceKey: projection.resourceKey,
+    schemaVersion: projection.schemaVersion,
+    payload: payload,
+    receivedAt: projection.receivedAt,
+    sourceGeneratedAt: projection.sourceGeneratedAt,
+    sourceUpdatedAt: projection.sourceUpdatedAt,
+    lastVerifiedOnlineAt: projection.lastVerifiedOnlineAt,
+    freshUntil: projection.freshUntil,
+    expiresAt: projection.expiresAt,
+    freshnessPolicyId: projection.freshnessPolicyId,
+  );
+
+  Future<void> _redactDeniedPersonalResource(
+    SyncSourceDefinition source,
+  ) async {
+    final family = _resourceFamilyForDetail(source.projectionKind);
+    if (family == null || source.resourceKey.isEmpty) return;
+    final deniedId = source.resourceKey;
+
+    for (final page in await store.readProjections('personal.me.resources')) {
+      final updated = _filterResourceFamilyPayload(
+        page.payload,
+        family,
+        {deniedId},
+      );
+      if (updated.toString() != page.payload.toString()) {
+        await _storeProjectionPreservingMetadata(page, updated);
+      }
+    }
+
+    final root = await store.readProjection('personal.me');
+    if (root != null) {
+      final resources = _resourceMap(root.payload['resources']);
+      if (resources != null) {
+        final updatedResources = _filterResourceFamilyPayload(
+          resources,
+          family,
+          {deniedId},
+        );
+        if (updatedResources.toString() != resources.toString()) {
+          await _storeProjectionPreservingMetadata(
+            root,
+            {...root.payload, 'resources': updatedResources},
+          );
+        }
+      }
+    }
+
+    final dedicatedKind = switch (family) {
+      'proofs' => 'personal.proofs',
+      'credentials' => 'personal.titles',
+      _ => null,
+    };
+    if (dedicatedKind != null) {
+      for (final page in await store.readProjections(dedicatedKind)) {
+        final updated = _filterFlatResourcePayload(page.payload, {deniedId});
+        if (updated.toString() != page.payload.toString()) {
+          await _storeProjectionPreservingMetadata(page, updated);
+        }
+      }
+    }
+  }
+
+  bool _samePersonalResourceCollectionFamily(
+    String projectionKind,
+    String sourceKey,
+  ) {
+    return switch (projectionKind) {
+      'personal.me.resources' => sourceKey.startsWith('resources:'),
+      'personal.proofs' => sourceKey.startsWith('trust:proofs%7C'),
+      'personal.titles' => sourceKey.startsWith('trust:titles%7C'),
+      _ => false,
+    };
+  }
+
+  Future<void> _withdrawPersonalResourceCollectionFamily(
+    SyncSourceDefinition source,
+    String code,
+  ) async {
+    if (!_personalResourceCollectionKinds.contains(source.projectionKind)) {
+      return;
+    }
+    await store.deleteProjectionsOfKind(source.projectionKind);
+    final rows = await (database.select(
+      database.syncSources,
+    )..where((row) => row.profileId.equals(profileId))).get();
+    for (final row in rows) {
+      if (!_samePersonalResourceCollectionFamily(
+        source.projectionKind,
+        row.sourceKey,
+      )) {
+        continue;
+      }
+      await (database.update(database.syncSources)..where(
+            (item) =>
+                item.profileId.equals(profileId) &
+                item.sourceKey.equals(row.sourceKey),
+          ))
+          .write(
+            SyncSourcesCompanion(
+              invalidated: const Value(true),
+              lastErrorCode: Value(code),
+            ),
+          );
+    }
+  }
+
   static const _discoveryDerivedKinds = <String>[
     'discovery.items',
     'discovery.map',
@@ -479,11 +767,15 @@ class SyncEngine {
           return;
         }
         if (!isCurrent()) return;
-        final approved = source.projectionKind == 'personal.accesses'
+        var approved = source.projectionKind == 'personal.accesses'
             ? await _withoutRevokedAccessRows(acquired)
             : source.projectionKind == 'space.inventory'
             ? await _withoutRevokedSpaceRows(acquired)
             : acquired;
+        approved = await _withoutRevokedPersonalResources(
+          approved,
+          source.projectionKind,
+        );
         await source.applier(
           SyncApplyContext(
             database: database,
@@ -575,7 +867,9 @@ class SyncEngine {
         (source.projectionKind == 'space.workspace' ||
             source.projectionKind == 'space.inventory' ||
             source.projectionKind == 'personal.access.detail' ||
-            source.projectionKind == 'personal.accesses') &&
+            source.projectionKind == 'personal.accesses' ||
+            _personalResourceDetailKinds.contains(source.projectionKind) ||
+            _personalResourceCollectionKinds.contains(source.projectionKind)) &&
         existing?.invalidated == true &&
         _deniedOwnerState(existing?.lastErrorCode);
     await (database.update(database.syncSources)..where(
@@ -701,6 +995,12 @@ class SyncEngine {
       }
       if (source.projectionKind == 'personal.accesses') {
         await _withdrawAccessCollectionRelationship(source, code);
+      }
+      if (_personalResourceDetailKinds.contains(source.projectionKind)) {
+        await _redactDeniedPersonalResource(source);
+      }
+      if (_personalResourceCollectionKinds.contains(source.projectionKind)) {
+        await _withdrawPersonalResourceCollectionFamily(source, code);
       }
       // The field, map, N2 and previews are a composition of owner facts.
       // Once any such owner explicitly refuses access, retaining a copy
