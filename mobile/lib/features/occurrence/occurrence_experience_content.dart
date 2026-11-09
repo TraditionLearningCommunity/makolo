@@ -16,6 +16,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
     this.onOpenLive,
     this.onOpenScanner,
     this.onOpenDepth,
+    this.onOpenHistory,
     this.onBackToDayOf,
   });
 
@@ -27,6 +28,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
   final ValueChanged<String>? onOpenLive;
   final VoidCallback? onOpenScanner;
   final ValueChanged<String>? onOpenDepth;
+  final VoidCallback? onOpenHistory;
   final VoidCallback? onBackToDayOf;
 
   static Map<String, dynamic> _map(Object? value) =>
@@ -259,6 +261,15 @@ class OccurrenceExperienceContent extends StatelessWidget {
         _depthSection(context),
         const SizedBox(height: MakoloSpacing.lg),
       ],
+      if (_text(payload['phase']) == 'after' && onOpenHistory != null)
+        MakoloSection(
+          title: 'La suite',
+          child: OutlinedButton.icon(
+            onPressed: onOpenHistory,
+            icon: const Icon(Icons.history_rounded),
+            label: const Text('Consulter l’historique'),
+          ),
+        ),
       if (liveStatus['available'] == true &&
           links['live'] is String &&
           onOpenLive != null) ...[
