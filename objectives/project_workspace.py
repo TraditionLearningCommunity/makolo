@@ -215,6 +215,7 @@ def project_workspace(actor, project):
         "owner": {
             "kind": "space" if project.owning_space_id else "profile",
             "label": project.owning_space.name if project.owning_space_id else "Projet personnel",
+            "holder": _person(project.owner_profile) if project.owner_profile_id else None,
         },
         "visible_dossiers": visible["items"],
         "dossiers_page": visible["page"],
