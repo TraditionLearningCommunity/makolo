@@ -265,6 +265,24 @@ def _service_requirements(journey):
     return payload
 
 
+def _journey_step_summaries(journey):
+    """Only already-owned JourneySteps; no synthetic milestones or action grants."""
+    return [
+        {
+            "id": str(step.pk),
+            "title": step.title,
+            "status": step.status,
+            "kind": step.kind,
+            "position": step.position,
+            "depends_on": [
+                str(dependency.depends_on_id)
+                for dependency in step.dependencies.all()
+            ],
+        }
+        for step in journey.steps.all()
+    ]
+
+
 def build_journey_detail(*, journey, readiness, profile, live=None):
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     pending = [
@@ -340,6 +358,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
             "label": journey.get_status_display(),
         },
         "readiness": serialize_readiness(readiness),
+        "steps": _journey_step_summaries(journey),
         "requests": {"pending": pending, "rejected": rejected},
         "requirements": _service_requirements(journey),
         "forms": form_links,
