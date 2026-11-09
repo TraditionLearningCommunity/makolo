@@ -6,7 +6,7 @@
       <p class="text-xs font-semibold tracking-wide" style="color:var(--mk-muted)">{{ point.get_kind_display }} · {{ point.get_lifecycle_display }}</p>
       <h3 class="mt-1 text-base font-extrabold leading-snug">{{ point.title|default:point.get_kind_display }}</h3>
     </div>
-    {% if point.deadline_at and point.lifecycle == 'open' %}<span class="text-xs" style="color:var(--mk-muted)">Répondre avant le {{ point.deadline_at|date:'d/m à H:i' }}</span>{% endif %}
+    {% if point.deadline_at %}<span class="text-xs" style="color:var(--mk-muted)">Date limite : {{ point.deadline_at|date:'d/m à H:i' }}</span>{% endif %}
   </div>
   {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm leading-6">{{ point.body }}</p>{% endif %}
   {% conversation_point_media_sections point request.user as semantic_media %}
@@ -79,6 +79,9 @@
   {% endif %}
   {% if actions.acknowledged %}
     <p class="mt-2 text-sm" style="color:var(--mk-muted)">✓ Prise de connaissance enregistrée.</p>
+  {% endif %}
+  {% if actions.response_hint and not actions.can_respond and not actions.my_response %}
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ actions.response_hint }}</p>
   {% endif %}
   {% if actions.can_acknowledge %}
     <form method="post" action="{% url 'conversations:point-acknowledge' point.pk %}" class="mt-4">
