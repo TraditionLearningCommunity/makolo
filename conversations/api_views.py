@@ -91,7 +91,7 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         if point.lifecycle == "superseded" else None
     )
     visible_media = [
-        item for item in visible_attachments_for_profile(profile, point)
+        item for item in visible_attachments_for_profile(profile, point, limit=100)
         if item.exchange_entry_id is None
     ]
     response_media = {}
