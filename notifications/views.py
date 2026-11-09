@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
@@ -110,6 +111,17 @@ class NotificationOpenView(LoginRequiredMixin, View):
             except (ValueError, TypeError, AttributeError):
                 resource_id = None
             if resource_id and target == "conversation":
+                point_id = navigation.get("point_id")
+                if point_id:
+                    try:
+                        UUID(str(point_id))
+                    except (ValueError, TypeError, AttributeError):
+                        point_id = None
+                if point_id:
+                    return redirect(
+                        f"{reverse('conversations:detail', kwargs={'pk': resource_id})}"
+                        f"?focus={point_id}#point-{point_id}"
+                    )
                 return redirect("conversations:detail", pk=resource_id)
             if resource_id and target == "access":
                 access = participant_accesses(request.user).filter(pk=resource_id).first()
