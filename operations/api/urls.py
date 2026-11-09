@@ -9,6 +9,7 @@ from operations.checkpoint_api import (
     OperatorOccurrenceCheckpointsAPIView,
 )
 from operations.live_api import OccurrenceLiveAPIView, OccurrenceOperationalReadinessAPIView
+from operations.experience_insight_api import OccurrenceExperienceInsightAPIView
 from operations.occurrence_experience_api import (
     OccurrenceExperienceDayOfAPIView,
     OccurrenceExperienceLiveAPIView,
@@ -72,6 +73,11 @@ urlpatterns = [
         "occurrences/<uuid:occurrence_id>/experience/live-configuration/",
         OccurrenceExperienceLiveConfigurationAPIView.as_view(),
         name="occurrence-experience-live-configuration",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/insights/<str:kind>/",
+        OccurrenceExperienceInsightAPIView.as_view(),
+        name="occurrence-experience-insight",
     ),
     path(
         "occurrences/<uuid:occurrence_id>/readiness/",
