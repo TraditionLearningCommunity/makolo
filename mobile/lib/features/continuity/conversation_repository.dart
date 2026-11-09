@@ -256,6 +256,7 @@ class ConversationRepository {
       await engine.refreshSource(detailSource(id, focusPointId: focusPointId));
     } on MakoloApiError catch (error) {
       if (error.statusCode == 403 || error.statusCode == 404) {
+        await store.deleteProjection(detailProjectionKind, resourceKey: id);
         await store.deleteProjection(depthProjectionKind, resourceKey: id);
       }
       rethrow;
@@ -882,7 +883,11 @@ class ConversationRepository {
     if (result['id'] == null || result['status'] == null) {
       throw const FormatException('Invitation non confirmée.');
     }
-    await refreshDetail(conversationId);
+    try {
+      await refreshDetail(conversationId);
+    } on Object {
+      // The owner has confirmed the invitation; cache refresh is optional.
+    }
     return result;
   }
 
@@ -905,7 +910,9 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('Modification de participation non confirmée.');
     }
-    await refreshDetail(conversationId);
+    try { await refreshDetail(conversationId); } on Object {
+      // Confirmed removal can itself revoke this Profile's access.
+    }
   }
 
   Future<void> decideCollectiveInvitation({
@@ -939,7 +946,9 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('Décision non confirmée.');
     }
-    await refreshDetail(conversationId);
+    try { await refreshDetail(conversationId); } on Object {
+      // Keep the confirmed decision, allow next owner acquisition.
+    }
   }
 
   Future<List<Map<String, dynamic>>> conversationJoinRequests(String id) async {
@@ -968,7 +977,9 @@ class ConversationRepository {
     if (response.jsonObject()['status'] == null) {
       throw const FormatException('État de participation non confirmé.');
     }
-    await refreshDetail(conversationId);
+    try { await refreshDetail(conversationId); } on Object {
+      // Leaving can legitimately revoke the current viewer's detail.
+    }
   }
 
   Future<String?> respondToInvitation({
