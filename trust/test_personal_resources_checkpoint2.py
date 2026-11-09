@@ -6,6 +6,7 @@ from django.utils import timezone
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
+from personal_assets.models import PersonalAsset
 from trust.credential_models import Credential, CredentialStatus, CredentialType
 from sharing.models import ShareEnvelope
 from trust.models import Proof, ProofStatus, ProofType
