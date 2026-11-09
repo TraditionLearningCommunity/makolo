@@ -307,7 +307,7 @@ class _MeHubState extends State<MeHub> {
       _MeEntry(
         kind: 'resource_collection',
         title: 'Mes ressources',
-        subtitle: 'Documents, preuves et attestations',
+        subtitle: 'Documents, preuves et titres',
         icon: Icons.file_copy_outlined,
         previews: (resources?.items ?? const [])
             .where((item) => item.destination.kind != 'resource_collection')
