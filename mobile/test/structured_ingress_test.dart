@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/navigation/deep_link_resolver.dart';
+import 'package:makolo_mobile/navigation/destination.dart';
 import 'package:makolo_mobile/navigation/incoming_intent.dart';
 import 'package:makolo_mobile/navigation/structured_destination_codec.dart';
 import 'package:makolo_mobile/platform/scanner/code_scanner.dart';
