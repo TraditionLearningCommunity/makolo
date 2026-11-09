@@ -396,6 +396,7 @@ class _OngoingField extends StatefulWidget {
 class _OngoingFieldState extends State<_OngoingField> {
   final ScrollController _scroll = ScrollController();
   final Set<String> _expanded = <String>{};
+  bool _newContinuitiesAvailable = false;
 
   @override
   void initState() {
@@ -407,6 +408,23 @@ class _OngoingFieldState extends State<_OngoingField> {
   @override
   void didUpdateWidget(covariant _OngoingField oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.profileId != widget.profileId) {
+      _newContinuitiesAvailable = false;
+    } else {
+      final before = oldWidget.items.map((item) => item.id).toSet();
+      final added = before.isNotEmpty &&
+          widget.items.any((item) => !before.contains(item.id));
+      if (added &&
+          _scroll.hasClients &&
+          _scroll.offset >= 120 &&
+          !_newContinuitiesAvailable) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && !_newContinuitiesAvailable) {
+            setState(() => _newContinuitiesAvailable = true);
+          }
+        });
+      }
+    }
     if (oldWidget.items.length != widget.items.length ||
         oldWidget.moreBusy != widget.moreBusy ||
         oldWidget.moreError != widget.moreError) {
@@ -431,8 +449,21 @@ class _OngoingFieldState extends State<_OngoingField> {
     super.dispose();
   }
 
+  void _showRecentContinuities() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+    setState(() => _newContinuitiesAvailable = false);
+  }
+
   @override
-  Widget build(BuildContext context) => ListView.separated(
+  Widget build(BuildContext context) => Stack(
+    children: [
+      ListView.separated(
     controller: _scroll,
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
@@ -532,6 +563,18 @@ class _OngoingFieldState extends State<_OngoingField> {
         ),
       );
     },
+      ),
+      if (_newContinuitiesAvailable)
+        Align(
+          alignment: Alignment.topCenter,
+          child: TextButton.icon(
+            key: const Key('ongoing-new-continuities'),
+            onPressed: _showRecentContinuities,
+            icon: const Icon(Icons.arrow_upward_rounded),
+            label: const Text('Nouvelles démarches en cours'),
+          ),
+        ),
+    ],
   );
 }
 
