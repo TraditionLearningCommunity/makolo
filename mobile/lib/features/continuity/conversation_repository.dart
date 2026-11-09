@@ -789,6 +789,51 @@ class ConversationRepository {
     await _refreshPublished(conversationId);
   }
 
+  Future<void> closePointResponses({
+    required String conversationId,
+    required String pointId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Une connexion est nécessaire pour clore les réponses.');
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/points/$pointId/close-responses/',
+    );
+    final payload = response.jsonObject();
+    if (payload['point_id']?.toString() != pointId ||
+        !{'response_closed', 'resolved'}.contains(payload['lifecycle'])) {
+      throw const FormatException('Clôture non confirmée par Conversations.');
+    }
+    await _refreshPublished(conversationId);
+  }
+
+  Future<void> resolvePoint({
+    required String conversationId,
+    required String pointId,
+    required String summary,
+    List<String> selectedOptionIds = const [],
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Une connexion est nécessaire pour résoudre le Point.');
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/points/$pointId/resolve/',
+      body: {
+        'summary': summary.trim(),
+        'selected_option_ids': selectedOptionIds,
+      },
+    );
+    final payload = response.jsonObject();
+    if (payload['point_id']?.toString() != pointId ||
+        payload['lifecycle'] != 'resolved' ||
+        payload['resolution_id'] == null) {
+      throw const FormatException('Résolution non confirmée par Conversations.');
+    }
+    await _refreshPublished(conversationId);
+  }
+
   Future<String?> respondToInvitation({
     required String invitationId,
     required bool accept,
