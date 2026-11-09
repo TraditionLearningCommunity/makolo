@@ -120,4 +120,78 @@ void main() {
     expect(state.hasFirst, isFalse);
     expect(state.entries, isEmpty);
   });
+  test('large explorer graph renders each shared Journey only once', () {
+    final raw = <Map<String, dynamic>>[];
+    for (var p = 0; p < 6; p++) {
+      raw.add(item('project', 'p$p'));
+      for (var d = 0; d < 4; d++) {
+        raw.add(item('dossier', 'd$p-$d', parent: 'p$p'));
+      }
+    }
+    raw.add(item('dossier', 'independent'));
+    raw.add({
+      ...item('journey', 'shared'),
+      'dossier_ids': ['d0-0', 'd0-1', 'd1-0'],
+    });
+    raw.add(item('journey', 'ordinary', parent: 'd2-0'));
+    final entries = raw.map(OrganizerEntry.fromMap).toList();
+    final hierarchy = OrganizerHierarchy(entries);
+    final visited = <String>[];
+    void walk(OrganizerEntry node) {
+      visited.add(node.key);
+      for (final child in hierarchy.childrenOf(node)) {
+        walk(child);
+      }
+    }
+    for (final root in hierarchy.roots) {
+      walk(root);
+    }
+    expect(visited.length, entries.length);
+    expect(visited.toSet().length, entries.length);
+    expect(hierarchy.childrenOf(hierarchy.byKey['dossier:d0-0']!)
+        .map((e) => e.id), contains('shared'));
+    expect(hierarchy.childrenOf(hierarchy.byKey['dossier:d0-1']!)
+        .map((e) => e.id), isNot(contains('shared')));
+    expect(hierarchy.additionalSharedLinks(
+        hierarchy.byKey['dossier:d0-1']!), 1);
+    expect(hierarchy.additionalSharedLinks(
+        hierarchy.byKey['dossier:d1-0']!), 1);
+    expect(hierarchy.roots.map((e) => e.key), contains('dossier:independent'));
+    expect(entries.singleWhere((e) => e.id == 'shared').dossierIds,
+        ['d0-0', 'd0-1', 'd1-0']);
+  });
+
+  test('missing parents are roots but are not reclassified independent', () {
+    final dossier = OrganizerEntry.fromMap(
+      item('dossier', 'd', parent: 'project-not-loaded'),
+    );
+    final journey = OrganizerEntry.fromMap({
+      ...item('journey', 'j'),
+      'dossier_ids': ['dossier-not-loaded'],
+    });
+    final hierarchy = OrganizerHierarchy([dossier, journey]);
+    expect(hierarchy.roots.map((e) => e.key),
+        containsAll(['dossier:d', 'journey:j']));
+    expect(dossier.isIndependent, isFalse);
+    expect(journey.isIndependent, isFalse);
+  });
+
+  test('count labels are grammatical and never invent a total', () {
+    final projects = [
+      OrganizerEntry.fromMap(item('project', 'p')),
+    ];
+    final journeys = [
+      OrganizerEntry.fromMap(item('journey', 'a')),
+      OrganizerEntry.fromMap(item('journey', 'b')),
+    ];
+    expect(organizerCountLabel(projects), '1 projet');
+    expect(organizerCountLabel(journeys), '2 démarches');
+    expect(organizerCountLabel([...projects, ...journeys]), '3 éléments');
+    expect(organizerCountLabel(journeys, filtered: true), '2 résultats');
+    expect(organizerCountLabel(projects, filtered: true), '1 résultat');
+    expect(organizerCountLabel(journeys, partial: true),
+        '2 démarches chargés');
+    expect(organizerCountLabel([], filtered: true), '0 résultats');
+  });
+
 }
