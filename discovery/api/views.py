@@ -212,6 +212,8 @@ class DiscoveryItemSavedAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request, family, item_id):
+        if request.query_params.get("context") == "space" or request.query_params.get("space"):
+            raise ValidationError({"context": ["Cet enregistrement appartient au Profil, pas au Space."]})
         projection = set_saved_state(
             family,
             item_id,
@@ -228,6 +230,8 @@ class DiscoveryItemSavedAPIView(PrivateDiscoveryResponseBoundary, APIView):
         )
 
     def delete(self, request, family, item_id):
+        if request.query_params.get("context") == "space" or request.query_params.get("space"):
+            raise ValidationError({"context": ["Cet enregistrement appartient au Profil, pas au Space."]})
         projection = set_saved_state(
             family,
             item_id,
