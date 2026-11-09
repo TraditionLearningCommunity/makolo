@@ -7,6 +7,7 @@ from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceSt
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization
 from trust.credential_models import Credential, CredentialStatus, CredentialType
+from sharing.models import ShareEnvelope
 from trust.models import Proof, ProofStatus, ProofType
 
 
@@ -245,6 +246,42 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         )
         self.assertEqual(proof_detail.status_code, 404)
         self.assertEqual(title_detail.status_code, 404)
+
+    def test_resource_details_only_offer_public_representation_sharing(self):
+        before = ShareEnvelope.objects.count()
+
+        proof = self.client.get(
+            reverse("trust:proof-detail", args=[self.proof.pk])
+        )
+        self.assertEqual(proof.status_code, 200)
+        self.assertContains(proof, "data-makolo-share")
+        self.assertContains(
+            proof,
+            reverse("trust:proof-verify", args=[self.proof.public_id]),
+        )
+        self.assertContains(proof, "Ouvrir mon Passeport")
+
+        private_proof = self.client.get(
+            reverse("trust:proof-detail", args=[self.revoked_proof.pk])
+        )
+        self.assertEqual(private_proof.status_code, 200)
+        self.assertNotContains(private_proof, "data-makolo-share")
+
+        credential = self.client.get(
+            reverse("trust:credential-detail", args=[self.credential.pk])
+        )
+        self.assertEqual(credential.status_code, 200)
+        self.assertContains(credential, "data-makolo-share")
+        self.assertContains(
+            credential,
+            reverse(
+                "trust:credential-verify",
+                args=[self.credential.public_id],
+            ),
+        )
+        self.assertContains(credential, "Ouvrir mon Passeport")
+
+        self.assertEqual(ShareEnvelope.objects.count(), before)
 
     def test_public_verification_surfaces_show_revocation_without_private_reason(self):
         proof_verify = self.client.get(
