@@ -57,10 +57,14 @@ class _PreparationResourcesScreenState
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readResources(widget.journeyId);
-    final source = await widget.repository.readSource(widget.journeyId);
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
+    final local = await repository.readResources(id);
+    final source = await repository.readSource(id);
+    if (!_sameOwner(revision, repository, id)) return;
     await _restoreLocalFiles(local);
-    if (!mounted) return;
+    if (!_sameOwner(revision, repository, id)) return;
     if (local == null) {
       await _refresh();
       return;
@@ -72,6 +76,15 @@ class _PreparationResourcesScreenState
     );
     if (freshness != FreshnessState.fresh) await _refresh();
   }
+
+  bool _sameOwner(
+    int revision,
+    PreparationResourcesRepository repository,
+    String id,
+  ) => mounted &&
+       revision == _identityRevision &&
+       identical(repository, widget.repository) &&
+       id == widget.journeyId;
 
   Future<void> _restoreLocalFiles(StoredProjection? projection) async {
     final revision = _identityRevision;
@@ -102,6 +115,8 @@ class _PreparationResourcesScreenState
         oldWidget.repository != widget.repository) {
       _identityRevision++;
       _requestedInitialRefresh = false;
+      _refreshing = false;
+      _downloading.clear();
       _downloaded.clear();
       unawaited(_acquireOrRefresh());
     }
@@ -109,27 +124,38 @@ class _PreparationResourcesScreenState
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refresh(
-        journeyId: widget.journeyId,
+      await repository.refresh(
+        journeyId: id,
         resourcesPath: widget.resourcesPath,
       );
-      final acquired = await widget.repository.readResources(widget.journeyId);
-      await _restoreLocalFiles(acquired);
+      if (!_sameOwner(revision, repository, id)) return;
+      final acquired = await repository.readResources(id);
+      if (_sameOwner(revision, repository, id)) {
+        await _restoreLocalFiles(acquired);
+      }
     } on Object {
-      // SyncSource records the failure and preserves usable local content.
+      // Owner facts already acquired remain in this Profile's database.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
   Future<void> _download(_PreparationResource resource) async {
     final downloadUrl = resource.downloadUrl;
     if (downloadUrl == null || _downloading.contains(resource.id)) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _downloading.add(resource.id));
     try {
-      final file = await widget.repository.downloadResource(
+      final file = await repository.downloadResource(
         resourceId: resource.id,
         version: resource.version,
         downloadPath: downloadUrl,
@@ -138,7 +164,8 @@ class _PreparationResourcesScreenState
       );
       // Only this explicit action exports to public Downloads; opening a
       // private copy stays inside the current Profile.
-      if (mounted) setState(() => _downloaded[resource.id] = file.path);
+      if (!_sameOwner(revision, repository, id)) return;
+      setState(() => _downloaded[resource.id] = file.path);
       final mime = resource.mimeType ?? 'application/octet-stream';
       final extension = switch (mime.toLowerCase()) {
         'application/pdf' => 'pdf',
@@ -155,12 +182,12 @@ class _PreparationResourcesScreenState
         fileName: makoloDownloadName(resource.title, extension),
         mimeType: mime,
       );
-      if (!mounted) return;
+      if (!_sameOwner(revision, repository, id)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Enregistré dans Téléchargements : $saved')),
       );
     } on Object {
-      if (!mounted) return;
+      if (!_sameOwner(revision, repository, id)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -169,29 +196,34 @@ class _PreparationResourcesScreenState
         ),
       );
     } finally {
-      if (mounted) setState(() => _downloading.remove(resource.id));
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _downloading.remove(resource.id));
+      }
     }
   }
 
   Future<void> _openFile(_PreparationResource resource) async {
     if (_downloading.contains(resource.id)) return;
+    final revision = _identityRevision;
+    final id = widget.journeyId;
+    final repository = widget.repository;
     setState(() => _downloading.add(resource.id));
     try {
-      var local = await widget.repository.readLocalResourceFile(
+      var local = await repository.readLocalResourceFile(
         resource.id,
         version: resource.version,
       );
       if (local == null && resource.downloadUrl != null) {
-        local = await widget.repository.downloadResource(
+        local = await repository.downloadResource(
           resourceId: resource.id,
           version: resource.version,
-          downloadPath: resource.downloadUrl!
+          downloadPath: resource.downloadUrl!,
           title: resource.title,
           mimeType: resource.mimeType,
         );
       }
       if (local == null) return;
-      if (!mounted) return;
+      if (!_sameOwner(revision, repository, id)) return;
       setState(() => _downloaded[resource.id] = local.path);
       await widget.onOpenDownloadedFile?.call(
         local.path,
@@ -199,13 +231,15 @@ class _PreparationResourcesScreenState
         resource.title,
       );
     } on Object {
-      if (mounted) {
+      if (_sameOwner(revision, repository, id)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ce document ne peut pas être ouvert pour le moment.')),
         );
       }
     } finally {
-      if (mounted) setState(() => _downloading.remove(resource.id));
+      if (_sameOwner(revision, repository, id)) {
+        setState(() => _downloading.remove(resource.id));
+      }
     }
   }
 
