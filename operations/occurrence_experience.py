@@ -217,7 +217,11 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             })
     if scanner_allowed:
         actions.append({
-            "territory": "organizer",
+            "territory": (
+                "organizer"
+                if not platform_allowed or owner_operations_allowed
+                else "platform"
+            ),
             "kind": "owner_handoff",
             "type": "scanner",
             "label": "Ouvrir Scanner",
@@ -228,7 +232,11 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
     relations = {
         "participant": participant is not None,
         "institutional_beneficiary": bool(institutional),
-        "organizer": bool(owner_operations_allowed or scanner_allowed or finance_allowed or finance_manage or (operations_manage and not platform_allowed)),
+        "organizer": bool(
+            owner_operations_allowed or finance_allowed or finance_manage
+            or (scanner_allowed and not platform_allowed)
+            or (operations_manage and not platform_allowed)
+        ),
         "platform": bool(platform_allowed),
     }
     return {
