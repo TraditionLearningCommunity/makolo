@@ -1,9 +1,13 @@
 """Journey beneficiary Space and shared mandate access, without a Dossier."""
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
+from django.utils import timezone
+from rest_framework.test import APIClient
 
-from activities.models import Activity
+from activities.models import Activity, Occurrence
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role, revoke_mandate
 from organizations.models import Organization
@@ -85,3 +89,29 @@ class SpaceBeneficiaryJourneyTests(TestCase):
     def test_beneficiary_kinds_remain_mutually_exclusive(self):
         with self.assertRaises(ValidationError):
             self._create(beneficiary=self.owner)
+
+    def test_canonical_day_of_shared_between_members_without_dossier(self):
+        occurrence = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(minutes=20),
+            end_at=timezone.now() + timedelta(hours=2),
+        )
+        journey = self._create(occurrence=occurrence)
+        url = f"/api/v1/operations/occurrences/{occurrence.pk}/experience/day-of/"
+        client = APIClient()
+
+        client.force_authenticate(user=self.member)
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        institutional = response.data["data"]["sections"]["institutional"]
+        self.assertEqual([item["id"] for item in institutional], [str(journey.pk)])
+        self.assertEqual(institutional[0]["beneficiary"]["id"], str(self.space.pk))
+        self.assertNotIn("participant", response.data["data"]["sections"])
+        self.assertEqual(Journey.objects.filter(pk=journey.pk).count(), 1)
+
+        client.force_authenticate(user=self.outsider)
+        self.assertEqual(client.get(url).status_code, 404)
+
+        client.force_authenticate(user=self.member)
+        revoke_mandate(mandate=self.member_mandate, actor=self.owner)
+        self.assertEqual(client.get(url).status_code, 404)
