@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../design/makolo_theme.dart';
 import '../../design/identity_surface.dart';
+import '../me/me_country_choices.dart';
 
 /// The collective identity of the active Space. All rows originate in
 /// server-scoped owner projections; this widget never infers authority.
@@ -106,7 +107,10 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final lifecycle = _value(identity?['lifecycle']);
     final location = _map(identity?['location']);
     final city = _value(location?['city']);
-    final country = _value(location?['country']);
+    final countryCode = _value(location?['country']);
+    final country = countryCode == null
+        ? null
+        : countryForValue(countryCode)?.label ?? countryCode;
     final place = [?city, ?country].join(', ');
     final team = _map(payload['team']);
     final ownership = _map(payload['ownership']);
@@ -343,11 +347,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                     ],
                     if (passportTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      _sectionTitle(
-                        context,
-                        'Passeport Makolo',
-                        'Les informations qui présentent notre collectif.',
-                      ),
                       _passportCard(context, passportTarget, open),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
@@ -485,7 +484,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     String target,
     ValueChanged<String> open,
   ) => MakoloPassportGateway(
-    title: 'Passeport de cet Espace',
+    title: 'Notre Passeport',
     subtitle: 'Présenter notre collectif avec les faits disponibles',
     onOpen: () => open(target),
   );

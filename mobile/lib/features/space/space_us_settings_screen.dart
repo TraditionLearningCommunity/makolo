@@ -9,6 +9,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/api_error.dart';
+import '../me/me_country_choices.dart';
 import '../me/passport_editor_field_rules.dart';
 
 /// Institutional details remain an authorized server mutation, never an
@@ -36,6 +37,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   final phone = TextEditingController();
   final city = TextEditingController();
   final country = TextEditingController();
+  MakoloCountry? selectedCountry;
+  bool countryHasUnselectedInput = false;
   bool publicProfile = false;
   bool loading = true;
   bool saving = false;
@@ -129,6 +132,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
           : const {};
       city.text = location['city']?.toString() ?? '';
       country.text = location['country']?.toString() ?? '';
+      selectedCountry = countryForValue(country.text);
+      countryHasUnselectedInput = selectedCountry == null && country.text.trim().isNotEmpty;
       setState(() {
         publicProfile = identity['public_profile'] == true;
         confirmed = {
@@ -175,6 +180,10 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     );
     website.text = normalizedWebsite;
     if (form.currentState?.validate() != true) return;
+    if (countryHasUnselectedInput ||
+        (country.text.trim().isNotEmpty && selectedCountry == null)) {
+      return;
+    }
     final fields = <String, dynamic>{
       'name': name.text.trim(),
       'description': description.text.trim(),
@@ -326,18 +335,76 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                         ? null
                         : '120 caractères maximum.',
                   ),
-                  TextFormField(
-                    controller: country,
-                    maxLength: 120,
-                    maxLengthEnforcement: MaxLengthEnforcement.none,
-                    decoration: const InputDecoration(
-                      labelText: 'Pays',
-                      counterText: '',
+                  Autocomplete<MakoloCountry>(
+                    key: ValueKey('space-country-${loadedSpaceId ?? widget.slug}'),
+                    initialValue: TextEditingValue(
+                      text: selectedCountry?.label ?? country.text,
                     ),
-                    validator: (value) =>
-                        (value ?? '').trim().runes.length <= 120
-                        ? null
-                        : '120 caractères maximum.',
+                    displayStringForOption: (item) => item.label,
+                    optionsBuilder: (value) {
+                      final query = value.text.trim().toLowerCase();
+                      if (query.isEmpty) return makoloCountries;
+                      return makoloCountries.where(
+                        (item) =>
+                            item.label.toLowerCase().contains(query) ||
+                            item.code.toLowerCase().startsWith(query),
+                      );
+                    },
+                    onSelected: (item) {
+                      setState(() {
+                        selectedCountry = item;
+                        country.text = item.code;
+                        countryHasUnselectedInput = false;
+                      });
+                    },
+                    fieldViewBuilder: (context, editor, focusNode, onSubmitted) =>
+                        Focus(
+                          onFocusChange: (focused) {
+                            if (focused) return;
+                            final selected = countryForValue(editor.text);
+                            if (selected != null) {
+                              editor.value = TextEditingValue(
+                                text: selected.label,
+                                selection: TextSelection.collapsed(
+                                  offset: selected.label.length,
+                                ),
+                              );
+                            }
+                            if (!mounted) return;
+                            setState(() {
+                              selectedCountry = selected;
+                              country.text = selected?.code ?? '';
+                              countryHasUnselectedInput =
+                                  selected == null && editor.text.trim().isNotEmpty;
+                            });
+                          },
+                          child: TextFormField(
+                            controller: editor,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Pays',
+                              hintText: 'Rechercher un pays',
+                              prefixIcon: const Icon(Icons.public_outlined),
+                              suffixIcon: selectedCountry != null &&
+                                      !countryHasUnselectedInput
+                                  ? const Icon(Icons.check_circle_outline)
+                                  : null,
+                            ),
+                            onChanged: (value) {
+                              final match = countryForValue(value);
+                              selectedCountry = match;
+                              country.text = match?.code ?? '';
+                              countryHasUnselectedInput =
+                                  match == null && value.trim().isNotEmpty;
+                            },
+                            validator: (value) {
+                              if ((value ?? '').trim().isEmpty) return null;
+                              return countryForValue(value!) == null
+                                  ? 'Choisissez un pays dans la liste.'
+                                  : null;
+                            },
+                          ),
+                        ),
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
                   Text(

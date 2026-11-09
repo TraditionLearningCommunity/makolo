@@ -109,12 +109,14 @@ void main() {
       expect(find.text('Partenaires'), findsOneWidget);
       expect(find.text('Paramètres institutionnels'), findsNothing);
       expect(tester.takeException(), isNull);
-      expect(find.text('Passeport Makolo'), findsOneWidget);
+      expect(find.text('Passeport Makolo'), findsNothing);
+      expect(find.text('Notre Passeport'), findsOneWidget);
+      expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
       expect(find.byKey(const Key('space-us-territories-list')), findsOneWidget);
       expect(find.text('Notre espace'), findsOneWidget);
-      await tester.ensureVisible(find.text('Passeport de cet Espace'));
+      await tester.ensureVisible(find.text('Notre Passeport'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Passeport de cet Espace'));
+      await tester.tap(find.text('Notre Passeport'));
       expect(routes, ['/space/atelier/us/passport']);
       await tester.ensureVisible(find.byKey(const Key('space-us-entry-relationships')));
       await tester.tap(find.byKey(const Key('space-us-entry-relationships')));
@@ -177,7 +179,7 @@ void main() {
     expect(find.text('Notre équipe'), findsNothing);
     expect(find.text('Nos relations'), findsNothing);
     expect(find.text('Modifier les informations collectives'), findsNothing);
-    expect(find.text('Passeport de cet Espace'), findsNothing);
+    expect(find.text('Notre Passeport'), findsNothing);
     expect(find.text('Nos ressources'), findsNothing);
     expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
