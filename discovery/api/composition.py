@@ -1892,18 +1892,56 @@ def detail_candidate(family, item_id, *, profile=None):
     return None
 
 
-def detail_projection(family, item_id, *, profile=None) -> dict | None:
-    candidate = detail_candidate(family, item_id, profile=profile)
+def _existing_personal_journey(projection, *, profile):
+    """Reference an actual beneficiary Journey, without creating one."""
+    if not _authenticated(profile):
+        return None
+    identity = projection.get("identity") or {}
+    resource = identity.get("resource") or {}
+    if identity.get("family") not in {"activity", "service_activity", "funding_activity"} or resource.get("kind") != "activity":
+        return None
+    from core.participant_selectors import participant_journeys
+    from journeys.models import TERMINAL_JOURNEY_STATUSES
+    from django.db.models import Q
+
+    journeys = participant_journeys(profile).filter(
+        activity_id=resource.get("id"),
+    ).exclude(status__in=TERMINAL_JOURNEY_STATUSES)
+    occurrence = identity.get("occurrence")
+    if isinstance(occurrence, dict) and occurrence.get("id"):
+        journeys = journeys.filter(
+            Q(occurrence_id=occurrence["id"]) | Q(occurrence__isnull=True)
+        )
+    journey = journeys.order_by("-created_at", "-pk").first()
+    if journey is None:
+        return None
+    return {
+        "state": "active",
+        "resource": {"kind": "journey", "id": str(journey.pk)},
+        "label": "Reprendre ma démarche",
+        "links": {
+            "native": f"/journeys/{journey.pk}",
+            "web": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
+        },
+    }
+
+
+def detail_projection(family, item_id, *, profile=None, space=None) -> dict | None:
+    candidate_profile = None if space is not None else profile
+    candidate = detail_candidate(family, item_id, profile=candidate_profile)
     if candidate is None:
         return None
     family, item = candidate
     projection = project_rows(
         ((family, item["candidate_key"] if isinstance(item, dict) else item.candidate_key, item),),
-        profile=profile,
+        profile=candidate_profile,
     )[0]
-
-    # The collection already carries the same authorized detail facts.
-    # This endpoint stays available for refresh and direct links.
+    if space is not None:
+        _space_read_only_items([projection])
+    else:
+        continuation = _existing_personal_journey(projection, profile=profile)
+        if continuation is not None:
+            projection["journey_continuation"] = continuation
     return projection
 
 
