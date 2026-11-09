@@ -394,7 +394,7 @@ class _NowScreenState extends State<NowScreen> {
       }
 
       return const MakoloEmptyState(
-        title: 'Impossible d’afficher votre situation actuelle.',
+        title: 'Rien à afficher pour le moment.',
         icon: Icons.adjust,
       );
     }
