@@ -18,6 +18,7 @@ List<RouteBase> liveRoutes(AppRuntime runtime) => [
       return LiveScreen(
         occurrenceId: state.pathParameters['id']!,
         repository: repository,
+        actorContext: runtime.actorContext,
         onBackToDayOf: () =>
             context.go('/occurrences/${state.pathParameters['id']}/day-of'),
         onOpenDepth: (kind) => context.push(
