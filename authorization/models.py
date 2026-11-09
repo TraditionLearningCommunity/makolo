@@ -196,7 +196,7 @@ class Mandate(models.Model):
             errors["scope_type"] = "Un Mandat Groupe doit cibler uniquement un Groupe."
         if self.scope_type == AuthorityScope.ACTIVITY and (not self.activity_id or self.space_id or self.group_id or self.dossier_id or self.project_id):
             errors["scope_type"] = "Un Mandat Activité doit cibler uniquement une Activité."
-        if self.scope_type == AuthorityScope.DOSSIER and (not self.dossier_id or self.space_id or self.group_id or self.activity_id):
+        if self.scope_type == AuthorityScope.DOSSIER and (not self.dossier_id or self.space_id or self.group_id or self.activity_id or self.project_id):
             errors["scope_type"] = "Un Mandat Dossier doit cibler uniquement un Dossier."
         if self.scope_type == AuthorityScope.PROJECT and (not self.project_id or self.space_id or self.group_id or self.activity_id or self.dossier_id):
             errors["scope_type"] = "Un Mandat Projet doit cibler uniquement un Projet."
