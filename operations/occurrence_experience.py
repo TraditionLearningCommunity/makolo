@@ -83,8 +83,8 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
 
     `viewer` is the authenticated Profile. Space authority is resolved via
     canonical activity/space mandates, not by a client-provided profile/space ID.
-    A Space acting as a beneficiary needs its own owner-backed beneficiary
-    resolver before any such section can be exposed.
+    A beneficiary Space is represented by its unique, owner-backed Journey;
+    it is not mistaken for a personal admission Access or credential.
     """
     if surface not in {"day_of", "live"}:
         raise ValueError("Unsupported Occurrence experience surface")
@@ -192,6 +192,39 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
     if not sections and not capabilities:
         return None
 
+    # Two legitimate next moves can coexist. Do not invent a mutation from a
+    # textual instruction; only owner-backed links become executable handoffs.
+    actions = []
+    if participant is not None:
+        own_action = (participant.get("next_action") or {})
+        if own_action.get("type") not in {None, "none"}:
+            actions.append({
+                "territory": "participant",
+                "kind": "instruction",
+                "type": own_action.get("type"),
+                "label": own_action.get("label"),
+                "source": own_action.get("source"),
+            })
+    if operator is not None and ("organizer" in sections or "platform" in sections):
+        operator_action = (operator.get("next_action") or {})
+        if operator_action.get("type") not in {None, "none"}:
+            actions.append({
+                "territory": "organizer" if "organizer" in sections else "platform",
+                "kind": "instruction",
+                "type": operator_action.get("type"),
+                "label": operator_action.get("label"),
+                "source": operator_action.get("source"),
+            })
+    if scanner_allowed:
+        actions.append({
+            "territory": "organizer",
+            "kind": "owner_handoff",
+            "type": "scanner",
+            "label": "Ouvrir Scanner",
+            "source": "scanner.permissions",
+            "url": f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
+        })
+
     relations = {
         "participant": participant is not None,
         "institutional_beneficiary": bool(institutional),
@@ -208,6 +241,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         "relations": relations,
         "sections": sections,
         "capabilities": capabilities,
+        "actions": actions,
         "presentation": {
             "role_switch_required": False,
             "simultaneous_sections": True,
@@ -216,7 +250,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         "knowledge": compose_live_knowledge(
             occurrence=occurrence,
             participant=participant,
-            operator=operator,
+            operator=(operator if ("organizer" in sections or "platform" in sections) else None),
             institutional=institutional,
             observed_at=observed_at,
         ),
