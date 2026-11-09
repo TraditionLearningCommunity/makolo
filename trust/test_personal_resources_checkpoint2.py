@@ -131,6 +131,30 @@ class PersonalTrustResourcesCheckpoint2Tests(TestCase):
         )
         self.assertContains(response, "Titres")
 
+    def test_private_resource_pages_are_no_store_but_public_verification_stays_public(self):
+        for url in (
+            reverse("trust:my-proofs"),
+            reverse("trust:proof-detail", args=[self.proof.pk]),
+            reverse("trust:my-credentials"),
+            reverse("trust:credential-detail", args=[self.credential.pk]),
+        ):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response["Cache-Control"],
+                    "private, no-store",
+                )
+
+        proof_verify = self.client.get(
+            reverse("trust:proof-verify", args=[self.proof.public_id])
+        )
+        self.assertEqual(proof_verify.status_code, 200)
+        self.assertNotEqual(
+            proof_verify.headers.get("Cache-Control"),
+            "private, no-store",
+        )
+
     def test_hub_links_to_distinct_proof_and_title_surfaces(self):
         response = self.client.get(reverse("personal_assets:list"))
         self.assertEqual(response.status_code, 200)
