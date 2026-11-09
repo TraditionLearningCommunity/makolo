@@ -6,6 +6,8 @@ from django.http import FileResponse, Http404
 from django.utils import timezone
 from django.utils.text import slugify
 
+from core.api.now_media_views import DOCX_MIME, MAX_DOCUMENT_TEXT, _docx_readable_text
+
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
@@ -213,15 +215,35 @@ class PersonalResourceVersionDownloadAPIView(PersonalProjectionAPIView):
         except PermissionDenied as exc:
             raise Http404 from exc
 
-        response = FileResponse(
-            version.file.open("rb"),
-            as_attachment=True,
-            filename=(
-                f"{slugify(version.asset.title) or 'document'}"
-                f"-v{version.version}"
-            ),
-            content_type=version.mime_type,
-        )
+        if request.query_params.get("view") == "text":
+            mime = (version.mime_type or "").lower().strip()
+            if mime == DOCX_MIME:
+                with version.file.open("rb") as source:
+                    readable = _docx_readable_text(source)
+            elif mime == "text/plain":
+                with version.file.open("rb") as source:
+                    raw = source.read(MAX_DOCUMENT_TEXT + 1)
+                if len(raw) > MAX_DOCUMENT_TEXT:
+                    raise Http404
+                readable = raw.decode("utf-8", errors="replace")
+            else:
+                raise Http404
+            response = HttpResponse(
+                readable,
+                content_type="text/plain; charset=utf-8",
+            )
+            response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+            response["Cross-Origin-Resource-Policy"] = "same-origin"
+        else:
+            response = FileResponse(
+                version.file.open("rb"),
+                as_attachment=True,
+                filename=(
+                    f"{slugify(version.asset.title) or 'document'}"
+                    f"-v{version.version}"
+                ),
+                content_type=version.mime_type,
+            )
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
         return response
