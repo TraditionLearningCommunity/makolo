@@ -1906,19 +1906,25 @@ def _existing_personal_journey(projection, *, profile):
 
     journeys = participant_journeys(profile).filter(
         activity_id=resource.get("id"),
-    ).exclude(status__in=TERMINAL_JOURNEY_STATUSES)
+    )
     occurrence = identity.get("occurrence")
     if isinstance(occurrence, dict) and occurrence.get("id"):
         journeys = journeys.filter(
             Q(occurrence_id=occurrence["id"]) | Q(occurrence__isnull=True)
         )
-    journey = journeys.order_by("-created_at", "-pk").first()
+    ongoing = journeys.exclude(status__in=TERMINAL_JOURNEY_STATUSES)
+    journey = ongoing.order_by("-created_at", "-pk").first()
+    active = journey is not None
+    if journey is None:
+        journey = journeys.filter(
+            status__in=TERMINAL_JOURNEY_STATUSES
+        ).order_by("-created_at", "-pk").first()
     if journey is None:
         return None
     return {
-        "state": "active",
+        "state": "active" if active else "finished",
         "resource": {"kind": "journey", "id": str(journey.pk)},
-        "label": "Reprendre ma démarche",
+        "label": "Reprendre ma démarche" if active else "Voir ma démarche",
         "links": {
             "native": f"/journeys/{journey.pk}",
             "web": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
