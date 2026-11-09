@@ -327,20 +327,14 @@ class _JourneyContent extends StatelessWidget {
       key: const Key('journey-detail-content'),
       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
       children: [
-        MakoloDetailHeader(
-          eyebrow: presentation.kindLabel,
-          title: presentation.title,
-          subtitle: presentation.summary,
-          status:
-              MakoloHumanization.presentationLabel(presentation.journeyState) ==
-                  null
-              ? null
-              : MakoloStatus(
-                  label: MakoloHumanization.presentationLabel(
-                    presentation.journeyState,
-                  )!,
-                ),
-        ),
+        _JourneyIdentity(presentation: presentation),
+        if (presentation.steps.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          MakoloSection(
+            title: 'Où j’en suis',
+            child: _JourneyPath(steps: presentation.steps),
+          ),
+        ],
         ?conversationEntry,
         if (presentation.canRespondInvitation) ...[
           Padding(
@@ -633,6 +627,243 @@ class _JourneyContent extends StatelessWidget {
     }
 
     return null;
+  }
+}
+
+/// Only the owner projection stored in ProfileStore feeds this header.
+class _JourneyIdentity extends StatelessWidget {
+  const _JourneyIdentity({required this.presentation});
+
+  final JourneyDetailPresentation presentation;
+
+  IconData get _symbol => switch (presentation.workflowKind) {
+    'purchase' => Icons.shopping_bag_outlined,
+    'reservation' => Icons.event_available_outlined,
+    'registration' => Icons.how_to_reg_outlined,
+    'invitation' => Icons.mark_email_read_outlined,
+    'service' => Icons.handyman_outlined,
+    'fulfillment' => Icons.task_alt_outlined,
+    'order_approval' => Icons.fact_check_outlined,
+    _ => Icons.route_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MakoloHumanization.presentationLabel(
+      presentation.journeyState,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner,
+        MakoloSpacing.lg,
+        MakoloSpacing.inner,
+        0,
+      ),
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          width: double.infinity,
+          color: const Color(0xFF2B176E),
+          padding: const EdgeInsets.all(MakoloSpacing.inner),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(MakoloSpacing.md),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5232DB),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(_symbol, color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: MakoloSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'MON OBJECTIF',
+                          style: TextStyle(
+                            color: Color(0xFFD5CCFF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          presentation.title,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (presentation.summary != null) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Text(
+                  presentation.summary!,
+                  style: const TextStyle(color: Color(0xFFE6DEFF)),
+                ),
+              ],
+              if (state != null || presentation.kindLabel != 'Démarche') ...[
+                const SizedBox(height: MakoloSpacing.lg),
+                Wrap(
+                  spacing: MakoloSpacing.md,
+                  runSpacing: MakoloSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (state != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.circle,
+                            color: Color(0xFFFFB29E),
+                            size: 9,
+                          ),
+                          const SizedBox(width: MakoloSpacing.sm),
+                          Text(
+                            state,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (presentation.kindLabel != 'Démarche')
+                      Text(
+                        presentation.kindLabel,
+                        style: const TextStyle(color: Color(0xFFD5CCFF)),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// JourneySteps are shown as facts, not a locally computed percentage/timeline.
+/// Dependencies are named only when the owner supplied both linked steps.
+class _JourneyPath extends StatelessWidget {
+  const _JourneyPath({required this.steps});
+
+  final List<JourneyStepSummary> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = steps.where((step) => !step.isTerminal).toList();
+    final past = steps.where((step) => step.isTerminal).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final step in active) ...[
+          _JourneyStepRow(step: step, allSteps: steps),
+          const SizedBox(height: MakoloSpacing.sm),
+        ],
+        if (past.isNotEmpty && active.isNotEmpty)
+          Card(
+            margin: EdgeInsets.zero,
+            child: ExpansionTile(
+              leading: const Icon(Icons.check_circle_outline_rounded),
+              title: Text(
+                '${past.length} étape${past.length > 1 ? 's' : ''} passée${past.length > 1 ? 's' : ''}',
+              ),
+              children: [
+                for (final step in past)
+                  _JourneyStepRow(step: step, allSteps: steps),
+              ],
+            ),
+          ),
+        if (active.isEmpty)
+          for (final step in past) ...[
+            _JourneyStepRow(step: step, allSteps: steps),
+            const SizedBox(height: MakoloSpacing.sm),
+          ],
+      ],
+    );
+  }
+}
+
+class _JourneyStepRow extends StatelessWidget {
+  const _JourneyStepRow({required this.step, required this.allSteps});
+
+  final JourneyStepSummary step;
+  final List<JourneyStepSummary> allSteps;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (step.status) {
+      'completed' => 'Terminée',
+      'skipped' => 'Non retenue',
+      'cancelled' => 'Annulée',
+      'in_progress' => 'En cours',
+      'blocked' => 'Bloquée',
+      'ready' => 'Prête',
+      'pending' => 'À venir',
+      _ => null,
+    };
+    final icon = switch (step.status) {
+      'completed' => Icons.check_circle_outline_rounded,
+      'skipped' || 'cancelled' => Icons.remove_circle_outline_rounded,
+      'blocked' => Icons.error_outline_rounded,
+      'in_progress' => Icons.radio_button_checked_rounded,
+      'ready' => Icons.play_circle_outline_rounded,
+      _ => Icons.radio_button_unchecked_rounded,
+    };
+    final dependencies = [
+      for (final id in step.dependsOn)
+        for (final candidate in allSteps)
+          if (candidate.id == id) candidate.title,
+    ];
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 24, color: const Color(0xFF5232DB)),
+            const SizedBox(width: MakoloSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (label != null)
+                    Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  if (dependencies.isNotEmpty)
+                    Text(
+                      'Après : ${dependencies.join(', ')}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
