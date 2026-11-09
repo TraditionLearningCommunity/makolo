@@ -813,7 +813,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 child: ListView(
                 key: const PageStorageKey<String>('organizer-scroll'),
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 44),
+                padding: EdgeInsets.fromLTRB(
+                  _mode == OrganizerMode.explorer ? 4 : 16,
+                  10,
+                  _mode == OrganizerMode.explorer ? 4 : 16,
+                  44,
+                ),
                 children: [
                   Center(
                     child: ConstrainedBox(
@@ -1196,7 +1201,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     return Column(
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.only(start: depth * 7.0),
+          padding: EdgeInsetsDirectional.only(start: depth * 3.0),
           child: Row(
             children: [
               if (expandable)
@@ -1204,7 +1209,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   key: Key('organizer-expand-$key'),
                   tooltip: expanded ? 'Replier ${item.title}' : 'Déplier ${item.title}',
                   visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 44),
                   padding: EdgeInsets.zero,
                   onPressed: _hasSelectionFilters
                       ? null
@@ -1220,44 +1225,71 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         ? Icons.keyboard_arrow_down_rounded
                         : Icons.chevron_right_rounded,
                   ),
-                  iconSize: 20,
+                  iconSize: 19,
                 )
               else
-                const SizedBox(width: 36),
+                const SizedBox(width: 28),
               Expanded(
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    item.icon,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text(
-                    item.title,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text([
-                    item.kindLabel,
-                    item.humanState,
-                    if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
-                      'Liée à ${item.dossierIds.toSet().length} dossiers',
-                    if (item.kind == 'journey' &&
-                        item.dossierIds.isNotEmpty &&
-                        !item.dossierIds.any((id) =>
-                            hierarchy.byKey.containsKey('dossier:$id')))
-                      'Dossier non chargé',
-                    if (item.kind == 'dossier' &&
-                        item.projectId != null &&
-                        !hierarchy.byKey.containsKey(
-                            'project:${item.projectId}'))
-                      'Projet non chargé',
-                    if (item.kind == 'dossier' &&
-                        hierarchy.additionalSharedLinks(item) > 0)
-                      organizerSharedLinksLabel(
-                        hierarchy.additionalSharedLinks(item),
-                      ),
-                  ].join(' · ')),
+                child: InkWell(
+                  key: Key('organizer-open-$key'),
+                  borderRadius: BorderRadius.circular(6),
                   onTap: () => widget.onOpenItem(item.kind, item.id),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: [
+                          Icon(
+                            item.icon,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  [
+                                    item.kindLabel,
+                                    item.humanState,
+                                    if (item.kind == 'journey' &&
+                                        item.dossierIds.toSet().length > 1)
+                                      'Liée à ${item.dossierIds.toSet().length} dossiers',
+                                    if (item.kind == 'journey' &&
+                                        item.dossierIds.isNotEmpty &&
+                                        !item.dossierIds.any((id) =>
+                                            hierarchy.byKey.containsKey('dossier:$id')))
+                                      'Dossier non chargé',
+                                    if (item.kind == 'dossier' &&
+                                        item.projectId != null &&
+                                        !hierarchy.byKey.containsKey(
+                                            'project:${item.projectId}'))
+                                      'Projet non chargé',
+                                    if (item.kind == 'dossier' &&
+                                        hierarchy.additionalSharedLinks(item) > 0)
+                                      organizerSharedLinksLabel(
+                                        hierarchy.additionalSharedLinks(item),
+                                      ),
+                                  ].join(' · '),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
