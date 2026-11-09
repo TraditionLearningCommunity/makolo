@@ -88,7 +88,11 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         repository: discovery,
         location: runtime.location,
         geoSearch: runtime.geoSearch,
-        onOpenActivity: (id) => context.push('/activities/$id'),
+        onOpenActivity: (id) => context.push(
+          query.isSpace
+              ? _contextualItemRoute('activity', id, query)
+              : '/activities/$id',
+        ),
         onOpenItem: (family, id) => context.push(
           _contextualItemRoute(family, id, query),
         ),
@@ -123,7 +127,11 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         mapConfig: runtime.mapConfig,
         location: runtime.location,
         geoSearch: runtime.geoSearch,
-        onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+        onOpenOccurrence: (id) {
+          // A Space occurrence cannot silently navigate into personal owner
+          // entitlements. The contextual item callback owns Space N3.
+          if (!query.isSpace) context.push('/occurrences/$id');
+        },
         onOpenItem: (family, id) async {
           await context.push<void>(
             _contextualItemRoute(family, id, query),
