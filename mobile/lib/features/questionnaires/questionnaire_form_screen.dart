@@ -13,6 +13,7 @@ import '../../repositories/draft_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
 import '../../sync/outbox/outbox_repository.dart';
 import 'questionnaire_repository.dart';
+import '../continuity/conversation_media_group.dart';
 import 'questionnaire_submit_coordinator.dart';
 
 class QuestionnaireFormScreen extends StatefulWidget {
@@ -271,6 +272,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                             onRetry: _refresh,
                           ))
                   : _FormContent(
+                      repository: widget.repository,
                       detail: detail,
                       answers: _answers,
                       errors: _serverErrors,
@@ -320,6 +322,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
 
 class _FormContent extends StatelessWidget {
   const _FormContent({
+    required this.repository,
     required this.detail,
     required this.answers,
     required this.errors,
@@ -332,6 +335,7 @@ class _FormContent extends StatelessWidget {
     required this.onSubmit,
   });
 
+  final QuestionnaireRepository repository;
   final QuestionnaireRequestDetail detail;
   final Map<String, dynamic> answers;
   final Map<String, dynamic> errors;
@@ -380,6 +384,14 @@ class _FormContent extends StatelessWidget {
             ),
             const SizedBox(height: MakoloSpacing.lg),
           ],
+          if (detail.media.isNotEmpty) ...[
+            ConversationMediaGroup(
+              download: repository.downloadMedia,
+              attachments: detail.media.map((item) => item.toViewerMap())
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
           if (refreshing) ...[
             const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
             const SizedBox(height: MakoloSpacing.md),
@@ -401,6 +413,7 @@ class _FormContent extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.lg),
           for (final question in detail.questions) ...[
             _QuestionField(
+              repository: repository,
               question: question,
               value: answers[question.key],
               error: errors[question.key]?.toString(),
@@ -412,6 +425,14 @@ class _FormContent extends StatelessWidget {
                   commit != MakoloCommitCue.awaitingConfirmation,
               onChanged: (value) => onChanged(question.key, value),
             ),
+            if (question.media.isNotEmpty &&
+                question.type != QuestionnaireQuestionType.singleChoice &&
+                question.type != QuestionnaireQuestionType.multipleChoice)
+              ConversationMediaGroup(
+                download: repository.downloadMedia,
+                attachments: question.media
+                    .map((item) => item.toViewerMap()).toList(growable: false),
+              ),
             const SizedBox(height: MakoloSpacing.inner),
           ],
           FilledButton.icon(
@@ -437,6 +458,7 @@ class _FormContent extends StatelessWidget {
 
 class _QuestionField extends StatelessWidget {
   const _QuestionField({
+    required this.repository,
     required this.question,
     required this.value,
     required this.onChanged,
@@ -444,6 +466,7 @@ class _QuestionField extends StatelessWidget {
     this.error,
   });
 
+  final QuestionnaireRepository repository;
   final QuestionnaireQuestion question;
   final Object? value;
   final ValueChanged<Object?> onChanged;
@@ -522,6 +545,7 @@ class _QuestionField extends StatelessWidget {
         );
       case QuestionnaireQuestionType.singleChoice:
         return _ChoiceField(
+          repository: repository,
           question: question,
           selected: value is String ? <String>{value as String} : const {},
           error: error,
@@ -535,6 +559,7 @@ class _QuestionField extends StatelessWidget {
             ? (value as List).map((item) => item.toString()).toSet()
             : <String>{};
         return _ChoiceField(
+          repository: repository,
           question: question,
           selected: selected,
           error: error,
@@ -556,6 +581,7 @@ class _QuestionField extends StatelessWidget {
 
 class _ChoiceField extends StatelessWidget {
   const _ChoiceField({
+    required this.repository,
     required this.question,
     required this.selected,
     required this.multiple,
@@ -564,6 +590,7 @@ class _ChoiceField extends StatelessWidget {
     this.error,
   });
 
+  final QuestionnaireRepository repository;
   final QuestionnaireQuestion question;
   final Set<String> selected;
   final bool multiple;
@@ -584,44 +611,110 @@ class _ChoiceField extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           if (question.helpText != null) Text(question.helpText!),
+          if (question.media.isNotEmpty)
+            ConversationMediaGroup(
+              download: repository.downloadMedia,
+              attachments: question.media
+                  .map((item) => item.toViewerMap()).toList(growable: false),
+            ),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final choice in question.choices)
-            if (multiple)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(choice),
-                value: selected.contains(choice),
-                onChanged: enabled
-                    ? (checked) {
-                        final next = Set<String>.from(selected);
-                        if (checked == true) {
-                          next.add(choice);
-                        } else {
-                          next.remove(choice);
-                        }
-                        onChanged(next);
-                      }
-                    : null,
-              )
-            else
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  selected.contains(choice)
-                      ? Icons.radio_button_checked_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                ),
-                title: Text(choice),
-                selected: selected.contains(choice),
-                enabled: enabled,
-                onTap: enabled ? () => onChanged(<String>{choice}) : null,
-              ),
+          for (var index = 0; index < question.choices.length; index++) ...[
+            _ChoiceMediaItem(
+              key: ValueKey('questionnaire-choice-${question.key}-$index'),
+              repository: repository,
+              question: question,
+              choice: question.choices[index],
+              index: index,
+              multiple: multiple,
+              selected: selected.contains(question.choices[index]),
+              enabled: enabled,
+              onTap: (checked) {
+                final value = question.choices[index];
+                if (multiple) {
+                  final next = Set<String>.from(selected);
+                  if (checked) { next.add(value); } else { next.remove(value); }
+                  onChanged(next);
+                } else {
+                  onChanged(<String>{value});
+                }
+              },
+            ),
+          ],
           if (error != null)
             Text(
               error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChoiceMediaItem extends StatelessWidget {
+  const _ChoiceMediaItem({
+    super.key,
+    required this.repository,
+    required this.question,
+    required this.choice,
+    required this.index,
+    required this.multiple,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final QuestionnaireRepository repository;
+  final QuestionnaireQuestion question;
+  final String choice;
+  final int index;
+  final bool multiple;
+  final bool selected;
+  final bool enabled;
+  final ValueChanged<bool> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = question.choiceMedia[index] ?? const <QuestionnaireMedia>[];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (multiple)
+              CheckboxListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                title: Text(choice),
+                value: selected,
+                onChanged: enabled ? (checked) => onTap(checked == true) : null,
+              )
+            else
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                leading: Icon(selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded),
+                title: Text(choice),
+                selected: selected,
+                enabled: enabled,
+                onTap: enabled ? () => onTap(true) : null,
+              ),
+            if (media.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                child: ConversationMediaGroup(
+                  download: repository.downloadMedia,
+                  attachments: media.map((item) => item.toViewerMap())
+                      .toList(growable: false),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
