@@ -208,11 +208,12 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
               now: DateTime.now(),
             );
             final available = presentation.available;
-            final unavailableWithoutContent =
-                !available &&
-                (source.invalidated ||
-                    source.reachability == ReachabilityState.unreachable) &&
-                !_refreshing;
+            // A missing local detail is not a transport failure. Keep the
+            // page in its normal shell; only an explicit owner denial removes it.
+            final ownerDenied = !available &&
+                source.invalidated &&
+                const {'permission_denied', 'not_found'}
+                    .contains(source.lastErrorCode);
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -224,14 +225,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
               ),
               availability: available
                   ? MakoloAvailabilityCue.content
-                  : _refreshing
+                  : _refreshing ||
+                        projectionSnapshot.connectionState ==
+                            ConnectionState.waiting
                   ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
+                  : MakoloAvailabilityCue.empty,
               reachability: source.reachability,
-              failure: unavailableWithoutContent
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: ownerDenied
+                  ? MakoloFailureCue.permissionDenied
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -253,7 +254,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de la démarche…',
                   ),
-                  blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
+                  empty: const MakoloEmptyState(
+                    title: 'Démarche non disponible',
+                    body: 'Aucun détail à afficher pour le moment.',
+                  ),
                   onRetry: _refresh,
                   content: _JourneyContent(
                     presentation: presentation,
