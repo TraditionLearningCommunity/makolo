@@ -845,6 +845,7 @@ GoRouter createMakoloRouter(
             onOpenDepth: (kind) => context.push(
               '/space/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
             ),
+            onOpenHistory: () => context.push('/space/history'),
             onOpenAccess: (accessId, detailPath) =>
                 context.push('/accesses/$accessId'),
             onPresentCredential: (accessId, credentialPath) => context.push(
