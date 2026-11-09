@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../platform/links/external_url_opener.dart';
 
 import '../../presentation/fields/geo_autocomplete_field.dart';
 import '../../presentation/fields/search_filter_bar.dart';
@@ -662,7 +662,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     );
     if (uri.scheme != 'https' && uri.scheme != 'http') return;
     try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await openExternalUrl(uri);
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Passeport public indisponible.')),

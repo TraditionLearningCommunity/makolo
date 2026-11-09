@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:path_provider/path_provider.dart';
+import '../../data/files/questionnaire_download_destination.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -402,10 +402,7 @@ class QuestionnaireRepository {
     final safeExt = RegExp(r'^\.[A-Za-z0-9]{1,9}$').hasMatch(ext)
         ? ext
         : '.bin';
-    final temp = await getTemporaryDirectory();
-    final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
-    final dir = Directory('${temp.path}/questionnaire-$safeProfile');
-    await dir.create(recursive: true);
+    final dir = await questionnaireDownloadDirectory(profileId);
     final nonce = Random.secure().nextInt(0x7fffffff).toRadixString(16);
     final file = File(
       '${dir.path}/$attachmentId-${DateTime.now().microsecondsSinceEpoch}-$nonce$safeExt',
