@@ -235,6 +235,17 @@ void main() {
       'proof',
       'credential',
     ]);
+    expect(
+      resources.items
+          .where(
+            (item) =>
+                item.destination.kind == 'personal_asset' ||
+                item.destination.kind == 'proof' ||
+                item.destination.kind == 'credential',
+          )
+          .every((item) => item.canOpen),
+      isTrue,
+    );
 
     final collectives = selection.territories.singleWhere(
       (territory) => territory.presentation.key == 'collectives',
