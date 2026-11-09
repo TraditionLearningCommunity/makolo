@@ -7,6 +7,7 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/resources/documents_screen.dart';
 import 'package:makolo_mobile/features/resources/resource_detail_screen.dart';
 import 'package:makolo_mobile/features/resources/resource_repository.dart';
+import 'package:makolo_mobile/features/resources/resources_screen.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_collection_screen.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_detail_screen.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_repository.dart';
@@ -60,6 +61,61 @@ Map<String, dynamic> _documentCollection(String id) => {
 };
 
 void main() {
+  testWidgets('resource hub keeps navigation and unknown counts when aggregate refresh fails', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = ResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    final source = repository.collectionSourceFor(query: '', offset: 0);
+    await _sourceState(
+      database,
+      sourceKey: source.sourceKey,
+      route: source.path,
+      error: 'transport_error',
+    );
+
+    var openedDocuments = false;
+    var openedProofs = false;
+    var openedTitles = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ResourcesScreen(
+          repository: repository,
+          onOpenDocuments: () => openedDocuments = true,
+          onOpenProofs: () => openedProofs = true,
+          onOpenTitles: () => openedTitles = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Les compteurs ne peuvent pas être actualisés pour le moment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Mes documents'), findsOneWidget);
+    expect(find.text('Mes preuves'), findsOneWidget);
+    expect(find.text('Mes titres'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+
+    await tester.tap(find.text('Mes documents'));
+    await tester.tap(find.text('Mes preuves'));
+    await tester.tap(find.text('Mes titres'));
+    expect(openedDocuments, isTrue);
+    expect(openedProofs, isTrue);
+    expect(openedTitles, isTrue);
+  });
+
   testWidgets('documents never turn a failed first acquisition into an empty state', (
     tester,
   ) async {
