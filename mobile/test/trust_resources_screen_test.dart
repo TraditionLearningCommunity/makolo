@@ -1,0 +1,285 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/resources/trust_resource_collection_screen.dart';
+import 'package:makolo_mobile/features/resources/trust_resource_detail_screen.dart';
+import 'package:makolo_mobile/features/resources/trust_resource_repository.dart';
+
+void main() {
+  testWidgets('Mes preuves is a searchable local-first Trust collection', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = TrustResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    await store.putProjection(
+      kind: TrustResourceFamily.proofs.collectionProjection,
+      resourceKey: repository.collectionResourceKey(
+        family: TrustResourceFamily.proofs,
+        query: '',
+        status: 'all',
+        type: '',
+        sort: 'recent',
+        offset: 0,
+      ),
+      schemaVersion: 1,
+      payload: {
+        'count': 2,
+        'query': null,
+        'status': 'all',
+        'proof_type': null,
+        'sort': 'recent',
+        'filter_options': {
+          'types': [
+            {'id': 'journey_completed', 'label': 'Journey accomplie'},
+            {'id': 'service_completed', 'label': 'Service complété'},
+          ],
+        },
+        'items': [
+          {
+            'id': 'proof-1',
+            'proof_type': 'journey_completed',
+            'proof_type_label': 'Journey accomplie',
+            'status': 'active',
+            'status_label': 'Active',
+            'issued_at': '2026-11-01T10:00:00Z',
+            'activity': {'title': 'Formation pratique'},
+          },
+          {
+            'id': 'proof-2',
+            'proof_type': 'service_completed',
+            'proof_type_label': 'Service complété',
+            'status': 'revoked',
+            'status_label': 'Révoquée',
+            'issued_at': '2026-10-01T10:00:00Z',
+            'activity': {'title': 'Service administratif'},
+          },
+        ],
+        'page': {'count': 2, 'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: TrustResourceCollectionScreen(
+          family: TrustResourceFamily.proofs,
+          repository: repository,
+          onOpenItem: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Mes preuves'), findsOneWidget);
+    expect(find.text('Toutes'), findsOneWidget);
+    expect(find.text('Actives'), findsOneWidget);
+    expect(find.text('Révoquées'), findsOneWidget);
+    expect(find.text('Journey accomplie'), findsOneWidget);
+    expect(find.text('Service complété'), findsOneWidget);
+    expect(find.byTooltip('Filtrer'), findsOneWidget);
+    expect(find.byTooltip('Trier'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Formation');
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Journey accomplie'), findsOneWidget);
+    expect(find.text('Service complété'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Mes titres keeps issuer status and type distinct', (tester) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = TrustResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    await store.putProjection(
+      kind: TrustResourceFamily.titles.collectionProjection,
+      resourceKey: repository.collectionResourceKey(
+        family: TrustResourceFamily.titles,
+        query: '',
+        status: 'all',
+        type: '',
+        sort: 'recent',
+        offset: 0,
+      ),
+      schemaVersion: 1,
+      payload: {
+        'count': 1,
+        'query': null,
+        'status': 'all',
+        'credential_type': null,
+        'sort': 'recent',
+        'filter_options': {
+          'types': [
+            {'id': 'completion', 'label': 'Certificat de complétion'},
+          ],
+        },
+        'items': [
+          {
+            'id': 'credential-1',
+            'title': 'Certificat Makolo',
+            'credential_type': 'completion',
+            'credential_type_label': 'Certificat de complétion',
+            'status': 'issued',
+            'status_label': 'Valide',
+            'issued_at': '2026-11-02T10:00:00Z',
+            'issuer': {'name': 'Institut Makolo'},
+            'activity': {'title': 'Formation pratique'},
+          },
+        ],
+        'page': {'count': 1, 'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: TrustResourceCollectionScreen(
+          family: TrustResourceFamily.titles,
+          repository: repository,
+          onOpenItem: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Mes titres'), findsOneWidget);
+    expect(find.text('Certificat Makolo'), findsOneWidget);
+    expect(find.textContaining('Institut Makolo · Valide'), findsOneWidget);
+    expect(find.text('Valides'), findsOneWidget);
+    expect(find.text('Révoqués'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('proof detail is read-only and exposes public verification', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = TrustResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    await store.putProjection(
+      kind: TrustResourceFamily.proofs.detailProjection,
+      resourceKey: 'proof-1',
+      schemaVersion: 1,
+      payload: {
+        'id': 'proof-1',
+        'proof_type': 'journey_completed',
+        'proof_type_label': 'Journey accomplie',
+        'status': 'active',
+        'status_label': 'Active',
+        'issued_at': '2026-11-01T10:00:00Z',
+        'activity': {'title': 'Formation pratique'},
+        'journey': {'id': 'journey-1'},
+        'occurrence': {'label': 'Session finale'},
+        'revocation': {'revoked_at': null, 'reason': null},
+        'links': {'verify': '/trust/proofs/verify/public-proof/'},
+      },
+    );
+
+    var openedJourney = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: TrustResourceDetailScreen(
+          family: TrustResourceFamily.proofs,
+          id: 'proof-1',
+          repository: repository,
+          onOpenJourney: (_) => openedJourney = true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Journey accomplie'), findsOneWidget);
+    expect(find.text('Formation pratique'), findsOneWidget);
+    expect(find.text('Session finale'), findsOneWidget);
+    expect(find.byTooltip('Vérifier'), findsOneWidget);
+    expect(find.text('Modifier'), findsNothing);
+    expect(find.text('Supprimer'), findsNothing);
+
+    await tester.tap(find.text('Voir la démarche'));
+    expect(openedJourney, isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('revoked title detail keeps statement issuer and revocation', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = TrustResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    await store.putProjection(
+      kind: TrustResourceFamily.titles.detailProjection,
+      resourceKey: 'credential-1',
+      schemaVersion: 1,
+      payload: {
+        'id': 'credential-1',
+        'title': 'Certificat Makolo',
+        'credential_type': 'completion',
+        'credential_type_label': 'Certificat de complétion',
+        'status': 'revoked',
+        'status_label': 'Révoquée',
+        'statement': 'Formation terminée.',
+        'issued_at': '2026-11-01T10:00:00Z',
+        'issuer': {'name': 'Institut Makolo'},
+        'activity': {'title': 'Formation pratique'},
+        'journey': {'id': 'journey-1'},
+        'occurrence': {'label': 'Session finale'},
+        'revocation': {
+          'revoked_at': '2026-11-05T10:00:00Z',
+          'reason': 'Titre remplacé',
+        },
+        'links': {'verify': '/trust/credentials/verify/public-title/'},
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: TrustResourceDetailScreen(
+          family: TrustResourceFamily.titles,
+          id: 'credential-1',
+          repository: repository,
+          onOpenJourney: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Certificat Makolo'), findsOneWidget);
+    expect(find.text('Certificat de complétion'), findsOneWidget);
+    expect(find.text('Institut Makolo'), findsWidgets);
+    expect(find.text('Formation terminée.'), findsOneWidget);
+    expect(find.text('Titre remplacé'), findsOneWidget);
+    expect(find.byTooltip('Vérifier'), findsOneWidget);
+    expect(find.text('Modifier'), findsNothing);
+    expect(find.text('Supprimer'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+}
