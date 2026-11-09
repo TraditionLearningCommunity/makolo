@@ -378,6 +378,8 @@ def main(argv=None):
         p.error('--include-existing --apply exige --backup')
     if a.include_existing and a.mode == 'full':
         p.error('--mode full ne peut pas etre combine a --include-existing')
+    if a.mode == 'full' and a.apply and not (a.backup or a.output):
+        p.error('--mode full --apply exige --backup ou --output')
     source=Path(a.database).resolve()
     if not source.is_file(): p.error('Base introuvable: '+str(source))
     if a.in_place and a.output: p.error('--in-place et --output sont incompatibles')
