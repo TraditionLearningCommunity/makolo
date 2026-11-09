@@ -772,7 +772,83 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
   }
 
-  String? get _focusedPointId => _justPublishedPointId ?? widget.focusPointId;
+  String? get _focusedPointId => _attentionFocusedId ??
+      _justPublishedPointId ?? widget.focusPointId;
+  String? _attentionFocusedId;
+
+  void _openAttentionPoint(String pointId) {
+    if (pointId.isEmpty) return;
+    setState(() {
+      _attentionFocusedId = pointId;
+      _handledFocus = null;
+    });
+    unawaited(_refreshPublishedFocus(pointId));
+  }
+
+  Widget _attentionLens(BuildContext context, Map<String, dynamic> raw) {
+    final focus = _map(raw);
+    final count = focus['action_count'] is num
+        ? (focus['action_count'] as num).toInt() : 0;
+    final mine = _maps(focus['for_me']);
+    final decisions = _maps(focus['to_resolve']);
+    final knowledge = _maps(focus['to_know']);
+    if (count == 0 && knowledge.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    Widget group(String name, List<Map<String, dynamic>> entries) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 3),
+          child: Text('$name · ${entries.length}',
+              style: theme.textTheme.labelLarge),
+        ),
+        for (final item in entries)
+          ListTile(
+            dense: true,
+            key: Key('conversation-attention-${item['id']}'),
+            title: Text(item['label']?.toString() ?? 'Point',
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+            subtitle: Text(item['reason_label']?.toString() ?? ''),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+            onTap: () => _openAttentionPoint(
+              item['id']?.toString() ?? '',
+            ),
+          ),
+      ],
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: ExpansionTile(
+          key: const PageStorageKey('conversation-attention-lens'),
+          leading: const Icon(Icons.fact_check_outlined),
+          title: Text(count > 0
+              ? 'À présent · $count action(s) à traiter'
+              : 'À présent · aucune action due'),
+          subtitle: Text(knowledge.isNotEmpty
+              ? '${knowledge.length} information(s) à savoir'
+              : 'Ouvrir pour accéder aux Points concernés'),
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.38,
+              ),
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  group('Pour moi', mine),
+                  group('À régler', decisions),
+                  group('À savoir', knowledge),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -876,6 +952,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         _loadingOlder = false;
         _olderError = null;
         _expandedCompletedGroups.clear();
+        _attentionFocusedId = null;
         if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
       }
       _handledFocus = null;
@@ -1883,6 +1960,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               ),
               body: Column(
                 children: [
+                  if (available && permitted)
+                    _attentionLens(context, _map(projection?.payload['attention'])),
                   if (available && permitted && _newMessagesAvailable)
                     Align(
                       alignment: Alignment.center,
