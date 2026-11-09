@@ -389,3 +389,79 @@ notamment la rotation complète des 50 choix pour deux Profils, la transmission
 de `--profile-username`, les textes déterministes et les scénarios de
 Conversations. Le workflow `demo-generation-validation.yml` est le gate
 CI applicable avant toute fusion.
+
+
+## Boîte à outils d'entretien — PR #522 (novembre 2026)
+
+La source durable est le code GitHub. Les opérations sur une SQLite de démonstration
+sont **manuelles** : aucune commande n'est lancée par un scheduler, le démarrage
+du serveur ou un déploiement normal. Sans `--apply`, elles présentent un aperçu.
+
+La commande unique demeure `python -m scripts.demo_generation` :
+
+```bash
+# Génération initiale ou complément (prévisualisation puis application).
+python -m scripts.demo_generation plan --domains funding,services,obtention --count 20
+python -m scripts.demo_generation maintain --action complete --domains funding,services,obtention --count 20
+python -m scripts.demo_generation maintain --action complete --domains funding,services,obtention --count 20 --apply --backup
+
+# Recalage : tous les slugs d'Activity commençant par demo-, pas seulement demo-2026-q4-.
+python -m scripts.demo_generation timeline --database db.sqlite3 --demo-live --mode safe
+python -m scripts.demo_generation timeline --database db.sqlite3 --demo-live --mode safe --backup --apply
+
+# Cibler une sous-famille; full est un voyage temporel historique explicite.
+python -m scripts.demo_generation timeline --activity-prefix demo-generation- --limit 20
+python -m scripts.demo_generation timeline --activity-prefix demo-generation- --mode full --backup --apply
+
+# Rééquilibrage borné des favoris des profils et des suivis d'Espaces synthétiques.
+python -m scripts.demo_generation rebalance --target profiles --per-profile 3 --count 50
+python -m scripts.demo_generation rebalance --target profiles --per-profile 3 --count 50 --apply
+python -m scripts.demo_generation rebalance --target spaces --per-profile 2 --count 50 --apply --backup
+python -m scripts.demo_generation rebalance --target periods --demo-live --limit 30 --apply
+
+# Actualisation éditoriale déterministe et répétable pour une édition donnée.
+python -m scripts.demo_generation maintain --action refresh --edition 2 --count 20
+python -m scripts.demo_generation maintain --action refresh --edition 2 --count 20 --apply --backup
+
+# Entretien réversible : archiver uniquement les Activities demo sans dépendance métier.
+python -m scripts.demo_generation maintain --action retire --older-than-days 30 --count 10
+python -m scripts.demo_generation maintain --action retire --older-than-days 30 --count 10 --apply --backup
+python -m scripts.demo_generation maintain --action restore --count 10 --apply
+```
+
+### Périmètre et protection des relations
+
+- Le namespace technique d'Activity `demo-*` est commun à la génération, au
+  recalage et aux opérations d'entretien. Le préfixe peut être **restreint** par
+  `--activity-prefix`, jamais élargi silencieusement à des Activities réelles.
+- `timeline --mode safe` ne recale pas une Occurrence annulée/terminée,
+  un Access déjà utilisé ou un Journey terminal. Il actualise les fenêtres
+  des relations actives sans déplacer les dates historiques d'usage, de
+  révocation ou d'achèvement. `--mode full` permet le déplacement historique
+  **explicitement** pour les seuls scénarios synthétiques visés.
+- `--include-existing` pour inclure les Occurrences non synthétiques reste
+  une option exceptionnelle : une application exige `--backup` et ne peut
+  pas être combinée avec `--mode full`.
+- `rebalance --target profiles` ajoute au plus `--per-profile` favoris de
+  démonstration par utilisateur `world_*` ; `spaces` équilibre les suivis
+  d'Espaces synthétiques par ces profils. Ces opérations **ne changent pas**
+  les propriétaires, l'appartenance Team, les Mandates, les Journey ou Payment.
+- `maintain --action complete` **réutilise** les générateurs existants et leurs
+  chemins idempotents, sans moteur ORM parallèle. Selon le domaine, il peut
+  donc aussi créer une fondation manquante. `--domains all --apply` nécessite
+  l'autorisation explicite `--grant-roles` existante.
+- `refresh` ne modifie que `short_description` des Activities synthétiques
+  éligibles, avec un texte stable par `--edition` ; `retire` archive sans
+  supprimer des lignes et refuse les Activities liées aux Occurrences,
+  Journeys, Access, Event, Offer ou Contributions Funding. `restore` réactive
+  les Activities archivées sélectionnées.
+- Les mutations éditoriales et les archives sont limitées aux propriétaires de
+  démonstration `world_*` (Profil ou créateur de Space). Cela ne prétend
+  pas entretenir les comptes bêta ou d'autres environnements.
+- `--backup` crée une sauvegarde SQLite avant toute écriture de maintenance ;
+  aucune sauvegarde automatique implicite n'est créée. Des échecs d'opérations
+  propriétaire sont rapportés, pas compensés par des permissions inventées.
+
+Ces commandes permettent de maintenir un univers de démo vivant, sans
+supprimer les historiques ni fabriquer des attestations externes. Une
+couverture réaliste n'exige ni table entièrement remplie ni volume arbitraire.
