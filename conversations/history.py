@@ -59,13 +59,10 @@ def _history_start(profile, conversation):
         return None
     if can_manage_conversation(profile, conversation):
         return None
-    membership = ConversationParticipation.objects.filter(
-        conversation=conversation, profile=profile,
-        status=ConversationParticipationStatus.ACTIVE,
-    ).first()
-    # Without an explicit participation the owner's FROM_JOIN start is
-    # unknown, so the historical projection fails closed.
-    return membership.joined_at if membership is not None else timezone.now()
+    from .participant_services import profile_conversation_since
+    # An accepted collective can now provide an auditable admission time,
+    # never earlier than both consent and the real canonical membership.
+    return profile_conversation_since(profile, conversation) or timezone.now()
 
 
 def _matching_visible_content(profile, point, term):
