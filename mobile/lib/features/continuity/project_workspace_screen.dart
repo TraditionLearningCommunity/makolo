@@ -1398,9 +1398,24 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   pageSnapshot.data ?? const [],
                   detail.receivedAt,
                 );
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView(
+                return NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    if (notification.metrics.axis != Axis.vertical ||
+                        notification.metrics.extentAfter > 450 ||
+                        !more ||
+                        _offline ||
+                        source.invalidated ||
+                        _loadingMore ||
+                        _refreshing ||
+                        _failed) {
+                      return false;
+                    }
+                    unawaited(_more(offset));
+                    return false;
+                  },
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
                     key: const PageStorageKey<String>(
                       'project-workspace-scroll',
                     ),
@@ -1432,17 +1447,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                 _dossierList(project, rows)
                               else
                                 _calendar(project, rows),
-                              if (more)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 18),
-                                  child: MakoloActionButton(
-                                    label: _offline ? 'Suite après reconnexion' : 'Charger davantage de dossiers visibles',
-                                    onPressed: _offline || _loadingMore
-                                        ? null
-                                        : () => _more(offset),
-                                    appearance: MakoloActionAppearance.secondary,
-                                    icon: Icons.add_rounded,
-                                    busy: _loadingMore,
+                              if (more && !_offline && !_failed)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 18),
+                                  child: Center(
+                                    child: CircularProgressIndicator.adaptive(),
                                   ),
                                 ),
                               if (_failed)
@@ -1457,6 +1466,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         ),
                       ),
                     ],
+                    ),
                   ),
                 );
               },
