@@ -18,6 +18,7 @@ from organizations.models import Organization
 
 from .attention import has_conversation_attention
 from .point_interactions import point_interactions_for_profile
+from .participant_services import collective_invitation_inbox
 from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
 from .timeline import recent_timeline_for_profile, timeline_presentation
@@ -963,6 +964,19 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 for invitation in invitations
             ],
             "count": len(invitations),
+            "collective_results": [
+                {
+                    "id": str(item.pk),
+                    "conversation_id": str(item.conversation_id),
+                    "kind": "space" if item.space_id else "group",
+                    "identifier": item.space.slug if item.space_id else item.group.slug,
+                    "label": item.space.name if item.space_id else item.group.name,
+                    "status": item.status,
+                    "expires_at": item.expires_at,
+                    "created_at": item.created_at,
+                }
+                for item in collective_invitation_inbox(request.user)
+            ],
         })
 
 
