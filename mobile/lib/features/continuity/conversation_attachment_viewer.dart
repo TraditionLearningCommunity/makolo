@@ -468,6 +468,16 @@ class _ConversationAttachmentViewerState
             }
             return Column(
               children: [
+                if ((_attachment['caption']?.toString().trim() ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      _attachment['caption'].toString().trim(),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.all(12),
