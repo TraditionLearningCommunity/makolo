@@ -33,43 +33,75 @@ class ObjectiveRepository {
     ObjectiveDepth.project => projectProjectionKind,
   };
 
-  String sourceKey(ObjectiveDepth kind, String id) {
+  // The authenticated Profile owns the local database, but a Space
+  // presentation has its own read snapshot and source status. Never reuse a
+  // Dossier cached under another active Space.
+  static String contextQuery(String? spaceSlug) => spaceSlug == null
+      ? ''
+      : '?context=space&space=${Uri.encodeQueryComponent(spaceSlug)}';
+
+  static String detailResourceKey(String id, {String? spaceSlug}) =>
+      spaceSlug == null ? id : '$id:space:$spaceSlug';
+
+  String sourceKey(ObjectiveDepth kind, String id, {String? spaceSlug}) {
     final prefix = kind == ObjectiveDepth.dossier ? 'dossier' : 'project';
-    return '$prefix:$id';
+    return '$prefix:${detailResourceKey(id, spaceSlug: spaceSlug)}';
   }
 
-  SyncSourceDefinition sourceFor(ObjectiveDepth kind, String id) {
+  SyncSourceDefinition sourceFor(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) {
     final segment = kind == ObjectiveDepth.dossier ? 'dossiers' : 'projects';
     return SyncSourceDefinition.projectionEnvelope(
-      sourceKey: sourceKey(kind, id),
+      sourceKey: sourceKey(kind, id, spaceSlug: spaceSlug),
       owner: 'Objectives',
-      path: 'api/v1/objectives/$segment/$id/',
+      path: 'api/v1/objectives/$segment/$id/${contextQuery(spaceSlug)}',
       projectionKind: projectionKind(kind),
-      resourceKey: id,
+      resourceKey: detailResourceKey(id, spaceSlug: spaceSlug),
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: freshnessPolicy,
     );
   }
 
-  Stream<StoredProjection?> watch(ObjectiveDepth kind, String id) =>
-      store.watchProjection(projectionKind(kind), resourceKey: id);
+  Stream<StoredProjection?> watch(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) => store.watchProjection(
+    projectionKind(kind),
+    resourceKey: detailResourceKey(id, spaceSlug: spaceSlug),
+  );
 
-  Future<StoredProjection?> read(ObjectiveDepth kind, String id) =>
-      store.readProjection(projectionKind(kind), resourceKey: id);
+  Future<StoredProjection?> read(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) => store.readProjection(
+    projectionKind(kind),
+    resourceKey: detailResourceKey(id, spaceSlug: spaceSlug),
+  );
 
-  Stream<OwnerSourceState> watchSource(ObjectiveDepth kind, String id) =>
-      watchOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: sourceKey(kind, id),
-      );
+  Stream<OwnerSourceState> watchSource(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) => watchOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: sourceKey(kind, id, spaceSlug: spaceSlug),
+  );
 
-  Future<OwnerSourceState> readSource(ObjectiveDepth kind, String id) =>
-      readOwnerSourceState(
-        database: database,
-        profileId: profileId,
-        sourceKey: sourceKey(kind, id),
-      );
+  Future<OwnerSourceState> readSource(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) => readOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: sourceKey(kind, id, spaceSlug: spaceSlug),
+  );
 
   // One owner-scoped three-kind window shared by Cartes, Liste and Explorateur.
   // Separate from the historic shallow Project/Dossier collection sources.
@@ -226,11 +258,15 @@ class ObjectiveRepository {
     await engine.refreshSource(collectionSourceFor(kind, offset: offset));
   }
 
-  Future<void> refresh(ObjectiveDepth kind, String id) async {
+  Future<void> refresh(
+    ObjectiveDepth kind,
+    String id, {
+    String? spaceSlug,
+  }) async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Remote Objectives owner is not configured.');
     }
-    await engine.refreshSource(sourceFor(kind, id));
+    await engine.refreshSource(sourceFor(kind, id, spaceSlug: spaceSlug));
   }
 }

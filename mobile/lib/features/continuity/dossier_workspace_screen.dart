@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../design/action_controls.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -82,6 +84,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
     this.api,
     this.conversations,
     this.onOpenConversation,
+    this.actorContext,
   });
   final String id;
   final ObjectiveRepository repository;
@@ -90,6 +93,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final ValueChanged<String>? onOpenProject;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
+  final ActorContextController? actorContext;
 
   @override
   State<DossierWorkspaceScreen> createState() => _DossierWorkspaceState();
@@ -104,25 +108,67 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   _ListSort _sort = _ListSort.recent;
   _TimeScale _timeScale = _TimeScale.month;
   String _filter = 'all';
+  String? _spaceSlug;
   bool _refreshing = false, _busy = false, _failed = false;
+
+  String? get _selectedSpaceSlug {
+    final actor = widget.actorContext?.value;
+    return actor is SpaceActorContext ? actor.space.slug : null;
+  }
+
+  String get _scopeQuery => ObjectiveRepository.contextQuery(_spaceSlug);
+
+  void _actorChanged() {
+    final next = _selectedSpaceSlug;
+    if (!mounted || next == _spaceSlug) return;
+    _search.clear();
+    setState(() {
+      _spaceSlug = next;
+      _mode = _DossierMode.overview;
+      _refreshing = false;
+      _busy = false;
+      _failed = false;
+      _bind();
+    });
+    // A new Space lens must never display another Space's cached detail.
+    unawaited(_refresh());
+  }
 
   @override
   void initState() {
     super.initState();
+    _spaceSlug = _selectedSpaceSlug;
+    widget.actorContext?.addListener(_actorChanged);
     _bind();
     _search.addListener(_changed);
     unawaited(_acquire());
   }
 
   void _bind() {
-    _detail = widget.repository.watch(ObjectiveDepth.dossier, widget.id);
-    _owner = widget.repository.watchSource(ObjectiveDepth.dossier, widget.id);
+    _detail = widget.repository.watch(
+      ObjectiveDepth.dossier,
+      widget.id,
+      spaceSlug: _spaceSlug,
+    );
+    _owner = widget.repository.watchSource(
+      ObjectiveDepth.dossier,
+      widget.id,
+      spaceSlug: _spaceSlug,
+    );
   }
 
   @override
   void didUpdateWidget(covariant DossierWorkspaceScreen old) {
     super.didUpdateWidget(old);
-    if (old.id != widget.id || old.repository != widget.repository) {
+    if (old.actorContext != widget.actorContext) {
+      old.actorContext?.removeListener(_actorChanged);
+      widget.actorContext?.addListener(_actorChanged);
+    }
+    final nextSpace = _selectedSpaceSlug;
+    if (old.id != widget.id ||
+        old.repository != widget.repository ||
+        nextSpace != _spaceSlug) {
+      _spaceSlug = nextSpace;
       _bind();
       _mode = _DossierMode.overview;
       _transform.value = Matrix4.identity();
@@ -132,6 +178,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   @override
   void dispose() {
+    widget.actorContext?.removeListener(_actorChanged);
     _search.removeListener(_changed);
     _search.dispose();
     _transform.dispose();
@@ -150,10 +197,16 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   Future<void> _acquire() async {
     final repo = widget.repository;
     final id = widget.id;
+    final spaceSlug = _spaceSlug;
     try {
-      final cached = await repo.read(ObjectiveDepth.dossier, id);
-      final source = await repo.readSource(ObjectiveDepth.dossier, id);
-      if (!mounted || widget.id != id || widget.repository != repo) return;
+      final cached = await repo.read(
+        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+      );
+      final source = await repo.readSource(
+        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+      );
+      if (!mounted || widget.id != id ||
+          widget.repository != repo || _spaceSlug != spaceSlug) return;
       if (cached == null ||
           cached.payload['visible_journeys_complete'] != true ||
           ObjectiveRepository.freshnessPolicy.evaluate(
@@ -165,7 +218,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         unawaited(_refresh());
       }
     } on Object {
-      if (mounted && repo == widget.repository) setState(() => _failed = true);
+      if (mounted && repo == widget.repository && _spaceSlug == spaceSlug) {
+        setState(() => _failed = true);
+      }
     }
   }
 
@@ -173,16 +228,23 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (_refreshing) return;
     final repo = widget.repository;
     final id = widget.id;
+    final spaceSlug = _spaceSlug;
     setState(() {
       _refreshing = true;
       _failed = false;
     });
     try {
-      await repo.refresh(ObjectiveDepth.dossier, id);
+      await repo.refresh(
+        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+      );
     } on Object {
-      if (mounted && id == widget.id) setState(() => _failed = true);
+      if (mounted && id == widget.id && _spaceSlug == spaceSlug) {
+        setState(() => _failed = true);
+      }
     } finally {
-      if (mounted && id == widget.id) setState(() => _refreshing = false);
+      if (mounted && id == widget.id && _spaceSlug == spaceSlug) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
@@ -199,27 +261,34 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     bool edit = false,
   }) async {
     if (!_canMutate) return false;
+    final spaceSlug = _spaceSlug;
     setState(() => _busy = true);
     try {
       final before = await widget.repository.read(
         ObjectiveDepth.dossier,
         widget.id,
+        spaceSlug: spaceSlug,
       );
+      if (spaceSlug != _spaceSlug) return false;
       final oldParent = _text(_map(before?.payload['parent_project'])['id']);
       if (edit) {
-        await widget.api!.patch(_path, body: fields);
+        await widget.api!.patch('$_path$_scopeQuery', body: fields);
       } else {
         await widget.api!.post(
-          '${_path}actions/',
+          '${_path}actions/$_scopeQuery',
           body: {'action': action, ...fields},
         );
       }
+      if (spaceSlug != _spaceSlug) return false;
       try {
-        await widget.repository.refresh(ObjectiveDepth.dossier, widget.id);
+        await widget.repository.refresh(
+          ObjectiveDepth.dossier, widget.id, spaceSlug: spaceSlug,
+        );
         await widget.repository.refreshOrganizerPage(0);
         final refreshed = await widget.repository.read(
           ObjectiveDepth.dossier,
           widget.id,
+          spaceSlug: spaceSlug,
         );
         final newParent = _text(
           _map(refreshed?.payload['parent_project'])['id'],
@@ -1736,11 +1805,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       ],
     ),
     body: StreamBuilder<OwnerSourceState>(
+      key: ValueKey<String>('dossier-owner:${widget.id}:${_spaceSlug ?? 'personal'}'),
       stream: _owner,
       initialData: OwnerSourceState.unknown,
       builder: (context, ownerSnapshot) {
         final owner = ownerSnapshot.data ?? OwnerSourceState.unknown;
         return StreamBuilder<StoredProjection?>(
+          key: ValueKey<String>('dossier-detail:${widget.id}:${_spaceSlug ?? 'personal'}'),
           stream: _detail,
           builder: (context, detailSnapshot) {
             if (owner.invalidated) {
@@ -1766,7 +1837,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             return RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
-                key: const PageStorageKey<String>('dossier-workspace-scroll'),
+                key: PageStorageKey<String>(
+                  'dossier-workspace-scroll:${_spaceSlug ?? 'personal'}',
+                ),
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 13, 16, 49),
                 children: [

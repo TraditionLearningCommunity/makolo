@@ -206,6 +206,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       return DossierWorkspaceScreen(
         id: state.pathParameters['id']!,
         repository: repository,
+        actorContext: runtime.actorContext,
         api: runtime.api,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
