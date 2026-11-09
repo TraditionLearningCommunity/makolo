@@ -28,7 +28,7 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
     def _resolve(
         self, *, participant=None, operator=None, institutional=None,
         owner_operations=False, finance=False, scanner=False, platform=False,
-        phase="live", surface="day_of",
+        phase="live", surface="day_of", extra_grants=(),
     ):
         participant = participant
         institutional = [] if institutional is None else institutional
@@ -36,6 +36,7 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
             return (
                 (permission == PermissionCode.ACTIVITY_FINANCE_VIEW and finance)
                 or (permission == PermissionCode.ACTIVITY_OPERATIONS_VIEW and owner_operations)
+                or permission in extra_grants
             )
 
         with (
@@ -116,6 +117,22 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
             fact.get("domain") == "organizer"
             for fact in data["knowledge"]["facts"]
         ))
+
+    def test_finance_logistics_and_scanner_permissions_are_cumulative(self):
+        data = self._resolve(
+            finance=True, scanner=True,
+            extra_grants=(
+                PermissionCode.ACTIVITY_CAPACITY_VIEW,
+                PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+            ),
+        )
+        self.assertTrue(data["relations"]["organizer"])
+        self.assertEqual(
+            {"scanner", "finance_view", "capacity_view", "commerce_manage"}
+            - set(data["capabilities"]),
+            set(),
+        )
+        self.assertFalse(data["presentation"]["role_switch_required"])
 
     def test_platform_only_is_not_organizer(self):
         operator = {"perspective": "operator", "queue": []}
