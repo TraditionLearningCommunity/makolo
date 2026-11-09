@@ -171,6 +171,13 @@ def conversation_point_media_sections(point, profile):
     """
     from conversations.rich_services import visible_attachments_for_profile
     from conversations.semantic_media import response_media_label
+    from conversations.point_interactions import point_interactions_for_profile
+    interaction = point_interactions_for_profile(profile, point)
+    my_response = (interaction["my_response"] or {}).get("value")
+    mine = set(str(item) for item in my_response) if isinstance(my_response, list) else (
+        {str(my_response)} if my_response is not None else set()
+    )
+    results = (interaction["poll_results"] or {}).get("counts", {})
     visible = visible_attachments_for_profile(profile, point, limit=100)
     root, option_map, response_map = [], {}, {}
     for attachment in visible:
@@ -184,6 +191,8 @@ def conversation_point_media_sections(point, profile):
             root.append(attachment)
     choices = [
         {"id": str(option.pk), "label": option.label,
+         "selected": str(option.pk) in mine,
+         "count": results.get(str(option.pk)) if interaction["poll_results"] is not None else None,
          "files": option_map.get(str(option.pk), [])}
         for option in point.options.all()
     ]
