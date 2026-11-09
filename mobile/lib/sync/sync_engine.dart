@@ -29,6 +29,7 @@ class _SyncCoordinator {
   final Map<String, int> generations = {};
   final Map<String, int> discoveryEpochs = {};
   final Map<String, int> accessEpochs = {};
+  final Map<String, int> personalResourceEpochs = {};
   final Map<String, int> spaceEpochs = {};
   final Map<String, int> spaceInventoryEpochs = {};
 }
@@ -208,6 +209,8 @@ class SyncEngine {
   int get _discoveryRevocationEpoch =>
       _coordinator.discoveryEpochs[profileId] ?? 0;
   int get _accessRevocationEpoch => _coordinator.accessEpochs[profileId] ?? 0;
+  int get _personalResourceRevocationEpoch =>
+      _coordinator.personalResourceEpochs[profileId] ?? 0;
   int _spaceEpoch(String spaceId) =>
       _coordinator.spaceEpochs['$profileId|$spaceId'] ?? 0;
   int get _spaceInventoryEpoch =>
@@ -291,13 +294,6 @@ class SyncEngine {
     _ => null,
   };
 
-  static String? _resourceFamilyForCollection(String kind) => switch (kind) {
-    'personal.me.resources' => 'all',
-    'personal.proofs' => 'proofs',
-    'personal.titles' => 'credentials',
-    _ => null,
-  };
-
   static Map<String, dynamic>? _resourceMap(Object? value) {
     if (value is Map<String, dynamic>) {
       return Map<String, dynamic>.from(value);
@@ -353,14 +349,15 @@ class SyncEngine {
     };
     final count = familyPayload['count'];
     if (count is int) {
-      updatedFamily['count'] = (count - removed).clamp(0, count);
+      updatedFamily['count'] = (count - removed).clamp(0, count).toInt();
     }
     final page = _resourceMap(familyPayload['page']);
     if (page != null) {
       final pageCount = page['count'];
       updatedFamily['page'] = {
         ...page,
-        if (pageCount is int) 'count': (pageCount - removed).clamp(0, pageCount),
+        if (pageCount is int)
+          'count': (pageCount - removed).clamp(0, pageCount).toInt(),
       };
     }
     return {...payload, family: updatedFamily};
@@ -382,7 +379,9 @@ class SyncEngine {
     final removed = items.length - retained.length;
     final updated = <String, dynamic>{...payload, 'items': retained};
     final count = payload['count'];
-    if (count is int) updated['count'] = (count - removed).clamp(0, count);
+    if (count is int) {
+      updated['count'] = (count - removed).clamp(0, count).toInt();
+    }
     final page = _resourceMap(payload['page']);
     if (page != null) {
       final pageCount = page['count'];
@@ -430,9 +429,6 @@ class SyncEngine {
         payload['resources'] = filtered;
       }
     }
-    if (identical(payload, acquired.payload) || payload == acquired.payload) {
-      return acquired;
-    }
     return AcquiredProjection(
       schemaVersion: acquired.schemaVersion,
       payload: payload,
@@ -473,7 +469,7 @@ class SyncEngine {
         family,
         {deniedId},
       );
-      if (updated.toString() != page.payload.toString()) {
+      if (!identical(updated, page.payload)) {
         await _storeProjectionPreservingMetadata(page, updated);
       }
     }
@@ -487,7 +483,7 @@ class SyncEngine {
           family,
           {deniedId},
         );
-        if (updatedResources.toString() != resources.toString()) {
+        if (!identical(updatedResources, resources)) {
           await _storeProjectionPreservingMetadata(
             root,
             {...root.payload, 'resources': updatedResources},
@@ -504,7 +500,7 @@ class SyncEngine {
     if (dedicatedKind != null) {
       for (final page in await store.readProjections(dedicatedKind)) {
         final updated = _filterFlatResourcePayload(page.payload, {deniedId});
-        if (updated.toString() != page.payload.toString()) {
+        if (!identical(updated, page.payload)) {
           await _storeProjectionPreservingMetadata(page, updated);
         }
       }
@@ -531,6 +527,19 @@ class SyncEngine {
       return;
     }
     await store.deleteProjectionsOfKind(source.projectionKind);
+    final coordinator = _coordinator;
+    final activePrefix = '$profileId|personal|';
+    for (final activeKey in coordinator.generations.keys.toList()) {
+      if (!activeKey.startsWith(activePrefix)) continue;
+      final sourceKey = activeKey.substring(activePrefix.length);
+      if (_samePersonalResourceCollectionFamily(
+        source.projectionKind,
+        sourceKey,
+      )) {
+        coordinator.generations[activeKey] =
+            (coordinator.generations[activeKey] ?? 0) + 1;
+      }
+    }
     final rows = await (database.select(
       database.syncSources,
     )..where((row) => row.profileId.equals(profileId))).get();
@@ -705,6 +714,7 @@ class SyncEngine {
     coordinator.generations[key] = generation;
     final epoch = _discoveryRevocationEpoch;
     final accessEpoch = _accessRevocationEpoch;
+    final personalResourceEpoch = _personalResourceRevocationEpoch;
     final inventoryEpoch = _spaceInventoryEpoch;
     final spaceId = source.actorScope.spaceId;
     final spaceEpoch = spaceId == null ? 0 : _spaceEpoch(spaceId);
@@ -714,6 +724,8 @@ class SyncEngine {
         (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch) &&
         (!source.projectionKind.startsWith('personal.access') ||
             _accessRevocationEpoch == accessEpoch) &&
+        (!_isPersonalResourceProjection(source.projectionKind) ||
+            _personalResourceRevocationEpoch == personalResourceEpoch) &&
         (source.projectionKind != 'space.inventory' ||
             _spaceInventoryEpoch == inventoryEpoch) &&
         (spaceId == null ||
@@ -948,6 +960,11 @@ class SyncEngine {
     if (source.projectionKind == 'personal.access.detail' ||
         source.projectionKind == 'personal.accesses') {
       coordinator.accessEpochs[profileId] = _accessRevocationEpoch + 1;
+    }
+    if (_personalResourceDetailKinds.contains(source.projectionKind) ||
+        _personalResourceCollectionKinds.contains(source.projectionKind)) {
+      coordinator.personalResourceEpochs[profileId] =
+          _personalResourceRevocationEpoch + 1;
     }
     final deniedSpace = source.projectionKind == 'space.workspace'
         ? source.actorScope.spaceId
