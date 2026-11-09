@@ -13,7 +13,7 @@
     <div class="mk-project__identity">
       <span class="mk-project__symbol" aria-hidden="true"><i data-lucide="folder-kanban"></i></span>
       <div>
-        <p class="mk-project__eyebrow">Projet · {{ workspace.owner.label }}</p>
+        <p class="mk-project__eyebrow">Projet · {{ workspace.owner.label }}{% if workspace.owner.holder %} · {{ workspace.owner.holder }}{% endif %}</p>
         <h1>{{ project.title }}</h1>
         {% if project.description %}<p class="mk-project__desc">{{ project.description }}</p>{% endif %}
         <div class="mk-project__facts">
