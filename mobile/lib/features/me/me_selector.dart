@@ -361,7 +361,7 @@ class MeSelector {
             id: 'mine',
           ),
           title: 'Toutes mes ressources',
-          subtitle: 'Documents et attestations',
+          subtitle: 'Documents, preuves et titres',
           canOpen: true,
         ),
       );
@@ -370,7 +370,7 @@ class MeSelector {
     return _territory(
       key: 'resources',
       label: 'Mes ressources',
-      summary: 'Documents, preuves et attestations.',
+      summary: 'Documents, preuves et titres.',
       items: items,
       malformed: malformed,
       freshness: freshness,
