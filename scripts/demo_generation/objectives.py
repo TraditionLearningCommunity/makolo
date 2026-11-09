@@ -21,6 +21,7 @@ from objectives.services import (
     link_journey, set_dossier_lifecycle, set_project_lifecycle,
 )
 from .editorial import objective_titles
+from .scope import synthetic_journey_activity_prefixes
 
 
 # Stable human copy, no technical demo prefix in the UI.
@@ -98,10 +99,18 @@ def planned_titles(owner, projects, per_project, independent):
 
 
 def _visible_demo_journeys(owner):
-    # Never fabricate Journey workflow states or borrow another person's
-    # Journey. Demo Activity provenance is enforced by its canonical slug.
+    # Never fabricate a Journey or borrow another Profile's one. Both the
+    # world and Mobile Mature corpora have explicit synthetic provenance.
+    from django.db.models import Q
+
+    prefixes = synthetic_journey_activity_prefixes(owner)
+    if not prefixes:
+        return []
+    activities = Q()
+    for prefix in prefixes:
+        activities |= Q(activity__slug__startswith=prefix)
     return list(Journey.objects.filter(
-        beneficiary=owner, activity__slug__startswith="demo-",
+        activities, beneficiary=owner,
     ).select_related("activity").order_by("id")[:100])
 
 
