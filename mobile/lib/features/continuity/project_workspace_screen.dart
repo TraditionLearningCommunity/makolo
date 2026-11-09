@@ -963,7 +963,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _text(owner['label']),
+                    [
+                      _text(owner['label']),
+                      if (_text(owner['holder']).isNotEmpty)
+                        _text(owner['holder']),
+                    ].join(' · '),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
