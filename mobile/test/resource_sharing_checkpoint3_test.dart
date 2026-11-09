@@ -50,7 +50,9 @@ class _ShareResourceRepository extends ResourceRepository {
     final suffix = fileExtension == null || fileExtension.isEmpty
         ? ''
         : '.$fileExtension';
-    final file = File('${directory.path}/shared$suffix');
+    final file = File(
+      '${directory.path}/${title.replaceAll(' ', '-')}-v$versionNumber$suffix',
+    );
     await file.writeAsString('private-owner-backed-content');
     exportedPath = file.path;
     onProgress?.call(28, 28);
@@ -163,6 +165,10 @@ void main() {
       expect(repository.retainedOfflineCopy, isFalse);
       expect(repository.requestedExtension, 'pdf');
       expect(repository.exportedPath, isNotNull);
+      expect(
+        File(repository.exportedPath!).uri.pathSegments.last,
+        'Pièce-sensible-v3.pdf',
+      );
       expect(await File(repository.exportedPath!).exists(), isFalse);
 
       final parent = Directory(repository.exportedPath!).parent;
