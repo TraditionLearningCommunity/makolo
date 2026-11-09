@@ -488,5 +488,112 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("world_011_divine", foundations.call_args.args[0])
 
 
+    def test_timeline_exposes_scoped_safety_and_backup(self):
+        args = build_parser().parse_args([
+            "timeline", "--activity-prefix", "demo-generation-",
+            "--mode", "safe", "--backup", "--demo-slots", "8",
+            "--now", "2026-11-09T09:00:00+01:00",
+        ])
+        with patch("scripts.demo_generation.clock.main") as timeline:
+            run(args)
+        options = timeline.call_args.args[0]
+        self.assertEqual(options[options.index("--activity-prefix") + 1],
+                         "demo-generation-")
+        self.assertIn("--backup", options)
+        self.assertIn("--mode", options)
+        self.assertNotIn("--apply", options)
+
+    def test_rebalance_routes_profile_and_space_modes_without_writes(self):
+        for target in ("profiles", "spaces"):
+            args = build_parser().parse_args([
+                "rebalance", "--target", target, "--per-profile", "4",
+                "--count", "12", "--profile-username", "world_demo",
+            ])
+            with patch("scripts.demo_generation.rebalance.main") as balance:
+                run(args)
+            options = balance.call_args.args[0]
+            self.assertIn(target, options)
+            self.assertIn("world_demo", options)
+            self.assertNotIn("--apply", options)
+
+    def test_period_rebalance_reuses_timeline_code(self):
+        args = build_parser().parse_args([
+            "rebalance", "--target", "periods", "--limit", "6",
+            "--mode", "full", "--demo-live",
+        ])
+        with patch("scripts.demo_generation.clock.main") as timeline:
+            run(args)
+        options = timeline.call_args.args[0]
+        self.assertIn("--mode", options)
+        self.assertIn("full", options)
+        self.assertIn("--demo-live", options)
+        self.assertNotIn("--apply", options)
+
+    def test_maintenance_routes_all_manual_operations(self):
+        for action in ("complete", "refresh", "retire", "restore"):
+            args = build_parser().parse_args([
+                "maintain", "--action", action, "--count", "7",
+            ])
+            with patch("scripts.demo_generation.maintenance.main") as maintenance:
+                run(args)
+            options = maintenance.call_args.args[0]
+            self.assertIn(action, options)
+            self.assertNotIn("--apply", options)
+
+    def test_demo_editorial_refresh_is_deterministic(self):
+        from scripts.demo_generation.maintenance import editorial_text
+        self.assertEqual(editorial_text(4, "my-demo-id"),
+                         editorial_text(4, "my-demo-id"))
+        self.assertTrue(editorial_text(4, "my-demo-id"))
+
+    def test_rebalance_rotation_is_stable(self):
+        from types import SimpleNamespace
+        from scripts.demo_generation.rebalance import rank_items
+        profile = SimpleNamespace(pk="one")
+        items = [SimpleNamespace(pk=str(i)) for i in range(7)]
+        self.assertEqual(
+            [v.pk for v in rank_items(profile, items, 42)],
+            [v.pk for v in rank_items(profile, list(reversed(items)), 42)],
+        )
+
+    def test_safe_timeline_refuses_consumed_or_completed_scenarios(self):
+        import sqlite3
+        from datetime import timedelta
+        from scripts.demo_generation.clock import safe_eligible, move_occurrence
+        db = sqlite3.connect(":memory:")
+        db.execute(
+            "CREATE TABLE activities_occurrence (id TEXT PRIMARY KEY, "
+            "start_at TEXT, end_at TEXT, start_date TEXT, end_date TEXT, "
+            "start_time TEXT, end_time TEXT, schedule_local_date TEXT, "
+            "timezone TEXT, schedule_id TEXT, status TEXT)"
+        )
+        db.execute(
+            "INSERT INTO activities_occurrence VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            ("one", "2026-10-10 09:00:00", "2026-10-10 10:00:00",
+             "2026-10-10", "2026-10-10", "09:00:00", "10:00:00",
+             None, "Africa/Kinshasa", None, "completed"),
+        )
+        self.assertFalse(safe_eligible(db, "one"))
+        moved = move_occurrence(db, "one", timedelta(days=5), mode="safe")
+        self.assertEqual(moved["activities_occurrence"], 0)
+        db.execute("UPDATE activities_occurrence SET status='scheduled'")
+        db.execute(
+            "CREATE TABLE access_accessuse "
+            "(id TEXT, occurrence_id TEXT, access_id TEXT, used_at TEXT)"
+        )
+        db.execute(
+            "INSERT INTO access_accessuse VALUES (?,?,?,?)",
+            ("use-1", "one", None, "2026-10-10 09:30:00"),
+        )
+        self.assertFalse(safe_eligible(db, "one"))
+        moved = move_occurrence(db, "one", timedelta(days=5), mode="safe")
+        self.assertEqual(moved["activities_occurrence"], 0)
+        self.assertEqual(
+            db.execute("SELECT used_at FROM access_accessuse").fetchone()[0],
+            "2026-10-10 09:30:00",
+        )
+        db.close()
+
+
 if __name__ == "__main__":
     unittest.main()
