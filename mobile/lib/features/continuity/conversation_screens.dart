@@ -2583,6 +2583,9 @@ class _ConversationDetail {
     required this.title,
     required this.points,
     required this.essential,
+    this.timeline = const [],
+    this.timelineNextCursor,
+    this.hasTimeline = false,
     required this.personalState,
     this.composer = const {},
     this.elsewhere = const [],
@@ -2600,6 +2603,9 @@ class _ConversationDetail {
   final String? contextLabel;
   final List<_ConversationPoint> points;
   final List<_ConversationPoint> essential;
+  final List<_ConversationPoint> timeline;
+  final String? timelineNextCursor;
+  final bool hasTimeline;
   final List<_ConversationPoint> elsewhere;
   final _ConversationPoint? focusedPoint;
   final _ConversationPersonalState personalState;
@@ -2629,6 +2635,11 @@ class _ConversationDetail {
       points: _maps(payload['points'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
+      timeline: _maps(payload['timeline'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
+      hasTimeline: payload['timeline'] is List,
+      timelineNextCursor: _string(payload['timeline_next_cursor']),
       essential: _maps(payload['essential'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
@@ -2760,6 +2771,8 @@ class _ConversationPoint {
     this.responseMedia = const [],
     this.formRequest,
     this.responseStatus = const {},
+    this.timelineCompact = false,
+    this.timelineSummary,
     this.myResponse = const {},
     this.pollResults = const {},
     this.representedResponses = const [],
@@ -2807,6 +2820,8 @@ class _ConversationPoint {
   final List<Map<String, dynamic>> responseMedia;
   final Map<String, dynamic>? formRequest;
   final Map<String, dynamic> responseStatus;
+  final bool timelineCompact;
+  final String? timelineSummary;
   final Map<String, dynamic> myResponse;
   final Map<String, dynamic> pollResults;
   final List<Map<String, dynamic>> representedResponses;
@@ -2928,6 +2943,8 @@ class _ConversationPoint {
           ? null
           : _map(row['form_request']),
       responseStatus: _map(row['response_status']),
+      timelineCompact: row['timeline_compact'] == true,
+      timelineSummary: _string(row['timeline_summary']),
       myResponse: _map(row['my_response']),
       pollResults: _map(row['poll_results']),
       representedResponses: _maps(row['represented_responses']),
