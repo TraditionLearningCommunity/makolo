@@ -191,6 +191,7 @@ class JourneyDetailPresentation {
     this.steps = const [],
     this.summary,
     this.nextActionLabel,
+    this.nextActionKey,
     this.nextActionLink,
     this.resourcesLink,
     this.activity,
@@ -214,6 +215,7 @@ class JourneyDetailPresentation {
   final List<JourneyReadinessItem> waiting;
   final List<JourneyReadinessItem> blockers;
   final String? nextActionLabel;
+  final String? nextActionKey;
   final String? nextActionLink;
   final String? resourcesLink;
   final List<JourneyFormSummary> forms;
@@ -309,6 +311,7 @@ class JourneyDetailSelector {
       waiting: _readinessItems(readiness['waiting']),
       blockers: _readinessItems(readiness['blockers']),
       nextActionLabel: _string(_map(readiness['next'])['label']),
+      nextActionKey: _string(_map(readiness['next'])['key']),
       nextActionLink: _string(_map(readiness['next'])['link']),
       resourcesLink: _string(resources['link']) ?? _string(links['resources']),
       forms: _forms(payload['forms']),
