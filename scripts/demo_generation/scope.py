@@ -57,3 +57,21 @@ def backup_demo_sqlite(connection):
     with sqlite3.connect(source) as src, sqlite3.connect(destination) as dst:
         src.backup(dst)
     return destination
+
+
+def synthetic_journey_activity_prefixes(profile):
+    """Return proven demo Activity namespaces belonging to the selected owner.
+
+    A named synthetic Mobile Mature persona uses mobile-mature- Activities.
+    The normal world_* generator keeps its original demo- scope. Never infer
+    demo provenance just because a username was explicitly supplied.
+    """
+    metadata = getattr(profile, "metadata", None)
+    if (
+        isinstance(metadata, dict)
+        and metadata.get("seed") == "mobile-mature-universe"
+    ):
+        return ("demo-", "mobile-mature-")
+    if str(getattr(profile, "username", "")).startswith(DEMO_PROFILE_PREFIX):
+        return (DEMO_ACTIVITY_PREFIX,)
+    return ()
