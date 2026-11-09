@@ -259,4 +259,98 @@ void main() {
     expect(result.forms.single.canComplete, isFalse);
     expect(result.canCompleteAnyForm, isFalse);
   });
+  test('N3 stays locally readable and presents only owner steps', () {
+    final now = DateTime.utc(2026, 11, 9, 10);
+    final local = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-1',
+      schemaVersion: 1,
+      receivedAt: now,
+      payload: const {
+        'identity': {'kind': 'journey', 'workflow': 'registration'},
+        'representation': {
+          'title': 'Recevoir mon badge',
+          'kind_label': 'Inscription',
+          'summary': 'Recevoir mon badge',
+        },
+        'state': {'code': 'in_progress', 'label': 'En cours'},
+        'readiness': {
+          'state': 'waiting',
+          'ready': [],
+          'actor_interventions': [],
+          'waiting': [
+            {'key': 'review', 'summary': 'Réponse de l’organisateur'},
+          ],
+          'blockers': [],
+        },
+        'steps': [
+          {
+            'id': 'step-1',
+            'title': 'Envoyer mon inscription',
+            'kind': 'submission',
+            'status': 'completed',
+            'depends_on': [],
+          },
+          {
+            'id': 'step-2',
+            'title': 'Recevoir la décision',
+            'kind': 'decision',
+            'status': 'pending',
+            'depends_on': ['step-1'],
+          },
+        ],
+        'forms': [],
+        'requirements': [],
+        'capabilities': [],
+      },
+    );
+
+    final result = const JourneyDetailSelector().select(
+      projection: local,
+      source: const JourneySourceState(lastErrorCode: 'network_unavailable'),
+      now: now,
+    );
+
+    expect(result.available, isTrue);
+    expect(result.title, 'Recevoir mon badge');
+    expect(result.summary, isNull);
+    expect(result.workflowKind, 'registration');
+    expect(result.stateCode, 'in_progress');
+    expect(result.steps.length, 2);
+    expect(result.steps.first.isCompleted, isTrue);
+    expect(result.steps.last.dependsOn, ['step-1']);
+    expect(result.steps.last.isCompleted, isFalse);
+    expect(result.waiting.single.summary, 'Réponse de l’organisateur');
+  });
+
+  test('N3 without owner steps does not invent milestones or completion', () {
+    final now = DateTime.utc(2026, 11, 9, 10);
+    final projection = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-2',
+      schemaVersion: 1,
+      receivedAt: now,
+      payload: const {
+        'representation': {'title': 'Une demande'},
+        'state': {'code': 'rejected', 'label': 'Rejetée'},
+        'readiness': {
+          'state': 'waiting',
+          'ready': [],
+          'actor_interventions': [],
+          'waiting': [],
+          'blockers': [],
+        },
+        'capabilities': [],
+      },
+    );
+    final result = const JourneyDetailSelector().select(
+      projection: projection,
+      source: JourneySourceState.unknown,
+      now: now,
+    );
+    expect(result.steps, isEmpty);
+    expect(result.isTerminal, isTrue);
+    expect(result.nextActionLabel, isNull);
+  });
+
 }
