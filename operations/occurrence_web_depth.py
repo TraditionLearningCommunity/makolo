@@ -149,6 +149,16 @@ def execute_depth_action(*, occurrence, actor, projection, kind, submitted):
             external = ExternalBeneficiary.objects.filter(pk=external_id).first() if external_id else None
             if profile is None and external is None:
                 raise Http404
+            from .placement_selectors import (
+                profile_is_placement_candidate,
+                external_beneficiary_is_placement_candidate,
+            )
+            if profile is not None and not profile_is_placement_candidate(profile, occurrence):
+                raise ValidationError("Ce Profil n'est pas bénéficiaire de l'Occurrence.")
+            if external is not None and not external_beneficiary_is_placement_candidate(
+                external, occurrence,
+            ):
+                raise ValidationError("Ce bénéficiaire externe n'est pas lié à l'Occurrence.")
             return assign_placement(
                 actor=actor, plan=plan, unit=unit,
                 profile=profile, external_beneficiary=external,
