@@ -215,6 +215,97 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('normal document without a retained copy does not attempt an offline network download', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = ResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+      sync: null,
+    );
+    final source = repository.detailSourceFor('asset-normal-offline');
+    await store.putProjection(
+      kind: ResourceRepository.detailProjectionKind,
+      resourceKey: 'asset-normal-offline',
+      schemaVersion: 1,
+      payload: {
+        'id': 'asset-normal-offline',
+        'title': 'Document normal',
+        'asset_kind_label': 'Document',
+        'sensitivity': 'normal',
+        'sensitivity_label': 'Normale',
+        'status': 'active',
+        'current_version': {
+          'id': 'version-normal',
+          'version': 1,
+          'current': true,
+          'mime_type': 'application/pdf',
+          'validity': {'state': 'current'},
+          'provenance': {'kind': 'unknown'},
+          'links': {
+            'download':
+                '/api/v1/me/resources/versions/'
+                '00000000-0000-0000-0000-000000000010/download/',
+          },
+        },
+        'versions': {
+          'items': [
+            {
+              'id': 'version-normal',
+              'version': 1,
+              'current': true,
+              'mime_type': 'application/pdf',
+              'validity': {'state': 'current'},
+              'provenance': {'kind': 'unknown'},
+              'links': {
+                'download':
+                    '/api/v1/me/resources/versions/'
+                    '00000000-0000-0000-0000-000000000010/download/',
+              },
+            },
+          ],
+        },
+        'links': {},
+      },
+    );
+    await _sourceState(
+      database,
+      sourceKey: source.sourceKey,
+      route: source.path,
+      lastSuccessAt: DateTime.now().toUtc().subtract(
+        const Duration(minutes: 5),
+      ),
+      error: 'transport_error',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ResourceDetailScreen(
+          assetId: 'asset-normal-offline',
+          repository: repository,
+          personal: PersonalRepository(store),
+          onOpenJourney: (_) {},
+          onAddVersion: () {},
+          onArchived: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Télécharger').first);
+    await tester.pump();
+
+    expect(
+      find.text('Ce fichier n’est pas disponible hors connexion.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('sensitive document stays understandable offline without an active share action', (
     tester,
   ) async {
