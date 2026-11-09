@@ -28,6 +28,8 @@ class ConversationOutgoing {
     this.mediaKind,
     this.filename,
     this.localFilePath,
+    this.semanticMedia = const [],
+    this.options = const [],
   });
 
   final String reference;
@@ -40,6 +42,8 @@ class ConversationOutgoing {
   final String? mediaKind;
   final String? filename;
   final String? localFilePath;
+  final List<Map<String, dynamic>> semanticMedia;
+  final List<String> options;
 
   bool get isConfirmed => state == OutboxState.confirmed.wireValue;
   bool get isBlocked =>
@@ -350,6 +354,17 @@ class ConversationLocalDelivery {
       mediaKind: payload['media_kind']?.toString(),
       filename: payload['filename']?.toString(),
       localFilePath: payload['local_file_path']?.toString(),
+      semanticMedia: [
+        for (final item in payload['semantic_media'] is List
+            ? payload['semantic_media'] as List : const [])
+          if (item is Map)
+            item.map((key, value) => MapEntry(key.toString(), value)),
+      ],
+      options: [
+        for (final item in payload['options'] is List
+            ? payload['options'] as List : const [])
+          item.toString(),
+      ],
     );
   }
 
