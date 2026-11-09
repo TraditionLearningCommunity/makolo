@@ -162,7 +162,7 @@ def point_attention_reason(
     return None
 
 
-def attention_points_for_profile(profile, *, at=None, limit=100):
+def attention_points_for_profile(profile, *, at=None, limit=100, only_actionable=False):
     if not getattr(profile, "is_authenticated", False):
         return []
     at = at or timezone.now()
@@ -192,15 +192,15 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
                 to_attr="_attention_profile_states",
             ),
         )
-        .order_by("deadline_at", "-importance", "published_at")[
-            : max(int(limit or 100) * 8, 160)
-        ]
+        .order_by("deadline_at", "-importance", "published_at")
     )
     items = []
     audience_membership_cache = {}
     conversation_visibility_cache = {}
     conversation_manage_cache = {}
-    for point in candidates:
+    # The global list may start with many Points invisible to this viewer.
+    # Stream until the *authorized* limit rather than returning a false zero.
+    for point in candidates.iterator(chunk_size=120):
         reason = point_attention_reason(
             profile,
             point,
@@ -209,7 +209,7 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
             conversation_visibility_cache=conversation_visibility_cache,
             conversation_manage_cache=conversation_manage_cache,
         )
-        if reason:
+        if reason and (not only_actionable or reason in ACTION_REASONS):
             items.append(
                 ConversationAttentionItem(
                     point_id=point.pk,
@@ -231,15 +231,14 @@ def has_conversation_attention(profile, *, at=None):
     Conversation attention semantics instead of treating unread activity as
     attention, and stops as soon as one qualifying Point is found.
     """
-    return any(item.reason in ACTION_REASONS for item in attention_points_for_profile(profile, at=at, limit=50))
+    return bool(attention_points_for_profile(profile, at=at, limit=1, only_actionable=True))
 
 
 def conversation_attention_count(profile, *, at=None, limit=1000):
-    return sum(item.reason in ACTION_REASONS for item in attention_points_for_profile(profile, at=at, limit=limit))
+    return len(attention_points_for_profile(profile, at=at, limit=limit, only_actionable=True))
 
 
 def conversation_attention_badge_count(profile, *, at=None, cap=10):
     """Return a UI badge count capped at the requested bound."""
     cap = max(int(cap), 1)
-    items = attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))
-    return min(cap, sum(item.reason in ACTION_REASONS for item in items))
+    return len(attention_points_for_profile(profile, at=at, limit=cap, only_actionable=True))
