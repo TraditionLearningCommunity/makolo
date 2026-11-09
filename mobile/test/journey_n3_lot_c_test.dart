@@ -109,6 +109,36 @@ void main() {
     expect(transportError.title, 'Ma demande');
   });
 
+  test('a completed payment attempt cannot settle a pending obligation', () {
+    final p = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-payment',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 9),
+      payload: {
+        ..._payload('Régler ma demande'),
+        'payment': {
+          'obligations': [
+            {
+              'id': 'payment-obligation',
+              'amount': '25.00',
+              'currency': 'USD',
+              'state': 'pending',
+              'payment': {'state': 'succeeded'},
+            },
+          ],
+        },
+      },
+    );
+    final presentation = const JourneyDetailSelector().select(
+      projection: p,
+      source: JourneySourceState.unknown,
+      now: DateTime.utc(2026, 11, 9),
+    );
+    expect(presentation.payments.single.state, 'pending');
+    expect(presentation.payments.single.obligationId, 'payment-obligation');
+  });
+
   testWidgets('a terminal Journey has an outcome and no fabricated action', (
     tester,
   ) async {
