@@ -566,10 +566,13 @@ class _ConversationInvitationCardState
       _error = null;
     });
     try {
-      final conversationId = await widget.repository.respondToInvitation(
-        invitationId: widget.invitation.id,
-        accept: accept,
-      );
+      final conversationId = widget.invitation.collective
+          ? await widget.repository.decideCollectiveInvitation(
+              accessId: widget.invitation.id, accept: accept,
+            ).then((_) => widget.invitation.conversationId)
+          : await widget.repository.respondToInvitation(
+              invitationId: widget.invitation.id, accept: accept,
+            );
       if (!mounted) return;
       if (accept && conversationId != null) widget.onOpen(conversationId);
     } on Object {
@@ -590,9 +593,21 @@ class _ConversationInvitationCardState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Invitation à rejoindre une coordination',
+            widget.invitation.collective
+                ? 'Invitation pour ${widget.invitation.label ?? 'un collectif'}'
+                : 'Invitation à rejoindre une coordination',
             style: Theme.of(context).textTheme.titleSmall,
           ),
+          if (widget.invitation.collective)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(
+                'Seul un responsable autorisé peut accepter. '
+                'Les membres actuels conservent leur appartenance canonique. '
+                '${widget.invitation.identifier ?? ''}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           if (widget.invitation.expired)
             const Padding(
               padding: EdgeInsets.only(top: MakoloSpacing.xs),
@@ -3388,6 +3403,9 @@ class _ConversationInvitation {
     required this.id,
     required this.conversationId,
     required this.status,
+    this.collective = false,
+    this.label,
+    this.identifier,
     this.expiresAt,
     this.createdAt,
   });
@@ -3395,6 +3413,9 @@ class _ConversationInvitation {
   final String id;
   final String conversationId;
   final String status;
+  final bool collective;
+  final String? label;
+  final String? identifier;
   final DateTime? expiresAt;
   final DateTime? createdAt;
 
@@ -3406,18 +3427,37 @@ class _ConversationInvitation {
 
   static List<_ConversationInvitation> fromProjection(
     StoredProjection? projection,
-  ) => _maps(projection?.payload['results'])
-      .map(
-        (row) => _ConversationInvitation(
-          id: _string(row['id']) ?? '',
-          conversationId: _string(row['conversation_id']) ?? '',
-          status: _string(row['status']) ?? '',
-          expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
-          createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
-        ),
-      )
-      .where((item) => item.id.isNotEmpty)
-      .toList(growable: false);
+  ) {
+    final results = <_ConversationInvitation>[];
+    for (final row in _maps(projection?.payload['results'])) {
+      final id = _string(row['id']);
+      if (id == null || id.isEmpty) continue;
+      results.add(_ConversationInvitation(
+        id: id,
+        conversationId: _string(row['conversation_id']) ?? '',
+        status: _string(row['status']) ?? '',
+        expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+        createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
+      ));
+    }
+    for (final row in _maps(projection?.payload['collective_results'])) {
+      final id = _string(row['id']);
+      if (id == null || id.isEmpty) continue;
+      results.add(_ConversationInvitation(
+        id: id,
+        conversationId: _string(row['conversation_id']) ?? '',
+        status: _string(row['status']) ?? '',
+        collective: true,
+        label: _string(row['label']),
+        identifier: _string(row['identifier']),
+        expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+        createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
+      ));
+    }
+    results.sort((a, b) => (a.createdAt ?? DateTime(2000))
+        .compareTo(b.createdAt ?? DateTime(2000)));
+    return results;
+  }
 }
 
 Map<String, dynamic> _map(Object? value) {
