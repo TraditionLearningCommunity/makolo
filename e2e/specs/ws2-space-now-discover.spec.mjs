@@ -10,12 +10,14 @@ async function expectNoHorizontalOverflow(page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-async function expectUnavailableSurface(page, surface) {
-  const locator = page.locator(`[data-space-surface="${surface}"]`);
+async function expectSharedDiscovery(page) {
+  const locator = page.locator('[data-mk-surface="discover"]');
   await expect(locator).toBeVisible();
-  await expect(locator).toHaveAttribute('data-space-state', 'unavailable');
-  await expect(locator.getByText('La sélection n’est pas encore disponible.', { exact: true })).toBeVisible();
-  await expect(locator.getByText('no_safe_selection_contract', { exact: false })).toHaveCount(0);
+  await expect(page.locator('#discovery-search-form')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Qu’est-ce qui pourrait nous aider à avancer/ })).toBeVisible();
+  await expect(page.getByText('no_safe_selection_contract', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('Enregistrer comme veille', { exact: true })).toHaveCount(0);
+
 }
 
 async function expectPartiallyCoveredNow(page) {
@@ -47,7 +49,7 @@ test('WS2 Maintenant and Discover stay calm and responsive across Web regimes @m
     await page.goto(`${SPACE}discover/`);
     await expectNoHorizontalOverflow(page);
     await expect(page.getByRole('heading', { name: /Qu’est-ce qui pourrait nous aider à avancer/ })).toBeVisible();
-    await expectUnavailableSurface(page, 'discover');
+    await expectSharedDiscovery(page);
   }
 });
 
@@ -59,7 +61,7 @@ test('WS2 keeps direct URLs and browser history between Maintenant and Discover'
   const sidebar = page.locator('#desktop-sidebar');
   await sidebar.getByRole('link', { name: 'Découvrir', exact: true }).click();
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/discover\/$/);
-  await expectUnavailableSurface(page, 'discover');
+  await expectSharedDiscovery(page);
 
   await page.goBack();
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/$/);
@@ -67,5 +69,5 @@ test('WS2 keeps direct URLs and browser history between Maintenant and Discover'
 
   await page.goForward();
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/discover\/$/);
-  await expectUnavailableSurface(page, 'discover');
+  await expectSharedDiscovery(page);
 });
