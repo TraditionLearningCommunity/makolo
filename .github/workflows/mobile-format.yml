@@ -1,6 +1,15 @@
 name: Mobile Format
 
 on:
+  # PR 522: format mobile Dart files as soon as feature changes arrive.
+  # A single active run catches up to the latest remote HEAD before committing.
+  push:
+    branches:
+      - fix/discover-a-continuation-context-20261014
+    paths:
+      - "mobile/lib/**/*.dart"
+      - "mobile/test/**/*.dart"
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
