@@ -39,6 +39,7 @@ def main(argv=None):
     parser.add_argument("--grant-roles", action="store_true",
                         help="Explicit opt-in for the canonical Mandates generator")
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--backup", action="store_true", help="Create a SQLite backup before applying")
     args = parser.parse_args(argv)
 
     if not 1 <= args.count <= 100000 or not 1 <= args.profiles <= 100:
@@ -46,6 +47,12 @@ def main(argv=None):
     if not 0 <= args.older_than_days <= 36500 or not 0 <= args.edition <= 100000:
         parser.error("--older-than-days 0..36500; --edition 0..100000")
     if args.action == "complete":
+        if args.backup and args.apply:
+            import django
+            django.setup()
+            from django.db import connection
+            from .scope import backup_demo_sqlite
+            print("BACKUP", backup_demo_sqlite(connection))
         if args.space_id:
             parser.error("--space-id is not supported for complete")
         from .__main__ import build_parser, run
@@ -81,6 +88,9 @@ def main(argv=None):
 
     if connection.vendor != "sqlite":
         parser.error("Maintenance is restricted to demonstration SQLite")
+    if args.backup and args.apply:
+        from .scope import backup_demo_sqlite
+        print("BACKUP", backup_demo_sqlite(connection))
 
     candidates = demo_activities(Activity.objects).select_related(
         "owner_profile", "space", "space__created_by"
