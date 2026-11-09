@@ -1714,7 +1714,7 @@ def _space_read_only_items(items):
         item["watch"] = {"state": "unavailable"}
         item["links"] = {
             key: value for key, value in (item.get("links") or {}).items()
-            if key not in {"saved", "web_saved"}
+            if key not in {"saved", "web_saved", "web_share"}
         }
         item["engagement"] = {
             "state": "owner_contract",
