@@ -339,12 +339,15 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _sort != OrganizerSort.name ||
       _descending;
 
-  bool get _hasAnyFilters =>
+  bool get _hasSelectionFilters =>
       _search.text.isNotEmpty ||
       _kind != 'all' ||
       _status != 'all' ||
       _relation != 'all' ||
-      _hasExtraFilters;
+      _period != 'all';
+
+  bool get _hasAnyFilters =>
+      _hasSelectionFilters || _hasExtraFilters;
 
   void _clearFilters() {
     _search.clear();
@@ -362,26 +365,23 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   Widget _compactMode(OrganizerMode mode, IconData icon, String name) {
     final active = _mode == mode;
     final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: name,
-      child: Semantics(
-        button: true,
-        selected: active,
-        label: 'Vue $name',
-        child: IconButton(
-          tooltip: name,
-          onPressed: () => _setMode(mode),
-          icon: Icon(icon, size: 22),
-          color: active ? scheme.onPrimaryContainer : scheme.primary,
-          style: IconButton.styleFrom(
-            fixedSize: const Size(46, 45),
-            backgroundColor: active ? scheme.primaryContainer : scheme.surface,
-            side: BorderSide(
-              color: active ? scheme.primary : scheme.outlineVariant,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+    return Semantics(
+      selected: active,
+      child: IconButton(
+        key: Key('organizer-view-${mode.name}'),
+        tooltip: 'Vue $name',
+        onPressed: () => _setMode(mode),
+        icon: Icon(icon, size: 19),
+        color: active ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
+        style: IconButton.styleFrom(
+          fixedSize: const Size(44, 44),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          backgroundColor: active
+              ? scheme.primaryContainer
+              : Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
@@ -652,18 +652,22 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         _createQuickAction('project', 'Projet'),
       ],
     );
-    final modes = Row(
+    final modes = Container(
       key: const Key('organizer-view-toggle'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
-        const SizedBox(width: 3),
-        _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
-        const SizedBox(width: 3),
-        _compactMode(
-          OrganizerMode.explorer, Icons.account_tree_rounded, 'Explorateur',
-        ),
-      ],
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _compactMode(OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
+          _compactMode(OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
+          _compactMode(
+            OrganizerMode.explorer, Icons.account_tree_rounded, 'Explorateur',
+          ),
+        ],
+      ),
     );
     return Container(
       width: double.infinity,
@@ -672,10 +676,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 345 ||
+            if (constraints.maxWidth < 330 ||
                 MediaQuery.textScalerOf(context).scale(14) > 15) {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -799,42 +803,23 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               widget.repository.profileId,
             );
             final entries = page.entries;
-            final byKey = {for (final item in entries) item.key: item};
-            final projects = entries.where((item) => item.kind == 'project');
-            final dossiers = entries.where((item) => item.kind == 'dossier');
-            final journeys = entries.where((item) => item.kind == 'journey');
+            final hierarchy = OrganizerHierarchy(entries);
+            final byKey = hierarchy.byKey;
+            final dossiers = entries.where((e) => e.kind == 'dossier');
+            final children = (OrganizerEntry parent) =>
+                _ordered(hierarchy.childrenOf(parent));
 
-            List<OrganizerEntry> children(OrganizerEntry parent) => _ordered(
-              parent.kind == 'project'
-                  ? dossiers.where((d) => d.projectId == parent.id)
-                  : parent.kind == 'dossier'
-                  ? journeys.where((j) => j.dossierIds.contains(parent.id))
-                  : const <OrganizerEntry>[],
+            // Include ancestors of matching descendants. With search or type
+            // filters the tree opens the matching path; partial parents are
+            // shown as ungrouped, not falsely labelled independent.
+            final visibleCache = <String, bool>{};
+            late bool Function(OrganizerEntry) visible;
+            visible = (item) => visibleCache.putIfAbsent(
+              item.key,
+              () => _matches(item) || children(item).any(visible),
             );
 
-            bool visible(OrganizerEntry item) =>
-                _matches(item) ||
-                children(item).any((child) {
-                  // Project > Dossier > Journey; no cycle can exist here.
-                  if (_kind == 'journey' && item.kind == 'project') {
-                    return _matches(child) || children(child).any(_matches);
-                  }
-                  return _matches(child) || children(child).any(_matches);
-                });
-
-            final roots = _ordered([
-              ...projects,
-              ...dossiers.where(
-                (d) =>
-                    d.projectId == null ||
-                    !byKey.containsKey('project:${d.projectId}'),
-              ),
-              ...journeys.where(
-                (j) =>
-                    j.dossierIds.isEmpty ||
-                    !j.dossierIds.any((id) => byKey.containsKey('dossier:$id')),
-              ),
-            ]).where(visible).toList();
+            final roots = _ordered(hierarchy.roots).where(visible).toList();
 
             final flat = _ordered(entries.where(_matches));
             final showFlat =
@@ -949,7 +934,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               ),
                             if (page.hasMore)
                               Text(
-                                'D’autres démarches peuvent encore apparaître.',
+                                'D’autres éléments peuvent encore apparaître.',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             if (_search.text.trim().isNotEmpty &&
@@ -978,7 +963,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Text(
-                                '${flat.length} résultat(s)',
+                                organizerCountLabel(
+                                  flat,
+                                  filtered: _hasSelectionFilters,
+                                  partial: page.hasMore,
+                                ),
                                 style: Theme.of(context).textTheme.labelMedium,
                               ),
                             ),
@@ -997,7 +986,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                       for (final item in shown)
                                         SizedBox(
                                           width: itemWidth,
-                                          child: _card(item, children(item)),
+                                          child: _card(item, children(item), hierarchy),
                                         ),
                                     ],
                                   );
@@ -1005,9 +994,20 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               )
                             else if (_mode == OrganizerMode.list || showFlat)
                               for (final item in flat) _row(item, byKey)
-                            else
+                            else ...[
+                              if (dossiers.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: Text(
+                                    'Les dépendances se consultent dans chaque Dossier. '
+                                    'Une démarche liée à plusieurs Dossiers '
+                                    'n’est présentée qu’une fois ici.',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ),
                               for (final item in roots)
-                                _tree(item, children, visible, 0),
+                                _tree(item, children, visible, hierarchy, 0),
+                            ],
                             if (page.hasMore)
                               Padding(
                                 padding: const EdgeInsets.only(top: 18),
@@ -1081,7 +1081,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     ),
   );
 
-  Widget _card(OrganizerEntry item, List<OrganizerEntry> children) {
+  Widget _card(OrganizerEntry item, List<OrganizerEntry> children, OrganizerHierarchy hierarchy) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: EdgeInsets.zero,
@@ -1117,14 +1117,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 6),
-              Text(
-                item.description.isEmpty ? item.kindLabel : item.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+              if (item.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  item.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
               const SizedBox(height: 12),
               Wrap(
                 spacing: 7,
@@ -1135,6 +1137,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   if (item.displayDate != null) _tag(item.displayDate!),
                 ],
               ),
+              if (item.kind == 'dossier' &&
+                  hierarchy.additionalSharedLinks(item) > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '${hierarchy.additionalSharedLinks(item)} '
+                    'démarche(s) également liée(s), présentée(s) ailleurs',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
               if (children.isNotEmpty) ...[
                 const Divider(height: 28),
                 for (final child in children.take(3))
@@ -1156,7 +1169,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   ),
                 if (children.length > 3)
                   Text(
-                    'Et ${children.length - 3} autre(s) élément(s) acquis',
+                    'Et ${children.length - 3} '
+                    '${item.kind == 'project' ? 'autres dossiers' : 'autres démarches'} '
+                    'chargés',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
               ],
@@ -1195,7 +1210,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             [
               item.kindLabel,
               item.humanState,
-              if (parent != null) 'Dans : ${parent.title}',
+              if (item.kind == 'journey' && item.dossierIds.length > 1)
+                'Liée à ${item.dossierIds.toSet().length} dossiers'
+              else if (parent != null)
+                'Dans : ${parent.title}',
+              if (item.kind == 'journey' &&
+                  item.dossierIds.isNotEmpty && parent == null)
+                'Dossier non chargé',
+              if (item.kind == 'dossier' &&
+                  item.projectId != null && parent == null)
+                'Projet non chargé',
               if (item.displayDate != null) item.displayDate!,
             ].join(' · '),
           ),
@@ -1211,11 +1235,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     OrganizerEntry item,
     List<OrganizerEntry> Function(OrganizerEntry) children,
     bool Function(OrganizerEntry) visible,
+    OrganizerHierarchy hierarchy,
     int depth,
   ) {
     final nodes = children(item).where(visible).toList();
     final key = item.key;
-    final expanded = _expanded.contains(key) || _search.text.trim().isNotEmpty;
+    final expanded = _expanded.contains(key) || _hasSelectionFilters;
     return Column(
       children: [
         Padding(
@@ -1225,13 +1250,15 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               if (nodes.isNotEmpty)
                 IconButton(
                   tooltip: expanded ? 'Replier' : 'Déplier',
-                  onPressed: () => setState(() {
-                    if (_expanded.contains(key)) {
-                      _expanded.remove(key);
-                    } else {
-                      _expanded.add(key);
-                    }
-                  }),
+                  onPressed: _hasSelectionFilters
+                      ? null
+                      : () => setState(() {
+                          if (_expanded.contains(key)) {
+                            _expanded.remove(key);
+                          } else {
+                            _expanded.add(key);
+                          }
+                        }),
                   icon: Icon(
                     expanded
                         ? Icons.keyboard_arrow_down_rounded
@@ -1253,7 +1280,26 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     item.title,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  subtitle: Text('${item.kindLabel} · ${item.humanState}'),
+                  subtitle: Text([
+                    item.kindLabel,
+                    item.humanState,
+                    if (item.kind == 'journey' && item.dossierIds.length > 1)
+                      'Liée à ${item.dossierIds.toSet().length} dossiers',
+                    if (item.kind == 'journey' &&
+                        item.dossierIds.isNotEmpty &&
+                        !item.dossierIds.any((id) =>
+                            hierarchy.byKey.containsKey('dossier:$id')))
+                      'Dossier non chargé',
+                    if (item.kind == 'dossier' &&
+                        item.projectId != null &&
+                        !hierarchy.byKey.containsKey(
+                            'project:${item.projectId}'))
+                      'Projet non chargé',
+                    if (item.kind == 'dossier' &&
+                        hierarchy.additionalSharedLinks(item) > 0)
+                      '${hierarchy.additionalSharedLinks(item)} '
+                      'démarche(s) présentée(s) dans un autre dossier',
+                  ].join(' · ')),
                   onTap: () => widget.onOpenItem(item.kind, item.id),
                 ),
               ),
@@ -1261,7 +1307,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           ),
         ),
         if (expanded)
-          for (final child in nodes) _tree(child, children, visible, depth + 1),
+          for (final child in nodes) _tree(child, children, visible, hierarchy, depth + 1),
       ],
     );
   }
