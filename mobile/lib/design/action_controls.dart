@@ -144,16 +144,24 @@ class MakoloFollowIconButton extends StatelessWidget {
     super.key,
     required this.followed,
     required this.onPressed,
+    this.busy = false,
   });
 
   final bool followed;
   final VoidCallback? onPressed;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: followed ? 'Ne plus suivre' : 'Suivre',
-    onPressed: onPressed,
-    icon: Icon(followed ? Icons.wifi_rounded : Icons.wifi_off_rounded),
+    tooltip: busy ? 'Suivi en cours…' : followed ? 'Ne plus suivre' : 'Suivre',
+    onPressed: busy ? null : onPressed,
+    icon: busy
+        ? const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Icon(followed ? Icons.wifi_rounded : Icons.wifi_off_rounded),
     color: followed
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.onSurfaceVariant,
