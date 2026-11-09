@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from .media_services import attachment_for_download
 
@@ -19,14 +20,17 @@ def serve_attachment(request, attachment_pk):
 
 
 INLINE_MEDIA_TYPES = {
-    "image/jpeg", "image/png",
+    "image/jpeg", "image/png", "image/webp", "image/gif",
     "audio/webm", "audio/ogg", "audio/mp4", "audio/x-m4a",
     "audio/wav", "audio/mpeg",
     "video/mp4", "video/webm",
+    # Explicitly safe browser viewers only. Never serve HTML or SVG inline.
+    "application/pdf", "text/plain",
 }
 
 
 @login_required(login_url="core:login")
+@xframe_options_sameorigin
 def serve_inline_attachment(request, attachment_pk):
     """First-party inline rendition: same live ACL, no public storage URL."""
     try:
