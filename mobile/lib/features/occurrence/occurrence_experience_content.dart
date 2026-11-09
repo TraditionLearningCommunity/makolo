@@ -11,6 +11,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
     required this.payload,
     required this.live,
     this.remoteActionsAvailable = true,
+    this.readOnlyReason,
+    this.lastKnownAt,
     this.onOpenAccess,
     this.onPresentCredential,
     this.onOpenLive,
@@ -23,6 +25,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
   final Map<String, dynamic> payload;
   final bool live;
   final bool remoteActionsAvailable;
+  final String? readOnlyReason;
+  final DateTime? lastKnownAt;
   final void Function(String accessId, String path)? onOpenAccess;
   final void Function(String accessId, String path)? onPresentCredential;
   final ValueChanged<String>? onOpenLive;
@@ -107,7 +111,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
         _text(activity['title']) ??
         'Occurrence';
     return ListView(
-      key: Key(live ? 'canonical-live-content' : 'canonical-day-of-content'),
+      key: PageStorageKey<String>(
+        'occurrence:${_text(_map(payload['identity'])['id']) ?? 'unknown'}:'
+        '${_text(_map(payload['context'])['actor_space_id']) ?? 'personal'}:'
+        '${live ? 'live' : 'day_of'}',
+      ),
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
         if (live && onBackToDayOf != null)
@@ -126,6 +134,38 @@ class OccurrenceExperienceContent extends StatelessWidget {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: MakoloSpacing.lg),
+        if (readOnlyReason != null) ...[
+          Semantics(
+            liveRegion: true,
+            label: 'État de synchronisation de cette Occurrence',
+            child: MakoloCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    readOnlyReason!,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  if (lastKnownAt != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      'Dernière lecture du propriétaire : '
+                      '${MaterialLocalizations.of(context).formatMediumDate(lastKnownAt!.toLocal())} '
+                      'à ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(lastKnownAt!.toLocal()))}.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.xs),
+                  const Text(
+                    'Les informations conservées ne confirment ni les droits actuels '
+                    'ni une action serveur. Actualisez pour agir.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.lg),
+        ],
         if (live) ..._liveSections(context) else ..._dayOfSections(context),
       ],
     );
