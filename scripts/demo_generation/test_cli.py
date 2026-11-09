@@ -709,5 +709,48 @@ class DemoGenerationCLITests(unittest.TestCase):
             rebalance(["--target", "profiles", "--profile-username", "real-person"])
 
 
+    def test_resources_preview_routes_target_without_backup_or_apply(self):
+        args = build_parser().parse_args([
+            "resources", "--domains", "documents,proofs,credentials",
+            "--profile-username", "beta_alain", "--count", "4",
+        ])
+        with patch("scripts.demo_generation.resources.main") as resources:
+            run(args)
+        values = resources.call_args.args[0]
+        self.assertIn("beta_alain", values)
+        self.assertIn("--reuse-avatar", values)
+        self.assertNotIn("--apply", values)
+        self.assertNotIn("--backup", values)
+
+    def test_resources_apply_is_explicit_and_no_backup_by_default(self):
+        args = build_parser().parse_args([
+            "resources", "--domains", "documents", "--count", "3",
+            "--apply", "--no-reuse-avatar",
+        ])
+        with patch("scripts.demo_generation.resources.main") as resources:
+            run(args)
+        values = resources.call_args.args[0]
+        self.assertIn("--apply", values)
+        self.assertIn("--no-reuse-avatar", values)
+        self.assertNotIn("--backup", values)
+
+    def test_resources_backup_only_when_requested(self):
+        args = build_parser().parse_args([
+            "resources", "--domains", "documents",
+            "--apply", "--backup",
+        ])
+        with patch("scripts.demo_generation.resources.main") as resources:
+            run(args)
+        self.assertIn("--backup", resources.call_args.args[0])
+
+    def test_resources_fallback_content_is_user_specific_and_not_a_certificate(self):
+        from scripts.demo_generation.resources import demo_text, DOCUMENT_TITLES
+        text = demo_text("beta_alain", 0).decode("utf-8")
+        self.assertIn("@beta_alain", text)
+        self.assertIn(DOCUMENT_TITLES[0], text)
+        self.assertIn("ne constitue ni une piece d'identite", text)
+        self.assertEqual(text, demo_text("beta_alain", 0).decode("utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()
