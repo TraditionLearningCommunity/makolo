@@ -1,12 +1,6 @@
 name: Mobile Format
 
 on:
-  # One-shot cleanup of analyzer fixes on PR 522; restore manual-only after success.
-  push:
-    branches:
-      - fix/discover-a-continuation-context-20261014
-    paths:
-      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
