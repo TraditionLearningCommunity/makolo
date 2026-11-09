@@ -32,6 +32,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
                 "payment_obligations__payments",
                 "commerce_orders__payments",
                 "service_context__requirement_assessments__evidence",
+                "steps__dependencies",
             ),
             pk=pk,
         )
