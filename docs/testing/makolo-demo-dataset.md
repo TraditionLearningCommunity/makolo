@@ -102,6 +102,36 @@ python -m scripts.demo_generation inventory
 python -m scripts.demo_generation audit
 ```
 
+### Corpus personnel complet : Objectives, Journey et Access
+
+Le domaine `objectives` **organise** les Journey déjà présentes, mais n'émet
+pas d'Access : ce serait dupliquer la responsabilité canonique du domaine
+`access`. Pour générer les deux ensembles dans la **même commande**,
+sélectionner les domaines concernés. Le paramètre `--count` sert au budget
+d'Access, tandis que `--profile-username` sélectionne un seul bénéficiaire.
+
+```powershell
+# Prévisualiser pour le persona Mobile Mature synthétique existant.
+python -m scripts.demo_generation plan --domains objectives,access --profile-username beta_alain --profiles 1 --count 50 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+
+# Créer Dossiers/Projets + Access canoniques pour les Journey éligibles.
+python -m scripts.demo_generation generate --domains objectives,access --profile-username beta_alain --profiles 1 --count 50 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+```
+
+Les Journey préexistantes du persona Mobile Mature sont reconnues à partir
+de leur Activity de provenance `mobile-mature-` (et `demo-` lorsque présente).
+Les comptes `world_*` continuent d'utiliser `demo-`.
+Les Accès sont émis par `access.services.issue_access` avec le credential
+du domaine lorsqu'il est applicable. Les Accès historiques expirés sont
+conservés comme tels ; le générateur ne simule ni un scan effectué, ni une
+validation externe, ni un paiement reçu.
+
+Le message de clôture du générateur décrit la **portée** de la commande et
+l'absence d'envoi externe. Ce n'est pas une indication de données manquantes :
+consulter les compteurs `eligible_journeys`, `journey_links_created`,
+`access_created`, `access_existing` et `access_ineligible` pour le résultat.
+Il est normal que `--domains objectives` seul n'émette aucun Access.
+
 Les options du domaine `objectives` sont :
 `--objectives-projects` (1–8, défaut 4),
 `--objectives-dossiers-per-project` (1–6, défaut 3),
