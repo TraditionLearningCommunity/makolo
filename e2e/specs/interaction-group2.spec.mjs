@@ -42,6 +42,14 @@ test('Mes ressources exposes the three personal resource families without mixing
     'href',
     /\/library\/documents\/$/,
   );
+  await expect(page.getByRole('link', { name: /Mes preuves/i })).toHaveAttribute(
+    'href',
+    /\/trust\/proofs\/$/,
+  );
+  await expect(page.getByRole('link', { name: /Mes titres/i })).toHaveAttribute(
+    'href',
+    /\/trust\/credentials\/$/,
+  );
   await expect(page.locator('#library-search')).toHaveCount(0);
 });
 
