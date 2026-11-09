@@ -21,11 +21,13 @@ class LiveScreen extends StatefulWidget {
     required this.occurrenceId,
     required this.repository,
     this.onBackToDayOf,
+    this.onOpenDepth,
   });
 
   final String occurrenceId;
   final LiveRepository repository;
   final VoidCallback? onBackToDayOf;
+  final ValueChanged<String>? onOpenDepth;
 
   @override
   State<LiveScreen> createState() => _LiveScreenState();
@@ -132,6 +134,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
                       payload: projection!.payload,
                       live: true,
                       onBackToDayOf: widget.onBackToDayOf,
+                      onOpenDepth: widget.onOpenDepth,
                     )
                   : _LiveContent(
                       payload: projection?.payload,
