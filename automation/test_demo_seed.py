@@ -19,6 +19,14 @@ from events.models import Event
 from funding.models import FundingDetails
 from journeys.models import Journey
 from obtention.models import ObtentionDetails
+from objectives.models import (
+    Dossier, DossierJourneyDependency, DossierJourneyLink,
+    Project, ProjectDossierLink,
+)
+from demo_seed.common import stable_uuid
+from demo_seed.mobile_objectives import (
+    PROJECT_SPECS, INDEPENDENT_DOSSIERS,
+)
 from opportunities.models import OpportunitySource
 from preparation.models import ActivityResource
 from services.models import ServiceDetails
@@ -52,6 +60,11 @@ class CanonicalBetaSeedTests(TransactionTestCase):
             "team_memberships": TeamMembership.objects.count(),
             "resources": ActivityResource.objects.count(),
             "mobile_opportunity_sources": OpportunitySource.objects.filter(external_reference__startswith="mobile-mature:").count(),
+            "projects": Project.objects.count(),
+            "dossiers": Dossier.objects.count(),
+            "project_dossier_links": ProjectDossierLink.objects.count(),
+            "dossier_journey_links": DossierJourneyLink.objects.count(),
+            "dossier_dependencies": DossierJourneyDependency.objects.count(),
         }
 
     def test_beta_seed_requires_explicit_as_of(self):
@@ -89,6 +102,30 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         )
         self.assertGreaterEqual(ActivityResource.objects.filter(activity__in=seeded).count(), 150)
         self.assertGreaterEqual(first["validation"]["mobile_mature_journeys"], 30)
+        self.assertEqual(first["validation"]["mobile_mature_projects"], 6)
+        self.assertEqual(first["validation"]["mobile_mature_dossiers"], 28)
+        self.assertEqual(first["validation"]["mobile_mature_project_dossier_links"], 24)
+        self.assertGreaterEqual(first["validation"]["mobile_mature_dossier_dependencies"], 5)
+        self.assertGreater(first["validation"]["mobile_mature_organizer_visible_items"], 45)
+        self.assertEqual(
+            Project.objects.filter(
+                pk__in=[
+                    stable_uuid(f"objectives.project:mobile-mature-{i}")
+                    for i in range(len(PROJECT_SPECS))
+                ],
+            ).count(), 6,
+        )
+        self.assertEqual(
+            Dossier.objects.filter(
+                pk__in=[
+                    stable_uuid(f"objectives.dossier:mobile-mature-{i}")
+                    for i in range(
+                        sum(len(titles) for _, titles in PROJECT_SPECS)
+                        + len(INDEPENDENT_DOSSIERS)
+                    )
+                ],
+            ).count(), 28,
+        )
         primary = User.objects.get(email=MOBILE_MATURE_PERSONAS["primary"])
         self.client.force_login(primary)
         now_response = self.client.get("/api/v1/me/now/")
@@ -99,6 +136,15 @@ class CanonicalBetaSeedTests(TransactionTestCase):
         self.assertEqual(ongoing_response.status_code, 200)
         self.assertEqual(discovery_response.status_code, 200)
         self.assertEqual(me_response.status_code, 200)
+        organizer_response = self.client.get(
+            "/api/v1/objectives/organizer/?limit=50&offset=0"
+        )
+        self.assertEqual(organizer_response.status_code, 200)
+        entries = organizer_response.json()["data"]["items"]
+        self.assertEqual(sum(x["kind"] == "project" for x in entries), 6)
+        self.assertEqual(sum(x["kind"] == "dossier" for x in entries), 28)
+        self.assertTrue(any(x.get("project_id") for x in entries if x["kind"] == "dossier"))
+        self.assertTrue(any(x.get("dossier_ids") for x in entries if x["kind"] == "journey"))
         self.assertGreater(len(now_response.json()["data"]["items"]), 0)
         self.assertGreater(len(ongoing_response.json()["data"]["items"]), 0)
         discovery_results = discovery_response.json()["data"]["results"]
