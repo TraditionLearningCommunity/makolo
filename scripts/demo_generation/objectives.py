@@ -126,7 +126,7 @@ def _find_dossier(owner, title):
     ).order_by("pk").first()
 
 
-def _apply_one_profile(owner, profile_plan, journeys):
+def _apply_one_profile(owner, profile_plan, journeys, journeys_per_dossier):
     """Write one owner graph atomically; retries must start outside this block."""
     profile_stats = Counter()
     with transaction.atomic():
@@ -282,7 +282,9 @@ def generate(users, *, count, projects_per_profile=4,
         # from the beginning, with fresh connections and bounded backoff.
         for attempt in range(3):
             try:
-                profile_stats = _apply_one_profile(owner, profile_plan, journeys)
+                profile_stats = _apply_one_profile(
+                    owner, profile_plan, journeys, journeys_per_dossier,
+                )
             except OperationalError as exc:
                 if connection.vendor != "sqlite" or not _sqlite_busy(exc):
                     raise
