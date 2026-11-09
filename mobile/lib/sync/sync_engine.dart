@@ -387,7 +387,8 @@ class SyncEngine {
       final pageCount = page['count'];
       updated['page'] = {
         ...page,
-        if (pageCount is int) 'count': (pageCount - removed).clamp(0, pageCount),
+        if (pageCount is int)
+          'count': (pageCount - removed).clamp(0, pageCount).toInt(),
       };
     }
     return updated;
