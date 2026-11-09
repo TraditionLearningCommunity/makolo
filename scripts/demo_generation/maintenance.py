@@ -33,6 +33,7 @@ def main(argv=None):
     parser.add_argument("--profiles", type=int, default=30)
     parser.add_argument("--profile-username")
     parser.add_argument("--space-id", help="Filter a synthetic Activity's owning Space UUID")
+    parser.add_argument("--activity-prefix", default="demo-")
     parser.add_argument("--older-than-days", type=int, default=30)
     parser.add_argument("--edition", type=int, default=1,
                         help="Stable editorial variant (repeat = no extra changes)")
@@ -46,6 +47,14 @@ def main(argv=None):
         parser.error("--count 1..100000; --profiles 1..100")
     if not 0 <= args.older_than_days <= 36500 or not 0 <= args.edition <= 100000:
         parser.error("--older-than-days 0..36500; --edition 0..100000")
+    if not args.activity_prefix.startswith("demo-"):
+        parser.error("--activity-prefix must start with demo-")
+    if args.space_id:
+        import uuid
+        try:
+            uuid.UUID(args.space_id)
+        except ValueError:
+            parser.error("--space-id must be a UUID")
     if args.action == "complete":
         if args.backup and args.apply:
             import django
@@ -53,8 +62,8 @@ def main(argv=None):
             from django.db import connection
             from .scope import backup_demo_sqlite
             print("BACKUP", backup_demo_sqlite(connection))
-        if args.space_id:
-            parser.error("--space-id is not supported for complete")
+        if args.space_id or args.activity_prefix != "demo-":
+            parser.error("--space-id/--activity-prefix are not supported for complete")
         from .__main__ import build_parser, run
         command = [
             "generate" if args.apply else "plan", "--domains", args.domains,
@@ -92,7 +101,9 @@ def main(argv=None):
         from .scope import backup_demo_sqlite
         print("BACKUP", backup_demo_sqlite(connection))
 
-    candidates = demo_activities(Activity.objects).select_related(
+    candidates = demo_activities(Activity.objects).filter(
+        slug__startswith=args.activity_prefix
+    ).select_related(
         "owner_profile", "space", "space__created_by"
     ).order_by("created_at", "id")
     if args.profile_username:
