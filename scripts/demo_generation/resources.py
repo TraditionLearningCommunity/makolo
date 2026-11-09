@@ -244,6 +244,49 @@ def main(argv=None):
                             counters["credentials_created"] += 1
                         except (ValidationError, PermissionDenied):
                             counters["credentials_rejected"] += 1
+            # Generic demonstration attestations are deliberate canonical
+            # issuer decisions. They assert neither completion nor participation.
+            if "credentials" in domains and issued < args.count:
+                from activities.models import Activity, ActivityStatus
+                from trust.credential_services import can_issue_credential
+                candidate_activities = Activity.objects.filter(
+                    slug__startswith="demo-", status=ActivityStatus.PUBLISHED
+                ).select_related("space", "space__created_by", "owner_profile").order_by(
+                    "id"
+                )[:500]
+                for activity in candidate_activities:
+                    if issued >= args.count:
+                        break
+                    actor = activity.owner_profile or (
+                        activity.space.created_by if activity.space_id else None
+                    )
+                    if actor is None or not actor.is_active:
+                        continue
+                    if not can_issue_credential(actor=actor, activity=activity):
+                        continue
+                    title = ("Attestation de démonstration - " + activity.title)[:220]
+                    if Credential.objects.filter(
+                        subject_profile=user, activity=activity,
+                        credential_type=CredentialType.ATTESTATION,
+                        title=title, status="issued"
+                    ).exists():
+                        counters["credentials_existing"] += 1
+                        continue
+                    issued += 1
+                    counters["credentials_planned"] += 1
+                    if args.apply:
+                        try:
+                            with transaction.atomic():
+                                issue_credential(
+                                    activity=activity, subject_profile=user,
+                                    credential_type=CredentialType.ATTESTATION,
+                                    actor=actor, title=title,
+                                    statement="Attestation fictive émise dans l'univers de démonstration Makolo.",
+                                )
+                            counters["credentials_created"] += 1
+                        except (ValidationError, PermissionDenied):
+                            counters["credentials_rejected"] += 1
+
     print("RESOURCES", "APPLY" if args.apply else "PREVIEW",
           dict(sorted(counters.items())))
     print("Private files only. No external fetch, fabricated Proof or invented issuer authority.")
