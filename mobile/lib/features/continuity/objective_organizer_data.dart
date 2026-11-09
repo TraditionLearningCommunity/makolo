@@ -190,8 +190,19 @@ String organizerCountLabel(
           _ => count == 1 ? 'démarche' : 'démarches',
         }
       : count == 1 ? 'élément' : 'éléments';
-  return '$count $type${partial ? ' chargés' : ''}';
+  final loaded = partial
+      ? kinds.length == 1 && kinds.first == 'journey' && !filtered
+          ? count == 1 ? ' chargée' : ' chargées'
+          : count == 1 ? ' chargé' : ' chargés'
+      : '';
+  return '$count $type$loaded';
 }
+
+/// Shared links in the explorer are references, never duplicate nodes.
+String organizerSharedLinksLabel(int count) =>
+    count == 1
+        ? '1 démarche également liée, présentée dans un autre dossier'
+        : '$count démarches également liées, présentées dans un autre dossier';
 
 /// Local pages are identity-checked and only consumed while contiguous.
 class OrganizerPage {
