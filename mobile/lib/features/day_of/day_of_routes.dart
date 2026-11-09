@@ -19,6 +19,7 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
       return DayOfScreen(
         occurrenceId: state.pathParameters['id']!,
         repository: repository,
+        actorContext: runtime.actorContext,
         onOpenAccess: (accessId, detailPath) =>
             context.push('/accesses/$accessId'),
         onPresentCredential: (accessId, credentialPath) => context.push(
