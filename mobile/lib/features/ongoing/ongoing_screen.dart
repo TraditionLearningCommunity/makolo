@@ -1275,12 +1275,9 @@ class _OngoingRow extends StatelessWidget {
       now: DateTime.now(),
     );
     final cue = item.cue;
-    final cueColor = switch (item.cueTone) {
-      'action' => colors.brand,
-      'attention' => MakoloColors.pulse,
-      'ready' => colors.success,
-      _ => Theme.of(context).colorScheme.onSurfaceVariant,
-    };
+    final kindIcon = _ongoingBadgeIcon(item);
+    final kindLabel = _ongoingBadgeLabel(item);
+    final scheme = Theme.of(context).colorScheme;
 
     return Semantics(
       button: true,
@@ -1297,63 +1294,50 @@ class _OngoingRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (cue != null || whenLabel != null) ...[
-                    Wrap(
-                      spacing: MakoloSpacing.sm,
-                      runSpacing: MakoloSpacing.xs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                  if (kindIcon != null || cue != null || whenLabel != null) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        if (cue != null)
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: cueColor.withValues(alpha: 0.09),
-                              borderRadius: BorderRadius.circular(
-                                MakoloRadii.pill,
-                              ),
+                        if (kindIcon != null) ...[
+                          Tooltip(
+                            message: kindLabel ?? 'Élément en cours',
+                            child: Icon(
+                              kindIcon,
+                              size: 19,
+                              color: scheme.onSurface,
+                              semanticLabel: kindLabel,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: MakoloSpacing.sm,
-                                vertical: MakoloSpacing.xs,
-                              ),
-                              child: Text(
-                                cue,
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: cueColor,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                          ),
+                          if (cue != null)
+                            const SizedBox(width: MakoloSpacing.xs),
+                        ],
+                        if (cue != null)
+                          Flexible(
+                            child: Text(
+                              cue,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelMedium?.copyWith(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                        if (whenLabel != null)
+                        if (whenLabel != null) ...[
+                          const Spacer(),
+                          const SizedBox(width: MakoloSpacing.xs),
                           Text(
                             whenLabel,
-                            style: textTheme.labelMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                            maxLines: 1,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
-                  ],
-                  if (_ongoingBadgeIcon(item) case final kindIcon?) ...[
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(kindIcon, size: 17, color: colors.brand),
-                        const SizedBox(width: MakoloSpacing.xs),
-                        Text(
-                          _ongoingBadgeLabel(item) ?? '',
-                          style: textTheme.labelMedium?.copyWith(
-                            color: colors.brand,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: MakoloSpacing.xs),
                   ],
                   Text(item.title, style: textTheme.titleLarge),
                   if (summary != null) ...[
