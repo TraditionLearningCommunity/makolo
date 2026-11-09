@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.http import FileResponse
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError, NotFound
 from .media_services import add_questionnaire_media, remove_questionnaire_media, ensure_media_access, serialize_media, media_sections
 from .models import FormVersion, FormQuestion, QuestionnaireMedia
 from django.db.models import Q
@@ -197,7 +197,10 @@ class QuestionnaireMediaDownloadAPIView(APIView):
                 "form_version__form__activity", "question",
             ), pk=media_pk,
         )
-        ensure_media_access(request.user, media)
+        try:
+            ensure_media_access(request.user, media)
+        except PermissionDenied as exc:
+            raise NotFound("Média indisponible.") from exc
         # Only browser-safe media and PDF may render inline. Unknown documents
         # remain attachments; the file remains private and no URL is signed.
         inline = (media.mime_type.startswith(("image/", "audio/", "video/"))
