@@ -325,3 +325,74 @@ def conversation_collectives_for_manager(actor, conversation):
             "space", "group",
         ).order_by("created_at")[:80]
     ]
+
+
+def collective_viewer_ids(conversation):
+    """Live, accepted collective members only; no membership snapshots."""
+    links = conversation.collective_accesses.filter(
+        status=ConversationCollectiveStatus.ACTIVE,
+    ).select_related("space", "group")
+    group_ids = [
+        link.group_id for link in links
+        if link.group_id and link.group.status == GroupStatus.ACTIVE
+    ]
+    space_ids = [
+        link.space_id for link in links
+        if link.space_id and link.space.lifecycle == SpaceLifecycle.ACTIVE
+    ]
+    ids = set(GroupMembership.objects.filter(
+        group_id__in=group_ids, status=GroupMembershipStatus.ACTIVE,
+        profile__is_active=True,
+    ).values_list("profile_id", flat=True))
+    ids.update(Group.objects.filter(
+        pk__in=group_ids, owner_profile__is_active=True,
+    ).values_list("owner_profile_id", flat=True))
+    ids.update(TeamMembership.objects.filter(
+        team__organization_id__in=space_ids, team__is_active=True,
+        status=TeamMembershipStatus.ACTIVE, user__is_active=True,
+    ).values_list("user_id", flat=True))
+    return ids
+
+
+def collective_access_since(profile, conversation):
+    """Earliest currently valid admission to this conversation, for FROM_JOIN.
+
+    The viewer never gains history before the collective actually accepted
+    or before the Profile became a member of that collective.
+    """
+    if not getattr(profile, "is_active", False):
+        return None
+    moments = []
+    links = conversation.collective_accesses.filter(
+        status=ConversationCollectiveStatus.ACTIVE,
+    ).select_related("space", "group")
+    for link in links:
+        admitted = link.responded_at or link.created_at
+        if link.group_id and link.group.status == GroupStatus.ACTIVE:
+            if link.group.owner_profile_id == profile.pk:
+                moments.append(admitted)
+            for membership in GroupMembership.objects.filter(
+                group_id=link.group_id, profile=profile,
+                status=GroupMembershipStatus.ACTIVE,
+            ):
+                moments.append(max(admitted, membership.joined_at))
+        elif link.space_id and link.space.lifecycle == SpaceLifecycle.ACTIVE:
+            for membership in TeamMembership.objects.filter(
+                team__organization_id=link.space_id,
+                team__is_active=True, user=profile,
+                status=TeamMembershipStatus.ACTIVE,
+            ):
+                moments.append(max(admitted, membership.joined_at or membership.created_at))
+    return min(moments) if moments else None
+
+
+def profile_conversation_since(profile, conversation):
+    """Oldest current explicit or collectively accepted access (or none)."""
+    direct = ConversationParticipation.objects.filter(
+        conversation=conversation, profile=profile,
+        status=ConversationParticipationStatus.ACTIVE,
+    ).values_list("joined_at", flat=True).first()
+    derived = collective_access_since(profile, conversation)
+    return min(x for x in (direct, derived) if x is not None) if (
+        direct is not None or derived is not None
+    ) else None
