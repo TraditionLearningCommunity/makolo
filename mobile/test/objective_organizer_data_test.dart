@@ -161,6 +161,17 @@ void main() {
         ['d0-0', 'd0-1', 'd1-0']);
   });
 
+  test('empty Dossier stays present without fabricated Journey children', () {
+    final project = OrganizerEntry.fromMap(item('project', 'p'));
+    final dossier = OrganizerEntry.fromMap(
+      item('dossier', 'd', parent: 'p'),
+    );
+    final tree = OrganizerHierarchy([project, dossier]);
+    expect(tree.childrenOf(project).map((row) => row.id), ['d']);
+    expect(tree.childrenOf(dossier), isEmpty);
+    expect(tree.roots.map((row) => row.key), ['project:p']);
+  });
+
   test('missing parents are roots but are not reclassified independent', () {
     final dossier = OrganizerEntry.fromMap(
       item('dossier', 'd', parent: 'project-not-loaded'),
