@@ -862,7 +862,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           ListTile(
                             key: ValueKey('retrieval-$index'),
                             leading: Icon(
-                              _retrievalIcon(rows[index]['kind']?.toString()),
+                              _retrievalIcon(_rowKind(rows[index])),
                               color: Theme.of(context).colorScheme.primary,
                             ),
                             title: Text(
@@ -931,6 +931,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               ],
             ),
     );
+  }
+
+  String? _rowKind(Map<String, dynamic> row) {
+    final explicit = row['kind']?.toString();
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+    final source = row['source'];
+    if (source is Map) return source['kind']?.toString();
+    return null;
   }
 
   IconData _retrievalIcon(String? kind) {
