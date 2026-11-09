@@ -2414,7 +2414,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                             onRetry: _refresh,
                           )
                   : ListView(
-                      key: const Key('discover-possibility-n3'),
+                      key: Key(widget.actorQuery.isSpace
+                          ? 'discover-space-n3' : 'discover-personal-n2'),
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                       children: [
                         Center(
