@@ -568,17 +568,18 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                     ).textTheme.titleLarge,
                                   ),
                                   const Spacer(),
-                                  Text(
-                                    '${detail.versions.length}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelLarge
-                                        ?.copyWith(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                  ),
+                                  if (detail.versions.isNotEmpty)
+                                    Text(
+                                      '${detail.versions.length}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                    ),
                                   if (detail.addVersionPath != null &&
                                       ownerAvailable) ...[
                                     const SizedBox(width: MakoloSpacing.xs),
