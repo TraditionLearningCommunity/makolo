@@ -322,7 +322,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement des notifications…',
                   ),
-                  recoverableErrorMessage: 'Actualisation indisponible.',
+                  recoverableErrorMessage: available ? null : 'Impossible d’afficher les notifications.',
                   empty: MakoloEmptyState(
                     title: _onlyUnread
                         ? 'Aucune notification non lue.'
