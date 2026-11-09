@@ -41,7 +41,7 @@ from .space_passport_views import (
     SpacePassportDirectShareAPIView, SpacePassportVersionRevokeAPIView,
     SpacePassportShareRevokeAPIView,
 )
-from .views import FollowDetailAPIView, FollowListCreateAPIView
+from .views import FollowDetailAPIView, FollowListCreateAPIView, FollowTargetAPIView
 from .workspace_views import (
     SpaceArchiveAPIView,
     SpaceOwnershipTransferAPIView,
@@ -109,4 +109,5 @@ urlpatterns = [
     path("workspaces/<slug:slug>/mark/", SpaceMarkAPIView.as_view(), name="workspace-mark"),
     path("follows/", FollowListCreateAPIView.as_view(), name="follows"),
     path("follows/<uuid:pk>/", FollowDetailAPIView.as_view(), name="follow-detail"),
+    path("follows/targets/<str:kind>/<uuid:target_id>/", FollowTargetAPIView.as_view(), name="follow-target"),
 ]
