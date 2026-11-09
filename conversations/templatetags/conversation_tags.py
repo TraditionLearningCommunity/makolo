@@ -81,6 +81,49 @@ def conversation_attention_preview(profile, limit=5):
 
 
 @register.simple_tag
+def conversation_point_interactions(point, profile):
+    """Same owner-scoped action controls on Web as the mobile API."""
+    from conversations.point_interactions import point_interactions_for_profile
+    data = point_interactions_for_profile(profile, point)
+    my_value = (data["my_response"] or {}).get("value")
+    selected = (
+        {str(item) for item in my_value}
+        if isinstance(my_value, list)
+        else {str(my_value)} if my_value is not None else set()
+    )
+    counts = (data["poll_results"] or {}).get("counts", {})
+    data["choices"] = [
+        {
+            "id": str(option.pk), "label": option.label,
+            "selected": str(option.pk) in selected,
+            "count": counts.get(str(option.pk)) if data["poll_results"] is not None else None,
+        }
+        for option in point.options.all()
+    ]
+    if my_value is None:
+        data["my_answer_label"] = ""
+    elif point.response_mode in {"single_choice", "multiple_choice"}:
+        data["my_answer_label"] = ", ".join(
+            item["label"] for item in data["choices"] if item["selected"]
+        )
+    elif point.response_mode == "boolean":
+        data["my_answer_label"] = (
+            "Je m'en charge" if my_value and point.kind == "request"
+            else "Je ne peux pas" if point.kind == "request"
+            else "Oui" if my_value else "Non"
+        )
+    else:
+        data["my_answer_label"] = str(my_value)[:500]
+    return data
+
+
+@register.simple_tag
+def conversation_response_reference():
+    from uuid import uuid4
+    return "web-response-" + uuid4().hex
+
+
+@register.simple_tag
 def conversation_point_form_request(point, profile):
     return form_request_for_profile(point, profile)
 
