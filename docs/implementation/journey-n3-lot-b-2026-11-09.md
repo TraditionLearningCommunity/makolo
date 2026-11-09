@@ -30,6 +30,7 @@ Journey reste le propriétaire du parcours. Readiness est dérivée ; Forms, Req
 - Le N3 Flutter observe cette projection locale et affiche jusqu'à trois documents / liens / instructions identifiés par leur titre et type, avec ouverture vers la profondeur Preparation existante ; un owner confirmé vide ne produit pas une fausse liste.
 - Les profondeurs Preparation « Documents et instructions » et « Élément nécessaire » restent lisibles sur projections locales en cas d'échec de transport. Une absence de donnée acquise donne un état neutre, tandis qu'un refus explicite 403/404 conserve son effet d'autorité ; elles ne montrent plus de blocage motivé seulement par la connectivité.
 - Le cycle de synchronisation personnelle prépare progressivement les ressources des Journey connues dans `personal.ongoing`, avec les mêmes clés de Profil et des budgets bornés, sans précharger indistinctement les fichiers privés ni stocker un cache de widget.
+- Dès qu'une projection Journey est acquise, ce même cycle prépare également les détails Questionnaires et Requirements référencés par des **liens owner exacts**. Chaque famille est bornée à six détails sélectionnés par cycle, sans endpoint inventé ni élévation de capability. Les formulaires conservés comprennent leurs questions et les brouillons continuent d'être gérés par les propriétaires existants.
 - Un clic de ressource externe ne vaut pas accomplissement d'une Requirement ou d'une Journey.
 
 ## B7 — Informations pratiques et propriétaires composés
@@ -56,6 +57,7 @@ Ce lot n'a ajouté ni modèle, ni migration, ni nouvelle API de paiement/permiss
 - `core/api/detail_projections.py` et `core/api/detail_views.py` : FormVersion et lieu d'Occurrence.
 - `core/participant_views.py` et `templates/core/participant_journey_detail.html` : Web Forms et messages concis.
 - `mobile/lib/features/journey/journey_selector.dart` : champs propriétaires et vues de préparation.
+- `mobile/lib/features/journey/journey_repository.dart` : validation des liens propriétaires vers Questionnaires et Requirements avant préparation en BDD.
 - `mobile/lib/features/journey/journey_detail_screen.dart` : composition de B5–B7.
 - `mobile/lib/features/journey/journey_routes.dart` : handoffs Payment / Commerce et injection Preparation.
 - `mobile/lib/features/preparation/{preparation_resources_screen,requirement_detail_screen}.dart` : état local-first dans les profondeurs propriétaires.
