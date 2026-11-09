@@ -451,10 +451,11 @@ class _JourneyContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
             ),
-            child: const MakoloAttentionBlock(
-              title: 'En attente de réponse',
-              body: 'Votre demande suit son cours.',
-              icon: Icons.hourglass_bottom_rounded,
+            child: const MakoloCard(
+              child: ListTile(
+                leading: Icon(Icons.hourglass_empty_rounded),
+                title: Text('En attente de réponse'),
+              ),
             ),
           ),
           const SizedBox(height: MakoloSpacing.lg),
@@ -1176,6 +1177,10 @@ class _JourneyPaymentCard extends StatelessWidget {
       'paid' || 'succeeded' || 'completed' || 'settled' => 'Payé',
       'pending' || 'pending_payment' => 'En attente',
       'processing' => 'En cours',
+      'satisfied' => 'Réglé',
+      'waived' => 'Dispensé',
+      'refunded' => 'Remboursé',
+      'expired' => 'Expiré',
       'failed' => 'Échec',
       'cancelled' => 'Annulé',
       _ => null,
