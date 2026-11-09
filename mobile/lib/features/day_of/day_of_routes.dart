@@ -32,6 +32,7 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
         onOpenDepth: (kind) => context.push(
           '/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
         ),
+        onOpenHistory: () => context.push('/history'),
       );
     },
   ),
