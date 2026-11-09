@@ -19,6 +19,27 @@ class JourneyReadinessItem {
   final String? nextLink;
 }
 
+/// A JourneyStep is an owner fact, never a locally invented task or percentage.
+class JourneyStepSummary {
+  const JourneyStepSummary({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.kind,
+    required this.dependsOn,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final String kind;
+  final List<String> dependsOn;
+
+  bool get isCompleted => status == 'completed';
+  bool get isTerminal =>
+      status == 'completed' || status == 'skipped' || status == 'cancelled';
+}
+
 class JourneyFormSummary {
   const JourneyFormSummary({
     required this.id,
@@ -72,6 +93,9 @@ class JourneyDetailPresentation {
     required this.freshness,
     required this.sourceInvalidated,
     this.canRespondInvitation = false,
+    this.workflowKind = '',
+    this.stateCode = '',
+    this.steps = const [],
     this.summary,
     this.nextActionLabel,
     this.nextActionLink,
@@ -86,6 +110,9 @@ class JourneyDetailPresentation {
   final bool available;
   final String title;
   final String kindLabel;
+  final String workflowKind;
+  final String stateCode;
+  final List<JourneyStepSummary> steps;
   final String? summary;
   final String journeyState;
   final String readinessState;
@@ -109,6 +136,9 @@ class JourneyDetailPresentation {
   final bool canRespondInvitation;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
+  bool get isTerminal =>
+      const {'fulfilled', 'rejected', 'cancelled', 'expired'}
+          .contains(stateCode);
 }
 
 class JourneyDetailSelector {
@@ -145,6 +175,7 @@ class JourneyDetailSelector {
       sourceInvalidated: source.invalidated,
     );
     final payload = base.payload ?? const <String, dynamic>{};
+    final identity = _map(payload['identity']);
     final representation = _map(payload['representation']);
     final state = _map(payload['state']);
     final readiness = _map(payload['readiness']);
@@ -155,11 +186,18 @@ class JourneyDetailSelector {
     final links = _map(payload['links']);
     final capabilities = _strings(payload['capabilities']).toSet();
 
+    final title = _string(representation['title']) ?? 'Démarche';
+    final summary = _string(representation['summary']);
     return JourneyDetailPresentation(
       available: true,
-      title: _string(representation['title']) ?? 'Démarche',
+      title: title,
       kindLabel: _string(representation['kind_label']) ?? 'Démarche',
-      summary: _string(representation['summary']),
+      workflowKind: _string(identity['workflow']) ?? '',
+      stateCode: _string(state['code']) ?? '',
+      steps: _steps(payload['steps']),
+      summary: summary != null && summary.toLowerCase() != title.toLowerCase()
+          ? summary
+          : null,
       journeyState: _string(state['label']) ?? _string(state['code']) ?? '',
       readinessState: _string(readiness['state']) ?? '',
       ready: _readinessItems(readiness['ready']),
@@ -208,6 +246,19 @@ class JourneyDetailSelector {
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );
+  }
+
+  static List<JourneyStepSummary> _steps(Object? value) {
+    return _maps(value).map((row) {
+      return JourneyStepSummary(
+        id: _string(row['id']) ?? '',
+        title: _string(row['title']) ?? '',
+        status: _string(row['status']) ?? '',
+        kind: _string(row['kind']) ?? '',
+        dependsOn: _strings(row['depends_on']),
+      );
+    }).where((step) => step.id.isNotEmpty && step.title.isNotEmpty)
+      .toList(growable: false);
   }
 
   static List<JourneyReadinessItem> _readinessItems(Object? value) {
