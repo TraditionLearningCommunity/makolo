@@ -429,7 +429,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 if focused.pk not in seen:
                     focused_point = _serialize_point(focused, profile=request.user, section="focus")
         timeline = recent_timeline_for_profile(request.user, conversation)
-        if focused_point and any(point.pk == focused_point["id"] for point in timeline["points"]):
+        if focused_point and any(str(point.pk) == focused_point["id"] for point in timeline["points"]):
             focused_point = None
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
