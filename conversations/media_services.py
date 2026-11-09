@@ -78,7 +78,17 @@ def _ensure_policy(point, kind):
         raise ValidationError("Ce type de média n’est pas autorisé dans cette Conversation.")
 
 
-def _ensure_upload_authority(*, actor, point, response=None, exchange_entry=None):
+def _ensure_upload_authority(*, actor, point, response=None, exchange_entry=None, option=None):
+    if option is not None:
+        if option.point_id != point.pk or point.kind != "poll":
+            raise PermissionDenied("Le choix n'appartient pas à ce Sondage.")
+        if point.published_by_id != getattr(actor, "pk", None):
+            raise PermissionDenied("Seul l'auteur peut publier les médias de ce choix.")
+        if point.responses.exists():
+            raise PermissionDenied("Les médias des choix ne changent plus après une réponse.")
+        if not can_publish_in_conversation(actor, point.conversation):
+            raise PermissionDenied("Publication non autorisée.")
+        return
     if response is not None:
         if response.point_id != point.pk or response.actor_id != getattr(actor, "pk", None):
             raise PermissionDenied("Vous ne pouvez pas joindre un fichier à cette réponse.")
@@ -96,8 +106,14 @@ def _ensure_upload_authority(*, actor, point, response=None, exchange_entry=None
 
 
 @transaction.atomic
-def create_point_attachment(*, actor, point, uploaded_file, kind=ConversationAttachmentKind.FILE, response=None, exchange_entry=None):
-    _ensure_upload_authority(actor=actor, point=point, response=response, exchange_entry=exchange_entry)
+def create_point_attachment(
+    *, actor, point, uploaded_file, kind=ConversationAttachmentKind.FILE,
+    response=None, exchange_entry=None, option=None, caption="",
+):
+    if sum(value is not None for value in (response, exchange_entry, option)) > 1:
+        raise ValidationError("Une pièce jointe doit avoir un seul contexte.")
+    _ensure_upload_authority(actor=actor, point=point, response=response,
+                             exchange_entry=exchange_entry, option=option)
     _ensure_policy(point, kind)
     data, mime_type, content_hash = validate_conversation_upload(uploaded_file, kind)
     _validate_kind_mime(kind, mime_type)
@@ -105,6 +121,8 @@ def create_point_attachment(*, actor, point, uploaded_file, kind=ConversationAtt
         point=point,
         response=response,
         exchange_entry=exchange_entry,
+        option=option,
+        caption=(caption or "").strip(),
         kind=kind,
         original_name=Path(getattr(uploaded_file, "name", "fichier")).name[:255],
         mime_type=mime_type,
