@@ -95,4 +95,48 @@ void main() {
     expect(find.text('Mon appel'), findsOneWidget);
     expect(find.textContaining('Source : operations.queue'), findsOneWidget);
   });
+  testWidgets('L5 independent owner depths keep direct actions visible', (tester) async {
+    String? selected;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OccurrenceExperienceContent(
+            payload: const {
+              'surface': 'day_of',
+              'phase': 'arrival',
+              'context': {
+                'activity': {'title': 'Départ'},
+                'occurrence': {'label': 'Départ du jour'},
+              },
+              'live': {'available': false},
+              'sections': {
+                'organizer': {
+                  'operational_readiness': {'state': 'ready'},
+                  'queue': [],
+                  'capacity': [],
+                  'checkpoints': [],
+                },
+              },
+              'actions': [],
+              'capabilities': {'finance_view': {}, 'operations_manage': {}},
+              'depths': [
+                {'kind': 'finance', 'label': 'Finances'},
+                {'kind': 'operator_queue', 'label': 'Gérer les files'},
+              ],
+            },
+            live: false,
+            onOpenDepth: (kind) => selected = kind,
+          ),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(find.text('Finances'), 170);
+    await tester.tap(find.text('Finances'));
+    expect(selected, 'finance');
+    await tester.scrollUntilVisible(find.text('Gérer les files'), 170);
+    await tester.tap(find.text('Gérer les files'));
+    expect(selected, 'operator_queue');
+    expect(find.byType(DropdownButton<String>), findsNothing);
+  });
+
 }
