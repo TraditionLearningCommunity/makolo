@@ -184,6 +184,36 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "permission": PermissionCode.ACTIVITY_OPERATIONS_VIEW,
         }
 
+    # Cumulative domain rights, not mutually exclusive organizer modes.
+    # These do not imply that owner data or a mutation endpoint is available.
+    for name, permission in (
+        ("access_control_view", PermissionCode.ACTIVITY_ACCESS_VIEW),
+        ("access_control_manage", PermissionCode.ACTIVITY_ACCESS_MANAGE),
+        ("capacity_view", PermissionCode.ACTIVITY_CAPACITY_VIEW),
+        ("capacity_manage", PermissionCode.ACTIVITY_CAPACITY_MANAGE),
+        ("commerce_view", PermissionCode.ACTIVITY_COMMERCE_VIEW),
+        ("commerce_manage", PermissionCode.ACTIVITY_COMMERCE_MANAGE),
+    ):
+        if _owner_permission(viewer, occurrence, permission):
+            capabilities[name] = {
+                "source": "authorization.services",
+                "permission": permission,
+            }
+
+    if occurrence.activity.space_id:
+        for name, permission in (
+            ("place_view", PermissionCode.SPACE_PLACES_VIEW),
+            ("place_manage", PermissionCode.SPACE_PLACES_MANAGE),
+        ):
+            if can(
+                viewer, permission, occurrence.activity.space,
+                include_platform=False,
+            ):
+                capabilities[name] = {
+                    "source": "authorization.services",
+                    "permission": permission,
+                }
+
     if institutional:
         capabilities["institutional_journey_view"] = {
             "source": "journeys.collaboration_services",
