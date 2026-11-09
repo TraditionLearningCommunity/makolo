@@ -98,3 +98,27 @@ Ces commandes **ne sont pas attestées comme exécutées** par cette passe.
 **Statut :** modifications déposées sur la branche active de #522, tests
 ajoutés mais non exécutés ici ; aucune validation Android physique ni
 résultat CI revendiqués. Ne pas merger sans validation pertinente.
+
+## Ajustement explorateur et chargement automatique — 9 novembre 2026
+
+- Le paragraphe explicatif permanent en tête de l'Explorateur est retiré.
+- Indentation minimale : 7 dp par niveau, avec une colonne de chevrons
+  compacte et une zone de titre plus large. Les noeuds commencent près du bord
+  gauche, sans sacrifier l'identité Projet / Dossier / Journey.
+- Tous les Projets **et tous les Dossiers** disposent d'un chevron distinct du
+  lien sur la ligne : le chevron ouvre/replie les enfants, toucher le titre
+  ouvre la page du Projet ou du Dossier. Une Journey ouvre directement son
+  parcours. Un Dossier vide s'ouvre sur un contenu vide, sans texte fictif.
+- Le chargement de la collection de Mes démarches et des Dossiers d'un Projet
+  devient **automatique à l'approche du bas** (seuil de 450 dp). Aucun bouton
+  « Voir davantage », numéro de page ou « Suivant ». Les fenêtres serveur
+  restent contiguës, propriétaires, et acquises dans le cache local. La
+  progression apparaît en bas pendant l'acquisition.
+- La génération de nouvelles demandes est bloquée en mode hors ligne,
+  pendant un chargement en cours ou après un échec ; un rafraîchissement
+  explicite permet de reprendre. Les erreurs ne doivent pas boucler
+  silencieusement au moindre scroll.
+- Tests de données : Dossier vide conservé sous son Projet, sans Journey
+  inventée. Le comportement exact des gestes et du scroll doit encore être
+  vérifié sur un émulateur/appareil ; aucun test Flutter exécuté ici.
+
