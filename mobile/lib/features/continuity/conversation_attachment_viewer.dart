@@ -11,12 +11,18 @@ import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'conversation_repository.dart';
 
+typedef PrivateMediaDownloader = Future<File> Function({
+  required String attachmentId,
+  required String filename,
+});
+
 /// Private download and ephemeral viewer. No bearer is exposed to external
 /// renderers and no private attachment is registered as a durable Resource.
 class ConversationAttachmentViewer extends StatefulWidget {
   const ConversationAttachmentViewer({
     super.key,
-    required this.repository,
+    this.repository,
+    this.download,
     required this.attachment,
     this.inline = false,
     this.gallery = const [],
@@ -25,7 +31,8 @@ class ConversationAttachmentViewer extends StatefulWidget {
     this.sharing = const SystemShareGateway(),
   });
 
-  final ConversationRepository repository;
+  final ConversationRepository? repository;
+  final PrivateMediaDownloader? download;
   final Map<String, dynamic> attachment;
   final bool inline;
   final List<Map<String, dynamic>> gallery;
@@ -62,8 +69,12 @@ class _ConversationAttachmentViewerState
   void _download({bool playAudio = false}) {
     final current = _attachment;
     final generation = ++_generation;
-    _future = widget.repository
-        .downloadAttachment(
+    final downloader = widget.download ?? widget.repository?.downloadAttachment;
+    if (downloader == null) {
+      _error = 'Lecteur privé indisponible.';
+      return;
+    }
+    _future = downloader(
           attachmentId: current['id']?.toString() ?? '',
           filename: current['name']?.toString() ?? 'fichier',
         )
