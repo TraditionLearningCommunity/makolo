@@ -73,20 +73,20 @@ def point_visible_to(
     ):
         if history_cache is None:
             manager = can_manage_conversation(profile, point.conversation)
-            joined_at = None if manager else ConversationParticipation.objects.filter(
-                conversation=point.conversation, profile=profile,
-                status=ConversationParticipationStatus.ACTIVE,
-            ).values_list("joined_at", flat=True).first()
+            from .participant_services import profile_conversation_since
+            joined_at = None if manager else profile_conversation_since(
+                profile, point.conversation,
+            )
         else:
             if scope not in history_cache:
                 manager = can_manage_conversation(profile, point.conversation)
-                joined_at = None if manager else ConversationParticipation.objects.filter(
-                    conversation=point.conversation, profile=profile,
-                    status=ConversationParticipationStatus.ACTIVE,
-                ).values_list("joined_at", flat=True).first()
+                from .participant_services import profile_conversation_since
+                joined_at = None if manager else profile_conversation_since(
+                    profile, point.conversation,
+                )
                 history_cache[scope] = (manager, joined_at)
             manager, joined_at = history_cache[scope]
-        # Never infer an historic join from derived access.
+        # Only explicit or accepted collective admissions have a join time.
         if not manager and (joined_at is None or point.published_at < joined_at):
             return False
 
