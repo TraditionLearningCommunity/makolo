@@ -492,13 +492,13 @@ python -m scripts.demo_generation maintain --action restore --count 10 --apply
   révocation ou d'achèvement. `--mode full` permet le déplacement historique
   **explicitement** pour les seuls scénarios synthétiques visés.
 - `--include-existing` pour inclure les Occurrences non synthétiques reste
-  une option exceptionnelle : une application exige `--backup` et ne peut
-  pas être combinée avec `--mode full`.
+  une option exceptionnelle et ne peut pas être combinée avec `--mode full`.
+  L'opération écrit directement dans la SQLite choisie, sans sauvegarde implicite.
 - `rebalance --target profiles` ajuste les favoris synthétiques des
   utilisateurs `world_*` ; `spaces` ajuste leurs suivis d'Espaces de démo.
   `--direction add` (défaut) complète jusqu'à `--per-profile`, tandis que
-  `--direction trim` réduit seulement les relations en excès, après aperçu
-  et avec sauvegarde obligatoire à l'application. `--activity-prefix` permet
+  `--direction trim` réduit seulement les relations en excès, lorsque
+  `--apply` est donné, sans sauvegarde automatique. `--activity-prefix` permet
   de limiter la famille d'Activity. Ces opérations **ne changent pas**
   les propriétaires, l'appartenance Team, les Mandates, les Journey ou Payment.
 - `maintain --action complete` **réutilise** les générateurs existants et leurs
@@ -513,8 +513,12 @@ python -m scripts.demo_generation maintain --action restore --count 10 --apply
 - Les mutations éditoriales et les archives sont limitées aux propriétaires de
   démonstration `world_*` (Profil ou créateur de Space). Cela ne prétend
   pas entretenir les comptes bêta ou d'autres environnements.
-- `--backup` crée une sauvegarde SQLite avant toute écriture de maintenance ;
-  aucune sauvegarde automatique implicite n'est créée. Des échecs d'opérations
+- Par défaut, toutes les opérations `--apply` modifient la SQLite existante
+  directement, sans créer de copie ni de sauvegarde. Une copie n'est produite
+  qu'avec `timeline --output <chemin>` et une sauvegarde uniquement lorsque
+  `--backup` est explicitement fourni. Cela vaut aussi pour
+  `timeline --mode full`, `--include-existing` et `rebalance --direction trim`.
+  Des échecs d'opérations
   propriétaire sont rapportés, pas compensés par des permissions inventées.
 
 Ces commandes permettent de maintenir un univers de démo vivant, sans
