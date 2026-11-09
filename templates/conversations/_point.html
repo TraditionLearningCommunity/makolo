@@ -31,10 +31,11 @@
       {% endfor %}
     </div>
   {% endif %}
-  {% for response_files in semantic_media.responses %}
+  {% for response in semantic_media.responses %}
     <div class="mt-3">
-      <p class="text-xs font-semibold" style="color:var(--mk-muted)">Média joint à une réponse accessible</p>
-      {% include 'conversations/_attachment_gallery.html' with files=response_files %}
+      <p class="text-xs font-semibold" style="color:var(--mk-muted)">Réponse accessible</p>
+      {% if response.label %}<p class="mt-1 whitespace-pre-wrap text-sm">{{ response.label }}</p>{% endif %}
+      {% include 'conversations/_attachment_gallery.html' with files=response.files %}
     </div>
   {% endfor %}
   {% if point.kind == 'exchange' %}
