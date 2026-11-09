@@ -2131,13 +2131,18 @@ class _PointCardState extends State<_PointCard> {
         pointId: widget.point.id,
         revisit: !widget.point.revisit,
       );
-      if (mounted) setState(() => _feedback =
-        widget.point.revisit
-            ? 'Repère personnel retiré.'
-            : 'Point enregistré dans « À savoir ».');
+      if (mounted)
+        setState(
+          () => _feedback = widget.point.revisit
+              ? 'Repère personnel retiré.'
+              : 'Point enregistré dans « À savoir ».',
+        );
     } on Object {
-      if (mounted) setState(() => _feedback =
-        'Repère non confirmé. Réessayez après actualisation.');
+      if (mounted)
+        setState(
+          () =>
+              _feedback = 'Repère non confirmé. Réessayez après actualisation.',
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -2668,8 +2673,8 @@ class _PointCardState extends State<_PointCard> {
               label: _busy
                   ? 'Mise à jour…'
                   : point.revisit
-                      ? 'Ne plus revoir ce Point'
-                      : 'Revoir ce Point',
+                  ? 'Ne plus revoir ce Point'
+                  : 'Revoir ce Point',
               icon: point.revisit
                   ? Icons.bookmark_added_rounded
                   : Icons.bookmark_add_outlined,

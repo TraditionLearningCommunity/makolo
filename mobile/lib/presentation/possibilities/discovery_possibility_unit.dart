@@ -1189,7 +1189,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       !_saving &&
                           widget.allowOwnerActions &&
                           ((widget.onSave != null && canToggle) ||
-                              (widget.allowSavePrompt && widget.onSignIn != null))
+                              (widget.allowSavePrompt &&
+                                  widget.onSignIn != null))
                       ? _save
                       : null,
                   tooltip: _saving

@@ -750,9 +750,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       },
                       validator: (value) =>
                           profileId == null &&
-                                  (value == null || !value.contains('@'))
-                              ? 'Choisissez une personne ou indiquez son e-mail'
-                              : null,
+                              (value == null || !value.contains('@'))
+                          ? 'Choisissez une personne ou indiquez son e-mail'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -840,8 +840,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         final yes = await _confirm(
                           'Retirer cet accès ?',
                           'La personne perdra ce mandat Projet. '
-                          'Ses éventuelles responsabilités sur les Dossiers '
-                          'ne seront pas supprimées.',
+                              'Ses éventuelles responsabilités sur les Dossiers '
+                              'ne seront pas supprimées.',
                           'Révoquer',
                         );
                         if (yes && mounted) {
@@ -897,19 +897,23 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             itemBuilder: (_) => [
               if (actions.contains('link'))
                 const PopupMenuItem(
-                  value: 'link', child: Text('Rattacher un Dossier'),
+                  value: 'link',
+                  child: Text('Rattacher un Dossier'),
                 ),
               if (actions.contains('edit'))
                 const PopupMenuItem(
-                  value: 'edit', child: Text('Modifier le Projet'),
+                  value: 'edit',
+                  child: Text('Modifier le Projet'),
                 ),
               if (actions.contains('lifecycle'))
                 const PopupMenuItem(
-                  value: 'lifecycle', child: Text('Changer l’état'),
+                  value: 'lifecycle',
+                  child: Text('Changer l’état'),
                 ),
               if (actions.contains('authority'))
                 const PopupMenuItem(
-                  value: 'authority', child: Text('Gérer les accès'),
+                  value: 'authority',
+                  child: Text('Gérer les accès'),
                 ),
             ],
             child: const Padding(
@@ -983,8 +987,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
         if (_text(horizon['description']).trim().isNotEmpty) ...[
           const SizedBox(height: 8),
-          Text(_text(horizon['description']),
-              style: theme.textTheme.bodySmall),
+          Text(_text(horizon['description']), style: theme.textTheme.bodySmall),
         ],
         if (start != null || end != null)
           Padding(
@@ -1068,13 +1071,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(icon, size: 16,
+                          Icon(
+                            icon,
+                            size: 16,
                             color: _mode == mode
                                 ? scheme.onPrimaryContainer
-                                : scheme.onSurfaceVariant),
+                                : scheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
-                            child: Text(label,
+                            child: Text(
+                              label,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.labelSmall,
                             ),

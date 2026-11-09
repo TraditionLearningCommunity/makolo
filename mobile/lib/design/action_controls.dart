@@ -103,7 +103,6 @@ class MakoloIconActionButton extends StatelessWidget {
   );
 }
 
- 
 /// Consistent empty pill around one existing N1 action.
 /// An affirmed Save can be lightly tinted; opening and sharing stay unfilled.
 class MakoloRoundedActionSlot extends StatelessWidget {

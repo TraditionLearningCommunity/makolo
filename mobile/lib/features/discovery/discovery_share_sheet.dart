@@ -384,22 +384,22 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
       child: widget.iconOnly
           ? null
           : Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_busy)
-            const SizedBox(
-              width: 19,
-              height: 19,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            const Icon(Icons.share_outlined),
-          if (!widget.iconOnly) ...[
-            const SizedBox(height: 3),
-            const Text('Partager', textAlign: TextAlign.center),
-          ],
-        ],
-      ),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_busy)
+                  const SizedBox(
+                    width: 19,
+                    height: 19,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  const Icon(Icons.share_outlined),
+                if (!widget.iconOnly) ...[
+                  const SizedBox(height: 3),
+                  const Text('Partager', textAlign: TextAlign.center),
+                ],
+              ],
+            ),
     );
   }
 }
