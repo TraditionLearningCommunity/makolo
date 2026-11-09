@@ -666,17 +666,40 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--backup", options)
 
 
-    def test_full_timeline_requires_a_backup_or_copy(self):
-        from scripts.demo_generation.clock import main as timeline
-        with self.assertRaises(SystemExit):
-            timeline(["--database", "/does-not-exist/demo.sqlite",
-                      "--mode", "full", "--apply"])
+    def test_full_timeline_applies_in_place_without_implicit_backup(self):
+        args = build_parser().parse_args([
+            "timeline", "--mode", "full", "--apply",
+        ])
+        with patch("scripts.demo_generation.clock.main") as timeline:
+            run(args)
+        options = timeline.call_args.args[0]
+        self.assertIn("--apply", options)
+        self.assertIn("full", options)
+        self.assertNotIn("--backup", options)
+        self.assertNotIn("--output", options)
 
-    def test_trim_requires_backup_before_loading_database(self):
-        from scripts.demo_generation.rebalance import main as rebalance
-        with self.assertRaises(SystemExit):
-            rebalance(["--target", "profiles", "--direction", "trim",
-                       "--apply"])
+    def test_trim_applies_without_implicit_backup(self):
+        args = build_parser().parse_args([
+            "rebalance", "--target", "profiles", "--direction", "trim",
+            "--apply",
+        ])
+        with patch("scripts.demo_generation.rebalance.main") as rebalance:
+            run(args)
+        options = rebalance.call_args.args[0]
+        self.assertIn("trim", options)
+        self.assertIn("--apply", options)
+        self.assertNotIn("--backup", options)
+
+    def test_include_existing_has_no_implicit_backup(self):
+        args = build_parser().parse_args([
+            "timeline", "--include-existing", "--mode", "safe", "--apply",
+        ])
+        with patch("scripts.demo_generation.clock.main") as timeline:
+            run(args)
+        options = timeline.call_args.args[0]
+        self.assertIn("--include-existing", options)
+        self.assertIn("--apply", options)
+        self.assertNotIn("--backup", options)
 
     def test_rebalance_refuses_non_demo_profiles(self):
         from scripts.demo_generation.rebalance import main as rebalance
