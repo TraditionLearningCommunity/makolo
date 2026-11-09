@@ -346,6 +346,16 @@ def grant_project_role(*, profile, project, role, granted_by=None,
         project=project, status=MandateStatus.ACTIVE,
     ).order_by().first()
     if existing:
+        # Renew an expired effective window without inserting a second active
+        # mandate (the database intentionally forbids that duplicate).
+        if not existing.is_current():
+            existing.valid_from = valid_from
+            existing.valid_until = valid_until
+            existing.granted_by = granted_by
+            existing.full_clean()
+            existing.save(update_fields=[
+                "valid_from", "valid_until", "granted_by", "updated_at",
+            ])
         return existing
     mandate = Mandate(
         profile=profile, role=role, scope_type=AuthorityScope.PROJECT,
