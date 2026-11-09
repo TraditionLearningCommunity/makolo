@@ -835,6 +835,7 @@ GoRouter createMakoloRouter(
             space: actor.space,
             occurrenceId: state.pathParameters['id']!,
             repository: repository,
+            actorContext: runtime.actorContext,
             live: false,
             onOpenLive: () => context.push(
               '/space/occurrences/${state.pathParameters['id']}/live',
@@ -871,6 +872,7 @@ GoRouter createMakoloRouter(
             space: actor.space,
             occurrenceId: state.pathParameters['id']!,
             repository: repository,
+            actorContext: runtime.actorContext,
             live: true,
             onBackToDayOf: () => context.go(
               '/space/occurrences/${state.pathParameters['id']}/day-of',
