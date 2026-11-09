@@ -32,6 +32,7 @@ def main(argv=None):
     parser.add_argument("--per-profile", type=int, default=3,
                         help="Desired maximum synthetic relations per profile")
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--direction", choices=("add", "trim"), default="add")
     parser.add_argument("--activity-prefix", default="demo-")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--backup", action="store_true", help="Create a SQLite backup before applying")
@@ -40,6 +41,8 @@ def main(argv=None):
         parser.error("--profiles 1..100; --count 1..5000")
     if not 1 <= args.per_profile <= 30:
         parser.error("--per-profile 1..30")
+    if args.direction == "trim" and args.apply and not args.backup:
+        parser.error("--direction trim --apply requires --backup")
     if args.space_id and args.target != "spaces":
         parser.error("--space-id requires --target spaces")
     if not args.activity_prefix.startswith("demo-"):
@@ -60,7 +63,7 @@ def main(argv=None):
     from activities.models import Activity, ActivityStatus, ActivityVisibility
     from discovery.models import ActivityBookmark
     from organizations.models import Organization, OrganizationFollow
-    from organizations.services import follow_organization
+    from organizations.services import follow_organization, unfollow_organization
     from .scope import demo_activities, demo_spaces
     from .selection import demo_profiles
 
@@ -80,6 +83,24 @@ def main(argv=None):
             slug__startswith=args.activity_prefix,
         ).select_related("space", "owner_profile")[:10000])
         for person in people:
+            if args.direction == "trim":
+                links = list(ActivityBookmark.objects.filter(
+                    user=person, activity__slug__startswith=args.activity_prefix
+                ))
+                for link in rank_items(person, links, args.seed)[args.per_profile:]:
+                    if not remaining:
+                        break
+                    remaining -= 1
+                    counters["bookmarks_trim_planned"] += 1
+                    if len(previews) < 8:
+                        previews.append(f"{person.username} - bookmark {link.activity_id}")
+                    if args.apply:
+                        with transaction.atomic():
+                            link.delete()
+                        counters["bookmarks_removed"] += 1
+                if not remaining:
+                    break
+                continue
             existing = set(ActivityBookmark.objects.filter(
                 user=person, activity__slug__startswith=args.activity_prefix
             ).values_list("activity_id", flat=True))
@@ -116,6 +137,27 @@ def main(argv=None):
             spaces = spaces.filter(pk=args.space_id)
         choices = list(spaces[:10000])
         for person in people:
+            if args.direction == "trim":
+                links = list(OrganizationFollow.objects.filter(
+                    user=person, organization__in=choices
+                ))
+                for follow in rank_items(person, links, args.seed)[args.per_profile:]:
+                    if not remaining:
+                        break
+                    remaining -= 1
+                    counters["follows_trim_planned"] += 1
+                    if len(previews) < 8:
+                        previews.append(f"{person.username} - follow {follow.organization_id}")
+                    if args.apply:
+                        try:
+                            with transaction.atomic():
+                                unfollow_organization(follow=follow, user=person)
+                            counters["follows_removed"] += 1
+                        except (ValidationError, PermissionDenied):
+                            counters["follows_remove_rejected"] += 1
+                if not remaining:
+                    break
+                continue
             existing = set(OrganizationFollow.objects.filter(
                 user=person, organization__in=choices
             ).values_list("organization_id", flat=True))
@@ -144,7 +186,7 @@ def main(argv=None):
             if remaining == 0:
                 break
 
-    print("REBALANCE", args.target, "APPLY" if args.apply else "PREVIEW")
+    print("REBALANCE", args.target, args.direction, "APPLY" if args.apply else "PREVIEW")
     print("SUMMARY", dict(sorted(counters.items())))
     for item in previews:
         print("SAMPLE", item)
