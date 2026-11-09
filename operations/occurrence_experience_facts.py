@@ -72,6 +72,9 @@ def compose_live_knowledge(*, occurrence, participant, operator, institutional, 
         "source": "activities.occurrence",
         "start_at": occurrence.start_at.isoformat() if occurrence.start_at else None,
         "end_at": occurrence.end_at.isoformat() if occurrence.end_at else None,
+        "start_date": occurrence.start_date.isoformat() if getattr(occurrence, "start_date", None) else None,
+        "end_date": occurrence.end_date.isoformat() if getattr(occurrence, "end_date", None) else None,
+        "timing_kind": getattr(occurrence, "timing_kind", None),
         "timezone": occurrence.timezone,
     }
 
