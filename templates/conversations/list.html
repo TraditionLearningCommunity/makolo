@@ -33,6 +33,31 @@
       </div>
     </section>
   {% endif %}
+  {% if not q and pending_collective_invitations %}
+    <section aria-labelledby="pending-collective-heading" class="mb-7 space-y-3">
+      <h2 id="pending-collective-heading" class="text-base font-extrabold">
+        Invitations pour mes Espaces et Groupes
+      </h2>
+      {% for invitation in pending_collective_invitations %}
+        <article class="mk-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div>
+            <p class="font-semibold">{{ invitation.space.name|default:invitation.group.name }}</p>
+            <p class="text-xs" style="color:var(--mk-muted)">
+              Demande d'accès collectif · décision du responsable
+            </p>
+          </div>
+          <form method="post" action="{% url 'conversations:collective-respond' invitation.pk %}"
+                class="flex gap-2">
+            {% csrf_token %}
+            <button class="mk-action-button" data-variant="secondary" type="submit"
+                    name="decision" value="decline">Refuser</button>
+            <button class="mk-action-button" data-variant="primary" type="submit"
+                    name="decision" value="accept">Accepter</button>
+          </form>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
   <section aria-label="Mes conversations" class="divide-y overflow-hidden rounded-2xl border" style="border-color:var(--mk-border)">
     {% if q %}
       {% for result in search_results %}
