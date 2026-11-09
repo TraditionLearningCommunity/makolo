@@ -99,7 +99,7 @@ def build_space_now_projection(*, profile, space, responsibility_key=None):
     }
 
 
-def build_space_discover_projection(*, profile, space, responsibility_key=None):
+def build_space_discover_projection(*, profile, space, responsibility_key=None, params=None):
     context = _space_context(
         profile=profile,
         space=space,
@@ -107,14 +107,14 @@ def build_space_discover_projection(*, profile, space, responsibility_key=None):
     )
     if context is None:
         return None
+    # Reuse the same public candidate composition as personal Discovery.
+    # Space authority authorizes the context, not personal Saved/Watch/Journey.
+    from discovery.api.composition import paginated_projection
+
+    data = paginated_projection(params or {}, profile=profile, space=space)
     return {
         **context,
-        "selection": {
-            "state": "unavailable",
-            "reason": "no_safe_selection_contract",
-        },
-        "items": [],
-        "has_more": False,
+        **data,
+        "has_more": data["has_next"],
         "links": _links(space),
-        "capabilities": {},
     }
