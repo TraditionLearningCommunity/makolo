@@ -114,7 +114,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     }
   }
 
-  Future<void> _openAttachment(Map<String, dynamic> attachment) async {
+  Future<void> _openAttachment(Map<String, dynamic> attachment, {
+    List<Map<String, dynamic>> gallery = const [],
+  }) async {
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -124,6 +126,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         child: ConversationAttachmentViewer(
           repository: widget.repository,
           attachment: attachment,
+          gallery: gallery,
+          initialIndex: gallery.indexWhere((item) => item['id'] == attachment['id']),
         ),
       ),
     );
@@ -402,7 +406,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                 borderRadius: BorderRadius.circular(16),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: () => _openAttachment(attachment),
+                  onTap: () => _openAttachment(attachment, gallery: media),
                   child: Column(
                     children: [
                       Expanded(
