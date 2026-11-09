@@ -1115,6 +1115,118 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return entries;
   }
 
+  Widget _completedTimelineGroup(
+    BuildContext context,
+    List<_ConversationTimelineEntry> entries,
+  ) {
+    final first = entries.first.point;
+    final last = entries.last.point;
+    final groupId = '${first.id}-${last.id}';
+    final focused = entries.any((entry) => entry.point.id == _focusedPointId);
+    final expanded = focused || _expandedCompletedGroups.contains(groupId);
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      key: Key('conversation-completed-$groupId'),
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              button: true,
+              label: expanded
+                  ? 'Masquer ${entries.length} Point(s) terminés'
+                  : 'Afficher ${entries.length} Point(s) terminés',
+              child: InkWell(
+                key: Key('conversation-completed-toggle-$groupId'),
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => setState(() {
+                  if (expanded && !focused) {
+                    _expandedCompletedGroups.remove(groupId);
+                  } else if (!expanded) {
+                    _expandedCompletedGroups.add(groupId);
+                  }
+                }),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MakoloSpacing.md, vertical: MakoloSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.task_alt_rounded, size: 20),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entries.length == 1
+                                  ? 'Point terminé'
+                                  : '${entries.length} Points terminés',
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                            Text(
+                              last.timelineSummary?.isNotEmpty == true
+                                  ? last.timelineSummary!
+                                  : 'Résultat disponible dans l’historique',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        expanded ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.sm, 0, MakoloSpacing.sm, MakoloSpacing.sm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final entry in entries) ...[
+                      if (entry.point.timelineSummary?.isNotEmpty == true)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: MakoloSpacing.inner,
+                            bottom: MakoloSpacing.xs,
+                          ),
+                          child: Text(
+                            entry.point.timelineSummary!,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: muted),
+                          ),
+                        ),
+                      _pointWidget(entry.point, readOnly: entry.readOnly),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _dayDivider(BuildContext context, DateTime date) {
     final local = date.toLocal();
     final now = DateTime.now();
@@ -1158,22 +1270,82 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     ];
     _positionTimeline(entries, visibleOutgoing);
     _focusAfterLayout();
+    _activeTimelineSignature = _timelineSignature(detail);
     DateTime? previousDay;
     final children = <Widget>[];
-    for (final entry in entries) {
-      final timestamp = entry.point.publishedAt ?? entry.point.updatedAt;
-      if (timestamp != null &&
-          (previousDay == null ||
-              !DateUtils.isSameDay(previousDay, timestamp.toLocal()))) {
-        children.add(_dayDivider(context, timestamp));
-        previousDay = timestamp.toLocal();
-      }
+    final olderCursor = _olderAvailableCursor(detail);
+    if (olderCursor != null && olderCursor.isNotEmpty) {
       children.add(
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
-          child: _pointWidget(entry.point, readOnly: entry.readOnly),
+          padding: const EdgeInsets.fromLTRB(
+            MakoloSpacing.inner, MakoloSpacing.sm,
+            MakoloSpacing.inner, MakoloSpacing.md,
+          ),
+          child: Column(
+            children: [
+              OutlinedButton.icon(
+                key: const Key('conversation-load-older'),
+                onPressed: _loadingOlder ? null : () => _loadOlderPoints(detail),
+                icon: _loadingOlder
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.keyboard_arrow_up_rounded),
+                label: Text(_loadingOlder
+                    ? 'Chargement…' : 'Voir les Points plus anciens'),
+              ),
+              if (_olderError != null)
+                Text(_olderError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    )),
+            ],
+          ),
         ),
       );
+    }
+    var index = 0;
+    while (index < entries.length) {
+      final entry = entries[index];
+      final timestamp = entry.point.publishedAt ?? entry.point.updatedAt;
+      final local = timestamp?.toLocal();
+      if (local != null &&
+          (previousDay == null ||
+              !DateUtils.isSameDay(previousDay, local))) {
+        children.add(_dayDivider(context, local));
+        previousDay = local;
+      }
+      if (entry.point.timelineCompact) {
+        var next = index + 1;
+        while (next < entries.length &&
+            entries[next].point.timelineCompact &&
+            (local == null
+                ? entries[next].point.publishedAt == null &&
+                    entries[next].point.updatedAt == null
+                : DateUtils.isSameDay(
+                    local,
+                    (entries[next].point.publishedAt ??
+                            entries[next].point.updatedAt)
+                        ?.toLocal(),
+                  ))) {
+          next++;
+        }
+        children.add(_completedTimelineGroup(
+          context, entries.sublist(index, next),
+        ));
+        index = next;
+      } else {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: _pointWidget(entry.point, readOnly: entry.readOnly),
+          ),
+        );
+        index++;
+      }
     }
     // A locally accepted intent is rendered without claiming owner delivery.
     // It disappears only when the owner projection contains its own
