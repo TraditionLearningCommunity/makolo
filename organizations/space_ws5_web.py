@@ -91,8 +91,11 @@ class SpaceOccurrenceDayOfView(_SpaceOccurrenceWebMixin):
         context["can_configure_live"] = (
             can(self.request.user, PermissionCode.ACTIVITY_MANAGE,
                 activity=occurrence.activity, include_platform=False)
-            or can(self.request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE,
-                   self.space, include_platform=False)
+            or bool(
+                occurrence.activity.space_id == self.space.pk
+                and can(self.request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                        self.space, include_platform=False)
+            )
         )
         return context
 
