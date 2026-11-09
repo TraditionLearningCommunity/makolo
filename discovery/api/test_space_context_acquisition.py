@@ -1,0 +1,129 @@
+"""Space actor acquisition reuses Discovery without inheriting personal authority."""
+
+from datetime import timedelta
+
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework.test import APIClient
+
+from accounts.models import User
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
+from organizations.models import Organization
+
+
+class DiscoverySpaceAcquisitionTests(TestCase):
+    def setUp(self):
+        self.viewer = User.objects.create_user(username="discovery-space-viewer", email="space-viewer@test.local")
+        self.outsider = User.objects.create_user(username="discovery-space-outsider", email="space-outsider@test.local")
+        self.space = Organization.objects.create(
+            name="Discovery Space", slug="discovery-space", created_by=self.viewer,
+        )
+        self.other_space = Organization.objects.create(
+            name="Other Space", slug="other-discovery-space", created_by=self.outsider,
+        )
+        grant_space_role(
+            profile=self.viewer, space=self.space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.viewer,
+        )
+        grant_space_role(
+            profile=self.outsider, space=self.other_space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.outsider,
+        )
+        activity = Activity.objects.create(
+            space=self.space, created_by=self.viewer,
+            title="Discovery Space published activity",
+            short_description="A publicly available activity",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        start = timezone.now() + timedelta(days=3)
+        Occurrence.objects.create(
+            activity=activity, start_at=start, end_at=start + timedelta(hours=2),
+            timezone="Africa/Lubumbashi", status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client = APIClient()
+        self.items_url = reverse("discovery_api:items")
+        self.space_url = f"/api/v1/organizations/workspaces/{self.space.slug}/discover/"
+
+    def _space_query(self, **additional):
+        return {"context": "space", "space": self.space.slug, **additional}
+
+    def test_guest_and_personal_contracts_remain_unchanged(self):
+        public = self.client.get(self.items_url)
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(public.data["data"]["surface"], "discover_public")
+        self.client.force_authenticate(self.viewer)
+        personal = self.client.get(self.items_url)
+        self.assertEqual(personal.status_code, 200)
+        self.assertEqual(personal.data["data"]["surface"], "discover_me")
+
+    def test_space_context_reuses_shared_collection_with_read_only_items(self):
+        self.client.force_authenticate(self.viewer)
+        response = self.client.get(self.items_url, self._space_query())
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["meta"]["scope"], "space")
+        data = response.data["data"]
+        self.assertEqual(data["surface"], "discover_space")
+        self.assertEqual(data["actor"], {"type": "space", "id": str(self.space.pk)})
+        self.assertEqual(data["viewer"], {"type": "profile", "id": str(self.viewer.pk)})
+        self.assertTrue(data["items"], data)
+        for item in data["items"]:
+            self.assertEqual(item["capabilities"], ["view"])
+            self.assertEqual(item["saved"]["state"], "unknown")
+            self.assertNotIn("saved", item["links"])
+            self.assertEqual(item["engagement"]["capabilities"], [])
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_space_route_reuses_same_items_not_a_second_selection(self):
+        self.client.force_authenticate(self.viewer)
+        shared = self.client.get(self.items_url, self._space_query(q="published"))
+        direct = self.client.get(self.space_url, {"q": "published"})
+        self.assertEqual(direct.status_code, 200, direct.data)
+        self.assertEqual(
+            [i["identity"]["candidate_key"] for i in direct.data["items"]],
+            [i["identity"]["candidate_key"] for i in shared.data["data"]["items"]],
+        )
+        self.assertEqual(direct.data["actor"], shared.data["data"]["actor"])
+
+    def test_guest_and_unauthorized_space_are_rejected_without_fallback(self):
+        guest = self.client.get(self.items_url, self._space_query())
+        self.assertIn(guest.status_code, {401, 403})
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(self.items_url, self._space_query()).status_code, 404)
+        self.assertEqual(self.client.get(self.space_url).status_code, 404)
+
+    def test_invalid_context_and_client_profile_override_are_rejected(self):
+        self.client.force_authenticate(self.viewer)
+        for params in (
+            {"space": self.space.slug},
+            {"context": "space"},
+            {"context": "unknown"},
+            {"context": "space", "space": self.space.slug, "profile_id": str(self.outsider.pk)},
+        ):
+            self.assertEqual(self.client.get(self.items_url, params).status_code, 400)
+
+    def test_signed_cursor_is_bound_to_space_and_viewer(self):
+        self.client.force_authenticate(self.viewer)
+        first = self.client.get(self.items_url, self._space_query(page_size=1))
+        self.assertEqual(first.status_code, 200, first.data)
+        token = first.data["data"]["continuation"]["token"]
+        if not token:
+            # Only one candidate; the collection still has no phantom continuation.
+            self.assertFalse(first.data["data"]["has_next"])
+            return
+        second_context = self.client.get(
+            self.items_url, self._space_query(page_size=1, continuation=token),
+        )
+        self.assertEqual(second_context.status_code, 200, second_context.data)
+        personal = self.client.get(
+            self.items_url, {"page_size": 1, "continuation": token},
+        )
+        self.assertEqual(personal.status_code, 400)
+        changed_space = self.client.get(
+            self.items_url, {"context": "space", "space": self.other_space.slug,
+                             "page_size": 1, "continuation": token},
+        )
+        self.assertEqual(changed_space.status_code, 404)
