@@ -11,6 +11,7 @@ import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
+import 'resource_file_viewer.dart';
 import 'resource_repository.dart';
 
 class ResourceDetailScreen extends StatefulWidget {
@@ -44,8 +45,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _archiving = false;
   double? _downloadProgress;
   _ResourceDetail? _cachedSummary;
-  String? _localCopyKey;
-  Future<bool>? _localCopy;
+  final GlobalKey _versionsKey = GlobalKey();
   late Stream<StoredProjection?> _detail;
   late Stream<ResourceSourceState> _source;
 
@@ -61,8 +61,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     if (oldWidget.repository != widget.repository ||
         oldWidget.assetId != widget.assetId) {
       _cachedSummary = null;
-      _localCopyKey = null;
-      _localCopy = null;
       _bind();
     }
   }
@@ -117,25 +115,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     }
   }
 
-  Future<bool> _knownLocalCopy(_ResourceDetail detail) {
-    final version = detail.currentVersion;
-    if (version == null || detail.sensitivity != 'normal') {
-      return Future<bool>.value(false);
-    }
-    final key =
-        '${widget.repository.profileId}:${widget.assetId}:'
-        '${detail.title}:${version.number}';
-    if (key != _localCopyKey) {
-      _localCopyKey = key;
-      _localCopy = widget.repository.localVersionExists(
-        assetId: widget.assetId,
-        title: detail.title,
-        versionNumber: version.number,
-      );
-    }
-    return _localCopy!;
-  }
-
   Future<void> _download(
     _ResourceDetail detail,
     _ResourceVersion version,
@@ -163,13 +142,14 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       _downloadProgress = null;
     });
     try {
-      final retainOfflineCopy = detail.sensitivity == 'normal';
+      const retainOfflineCopy = false;
       final pathOnDevice = await widget.repository.downloadVersionForExplicitExport(
         path: path,
         assetId: widget.assetId,
         title: detail.title,
         versionNumber: version.number,
         retainOfflineCopy: retainOfflineCopy,
+        fileExtension: _extensionForMime(version.mimeType),
         onProgress: (transferred, total) {
           if (!mounted || total <= 0) return;
           setState(() => _downloadProgress = transferred / total);
@@ -187,13 +167,18 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
           mimeType: version.mimeType ?? 'application/octet-stream',
         );
         if (!mounted) return;
-        if (retainOfflineCopy && version.current) {
-          setState(() => _localCopy = Future<bool>.value(true));
-        }
         _message('Enregistré : $exportedName');
       } finally {
-        if (!retainOfflineCopy && await exportedFile.exists()) {
+        if (await exportedFile.exists()) {
           await exportedFile.delete();
+        }
+        final parent = exportedFile.parent;
+        if (await parent.exists()) {
+          try {
+            await parent.delete();
+          } on FileSystemException {
+            // Best-effort staging cleanup after explicit OS export.
+          }
         }
       }
     } on Object {
@@ -244,6 +229,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         if (await temporary.exists()) {
           try {
             await temporary.delete();
+            final parent = temporary.parent;
+            if (await parent.exists()) await parent.delete();
           } on Object {
             // Staging cleanup is best-effort and never changes owner truth.
           }
@@ -256,6 +243,37 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _openCurrentFile(
+    _ResourceDetail detail,
+    _ResourceVersion version,
+  ) async {
+    final path = version.downloadPath;
+    if (path == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => ResourceFileViewer(
+          repository: widget.repository,
+          assetId: widget.assetId,
+          title: detail.title,
+          versionNumber: version.number,
+          mimeType: version.mimeType,
+          downloadPath: path,
+        ),
+      ),
+    );
+  }
+
+  void _scrollToVersions() {
+    final target = _versionsKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+      alignment: 0.05,
+    );
   }
 
   Future<void> _reuse(_ResourceDetail detail) async {
@@ -352,54 +370,83 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
               appBar: AppBar(
                 title: const Text('Document'),
                 actions: [
+                  if (detail != null && detail.versions.isNotEmpty)
+                    MakoloIconActionButton(
+                      tooltip: 'Versions',
+                      icon: Icons.history_rounded,
+                      onPressed: _scrollToVersions,
+                    ),
                   if (detail?.currentVersion?.downloadPath != null &&
                       ownerAvailable)
                     MakoloIconActionButton(
-                      tooltip: 'Télécharger',
-                      icon: Icons.download_rounded,
+                      tooltip:
+                          detail!.currentVersion!.mimeType == 'application/pdf'
+                          ? 'Télécharger le PDF'
+                          : 'Télécharger',
+                      icon:
+                          detail.currentVersion!.mimeType == 'application/pdf'
+                          ? Icons.picture_as_pdf_outlined
+                          : Icons.download_rounded,
                       onPressed:
                           !canDownload || _downloading || _sharing
                           ? null
-                          : () => _download(detail!, detail.currentVersion!),
+                          : () => _download(detail, detail.currentVersion!),
                     ),
                   if (detail?.currentVersion?.downloadPath != null &&
                       ownerAvailable)
                     MakoloIconActionButton(
                       tooltip: 'Partager',
-                      icon: Icons.send_outlined,
+                      icon: Icons.share_outlined,
                       onPressed:
                           !canUseNetworkActions || _sharing || _downloading
                           ? null
                           : () => _share(detail!, detail.currentVersion!),
                     ),
-                  if (detail?.reusePath != null && ownerAvailable)
-                    MakoloIconActionButton(
-                      tooltip: 'Utiliser',
-                      icon: Icons.drive_file_move_outline,
-                      onPressed: canUseNetworkActions
-                          ? () => _reuse(detail!)
-                          : null,
+                  if (detail != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'Plus',
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'reuse':
+                            _reuse(detail);
+                          case 'archive':
+                            _archive(detail);
+                          case 'refresh':
+                            _refresh();
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (detail.reusePath != null && ownerAvailable)
+                          PopupMenuItem(
+                            value: 'reuse',
+                            enabled: canUseNetworkActions,
+                            child: const ListTile(
+                              leading: Icon(Icons.drive_file_move_outline),
+                              title: Text('Utiliser dans une démarche'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        if (detail.archivePath != null && ownerAvailable)
+                          PopupMenuItem(
+                            value: 'archive',
+                            enabled: canUseNetworkActions && !_archiving,
+                            child: const ListTile(
+                              leading: Icon(Icons.archive_outlined),
+                              title: Text('Archiver'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'refresh',
+                          enabled: !_refreshing,
+                          child: const ListTile(
+                            leading: Icon(Icons.refresh_rounded),
+                            title: Text('Actualiser'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
                     ),
-                  if (detail?.addVersionPath != null && ownerAvailable)
-                    MakoloIconActionButton(
-                      tooltip: 'Nouvelle version',
-                      icon: Icons.note_add_outlined,
-                      onPressed:
-                          canUseNetworkActions ? widget.onAddVersion : null,
-                    ),
-                  if (detail?.archivePath != null && ownerAvailable)
-                    MakoloIconActionButton(
-                      tooltip: 'Archiver',
-                      icon: Icons.archive_outlined,
-                      onPressed: !canUseNetworkActions || _archiving
-                          ? null
-                          : () => _archive(detail!),
-                    ),
-                  MakoloIconActionButton(
-                    tooltip: 'Actualiser',
-                    icon: Icons.refresh_rounded,
-                    onPressed: _refreshing ? null : _refresh,
-                  ),
                 ],
               ),
               body: detail == null
@@ -469,7 +516,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                         Text(
                                           [
                                             detail.kindLabel,
-                                            detail.sensitivityLabel,
                                             if (detail.archived) 'Archivé',
                                           ].join(' · '),
                                           style: Theme.of(context)
@@ -521,48 +567,18 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                               if (detail.currentVersion != null)
                                 _VersionSummary(
                                   version: detail.currentVersion!,
-                                ),
-                              if (detail.currentVersion != null &&
-                                  detail.sensitivity == 'normal')
-                                FutureBuilder<bool>(
-                                  future: _knownLocalCopy(detail),
-                                  builder: (context, localSnapshot) =>
-                                      localSnapshot.data == true
-                                      ? const Padding(
-                                          padding: EdgeInsets.only(
-                                            top: MakoloSpacing.sm,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.offline_pin_outlined,
-                                                size: 18,
-                                              ),
-                                              SizedBox(
-                                                width: MakoloSpacing.xs,
-                                              ),
-                                              Text(
-                                                'Disponible hors connexion',
-                                              ),
-                                            ],
-                                          ),
+                                  onOpen:
+                                      detail.currentVersion!.downloadPath != null &&
+                                          canUseNetworkActions
+                                      ? () => _openCurrentFile(
+                                          detail,
+                                          detail.currentVersion!,
                                         )
-                                      : const SizedBox.shrink(),
-                                ),
-                              if (detail.currentVersion != null &&
-                                  detail.sensitivity != 'normal' &&
-                                  source.reachability ==
-                                      ReachabilityState.unreachable)
-                                const Padding(
-                                  padding: EdgeInsets.only(
-                                    top: MakoloSpacing.sm,
-                                  ),
-                                  child: Text(
-                                    'Fichier disponible lorsque vous êtes connecté.',
-                                  ),
+                                      : null,
                                 ),
                               const SizedBox(height: MakoloSpacing.xl),
                               Row(
+                                key: _versionsKey,
                                 children: [
                                   Text(
                                     'Versions',
@@ -582,6 +598,17 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                           ).colorScheme.primary,
                                         ),
                                   ),
+                                  if (detail.addVersionPath != null &&
+                                      ownerAvailable) ...[
+                                    const SizedBox(width: MakoloSpacing.xs),
+                                    MakoloIconActionButton(
+                                      tooltip: 'Nouvelle version',
+                                      icon: Icons.add_rounded,
+                                      onPressed: canUseNetworkActions
+                                          ? widget.onAddVersion
+                                          : null,
+                                    ),
+                                  ],
                                 ],
                               ),
                               const SizedBox(height: MakoloSpacing.sm),
@@ -613,13 +640,20 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
 }
 
 class _VersionSummary extends StatelessWidget {
-  const _VersionSummary({required this.version});
+  const _VersionSummary({
+    required this.version,
+    required this.onOpen,
+  });
 
   final _ResourceVersion version;
+  final VoidCallback? onOpen;
 
   @override
-  Widget build(BuildContext context) => MakoloCard(
-    child: Row(
+  Widget build(BuildContext context) => InkWell(
+    borderRadius: BorderRadius.circular(20),
+    onTap: onOpen,
+    child: MakoloCard(
+      child: Row(
       children: [
         const Icon(Icons.history_rounded),
         const SizedBox(width: MakoloSpacing.md),
@@ -644,7 +678,10 @@ class _VersionSummary extends StatelessWidget {
             ],
           ),
         ),
+        if (onOpen != null)
+          const Icon(Icons.chevron_right_rounded),
       ],
+    ),
     ),
   );
 }
