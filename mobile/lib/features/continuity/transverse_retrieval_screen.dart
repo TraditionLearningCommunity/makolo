@@ -587,6 +587,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       'journey',
       'access',
       'personal_asset',
+      'proof',
+      'credential',
       'group',
       'commerce_order',
     }.contains(kind);
@@ -889,6 +891,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       'journey' => Icons.timeline_outlined,
       'access' => Icons.badge_outlined,
       'personal_asset' || 'document' => Icons.folder_outlined,
+      'proof' => Icons.verified_outlined,
+      'credential' => Icons.workspace_premium_outlined,
       'group' || 'team' => Icons.group_outlined,
       'commerce_order' || 'order' => Icons.shopping_bag_outlined,
       'activity' || 'occurrence' => Icons.event_outlined,
