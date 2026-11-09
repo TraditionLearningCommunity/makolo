@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -663,12 +664,22 @@ class ConversationRepository {
     final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
     final folder = Directory('${temp.path}/conversation-$safeProfile');
     await folder.create(recursive: true);
-    final destination = File('${folder.path}/$attachmentId$safeExtension');
-    await engine.api.download(
-      'api/v1/conversations/attachments/$attachmentId/download/',
-      destinationPath: destination.path,
+    // Each viewer owns its temporary copy. Inline previews and the detailed
+    // gallery must never delete each other's files on disposal.
+    final nonce = Random.secure().nextInt(0x7fffffff).toRadixString(16);
+    final destination = File(
+      '${folder.path}/$attachmentId-${DateTime.now().microsecondsSinceEpoch}-$nonce$safeExtension',
     );
-    return destination;
+    try {
+      await engine.api.download(
+        'api/v1/conversations/attachments/$attachmentId/download/',
+        destinationPath: destination.path,
+      );
+      return destination;
+    } on Object {
+      if (await destination.exists()) await destination.delete();
+      rethrow;
+    }
   }
 
   Future<void> respondToPoint({
