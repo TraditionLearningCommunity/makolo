@@ -248,6 +248,14 @@ def build_personal_resources_depth_data(
             limit=RESOURCE_MAX_LIMIT,
         ),
     }
+    data["proofs"]["links"] = {
+        "collection": reverse("personal-projections:proofs"),
+        "web": reverse("trust:my-proofs"),
+    }
+    data["credentials"]["links"] = {
+        "collection": reverse("personal-projections:titles"),
+        "web": reverse("trust:my-credentials"),
+    }
     data["invariants"] = {
         "personal_asset_is_proof": False,
         "personal_asset_satisfies_requirement_by_presence": False,
