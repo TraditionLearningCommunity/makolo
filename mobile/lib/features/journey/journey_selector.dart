@@ -152,12 +152,16 @@ class JourneyReference {
     required this.label,
     this.state,
     this.link,
+    this.isRequired = false,
+    this.consequence,
   });
 
   final String id;
   final String label;
   final String? state;
   final String? link;
+  final bool isRequired;
+  final String? consequence;
 }
 
 class JourneyDetailPresentation {
@@ -443,6 +447,8 @@ class JourneyDetailSelector {
             label: _string(row['label']) ?? 'Requirement',
             state: _string(row['state']),
             link: _string(row['link']),
+            isRequired: row['required'] == true,
+            consequence: _string(row['consequence']),
           );
         })
         .where((row) => row.id.isNotEmpty)
