@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../network/api_error.dart';
 import '../journey/journey_repository.dart';
 import '../journey/journey_selector.dart';
 
@@ -123,6 +124,19 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
             : null;
         _sandboxAvailable = sandbox;
         _loading = false;
+      });
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      final denied = error.statusCode == 403 || error.statusCode == 404;
+      setState(() {
+        _loading = false;
+        if (denied) {
+          // The Payment owner overrides any earlier Journey read-only view.
+          _obligation = null;
+          _payment = null;
+          _sandboxAvailable = false;
+        }
+        _error = _obligation == null ? 'Paiement indisponible.' : null;
       });
     } on Object {
       if (!mounted) return;
