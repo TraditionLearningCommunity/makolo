@@ -31,12 +31,15 @@
   {% endif %}
   <section class="mt-7" aria-labelledby="history-results-title">
     <h2 id="history-results-title" class="text-base font-extrabold">Points accessibles</h2>
+    <p class="mt-2 text-xs" style="color:var(--mk-muted)">Chaque page conserve l’ordre ancien → récent. Les Points terminés se déplient sans perdre leur position.</p>
     <div aria-live="polite" class="mt-4 space-y-3">
-      {% for point in results %}
-        <div class="relative">
-          <a class="mb-2 inline-flex min-h-11 items-center text-xs font-semibold underline-offset-2 hover:underline focus-visible:outline-2" href="{% url 'conversations:detail' conversation.pk %}?focus={{ point.pk }}#point-{{ point.pk }}" style="color:var(--mk-brand)">Voir dans la Conversation</a>
-          {% include 'conversations/_point.html' with point=point %}
-        </div>
+      {% for group in history_groups %}
+        {% ifchanged group.day %}
+          <p class="pt-3 text-center text-xs font-semibold" style="color:var(--mk-muted)">
+            {% if group.day %}{{ group.day|date:'d F Y' }}{% else %}Date inconnue{% endif %}
+          </p>
+        {% endifchanged %}
+        {% include 'conversations/_timeline_group.html' with group=group %}
       {% empty %}
         {% if not history_error %}
           <p class="py-7 text-sm" style="color:var(--mk-muted)">Aucun Point accessible pour ce filtre.</p>
@@ -45,7 +48,7 @@
     </div>
     {% if next_cursor %}
       <nav aria-label="Suite de l’historique" class="mt-7">
-        <a class="mk-action-button inline-flex min-h-11 items-center" data-variant="secondary" href="?{{ next_query }}">Voir les Points suivants</a>
+        <a class="mk-action-button inline-flex min-h-11 items-center" data-variant="secondary" href="?{{ next_query }}">Voir les Points plus anciens</a>
       </nav>
     {% endif %}
   </section>
