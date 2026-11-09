@@ -14,17 +14,35 @@ Deux **expériences/pages canoniques** : Jour J (accomplir) et Makolo Live (comp
 
 La coexistence visuelle **n'est pas une fusion de permission**. Les domaines owners contrôlent chaque donnée, action et mutation. La plateforme conserve ses règles de finalité et de supervision. **Unicité UX n'impose pas endpoint, projection ou classe Dart unique** ; préserver l'isolation et la compatibilité des API tant qu'une alternative n'est pas prouvée.
 
-## État d'exécution — socle L1 + L2 (9 novembre 2026)
+## État d'exécution — L1 + L2 (9 novembre 2026)
 
-**Travail de code commencé sur la PR #522, sans exécution de tests ni CI à la demande du propriétaire.** Les lots L1/L2 ne sont **pas certifiés fermés**.
+**Implémentation serveur L1/L2 poussée sur #522 ; validation d'exécution en attente.** Ce statut ne certifie ni une CI verte ni l'application de la migration en base. Le code et les tests ont été ajoutés, sans exécution des suites ou smoke tests durant cette passe.
 
-- `operations/occurrence_experience.py` : résolveur additif pour un Profil authentifié, combinant indépendamment les projections bénéficiaire et opérations autorisées ; capacités scanner, consultation/gestion financière et opérations selon permissions canoniques ; aucune bascule de mode.
-- `operations/occurrence_experience_api.py` et `operations/api/urls.py` : nouveaux GET `/api/v1/operations/occurrences/<uuid>/experience/day-of/` et `/api/v1/operations/occurrences/<uuid>/experience/live/` ; enveloppe de projection, no-store, refus 404 sans relation autorisée.
-- Les quatre contrats API historiques restent inchangés. La surface Jour J peut coexposer les sections participant et organisateur ; Live est limité à la fenêtre arrival/live.
-- La supervision plateforme ne devient pas automatiquement une relation organisatrice. Les facts restent filtrés par les résolveurs existants, non par la sélection UI. Aucune couverture Live n'est inférée depuis la présence d'une projection.
-- **Frontière métier confirmée :** `Journey` et `Access` actuels portent un bénéficiaire Profile ou externe, mais pas un bénéficiaire Space canonique. Une participation autonome de Space et son mandat de représentation ne peuvent donc pas être déclarés livrés dans ce sous-lot sans réconciliation owner et éventuel contrat de domaine. Ne pas bricoler un Profile de substitution.
-- **Frontière de livraison :** les pages Web/Flutter consomment encore les routes historiques ; la bascule de présentation appartient à L3/L4. Les capacités financières ou Scanner sont signalées lorsqu'autorisées, sans inventer des liens d'opération. L'ensemble est une fondation de données, pas encore la page unifiée finale.
-- **Validation non effectuée :** tests ciblés, Django, Flutter, intégration API, CI et smoke tests. Le code ne doit pas être considéré « certifié » ou prêt au merge.
+### L1 : autorité et coexistence
+
+- Le résolveur `operations/occurrence_experience.py` reçoit le **Profil authentifié**, résout indépendamment son éventuelle participation personnelle, son autorité opérateur et les `Journey` dont un Space mandaté est bénéficiaire. Le nombre de représentants ne multiplie pas les démarches.
+- Les relations `participant`, `institutional_beneficiary`, `organizer` et `platform` sont **non exclusives**. Aucune casquette participant/organisateur, finance/logistique/Scanner, n'est requise pour découvrir une capacité.
+- Permissions canoniques indépendantes : Scanner, consultation/gestion opérationnelle, finance, Access, Capacity, Commerce et lieux ; le client ne reçoit pas de faux URL pour les actions non prouvées. Scanner utilise son handoff owner.
+- `Journey.beneficiary_space`, la contrainte exactement-un entre Profil/externe/Space, `create_journey` mandaté, les événements enrichis et `can_access_case` sont en place, avec migration non destructive `journeys/migrations/0006_space_beneficiary.py`.
+- Un membre Space sans mandat suffisant ne lit pas le cas institutionnel ; `JourneyAssignment` conserve ses usages existants ; Dossier/Projet restent facultatifs. Les artefacts restreints et mutations ne sont pas déverrouillés par la seule consultation.
+- La perspective plateforme est isolée de la section organisateur lorsque l'autorité propriétaire n'est pas établie ; chaque domaine réévalue ses permissions côté serveur.
+
+### L2 : projections, qualités de vérité et actions
+
+- Deux GET additifs `/api/v1/operations/occurrences/<uuid>/experience/day-of/` et `/api/v1/operations/occurrences/<uuid>/experience/live/`, enveloppe versionnée, `Cache-Control: private, no-store` ; 404 pour un viewer sans relation ni capacité ; Live dans les phases arrival/live.
+- `sections.participant` et `sections.organizer` peuvent coexister. La section `institutional` contient les `Journey` communes autorisées sans les faire passer pour des credentials individuels.
+- `actions[]` permet plusieurs consignes importantes de responsabilités différentes et un handoff Scanner seulement lorsque permis ; une instruction sans endpoint de mutation reste une instruction.
+- `knowledge` qualifie les heures planifiées (`planned`), la mobilité estimée (`estimated`), les états réellement lus chez les owners (`observed`), et l'absence de position ou d'heure réellement observées (`unknown`). Une source indisponible est `unavailable`.
+- La couverture Live est `PARTIAL` uniquement lorsqu'au moins un fait owner-backed est présent, sinon `UNAVAILABLE` ; aucune `ESTABLISHED` inventée. Les transitions et médias non prouvés restent explicitement indisponibles.
+- Les facts d'opérations n'apparaissent pas si le viewer n'a pas été autorisé à consulter la section opérateur. Les API personnelles et Space historiques ne sont pas supprimées ou cassées par ces ajouts.
+- Tests ajoutés : `operations/test_occurrence_experience.py` (cumul, vérité, séparation, révocation conceptuelle) et `journeys/test_space_beneficiary.py` (bénéficiaire exclusif, membre mandaté, refus extérieur, route Jour J, révocation).
+
+### Frontière avec les lots suivants
+
+- **L3/L4 :** présentation Web et Flutter des deux pages canoniques, branchement des nouvelles projections, densité et hiérarchie des CTA. La présence des API ne signifie pas que les écrans utilisent déjà le contrat.
+- **L5 :** handoffs/écrans métier complets, permissions de mutations et cas des représentants d'un bénéficiaire externe. La représentation d'un enfant par plusieurs Profils n'est pas introduite artificiellement ici.
+- **Autres workflows :** `Access` reste individuel ; Commerce/Services ne reçoivent pas automatiquement un accès institutionnel. Une Journey Space constitue une démarche institutionnelle, pas une admission physique.
+- **Avant clôture technique et merge :** exécuter les tests ciblés, vérifier la migration en environnement de test, contrôler les consommateurs Journey/Services/Commerce/Access, puis seulement les suites et la CI pertinentes. Ne pas déclarer « certifié » sans ces preuves.
 
 ## Évolution canonique Journey — bénéficiaire Space (passe ciblée)
 
