@@ -4,7 +4,7 @@ from django.db.models import Count, Prefetch, Q
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
 from authorization.selectors import current_mandates
-from authorization.services import activity_ids_with_permission, dossier_ids_with_permission, space_ids_with_permission
+from authorization.services import activity_ids_with_permission, dossier_ids_with_permission, project_ids_with_permission, space_ids_with_permission
 from journeys.models import Journey
 from organizations.models import TeamMembershipStatus
 from readiness.selectors import readiness_queryset
@@ -51,13 +51,23 @@ def manageable_dossiers_for_profile(profile):
 
 
 def projects_for_profile(profile):
-    if not getattr(profile, "is_authenticated", False): return Project.objects.none()
+    if not getattr(profile, "is_authenticated", False):
+        return Project.objects.none()
     view_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_VIEW)
     manage_spaces = space_ids_with_permission(profile, PermissionCode.SPACE_MANAGE)
+    project_permissions = [
+        project_ids_with_permission(profile, PermissionCode.PROJECT_VIEW),
+        project_ids_with_permission(profile, PermissionCode.PROJECT_MANAGE),
+        project_ids_with_permission(profile, PermissionCode.PROJECT_AUTHORITY_MANAGE),
+    ]
     queryset = Project.objects.select_related("owner_profile", "owning_space", "created_by")
-    if view_spaces is None or manage_spaces is None: return queryset
-    space_ids = set(view_spaces) | set(manage_spaces)
-    return queryset.filter(Q(owner_profile=profile) | Q(owning_space_id__in=space_ids)).distinct()
+    if view_spaces is None or manage_spaces is None or any(ids is None for ids in project_permissions):
+        return queryset
+    spaces = set(view_spaces) | set(manage_spaces)
+    projects = set().union(*(set(ids) for ids in project_permissions))
+    return queryset.filter(
+        Q(owner_profile=profile) | Q(owning_space_id__in=spaces) | Q(pk__in=projects)
+    ).distinct()
 
 
 def project_for_profile(profile, project_id): return projects_for_profile(profile).get(pk=project_id)
