@@ -192,16 +192,14 @@ void main() {
 
   testWidgets('L6: both responsibilities stay visible compact and wide with scaling',
       (tester) async {
-    const payload = <String, dynamic>{
-      ..._personal,
-      'actions': [
+    final payload = <String, dynamic>{..._personal}
+      ..['actions'] = [
         {'territory': 'participant', 'kind': 'instruction',
           'label': 'Mon accès important'},
         {'territory': 'organizer', 'kind': 'owner_handoff',
           'type': 'scanner', 'label': 'Contrôler l’entrée'},
-      ],
-      'capabilities': {'scanner': {}},
-    };
+      ]
+      ..['capabilities'] = {'scanner': {}};
     for (final width in [360.0, 940.0]) {
       await tester.pumpWidget(
         MaterialApp(
