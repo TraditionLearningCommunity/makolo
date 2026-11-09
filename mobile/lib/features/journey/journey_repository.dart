@@ -84,6 +84,197 @@ class JourneyRepository {
     return List.unmodifiable(ids);
   }
 
+  /// Select only exact owner URLs already stored in this Journey's projection.
+  /// A copied, foreign or malformed link is not a prepared capability.
+  static Map<String, String> knownFormLinksFromDetail(
+    StoredProjection? detail, {
+    int limit = 6,
+  }) {
+    if (detail == null || limit <= 0) return const {};
+    final rows = detail.payload['forms'];
+    if (rows is! List) return const {};
+    final links = <String, String>{};
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = row['id']?.toString() ?? '';
+      final rawLinks = row['links'];
+      if (rawLinks is! Map) continue;
+      final link = rawLinks['detail']?.toString() ?? '';
+      if (id.isEmpty ||
+          link != '/api/v1/questionnaires/requests/$id/' ||
+          !RegExp(
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+  /// Only stored Profile facts select identities; no page or widget cache.
+  Future<int> prepareKnownJourneySources({int limit = 6}) async {
+    final engine = sync;
+    if (engine == null || limit <= 0) return 0;
+    final ongoing = await store.readProjection('personal.ongoing');
+    final ids = knownJourneyIdsFromOngoing(ongoing, limit: limit);
+    for (final id in ids) {
+      engine.registerPreparedSource(sourceFor(id));
+    }
+    return ids.length;
+  }
+
+  Stream<StoredProjection?> watchDetail(String journeyId) {
+    return store.watchProjection(projectionKind, resourceKey: journeyId);
+  }
+
+  Future<StoredProjection?> readDetail(String journeyId) {
+    return store.readProjection(projectionKind, resourceKey: journeyId);
+  }
+
+  Stream<JourneySourceState> watchSource(String journeyId) {
+    final sourceKey = sourceFor(journeyId).sourceKey;
+    final query = database.select(database.syncSources)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
+      );
+    return query.watchSingleOrNull().map(
+      (row) => row == null
+          ? JourneySourceState.unknown
+          : JourneySourceState(
+              lastSuccessAt: row.lastSuccessAt,
+              invalidated: row.invalidated,
+              lastErrorCode: row.lastErrorCode,
+            ),
+    );
+  }
+
+  Future<JourneySourceState> readSource(String journeyId) async {
+    final sourceKey = sourceFor(journeyId).sourceKey;
+    final query = database.select(database.syncSources)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
+      );
+    final row = await query.getSingleOrNull();
+    return row == null
+        ? JourneySourceState.unknown
+        : JourneySourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
+
+  Future<void> refreshDetail(String journeyId) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Journey owner is not configured.');
+    }
+    await engine.refreshSource(sourceFor(journeyId));
+  }
+
+  Future<void> invalidateDetail(String journeyId) async {
+    final engine = sync;
+    if (engine == null) return;
+    await engine.invalidate(sourceFor(journeyId));
+  }
+}
+,
+          ).hasMatch(id)) continue;
+      links[id] = link;
+      if (links.length >= limit) break;
+    }
+    return Map.unmodifiable(links);
+  }
+
+  static Map<String, String> knownRequirementLinksFromDetail(
+    StoredProjection? detail, {
+    required String journeyId,
+    int limit = 6,
+  }) {
+    if (detail == null || limit <= 0) return const {};
+    final rows = detail.payload['requirements'];
+    if (rows is! List) return const {};
+    final links = <String, String>{};
+    for (final row in rows) {
+      if (row is! Map) continue;
+      final id = row['id']?.toString() ?? '';
+      final link = row['link']?.toString() ?? '';
+      if (id.isEmpty ||
+          link != '/api/v1/me/journeys/$journeyId/requirements/$id/' ||
+          !RegExp(
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+  /// Only stored Profile facts select identities; no page or widget cache.
+  Future<int> prepareKnownJourneySources({int limit = 6}) async {
+    final engine = sync;
+    if (engine == null || limit <= 0) return 0;
+    final ongoing = await store.readProjection('personal.ongoing');
+    final ids = knownJourneyIdsFromOngoing(ongoing, limit: limit);
+    for (final id in ids) {
+      engine.registerPreparedSource(sourceFor(id));
+    }
+    return ids.length;
+  }
+
+  Stream<StoredProjection?> watchDetail(String journeyId) {
+    return store.watchProjection(projectionKind, resourceKey: journeyId);
+  }
+
+  Future<StoredProjection?> readDetail(String journeyId) {
+    return store.readProjection(projectionKind, resourceKey: journeyId);
+  }
+
+  Stream<JourneySourceState> watchSource(String journeyId) {
+    final sourceKey = sourceFor(journeyId).sourceKey;
+    final query = database.select(database.syncSources)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
+      );
+    return query.watchSingleOrNull().map(
+      (row) => row == null
+          ? JourneySourceState.unknown
+          : JourneySourceState(
+              lastSuccessAt: row.lastSuccessAt,
+              invalidated: row.invalidated,
+              lastErrorCode: row.lastErrorCode,
+            ),
+    );
+  }
+
+  Future<JourneySourceState> readSource(String journeyId) async {
+    final sourceKey = sourceFor(journeyId).sourceKey;
+    final query = database.select(database.syncSources)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
+      );
+    final row = await query.getSingleOrNull();
+    return row == null
+        ? JourneySourceState.unknown
+        : JourneySourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
+
+  Future<void> refreshDetail(String journeyId) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Journey owner is not configured.');
+    }
+    await engine.refreshSource(sourceFor(journeyId));
+  }
+
+  Future<void> invalidateDetail(String journeyId) async {
+    final engine = sync;
+    if (engine == null) return;
+    await engine.invalidate(sourceFor(journeyId));
+  }
+}
+,
+          ).hasMatch(id)) continue;
+      links[id] = link;
+      if (links.length >= limit) break;
+    }
+    return Map.unmodifiable(links);
+  }
+
   /// Prepare owner details already referenced by the personal working set.
   /// Only stored Profile facts select identities; no page or widget cache.
   Future<int> prepareKnownJourneySources({int limit = 6}) async {
