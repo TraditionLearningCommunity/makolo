@@ -112,8 +112,12 @@ def run(a):
     if a.action in ("timeline", "rebalance") and (
         a.action == "timeline" or a.target == "periods"
     ):
-        if a.action == "rebalance" and a.space_id:
-            raise SystemExit("--space-id is not valid for periods")
+        if a.action == "rebalance":
+            if (a.space_id or a.profile_username or a.direction != "add" or
+                    a.per_profile != 3 or a.seed != 2026):
+                raise SystemExit("Les options de relations ne concernent pas --target periods.")
+            if a.count != 50 and a.limit == 0:
+                a.limit = a.count
         options=["--database",a.database, "--mode",a.mode,
                  "--activity-prefix",a.activity_prefix,
                  "--timezone",a.timezone,"--demo-slots",str(a.demo_slots)]
