@@ -4,7 +4,7 @@ from .dossier_api import DossierActionsAPIView
 
 from .project_api import (
     ProjectDossiersAPIView, ProjectDossierActionAPIView,
-    ProjectLifecycleAPIView,
+    ProjectLifecycleAPIView, ProjectAuthorityAPIView,
 )
 
 from .api_views import (
@@ -26,5 +26,6 @@ urlpatterns = [
     path("projects/<uuid:pk>/", ProjectDetailAPIView.as_view(), name="project-detail"),
     path("projects/<uuid:pk>/dossiers/", ProjectDossiersAPIView.as_view(), name="project-dossiers"),
     path("projects/<uuid:pk>/dossiers/<uuid:dossier_id>/", ProjectDossierActionAPIView.as_view(), name="project-dossier-action"),
+    path("projects/<uuid:pk>/authority/", ProjectAuthorityAPIView.as_view(), name="project-authority"),
     path("projects/<uuid:pk>/lifecycle/", ProjectLifecycleAPIView.as_view(), name="project-lifecycle"),
 ]
