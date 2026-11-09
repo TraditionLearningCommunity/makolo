@@ -10,11 +10,11 @@
 
 ## 1. Principe central : deux pages, pas six
 
-**Une Occurrence. Une page Jour J. Une page Makolo Live. Toutes les capacités légitimes coexistent dans la page, sans sélecteur de casquette obligatoire.**
+**Une Occurrence. Un Jour J canonique. Un Makolo Live canonique seulement lorsque celui-ci est pertinent et explicitement activé. Toutes les capacités légitimes coexistent sans sélecteur de casquette obligatoire.**
 
 - **Jour J :** « Où en suis-je et que dois-je faire pour accomplir correctement cette Occurrence ? » C'est la page **d'action et d'orientation**.
 - **Makolo Live :** « Qu'est-ce qui est effectivement connu ou observé, qu'est-ce qui évolue et quelle est la qualité de cette connaissance ? » C'est la page **de réalité observée**.
-- Live est une profondeur contextuelle de Jour J, avec un résumé Live intégré à Jour J lorsque des faits utiles existent. Ce ne sont ni deux portes primaires, ni deux tableaux de bord.
+- **Makolo Live est facultatif.** Toute Activity, Journey ou Occurrence ne doit pas automatiquement posséder Live. Une Occurrence peut disposer de Jour J sans Live ; la phase temporelle, une Journey ou un accès valide ne publient jamais Live à eux seuls. Une activation explicite par un responsable autorisé et une fenêtre de pertinence sont nécessaires. Quand Live est disponible, c'est une profondeur contextuelle de Jour J, avec un résumé intégré uniquement si des faits utiles existent. Ce ne sont ni deux portes primaires, ni deux tableaux de bord.
 
 **Unicité d'expérience ne veut pas dire endpoint, classe Flutter ou projection unique.** Plusieurs points d'entrée et projections spécialisées peuvent préserver l'autorité et la compatibilité. Le produit ne présente cependant pas des *pages de catégorie Profil* et des *pages de catégorie Space* comme expériences séparées.
 
@@ -157,7 +157,7 @@ Les profondeurs héritent de l'acteur effectif et du contexte de l'Occurrence et
 
 La cible est atteinte lorsque les scénarios suivants sont démontrés **par tests et expérience utilisateur**, sans supposer la présence de nouvelles données :
 
-1. Un **Profil participant**, un **Profil organisateur**, un **Space participant** et un **Space organisateur** consultent les **mêmes deux expériences** avec des informations et opérations adaptées.
+1. Un **Profil participant**, un **Profil organisateur**, un **Space bénéficiaire** et un **Space organisateur** consultent **la même expérience Jour J** ; lorsque Live est explicitement activé, ils accèdent à **la même expérience Live** sous leurs autorisations respectives.
 2. Une personne ou un Space **participant et organisateur** voit simultanément les deux familles de contenus et les deux actions essentielles lorsqu'elles existent, **sans changer de mode**, sans fuite de données ni élévation d'autorité. Plusieurs mandats d'organisation composent une seule expérience et ne requièrent aucun sélecteur préalable.
 3. La perspective **plateforme** est ouverte seulement aux mandats staff vérifiés et respecte ses finalités.
 4. Jour J montre **une situation compréhensible et les actions importantes réellement autorisées**, simultanément lorsque nécessaire, avec une hiérarchie claire ; accès, attentes et placements sont correctement nommés, puis la sortie reste naturelle.
@@ -168,6 +168,14 @@ La cible est atteinte lorsque les scénarios suivants sont démontrés **par tes
 9. Les owners existants gardent leurs responsabilités : Activity/Occurrence, Journey, Access, Operations, Capacity, Scanner, Readiness, Geography, Notifications, Domain Events et autres domaines canoniques.
 10. Aucune seconde source de vérité ni nouveau modèle JourJ/Live générique n'est introduit pour réaliser la présentation.
 
+
+## Règle d'éligibilité Live : opt-in, jamais automatique
+
+- **Jour J ne dépend jamais de la publication Live.** La démarche et les accès restent accessibles selon leurs owners, même pour une Occurrence sans Live.
+- **Live est une publication optionnelle de l'Occurrence**, activable/désactivable uniquement par un responsable autorisé. L'activation ne crée pas de faits, de couverture complète, de mouvement de foule ou de temps réel fictif.
+- **La disponibilité doit être résolue côté serveur** : activation explicite, fenêtre admissible, droits du viewer. Les liens Live des interfaces et projections historiques ne doivent pas prétendre à une disponibilité sans cette vérification.
+- **L'absence de Live n'est ni un échec ni un blocage.** La destination normale reste Jour J ; les pages Live non publiées répondent indisponible/refus, sans résurrection de cache privé.
+- **Profil et Space partagent les mêmes types de pages** : l'acteur effectif contrôle le périmètre institutionnel, jamais un sélecteur finance/scanner/participant pour dévoiler les commandes.
 
 ## 11. Décision produit : cumul de capacités sans « mode » préalable
 
