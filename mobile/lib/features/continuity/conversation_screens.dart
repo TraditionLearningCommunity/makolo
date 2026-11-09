@@ -1031,7 +1031,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         final target = (previousOffset + delta).clamp(
           _timelineScroll.position.minScrollExtent,
           _timelineScroll.position.maxScrollExtent,
-        );
+        ).toDouble();
         _timelineScroll.jumpTo(target);
       });
     } on Object {
