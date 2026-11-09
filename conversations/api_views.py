@@ -132,6 +132,8 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "lifecycle": point.lifecycle,
         "response_status": point_personal_result(profile, point),
         "my_response": interactions["my_response"],
+        "response_window_open": interactions["response_window_open"],
+        "represented_responses": interactions["represented_responses"],
         "poll_results": interactions["poll_results"],
         "acknowledged": interactions["acknowledged"],
         "can_acknowledge": interactions["can_acknowledge"],
