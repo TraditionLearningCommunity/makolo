@@ -32,6 +32,9 @@ def timeline_presentation(profile, point, *, interactions=None):
         profile, point,
     )
     lifecycle = point.lifecycle
+    state = point.user_states.filter(profile=profile).first()
+    if state and state.revisit_at and lifecycle not in TERMINAL_LIFECYCLES:
+        return {"compact": False, "summary": ""}
     if point.shared_pinned_at and lifecycle not in TERMINAL_LIFECYCLES:
         return {"compact": False, "summary": ""}
     if lifecycle in TERMINAL_LIFECYCLES:
@@ -99,7 +102,11 @@ def group_timeline_points(profile, points, *, focus_id=None):
     groups = []
     current = None
     for point in points:
-        day = timezone.localtime(point.published_at).date() if point.published_at else None
+        day = (
+            (timezone.localtime(point.published_at) if timezone.is_aware(point.published_at)
+             else point.published_at).date()
+            if point.published_at else None
+        )
         state = timeline_presentation(profile, point)
         if state["compact"]:
             if current and current["kind"] == "completed" and current["day"] == day:
@@ -107,11 +114,14 @@ def group_timeline_points(profile, points, *, focus_id=None):
                     "point": point, "summary": state["summary"],
                 })
                 current["focus"] = current["focus"] or str(point.pk) == str(focus_id)
+                if state["summary"]:
+                    current["summary"] = state["summary"]
                 continue
             current = {
                 "kind": "completed", "day": day, "points": [
                     {"point": point, "summary": state["summary"]},
-                ], "focus": str(point.pk) == str(focus_id),
+                ], "summary": state["summary"],
+                "focus": str(point.pk) == str(focus_id),
             }
         else:
             current = {"kind": "point", "day": day, "point": point}
