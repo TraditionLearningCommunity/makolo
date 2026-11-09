@@ -662,6 +662,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   final ScrollController _timelineScroll = ScrollController();
   bool _timelinePositioned = false;
   bool _nearLatest = true;
+  bool _newMessagesAvailable = false;
   String? _lastTimelinePointId;
 
   final GlobalKey _pointFocusKey = GlobalKey();
@@ -757,9 +758,21 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   }
 
   void _trackTimelinePosition() {
-    if (_timelineScroll.hasClients) {
-      _nearLatest = _timelineScroll.position.extentAfter < 120;
+    if (!_timelineScroll.hasClients) return;
+    _nearLatest = _timelineScroll.position.extentAfter < 120;
+    if (_nearLatest && _newMessagesAvailable) {
+      setState(() => _newMessagesAvailable = false);
     }
+  }
+
+  void _showLatestMessages() {
+    if (!_timelineScroll.hasClients) return;
+    _timelineScroll.animateTo(
+      _timelineScroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+    );
+    setState(() => _newMessagesAvailable = false);
   }
 
   void _positionTimeline(
@@ -772,11 +785,23 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final latestId = outgoing.isNotEmpty
         ? outgoing.last.reference
         : entries.last.point.id;
+    final hasNewMessages =
+        _timelinePositioned &&
+        _lastTimelinePointId != latestId &&
+        !_nearLatest &&
+        entries.isNotEmpty;
     final shouldFollow =
         !_timelinePositioned ||
         (_lastTimelinePointId != latestId && _nearLatest);
     _timelinePositioned = true;
     _lastTimelinePointId = latestId;
+    if (hasNewMessages && !_newMessagesAvailable) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_nearLatest && !_newMessagesAvailable) {
+          setState(() => _newMessagesAvailable = true);
+        }
+      });
+    }
     if (!shouldFollow) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_timelineScroll.hasClients || _focusedPointId != null) {
@@ -796,6 +821,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           oldWidget.repository != widget.repository) {
         _timelinePositioned = false;
         _nearLatest = true;
+        _newMessagesAvailable = false;
         _lastTimelinePointId = null;
         if (_timelineScroll.hasClients) _timelineScroll.jumpTo(0);
       }
@@ -1451,6 +1477,16 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               ),
               body: Column(
                 children: [
+                  if (available && permitted && _newMessagesAvailable)
+                    Align(
+                      alignment: Alignment.center,
+                      child: TextButton.icon(
+                        key: const Key('conversation-new-messages'),
+                        onPressed: _showLatestMessages,
+                        icon: const Icon(Icons.arrow_downward_rounded),
+                        label: const Text('Nouveaux messages'),
+                      ),
+                    ),
                   Expanded(
                     child: available && permitted
                         ? StreamBuilder<List<ConversationOutgoing>>(
