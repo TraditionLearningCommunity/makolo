@@ -57,7 +57,7 @@ class SpaceOccurrenceRepository {
   ) => SyncSourceDefinition.projectionEnvelope(
     sourceKey: 'space-day-of:${space.id}:$occurrenceId',
     owner: 'Operations',
-    path: 'api/v1/operations/occurrences/$occurrenceId/experience/day-of/',
+    path: 'api/v1/operations/occurrences/$occurrenceId/experience/day-of/?actor_space=${space.id}',
     projectionKind: dayOfProjection,
     resourceKey: resourceKey(space, occurrenceId),
     actorScope: SyncActorScope.space(spaceId: space.id),
@@ -71,7 +71,7 @@ class SpaceOccurrenceRepository {
   ) => SyncSourceDefinition.projectionEnvelope(
     sourceKey: 'space-live-experience:${space.id}:$occurrenceId',
     owner: 'Operations',
-    path: 'api/v1/operations/occurrences/$occurrenceId/experience/live/',
+    path: 'api/v1/operations/occurrences/$occurrenceId/experience/live/?actor_space=${space.id}',
     projectionKind: liveProjection,
     resourceKey: resourceKey(space, occurrenceId),
     actorScope: SyncActorScope.space(spaceId: space.id),
