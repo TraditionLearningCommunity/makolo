@@ -658,7 +658,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     // Public Passport is resolved by its canonical server route. Its
     // publication and field visibility are enforced by that owner.
     final uri = api.baseUri.resolve(
-      '${Uri.encodeComponent(slug)}/?variant=public',
+      '/${Uri.encodeComponent(slug)}/?variant=public',
     );
     if (uri.scheme != 'https' && uri.scheme != 'http') return;
     try {
@@ -713,7 +713,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       ),
       body: SafeArea(
         child: LoadMoreOnScroll(
-        hasMore: _hasNext && _error == null,
+          hasMore: _hasNext && _error == null,
         loading: _loading,
         loadMore: _loadNextPage,
         child: RefreshIndicator(
@@ -799,12 +799,20 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                     baseUri: widget.runtime.api?.baseUri,
                     shareApi: widget.runtime.api,
                     onSignIn: () {
+                      if (widget.runtime.isAuthenticated) {
+                        _openPossibility(possibility);
+                        return;
+                      }
                       widget.runtime.recovery.requireAuthentication(
                         '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
                       );
                       context.push('/login');
                     },
                     onSave: () async {
+                      if (widget.runtime.isAuthenticated) {
+                        _openPossibility(possibility);
+                        return;
+                      }
                       widget.runtime.recovery.requireAuthentication(
                         '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
                       );
@@ -820,7 +828,6 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
             ],
           ),
         ),
-      ),
       ),
     );
   }
