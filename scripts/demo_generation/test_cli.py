@@ -752,5 +752,38 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertEqual(text, demo_text("beta_alain", 0).decode("utf-8"))
 
 
+    def test_resources_local_avatar_is_copied_not_linked(self):
+        from types import SimpleNamespace
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from scripts.demo_generation.resources import avatar_upload, document_slots
+        png = b"\\x89PNG\\r\\n\\x1a\\n" + b"demo-image-bytes"
+        class FakeStorage:
+            def exists(self, name):
+                return name == "avatars/own.png"
+        class FakeAvatar:
+            name = "avatars/own.png"
+            storage = FakeStorage()
+            def open(self, mode):
+                from io import BytesIO
+                return BytesIO(png)
+        user = SimpleNamespace(username="beta_alain", avatar=FakeAvatar())
+        copy = avatar_upload(user)
+        self.assertIsInstance(copy, SimpleUploadedFile)
+        self.assertEqual(copy.read(), png)
+        docs = list(document_slots(user, include_avatar=True))
+        self.assertEqual(docs[0][0], "Copie de ma photo de profil")
+        self.assertEqual(docs[0][1].read(), png)
+
+    def test_resources_missing_avatar_falls_back_to_text_documents(self):
+        from types import SimpleNamespace
+        from scripts.demo_generation.resources import document_slots
+        user = SimpleNamespace(username="world_demo", avatar=None)
+        docs = list(document_slots(user, include_avatar=True))
+        self.assertEqual(len(docs), 4)
+        for _title, upload in docs:
+            self.assertEqual(upload.content_type, "text/plain")
+            self.assertIn(b"Makolo", upload.read())
+
+
 if __name__ == "__main__":
     unittest.main()
