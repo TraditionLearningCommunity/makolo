@@ -241,6 +241,69 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
     unawaited(_load(reset: true));
   }
 
+  List<Widget> _chronologicalHistory(BuildContext context) {
+    final widgets = <Widget>[];
+    DateTime? previousDay;
+    DateTime? publishedDate(Map<String, dynamic> row) => DateTime.tryParse(
+      row['published_at']?.toString() ??
+          row['updated_at']?.toString() ?? '',
+    )?.toLocal();
+
+    var index = 0;
+    while (index < _rows.length) {
+      final row = _rows[index];
+      final day = publishedDate(row);
+      if (day != null &&
+          (previousDay == null || !DateUtils.isSameDay(previousDay, day))) {
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Text(
+                MaterialLocalizations.of(context).formatMediumDate(day),
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+          ),
+        );
+        previousDay = day;
+      }
+      if (row['timeline_compact'] == true) {
+        var next = index + 1;
+        while (next < _rows.length &&
+            _rows[next]['timeline_compact'] == true &&
+            DateUtils.isSameDay(day, publishedDate(_rows[next]))) {
+          next++;
+        }
+        final group = _rows.sublist(index, next);
+        widgets.add(
+          _HistoricalCompletedGroup(
+            key: PageStorageKey<String>(
+              'history-completed-${group.first['id']}-${group.last['id']}',
+            ),
+            rows: group,
+            onOpenPoint: widget.onOpenPoint,
+          ),
+        );
+        index = next;
+      } else {
+        final id = row['id']?.toString() ?? '';
+        widgets.add(
+          _HistoricalPointRow(
+            key: ValueKey('history-row-$id'),
+            row: row,
+            onOpenRelated: widget.onOpenPoint,
+            onOpen: () {
+              if (id.isNotEmpty) widget.onOpenPoint(id);
+            },
+          ),
+        );
+        index++;
+      }
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final themed = Theme.of(context);
@@ -333,7 +396,24 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 ],
                 const SizedBox(height: 18),
                 Text('Points accessibles', style: themed.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  'Les plus anciens en haut · les Points terminés se déplient '
+                  'pour retrouver leurs détails.',
+                  style: themed.textTheme.bodySmall,
+                ),
                 const SizedBox(height: 10),
+                if (_nextCursor != null && !_loading && _error == null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: MakoloActionButton(
+                      key: const Key('conversation-history-more'),
+                      label: 'Voir les Points plus anciens',
+                      onPressed: () => _load(),
+                      icon: Icons.keyboard_arrow_up_rounded,
+                      appearance: MakoloActionAppearance.quiet,
+                    ),
+                  ),
                 if (_loading && _rows.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(22),
@@ -344,26 +424,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Text('Aucun Point accessible pour ce filtre.'),
                   ),
-                for (final row in _rows)
-                  _HistoricalPointRow(
-                    row: row,
-                    onOpenRelated: widget.onOpenPoint,
-                    onOpen: () {
-                      final id = row['id']?.toString();
-                      if (id != null && id.isNotEmpty) widget.onOpenPoint(id);
-                    },
-                  ),
-                if (_nextCursor != null && !_loading && _error == null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: MakoloActionButton(
-                      key: const Key('conversation-history-more'),
-                      label: 'Voir les Points suivants',
-                      onPressed: () => _load(),
-                      icon: Icons.expand_more_rounded,
-                      appearance: MakoloActionAppearance.quiet,
-                    ),
-                  ),
+                ..._chronologicalHistory(context),
                 if (_loading && _rows.isNotEmpty)
                   const Center(
                     child: Padding(
