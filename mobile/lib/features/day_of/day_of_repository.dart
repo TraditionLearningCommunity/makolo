@@ -54,6 +54,9 @@ class DayOfRepository {
       path: 'api/v1/operations/occurrences/$occurrenceId/experience/day-of/',
       projectionKind: projectionKind,
       resourceKey: occurrenceId,
+      expectedOccurrenceId: occurrenceId,
+      expectedViewerProfileId: profileId,
+      expectedSurface: 'day_of',
       category: SyncSourceCategory.boundedOperational,
       freshnessPolicy: freshnessPolicy,
     );
