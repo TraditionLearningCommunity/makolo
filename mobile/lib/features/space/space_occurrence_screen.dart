@@ -199,7 +199,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
           final liveEnded =
               scoped &&
               OccurrenceContinuity.liveWindowEnded(
-                projection!.payload,
+                projection.payload,
                 now: DateTime.now(),
               );
           final syncVisual = SyncStatusScope.maybeOf(context)?.state;
@@ -265,10 +265,10 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                 onRetry: _refresh,
                 content:
                     available &&
-                        projection?.payload['surface'] ==
+                        projection.payload['surface'] ==
                             (widget.live ? 'live' : 'day_of')
                     ? OccurrenceExperienceContent(
-                        payload: projection!.payload,
+                        payload: projection.payload,
                         live: widget.live,
                         remoteActionsAvailable: actionsAllowed,
                         liveWindowEnded: liveEnded,
@@ -292,147 +292,4 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
       ),
     );
   }
-}
-
-class _SpaceOccurrenceContent extends StatelessWidget {
-  const _SpaceOccurrenceContent({
-    required this.payload,
-    required this.freshness,
-    required this.live,
-    this.onOpenLive,
-    this.onOpenScanner,
-    this.onBackToDayOf,
-  });
-
-  final Map<String, dynamic>? payload;
-  final FreshnessState? freshness;
-  final bool live;
-  final VoidCallback? onOpenLive;
-  final VoidCallback? onOpenScanner;
-  final VoidCallback? onBackToDayOf;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = payload ?? const <String, dynamic>{};
-    final contextData = _map(data['context']);
-    final occurrence = _map(data['occurrence']);
-    final space = _map(contextData['space']);
-    final phase = _text(contextData['phase']) ?? _text(data['phase']);
-    final readiness = _map(data['readiness'] ?? data['operational_readiness']);
-    final capacity = _list(data['capacity']);
-    final queues = _list(data['queues'] ?? data['queue']);
-    final placement = _list(data['placement']);
-    final scanner = _map(data['scanner']);
-    final capabilities = _strings(data['capabilities']);
-    return ListView(
-      padding: const EdgeInsets.all(MakoloSpacing.lg),
-      children: [
-        if (live && onBackToDayOf != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: MakoloActionButton(
-              label: 'Retour au Jour J Space',
-              appearance: MakoloActionAppearance.quiet,
-              onPressed: onBackToDayOf,
-              icon: Icons.arrow_back_rounded,
-            ),
-          ),
-        Text(
-          _text(occurrence['label']) ?? 'Occurrence opérée',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        Text(
-          '${_text(space['name']) ?? 'Space'} · ${_text(_map(contextData['activity'])['title']) ?? ''}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: MakoloSpacing.sm),
-        Text(
-          live
-              ? _liveLabel(phase)
-              : 'Jour J opérateur · ${phase ?? 'contexte actuel'}',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        if (freshness == FreshnessState.usableButOld ||
-            freshness == FreshnessState.refreshRecommended)
-          const Padding(
-            padding: EdgeInsets.only(top: MakoloSpacing.sm),
-            child: MakoloAttentionBlock(
-              title: 'Dernière information connue',
-              body: 'Actualisez pour confirmer l’état opérationnel actuel.',
-              icon: Icons.schedule_rounded,
-            ),
-          ),
-        const SizedBox(height: MakoloSpacing.lg),
-        MakoloSection(
-          title: 'Priorité opérationnelle',
-          child: MakoloCard(
-            child: Text(
-              _text(_map(data['next_action'])['label']) ??
-                  'Aucune action corrective confirmée maintenant.',
-            ),
-          ),
-        ),
-        const SizedBox(height: MakoloSpacing.lg),
-        MakoloSection(
-          title: 'Faits de cette Occurrence',
-          child: MakoloCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Capacité : ${capacity.length} élément${capacity.length == 1 ? '' : 's'}',
-                ),
-                Text(
-                  'Queue Live : ${queues.length} élément${queues.length == 1 ? '' : 's'}',
-                ),
-                Text(
-                  'Placement : ${placement.length} attribution${placement.length == 1 ? '' : 's'}',
-                ),
-                Text('Readiness : ${_text(readiness['state']) ?? 'unknown'}'),
-                if (scanner.isNotEmpty)
-                  Text(
-                    'Scanner : ${_text(scanner['state']) ?? 'disponibilité à confirmer'}',
-                  ),
-              ],
-            ),
-          ),
-        ),
-        if (!live &&
-            capabilities.contains('open_live') &&
-            onOpenLive != null) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloActionButton(
-            label: 'Ouvrir Makolo Live',
-            appearance: MakoloActionAppearance.primary,
-            onPressed: onOpenLive,
-            icon: Icons.play_circle_outline_rounded,
-          ),
-        ],
-        if (!live &&
-            capabilities.contains('open_scanner') &&
-            onOpenScanner != null) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          MakoloActionButton(
-            label: 'Ouvrir le Scanner',
-            appearance: MakoloActionAppearance.secondary,
-            onPressed: onOpenScanner,
-            icon: Icons.qr_code_scanner_rounded,
-          ),
-        ],
-      ],
-    );
-  }
-
-  static Map<String, dynamic> _map(Object? value) =>
-      value is Map ? Map<String, dynamic>.from(value) : const {};
-  static List<Object?> _list(Object? value) => value is List ? value : const [];
-  static Set<String> _strings(Object? value) =>
-      value is List ? value.whereType<String>().toSet() : <String>{};
-  static String? _text(Object? value) =>
-      value is String && value.trim().isNotEmpty ? value.trim() : null;
-  static String _liveLabel(String? phase) => switch (phase) {
-    'arrival' => 'Arrivée et opération en cours',
-    'live' => 'Opération en cours maintenant',
-    _ => 'Situation opérationnelle à confirmer',
-  };
 }

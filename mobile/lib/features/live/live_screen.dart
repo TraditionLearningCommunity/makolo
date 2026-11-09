@@ -162,7 +162,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
         final liveEnded =
             scoped &&
             OccurrenceContinuity.liveWindowEnded(
-              projection!.payload,
+              projection.payload,
               now: DateTime.now(),
             );
         final globalState = SyncStatusScope.maybeOf(context)?.state;
@@ -230,9 +230,9 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
                   ? 'Cette Occurrence n’est plus dans sa fenêtre Live. Retrouvez ses conséquences dans Jour J et Historique.'
                   : 'Makolo Live n’est pas activé ou accessible pour cette Occurrence. Jour J reste disponible.',
               onRetry: _refresh,
-              content: available && projection?.payload['surface'] == 'live'
+              content: available && projection.payload['surface'] == 'live'
                   ? OccurrenceExperienceContent(
-                      payload: projection!.payload,
+                      payload: projection.payload,
                       live: true,
                       remoteActionsAvailable: actionsAllowed,
                       liveWindowEnded: liveEnded,
@@ -248,99 +248,4 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       },
     ),
   );
-}
-
-class _LiveContent extends StatelessWidget {
-  const _LiveContent({
-    required this.payload,
-    required this.freshness,
-    this.onBackToDayOf,
-  });
-
-  final Map<String, dynamic>? payload;
-  final FreshnessState? freshness;
-  final VoidCallback? onBackToDayOf;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = payload ?? const <String, dynamic>{};
-    final occurrence = _map(data['occurrence']);
-    final timing = _map(data['timing']);
-    final spatial = _map(data['spatial']);
-    final place = _map(spatial['place']);
-    final next = _map(data['next_action']);
-    final queue = data['queue'] is List ? (data['queue'] as List).length : 0;
-    final phase = _text(data['phase']) ?? 'unknown';
-    return ListView(
-      padding: const EdgeInsets.all(MakoloSpacing.lg),
-      children: [
-        if (onBackToDayOf != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onBackToDayOf,
-              icon: const Icon(Icons.arrow_back_rounded),
-              label: const Text('Retour au Jour J'),
-            ),
-          ),
-        Text(
-          _text(occurrence['label']) ?? 'Occurrence en cours',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: MakoloSpacing.sm),
-        Text(
-          _phaseLabel(phase),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        if (freshness == FreshnessState.usableButOld ||
-            freshness == FreshnessState.refreshRecommended) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          const MakoloAttentionBlock(
-            title: 'Dernière information connue',
-            body: 'La connexion doit être vérifiée pour confirmer la situation actuelle.',
-            icon: Icons.schedule_rounded,
-          ),
-        ],
-        const SizedBox(height: MakoloSpacing.xl),
-        MakoloSection(
-          title: 'Ce qui compte maintenant',
-          child: MakoloCard(
-            child: Text(
-              _text(next['label']) ?? 'Aucune action supplémentaire confirmée.',
-            ),
-          ),
-        ),
-        const SizedBox(height: MakoloSpacing.lg),
-        MakoloSection(
-          title: 'Repères',
-          child: MakoloCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_text(place['name']) != null) Text(_text(place['name'])!),
-                if (_text(_map(spatial['zone'])['name']) != null)
-                  Text(_text(_map(spatial['zone'])['name'])!),
-                if (_text(timing['temporal_state']) != null)
-                  Text('Temps : ${_text(timing['temporal_state'])}'),
-                if (queue > 0)
-                  Text('Votre file : $queue élément${queue > 1 ? 's' : ''}'),
-                if (place.isEmpty && queue == 0)
-                  const Text('Aucun repère observé supplémentaire.'),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  static Map<String, dynamic> _map(Object? value) =>
-      value is Map ? Map<String, dynamic>.from(value) : const {};
-  static String? _text(Object? value) =>
-      value is String && value.trim().isNotEmpty ? value.trim() : null;
-  static String _phaseLabel(String phase) => switch (phase) {
-    'arrival' => 'Approche et arrivée',
-    'live' => 'En cours maintenant',
-    _ => 'Situation à confirmer',
-  };
 }

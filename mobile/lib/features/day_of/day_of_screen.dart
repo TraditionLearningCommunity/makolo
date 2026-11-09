@@ -173,7 +173,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
             final liveWindowEnded =
                 scoped &&
                 OccurrenceContinuity.liveWindowEnded(
-                  projection!.payload,
+                  projection.payload,
                   now: DateTime.now(),
                 );
             final globalState = SyncStatusScope.maybeOf(context)?.state;
@@ -244,9 +244,9 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                       : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
                   content:
-                      available && projection?.payload['surface'] == 'day_of'
+                      available && projection.payload['surface'] == 'day_of'
                       ? OccurrenceExperienceContent(
-                          payload: projection!.payload,
+                          payload: projection.payload,
                           live: false,
                           remoteActionsAvailable: actionsAllowed,
                           liveWindowEnded: liveWindowEnded,
@@ -266,184 +266,6 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
           },
         );
       },
-    );
-  }
-}
-
-class _DayOfContent extends StatelessWidget {
-  const _DayOfContent({
-    required this.presentation,
-    required this.remoteActionsAvailable,
-    required this.onOpenAccess,
-    required this.onPresentCredential,
-    this.onOpenLive,
-  });
-
-  final DayOfPresentation presentation;
-  final bool remoteActionsAvailable;
-  final void Function(String accessId, String detailPath) onOpenAccess;
-  final void Function(String accessId, String credentialPath)
-  onPresentCredential;
-  final void Function(String livePath)? onOpenLive;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('day-of-content'),
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-      children: [
-        MakoloDetailHeader(
-          eyebrow: 'Jour J',
-          title: presentation.title,
-          subtitle: presentation.occurrenceLabel,
-        ),
-        if (presentation.nextLabel != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: MakoloAttentionBlock(
-              title: 'À faire maintenant',
-              body: presentation.nextLabel!,
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.destination != null) ...[
-          MakoloSection(
-            title: 'Où aller',
-            child: _DestinationCard(destination: presentation.destination!),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.accesses.isNotEmpty) ...[
-          MakoloSection(
-            title: 'Accès',
-            child: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < presentation.accesses.length;
-                  index++
-                ) ...[
-                  _AccessCard(
-                    access: presentation.accesses[index],
-                    onOpenAccess: onOpenAccess,
-                    onPresentCredential: onPresentCredential,
-                  ),
-                  if (index < presentation.accesses.length - 1)
-                    const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.actorInterventions.isNotEmpty ||
-            presentation.blockers.isNotEmpty) ...[
-          MakoloSection(
-            title: 'À régler',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final item in presentation.actorInterventions)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                    child: MakoloAttentionBlock(
-                      title: 'Action requise',
-                      body: item,
-                    ),
-                  ),
-                for (final item in presentation.blockers)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                    child: MakoloAttentionBlock(
-                      title: 'Avant de continuer',
-                      body: item,
-                      icon: Icons.block_rounded,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.queue.isNotEmpty) ...[
-          MakoloSection(
-            title: 'File d’attente',
-            child: Column(
-              children: [
-                for (final entry in presentation.queue)
-                  MakoloCard(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.people_outline_rounded),
-                        const SizedBox(width: MakoloSpacing.compact),
-                        Expanded(child: Text(entry.label ?? 'File d’attente')),
-                        if (entry.position != null)
-                          Text('Position ${entry.position}'),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.placements.isNotEmpty) ...[
-          MakoloSection(
-            title: 'Placement',
-            child: Column(
-              children: [
-                for (final placement in presentation.placements)
-                  MakoloCard(
-                    child: Text(
-                      [
-                        placement.unit,
-                        placement.parentUnit,
-                        placement.plan,
-                      ].whereType<String>().join(' · '),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.nextCheckpoint?.label != null) ...[
-          MakoloSection(
-            title: 'Étape sur place',
-            child: MakoloCard(child: Text(presentation.nextCheckpoint!.label!)),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.hazards.isNotEmpty) ...[
-          MakoloSection(
-            title: 'À savoir',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final hazard in presentation.hazards)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                    child: MakoloAttentionBlock(
-                      title: 'Information actuelle',
-                      body: hazard,
-                      icon: Icons.info_outline_rounded,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.xl),
-        ],
-        if (presentation.canOpenLive && onOpenLive != null)
-          DayOfLiveAction(
-            livePath: presentation.livePath!,
-            remoteActionsAvailable: remoteActionsAvailable,
-            onOpenLive: onOpenLive!,
-          ),
-      ],
     );
   }
 }
@@ -480,79 +302,6 @@ class DayOfLiveAction extends StatelessWidget {
               'Connexion requise',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _DestinationCard extends StatelessWidget {
-  const _DestinationCard({required this.destination});
-
-  final DayOfDestination destination;
-
-  @override
-  Widget build(BuildContext context) {
-    final lines = <String>[
-      if (destination.name != null) destination.name!,
-      if (destination.addressLine != null) destination.addressLine!,
-      if (destination.locality != null) destination.locality!,
-      if (destination.accessInstructions != null)
-        destination.accessInstructions!,
-    ];
-
-    return MakoloCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.place_outlined),
-          const SizedBox(width: MakoloSpacing.compact),
-          Expanded(child: Text(lines.join('\n'))),
-        ],
-      ),
-    );
-  }
-}
-
-class _AccessCard extends StatelessWidget {
-  const _AccessCard({
-    required this.access,
-    required this.onOpenAccess,
-    required this.onPresentCredential,
-  });
-
-  final DayOfAccessPresentation access;
-  final void Function(String accessId, String detailPath) onOpenAccess;
-  final void Function(String accessId, String credentialPath)
-  onPresentCredential;
-
-  @override
-  Widget build(BuildContext context) {
-    return MakoloCard(
-      semanticLabel: 'Accès',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            access.usable ? 'Prêt à présenter' : 'Accès à vérifier',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          if (access.canPresentCredential) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            FilledButton.icon(
-              onPressed: () =>
-                  onPresentCredential(access.id, access.credentialPath!),
-              icon: const Icon(Icons.qr_code_2_rounded),
-              label: const Text('Afficher le QR'),
-            ),
-          ],
-          if (access.canOpenAccess) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            OutlinedButton(
-              onPressed: () => onOpenAccess(access.id, access.detailPath!),
-              child: const Text('Voir l’accès'),
             ),
           ],
         ],
