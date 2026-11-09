@@ -2,6 +2,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -44,6 +45,23 @@ class ConversationAccessMixin(LoginRequiredMixin):
         if not can_view_conversation(self.request.user, conversation):
             raise PermissionDenied("Cette Conversation n’est pas accessible.")
         return conversation
+
+
+
+class ConversationInlineMediaPolicyMixin:
+    """Allow only same-origin media frames in ACL-checked Conversation HTML.
+
+    The global policy still disallows frames; frame-ancestors remains 'none'.
+    This is required for private in-thread PDF/text readers, not an external
+    embedding permission.
+    """
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Content-Security-Policy"] = settings.MAKOLO_CONTENT_SECURITY_POLICY.replace(
+            "frame-src 'none'", "frame-src 'self'"
+        )
+        return response
 
 
 class ConversationListView(LoginRequiredMixin, TemplateView):
@@ -104,7 +122,7 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
         return results
 
 
-class ConversationDetailView(ConversationAccessMixin, TemplateView):
+class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAccessMixin, TemplateView):
     template_name = "conversations/detail.html"
 
     def get_context_data(self, **kwargs):
@@ -171,7 +189,7 @@ class ConversationDetailView(ConversationAccessMixin, TemplateView):
         return context
 
 
-class ConversationPointHistoryView(ConversationAccessMixin, TemplateView):
+class ConversationPointHistoryView(ConversationInlineMediaPolicyMixin, ConversationAccessMixin, TemplateView):
     """N2 search and older/changed Points, keyset-continuable and ACL-checked."""
     template_name = "conversations/history.html"
 
@@ -380,7 +398,7 @@ class ConversationMediaWebView(ConversationDetailView):
         )
 
 
-class ConversationExchangeDepthView(LoginRequiredMixin, TemplateView):
+class ConversationExchangeDepthView(ConversationInlineMediaPolicyMixin, LoginRequiredMixin, TemplateView):
     login_url = "core:login"
     template_name = "conversations/exchange.html"
 
