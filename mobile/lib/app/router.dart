@@ -65,6 +65,7 @@ import '../features/space/space_transport_create_screen.dart';
 import '../features/space/space_transport_departure_operations_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../features/occurrence/occurrence_scanner_screen.dart';
+import '../features/occurrence/occurrence_owner_depth_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
 import '../notifications/notification_routes.dart';
@@ -752,6 +753,41 @@ GoRouter createMakoloRouter(
       ...dayOfRoutes(runtime),
       ...liveRoutes(runtime),
       GoRoute(
+        path: '/occurrences/:id/depth/:kind',
+        builder: (context, state) {
+          if (runtime.api == null ||
+              runtime.actorContext?.value is SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Profondeur métier',
+              message: 'Ouvrez cette profondeur depuis le bon acteur.',
+            );
+          }
+          return OccurrenceOwnerDepthScreen(
+            runtime: runtime,
+            occurrenceId: state.pathParameters['id']!,
+            kind: state.pathParameters['kind']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/occurrences/:id/depth/:kind',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (runtime.api == null || actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Profondeur métier',
+              message: 'Le contexte Space autorisé est requis.',
+            );
+          }
+          return OccurrenceOwnerDepthScreen(
+            runtime: runtime,
+            occurrenceId: state.pathParameters['id']!,
+            kind: state.pathParameters['kind']!,
+            actorSpaceId: actor.space.id,
+          );
+        },
+      ),
+      GoRoute(
         path: '/occurrences/:id/scanner',
         builder: (context, state) {
           if (runtime.api == null ||
@@ -806,6 +842,9 @@ GoRouter createMakoloRouter(
             onOpenScanner: () => context.push(
               '/space/occurrences/${state.pathParameters['id']}/scanner',
             ),
+            onOpenDepth: (kind) => context.push(
+              '/space/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
+            ),
             onOpenAccess: (accessId, detailPath) =>
                 context.push('/accesses/$accessId'),
             onPresentCredential: (accessId, credentialPath) => context.push(
@@ -834,6 +873,9 @@ GoRouter createMakoloRouter(
             live: true,
             onBackToDayOf: () => context.go(
               '/space/occurrences/${state.pathParameters['id']}/day-of',
+            ),
+            onOpenDepth: (kind) => context.push(
+              '/space/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
             ),
           );
         },
