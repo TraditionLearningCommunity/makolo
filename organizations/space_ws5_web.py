@@ -11,6 +11,7 @@ from django.views import View
 from access.models import AccessUseResult
 from access.services import resolve_access_credential, validate_access
 from activities.models import Occurrence
+from journeys.models import Journey
 from operations.occurrence_experience import resolve_occurrence_experience
 from activities.services import set_occurrence_live_enabled
 from authorization.constants import PermissionCode
@@ -30,10 +31,18 @@ class _SpaceOccurrenceWebMixin(SpaceWebMixin):
         if hasattr(self, "_occurrence"):
             return self._occurrence
         occurrence = get_object_or_404(
-            Occurrence.objects.select_related("activity", "activity__space"),
+            Occurrence.objects.select_related("activity", "activity__space")
+            .prefetch_related("place_links__place"),
             pk=self.kwargs["occurrence_id"],
-            activity__space=self.space,
         )
+        if occurrence.activity.space_id != self.space.pk and not Journey.objects.filter(
+            occurrence=occurrence,
+            activity=occurrence.activity,
+            beneficiary_space=self.space,
+        ).exists():
+            raise Http404
+        # Viewing a beneficiary Space Journey requires a current user mandate;
+        # the experience resolver (and mutation owners) recheck that authority.
         self._occurrence = occurrence
         return occurrence
 
