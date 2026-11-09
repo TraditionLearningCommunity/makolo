@@ -438,7 +438,7 @@ class _TrustResourceCollectionScreenState
                     const SizedBox(height: MakoloSpacing.sm),
                     Row(
                       children: [
-                        if (view.total != null)
+                        if (view.total != null && view.total! > 0)
                           Text(
                             '${view.total}',
                             style: Theme.of(context).textTheme.labelLarge
