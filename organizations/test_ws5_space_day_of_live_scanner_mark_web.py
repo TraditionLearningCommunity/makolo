@@ -179,7 +179,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertNotContains(response, "Date.now")
         self.assertNotContains(response, "setInterval")
 
-    def test_scanner_assignment_is_not_authority_and_generic_owner_gap_is_honest(self):
+    def test_scanner_assignment_never_grants_authority_but_canonical_scan_is_available(self):
         url = self._url("organizations:space-occurrence-scanner", self.occurrence)
 
         self.client.force_login(self.assigned_only)
@@ -188,9 +188,9 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.client.force_login(self.scanner)
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.context["scanner_available"])
-        self.assertContains(response, "Scanner indisponible pour cette Occurrence")
-        self.assertNotContains(response, 'id="scanner-console"')
+        self.assertTrue(response.context["scanner_available"])
+        self.assertContains(response, 'id="scanner-console"')
+        self.assertContains(response, 'data-auto-start="false"')
 
         action = self.client.post(
             self._url(
@@ -199,8 +199,8 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             ),
             {"token": "not-a-real-credential"},
         )
-        self.assertEqual(action.status_code, 409)
-        self.assertEqual(action.json()["result"], "unavailable")
+        self.assertEqual(action.status_code, 400)
+        self.assertEqual(action.json()["result"], "invalid_credential")
 
     def test_scanner_get_does_not_survive_authority_revocation_on_post(self):
         self.client.force_login(self.scanner)
@@ -223,9 +223,11 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
             self._url("organizations:space-occurrence-scanner", self.occurrence)
         )
         self.assertEqual(response.status_code, 200)
-        # Generic Activity has no owner scan endpoint, so the interactive scanner
-        # is intentionally absent rather than faked.
+        # Canonical Scanner is available for a generic Activity, but the
+        # camera must never start without the operator's explicit action.
+        self.assertContains(response, 'id="scanner-console"')
         self.assertNotContains(response, 'data-auto-start="true"')
+        self.assertContains(response, 'id="manual-form"')
 
     def test_space_mark_hands_day_of_to_ws5_without_client_authority(self):
         self.client.force_login(self.owner)
