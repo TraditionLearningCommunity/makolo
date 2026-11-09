@@ -86,6 +86,7 @@ def build_parser():
     m.add_argument("--profiles",type=int,default=30)
     m.add_argument("--profile-username")
     m.add_argument("--space-id")
+    m.add_argument("--activity-prefix",default="demo-")
     m.add_argument("--older-than-days",type=int,default=30)
     m.add_argument("--edition",type=int,default=1)
     m.add_argument("--grant-roles",action="store_true")
@@ -127,7 +128,7 @@ def run(a):
     if a.action == "rebalance":
         options=["--target",a.target,"--count",str(a.count),
                  "--profiles",str(a.profiles),"--per-profile",str(a.per_profile),
-                 "--seed",str(a.seed)]
+                 "--seed",str(a.seed),"--activity-prefix",a.activity_prefix]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
         if a.space_id: options.extend(["--space-id",a.space_id])
         if a.backup: options.append("--backup")
@@ -137,7 +138,7 @@ def run(a):
     if a.action == "maintain":
         options=["--action",a.maintenance_action,
                  "--domains",a.domains,"--count",str(a.count),
-                 "--profiles",str(a.profiles),
+                 "--profiles",str(a.profiles),"--activity-prefix",a.activity_prefix,
                  "--older-than-days",str(a.older_than_days),
                  "--edition",str(a.edition)]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
