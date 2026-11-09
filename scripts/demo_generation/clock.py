@@ -94,6 +94,37 @@ def table_columns(db, table):
     # SQLite's table-valued pragma accepts the table name as a bound value.
     return {row[0] for row in db.execute('SELECT name FROM pragma_table_info(?)', (table,))}
 
+def approved_timeline_sql(operation, table, columns):
+    """Compile SQL only from the closed canonical timeline identifier vocabulary.
+
+    SQLite parameters bind values, not column names. Both the table and every
+    column must belong to the fixed schema allowlist before generating SQL.
+    Legacy demo databases may omit some optional date columns.
+    """
+    if table not in FIELDS:
+        raise ValueError('Unapproved timeline table')
+    allowed = set(FIELDS[table])
+    if table == 'activities_occurrence':
+        allowed.update(('start_time', 'end_time'))
+    columns = tuple(columns)
+    if not columns or len(set(columns)) != len(columns) or any(
+        column not in allowed for column in columns
+    ):
+        raise ValueError('Unapproved timeline columns')
+    relation = f'"{table}"'
+    if operation == 'select':
+        return ' '.join((
+            'SELECT', ','.join(f'"{column}"' for column in columns),
+            'FROM', relation, 'WHERE id=?',
+        ))
+    if operation == 'update':
+        return ' '.join((
+            'UPDATE', relation, 'SET',
+            ','.join(f'"{column}"=?' for column in columns), 'WHERE id=?',
+        ))
+    raise ValueError('Unapproved timeline operation')
+
+
 def update_by_id(db, table, identifier, fields, delta):
     """Shift all related columns in ONE UPDATE to preserve SQLite CHECK constraints."""
     cols = table_columns(db, table)
@@ -104,8 +135,7 @@ def update_by_id(db, table, identifier, fields, delta):
     if table not in FIELDS or any(field not in FIELDS[table] for field in available):
         raise ValueError('Unapproved timeline update')
     values = db.execute(
-        'SELECT ' + ','.join('"' + field + '"' for field in available) +
-        ' FROM "' + table + '" WHERE id=?', (identifier,)
+        approved_timeline_sql('select', table, available), (identifier,)
     ).fetchone()
     if values is None:
         return 0
@@ -118,8 +148,7 @@ def update_by_id(db, table, identifier, fields, delta):
     if not changed:
         return 0
     db.execute(
-        'UPDATE "' + table + '" SET ' +
-        ','.join('"' + field + '"=?' for field in changed) + ' WHERE id=?',
+        approved_timeline_sql('update', table, changed),
         (*changed.values(), identifier),
     )
     return 1
@@ -174,9 +203,8 @@ def update_occurrence(db, identifier, delta):
     }
     # For a non-scheduled occurrence, no slot conflict is possible.
     db.execute(
-        'UPDATE activities_occurrence SET ' +
-        ','.join('"' + field + '"=?' for field in fields) +
-        ' WHERE id=?', (*fields.values(), identifier),
+        approved_timeline_sql('update', 'activities_occurrence', fields),
+        (*fields.values(), identifier),
     )
     return 1
 
