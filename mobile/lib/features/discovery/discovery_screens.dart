@@ -2464,7 +2464,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         ),
                         if (!widget.actorQuery.isSpace && verified &&
                             item.wire['journey_continuation'] is Map &&
-                            (item.wire['journey_continuation'] as Map)['state'] == 'active')
+                            const {'active', 'finished'}.contains(
+                              (item.wire['journey_continuation'] as Map)['state'],
+                            ))
                           Builder(
                             builder: (context) {
                               final continuation =
@@ -2492,7 +2494,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                       mayChangeOwnerState: true,
                                     ),
                                   ),
-                                  label: 'Reprendre ma démarche',
+                                  label: continuation['state'] == 'active'
+                                      ? 'Reprendre ma démarche' : 'Voir ma démarche',
                                   appearance: MakoloActionAppearance.primary,
                                   icon: Icons.route_outlined,
                                 ),
