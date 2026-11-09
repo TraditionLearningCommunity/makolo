@@ -24,6 +24,7 @@ import 'conversation_details_screen.dart';
 import 'conversation_composer.dart';
 import 'conversation_point_presentation.dart';
 import 'conversation_attachment_viewer.dart';
+import 'conversation_media_group.dart';
 import 'conversation_exchange_sheet.dart';
 import 'conversation_media_sheet.dart';
 
@@ -1703,18 +1704,11 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         ],
-        for (final attachment in point.attachments)
-          ConversationPointMediaTile(
-            key: Key('conversation-point-attachment-${attachment['id']}'),
-            attachment: attachment,
-            onOpen: widget.onOpenAttachment == null
-                ? null
-                : () => widget.onOpenAttachment!(attachment),
-            preview: ConversationAttachmentViewer(
-              repository: widget.repository,
-              attachment: attachment,
-              inline: true,
-            ),
+        if (point.attachments.isNotEmpty)
+          ConversationMediaGroup(
+            key: Key('conversation-point-media-group-${point.id}'),
+            repository: widget.repository,
+            attachments: point.attachments,
           ),
         if (point.kind == 'exchange' && widget.onOpenExchange != null)
           Align(
