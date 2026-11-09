@@ -13,8 +13,12 @@ import 'discovery_watch_screens.dart';
 DiscoveryQuery? _routeQuery(Map<String, String> params, AppRuntime runtime) {
   try {
     final query = DiscoveryQuery.fromRouteParameters(params);
-    if (!query.isSpace) return query;
     final actor = runtime.actorContext?.value;
+    // A bare Discovery link never escapes the active Space to reveal
+    // personal Saves, engagements or a differently scoped detail.
+    if (!query.isSpace) {
+      return actor is SpaceActorContext ? null : query;
+    }
     if (actor is! SpaceActorContext || actor.space.slug != query.spaceSlug) {
       return null;
     }
