@@ -1178,9 +1178,17 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                       icon: const Icon(Icons.audio_file_outlined),
                       label: const Text('Audio'),
                     ),
+                  if ((widget.capabilities['media_kinds'] as List).contains(
+                    'video',
+                  ))
+                    OutlinedButton.icon(
+                      onPressed: _sending ? null : () => _chooseMedia('video'),
+                      icon: const Icon(Icons.video_file_outlined),
+                      label: const Text('Vidéo'),
+                    ),
                 ],
               ),
-              if (_mediaFilename != null)
+              if (_mediaFilename != null) ...[
                 ListTile(
                   dense: true,
                   leading: const Icon(Icons.attachment_rounded),
@@ -1197,10 +1205,93 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                             _mediaPath = null;
                             _mediaFilename = null;
                             _mediaKind = null;
+                            _mainMediaCaption = '';
+                            _reference = null;
                           }),
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ),
+                TextFormField(
+                  initialValue: _mainMediaCaption,
+                  maxLength: 5000,
+                  decoration: const InputDecoration(
+                    labelText: 'Légende de ce média (facultatif)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    _mainMediaCaption = value;
+                    _reference = null;
+                  },
+                ),
+              ],
+              for (final media in _additionalMedia) ...[
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.attachment_rounded),
+                  title: Text(
+                    media['filename']?.toString() ?? 'Média',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Retirer ce média',
+                    onPressed: _sending ? null : () => setState(() {
+                      _additionalMedia.remove(media);
+                      _reference = null;
+                    }),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ),
+                TextFormField(
+                  initialValue: media['caption']?.toString() ?? '',
+                  maxLength: 5000,
+                  decoration: const InputDecoration(
+                    labelText: 'Légende de ce média (facultatif)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    media['caption'] = value;
+                    _reference = null;
+                  },
+                ),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: PopupMenuButton<String>(
+                  enabled: !_sending,
+                  tooltip: 'Ajouter un autre média au Point',
+                  onSelected: (mode) => _chooseMedia(mode, append: true),
+                  itemBuilder: (context) => [
+                    if ((widget.capabilities['media_kinds'] as List)
+                        .contains('image'))
+                      const PopupMenuItem(
+                        value: 'photo', child: Text('Photo')),
+                    if ((widget.capabilities['media_kinds'] as List)
+                        .contains('file'))
+                      const PopupMenuItem(
+                        value: 'document', child: Text('Document')),
+                    if ((widget.capabilities['media_kinds'] as List)
+                        .contains('voice'))
+                      const PopupMenuItem(
+                        value: 'voice', child: Text('Audio')),
+                    if ((widget.capabilities['media_kinds'] as List)
+                        .contains('video'))
+                      const PopupMenuItem(
+                        value: 'video', child: Text('Vidéo')),
+                  ],
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_circle_outline_rounded, size: 18),
+                        SizedBox(width: 6),
+                        Text('Ajouter un autre média au Point'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
             if (widget.capabilities['audience_selection_required'] == true)
               DropdownButtonFormField<String>(
