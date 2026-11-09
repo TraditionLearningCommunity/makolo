@@ -366,6 +366,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
             "id": str(occurrence.pk),
         },
         "context": {
+            "viewer_profile_id": str(viewer.pk),
             "actor_space_id": str(actor_space_id) if actor_space_id else None,
             "activity": {"id": str(occurrence.activity_id), "title": occurrence.activity.title},
             "occurrence": {
@@ -379,6 +380,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
         "live": {
             "available": live_available,
             "enabled": bool(getattr(occurrence, "live_enabled", False)),
+            "ends_at": occurrence.end_at.isoformat() if occurrence.end_at else None,
             "reason": None if live_available else (
                 "not_enabled" if not getattr(occurrence, "live_enabled", False) else "outside_live_window"
             ),
