@@ -183,12 +183,17 @@ class PreparationResourcesRepository {
 
   /// An already acquired private file belongs to the Profile and remains
   /// available across restarts, independently of the transport.
-  Future<StoredLocalFile?> readLocalResourceFile(String resourceId) async {
+  Future<StoredLocalFile?> readLocalResourceFile(
+    String resourceId, {
+    int version = 1,
+  }) async {
     final fileStore = await ProfileFileStore.open(
       database: database,
       profileId: profileId,
     );
-    final record = await fileStore.read('preparation-resource:$resourceId');
+    final record = await fileStore.read(
+      _resourceFileId(resourceId, version),
+    );
     if (record == null || record.owner != 'Preparation' ||
         record.purpose != 'journey_preparation' ||
         record.sensitivity != 'private') return null;
@@ -199,9 +204,13 @@ class PreparationResourcesRepository {
     required String resourceId,
     required String downloadPath,
     required String title,
+    int version = 1,
     String? mimeType,
   }) async {
-    final existing = await readLocalResourceFile(resourceId);
+    final existing = await readLocalResourceFile(
+      resourceId,
+      version: version,
+    );
     if (existing != null) return existing;
     final client = api;
     if (client == null) {
@@ -213,7 +222,7 @@ class PreparationResourcesRepository {
     );
     final coordinator = FileDownloadCoordinator(fileStore);
     return coordinator.download(
-      fileId: 'preparation-resource:$resourceId',
+      fileId: _resourceFileId(resourceId, version),
       owner: 'Preparation',
       sourceFilename: _resourceFilename(
         resourceId: resourceId,
@@ -230,6 +239,14 @@ class PreparationResourcesRepository {
       },
     );
   }
+}
+
+String _resourceFileId(String resourceId, int version) {
+  if (version <= 0) throw ArgumentError.value(version, 'version');
+  // Version 1 keeps the previously stored private bytes and file records.
+  return version == 1
+      ? 'preparation-resource:$resourceId'
+      : 'preparation-resource:$resourceId:v$version';
 }
 
 String _relativeApiPath(String value) {
