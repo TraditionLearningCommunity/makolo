@@ -88,6 +88,25 @@
         </p>
       {% endif %}
     {% endif %}
+    {% if can_join or can_request_entry or entry_request_pending %}
+      <div class="mt-4 space-y-2">
+        {% if can_join %}
+          <form method="post">{% csrf_token %}
+            <button class="mk-action-button" data-variant="primary"
+                    name="action" value="join" type="submit">Rejoindre</button>
+          </form>
+        {% endif %}
+        {% if can_request_entry %}
+          <form method="post">{% csrf_token %}
+            <button class="mk-action-button" data-variant="secondary"
+                    name="action" value="request" type="submit">Demander à rejoindre</button>
+          </form>
+        {% endif %}
+        {% if entry_request_pending %}
+          <p class="text-sm" style="color:var(--mk-muted)">Votre demande d'entrée est en attente.</p>
+        {% endif %}
+      </div>
+    {% endif %}
     {% if can_leave %}
       <form method="post" class="mt-4">{% csrf_token %}
         <button type="submit" class="mk-action-button" data-variant="secondary"
