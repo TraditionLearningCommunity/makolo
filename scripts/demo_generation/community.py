@@ -261,7 +261,12 @@ def main(argv=None):
                     counts["shares_rejected"] += 1
 
     print("COMMUNITY", "APPLY" if a.apply else "PREVIEW", dict(sorted(counts.items())))
-    print("No external delivery, fake verification, forced Membership authority or fabricated Proof.")
+    print(
+        "PERIMETRE: seuls les domaines demandes ci-dessus ont ete traites. "
+        "Les comptes indiquent les objets effectivement crees ou reutilises. "
+        "Aucun envoi externe ; les Access et credentials internes sont generes "
+        "par le domaine access lorsqu'il est selectionne."
+    )
 
 
 if __name__ == "__main__":
