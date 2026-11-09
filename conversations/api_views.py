@@ -24,7 +24,7 @@ from .core_models import Conversation, ConversationContext, ConversationContextK
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .form_services import form_request_for_profile
 from .media_services import attachment_for_download, can_download_attachment
-from .semantic_media import publish_semantic_point_with_media
+from .semantic_media import publish_semantic_point_with_media, response_media_label
 from .rich_services import (
     available_form_versions, can_prepare_form, publish_conversation_form,
     readable_exchange_entries, serialize_attachment, upload_conversation_media,
@@ -95,11 +95,12 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         if item.exchange_entry_id is None
     ]
     response_media = {}
+    response_labels = {}
     for item in visible_media:
         if item.response_id:
-            response_media.setdefault(str(item.response_id), []).append(
-                serialize_attachment(item)
-            )
+            key = str(item.response_id)
+            response_media.setdefault(key, []).append(serialize_attachment(item))
+            response_labels[key] = response_media_label(point, item.response)
     return {
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
@@ -179,7 +180,10 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             if item.response_id is None and item.option_id is None
         ],
         "response_media": [
-            {"response_id": key, "attachments": files}
+            {
+                "response_id": key, "label": response_labels.get(key, ""),
+                "attachments": files,
+            }
             for key, files in response_media.items()
         ],
         "form_request": ({
