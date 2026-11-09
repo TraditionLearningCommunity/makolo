@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-3xl space-y-4">
   <header class="flex items-center justify-between gap-3">
     <div class="flex min-w-0 items-center gap-2">
-      <a href="{% url 'personal_assets:documents' %}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes documents"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
+      <a href="{{ return_url|default_if_none:'' }}" class="mk-action-button" data-variant="ghost" aria-label="Retour à Mes documents"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i></a>
       <div class="min-w-0">
         <span class="mk-kicker">{{ asset.get_kind_display }}</span>
         <h1 class="truncate text-2xl font-extrabold">{{ asset.title }}</h1>
