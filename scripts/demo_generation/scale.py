@@ -157,16 +157,34 @@ def main(argv=None):
         if counts["journey_created"] and counts["journey_created"] % 200 == 0:
             check_space()
 
-    # 2. Access + credentials : 1 droit demo par Journey.
+    # 2. Access + credentials: real owner-scoped demo Journey only.
+    # An explicitly selected Mobile Mature persona has synthetic Activities
+    # under mobile-mature-, not demo-. Retain the historical world_* rule;
+    # permit past Mobile Mature Access (canonical service marks it expired).
     if args.accesses:
-        qs = Journey.objects.filter(
-            activity__slug__startswith="demo-", occurrence__end_at__gt=now,
-            beneficiary__isnull=False,
-        ).exclude(status__in=["rejected", "cancelled", "expired"])
+        from .scope import synthetic_journey_activity_prefixes
+
+        if args.profile_username and not profiles:
+            parser.error("Profil de demonstration introuvable pour les Acces")
+        prefix_filter = Q(activity__slug__startswith="demo-")
         if args.profile_username:
-            qs = qs.filter(beneficiary__username=args.profile_username)
+            prefixes = synthetic_journey_activity_prefixes(profiles[0])
+            if not prefixes:
+                parser.error("Les Acces de demo exigent un Profil synthetique")
+            prefix_filter = Q()
+            for prefix in prefixes:
+                prefix_filter |= Q(activity__slug__startswith=prefix)
+        qs = Journey.objects.filter(
+            prefix_filter, beneficiary__isnull=False,
+            occurrence__end_at__isnull=False,
+        ).exclude(status__in=["rejected", "cancelled", "expired"])
+        if not args.profile_username:
+            qs = qs.filter(occurrence__end_at__gt=now,
+                           beneficiary__username__startswith="world_")
+        else:
+            qs = qs.filter(beneficiary=profiles[0])
         qs = qs.select_related(
-            "activity", "occurrence", "beneficiary").order_by("occurrence__start_at", "id")
+            "activity", "occurrence", "beneficiary").order_by("-occurrence__end_at", "id")
         for journey in qs[:args.accesses]:
             existing = Access.objects.filter(journey=journey, source_key="makolo-demo-volume").exists()
             if existing:
