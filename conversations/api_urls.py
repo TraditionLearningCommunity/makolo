@@ -20,6 +20,8 @@ from .api_views import (
     ConversationPersonalStateAPIView,
     ConversationPointAcknowledgeAPIView,
     ConversationPointResponseAPIView,
+    ConversationPointCloseResponsesAPIView,
+    ConversationPointResolveAPIView,
 )
 
 
@@ -44,6 +46,8 @@ urlpatterns = [
 
     path("<uuid:pk>/personal-state/", ConversationPersonalStateAPIView.as_view(), name="personal-state"),
     path("points/<uuid:point_pk>/respond/", ConversationPointResponseAPIView.as_view(), name="point-respond"),
+    path("points/<uuid:point_pk>/close-responses/", ConversationPointCloseResponsesAPIView.as_view(), name="point-close-responses"),
+    path("points/<uuid:point_pk>/resolve/", ConversationPointResolveAPIView.as_view(), name="point-resolve"),
     path("points/<uuid:point_pk>/reply-media/", ConversationPointMediaResponseAPIView.as_view(), name="point-reply-media"),
     path("points/<uuid:point_pk>/acknowledge/", ConversationPointAcknowledgeAPIView.as_view(), name="point-acknowledge"),
     path("invitations/", ConversationInvitationListAPIView.as_view(), name="invitation-list"),
