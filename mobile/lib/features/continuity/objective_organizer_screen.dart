@@ -1104,8 +1104,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    '${hierarchy.additionalSharedLinks(item)} '
-                    'démarche(s) également liée(s), présentée(s) ailleurs',
+                    organizerSharedLinksLabel(
+                      hierarchy.additionalSharedLinks(item),
+                    ),
                     style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
@@ -1259,8 +1260,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                       'Projet non chargé',
                     if (item.kind == 'dossier' &&
                         hierarchy.additionalSharedLinks(item) > 0)
-                      '${hierarchy.additionalSharedLinks(item)} '
-                      'démarche(s) présentée(s) dans un autre dossier',
+                      organizerSharedLinksLabel(
+                        hierarchy.additionalSharedLinks(item),
+                      ),
                   ].join(' · ')),
                   onTap: () => widget.onOpenItem(item.kind, item.id),
                 ),
