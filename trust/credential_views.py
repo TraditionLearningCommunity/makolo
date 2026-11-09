@@ -21,7 +21,14 @@ def _safe_collection_return(candidate, *, fallback):
 
 
 
-class MyCredentialsView(LoginRequiredMixin, TemplateView):
+class _PrivateNoStoreTemplateMixin:
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class MyCredentialsView(_PrivateNoStoreTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "trust/my_credentials.html"
     login_url = "core:login"
 
@@ -84,7 +91,7 @@ class MyCredentialsView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class CredentialDetailView(LoginRequiredMixin, TemplateView):
+class CredentialDetailView(_PrivateNoStoreTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "trust/credential_detail.html"
     login_url = "core:login"
 
