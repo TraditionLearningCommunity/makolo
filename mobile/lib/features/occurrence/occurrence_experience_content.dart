@@ -71,6 +71,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
     return value.toString();
   }
 
+  static String _capacityValue(Map<String, dynamic> item) {
+    if (item['unlimited'] == true) return 'sans limite configurée';
+    return '${item['available'] ?? 'à vérifier'} disponible(s)';
+  }
+
   static String _capabilityLabel(String capability) => switch (capability) {
     'scanner' => 'Scanner',
     'finance_view' => 'Consulter les finances',
@@ -401,8 +406,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.sm),
           MakoloCard(
             child: Text(
-              'Capacité ${_text(item['label']) ?? ''} : '
-              '${item['unlimited'] == true ? 'sans limite configurée' : '${item['available'] ?? 'à vérifier'} disponible(s)'}',
+              'Capacité ${_text(item['label']) ?? ''} : ${_capacityValue(item)}',
             ),
           ),
         ],
