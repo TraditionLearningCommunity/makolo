@@ -90,6 +90,18 @@
     if (!controls || !form.dataset.semanticMediaUrl) continue;
     controls.hidden = false;
     const main = controls.querySelector("[data-semantic-point-files]");
+    const allowed = new Set((controls.dataset.semanticAllowed || "")
+      .split(",").map((v) => v.trim()).filter(Boolean));
+    const extensions = [
+      allowed.has("image") ? ".jpg,.jpeg,.png" : "",
+      allowed.has("file") ? ".pdf,.txt,.doc,.docx" : "",
+      allowed.has("voice") || allowed.has("audio") ? ".m4a,.mp3,.wav,.ogg" : "",
+      allowed.has("video") ? ".mp4,.webm" : "",
+    ].filter(Boolean).join(",");
+    function eligible(file) {
+      const kind = kindFor(file);
+      return allowed.has(kind) || (kind === "voice" && allowed.has("audio"));
+    }
     const mainCaptions = controls.querySelector("[data-semantic-point-captions]");
     const choices = controls.querySelector("[data-semantic-option-uploads]");
     const optionsField = form.querySelector("[data-semantic-options]");
@@ -97,7 +109,10 @@
     const submit = form.querySelector('button[type="submit"]');
     let busy = false;
     let priorCount = 0;
-    main.accept = allowedExtensions;
+    main.accept = extensions;
+    for (const input of controls.querySelectorAll("[data-semantic-option-files]")) {
+      input.accept = extensions;
+    }
     main.addEventListener("change", () => captionFields(main, mainCaptions));
 
     if (choices && optionsField) {
@@ -118,6 +133,9 @@
             row.querySelector("[data-semantic-option-label]").textContent = labels[index];
           });
         }
+        for (const input of choices.querySelectorAll("[data-semantic-option-files]")) {
+          input.accept = extensions;
+        }
         priorCount = labels.length;
       };
       optionsField.addEventListener("input", syncChoices);
@@ -125,9 +143,17 @@
     }
 
     form.addEventListener("submit", async (event) => {
-      const chosen = [...main.files].length +
-        [...controls.querySelectorAll("[data-semantic-option-files]")]
-          .reduce((sum, input) => sum + input.files.length, 0);
+      const allFiles = [
+        ...main.files,
+        ...[...controls.querySelectorAll("[data-semantic-option-files]")]
+          .flatMap((input) => [...input.files]),
+      ];
+      const chosen = allFiles.length;
+      if (allFiles.some((file) => !eligible(file))) {
+        event.preventDefault();
+        status.textContent = "Un type de média n'est pas autorisé dans cette conversation.";
+        return;
+      }
       if (!chosen) return; // Ordinary text-only, existing owner-backed form.
       event.preventDefault();
       if (busy) return;
