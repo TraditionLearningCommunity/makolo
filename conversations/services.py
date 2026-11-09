@@ -234,7 +234,19 @@ def can_publish_in_conversation(actor, conversation: Conversation) -> bool:
         context = conversation.context
     except ConversationContext.DoesNotExist:
         return False
-    return _has_scope_permission(actor, context, "PUBLISH")
+    if _has_scope_permission(actor, context, "PUBLISH"):
+        return True
+    if not _authenticated(actor) or not can_view_conversation(actor, conversation):
+        return False
+    # Invitation/acceptance authorizes contribution *inside this Conversation*
+    # only. It never creates a Role/Mandate or context-wide publishing right.
+    if ConversationParticipation.objects.filter(
+        conversation=conversation, profile=actor,
+        status=ConversationParticipationStatus.ACTIVE,
+    ).exists():
+        return True
+    from .participant_services import collective_access_since
+    return collective_access_since(actor, conversation) is not None
 
 
 def can_moderate_conversation(actor, conversation: Conversation) -> bool:
