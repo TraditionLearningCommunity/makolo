@@ -17,6 +17,8 @@ import 'discovery_wire.dart';
 class DiscoveryQuery {
   const DiscoveryQuery({
     this.text = '',
+    this.spaceSlug,
+    this.spaceId,
     this.place = '',
     this.when = '',
     this.period = '',
@@ -73,7 +75,14 @@ class DiscoveryQuery {
     if (page > 1 && (continuation == null || continuation.isEmpty)) {
       throw const FormatException('Missing signed Discovery continuation');
     }
+    final context = params['context'];
+    final spaceSlug = params['space'];
+    if ((context == 'space') != (spaceSlug != null && spaceSlug.isNotEmpty) ||
+        (context != null && context != 'space' && context != 'personal')) {
+      throw const FormatException('Invalid Discovery actor context');
+    }
     return DiscoveryQuery(
+      spaceSlug: context == 'space' ? spaceSlug : null,
       text: params['q'] ?? '',
       place: params['place'] ?? '',
       when: params['when'] ?? '',
@@ -107,6 +116,12 @@ class DiscoveryQuery {
     return Uri(path: screen, queryParameters: params).toString();
   }
 
+  /// The Space identity is resolved by the existing actor selector, never
+  /// accepted from a URL as an authority assertion.
+  final String? spaceSlug;
+  final String? spaceId;
+  bool get isSpace => spaceSlug != null;
+
   final String text;
   final String place;
   final String when;
@@ -126,6 +141,8 @@ class DiscoveryQuery {
   final String? continuation;
 
   DiscoveryQuery copyWith({
+    String? spaceSlug,
+    String? spaceId,
     String? text,
     String? place,
     String? when,
@@ -145,6 +162,8 @@ class DiscoveryQuery {
     bool clearLocation = false,
   }) {
     return DiscoveryQuery(
+      spaceSlug: spaceSlug ?? this.spaceSlug,
+      spaceId: spaceId ?? this.spaceId,
       text: text ?? this.text,
       place: place ?? this.place,
       when: when ?? this.when,
@@ -195,6 +214,8 @@ class DiscoveryQuery {
 
   Map<String, String> get parameters {
     return <String, String>{
+      if (isSpace) 'context': 'space',
+      if (spaceSlug != null) 'space': spaceSlug!,
       if (text.trim().isNotEmpty) 'q': text.trim(),
       if (place.trim().isNotEmpty) 'place': place.trim(),
       if (when.trim().isNotEmpty) 'when': when.trim(),
@@ -233,8 +254,9 @@ class DiscoveryQuery {
     return Uri(queryParameters: Map.fromEntries(entries)).query;
   }
 
-  String get fingerprint =>
-      base64Url.encode(utf8.encode(canonicalQuery)).replaceAll('=', '');
+  String get fingerprint => base64Url
+      .encode(utf8.encode(isSpace ? '${spaceId ?? 'unresolved'}:$canonicalQuery' : canonicalQuery))
+      .replaceAll('=', '');
 
   String get path => canonicalQuery.isEmpty
       ? 'api/v1/discovery/items/'
@@ -250,8 +272,9 @@ class DiscoveryQuery {
     return Uri(queryParameters: Map.fromEntries(sorted)).query;
   }
 
-  String get mapFingerprint =>
-      base64Url.encode(utf8.encode(mapCanonicalQuery)).replaceAll('=', '');
+  String get mapFingerprint => base64Url
+      .encode(utf8.encode(isSpace ? '${spaceId ?? 'unresolved'}:$mapCanonicalQuery' : mapCanonicalQuery))
+      .replaceAll('=', '');
 
   String get mapPath {
     final query = mapCanonicalQuery;
