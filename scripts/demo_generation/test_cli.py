@@ -595,5 +595,40 @@ class DemoGenerationCLITests(unittest.TestCase):
         db.close()
 
 
+    def test_rebalance_trim_is_explicit_and_forwards_backup(self):
+        args = build_parser().parse_args([
+            "rebalance", "--target", "profiles", "--direction", "trim",
+            "--per-profile", "2", "--activity-prefix", "demo-generation-",
+            "--apply", "--backup",
+        ])
+        with patch("scripts.demo_generation.rebalance.main") as rebalance:
+            run(args)
+        options = rebalance.call_args.args[0]
+        self.assertIn("trim", options)
+        self.assertIn("--apply", options)
+        self.assertIn("--backup", options)
+        self.assertIn("demo-generation-", options)
+
+    def test_relationship_rebalance_rejects_ignored_timeline_options(self):
+        args = build_parser().parse_args([
+            "rebalance", "--target", "profiles", "--mode", "full",
+        ])
+        with self.assertRaises(SystemExit):
+            run(args)
+
+    def test_maintenance_forwards_scope_and_backup(self):
+        args = build_parser().parse_args([
+            "maintain", "--action", "refresh",
+            "--activity-prefix", "demo-generation-services-",
+            "--edition", "3", "--apply", "--backup",
+        ])
+        with patch("scripts.demo_generation.maintenance.main") as maintenance:
+            run(args)
+        options = maintenance.call_args.args[0]
+        self.assertIn("demo-generation-services-", options)
+        self.assertIn("--apply", options)
+        self.assertIn("--backup", options)
+
+
 if __name__ == "__main__":
     unittest.main()
