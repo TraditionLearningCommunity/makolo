@@ -4,6 +4,8 @@ The same page content is used inside the Space shell. Business responsibilities
 coexist according to owner-backed server authorization, not a role selector.
 """
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -17,6 +19,7 @@ from authorization.services import can
 from operations.occurrence_experience import resolve_occurrence_experience
 
 
+@method_decorator(never_cache, name='dispatch')
 class _PersonalOccurrenceExperienceView(LoginRequiredMixin, TemplateView):
     login_url = "core:login"
     surface = None
