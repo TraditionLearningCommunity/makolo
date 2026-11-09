@@ -12,7 +12,7 @@ from authorization.constants import PermissionCode
 from journeys.models import Journey
 from journeys.collaboration_services import can_access_case
 from .occurrence_experience_facts import compose_live_knowledge
-from authorization.services import can, has_platform_authority
+from authorization.services import can, effective_permission_codes, has_platform_authority
 from core.api.day_of_projection import build_personal_day_of_data
 from scanner.permissions import user_can_scan_activity
 
@@ -27,7 +27,7 @@ from .permissions import (
 _LIVE_PHASES = {"arrival", "live"}
 
 
-def _institutional_journeys(*, occurrence, viewer):
+def _institutional_journeys(*, occurrence, viewer, actor_space_id=None):
     """Shared Journey facts, not duplicated cases or a personal Access grant.
 
     A Space's members need a current matching mandate; Dossier is optional.
@@ -43,6 +43,8 @@ def _institutional_journeys(*, occurrence, viewer):
         .select_related("beneficiary_space")
         .order_by("created_at", "id")
     )
+    if actor_space_id is not None:
+        queryset = queryset.filter(beneficiary_space_id=actor_space_id)
     for journey in queryset:
         if not can_access_case(viewer, journey):
             continue
@@ -78,7 +80,7 @@ def _owner_permission(viewer, occurrence, permission, space_permission=None):
 
 
 
-def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
+def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, actor_space_id=None):
     """Return only independently authorized participant and operator sections.
 
     `viewer` is the authenticated Profile. Space authority is resolved via
@@ -90,6 +92,16 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         raise ValueError("Unsupported Occurrence experience surface")
     if not viewer or not getattr(viewer, "is_authenticated", False):
         return None
+    if actor_space_id is not None:
+        # Actor is explicitly a Space, not a switch among business roles.
+        # Confirm an actual current non-platform mandate for that Space.
+        from organizations.models import Organization
+
+        selected_space = Organization.objects.filter(pk=actor_space_id).first()
+        if selected_space is None or not effective_permission_codes(
+            viewer, space=selected_space, include_platform=False,
+        ):
+            return None
 
     phase = occurrence_live_phase(occurrence, now=observed_at)
     # Live is an explicit per-Occurrence opt-in, never implied by schedule.
@@ -100,7 +112,11 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
     participant = resolve_participant_occurrence_live(
         occurrence=occurrence, actor=viewer, observed_at=observed_at,
     )
-    can_view_operations = user_can_view_activity_operations(
+    same_operator_space = (
+        actor_space_id is None or
+        occurrence.activity.space_id == actor_space_id
+    )
+    can_view_operations = same_operator_space and user_can_view_activity_operations(
         viewer, occurrence.activity,
     )
     operator = (
@@ -114,31 +130,31 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
     if operator is not None and operator.get("perspective") not in {"space", "operator"}:
         operator = None
 
-    scanner_allowed = user_can_scan_activity(
+    scanner_allowed = same_operator_space and user_can_scan_activity(
         viewer, occurrence.activity, occurrence=occurrence,
     )
     # These are independent owner permissions; no fictitious finance/logistics
     # actions or URLs are inferred from a permission code.
-    finance_allowed = _owner_permission(
+    finance_allowed = same_operator_space and _owner_permission(
         viewer, occurrence,
         PermissionCode.ACTIVITY_FINANCE_VIEW, PermissionCode.FINANCE_VIEW,
     )
     platform_allowed = has_platform_authority(viewer)
     # Platform supervision is not automatically an organizer relationship.
-    owner_operations_allowed = _owner_permission(
+    owner_operations_allowed = same_operator_space and _owner_permission(
         viewer, occurrence,
         PermissionCode.ACTIVITY_OPERATIONS_VIEW, PermissionCode.SPACE_MANAGE,
     )
     operations_allowed = operator is not None
-    operations_manage = user_can_manage_activity_operations(
+    operations_manage = same_operator_space and user_can_manage_activity_operations(
         viewer, occurrence.activity,
     )
-    finance_manage = _owner_permission(
+    finance_manage = same_operator_space and _owner_permission(
         viewer, occurrence,
         PermissionCode.ACTIVITY_FINANCE_MANAGE, PermissionCode.FINANCE_MANAGE,
     )
     institutional = _institutional_journeys(
-        occurrence=occurrence, viewer=viewer,
+        occurrence=occurrence, viewer=viewer, actor_space_id=actor_space_id,
     )
     sections = {}
     if participant is not None:
@@ -196,13 +212,13 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         ("commerce_view", PermissionCode.ACTIVITY_COMMERCE_VIEW),
         ("commerce_manage", PermissionCode.ACTIVITY_COMMERCE_MANAGE),
     ):
-        if _owner_permission(viewer, occurrence, permission):
+        if same_operator_space and _owner_permission(viewer, occurrence, permission):
             capabilities[name] = {
                 "source": "authorization.services",
                 "permission": permission,
             }
 
-    if occurrence.activity.space_id:
+    if occurrence.activity.space_id and same_operator_space:
         for name, permission in (
             ("place_view", PermissionCode.SPACE_PLACES_VIEW),
             ("place_manage", PermissionCode.SPACE_PLACES_MANAGE),
@@ -287,6 +303,7 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "id": str(occurrence.pk),
         },
         "context": {
+            "actor_space_id": str(actor_space_id) if actor_space_id else None,
             "activity": {"id": str(occurrence.activity_id), "title": occurrence.activity.title},
             "occurrence": {
                 "id": str(occurrence.pk),
