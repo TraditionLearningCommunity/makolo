@@ -11,8 +11,8 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 from journeys.models import Journey
 
-from .models import Form, FormQuestion, FormRequest, FormResponse, FormVersion, QuestionType
-from .media_services import add_questionnaire_media, media_sections
+from .models import Form, FormQuestion, FormRequest, FormResponse, FormVersion, QuestionType, QuestionnaireMedia
+from .media_services import add_questionnaire_media, remove_questionnaire_media, media_sections
 from .services import (
     add_question,
     create_form,
@@ -181,6 +181,14 @@ class ManageQuestionnairesView(LoginRequiredMixin, TemplateView):
                     caption=request.POST.get("caption", ""),
                 )
                 messages.success(request, "Média ajouté au questionnaire.")
+            elif action == "remove_media":
+                media = get_object_or_404(
+                    QuestionnaireMedia.objects.select_related("form_version__form"),
+                    pk=request.POST.get("media_id"),
+                    form_version__form__activity=activity,
+                )
+                remove_questionnaire_media(actor=request.user, media=media)
+                messages.success(request, "Média retiré du brouillon.")
             elif action == "publish":
                 version = get_object_or_404(FormVersion.objects.select_related("form"), pk=request.POST.get("version_id"), form__activity=activity)
                 publish_form_version(form_version=version, actor=request.user)
