@@ -436,12 +436,33 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                     focused, profile=request.user, section="focus",
                 )
         label = conversation_context_label(conversation, request.user)
+        from .core_models import ConversationParticipationStatus
+        from .services import context_base_eligible
+        membership = conversation.explicit_participations.filter(
+            profile=request.user, status=ConversationParticipationStatus.ACTIVE,
+        ).first()
+        pending_request = conversation.join_requests.filter(
+            requester=request.user, status="pending",
+        ).first()
+        self_eligible = context_base_eligible(request.user, conversation.context)
         state = conversation.user_states.filter(profile=request.user).first()
         return Response({
             "id": str(conversation.pk),
             "title": conversation.title_override or label,
             "purpose": conversation.purpose,
             "lifecycle": conversation.lifecycle,
+            "entry_mode": conversation.entry_mode,
+            "can_join": bool(
+                self_eligible and not membership and conversation.entry_mode == "join"
+                and conversation.lifecycle == "open"
+            ),
+            "can_request_entry": bool(
+                self_eligible and not membership and not pending_request
+                and conversation.entry_mode == "request"
+                and conversation.lifecycle == "open"
+            ),
+            "entry_request_status": "pending" if pending_request else None,
+            "my_participation": "active" if membership else None,
             "context": {"kind": conversation.context.kind, "label": label},
             "points": [
                 _serialize_point(item["point"], profile=request.user, reason=item["reason"], section=item["section"])
