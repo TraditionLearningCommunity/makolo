@@ -18,6 +18,47 @@ def _fact(*, domain, kind, label, value, source, truth="observed", occurred_at=N
     }
 
 
+def _spatial_truth(section):
+    """Qualified spatial context; destination is not observed position."""
+    source = (section or {}).get("spatial") or {}
+    place = source.get("place")
+    zone = source.get("zone")
+    mobility = source.get("mobility") or {}
+    return {
+        "destination": (
+            {
+                "truth": "planned",
+                "source": "geography",
+                "name": place.get("name"),
+                "address_line": place.get("address_line"),
+                "locality": place.get("locality"),
+            }
+            if place else {"truth": "unknown", "reason": "no_planned_destination"}
+        ),
+        "zone": (
+            {"truth": "planned", "source": "geography", "name": zone.get("name")}
+            if zone else {"truth": "unknown", "reason": "no_planned_zone"}
+        ),
+        "current_position": {
+            "truth": "unknown",
+            "reason": "no_observed_position",
+        },
+        "mobility": {
+            "truth": (
+                "estimated"
+                if mobility.get("recommended_departure") is not None
+                else "unknown"
+            ),
+            "source": "spatiotemporal.mobility",
+            "recommended_departure": (
+                mobility["recommended_departure"].isoformat()
+                if hasattr(mobility.get("recommended_departure"), "isoformat")
+                else mobility.get("recommended_departure")
+            ),
+        },
+    }
+
+
 def compose_live_knowledge(*, occurrence, participant, operator, institutional, observed_at):
     """Only derive facts for sections the viewer has already been authorized to see.
 
@@ -104,10 +145,20 @@ def compose_live_knowledge(*, occurrence, participant, operator, institutional, 
         "state": "PARTIAL" if facts else "UNAVAILABLE",
         "reason": "owner_snapshots_only" if facts else "no_observed_owner_facts",
     }
+    spatial = {}
+    if participant is not None:
+        spatial["participant"] = _spatial_truth(participant)
+    if operator is not None:
+        spatial["organizer"] = _spatial_truth(operator)
     return {
         "coverage": coverage,
         "snapshot_at": observed_at.isoformat(),
         "planned_timing": planned,
+        "temporal_observation": {
+            "truth": "unknown",
+            "reason": "no_observed_occurrence_time_event",
+        },
+        "spatial": spatial,
         "facts": facts,
         "transitions": {
             "state": "unavailable",
