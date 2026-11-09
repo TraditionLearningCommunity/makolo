@@ -25,6 +25,8 @@ import 'space_us_resources_screen.dart';
 import 'space_us_authority_facts.dart';
 import '../now/now_screen.dart';
 import '../now/now_selector.dart';
+import '../discovery/discovery_repository.dart';
+import '../discovery/discovery_screens.dart';
 
 enum SpaceShellSurface { now, discover, work, us }
 
@@ -104,6 +106,9 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
   }
 
   Future<void> _refresh() async {
+    // Discover shares the canonical Discovery acquisition, not the old
+    // Space-only attention snapshot. It refreshes through DiscoveryScreen.
+    if (widget.surface == SpaceShellSurface.discover) return;
     final repository = widget.runtime.space;
     final actor = widget.runtime.actorContext?.value;
     if (repository == null ||
@@ -157,6 +162,31 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
     final actor = widget.runtime.actorContext?.value;
     if (repository == null || actor is! SpaceActorContext) {
       return const SizedBox.shrink();
+    }
+
+    if (widget.surface == SpaceShellSurface.discover) {
+      final discovery = widget.runtime.discovery;
+      if (discovery == null) {
+        return const MakoloEmptyState(
+          title: 'Découvrir n’est pas disponible pour le moment.',
+        );
+      }
+      final query = DiscoveryQuery(
+        spaceSlug: actor.space.slug,
+        spaceId: actor.space.id,
+      );
+      return DiscoveryScreen(
+        key: ValueKey('space-discovery:${actor.space.id}'),
+        initialQuery: query,
+        repository: discovery,
+        onOpenActivity: (id) => context.push('/activities/$id'),
+        onOpenItem: (family, id) => context.push(
+          Uri(
+            path: '/discover/items/$family/$id',
+            queryParameters: {'context': 'space', 'space': actor.space.slug},
+          ).toString(),
+        ),
+      );
     }
 
     final source = switch (widget.surface) {
