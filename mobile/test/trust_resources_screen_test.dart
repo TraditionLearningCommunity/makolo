@@ -6,6 +6,37 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_collection_screen.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_detail_screen.dart';
 import 'package:makolo_mobile/features/resources/trust_resource_repository.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/platform/sharing/share_gateway.dart';
+
+import 'fakes.dart';
+
+MakoloApiClient _testApi() => MakoloApiClient(
+  baseUri: Uri.parse('https://makolo.test/'),
+  tokenStore: MemoryTokenStore(),
+);
+
+class _RecordingShareGateway implements ShareGateway {
+  final List<String> texts = [];
+  final List<List<String>> files = [];
+  final List<Uri> opened = [];
+
+  @override
+  Future<void> shareText(String text) async {
+    texts.add(text);
+  }
+
+  @override
+  Future<void> shareFiles({required List<String> paths, String? text}) async {
+    files.add(List<String>.from(paths));
+  }
+
+  @override
+  Future<bool> openExternal(Uri uri) async {
+    opened.add(uri);
+    return true;
+  }
+}
 
 void main() {
   testWidgets('Mes preuves is a searchable local-first Trust collection', (
@@ -58,7 +89,7 @@ void main() {
             'proof_type': 'service_completed',
             'proof_type_label': 'Service complété',
             'status': 'revoked',
-            'status_label': 'Révoquée',
+            'status_label': 'Révoqué',
             'issued_at': '2026-10-01T10:00:00Z',
             'activity': {'title': 'Service administratif'},
           },
@@ -176,7 +207,9 @@ void main() {
       store: store,
       profileId: 'profile-a',
       sync: null,
+      api: _testApi(),
     );
+    final sharing = _RecordingShareGateway();
     await store.putProjection(
       kind: TrustResourceFamily.proofs.detailProjection,
       resourceKey: 'proof-1',
@@ -197,6 +230,7 @@ void main() {
     );
 
     var openedJourney = false;
+    var openedPassport = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
@@ -204,7 +238,9 @@ void main() {
           family: TrustResourceFamily.proofs,
           id: 'proof-1',
           repository: repository,
+          sharing: sharing,
           onOpenJourney: (_) => openedJourney = true,
+          onOpenPassport: () => openedPassport = true,
         ),
       ),
     );
@@ -214,9 +250,28 @@ void main() {
     expect(find.text('Formation pratique'), findsOneWidget);
     expect(find.text('Session finale'), findsOneWidget);
     expect(find.byTooltip('Vérifier'), findsOneWidget);
+    expect(find.byTooltip('Partager'), findsOneWidget);
+    expect(find.text('Passeport'), findsOneWidget);
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
 
+    await tester.tap(find.byTooltip('Vérifier'));
+    await tester.pump();
+    expect(
+      sharing.opened.single.toString(),
+      'https://makolo.test/trust/proofs/verify/public-proof/',
+    );
+
+    await tester.tap(find.byTooltip('Partager'));
+    await tester.pump();
+    expect(sharing.texts.single, contains('Journey accomplie'));
+    expect(
+      sharing.texts.single,
+      contains('https://makolo.test/trust/proofs/verify/public-proof/'),
+    );
+
+    await tester.tap(find.text('Passeport'));
+    expect(openedPassport, isTrue);
     await tester.tap(find.text('Voir la démarche'));
     expect(openedJourney, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -233,6 +288,7 @@ void main() {
       store: store,
       profileId: 'profile-a',
       sync: null,
+      api: _testApi(),
     );
     await store.putProjection(
       kind: TrustResourceFamily.titles.detailProjection,
@@ -278,6 +334,7 @@ void main() {
     expect(find.text('Formation terminée.'), findsOneWidget);
     expect(find.text('Titre remplacé'), findsOneWidget);
     expect(find.byTooltip('Vérifier'), findsOneWidget);
+    expect(find.byTooltip('Partager'), findsOneWidget);
     expect(find.text('Modifier'), findsNothing);
     expect(find.text('Supprimer'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
