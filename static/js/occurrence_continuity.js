@@ -63,17 +63,16 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       hiddenAt = performance.now();
-      // The scanner never holds an unsubmitted secret through tab suspension.
+      // Camera and unsubmitted credentials cannot remain active while hidden.
+      document.getElementById('stop-camera')?.click();
       const manualCode = document.getElementById('manual-token');
       if (manualCode) manualCode.value = '';
       return;
     }
-    if (hiddenAt !== null &&
-        performance.now() - hiddenAt >= 15000) {
+    if (hiddenAt !== null) {
       window.location.reload();
       return;
     }
-    hiddenAt = null;
     checkAge();
   });
   window.setInterval(checkAge, 15000);
