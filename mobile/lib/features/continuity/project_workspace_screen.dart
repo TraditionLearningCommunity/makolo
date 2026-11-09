@@ -1102,70 +1102,73 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final readiness = _map(row['readiness']);
     final date = _dateFrom(row['deadline']);
     final scheme = Theme.of(context).colorScheme;
+    final canOrganize = _has(row, 'unlink') || _has(row, 'move');
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 7),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: scheme.outlineVariant),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(11),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
         child: Row(
           children: [
-            Icon(Icons.folder_outlined, color: scheme.primary, size: 27),
-            const SizedBox(width: 10),
+            Icon(Icons.folder_outlined, color: scheme.primary, size: 23),
+            const SizedBox(width: 9),
             Expanded(
               child: InkWell(
                 onTap: () => widget.onOpenDossier(_text(row['id'])),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _text(row['title']),
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      [
-                        _humanState(row['state']),
-                        if (date != null) 'Échéance ${_humanDate(date)}',
-                      ].join(' · '),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    if (_text(readiness['label']).isNotEmpty)
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        'Situation · ${_text(readiness['label'])}'
-                        '${readiness['partial'] == true ? ' · vue partielle' : ''}',
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: scheme.primary),
+                        _text(row['title']),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                  ],
+                      const SizedBox(height: 3),
+                      Text(
+                        [
+                          _humanState(row['state']),
+                          if (date != null) 'Échéance ${_humanDate(date)}',
+                        ].join(' · '),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (_text(readiness['label']).isNotEmpty)
+                        Text(
+                          '${_text(readiness['label'])}'
+                          '${readiness['partial'] == true ? ' · vue partielle' : ''}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: scheme.primary),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
-            if (_has(row, 'unlink') || _has(row, 'move'))
+            if (canOrganize)
               PopupMenuButton<String>(
                 tooltip: 'Organiser le Dossier',
                 enabled: _enabled,
                 itemBuilder: (_) => [
                   if (_has(row, 'unlink'))
                     const PopupMenuItem(
-                      value: 'unlink',
-                      child: Text('Détacher'),
+                      value: 'unlink', child: Text('Détacher'),
                     ),
                   if (_has(row, 'move') &&
                       _list(project['move_targets']).isNotEmpty)
-                    const PopupMenuItem(value: 'move', child: Text('Déplacer')),
+                    const PopupMenuItem(
+                      value: 'move', child: Text('Déplacer'),
+                    ),
                 ],
                 onSelected: (value) => _manageDossier(row, project, value),
-              ),
-            MakoloIconActionButton(
-              tooltip: 'Ouvrir le Dossier',
-              icon: Icons.chevron_right_rounded,
-              onPressed: () => widget.onOpenDossier(_text(row['id'])),
-            ),
+              )
+            else
+              const Icon(Icons.chevron_right_rounded, size: 19),
           ],
         ),
       ),
