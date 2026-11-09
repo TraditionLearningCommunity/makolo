@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from urllib.parse import urlsplit
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -30,6 +32,16 @@ from .services import (
     save_journey_artifact_to_library,
     use_personal_asset_version_in_journey,
 )
+
+
+def _safe_collection_return(request, candidate, *, fallback):
+    candidate = (candidate or "").strip()
+    if not candidate:
+        return fallback
+    parsed = urlsplit(candidate)
+    if parsed.scheme or parsed.netloc or parsed.fragment or parsed.path != fallback:
+        return fallback
+    return candidate
 
 
 def _latest_version(asset):
@@ -143,7 +155,22 @@ def library_detail(request, asset_id):
     asset = _asset_for_request(request, asset_id, include_archived=True)
     versions = list(personal_asset_versions_for_controller(request.user, asset).order_by("-version"))
     latest = versions[0] if versions else None
-    return render(request, "personal_assets/detail.html", {"asset": asset, "versions": versions, "latest": latest, "today": timezone.localdate()})
+    fallback = reverse("personal_assets:documents")
+    return render(
+        request,
+        "personal_assets/detail.html",
+        {
+            "asset": asset,
+            "versions": versions,
+            "latest": latest,
+            "today": timezone.localdate(),
+            "return_url": _safe_collection_return(
+                request,
+                request.GET.get("return"),
+                fallback=fallback,
+            ),
+        },
+    )
 
 
 @login_required
