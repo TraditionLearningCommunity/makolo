@@ -692,6 +692,57 @@ class ResourceRepository {
     }
   }
 
+  Future<String> downloadVersionForReader({
+    required String path,
+    required String assetId,
+    required String title,
+    required int versionNumber,
+    required String extension,
+    required bool textPreview,
+    TransferProgress? onProgress,
+  }) async {
+    if (sync?.isActive == false ||
+        (await readDetailSource(assetId)).invalidated) {
+      throw StateError('Resource owner permission withdrawn');
+    }
+    final client = api;
+    if (client == null) {
+      throw StateError('Remote PersonalAsset owner is not configured.');
+    }
+    final staging = await ProfilePaths.stagingFiles(profileId);
+    final directory = Directory(
+      p.join(
+        staging.path,
+        'resource-reader-${ProfilePaths.safeProfileId(assetId)}-'
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}',
+      ),
+    );
+    await directory.create(recursive: true);
+    final safeExtension = extension.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final fileName = _safeExportName(
+      '${title.trim().isEmpty ? 'Document' : title}-v$versionNumber',
+      textPreview ? 'txt' : safeExtension,
+    );
+    final destination = p.join(directory.path, fileName);
+    try {
+      final ownerPath = _versionActionPath(path, action: 'download');
+      await client.download(
+        textPreview ? '$ownerPath?view=text' : ownerPath,
+        destinationPath: destination,
+        onProgress: onProgress,
+      );
+      if (sync?.isActive == false ||
+          (await readDetailSource(assetId)).invalidated) {
+        if (await directory.exists()) await directory.delete(recursive: true);
+        throw StateError('Resource owner permission withdrawn during transfer');
+      }
+      return destination;
+    } on Object {
+      if (await directory.exists()) await directory.delete(recursive: true);
+      rethrow;
+    }
+  }
+
   Future<String> downloadVersionForExplicitExport({
     required String path,
     required String assetId,
@@ -722,14 +773,20 @@ class ResourceRepository {
       throw StateError('Resource owner permission withdrawn');
     }
     final staging = await ProfilePaths.stagingFiles(profileId);
-    final safeExtension = (fileExtension ?? '')
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    final suffix = safeExtension.isEmpty ? '' : '.$safeExtension';
+    final directory = Directory(
+      p.join(
+        staging.path,
+        'resource-export-${ProfilePaths.safeProfileId(assetId)}-'
+        '${DateTime.now().toUtc().microsecondsSinceEpoch}',
+      ),
+    );
+    await directory.create(recursive: true);
     final destination = p.join(
-      staging.path,
-      'resource-export-${ProfilePaths.safeProfileId(assetId)}-'
-      'v$versionNumber-${DateTime.now().toUtc().microsecondsSinceEpoch}'
-      '$suffix',
+      directory.path,
+      _safeExportName(
+        '${title.trim().isEmpty ? 'Document' : title}-v$versionNumber',
+        fileExtension ?? 'bin',
+      ),
     );
     try {
       await downloadVersion(
@@ -747,6 +804,14 @@ class ResourceRepository {
     } on Object {
       final partial = File(destination);
       if (await partial.exists()) await partial.delete();
+      final parent = partial.parent;
+      if (await parent.exists()) {
+        try {
+          await parent.delete();
+        } on FileSystemException {
+          // Best-effort staging cleanup.
+        }
+      }
       rethrow;
     }
   }
@@ -854,6 +919,50 @@ class ResourceRepository {
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
   }
+}
+
+String _safeExportName(String stem, String extension) {
+  final safeStem = stem
+      .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]+'), '-')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll(RegExp(r'^[. ]+|[. ]+
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  return const {};
+}
+
+String? _string(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}
+
+List<ResourceOption> _options(Object? value) {
+  if (value is! List) return const [];
+  final options = <ResourceOption>[];
+  for (final raw in value) {
+    final row = _map(raw);
+    final id = _string(row['id']);
+    final label = _string(row['label']);
+    if (id != null && label != null) {
+      options.add(ResourceOption(id: id, label: label));
+    }
+  }
+  return options;
+}
+), '')
+      .trim();
+  final bounded = safeStem.isEmpty
+      ? 'Document Makolo'
+      : safeStem.length > 90
+      ? safeStem.substring(0, 90).trimRight()
+      : safeStem;
+  final cleanExtension = extension.toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]'),
+    '',
+  );
+  return '$bounded.${cleanExtension.isEmpty ? 'bin' : cleanExtension}';
 }
 
 Map<String, dynamic> _map(Object? value) {
