@@ -418,4 +418,39 @@ void main() {
     expect(find.text('Envoyer ma demande'), findsOneWidget);
   });
 
+  test('N3 working-set IDs use only the acquired personal owner facts', () {
+    final id = '00000000-0000-0000-0000-000000000123';
+    final projection = StoredProjection(
+      kind: 'personal.ongoing',
+      resourceKey: '',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 9),
+      payload: {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': id},
+          },
+          {
+            'source': {'kind': 'journey', 'id': id},
+          },
+          {
+            'source': {'kind': 'activity', 'id': 'activity-1'},
+          },
+          {
+            'source': {'kind': 'journey', 'id': '../unauthorized'},
+          },
+        ],
+      },
+    );
+    expect(
+      JourneyRepository.knownJourneyIdsFromOngoing(projection),
+      [id],
+    );
+    expect(
+      JourneyRepository.knownJourneyIdsFromOngoing(projection, limit: 0),
+      isEmpty,
+    );
+    expect(JourneyRepository.knownJourneyIdsFromOngoing(null), isEmpty);
+  });
+
 }
