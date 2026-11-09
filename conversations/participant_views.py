@@ -144,6 +144,8 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
                 raise PermissionDenied("Action non autorisée.")
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
+        if action == "leave" and not can_view_conversation(request.user, conversation):
+            return redirect("conversations:list")
         return redirect("conversations:participants", pk=conversation.pk)
 
 
