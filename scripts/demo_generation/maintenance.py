@@ -115,7 +115,7 @@ def main(argv=None):
         candidates = candidates.filter(space_id=args.space_id)
     if args.action == "retire":
         candidates = candidates.filter(
-            status__in=(ActivityStatus.PUBLISHED, ActivityStatus.DRAFT),
+            status=ActivityStatus.PUBLISHED,
             created_at__lt=timezone.now() - timedelta(days=args.older_than_days),
         )
     elif args.action == "restore":
