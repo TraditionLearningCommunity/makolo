@@ -26,6 +26,7 @@ from .point_services import (
     point_visible_to, resolve_point, submit_point_response,
 )
 from .history import page_points_for_profile
+from .timeline import recent_timeline_for_profile, group_timeline_points
 from .presentation import (
     catch_up_summary,
     conversation_context_label,
@@ -134,17 +135,8 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
         previous_state = conversation.user_states.filter(profile=self.request.user).first()
         previous_open = previous_state.last_opened_at if previous_state else None
         q = (self.request.GET.get("q") or "").strip()[:120]
-        now_rows = now_points_for_profile(self.request.user, conversation)
-        seen = {row["point"].pk for row in now_rows}
-        essential = [
-            point for point in essential_points_for_profile(self.request.user, conversation)
-            if point.pk not in seen
-        ]
-        seen.update(point.pk for point in essential)
-        elsewhere = other_visible_points_for_profile(
-            self.request.user, conversation, excluded_ids=seen,
-        )
-        seen.update(point.pk for point in elsewhere)
+        timeline = recent_timeline_for_profile(self.request.user, conversation)
+        seen = {point.pk for point in timeline["points"]}
         focused_point = None
         focus = (self.request.GET.get("focus") or "").strip()
         if focus:
@@ -156,20 +148,18 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
                 from .point_services import point_visible_to
                 if point_visible_to(self.request.user, candidate) and candidate.pk not in seen:
                     focused_point = candidate
+        timeline_groups = group_timeline_points(
+            self.request.user, timeline["points"], focus_id=focus,
+        )
+        older_query = urlencode({
+            "section": "all", "cursor": timeline["next_cursor"],
+        }) if timeline["next_cursor"] else ""
         context.update(
             {
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
-                "my_points": [
-                    row for row in now_rows
-                    if row["section"] == "pour_moi" or row["reason"] == "resolve"
-                ],
-                "known_points": [
-                    row for row in now_rows
-                    if row["section"] != "pour_moi" and row["reason"] != "resolve"
-                ],
-                "elsewhere_points": elsewhere,
-                "essential_points": essential,
+                "timeline_groups": timeline_groups,
+                "timeline_older_query": older_query,
                 "focused_point": focused_point,
                 "q": q,
                 "search_results": search_conversation(self.request.user, conversation, q) if q else [],
@@ -207,7 +197,7 @@ class ConversationPointHistoryView(ConversationInlineMediaPolicyMixin, Conversat
         try:
             page = page_points_for_profile(
                 self.request.user, conversation, query=query,
-                section=section, limit=25,
+                section=section, limit=40 if section == "all" else 25,
                 cursor=self.request.GET.get("cursor") or None,
             )
         except ValidationError:
@@ -222,7 +212,11 @@ class ConversationPointHistoryView(ConversationInlineMediaPolicyMixin, Conversat
             "conversation": conversation,
             "context_label": conversation_context_label(conversation, self.request.user),
             "query": query, "section": section,
-            "results": page["results"], "next_cursor": page["next_cursor"],
+            "results": page["results"],
+            "history_groups": group_timeline_points(
+                self.request.user, reversed(page["results"]),
+            ),
+            "next_cursor": page["next_cursor"],
             "next_query": urlencode(params),
             "history_error": error,
         })
