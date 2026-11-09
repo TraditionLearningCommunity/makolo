@@ -163,6 +163,10 @@ class SyncSourceDefinition {
     FreshnessPolicy freshnessPolicy = const FreshnessPolicy(id: 'contextual'),
     SyncActorScope actorScope = const SyncActorScope.personal(),
     String? indexedResourceKind,
+    String? expectedOccurrenceId,
+    String? expectedActorSpaceId,
+    String? expectedViewerProfileId,
+    String? expectedSurface,
   }) {
     return SyncSourceDefinition(
       sourceKey: sourceKey,
@@ -180,6 +184,27 @@ class SyncSourceDefinition {
           throw FormatException(
             'Expected $projectionKind, got ${envelope.projection}',
           );
+        }
+        if (expectedOccurrenceId != null) {
+          final identity = envelope.data['identity'];
+          final context = envelope.data['context'];
+          if (identity is! Map ||
+              identity['kind'] != 'occurrence' ||
+              identity['id']?.toString() != expectedOccurrenceId ||
+              context is! Map ||
+              (context['occurrence'] is! Map ||
+                  (context['occurrence'] as Map)['id']?.toString() !=
+                      expectedOccurrenceId) ||
+              context['actor_space_id']?.toString() != expectedActorSpaceId ||
+              (expectedViewerProfileId != null &&
+                  context['viewer_profile_id']?.toString() !=
+                      expectedViewerProfileId) ||
+              (expectedSurface != null &&
+                  envelope.data['surface'] != expectedSurface)) {
+            throw const FormatException(
+              'Occurrence projection has a mismatched actor, identity or surface',
+            );
+          }
         }
         return AcquiredProjection(
           schemaVersion: envelope.schemaVersion,
