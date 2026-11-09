@@ -93,7 +93,21 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_load());
+    if (state == AppLifecycleState.resumed) {
+      _epoch++;
+      _busy = false;
+      unawaited(_load());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _epoch++;
+      if (mounted) {
+        setState(() {
+          _payload = null;
+          _depth = null;
+          _busy = false;
+        });
+      }
+    }
   }
 
   void _onActorChanged() {
@@ -259,13 +273,37 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
   static String _summary(Object? value) {
     if (value is Map) {
       return value.entries
-          .where((entry) => entry.value != null)
-          .map((entry) => '${entry.key} : ${_summary(entry.value)}')
+          .where((entry) => entry.value != null &&
+              !const {
+                'id', 'token', 'credential', 'credential_token', 'secret',
+                'email', 'payer_email', 'metadata',
+              }.contains(entry.key.toString()))
+          .map((entry) => '${_fieldLabel(entry.key.toString())} : ${_summary(entry.value)}')
           .join(' · ');
     }
     if (value is List) return value.map(_summary).join(' · ');
     return _text(value);
   }
+
+  static String _fieldLabel(String key) => switch (key) {
+    'status' || 'state' => 'État',
+    'quantity' || 'count' => 'Nombre',
+    'counts' => 'Situation de la file',
+    'available' => 'Disponible',
+    'total' => 'Total',
+    'held' => 'Réservé provisoirement',
+    'committed' => 'Confirmé',
+    'currency' => 'Devise',
+    'amount' => 'Montant',
+    'unit_price' => 'Prix unitaire',
+    'required' => 'Obligatoire',
+    'active' => 'Actif',
+    'position' => 'Position',
+    'source' => 'Source',
+    'eligibility_policy' => 'Condition d’admission',
+    'checkpoint_id' => 'Checkpoint',
+    _ => key.replaceAll('_', ' '),
+  };
 
   Widget _row(BuildContext context, Map<String, dynamic> data) {
     final label = _text(data['label'] ?? data['name'] ?? data['key'] ?? data['id']);
@@ -282,7 +320,7 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
             for (final entry in entries)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text('${entry.key} : ${_summary(entry.value)}'),
+                child: Text('${_fieldLabel(entry.key)} : ${_summary(entry.value)}'),
               ),
             if (widget.kind == 'operator_queue' && _depth?['can_manage'] == true && data['id'] != null) ...[
               const SizedBox(height: 8),
