@@ -90,6 +90,16 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         point.superseded_by_points.order_by("-published_at", "-created_at").first()
         if point.lifecycle == "superseded" else None
     )
+    visible_media = [
+        item for item in visible_attachments_for_profile(profile, point)
+        if item.exchange_entry_id is None
+    ]
+    response_media = {}
+    for item in visible_media:
+        if item.response_id:
+            response_media.setdefault(str(item.response_id), []).append(
+                serialize_attachment(item)
+            )
     return {
         "id": str(point.pk),
         "conversation_id": str(point.conversation_id),
@@ -139,7 +149,13 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             and point_response_allowed(profile, point)
         ),
         "options": [
-            {"id": str(option.pk), "label": option.label}
+            {
+                "id": str(option.pk), "label": option.label,
+                "attachments": [
+                    serialize_attachment(media)
+                    for media in visible_media if media.option_id == option.pk
+                ],
+            }
             for option in point.options.all()
         ],
         "exchange_preview": [
@@ -156,10 +172,15 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             }
             for entry in visible_exchange_entries_for_profile(profile, point, limit=5)
         ] if point.kind == "exchange" else [],
+        # The Point, each Poll assertion, and each Response retain their
+        # own media order. Clients must not append all files at the bottom.
         "attachments": [
-            serialize_attachment(item)
-            for item in visible_attachments_for_profile(profile, point)
-            if item.exchange_entry_id is None
+            serialize_attachment(item) for item in visible_media
+            if item.response_id is None and item.option_id is None
+        ],
+        "response_media": [
+            {"response_id": key, "attachments": files}
+            for key, files in response_media.items()
         ],
         "form_request": ({
             "id": str(linked_form.pk), "status": linked_form.status,
