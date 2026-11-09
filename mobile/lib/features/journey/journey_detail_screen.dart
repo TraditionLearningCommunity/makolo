@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../design/action_controls.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../data/local/profile_store.dart';
 
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
@@ -18,6 +19,7 @@ import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../continuity/conversation_context_screen.dart';
 import '../continuity/conversation_repository.dart';
+import '../preparation/preparation_repository.dart';
 import 'journey_repository.dart';
 import 'journey_selector.dart';
 
@@ -27,6 +29,9 @@ class JourneyDetailScreen extends StatefulWidget {
     required this.journeyId,
     required this.repository,
     this.api,
+    this.resourcesRepository,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -44,6 +49,9 @@ class JourneyDetailScreen extends StatefulWidget {
   final String journeyId;
   final JourneyRepository repository;
   final MakoloApiClient? api;
+  final PreparationResourcesRepository? resourcesRepository;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -259,8 +267,17 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     body: 'Aucun détail à afficher pour le moment.',
                   ),
                   onRetry: _refresh,
-                  content: _JourneyContent(
+                  content: StreamBuilder<StoredProjection?>(
+                    stream: widget.resourcesRepository?.watchResources(
+                      widget.journeyId,
+                    ),
+                    builder: (context, resourcesSnapshot) => _JourneyContent(
                     presentation: presentation,
+                    resourcesPreview: JourneyResourcePreview.fromProjection(
+                      resourcesSnapshot.data,
+                    ),
+                    onOpenPaymentObligation: widget.onOpenPaymentObligation,
+                    onOpenCommerceOrder: widget.onOpenCommerceOrder,
                     invitationEnabled:
                         widget.api != null && !_respondingInvitation,
                     invitationNotice: _invitationNotice,
@@ -283,6 +300,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                             onOpen: widget.onOpenConversation!,
                           )
                         : null,
+                    ),
                   ),
                 ),
               ),
@@ -297,6 +315,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 class _JourneyContent extends StatelessWidget {
   const _JourneyContent({
     required this.presentation,
+    required this.resourcesPreview,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
     required this.invitationEnabled,
     required this.invitationNotice,
     required this.onInvitationDecision,
@@ -313,6 +334,9 @@ class _JourneyContent extends StatelessWidget {
 
   final Widget? conversationEntry;
   final JourneyDetailPresentation presentation;
+  final List<JourneyResourcePreview> resourcesPreview;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
   final bool invitationEnabled;
   final String? invitationNotice;
   final void Function(String decision) onInvitationDecision;
