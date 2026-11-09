@@ -11,6 +11,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
     required this.payload,
     required this.live,
     this.remoteActionsAvailable = true,
+    this.liveWindowEnded = false,
     this.readOnlyReason,
     this.lastKnownAt,
     this.onOpenAccess,
@@ -25,6 +26,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
   final Map<String, dynamic> payload;
   final bool live;
   final bool remoteActionsAvailable;
+  final bool liveWindowEnded;
   final String? readOnlyReason;
   final DateTime? lastKnownAt;
   final void Function(String accessId, String path)? onOpenAccess;
@@ -189,11 +191,22 @@ class OccurrenceExperienceContent extends StatelessWidget {
       if (actions.isNotEmpty) ...[
         MakoloSection(
           title: 'À faire maintenant',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final action in actions) ...[
-                MakoloCard(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final cardWidth = width < 700
+                  ? width
+                  : (width - MakoloSpacing.sm) / 2;
+              return Wrap(
+                spacing: MakoloSpacing.sm,
+                runSpacing: MakoloSpacing.sm,
+                children: [
+                  for (final action in actions)
+                    SizedBox(
+                      width: cardWidth,
+                      child: Semantics(
+                        container: true,
+                        child: MakoloCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -220,16 +233,21 @@ class OccurrenceExperienceContent extends StatelessWidget {
                           onPressed: remoteActionsAvailable
                               ? onOpenScanner
                               : null,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
                           icon: const Icon(Icons.qr_code_scanner_rounded),
                           label: const Text('Ouvrir Scanner'),
                         ),
                       ],
                     ],
                   ),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-              ],
-            ],
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: MakoloSpacing.lg),
@@ -310,7 +328,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
             label: const Text('Consulter l’historique'),
           ),
         ),
-      if (liveStatus['available'] == true &&
+      if (!liveWindowEnded && liveStatus['available'] == true &&
           links['live'] is String &&
           onOpenLive != null) ...[
         MakoloSection(
@@ -337,6 +355,9 @@ class OccurrenceExperienceContent extends StatelessWidget {
                   onPressed: remoteActionsAvailable
                       ? () => onOpenLive!(_text(links['live'])!)
                       : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                  ),
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Consulter Makolo Live'),
                 ),
@@ -363,6 +384,9 @@ class OccurrenceExperienceContent extends StatelessWidget {
                 onPressed: !remoteActionsAvailable || onOpenDepth == null
                     ? null
                     : () => onOpenDepth!(_text(depth['kind'])!),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 48),
+                ),
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: Text(_text(depth['label']) ?? 'Consulter'),
               ),
