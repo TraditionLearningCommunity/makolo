@@ -103,6 +103,13 @@ class Journey(models.Model):
         null=True,
         blank=True,
     )
+    beneficiary_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.PROTECT,
+        related_name="beneficiary_journeys",
+        null=True,
+        blank=True,
+    )
     activity = models.ForeignKey(
         "activities.Activity",
         on_delete=models.PROTECT,
@@ -135,14 +142,18 @@ class Journey(models.Model):
         indexes = [
             models.Index(fields=["beneficiary", "status"], name="journey_beneficiary_status_idx"),
             models.Index(fields=["external_beneficiary", "status"], name="journey_extben_status_idx"),
+            models.Index(fields=["beneficiary_space", "status"], name="journey_spcben_status_idx"),
             models.Index(fields=["activity", "status"], name="journey_activity_status_idx"),
             models.Index(fields=["occurrence", "status"], name="journey_occurrence_status_idx"),
             models.Index(fields=["workflow", "status"], name="journey_workflow_status_idx"),
         ]
         constraints = [
             models.CheckConstraint(
-                condition=(Q(beneficiary__isnull=False) & Q(external_beneficiary__isnull=True))
-                | (Q(beneficiary__isnull=True) & Q(external_beneficiary__isnull=False)),
+                condition=(
+                    Q(beneficiary__isnull=False, external_beneficiary__isnull=True, beneficiary_space__isnull=True)
+                    | Q(beneficiary__isnull=True, external_beneficiary__isnull=False, beneficiary_space__isnull=True)
+                    | Q(beneficiary__isnull=True, external_beneficiary__isnull=True, beneficiary_space__isnull=False)
+                ),
                 name="journey_exactly_one_beneficiary",
             )
         ]
@@ -154,8 +165,11 @@ class Journey(models.Model):
             occurrence_activity_id = self.occurrence.activity_id
             if occurrence_activity_id != self.activity_id:
                 errors["occurrence"] = "L’Occurrence doit appartenir à la même Activity que la Démarche."
-        if bool(self.beneficiary_id) == bool(self.external_beneficiary_id):
-            errors["beneficiary"] = "La Démarche doit avoir exactement un bénéficiaire, Profile ou externe."
+        beneficiary_count = sum(bool(value) for value in (
+            self.beneficiary_id, self.external_beneficiary_id, self.beneficiary_space_id,
+        ))
+        if beneficiary_count != 1:
+            errors["beneficiary"] = "La Démarche doit avoir exactement un bénéficiaire : Profil, externe ou Espace."
         if self._state.adding and self.activity_id and not errors.get("beneficiary"):
             from groups.community_services import profile_is_eligible_for_activity
 
@@ -184,7 +198,9 @@ class Journey(models.Model):
         if self.beneficiary_id:
             full_name = self.beneficiary.get_full_name().strip()
             return full_name or self.beneficiary.username
-        return self.external_beneficiary.display_name if self.external_beneficiary_id else ""
+        if self.external_beneficiary_id:
+            return self.external_beneficiary.display_name
+        return self.beneficiary_space.name if self.beneficiary_space_id else ""
 
     @property
     def is_external_beneficiary(self):
