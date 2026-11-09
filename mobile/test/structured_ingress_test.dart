@@ -59,13 +59,37 @@ void main() {
     expect(recovery.initialLocation(), '/accesses/a-1');
   });
 
-  test('server kinds without a current mobile route stay unresolved', () {
-    final destination = codec.fromNavigation({
-      'schema_version': 1,
-      'resource': {'kind': 'personal_asset', 'id': 'asset-1'},
-    });
+  test('personal resource kinds resolve to their canonical owner depths', () {
+    const resolver = DeepLinkResolver();
+    for (final row in const [
+      ('personal_asset', 'asset-1', '/me/resources/documents/asset-1'),
+      ('resource', 'asset-2', '/me/resources/documents/asset-2'),
+      ('proof', 'proof-1', '/me/resources/proofs/proof-1'),
+      ('credential', 'credential-1', '/me/resources/titles/credential-1'),
+    ]) {
+      final destination = codec.fromNavigation({
+        'schema_version': 1,
+        'resource': {'kind': row.$1, 'id': row.$2},
+      });
+      expect(destination, isNotNull);
+      expect(resolver.resolve(destination!), row.$3);
+    }
+  });
 
-    expect(destination, isNotNull);
-    expect(const DeepLinkResolver().resolve(destination!), isNull);
+  test('personal resource ingress still goes through authentication recovery', () {
+    const destination = StructuredDestination(
+      kind: 'proof',
+      id: 'proof-1',
+    );
+    final recovery = SessionRecoveryController();
+    final resolution = const IncomingIntentResolver().resolve(
+      intent: const IncomingIntent.navigation(destination),
+      authenticated: false,
+      recovery: recovery,
+    );
+
+    expect(resolution?.route, '/login');
+    expect(resolution?.requiresAuthentication, isTrue);
+    expect(recovery.initialLocation(), '/me/resources/proofs/proof-1');
   });
 }
