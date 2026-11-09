@@ -57,7 +57,6 @@ from transport.models import (
 
 from .common import SeedContext, backdate, stable_uuid, upsert
 from .mobile_mature_data import REALITY_SPECS
-from .mobile_objectives import seed_mobile_objectives
 
 
 MOBILE_MATURE_PERSONAS = {"primary": "beta.alain@makolo.test"}
@@ -1027,7 +1026,6 @@ def seed_mobile_mature_universe(ctx: SeedContext) -> User:
     _seed_opportunities(ctx, REALITY_SPECS["opportunity"], curator=curator, primary=primary)
     _seed_obtentions(ctx, REALITY_SPECS["obtention"], space=spaces["obtention"], actor=owner, primary=primary, places=places, activities=activities, occurrences=occurrences, obtentions=obtentions)
     _seed_personal_relations(ctx, primary=primary, activities=activities, occurrences=occurrences, obtentions=obtentions)
-    seed_mobile_objectives(ctx, primary=primary)
 
     # Historical Obtention can only be closed after its Journey exists: the
     # canonical entry service correctly rejects non-published Activities.
