@@ -1,6 +1,6 @@
 # Jour J & Makolo Live Mature — plan d'implémentation par lots
 
-**Statut :** plan proposé, non démarré.  
+**Statut :** L1 et L2 implémentés côté serveur sur #522, en attente d'exécution des validations ; L3 à L7 restent à réaliser.  
 **Date :** 9 novembre 2026.  
 **Branche de rattachement :** PR #522, `fix/discover-a-continuation-context-20261014`.  
 **Contrat cible :** `docs/ux/Makolo_Jour_J_et_Live_Contrat_Cible_Mature_Unifie_2026-11-09.md`.  
@@ -188,4 +188,4 @@ L7 Scénarios finaux / validation / intégration
 - Aucun lot ne doit imposer une nouvelle migration, nouvelle API ou nouveau domaine sans démonstration de nécessité après L0.
 - Chaque changement de code devra être annoncé avant commit/push ; préserver la branche et la CI, ne pas modifier `main` directement.
 
-**État de ce document : plan uniquement. Aucun lot de code lancé par sa création.**
+**État de ce document : L1 et L2 sont développés sur la branche #522 (sans validation d'exécution) ; les lots L3 à L7 ne sont pas clôturés.**
