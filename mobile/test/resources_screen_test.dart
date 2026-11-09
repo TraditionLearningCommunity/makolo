@@ -40,12 +40,16 @@ void main() {
     );
 
     var openedDocuments = false;
+    var openedProofs = false;
+    var openedTitles = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: buildMakoloTheme(),
         home: ResourcesScreen(
           repository: repository,
           onOpenDocuments: () => openedDocuments = true,
+          onOpenProofs: () => openedProofs = true,
+          onOpenTitles: () => openedTitles = true,
         ),
       ),
     );
@@ -61,6 +65,10 @@ void main() {
 
     await tester.tap(find.text('Mes documents'));
     expect(openedDocuments, isTrue);
+    await tester.tap(find.text('Mes preuves'));
+    expect(openedProofs, isTrue);
+    await tester.tap(find.text('Mes titres'));
+    expect(openedTitles, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
