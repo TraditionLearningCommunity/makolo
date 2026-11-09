@@ -94,6 +94,25 @@ def add_questionnaire_media(
     return media
 
 
+
+@transaction.atomic
+def remove_questionnaire_media(*, actor, media):
+    """Remove an incorrect draft attachment without changing published data."""
+    version = FormVersion.objects.select_for_update().select_related(
+        "form__activity",
+    ).get(pk=media.form_version_id)
+    if not _can_manage(actor, version):
+        raise PermissionDenied("Vous ne pouvez pas retirer ce média.")
+    if version.status != FormVersionStatus.DRAFT:
+        raise ValidationError("Les médias d'une version publiée sont immuables.")
+    locked = QuestionnaireMedia.objects.select_for_update().get(pk=media.pk)
+    name = locked.file.name
+    storage = locked.file.storage
+    locked.delete()
+    if name:
+        transaction.on_commit(lambda: storage.delete(name))
+
+
 def media_sections(version):
     """Build bounded, ordered media relations without mutating JSON choices."""
     media = list(version.media.all().order_by("position", "created_at", "pk"))
