@@ -69,9 +69,13 @@
     anchor.href = validUrl(row.web_url);
     return anchor;
   };
-  const btn = (label, iconName, onClick, className = 'mk-dossier__small-button') => {
-    const button = el('button', className);
+  const btn = (label, iconName, onClick, className = '') => {
+    // Owner-bound callback stays here; only the visual action grammar is shared.
+    const button = el('button', 'mk-action-button');
     button.type = 'button';
+    button.dataset.variant = className === 'mk-dossier__submit' ? 'primary'
+      : /^(Retirer|Révoquer|Retirer le lien|Lever le prérequis)$/.test(label)
+        ? 'danger' : 'secondary';
     button.append(icon(iconName), document.createTextNode(label));
     button.addEventListener('click', onClick);
     return button;
