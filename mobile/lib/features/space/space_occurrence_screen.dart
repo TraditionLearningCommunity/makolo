@@ -30,6 +30,7 @@ class SpaceOccurrenceScreen extends StatefulWidget {
     this.onOpenAccess,
     this.onPresentCredential,
     this.onBackToDayOf,
+    this.onOpenDepth,
   });
 
   final SpaceActorIdentity space;
@@ -41,6 +42,7 @@ class SpaceOccurrenceScreen extends StatefulWidget {
   final void Function(String accessId, String path)? onOpenAccess;
   final void Function(String accessId, String path)? onPresentCredential;
   final VoidCallback? onBackToDayOf;
+  final ValueChanged<String>? onOpenDepth;
 
   @override
   State<SpaceOccurrenceScreen> createState() => _SpaceOccurrenceScreenState();
@@ -166,6 +168,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                         onOpenAccess: widget.onOpenAccess,
                         onPresentCredential: widget.onPresentCredential,
                         onBackToDayOf: widget.onBackToDayOf,
+                        onOpenDepth: widget.onOpenDepth,
                       )
                     : _SpaceOccurrenceContent(
                         payload: projection?.payload,
