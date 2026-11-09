@@ -83,7 +83,10 @@ void main() {
     );
     final recovery = SessionRecoveryController();
     final resolution = const IncomingIntentResolver().resolve(
-      intent: const IncomingIntent.navigation(destination),
+      intent: const IncomingIntent(
+        source: IncomingIntentSource.notification,
+        destination: destination,
+      ),
       authenticated: false,
       recovery: recovery,
     );
