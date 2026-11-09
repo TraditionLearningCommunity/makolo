@@ -630,9 +630,10 @@ class ConversationSemanticMediaAPIView(PrivateNoStoreMixin, views.APIView):
             if field != f"media_{index}" or field in file_fields:
                 raise DRFValidationError({"media_manifest": "Champ de fichier invalide."})
             file_fields.add(field)
-            uploaded = request.FILES.get(field)
-            if uploaded is None:
-                raise DRFValidationError({field: "Fichier absent."})
+            files = request.FILES.getlist(field)
+            if len(files) != 1:
+                raise DRFValidationError({field: "Un seul fichier attendu par emplacement."})
+            uploaded = files[0]
             declared_mime = raw.get("mime_type")
             if (isinstance(declared_mime, str) and declared_mime
                     and uploaded.content_type in {"", "application/octet-stream"}):
