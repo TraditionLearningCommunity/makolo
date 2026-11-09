@@ -6,9 +6,15 @@ authorized readiness facts are projected; no hidden Dossier totals are inferred.
 from __future__ import annotations
 
 from django.urls import reverse
+from authorization.constants import PermissionCode
+from authorization.models import AuthorityScope, Role
+from authorization.selectors import current_mandates
+from authorization.services import can
 
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
+    active_assignments_for_dossier,
+    collaboration_candidates_for_dossier,
     manageable_dossiers_for_profile,
     projects_for_profile,
     visible_dossiers_for_project,
@@ -18,6 +24,7 @@ from objectives.services import (
     PROJECT_LINKABLE_LIFECYCLES,
     can_manage_dossier,
     can_manage_project,
+    can_manage_project_authority,
 )
 
 
@@ -82,10 +89,87 @@ def project_dossier_page(actor, project, *, offset=0, limit=50):
     }
 
 
+def _person(profile):
+    return profile.get_full_name().strip() or profile.username
+
+
+def _project_collaboration(actor, project, dossiers, *, partial):
+    """Viewer-aware composition: a Project mandate is not a Dossier assignment.
+
+    Dossier collaborators are disclosed only where Dossier itself permits their
+    disclosure. No hidden Dossier, Journey, participant or total is inferred.
+    """
+    authority = can_manage_project_authority(actor, project)
+    current = current_mandates().filter(
+        scope_type=AuthorityScope.PROJECT, project=project,
+    ).select_related("profile", "role").order_by("granted_at", "pk")
+    members = []
+    for mandate in current:
+        if not authority and mandate.profile_id != actor.pk:
+            continue
+        members.append({
+            "id": str(mandate.pk),
+            "profile_id": str(mandate.profile_id),
+            "label": _person(mandate.profile) if authority else "Vous",
+            "role": mandate.role.name,
+            "role_code": mandate.role.code,
+            "self": mandate.profile_id == actor.pk,
+            "capabilities": ["revoke"] if authority else [],
+        })
+    contributors = {}
+    candidates = {}
+    for dossier in dossiers:
+        manageable = can_manage_dossier(actor, dossier)
+        for assignment in active_assignments_for_dossier(dossier):
+            if not manageable and assignment.assignee_id != actor.pk:
+                continue
+            key = str(assignment.assignee_id)
+            contributor = contributors.setdefault(key, {
+                "profile_id": key,
+                "label": _person(assignment.assignee) if manageable else "Vous",
+                "dossier_ids": [],
+            })
+            contributor["dossier_ids"].append(str(dossier.pk))
+        if authority and manageable:
+            # Reuse the same bounded, authorized list as Dossier collaboration.
+            for person in collaboration_candidates_for_dossier(dossier)[:51]:
+                if person.is_active and person.pk != project.owner_profile_id:
+                    candidates[str(person.pk)] = {
+                        "id": str(person.pk), "label": _person(person),
+                    }
+    return {
+        "members": members,
+        "contributors": list(contributors.values()),
+        "contributors_partial": bool(partial),
+        "candidate_profiles": list(candidates.values())[:50] if authority else [],
+        "candidate_profiles_partial": len(candidates) > 50 if authority else False,
+        "roles": [
+            {"code": role.code, "label": role.name}
+            for role in Role.objects.filter(
+                scope_type=AuthorityScope.PROJECT, is_system=True, is_active=True,
+            ).order_by("name") if role.code in {
+                "project-viewer", "project-manager", "project-admin",
+            }
+        ] if authority else [],
+        "can_manage_authority": authority,
+    }
+
+
 def project_workspace(actor, project):
     manageable = can_manage_project(actor, project)
     can_link = manageable and project.lifecycle in PROJECT_LINKABLE_LIFECYCLES
+    can_create = can_link and (
+        project.owner_profile_id == actor.pk
+        or can(actor, PermissionCode.PLATFORM_MANAGE)
+        or bool(project.owning_space_id and can(
+            actor, PermissionCode.SPACE_MANAGE, space=project.owning_space,
+        ))
+    )
     visible = project_dossier_page(actor, project)
+    collaboration = _project_collaboration(
+        actor, project, visible_dossiers_for_project(actor, project)[:50],
+        partial=visible["page"]["has_more"],
+    )
     # Choices are deliberately bounded; the UI explicitly signals partial choices.
     candidates = []
     other_projects = []
@@ -136,10 +220,12 @@ def project_workspace(actor, project):
         "dossiers_page": visible["page"],
         "allowed_transitions": allowed_transitions,
         "capabilities": (
-            ["project.edit", "project.lifecycle", "project.dossier.create",
-             "project.dossier.link"] if can_link
-            else ["project.edit", "project.lifecycle"] if manageable else []
+            (["project.edit", "project.lifecycle"] if manageable else [])
+            + (["project.dossier.link"] if can_link else [])
+            + (["project.dossier.create"] if can_create else [])
+            + (["project.authority.manage"] if collaboration["can_manage_authority"] else [])
         ),
+        "collaboration": collaboration,
         "link_candidates": candidates,
         "link_candidates_partial": candidates_more,
         "move_targets": other_projects,
