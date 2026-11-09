@@ -2425,6 +2425,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               item: item,
                               profileId: widget.repository.profileId,
                               allowOwnerActions: verified && !widget.actorQuery.isSpace,
+                              collectiveReadOnly: widget.actorQuery.isSpace,
                               detailMode: true,
                               onOpen: () {},
                               onNativeAction: widget.actorQuery.isSpace
