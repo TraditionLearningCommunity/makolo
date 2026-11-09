@@ -167,6 +167,11 @@ class _PreparationResourcesScreenState
                     invalidated: source.invalidated,
                   );
             final available = projection != null;
+            // Only an explicit owner denial withdraws this local depth.
+            final ownerDenied = !available &&
+                source.invalidated &&
+                const {'permission_denied', 'not_found'}
+                    .contains(source.lastErrorCode);
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -180,19 +185,14 @@ class _PreparationResourcesScreenState
                   ? items.isEmpty
                         ? MakoloAvailabilityCue.empty
                         : MakoloAvailabilityCue.content
-                  : _refreshing
+                  : _refreshing ||
+                        projectionSnapshot.connectionState ==
+                            ConnectionState.waiting
                   ? MakoloAvailabilityCue.loading
-                  : MakoloAvailabilityCue.initial,
+                  : MakoloAvailabilityCue.empty,
               reachability: source.reachability,
-              failure:
-                  !available &&
-                      (source.invalidated ||
-                          source.reachability ==
-                              ReachabilityState.unreachable) &&
-                      !_refreshing
-                  ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: ownerDenied
+                  ? MakoloFailureCue.permissionDenied
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -212,8 +212,8 @@ class _PreparationResourcesScreenState
                 child: MakoloSurfaceStateView(
                   state: surface,
                   empty: const MakoloEmptyState(
-                    title: 'Rien à préparer ici',
-                    body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
+                    title: 'Aucun document à afficher',
+                    body: 'Les documents et instructions apparaîtront ici lorsqu’ils seront disponibles.',
                   ),
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement des ressources de préparation…',
