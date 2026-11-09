@@ -5,6 +5,7 @@ No Point, answer, media, resolution or domain-event is moved or copied.
 Pagination delegates to C5's signed, profile-scoped history cursor.
 """
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 from .form_services import form_request_completed_for_profile
 from .history import page_points_for_profile
@@ -58,7 +59,7 @@ def timeline_presentation(profile, point, *, interactions=None):
         if point_resolution_visible_to(profile, point):
             try:
                 summary = point.resolution.summary or "Point résolu"
-            except (AttributeError, point.resolution.RelatedObjectDoesNotExist):
+            except (AttributeError, ObjectDoesNotExist):
                 summary = "Point résolu"
         else:
             summary = "Point résolu"
