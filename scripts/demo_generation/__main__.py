@@ -84,6 +84,15 @@ def build_parser():
     r.add_argument("--seed",type=int,default=2026)
     r.add_argument("--direction",choices=("add","trim"),default="add")
     time_options(r)
+    res=sub.add_parser("resources",help="Documents, preuves et titres de Mes ressources")
+    res.add_argument("--domains",default="all",help="all ou documents,proofs,credentials")
+    res.add_argument("--count",type=int,default=4)
+    res.add_argument("--profiles",type=int,default=30)
+    res.add_argument("--profile-username")
+    res.add_argument("--include-test-users",action="store_true")
+    res.add_argument("--reuse-avatar",action="store_true")
+    res.add_argument("--apply",action="store_true")
+    res.add_argument("--backup",action="store_true")
     m=sub.add_parser("maintain",help="Completer, rafraichir ou archiver des scenarios demo")
     m.add_argument("--action",dest="maintenance_action",required=True,choices=("complete","refresh","retire","restore"))
     m.add_argument("--domains",default="all")
@@ -101,7 +110,16 @@ def build_parser():
 
 
 def run(a):
-    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections, conversations, rebalance, maintenance
+    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections, conversations, rebalance, maintenance, resources
+    if a.action == "resources":
+        options=["--domains",a.domains,"--count",str(a.count),
+                 "--profiles",str(a.profiles)]
+        if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if a.include_test_users: options.append("--include-test-users")
+        if a.reuse_avatar: options.append("--reuse-avatar")
+        if a.backup: options.append("--backup")
+        if a.apply: options.append("--apply")
+        return resources.main(options)
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
