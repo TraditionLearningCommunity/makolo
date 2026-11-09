@@ -6,7 +6,9 @@ from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import User
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import (
+    Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus,
+)
 from journeys.models import Journey, JourneyRequest, JourneyStatus, WorkflowKind
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
@@ -52,7 +54,7 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
 
         return f"{url}?{urlencode(query)}"
 
-    def test_now_partial_and_discover_unavailable_do_not_claim_calm(self):
+    def test_now_partial_and_discover_shared_field_do_not_claim_calm(self):
         self.client.force_login(self.owner)
 
         now = self.client.get(self.web_url())
@@ -65,10 +67,39 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
 
         discover = self.client.get(self.web_url("organizations:space-discover"))
         self.assertEqual(discover.status_code, 200)
-        self.assertEqual(discover.context["projection_state"], "unavailable")
-        self.assertContains(discover, "La sélection n’est pas encore disponible.")
+        self.assertEqual(discover.context["projection_state"], "empty")
+        self.assertTrue(discover.context["discovery_space"])
+        self.assertContains(discover, "Qu’est-ce qui pourrait nous aider à avancer ?")
+        self.assertContains(discover, 'id="discovery-search-form"')
         self.assertNotContains(discover, "no_safe_selection_contract")
-        self.assertContains(discover, "Aucun candidat personnel, populaire ou récent n’est injecté")
+        self.assertNotContains(discover, "Enregistrer comme veille")
+
+    def test_discover_space_search_reuses_public_cards_and_keeps_space_nav(self):
+        instant = timezone.now() + timedelta(days=2)
+        activity = Activity.objects.create(
+            title="Programme collectif public",
+            slug="ws2-discover-programme",
+            created_by=self.owner,
+            space=self.space,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        Occurrence.objects.create(
+            activity=activity, start_at=instant,
+            end_at=instant + timedelta(hours=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_login(self.owner)
+        page = self.client.get(self.web_url("organizations:space-discover", q="Programme"))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context["projection_state"], "content")
+        self.assertContains(page, "Programme collectif public")
+        self.assertContains(page, 'data-mk-runtime-scope="space:')
+        self.assertContains(page, 'id="discovery-search-form"')
+        self.assertNotContains(page, "J’enregistre")
+        self.assertNotContains(page, "Enregistrer comme veille")
+        self.assertNotContains(page, "no_safe_selection_contract")
+        self.assertEqual(page.context["projection"]["surface"], "discover_space")
 
     def test_now_renders_actual_occurrence_with_owner_handoff(self):
         instant = timezone.now()
