@@ -1056,13 +1056,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         borderRadius: BorderRadius.circular(18),
         onTap: () => widget.onOpenItem(item.kind, item.id),
         child: Padding(
-          padding: const EdgeInsets.all(17),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(item.icon, color: scheme.primary, size: 29),
+                  Icon(item.icon, color: scheme.primary, size: 26),
                   const Spacer(),
                   Text(
                     item.humanState,
@@ -1073,7 +1073,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   Icon(Icons.arrow_forward_rounded, color: scheme.primary),
                 ],
               ),
-              const SizedBox(height: 13),
+              const SizedBox(height: 10),
               Text(
                 item.title,
                 style: Theme.of(context).textTheme.titleMedium
@@ -1132,9 +1132,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   ),
                 if (children.length > 3)
                   Text(
-                    'Et ${children.length - 3} '
-                    '${item.kind == 'project' ? 'autres dossiers' : 'autres démarches'} '
-                    'chargés',
+                    organizerMoreChildrenLabel(item, children.length - 3),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
               ],
