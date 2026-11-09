@@ -22,7 +22,7 @@
         {% endif %}
       </div>
       {% endif %}
-      <h3 class="mt-3 break-words text-xl font-extrabold sm:text-2xl" style="letter-spacing:-.025em"><a href="{{ card.url }}">{{ card.title }}</a></h3>
+      <h3 class="mt-3 break-words text-xl font-extrabold sm:text-2xl" style="letter-spacing:-.025em">{% if discovery_space %}{{ card.title }}{% else %}<a href="{{ card.url }}">{{ card.title }}</a>{% endif %}</h3>
       {% if card.type_labels %}
       <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" aria-label="Type de possibilité">
         {% for label in card.type_labels %}
@@ -45,7 +45,7 @@
       {% elif card.description %}
         <p class="mt-3 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</p>
       {% endif %}
-      {% if card.n2_url %}
+      {% if card.n2_url and not discovery_space %}
       <a href="{{ card.n2_url }}?from={{ request.get_full_path|urlencode }}" class="mt-3 inline-flex items-center gap-1 text-sm font-semibold underline" aria-label="Approfondir {{ card.title }}">Approfondir cette possibilité</a>
       {% endif %}
       {% if card.facts or card.context_notes or card.variant_count or card.relation_count or card.participant_state and card.participant_state.label %}
@@ -126,6 +126,7 @@
     {% endif %}
   </section>
   {% endif %}
+  {% if not discovery_space %}
   <div class="mt-5 grid grid-cols-3 gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Interactions avec cette possibilité">
     <div class="min-w-0">
       {% if card.actions.save and card.actions.save.url %}
@@ -183,4 +184,5 @@
       {% endif %}
     </div>
   </div>
+  {% endif %}
 </article>
