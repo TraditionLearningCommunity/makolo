@@ -2,6 +2,8 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -14,6 +16,7 @@ from scanner.permissions import user_can_scan_activity
 from scanner.space_context import build_scanner_context
 
 
+@method_decorator(never_cache, name='dispatch')
 class PersonalOccurrenceScannerView(LoginRequiredMixin, TemplateView):
     template_name = "core/occurrence_scanner.html"
     login_url = "core:login"
