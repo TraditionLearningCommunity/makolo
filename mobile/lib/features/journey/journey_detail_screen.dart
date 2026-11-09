@@ -1000,9 +1000,8 @@ class _ReadinessGroups extends StatelessWidget {
   Widget build(BuildContext context) {
     final actorInterventions = [
       for (final item in presentation.actorInterventions)
-        if (item.nextLink != presentation.nextActionLink ||
-            item.nextLink == null ||
-            presentation.nextActionLink == null) item,
+        if (presentation.nextActionKey == null ||
+            item.key != presentation.nextActionKey) item,
     ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
       ('De votre côté', actorInterventions, Icons.touch_app_outlined),
