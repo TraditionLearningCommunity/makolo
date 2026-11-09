@@ -266,6 +266,16 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             owner_operations_allowed or finance_allowed or finance_manage
             or (scanner_allowed and not platform_allowed)
             or (operations_manage and not platform_allowed)
+            or (
+                not platform_allowed and any(
+                    name in capabilities for name in (
+                        "access_control_view", "access_control_manage",
+                        "capacity_view", "capacity_manage",
+                        "commerce_view", "commerce_manage",
+                        "place_view", "place_manage",
+                    )
+                )
+            )
         ),
         "platform": bool(platform_allowed),
     }
