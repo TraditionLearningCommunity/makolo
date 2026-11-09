@@ -45,9 +45,11 @@
         <i data-lucide="link"></i> Rattacher un dossier
       </button>
     {% endif %}
+    {% if lifecycle_form %}
     <button type="button" class="mk-project__action mk-action-button" data-variant="secondary" data-dialog-open="project-lifecycle">
       <i data-lucide="circle-dot"></i> Changer l’état
     </button>
+    {% endif %}
   </div>
   {% endif %}
   <div class="mk-project__view-switch mk-interaction-tabs" role="group" aria-label="Vues Projet">
@@ -76,6 +78,80 @@
       <p data-project-more-error hidden>Chargement impossible. Réessayez.</p>
     </div>
   </section>
+
+  {% if workspace.collaboration.members or workspace.collaboration.contributors or access_form %}
+  <section class="mk-project__people" aria-label="Personnes et responsabilités du Projet">
+    <div class="mk-project__people-heading">
+      <div>
+        <h2>Personnes et responsabilités</h2>
+        <p class="mk-project__hint">Les accès au Projet et les interventions dans les Dossiers sont indépendants.</p>
+      </div>
+      {% if access_form %}
+      <button class="mk-action-button" data-variant="secondary" type="button"
+              data-dialog-open="project-authority">
+        <i data-lucide="user-plus" aria-hidden="true"></i> Donner accès
+      </button>
+      {% endif %}
+    </div>
+    {% for member in workspace.collaboration.members %}
+      <div class="mk-project__person">
+        <div>
+          <strong>{{ member.label }}</strong>
+          <small>Accès Projet · {{ member.role }}</small>
+        </div>
+        {% if access_form and "revoke" in member.capabilities %}
+        <details>
+          <summary>Retirer l’accès</summary>
+          <form method="post" action="{% url 'objectives:project-authority' project.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="revoke">
+            <input type="hidden" name="mandate_id" value="{{ member.id }}">
+            <button class="mk-action-button" data-variant="danger" type="submit">
+              Confirmer le retrait
+            </button>
+          </form>
+        </details>
+        {% endif %}
+      </div>
+    {% empty %}
+      {% if access_form %}<p class="mk-project__hint">Aucun mandat Projet actif à afficher.</p>{% endif %}
+    {% endfor %}
+    {% for contributor in workspace.collaboration.contributors %}
+      <div class="mk-project__person">
+        <div>
+          <strong>{{ contributor.label }}</strong>
+          <small>Coordination de {{ contributor.dossier_ids|length }} Dossier(s) visible(s)</small>
+        </div>
+      </div>
+    {% endfor %}
+    {% if workspace.collaboration.contributors_partial %}
+      <p class="mk-project__hint">La liste des interventions est partielle : seuls les Dossiers acquis ont été examinés.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if access_form %}
+  <dialog id="project-authority" class="mk-project__dialog">
+    <form method="post" action="{% url 'objectives:project-authority' project.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="grant">
+      <header>
+        <h2>Donner accès au Projet</h2>
+        <p>Le rôle Projet n’accorde pas automatiquement des droits sur les Dossiers ou les démarches.</p>
+      </header>
+      {% for field in access_form %}
+      <div class="mk-project__field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+      </div>
+      {% endfor %}
+      <div class="mk-project__dialog-actions">
+        <button type="button" class="mk-action-button" data-variant="ghost" data-dialog-close>Annuler</button>
+        <button type="submit" class="mk-action-button" data-variant="primary">Accorder l’accès</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
 
   {% if can_manage %}
     {% if child_form %}
