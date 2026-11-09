@@ -7,9 +7,9 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from authorization.constants import SystemRoleCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, Role
-from authorization.services import grant_dossier_role, grant_project_role
+from authorization.services import can, grant_dossier_role, grant_project_role
 from objectives.services import (
     assign_dossier, create_dossier, create_project, link_dossier_to_project,
 )
@@ -53,6 +53,13 @@ class ProjectAuthorityIntegrationTests(TestCase):
     def test_project_viewer_sees_only_project_and_own_authority(self):
         self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
         self.client.force_authenticate(user=self.viewer)
+        self.assertFalse(can(self.viewer, PermissionCode.PROJECT_VIEW))
+        self.assertTrue(can(
+            self.viewer, PermissionCode.PROJECT_VIEW, project=self.project,
+        ))
+        self.assertFalse(can(
+            self.viewer, PermissionCode.PROJECT_VIEW, project=self.other,
+        ))
         detail = self.client.get(self.endpoint("objectives_api:project-detail"))
         self.assertEqual(detail.status_code, 200)
         data = detail.data["data"]
