@@ -1876,7 +1876,12 @@ class _PointCardState extends State<_PointCard> {
           ),
         if (point.kind == 'poll' && point.options.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.md),
-          Text('Choix', style: theme.titleSmall),
+          Text(
+            point.responseMode == 'multiple_choice'
+                ? 'Choisissez une ou plusieurs réponses'
+                : 'Choisissez une réponse',
+            style: theme.titleSmall,
+          ),
           for (final option in point.options)
             Padding(
               padding: const EdgeInsets.only(top: MakoloSpacing.sm),
@@ -1910,7 +1915,9 @@ class _PointCardState extends State<_PointCard> {
                           )
                         else
                           Icon(
-                            Icons.radio_button_unchecked_rounded,
+                            point.mySelectedOptions.contains(option.id)
+                                ? Icons.check_circle_rounded
+                                : Icons.radio_button_unchecked_rounded,
                             size: 18,
                             color: muted,
                           ),
@@ -1931,8 +1938,25 @@ class _PointCardState extends State<_PointCard> {
                         repository: widget.repository,
                         attachments: option.attachments,
                       ),
+                    if (point.pollCountFor(option.id) != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                        child: Text(
+                          '${point.pollCountFor(option.id)} sélection(s)',
+                          style: theme.bodySmall?.copyWith(color: muted),
+                        ),
+                      ),
                   ],
                 ),
+              ),
+            ),
+          if (point.pollResults['response_count'] is num)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Text(
+                '${point.pollResults['response_count']} participation(s) · '
+                'résultats agrégés, sans identité des répondants',
+                style: theme.bodySmall?.copyWith(color: muted),
               ),
             ),
           if (point.responseMode == 'multiple_choice' &&
@@ -1943,7 +1967,8 @@ class _PointCardState extends State<_PointCard> {
               busy: _busy,
               appearance: MakoloActionAppearance.primary,
               onPressed: _busy || _choices.isEmpty
-                  ? null : () => _submitResponse(_choices.toList()),
+                  ? null : () =>
+                      _submitResponse(_choices.toList()..sort()),
             ),
           ],
         ],
@@ -2030,7 +2055,10 @@ class _PointCardState extends State<_PointCard> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  'Réponse enregistrée',
+                  point.myResponseLabel == null ||
+                          point.myResponseLabel!.isEmpty
+                      ? 'Réponse enregistrée'
+                      : 'Réponse enregistrée : ${point.myResponseLabel}',
                   style: theme.bodySmall?.copyWith(color: muted),
                 ),
               ],
@@ -2066,12 +2094,18 @@ class _PointCardState extends State<_PointCard> {
           const SizedBox(height: MakoloSpacing.sm),
           Text(_feedback!),
         ],
-        if (point.requiresAcknowledgement &&
-            point.attentionReason == 'acknowledge' &&
-            !widget.readOnly) ...[
+        if (point.acknowledged)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(
+              '✓ Prise de connaissance enregistrée',
+              style: theme.bodySmall?.copyWith(color: muted),
+            ),
+          ),
+        if (point.canAcknowledge && !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.md),
           MakoloActionButton(
-            label: _busy ? 'En cours…' : 'Bien reçu',
+            label: _busy ? 'En cours…' : 'J’ai pris connaissance',
             onPressed: _busy ? null : _acknowledge,
             busy: _busy,
             appearance: MakoloActionAppearance.primary,
@@ -2120,11 +2154,11 @@ class _PointCardState extends State<_PointCard> {
               spacing: MakoloSpacing.sm,
               children: [
                 MakoloActionButton(
-                  label: point.kind == 'request' ? "Je m'en charge" : 'Oui',
+                  label: point.kind == 'request' ? "Je m'en charge" : 'Oui, je confirme',
                   onPressed: _busy ? null : () => _submitResponse(true),
                 ),
                 MakoloActionButton(
-                  label: point.kind == 'request' ? 'Je ne peux pas' : 'Non',
+                  label: point.kind == 'request' ? 'Je ne peux pas' : 'Non, je ne confirme pas',
                   onPressed: _busy ? null : () => _submitResponse(false),
                 ),
               ],
@@ -2183,6 +2217,34 @@ class _PointCardState extends State<_PointCard> {
               appearance: MakoloActionAppearance.primary,
               onPressed: _busy ? null : _respond,
             ),
+        ],
+        if ((point.canCloseResponses || point.canResolve) &&
+            !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Text('Décisions de coordination', style: theme.titleSmall),
+          Text(
+            'La clôture et la résolution ne modifient aucune donnée métier du contexte.',
+            style: theme.bodySmall?.copyWith(color: muted),
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
+          Wrap(
+            spacing: MakoloSpacing.sm,
+            runSpacing: MakoloSpacing.sm,
+            children: [
+              if (point.canCloseResponses)
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _closeResponses,
+                  icon: const Icon(Icons.lock_clock_outlined),
+                  label: const Text('Clore les réponses'),
+                ),
+              if (point.canResolve)
+                FilledButton.tonalIcon(
+                  onPressed: _busy ? null : _resolvePoint,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Résoudre le Point'),
+                ),
+            ],
+          ),
         ],
       ],
     );
