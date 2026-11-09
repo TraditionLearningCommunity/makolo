@@ -1025,12 +1025,22 @@ class DiscoveryRepository {
     if (source.projectionKind == itemProjectionKind) {
       final item = snapshot.payload['item'];
       final identity = item is Map ? item['identity'] : null;
+      final actor = snapshot.payload['actor'];
+      final viewer = snapshot.payload['viewer'];
       if (snapshot.schemaVersion != 1 ||
           identity is! Map ||
           identity['family'] is! String ||
           identity['resource'] is! Map ||
-          '${identity['family']}:${(identity['resource'] as Map)['id']}' !=
-              source.resourceKey) {
+          (expectedSpaceId == null
+              ? '${identity['family']}:${(identity['resource'] as Map)['id']}'
+              : 'space:$expectedSpaceId:${identity['family']}:${(identity['resource'] as Map)['id']}') != source.resourceKey ||
+          (expectedSpaceId != null &&
+              (actor is! Map ||
+                  actor['type'] != 'space' ||
+                  actor['id'] != expectedSpaceId ||
+                  viewer is! Map ||
+                  viewer['type'] != 'profile' ||
+                  viewer['id'] != profileId))) {
         return null;
       }
       try {
@@ -1207,9 +1217,20 @@ class DiscoveryRepository {
     return _spatialFromField(await readItems(first));
   }
 
-  Stream<StoredProjection?> watchItem(String family, String id) => store
-      .watchProjection(itemProjectionKind, resourceKey: '$family:$id')
-      .asyncMap((row) => _readAvailable(itemSource(family, id), row));
+  Stream<StoredProjection?> watchItem(
+    String family,
+    String id, {
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
+  }) => store
+      .watchProjection(
+        itemProjectionKind,
+        resourceKey: _detailResourceKey(family, id, actorQuery),
+      )
+      .asyncMap((row) => _readAvailable(
+        itemSource(family, id, actorQuery: actorQuery),
+        row,
+        expectedSpaceId: actorQuery.spaceId,
+      ));
 
   /// Materialize a previously acquired owner projection only on N2 demand.
   /// The server has already admitted it for this viewer: changing N1, Carte
@@ -1218,8 +1239,10 @@ class DiscoveryRepository {
     String family,
     String id, {
     DateTime? newerThan,
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
   }) async {
-    final owner = itemSource(family, id);
+    final owner = itemSource(family, id, actorQuery: actorQuery);
+    final detailKey = _detailResourceKey(family, id, actorQuery);
     if ((await readSource(owner)).ownerUnavailable) return null;
     final pages = await store.readProjections(itemsProjectionKind);
     pages.sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
@@ -1237,6 +1260,15 @@ class DiscoveryRepository {
       }
       final viewer = page.payload['viewer'];
       if (viewer is! Map || viewer['id'] != profileId) continue;
+      final pageActor = page.payload['actor'];
+      if (actorQuery.isSpace) {
+        if (page.payload['surface'] != 'discover_space' ||
+            pageActor is! Map ||
+            pageActor['type'] != 'space' ||
+            pageActor['id'] != actorQuery.spaceId) continue;
+      } else {
+        if (page.payload['surface'] != 'discover_me') continue;
+      }
       final sourceQuery = database.select(database.syncSources)
         ..where(
           (row) =>
@@ -1280,9 +1312,15 @@ class DiscoveryRepository {
           // does not invent a successful item-detail owner HTTP response.
           await store.putProjection(
             kind: itemProjectionKind,
-            resourceKey: '$family:$id',
+            resourceKey: detailKey,
             schemaVersion: page.schemaVersion,
-            payload: {'item': item},
+            payload: {
+              'item': item,
+              if (actorQuery.isSpace) ...{
+                'actor': pageActor,
+                'viewer': viewer,
+              },
+            },
             receivedAt: page.receivedAt,
             sourceGeneratedAt: page.sourceGeneratedAt,
             sourceUpdatedAt: page.sourceUpdatedAt,
@@ -1293,7 +1331,7 @@ class DiscoveryRepository {
           );
           // The same already-admitted wire can present the read-only N3
           // preview. Actual owner operations are not authorized by it.
-          if (_isActivityFamily(family)) {
+          if (!actorQuery.isSpace && _isActivityFamily(family)) {
             await _putPreview(
               kind: activityPreviewProjectionKind,
               resourceKey: id,
@@ -1302,7 +1340,8 @@ class DiscoveryRepository {
             );
           }
           final occurrence = identity['occurrence'];
-          if (occurrence is Map &&
+          if (!actorQuery.isSpace &&
+              occurrence is Map &&
               occurrence['id'] is String &&
               (occurrence['id'] as String).isNotEmpty) {
             await _putPreview(
@@ -1316,8 +1355,9 @@ class DiscoveryRepository {
             owner,
             await store.readProjection(
               itemProjectionKind,
-              resourceKey: '$family:$id',
+              resourceKey: detailKey,
             ),
+            expectedSpaceId: actorQuery.spaceId,
           );
         }
       }
