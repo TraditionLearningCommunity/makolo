@@ -165,7 +165,7 @@ void main() {
     expect(screens, contains("Key('discover-n3-resume-journey')"));
     expect(screens, contains('collectiveReadOnly: widget.actorQuery.isSpace'));
     expect(unit, contains('widget.collectiveReadOnly'));
-    expect(repository, contains("sourceKey: 'discovery-item:$resourceKey'"));
+    expect(repository, contains(r"sourceKey: 'discovery-item:$resourceKey'"));
     expect(repository, contains("page.payload['surface'] != 'discover_space'"));
   });
 
