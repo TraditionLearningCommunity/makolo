@@ -636,6 +636,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                   ),
+                  if (navigable)
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 17,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                 ],
               ),
             ),
@@ -1173,48 +1179,58 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         child: Row(
           children: [
             Expanded(
-              child: IconButton(
-                key: Key(
-                  widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
-                ),
-                onPressed:
-                    !_saving &&
-                        widget.allowOwnerActions &&
-                        ((widget.onSave != null && canToggle) ||
-                            (widget.allowSavePrompt && widget.onSignIn != null))
-                    ? _save
-                    : null,
-                tooltip: _saving
-                    ? 'Enregistrement…'
-                    : saved
-                    ? (widget.detailMode
-                          ? 'Retirer des enregistrements'
-                          : 'Enregistré')
-                    : 'Enregistrer',
-                icon: DiscoveryOrbitIcon(
-                  saved: saved,
-                  color: theme.colorScheme.primary,
+              child: MakoloRoundedActionSlot(
+                active: saved,
+                child: IconButton(
+                  key: Key(
+                    widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
+                  ),
+                  onPressed:
+                      !_saving &&
+                          widget.allowOwnerActions &&
+                          ((widget.onSave != null && canToggle) ||
+                              (widget.allowSavePrompt && widget.onSignIn != null))
+                      ? _save
+                      : null,
+                  tooltip: _saving
+                      ? 'Enregistrement…'
+                      : saved
+                      ? (widget.detailMode
+                            ? 'Retirer des enregistrements'
+                            : 'Enregistré')
+                      : 'Enregistrer',
+                  icon: DiscoveryOrbitIcon(
+                    saved: saved,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ),
-            if (!widget.detailMode)
+            if (!widget.detailMode) ...[
+              const SizedBox(width: MakoloSpacing.sm),
               Expanded(
-                child: IconButton(
-                  key: const Key('discover-primary-n1'),
-                  onPressed: () => _centralAction(context),
-                  tooltip: _centralActionLabel,
-                  icon: Icon(_centralActionIcon),
+                child: MakoloRoundedActionSlot(
+                  child: IconButton(
+                    key: const Key('discover-primary-n1'),
+                    onPressed: () => _centralAction(context),
+                    tooltip: _centralActionLabel,
+                    icon: Icon(_centralActionIcon),
+                  ),
                 ),
               ),
+            ],
+            const SizedBox(width: MakoloSpacing.sm),
             Expanded(
-              child: DiscoveryShareControl(
-                item: item,
-                api: widget.shareApi,
-                authenticated: widget.shareAuthenticated,
-                onSignIn: widget.onSignIn,
-                enabled: !widget.detailMode || widget.allowOwnerActions,
-                iconOnly: true,
-                baseUri: widget.baseUri,
+              child: MakoloRoundedActionSlot(
+                child: DiscoveryShareControl(
+                  item: item,
+                  api: widget.shareApi,
+                  authenticated: widget.shareAuthenticated,
+                  onSignIn: widget.onSignIn,
+                  enabled: !widget.detailMode || widget.allowOwnerActions,
+                  iconOnly: true,
+                  baseUri: widget.baseUri,
+                ),
               ),
             ),
           ],
