@@ -204,6 +204,10 @@ class SpaceOccurrenceScannerView(_SpaceOccurrenceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.get_occurrence().activity.space_id != self.space.pk:
+            # A beneficiary Space may consult its Journey, but does not gain
+            # control of the provider's admission checkpoint in this context.
+            raise Http404
         scanner = build_scanner_context(
             occurrence=self.get_occurrence(),
             actor=self.request.user,
@@ -228,6 +232,8 @@ class SpaceOccurrenceScannerActionView(_SpaceOccurrenceWebMixin, View):
 
     def post(self, request, *args, **kwargs):
         occurrence = self.get_occurrence()
+        if occurrence.activity.space_id != self.space.pk:
+            raise Http404
         if not user_can_scan_activity(
             request.user, occurrence.activity, occurrence=occurrence
         ):
