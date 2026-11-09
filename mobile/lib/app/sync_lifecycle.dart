@@ -7,6 +7,7 @@ import '../data/files/media_cache.dart';
 import '../data/files/profile_file_store.dart';
 import '../data/files/profile_recognition_image_store.dart';
 import '../features/access/access_credential_vault.dart';
+import '../features/journey/journey_repository.dart';
 import '../network/api_error.dart';
 import '../sync/outbox/outbox_repository.dart';
 import '../sync/sync_status.dart';
@@ -264,7 +265,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
               ? <String>[]
               : runtime.journeys == null
               ? <String>[]
-              : (await runtime.journeys!.readKnownJourneyIds(ongoing));
+              : JourneyRepository.knownJourneyIdsFromOngoing(ongoing);
       for (final id in knownJourneyIds) {
         sync.registerPreparedSource(
           runtime.preparationResources!.sourceFor(journeyId: id),
