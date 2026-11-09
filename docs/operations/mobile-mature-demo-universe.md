@@ -151,6 +151,10 @@ python manage.py seed_makolo_demo --scale beta --as-of 2026-10-03 --demo-passwor
 # Ou, pour le corpus autonome destiné au client mobile :
 # MAKOLO_DEMO_PASSWORD est injecté depuis l'environnement de test isolé.
 python manage.py seed_mobile_mature_demo --as-of 2026-10-03
+
+# Si le corpus Mobile Mature existe déjà et qu'on veut seulement ajouter
+# Projets et Dossiers, sans toucher aux identifiants de connexion :
+python manage.py seed_mobile_objectives_demo --as-of 2026-10-03 --confirm-demo-database
 ```
 
 Le seed doit rester :
