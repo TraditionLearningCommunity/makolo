@@ -130,6 +130,7 @@ class ConversationMediaGroup extends StatelessWidget {
               onOpen: () => _open(context, visual.single),
               preview: ConversationAttachmentViewer(
                 repository: repository,
+                download: download,
                 attachment: attachments[visual.single],
                 inline: true,
               ),
@@ -184,6 +185,7 @@ class ConversationMediaGroup extends StatelessWidget {
               onOpen: () => _open(context, index),
               preview: ConversationAttachmentViewer(
                 repository: repository,
+                download: download,
                 attachment: attachments[index],
                 inline: true,
               ),
