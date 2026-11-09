@@ -307,11 +307,11 @@ def _run_conversation_point_reminders(now):
             "expected_action_audience", "visibility_audience",
             "response_audience", "resolution_audience",
         )
-        .order_by("deadline_at", "pk")[:300]
+        .order_by("deadline_at", "pk")
     )
     User = get_user_model()
     created = 0
-    for point in candidates:
+    for point in candidates.iterator(chunk_size=50):
         milestone = _current_milestone(
             point.deadline_at, now, milestones,
         )
@@ -329,7 +329,7 @@ def _run_conversation_point_reminders(now):
         ).values_list("profile_id", flat=True))
         for recipient in User.objects.filter(
             pk__in=recipient_ids, is_active=True,
-        ).order_by("pk")[:250]:
+        ).order_by("pk").iterator(chunk_size=100):
             if not point_visible_to(recipient, point, at=now):
                 continue
             reason = point_attention_reason(recipient, point, at=now)
@@ -368,6 +368,81 @@ def _run_conversation_point_reminders(now):
     return created
 
 
+def _run_conversation_point_openings(now):
+    """Notify when an expected action becomes possible, not when chatter arrives."""
+    from conversations.attention import ACTION_REASONS, point_attention_reason
+    from conversations.audience_services import resolve_audience_ids
+    from conversations.core_models import ConversationLifecycle, ConversationUserState
+    from conversations.point_models import ConversationPoint, ConversationPointLifecycle
+    from conversations.point_services import point_visible_to
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+    from notifications.models import Notification
+
+    points = (
+        ConversationPoint.objects.filter(
+            conversation__lifecycle=ConversationLifecycle.OPEN,
+            lifecycle=ConversationPointLifecycle.OPEN,
+            published_at__isnull=False,
+            expected_action_audience__isnull=False,
+            opens_at__gt=now - MILESTONE_GRACE,
+            opens_at__lte=now,
+        )
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=now))
+        .select_related(
+            "conversation", "conversation__context",
+            "expected_action_audience", "visibility_audience",
+            "response_audience", "resolution_audience",
+        ).order_by("opens_at", "pk")
+    )
+    User = get_user_model()
+    created = 0
+    for point in points.iterator(chunk_size=50):
+        ids = resolve_audience_ids(point.expected_action_audience)
+        muted = set(ConversationUserState.objects.filter(
+            conversation=point.conversation, profile_id__in=ids,
+            muted_at__isnull=False,
+        ).filter(
+            Q(muted_until__isnull=True) | Q(muted_until__gt=now)
+        ).values_list("profile_id", flat=True))
+        for recipient in User.objects.filter(
+            pk__in=ids, is_active=True,
+        ).order_by("pk").iterator(chunk_size=100):
+            if not point_visible_to(recipient, point, at=now):
+                continue
+            if point_attention_reason(recipient, point, at=now) not in ACTION_REASONS:
+                continue
+            key = (
+                f"conversation-opening:{point.pk}:{point.opens_at.isoformat()}:"
+                f"{recipient.pk}"
+            )[:255]
+            exists = Notification.objects.filter(dedup_key=key).exists()
+            create_notification(
+                recipient=recipient,
+                kind=NotificationKind.SYSTEM,
+                category=NotificationCategory.SYSTEM,
+                title="Une action de coordination est ouverte",
+                message="Une action attendue dans une Conversation Makolo "
+                        "est maintenant disponible.",
+                action_url=reverse(
+                    "conversations:detail",
+                    kwargs={"pk": point.conversation_id},
+                ) + f"?focus={point.pk}#point-{point.pk}",
+                dedup_key=key,
+                metadata={
+                    "conversation_id": str(point.conversation_id),
+                    "point_id": str(point.pk),
+                    "opens_at": point.opens_at.isoformat(),
+                },
+                queue_email=False,
+                queue_push=recipient.pk not in muted,
+                template_key="conversation.point.action_required",
+            )
+            if not exists:
+                created += 1
+    return created
+
+
 def run_service_reminders(*, now=None):
     now = now or timezone.now()
     return {
@@ -378,4 +453,5 @@ def run_service_reminders(*, now=None):
         "blocker_due": _run_blocker_due(now),
         "payment_obligation_due": _run_payment_due(now),
         "conversation_point_deadlines": _run_conversation_point_reminders(now),
+        "conversation_point_openings": _run_conversation_point_openings(now),
     }
