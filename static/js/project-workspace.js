@@ -138,11 +138,13 @@
       add(form, targets);
     }
     const actions = el('div', 'mk-project__dialog-actions');
-    const cancel = el('button', '', 'Annuler');
+    const cancel = el('button', 'mk-action-button', 'Annuler');
+    cancel.dataset.variant = 'ghost';
     cancel.type = 'button'; cancel.addEventListener('click', () => dialog.close());
     add(actions, cancel);
-    const confirm = el('button', 'mk-project__submit', mode === 'unlink'
+    const confirm = el('button', 'mk-action-button', mode === 'unlink'
       ? 'Détacher' : 'Déplacer');
+    confirm.dataset.variant = mode === 'unlink' ? 'danger' : 'primary';
     confirm.type = 'button';
     confirm.addEventListener('click', () => {
       const path = (row.web_actions || {})[mode];
@@ -163,7 +165,8 @@
     const box = el('div', 'mk-project__card-menu');
     if (row.capabilities.includes('move') &&
         Array.isArray(payload.move_targets) && payload.move_targets.length) {
-      const button = el('button');
+      const button = el('button', 'mk-action-button');
+      button.dataset.variant = 'secondary'; button.dataset.size = 'icon';
       button.type = 'button'; button.title = 'Déplacer le dossier';
       button.setAttribute('aria-label', 'Déplacer ' + title(row));
       add(button, icon('folder-input'));
@@ -171,7 +174,8 @@
       add(box, button);
     }
     if (row.capabilities.includes('unlink')) {
-      const button = el('button');
+      const button = el('button', 'mk-action-button');
+      button.dataset.variant = 'danger'; button.dataset.size = 'icon';
       button.type = 'button'; button.title = 'Détacher le dossier';
       button.setAttribute('aria-label', 'Détacher ' + title(row));
       add(button, icon('unlink'));
@@ -239,7 +243,8 @@
     if (!rows.length) add(cards, empty('Aucun Dossier visible dans ce Projet'));
     add(area, cards);
     if (rows.length > 6) {
-      const btn = el('button', 'mk-project__action', 'Voir tous les dossiers acquis');
+      const btn = el('button', 'mk-action-button', 'Voir tous les dossiers acquis');
+      btn.dataset.variant = 'secondary';
       btn.type = 'button';
       btn.addEventListener('click', () => { state.view = 'dossiers'; render(); });
       add(area, btn);
@@ -352,7 +357,8 @@
     add(control, dropdown('Afficher', options, state.calendar, (value) => {
       state.calendar = value; render();
     }));
-    const today = el('button', 'mk-project__action', 'Aujourd’hui');
+    const today = el('button', 'mk-action-button', 'Aujourd’hui');
+    today.dataset.variant = 'secondary';
     today.type = 'button';
     today.addEventListener('click', () => {
       state.calendar = 'upcoming'; render();
