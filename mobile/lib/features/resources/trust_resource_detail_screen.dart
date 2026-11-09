@@ -65,7 +65,7 @@ class _TrustResourceDetailScreenState
     _detail = widget.repository.watchDetail(widget.family, widget.id);
     _source = widget.repository.watchDetailSource(widget.family, widget.id);
     unawaited(_loadKnownSummary());
-    unawaited(_refresh());
+    unawaited(_ensureFresh());
   }
 
   Future<void> _loadKnownSummary() async {
@@ -78,6 +78,24 @@ class _TrustResourceDetailScreenState
       widget.id,
     );
     if (mounted) setState(() => _cachedSummary = known);
+  }
+
+  Future<void> _ensureFresh() async {
+    if (_refreshing) return;
+    try {
+      if (!await widget.repository.shouldRefreshDetail(
+        widget.family,
+        widget.id,
+      )) {
+        return;
+      }
+      if (mounted) setState(() => _refreshing = true);
+      await widget.repository.refreshDetail(widget.family, widget.id);
+    } on Object {
+      // Keep already acquired Trust metadata visible.
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   Future<void> _refresh() async {
@@ -143,202 +161,267 @@ class _TrustResourceDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: _detail,
-      builder: (context, snapshot) {
-        final projection = snapshot.data;
-        final detail = projection == null
-            ? _cachedSummary
-            : _TrustDetail.fromPayload(widget.family, projection.payload);
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(_title),
-            actions: [
-              if (detail?.verifyPath != null && widget.repository.api != null)
-                MakoloIconActionButton(
-                  tooltip: 'Vérifier',
-                  icon: Icons.verified_outlined,
-                  onPressed: () => _verify(detail!),
-                ),
-              if (detail?.verifyPath != null && widget.repository.api != null)
-                MakoloIconActionButton(
-                  tooltip: 'Partager',
-                  icon: Icons.send_outlined,
-                  onPressed: () => _shareVerification(detail!),
-                ),
-              MakoloIconActionButton(
-                tooltip: 'Actualiser',
-                icon: Icons.refresh_rounded,
-                onPressed: _refreshing ? null : _refresh,
+    return StreamBuilder<TrustResourceSourceState>(
+      stream: _source,
+      initialData: TrustResourceSourceState.unknown,
+      builder: (context, sourceSnapshot) {
+        final source =
+            sourceSnapshot.data ?? TrustResourceSourceState.unknown;
+        return StreamBuilder<StoredProjection?>(
+          stream: _detail,
+          builder: (context, snapshot) {
+            final projection = snapshot.data;
+            final detail = projection == null
+                ? _cachedSummary
+                : _TrustDetail.fromPayload(widget.family, projection.payload);
+            final ownerAvailable = !source.invalidated && !source.ownerDenied;
+            final canVerifyOrShare =
+                ownerAvailable &&
+                source.reachability == ReachabilityState.reachable;
+
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(_title),
+                actions: [
+                  if (detail?.verifyPath != null &&
+                      widget.repository.api != null &&
+                      ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Vérifier',
+                      icon: Icons.verified_outlined,
+                      onPressed:
+                          canVerifyOrShare ? () => _verify(detail!) : null,
+                    ),
+                  if (detail?.verifyPath != null &&
+                      widget.repository.api != null &&
+                      ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Partager',
+                      icon: Icons.send_outlined,
+                      onPressed: canVerifyOrShare
+                          ? () => _shareVerification(detail!)
+                          : null,
+                    ),
+                  MakoloIconActionButton(
+                    tooltip: 'Actualiser',
+                    icon: Icons.refresh_rounded,
+                    onPressed: _refreshing ? null : _refresh,
+                  ),
+                ],
               ),
-            ],
-          ),
-          body: detail == null
-              ? Center(
-                  child: _refreshing
-                      ? const CircularProgressIndicator.adaptive()
-                      : Text(
-                          widget.family == TrustResourceFamily.proofs
-                              ? 'Preuve indisponible'
-                              : 'Titre indisponible',
-                        ),
-                )
-              : StreamBuilder<TrustResourceSourceState>(
-                  stream: _source,
-                  initialData: TrustResourceSourceState.unknown,
-                  builder: (context, sourceSnapshot) {
-                    final source =
-                        sourceSnapshot.data ?? TrustResourceSourceState.unknown;
-                    if (source.invalidated) {
-                      return Center(
-                        child: Text(
-                          widget.family == TrustResourceFamily.proofs
-                              ? 'Preuve indisponible'
-                              : 'Titre indisponible',
-                        ),
-                      );
-                    }
-                    return RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(MakoloSpacing.inner),
+              body: detail == null
+                  ? Center(
+                      child: _refreshing
+                          ? const CircularProgressIndicator.adaptive()
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.family == TrustResourceFamily.proofs
+                                      ? 'Preuve indisponible'
+                                      : 'Titre indisponible',
+                                ),
+                                const SizedBox(height: MakoloSpacing.md),
+                                MakoloActionButton(
+                                  label: 'Réessayer',
+                                  appearance: MakoloActionAppearance.quiet,
+                                  onPressed: _refresh,
+                                ),
+                              ],
+                            ),
+                    )
+                  : source.invalidated
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Text(
+                            widget.family == TrustResourceFamily.proofs
+                                ? 'Preuve indisponible'
+                                : 'Titre indisponible',
+                          ),
+                          const SizedBox(height: MakoloSpacing.md),
+                          MakoloActionButton(
+                            label: 'Réessayer',
+                            appearance: MakoloActionAppearance.quiet,
+                            onPressed: _refresh,
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(MakoloSpacing.inner),
                             children: [
-                              Icon(
-                                widget.family == TrustResourceFamily.proofs
-                                    ? Icons.verified_outlined
-                                    : Icons.workspace_premium_outlined,
-                                size: 34,
-                                color: Theme.of(context).colorScheme.primary,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    widget.family ==
+                                            TrustResourceFamily.proofs
+                                        ? Icons.verified_outlined
+                                        : Icons.workspace_premium_outlined,
+                                    size: 34,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: MakoloSpacing.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          detail.title,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.headlineSmall,
+                                        ),
+                                        if (detail.typeLabel != null) ...[
+                                          const SizedBox(
+                                            height: MakoloSpacing.xs,
+                                          ),
+                                          Text(
+                                            detail.typeLabel!,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: MakoloSpacing.md),
-                              Expanded(
+                              if (source.reachability ==
+                                  ReachabilityState.unreachable) ...[
+                                const SizedBox(height: MakoloSpacing.sm),
+                                Semantics(
+                                  liveRegion: true,
+                                  child: const Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_off_outlined,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: MakoloSpacing.xs),
+                                      Expanded(
+                                        child: Text(
+                                          'Données enregistrées sur cet appareil. '
+                                          'Vérification en ligne indisponible.',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: MakoloSpacing.lg),
+                              MakoloCard(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      detail.title,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.headlineSmall,
+                                    Wrap(
+                                      spacing: MakoloSpacing.sm,
+                                      runSpacing: MakoloSpacing.sm,
+                                      children: [
+                                        Chip(
+                                          label: Text(detail.statusLabel),
+                                        ),
+                                        if (detail.issuer != null)
+                                          Chip(label: Text(detail.issuer!)),
+                                      ],
                                     ),
-                                    if (detail.typeLabel != null) ...[
-                                      const SizedBox(height: MakoloSpacing.xs),
+                                    if (detail.statement != null) ...[
+                                      const SizedBox(
+                                        height: MakoloSpacing.md,
+                                      ),
                                       Text(
-                                        detail.typeLabel!,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                            ),
+                                        detail.statement!,
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge,
                                       ),
                                     ],
+                                    const SizedBox(height: MakoloSpacing.md),
+                                    _Fact(
+                                      label: 'Activité',
+                                      value: detail.activity ?? '—',
+                                    ),
+                                    _Fact(
+                                      label:
+                                          widget.family ==
+                                              TrustResourceFamily.proofs
+                                          ? 'Établie le'
+                                          : 'Délivré le',
+                                      value: detail.issuedAt ?? '—',
+                                    ),
+                                    if (detail.occurrence != null)
+                                      _Fact(
+                                        label: 'Occurrence',
+                                        value: detail.occurrence!,
+                                      ),
+                                    if (detail.revokedAt != null)
+                                      _Fact(
+                                        label: 'Révoqué le',
+                                        value: detail.revokedAt!,
+                                      ),
+                                    if (detail.revokeReason != null)
+                                      _Fact(
+                                        label: 'Motif',
+                                        value: detail.revokeReason!,
+                                      ),
                                   ],
                                 ),
                               ),
-                              if (source.reachability ==
-                                  ReachabilityState.unreachable)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8),
-                                  child: Icon(
-                                    Icons.cloud_off_outlined,
-                                    size: 18,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: MakoloSpacing.lg),
-                          MakoloCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                              if ((widget.onOpenPassport != null &&
+                                      detail.passportPath != null) ||
+                                  detail.journeyId != null) ...[
+                                const SizedBox(height: MakoloSpacing.md),
                                 Wrap(
+                                  alignment: WrapAlignment.end,
                                   spacing: MakoloSpacing.sm,
                                   runSpacing: MakoloSpacing.sm,
                                   children: [
-                                    Chip(label: Text(detail.statusLabel)),
-                                    if (detail.issuer != null)
-                                      Chip(label: Text(detail.issuer!)),
+                                    if (widget.onOpenPassport != null &&
+                                        detail.passportPath != null)
+                                      MakoloActionButton(
+                                        label: 'Passeport',
+                                        icon: Icons.badge_outlined,
+                                        appearance:
+                                            MakoloActionAppearance.quiet,
+                                        onPressed: widget.onOpenPassport,
+                                      ),
+                                    if (detail.journeyId != null)
+                                      MakoloActionButton(
+                                        label: 'Voir la démarche',
+                                        icon: Icons.route_outlined,
+                                        appearance:
+                                            MakoloActionAppearance.quiet,
+                                        onPressed: () => widget.onOpenJourney(
+                                          detail.journeyId!,
+                                        ),
+                                      ),
                                   ],
                                 ),
-                                if (detail.statement != null) ...[
-                                  const SizedBox(height: MakoloSpacing.md),
-                                  Text(
-                                    detail.statement!,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge,
-                                  ),
-                                ],
-                                const SizedBox(height: MakoloSpacing.md),
-                                _Fact(
-                                  label: 'Activité',
-                                  value: detail.activity ?? '—',
-                                ),
-                                _Fact(
-                                  label: widget.family ==
-                                          TrustResourceFamily.proofs
-                                      ? 'Établie le'
-                                      : 'Délivré le',
-                                  value: detail.issuedAt ?? '—',
-                                ),
-                                if (detail.occurrence != null)
-                                  _Fact(
-                                    label: 'Occurrence',
-                                    value: detail.occurrence!,
-                                  ),
-                                if (detail.revokedAt != null)
-                                  _Fact(
-                                    label: 'Révoqué le',
-                                    value: detail.revokedAt!,
-                                  ),
-                                if (detail.revokeReason != null)
-                                  _Fact(
-                                    label: 'Motif',
-                                    value: detail.revokeReason!,
-                                  ),
                               ],
-                            ),
+                            ],
                           ),
-                          if ((widget.onOpenPassport != null &&
-                                  detail.passportPath != null) ||
-                              detail.journeyId != null) ...[
-                            const SizedBox(height: MakoloSpacing.md),
-                            Wrap(
-                              alignment: WrapAlignment.end,
-                              spacing: MakoloSpacing.sm,
-                              runSpacing: MakoloSpacing.sm,
-                              children: [
-                                if (widget.onOpenPassport != null &&
-                                    detail.passportPath != null)
-                                  MakoloActionButton(
-                                    label: 'Passeport',
-                                    icon: Icons.badge_outlined,
-                                    appearance: MakoloActionAppearance.quiet,
-                                    onPressed: widget.onOpenPassport,
-                                  ),
-                                if (detail.journeyId != null)
-                                  MakoloActionButton(
-                                    label: 'Voir la démarche',
-                                    icon: Icons.route_outlined,
-                                    appearance: MakoloActionAppearance.quiet,
-                                    onPressed: () =>
-                                        widget.onOpenJourney(detail.journeyId!),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+            );
+          },
         );
       },
     );
