@@ -83,6 +83,30 @@ void main() {
     );
   });
 
+  test('L6: returning to a Space actor requires a new successful owner read', () {
+    final changed = DateTime.utc(2026, 11, 9, 15);
+    expect(
+      OccurrenceContinuity.verifiedAfterActorSwitch(
+        lastSuccessAt: DateTime.utc(2026, 11, 9, 14, 59),
+        actorSwitchedAt: changed,
+      ),
+      isFalse,
+    );
+    expect(
+      OccurrenceContinuity.verifiedAfterActorSwitch(
+        lastSuccessAt: null, actorSwitchedAt: changed,
+      ),
+      isFalse,
+    );
+    expect(
+      OccurrenceContinuity.verifiedAfterActorSwitch(
+        lastSuccessAt: DateTime.utc(2026, 11, 9, 15, 1),
+        actorSwitchedAt: changed,
+      ),
+      isTrue,
+    );
+  });
+
   test('L6: Live cannot stay current after its known end or cancellation', () {
     final now = DateTime.utc(2026, 11, 9, 15);
     final live = <String, dynamic>{
