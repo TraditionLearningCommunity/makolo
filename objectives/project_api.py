@@ -107,7 +107,10 @@ class ProjectAuthorityAPIView(APIView):
                 if values.get("profile_id"):
                     person = get_object_or_404(users, pk=values["profile_id"])
                 else:
-                    person = get_object_or_404(users, email__iexact=values["email"])
+                    matches = list(users.filter(email__iexact=values["email"]).order_by("pk")[:2])
+                    if len(matches) != 1:
+                        raise ValidationError("Le compte Makolo est introuvable ou ambigu.")
+                    person = matches[0]
                 role = get_object_or_404(
                     Role.objects.filter(
                         is_active=True, is_system=True,
