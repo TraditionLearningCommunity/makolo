@@ -88,6 +88,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     this.baseUri,
     this.profileId,
     this.allowOwnerActions = true,
+    this.collectiveReadOnly = false,
     this.compact = false,
     this.detailMode = false,
     this.onNativeAction,
@@ -108,6 +109,8 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
   /// Cached recognition is not a live authorization from the owner.
   final bool allowOwnerActions;
+  /// Space detail keeps published facts without personal Save/Share chrome.
+  final bool collectiveReadOnly;
   final bool compact;
 
   /// Renders the same server-owned facts at N2 without repeating N1 chrome.
@@ -1328,7 +1331,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               ],
             ),
           ),
-          if (widget.detailMode && !widget.allowOwnerActions)
+          if (widget.detailMode &&
+              !widget.allowOwnerActions &&
+              !widget.collectiveReadOnly)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Text(
@@ -1337,7 +1342,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 style: theme.textTheme.bodySmall,
               ),
             ),
-          if (widget.detailMode && _primaryNativePath != null)
+          if (widget.detailMode &&
+              widget.allowOwnerActions &&
+              !widget.collectiveReadOnly &&
+              _primaryNativePath != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: FilledButton.icon(
@@ -1378,7 +1386,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 ],
               ),
             ),
-          if (widget.detailMode) ...actionBar,
+          if (widget.detailMode && !widget.collectiveReadOnly) ...actionBar,
           if (widget.detailMode)
             DiscoveryN2DepthSection(
               item: item,
