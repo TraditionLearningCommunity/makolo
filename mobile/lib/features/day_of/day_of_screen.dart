@@ -12,6 +12,7 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
+import '../occurrence/occurrence_experience_content.dart';
 import 'day_of_repository.dart';
 import 'day_of_selector.dart';
 
@@ -149,18 +150,32 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                       ? 'Impossible de vérifier cette action. Consultez l’historique si elle est terminée.'
                       : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
-                  content: _DayOfContent(
-                    presentation: presentation,
-                    remoteActionsAvailable:
-                        source.reachability != ReachabilityState.unreachable &&
-                        SyncStatusScope.maybeOf(context)?.state !=
-                            SyncVisualState.offline &&
-                        SyncStatusScope.maybeOf(context)?.state !=
-                            SyncVisualState.failed,
-                    onOpenAccess: widget.onOpenAccess,
-                    onPresentCredential: widget.onPresentCredential,
-                    onOpenLive: widget.onOpenLive,
-                  ),
+                  content: projection?.payload['surface'] == 'day_of'
+                      ? OccurrenceExperienceContent(
+                          payload: projection!.payload,
+                          live: false,
+                          remoteActionsAvailable:
+                              source.reachability != ReachabilityState.unreachable &&
+                              SyncStatusScope.maybeOf(context)?.state !=
+                                  SyncVisualState.offline &&
+                              SyncStatusScope.maybeOf(context)?.state !=
+                                  SyncVisualState.failed,
+                          onOpenAccess: widget.onOpenAccess,
+                          onPresentCredential: widget.onPresentCredential,
+                          onOpenLive: widget.onOpenLive,
+                        )
+                      : _DayOfContent(
+                          presentation: presentation,
+                          remoteActionsAvailable:
+                              source.reachability != ReachabilityState.unreachable &&
+                              SyncStatusScope.maybeOf(context)?.state !=
+                                  SyncVisualState.offline &&
+                              SyncStatusScope.maybeOf(context)?.state !=
+                                  SyncVisualState.failed,
+                          onOpenAccess: widget.onOpenAccess,
+                          onPresentCredential: widget.onPresentCredential,
+                          onOpenLive: widget.onOpenLive,
+                        ),
                 ),
               ),
             );
