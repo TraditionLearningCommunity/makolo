@@ -175,6 +175,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     if (_scroll.hasClients) _scroll.jumpTo(0);
     setState(() {
       _onlyUnread = unreadOnly;
+      _previousUnreadCount = null;
+      _newNotificationsAvailable = false;
       _pageFailed = false;
       _loadFailed = false;
       _attempted = false;
