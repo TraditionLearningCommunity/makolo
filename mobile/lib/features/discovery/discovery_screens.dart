@@ -2015,8 +2015,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 const Text(
-                                  'Les points de cette recherche sont indisponibles. '
-                                  'Vous pouvez réessayer sans perdre les critères.',
+                                  'Impossible d’afficher les résultats pour le moment.',
                                   textAlign: TextAlign.center,
                                 ),
                                 TextButton.icon(
