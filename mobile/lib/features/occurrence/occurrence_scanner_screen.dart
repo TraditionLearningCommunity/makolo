@@ -34,6 +34,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
   bool _busy = false;
   bool _checking = false;
   bool _camera = false;
+  bool _confirming = false;
   bool _denied = false;
   int _epoch = 0;
   int _attempt = 0;
@@ -76,12 +77,26 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Permission could have been revoked while the scanner was paused.
+      // Resume always obtains a fresh owner check, even if an older request
+      // has not completed yet.
+      _epoch++;
+      _checking = false;
       _code.clear();
       unawaited(_load());
-    } else if (state != AppLifecycleState.inactive) {
-      _camera = false;
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _epoch++;
       _code.clear();
+      if (mounted) {
+        setState(() {
+          _camera = false;
+          _context = null;
+          _result = null;
+          _busy = false;
+          _confirming = false;
+          _checking = false;
+        });
+      }
     }
   }
 
@@ -93,6 +108,9 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       _context = null;
       _result = null;
       _camera = false;
+      _checking = false;
+      _busy = false;
+      _confirming = false;
       _denied = false;
     });
     if (_actorValid) unawaited(_load());
@@ -152,8 +170,13 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
   Future<void> _offerToken(String raw) async {
     final token = raw.trim();
     if (token.isEmpty || token.length > 1024 ||
-        _busy || _checking || !_actorValid || _context == null) return;
-    setState(() => _camera = false);
+        _busy || _confirming || _checking || !_actorValid ||
+        _context == null) return;
+    final revision = _epoch;
+    setState(() {
+      _confirming = true;
+      _camera = false;
+    });
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -174,7 +197,9 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
         ],
       ),
     );
-    if (confirmed != true || !mounted || !_actorValid) return;
+    if (!mounted || _epoch != revision || !_actorValid) return;
+    setState(() => _confirming = false);
+    if (confirmed != true) return;
     await _submit(token);
   }
 
@@ -195,6 +220,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
               (verified['identity'] as Map)['id']?.toString() != widget.occurrenceId) ||
           (verified['capabilities'] is! List ||
               !(verified['capabilities'] as List).contains('scan')) ||
+          (verified['links'] is! Map ||
+              (verified['links'] as Map)['scan'] != '/$_controlPath') ||
           (widget.actorSpaceId != null &&
               (verified['space'] is! Map ||
                   (verified['space'] as Map)['id']?.toString() != widget.actorSpaceId))) {
@@ -290,7 +317,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                   ),
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: _busy || _checking
+                  onPressed: _busy || _checking || _confirming
                       ? null
                       : () => setState(() => _camera = !_camera),
                   icon: Icon(_camera ? Icons.close : Icons.qr_code_scanner_rounded),
