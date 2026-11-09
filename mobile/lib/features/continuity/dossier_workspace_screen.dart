@@ -200,13 +200,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final spaceSlug = _spaceSlug;
     try {
       final cached = await repo.read(
-        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.dossier,
+        id,
+        spaceSlug: spaceSlug,
       );
       final source = await repo.readSource(
-        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.dossier,
+        id,
+        spaceSlug: spaceSlug,
       );
-      if (!mounted || widget.id != id ||
-          widget.repository != repo || _spaceSlug != spaceSlug) return;
+      if (!mounted ||
+          widget.id != id ||
+          widget.repository != repo ||
+          _spaceSlug != spaceSlug)
+        return;
       if (cached == null ||
           cached.payload['visible_journeys_complete'] != true ||
           ObjectiveRepository.freshnessPolicy.evaluate(
@@ -234,9 +241,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       _failed = false;
     });
     try {
-      await repo.refresh(
-        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
-      );
+      await repo.refresh(ObjectiveDepth.dossier, id, spaceSlug: spaceSlug);
     } on Object {
       if (mounted && id == widget.id && _spaceSlug == spaceSlug) {
         setState(() => _failed = true);
@@ -282,7 +287,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (spaceSlug != _spaceSlug) return false;
       try {
         await widget.repository.refresh(
-          ObjectiveDepth.dossier, widget.id, spaceSlug: spaceSlug,
+          ObjectiveDepth.dossier,
+          widget.id,
+          spaceSlug: spaceSlug,
         );
         await widget.repository.refreshOrganizerPage(0);
         final refreshed = await widget.repository.read(
@@ -1805,13 +1812,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       ],
     ),
     body: StreamBuilder<OwnerSourceState>(
-      key: ValueKey<String>('dossier-owner:${widget.id}:${_spaceSlug ?? 'personal'}'),
+      key: ValueKey<String>(
+        'dossier-owner:${widget.id}:${_spaceSlug ?? 'personal'}',
+      ),
       stream: _owner,
       initialData: OwnerSourceState.unknown,
       builder: (context, ownerSnapshot) {
         final owner = ownerSnapshot.data ?? OwnerSourceState.unknown;
         return StreamBuilder<StoredProjection?>(
-          key: ValueKey<String>('dossier-detail:${widget.id}:${_spaceSlug ?? 'personal'}'),
+          key: ValueKey<String>(
+            'dossier-detail:${widget.id}:${_spaceSlug ?? 'personal'}',
+          ),
           stream: _detail,
           builder: (context, detailSnapshot) {
             if (owner.invalidated) {

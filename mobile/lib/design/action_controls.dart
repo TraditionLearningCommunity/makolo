@@ -153,7 +153,11 @@ class MakoloFollowIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: busy ? 'Suivi en cours…' : followed ? 'Ne plus suivre' : 'Suivre',
+    tooltip: busy
+        ? 'Suivi en cours…'
+        : followed
+        ? 'Ne plus suivre'
+        : 'Suivre',
     onPressed: busy ? null : onPressed,
     icon: busy
         ? const SizedBox(
