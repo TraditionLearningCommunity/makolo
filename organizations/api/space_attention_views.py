@@ -47,9 +47,9 @@ class SpaceDiscoverAPIView(_SpaceAttentionAPIView):
         space = self.get_space(request, slug)
         try:
             payload = build_space_discover_projection(
-            profile=request.user,
-            space=space,
-            responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
+                profile=request.user,
+                space=space,
+                responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
                 params=request.query_params,
             )
         except DjangoValidationError as exc:
