@@ -1092,6 +1092,35 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     intent.body,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
+                if (intent.semanticMedia.isNotEmpty) ...[
+                  for (final media in intent.semanticMedia)
+                    if (media['scope'] == 'point')
+                      _pendingSemanticMedia(context, media),
+                  if (intent.kind == 'poll')
+                    for (var index = 0; index < intent.options.length; index++)
+                      Padding(
+                        padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(MakoloSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(intent.options[index],
+                                  style: Theme.of(context).textTheme.bodyMedium),
+                              for (final media in intent.semanticMedia)
+                                if (media['scope'] == 'option' &&
+                                    media['option_index'] == index)
+                                  _pendingSemanticMedia(context, media),
+                            ],
+                          ),
+                        ),
+                      ),
+                ],
                 if (intent.mediaKind != null) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   if (intent.mediaKind == 'image' &&
@@ -2337,6 +2366,52 @@ class _ConversationPersonalState {
         pinned: row['pinned'] == true,
         revisit: row['revisit'] == true,
       );
+}
+
+Widget _pendingSemanticMedia(
+  BuildContext context, Map<String, dynamic> media,
+) {
+  final path = media['path']?.toString() ?? '';
+  final filename = media['filename']?.toString() ?? 'Média';
+  final kind = media['kind']?.toString();
+  final caption = media['caption']?.toString() ?? '';
+  return Padding(
+    padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (kind == 'image' && path.isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(path), height: 150, width: 250, fit: BoxFit.contain,
+              cacheWidth: 750,
+              errorBuilder: (context, error, trace) =>
+                  const Icon(Icons.image_not_supported_outlined),
+            ),
+          )
+        else
+          Row(
+            children: [
+              Icon(kind == 'voice' || kind == 'audio'
+                  ? Icons.graphic_eq_rounded
+                  : kind == 'video'
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.description_outlined),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Text(
+                  filename, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        if (caption.trim().isNotEmpty)
+          Text(caption, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
+  );
 }
 
 class _ConversationOption {
