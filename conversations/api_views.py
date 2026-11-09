@@ -17,6 +17,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
+from .point_interactions import point_interactions_for_profile
 from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
@@ -31,7 +32,10 @@ from .rich_services import (
     visible_attachments_for_profile,
     submit_point_media_response,
 )
-from .point_services import acknowledge_point, point_response_allowed, point_visible_to, point_resolution_visible_to, submit_point_response
+from .point_services import (
+    acknowledge_point, close_point_responses, point_response_allowed,
+    point_visible_to, point_resolution_visible_to, resolve_point, submit_point_response,
+)
 from .presentation import (
     conversation_context_label,
     conversations_for_context,
@@ -84,6 +88,7 @@ def _resolution_summary(point, profile):
 
 
 def _serialize_point(point, *, profile, reason=None, section=None):
+    interactions = point_interactions_for_profile(profile, point)
     linked_form = form_request_for_profile(point, profile) if point.kind == "form_request" else None
     prior = point.supersedes if point.supersedes_id else None
     successor = (
@@ -126,6 +131,12 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "response_mode": point.response_mode,
         "lifecycle": point.lifecycle,
         "response_status": point_personal_result(profile, point),
+        "my_response": interactions["my_response"],
+        "poll_results": interactions["poll_results"],
+        "acknowledged": interactions["acknowledged"],
+        "can_acknowledge": interactions["can_acknowledge"],
+        "can_close_responses": interactions["can_close_responses"],
+        "can_resolve": interactions["can_resolve"],
         "can_change_response": point.allow_response_change,
         "supersedes_point_id": (
             str(prior.pk) if prior is not None and point_visible_to(profile, prior) else None
@@ -141,14 +152,7 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "opens_at": point.opens_at,
         "deadline_at": point.deadline_at,
         "valid_until": point.valid_until,
-        "can_respond": (
-            point.conversation.lifecycle == "open"
-            and point.lifecycle == "open"
-            and (point.opens_at is None or point.opens_at <= timezone.now())
-            and (point.deadline_at is None or point.deadline_at > timezone.now())
-            and (point.valid_until is None or point.valid_until > timezone.now())
-            and point_response_allowed(profile, point)
-        ),
+        "can_respond": interactions["can_respond"],
         "options": [
             {
                 "id": str(option.pk), "label": option.label,
@@ -825,6 +829,52 @@ class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
             "status": point_response.status,
             "value": point_response.value,
             "submitted_at": point_response.submitted_at,
+        })
+
+
+class ConversationPointCloseResponsesAPIView(PrivateNoStoreMixin, views.APIView):
+    """Close responses only through the existing Conversation owner service."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        try:
+            closed = close_point_responses(actor=request.user, point=point)
+        except (PermissionDenied, ValidationError) as exc:
+            return _service_error(exc)
+        return Response({
+            "point_id": str(closed.pk), "lifecycle": closed.lifecycle,
+            "response_closed_at": closed.response_closed_at,
+        })
+
+
+class ConversationPointResolveAPIView(PrivateNoStoreMixin, views.APIView):
+    """Coordination outcome, never a mutation of the contextual domain."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, point_pk):
+        point = _visible_point_or_404(request.user, point_pk)
+        summary = request.data.get("summary")
+        options = request.data.get("selected_option_ids", [])
+        if not isinstance(summary, str) or not summary.strip() or len(summary.strip()) > 500:
+            raise DRFValidationError({"summary": "Un résultat de 1 à 500 caractères est attendu."})
+        if not isinstance(options, list) or len(options) > 12 or any(
+            not isinstance(value, str) or not value.strip() for value in options
+        ) or len(set(options)) != len(options):
+            raise DRFValidationError({"selected_option_ids": "Sélection de résultat invalide."})
+        if options and point.kind != "poll":
+            raise DRFValidationError({"selected_option_ids": "Seul un sondage permet de retenir des choix."})
+        try:
+            resolution = resolve_point(
+                actor=request.user, point=point, summary=summary.strip(),
+                selected_option_ids=options,
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            return _service_error(exc)
+        return Response({
+            "point_id": str(point.pk), "lifecycle": "resolved",
+            "resolution_id": str(resolution.pk), "summary": resolution.summary,
+            "resolved_at": resolution.resolved_at,
         })
 
 
