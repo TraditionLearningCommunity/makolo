@@ -58,6 +58,7 @@ class _PreparationResourcesScreenState
     _requestedInitialRefresh = true;
     final local = await widget.repository.readResources(widget.journeyId);
     final source = await widget.repository.readSource(widget.journeyId);
+    await _restoreLocalFiles(local);
     if (!mounted) return;
     if (local == null) {
       await _refresh();
@@ -71,6 +72,33 @@ class _PreparationResourcesScreenState
     if (freshness != FreshnessState.fresh) await _refresh();
   }
 
+  Future<void> _restoreLocalFiles(StoredProjection? projection) async {
+    final resources = _PreparationResource.fromProjection(projection);
+    final paths = <String, String>{};
+    for (final item in resources) {
+      if (item.downloadUrl == null) continue;
+      final stored = await widget.repository.readLocalResourceFile(item.id);
+      if (stored != null) paths[item.id] = stored.path;
+    }
+    if (!mounted) return;
+    setState(() {
+      _downloaded
+        ..clear()
+        ..addAll(paths);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant PreparationResourcesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.journeyId != widget.journeyId ||
+        oldWidget.repository != widget.repository) {
+      _requestedInitialRefresh = false;
+      _downloaded.clear();
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
@@ -79,6 +107,8 @@ class _PreparationResourcesScreenState
         journeyId: widget.journeyId,
         resourcesPath: widget.resourcesPath,
       );
+      final acquired = await widget.repository.readResources(widget.journeyId);
+      await _restoreLocalFiles(acquired);
     } on Object {
       // SyncSource records the failure and preserves usable local content.
     } finally {
@@ -97,8 +127,9 @@ class _PreparationResourcesScreenState
         title: resource.title,
         mimeType: resource.mimeType,
       );
-      // The profile-local cached copy supports the existing Open action;
-      // Download explicitly exports to Android's public Downloads.
+      // Only this explicit action exports to public Downloads; opening a
+      // private copy stays inside the current Profile.
+      if (mounted) setState(() => _downloaded[resource.id] = file.path);
       final mime = resource.mimeType ?? 'application/octet-stream';
       final extension = switch (mime.toLowerCase()) {
         'application/pdf' => 'pdf',
@@ -116,7 +147,6 @@ class _PreparationResourcesScreenState
         mimeType: mime,
       );
       if (!mounted) return;
-      setState(() => _downloaded[resource.id] = file.path);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Enregistré dans Téléchargements : $saved')),
       );
@@ -135,16 +165,35 @@ class _PreparationResourcesScreenState
   }
 
   Future<void> _openFile(_PreparationResource resource) async {
-    final localPath = _downloaded[resource.id];
-    if (localPath == null) {
-      await _download(resource);
-      return;
+    if (_downloading.contains(resource.id)) return;
+    setState(() => _downloading.add(resource.id));
+    try {
+      var local = await widget.repository.readLocalResourceFile(resource.id);
+      if (local == null && resource.downloadUrl != null) {
+        local = await widget.repository.downloadResource(
+          resourceId: resource.id,
+          downloadPath: resource.downloadUrl!,
+          title: resource.title,
+          mimeType: resource.mimeType,
+        );
+      }
+      if (local == null) return;
+      if (!mounted) return;
+      setState(() => _downloaded[resource.id] = local!.path);
+      await widget.onOpenDownloadedFile?.call(
+        local.path,
+        resource.mimeType,
+        resource.title,
+      );
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ce document ne peut pas être ouvert pour le moment.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloading.remove(resource.id));
     }
-    await widget.onOpenDownloadedFile?.call(
-      localPath,
-      resource.mimeType,
-      resource.title,
-    );
   }
 
   @override
@@ -316,13 +365,12 @@ class _PreparationResourceCard extends StatelessWidget {
                           ? Icons.description_outlined
                           : Icons.download_rounded,
                     ),
-              label: Text(
-                downloading
-                    ? 'Téléchargement…'
-                    : downloaded
-                    ? 'Ouvrir le document'
-                    : 'Télécharger le document',
-              ),
+              label: Text(downloading ? 'Ouverture…' : 'Ouvrir le document'),
+            ),
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              downloaded ? 'Document disponible' : 'Document à ouvrir',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ],
