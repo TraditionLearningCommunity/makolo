@@ -189,6 +189,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   Future<void> _more(OrganizerPage page) async {
     if (_loadingMore ||
         _refreshing ||
+        _failed ||
         !page.hasMore ||
         _requestedOffset == page.nextOffset) {
       return;
@@ -767,7 +768,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             final entries = page.entries;
             final hierarchy = OrganizerHierarchy(entries);
             final byKey = hierarchy.byKey;
-            final dossiers = entries.where((e) => e.kind == 'dossier');
             final children = (OrganizerEntry parent) =>
                 _ordered(hierarchy.childrenOf(parent));
 
@@ -790,9 +790,27 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     (_kind != 'all' || _relation == 'independent'));
             final shown = showFlat ? flat : roots;
 
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
+            return NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification.metrics.axis != Axis.vertical ||
+                    notification.metrics.extentAfter > 450 ||
+                    !page.hasFirst ||
+                    !page.hasMore ||
+                    offline ||
+                    source.invalidated ||
+                    _failed ||
+                    _loadingMore ||
+                    _refreshing) {
+                  return false;
+                }
+                // Keep pagination owner-backed and contiguous. A scroll near
+                // the end is the trigger; no page-number or next-page button.
+                unawaited(_more(page));
+                return false;
+              },
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                child: ListView(
                 key: const PageStorageKey<String>('organizer-scroll'),
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 44),
@@ -956,41 +974,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               )
                             else if (_mode == OrganizerMode.list || showFlat)
                               for (final item in flat) _row(item, byKey)
-                            else ...[
-                              if (dossiers.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Text(
-                                    'Les dépendances se consultent dans chaque Dossier. '
-                                    'Une démarche liée à plusieurs Dossiers '
-                                    'n’est présentée qu’une fois ici.',
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                ),
+                            else
                               for (final item in roots)
                                 _tree(item, children, visible, hierarchy, 0),
-                            ],
-                            if (page.hasMore)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 18),
-                                child: OutlinedButton.icon(
-                                  onPressed: offline || _loadingMore
-                                      ? null
-                                      : () => _more(page),
-                                  icon: _loadingMore
-                                      ? const SizedBox(
-                                          height: 16,
-                                          width: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.add_rounded),
-                                  label: Text(
-                                    offline
-                                        ? 'Vous pourrez en voir davantage à la reconnexion'
-                                        : 'Voir davantage',
-                                  ),
+                            if (page.hasMore && !offline && !_failed)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 18),
+                                child: Center(
+                                  child: CircularProgressIndicator.adaptive(),
                                 ),
                               ),
                             if (_failed)
@@ -1007,6 +998,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     ),
                   ),
                 ],
+                ),
               ),
             );
           },
@@ -1204,16 +1196,21 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   ) {
     final nodes = children(item).where(visible).toList();
     final key = item.key;
+    final expandable = item.kind == 'project' || item.kind == 'dossier';
     final expanded = _expanded.contains(key) || _hasSelectionFilters;
     return Column(
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.only(start: depth * 14.0),
+          padding: EdgeInsetsDirectional.only(start: depth * 7.0),
           child: Row(
             children: [
-              if (nodes.isNotEmpty)
+              if (expandable)
                 IconButton(
-                  tooltip: expanded ? 'Replier' : 'Déplier',
+                  key: Key('organizer-expand-$key'),
+                  tooltip: expanded ? 'Replier ${item.title}' : 'Déplier ${item.title}',
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 40),
+                  padding: EdgeInsets.zero,
                   onPressed: _hasSelectionFilters
                       ? null
                       : () => setState(() {
@@ -1231,7 +1228,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   iconSize: 20,
                 )
               else
-                const SizedBox(width: 48),
+                const SizedBox(width: 36),
               Expanded(
                 child: ListTile(
                   dense: true,
