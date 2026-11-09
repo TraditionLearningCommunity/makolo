@@ -20,23 +20,25 @@
       <div class="mt-4 flex justify-end"><i data-lucide="chevron-right" class="h-5 w-5" aria-hidden="true"></i></div>
     </a>
 
-    <div class="mk-panel p-5" aria-label="Mes preuves">
+    <a href="{% url 'trust:my-proofs' %}" class="mk-panel block p-5 transition hover:-translate-y-0.5" aria-label="Mes preuves">
       <div class="flex items-start justify-between gap-3">
         <i data-lucide="circle-check" class="h-6 w-6" aria-hidden="true"></i>
         <span class="mk-badge">{{ proof_count }}</span>
       </div>
       <h2 class="mt-5 text-lg font-extrabold">Mes preuves</h2>
       <p class="mt-1 text-sm" style="color:var(--mk-muted)">Participations et faits attestés</p>
-    </div>
+      <div class="mt-4 flex justify-end"><i data-lucide="chevron-right" class="h-5 w-5" aria-hidden="true"></i></div>
+    </a>
 
-    <div class="mk-panel p-5" aria-label="Mes titres">
+    <a href="{% url 'trust:my-credentials' %}" class="mk-panel block p-5 transition hover:-translate-y-0.5" aria-label="Mes titres">
       <div class="flex items-start justify-between gap-3">
         <i data-lucide="badge-check" class="h-6 w-6" aria-hidden="true"></i>
         <span class="mk-badge">{{ credential_count }}</span>
       </div>
       <h2 class="mt-5 text-lg font-extrabold">Mes titres</h2>
       <p class="mt-1 text-sm" style="color:var(--mk-muted)">Attestations et certificats délivrés</p>
-    </div>
+      <div class="mt-4 flex justify-end"><i data-lucide="chevron-right" class="h-5 w-5" aria-hidden="true"></i></div>
+    </a>
   </section>
 </div>
 {% endblock %}
