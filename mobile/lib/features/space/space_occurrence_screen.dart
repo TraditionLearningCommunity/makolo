@@ -197,7 +197,9 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
               );
           final syncVisual = SyncStatusScope.maybeOf(context)?.state;
           final offline = syncVisual == SyncVisualState.offline ||
-              syncVisual == SyncVisualState.failed;
+                syncVisual == SyncVisualState.failed ||
+                syncVisual == SyncVisualState.conflict ||
+                syncVisual == SyncVisualState.stale;
           final actionsAllowed = OccurrenceContinuity.canOfferActions(
             sourceInvalidated: state.invalidated,
             reachability: state.reachability,
