@@ -57,8 +57,11 @@
         <p class="font-semibold">Mon accès · {{ access.state }}</p>
         <p class="mt-1 text-sm" style="color:var(--mk-muted)">{% if access.usable %}Accès utilisable{% else %}À vérifier{% endif %}</p>
         <div class="mt-3 flex flex-wrap gap-2">
-          {% if access.credential.presentable and access.links.credential %}<a class="mk-action-button" data-variant="secondary" href="{{ access.links.credential }}">Présenter mon justificatif</a>{% endif %}
-          {% if access.links.detail %}<a class="mk-action-button" data-variant="secondary" href="{{ access.links.detail }}">Détail du droit</a>{% endif %}
+          {% if access.links.detail %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-access-detail' access.identity.id %}">
+            {% if access.credential.presentable %}Présenter mon QR{% else %}Voir mon accès{% endif %}
+          </a>
+          {% endif %}
         </div>
       </div>
       {% empty %}
