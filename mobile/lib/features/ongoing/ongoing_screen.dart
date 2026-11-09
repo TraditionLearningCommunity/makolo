@@ -181,7 +181,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               ),
               empty: MakoloEmptyState(
                 title: 'Impossible d’afficher ce qui est en cours.',
-                body: 'Vos informations ne sont pas encore disponibles sur cet appareil.',
+                body: 'Actualisez pour retrouver vos démarches.',
               ),
               content: SizedBox.shrink(),
             );
