@@ -454,9 +454,7 @@ class _ConversationAttachmentViewerState
       child: Scaffold(
         appBar: AppBar(
           title: Text(
-            galleryLength > 1
-                ? '$title · ${_index + 1}/$galleryLength'
-                : title,
+            galleryLength > 1 ? '$title · ${_index + 1}/$galleryLength' : title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
