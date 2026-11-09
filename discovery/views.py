@@ -605,6 +605,8 @@ class DiscoveryHomeView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        space = getattr(self, "space", None)
+        context["discovery_space"] = space is not None
         context["discovery_base_template"] = (
             "base/app.html"
             if self.request.user.is_authenticated
@@ -616,6 +618,7 @@ class DiscoveryHomeView(TemplateView):
             data = paginated_projection(
                 self.request.GET,
                 profile=self.request.user,
+                space=space,
                 include_internal_rows=True,
             )
         except ValidationError as exc:
