@@ -1398,6 +1398,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       for (final entry in entries)
         if (entry.point.clientReference != null) entry.point.clientReference!,
       for (final entry in entries) ...entry.point.exchangeReferences,
+      // An owner-confirmed Point can fall outside the recent 40-item window
+      // while still appearing in the legacy active/essential projections.
+      for (final point in [
+        ...detail.points, ...detail.essential, ...detail.elsewhere,
+        if (detail.focusedPoint != null) detail.focusedPoint!,
+      ])
+        if (point.clientReference != null) point.clientReference!,
     };
     final visibleOutgoing = [
       for (final intent in outgoing)
