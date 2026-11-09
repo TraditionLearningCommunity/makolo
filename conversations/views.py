@@ -27,6 +27,7 @@ from .point_services import (
 )
 from .history import page_points_for_profile
 from .timeline import recent_timeline_for_profile, group_timeline_points
+from .attention_projection import conversation_attention_sections
 from .participant_services import collective_invitation_inbox
 from .presentation import (
     catch_up_summary,
@@ -164,6 +165,7 @@ class ConversationDetailView(ConversationInlineMediaPolicyMixin, ConversationAcc
                 "conversation": conversation,
                 "context_label": conversation_context_label(conversation, self.request.user),
                 "timeline_groups": timeline_groups,
+                "attention": conversation_attention_sections(self.request.user, conversation),
                 "timeline_older_query": older_query,
                 "focused_point": focused_point,
                 "q": q,
