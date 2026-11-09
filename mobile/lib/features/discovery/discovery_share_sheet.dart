@@ -364,6 +364,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
       tooltip: 'Partager l’opportunité',
       enabled: widget.enabled && !_busy,
       onSelected: _selectAction,
+      icon: widget.iconOnly
+          ? Icon(_busy ? Icons.hourglass_top_rounded : Icons.share_outlined)
+          : null,
       itemBuilder: (_) => [
         if (widget.authenticated || widget.onSignIn != null)
           PopupMenuItem(
@@ -378,7 +381,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
         PopupMenuItem(value: 'copy', child: Text('Copier le lien')),
         PopupMenuItem(value: 'qr', child: Text('Afficher le QR')),
       ],
-      child: Column(
+      child: widget.iconOnly
+          ? null
+          : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_busy)
