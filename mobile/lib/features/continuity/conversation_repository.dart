@@ -572,6 +572,75 @@ class ConversationRepository {
     return payload;
   }
 
+  /// Publish one semantic Point with all its authorized media in a single
+  /// server transaction. Unlike a text-only Point, media bytes require an
+  /// active transfer; the caller keeps the draft if this cannot finish.
+  Future<String> publishSemanticPointWithMedia({
+    required String conversationId,
+    required String clientReference,
+    required String kind,
+    required String title,
+    required String body,
+    required List<String> options,
+    required bool multipleChoice,
+    required List<Map<String, dynamic>> media,
+    String? audienceId,
+    String? representedSpaceId,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion nécessaire pour envoyer ces médias.');
+    }
+    if (media.isEmpty || media.length > 24) {
+      throw const FormatException('Nombre de médias invalide.');
+    }
+    final manifest = <Map<String, dynamic>>[];
+    final files = <MakoloUploadFile>[];
+    for (var i = 0; i < media.length; i++) {
+      final item = media[i];
+      final path = item['path']?.toString() ?? '';
+      final filename = item['filename']?.toString() ?? '';
+      final mediaKind = item['kind']?.toString() ?? '';
+      if (path.isEmpty || filename.isEmpty) {
+        throw const FormatException('Pièce jointe incomplète.');
+      }
+      final field = 'media_$i';
+      manifest.add({
+        'field': field,
+        'scope': item['scope'],
+        if (item['scope'] == 'option') 'option_index': item['option_index'],
+        'kind': mediaKind,
+        'caption': item['caption']?.toString() ?? '',
+        'mime_type': mediaMime(filename, mediaKind),
+      });
+      files.add(MakoloUploadFile(
+        fieldName: field, path: path, filename: filename,
+      ));
+    }
+    final response = await engine.api.upload(
+      'api/v1/conversations/$conversationId/semantic-media/',
+      fields: {
+        'client_reference': clientReference,
+        'kind': kind,
+        'title': title,
+        'body': body,
+        'options': jsonEncode(options),
+        'multiple_choice': multipleChoice ? 'true' : 'false',
+        'media_manifest': jsonEncode(manifest),
+        'audience_id': audienceId,
+        'represented_space_id': representedSpaceId,
+      },
+      files: files,
+    );
+    final payload = response.jsonObject();
+    final pointId = payload['point_id']?.toString() ?? '';
+    if (pointId.isEmpty || payload['attachments'] is! List) {
+      throw const FormatException('Point ou médias non confirmés.');
+    }
+    await _refreshPublished(conversationId);
+    return pointId;
+  }
+
   Future<Map<String, dynamic>> respondWithMedia({
     required String conversationId,
     required String pointId,
