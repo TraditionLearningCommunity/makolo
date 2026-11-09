@@ -20,6 +20,7 @@ from .attention import has_conversation_attention
 from .point_interactions import point_interactions_for_profile
 from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
+from .timeline import recent_timeline_for_profile, timeline_presentation
 from .composing import can_ensure_context_conversation, composer_capabilities, contribute_text, publish_composed_point
 from .core_models import Conversation, ConversationContext, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
@@ -89,6 +90,7 @@ def _resolution_summary(point, profile):
 
 def _serialize_point(point, *, profile, reason=None, section=None):
     interactions = point_interactions_for_profile(profile, point)
+    timeline_state = timeline_presentation(profile, point, interactions=interactions)
     linked_form = form_request_for_profile(point, profile) if point.kind == "form_request" else None
     prior = point.supersedes if point.supersedes_id else None
     successor = (
@@ -130,6 +132,8 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         },
         "response_mode": point.response_mode,
         "lifecycle": point.lifecycle,
+        "timeline_compact": timeline_state["compact"],
+        "timeline_summary": timeline_state["summary"],
         "response_status": point_personal_result(profile, point),
         "my_response": interactions["my_response"],
         "response_hint": interactions["response_hint"],
@@ -424,6 +428,9 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
             if focused and point_visible_to(request.user, focused):
                 if focused.pk not in seen:
                     focused_point = _serialize_point(focused, profile=request.user, section="focus")
+        timeline = recent_timeline_for_profile(request.user, conversation)
+        if focused_point and any(point.pk == focused_point["id"] for point in timeline["points"]):
+            focused_point = None
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
         return Response({
@@ -445,6 +452,11 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 for point in elsewhere
             ],
             "focused_point": focused_point,
+            "timeline": [
+                _serialize_point(point, profile=request.user, section="timeline")
+                for point in timeline["points"]
+            ],
+            "timeline_next_cursor": timeline["next_cursor"],
             "composer": composer_capabilities(request.user, conversation),
             "personal_state": {
                 "muted": bool(state and state.muted_at),
