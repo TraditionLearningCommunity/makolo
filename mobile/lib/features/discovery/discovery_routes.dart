@@ -24,6 +24,13 @@ DiscoveryQuery? _routeQuery(Map<String, String> params, AppRuntime runtime) {
   }
 }
 
+String _contextualItemRoute(String family, String id, DiscoveryQuery query) => Uri(
+  path: '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
+  queryParameters: query.isSpace
+      ? {'context': 'space', 'space': query.spaceSlug!}
+      : null,
+).toString();
+
 StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
     GoRoute(
@@ -78,7 +85,9 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         location: runtime.location,
         geoSearch: runtime.geoSearch,
         onOpenActivity: (id) => context.push('/activities/$id'),
-        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
+        onOpenItem: (family, id) => context.push(
+          _contextualItemRoute(family, id, query),
+        ),
       );
     },
   ),
@@ -113,7 +122,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
         onOpenItem: (family, id) async {
           await context.push<void>(
-            '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
+            _contextualItemRoute(family, id, query),
           );
         },
       );
