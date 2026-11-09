@@ -50,6 +50,27 @@ class ProjectCreateForm(forms.Form):
 
 
 
+class ProjectAuthorityGrantForm(forms.Form):
+    email = forms.EmailField(label="Adresse e-mail Makolo exacte")
+    role = forms.ModelChoiceField(
+        label="Niveau d'accès",
+        queryset=Role.objects.filter(
+            scope_type=AuthorityScope.PROJECT,
+            is_system=True, is_active=True,
+        ).order_by("name"),
+    )
+
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        matches = list(User.objects.filter(
+            email__iexact=email, is_active=True,
+        ).order_by("pk")[:2])
+        if len(matches) != 1:
+            raise forms.ValidationError("Le compte Makolo est introuvable ou ambigu.")
+        self.profile = matches[0]
+        return email
+
+
 class ProjectEditForm(forms.Form):
     title = forms.CharField(label="Nom du Projet", max_length=220)
     description = forms.CharField(
