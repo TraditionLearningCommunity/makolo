@@ -128,7 +128,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     _ResourceVersion version,
   ) async {
     final path = version.downloadPath;
-    if (path == null || _downloading) return;
+    if (path == null || _downloading || _sharing) return;
     setState(() {
       _downloading = true;
       _downloadProgress = null;
@@ -184,7 +184,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     _ResourceVersion version,
   ) async {
     final path = version.downloadPath;
-    if (path == null || _sharing) return;
+    if (path == null || _sharing || _downloading) return;
     setState(() {
       _sharing = true;
       _downloadProgress = null;
@@ -315,7 +315,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 MakoloIconActionButton(
                   tooltip: 'Télécharger',
                   icon: Icons.download_rounded,
-                  onPressed: _downloading
+                  onPressed: _downloading || _sharing
                       ? null
                       : () => _download(detail!, detail.currentVersion!),
                 ),
@@ -323,7 +323,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                 MakoloIconActionButton(
                   tooltip: 'Partager',
                   icon: Icons.send_outlined,
-                  onPressed: _sharing
+                  onPressed: _sharing || _downloading
                       ? null
                       : () => _share(detail!, detail.currentVersion!),
                 ),
