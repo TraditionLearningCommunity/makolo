@@ -188,9 +188,8 @@ class ConversationPointShell extends StatelessWidget {
   }
 }
 
-/// A private attachment is rendered as a recognizable media entry, not loaded
-/// from an untrusted URL or eagerly downloaded in the timeline. Opening it
-/// delegates to the authenticated owner-backed viewer.
+/// A private media entry. Inline controls remain independently interactive;
+/// opening the detail viewer is always a separate explicit action.
 class ConversationPointMediaTile extends StatelessWidget {
   const ConversationPointMediaTile({
     super.key,
@@ -212,67 +211,48 @@ class ConversationPointMediaTile extends StatelessWidget {
     final (IconData icon, String title) = switch (kind) {
       'image' => (Icons.image_outlined, 'Photo'),
       'video' => (Icons.play_circle_outline_rounded, 'Vidéo'),
-      'voice' || 'audio' => (Icons.graphic_eq_rounded, 'Message vocal'),
-      _ when mime == 'application/pdf' => (
-        Icons.picture_as_pdf_outlined,
-        'Document PDF',
-      ),
+      'voice' => (Icons.graphic_eq_rounded, 'Note vocale'),
+      'audio' => (Icons.headphones_outlined, 'Audio'),
+      _ when mime == 'application/pdf' =>
+        (Icons.picture_as_pdf_outlined, 'Document PDF'),
       _ => (Icons.insert_drive_file_outlined, 'Document'),
     };
+    final caption = attachment['caption']?.toString().trim();
     return Padding(
       padding: const EdgeInsets.only(top: MakoloSpacing.sm),
       child: Material(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onOpen,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(MakoloSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (preview != null)
-                  preview!
-                else
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.09),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(icon, size: 26, color: scheme.primary),
-                      ),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Expanded(child: Text(title, style: theme.labelMedium)),
-                      if (onOpen != null)
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                    ],
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (preview != null)
+                preview!
+              else
+                Row(
+                  children: [
+                    Icon(icon, color: scheme.primary, size: 28),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Expanded(child: Text(title, style: theme.labelMedium)),
+                  ],
+                ),
+              if (caption != null && caption.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(caption, style: theme.bodySmall),
+                ),
+              if (onOpen != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: onOpen,
+                    icon: const Icon(Icons.open_in_full_rounded, size: 17),
+                    label: Text(preview == null ? 'Ouvrir' : 'Voir en détail'),
                   ),
-                if (preview != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Row(
-                      children: [
-                        Text(title, style: theme.labelSmall),
-                        const Spacer(),
-                        if (onOpen != null)
-                          Icon(
-                            Icons.open_in_full_rounded,
-                            size: 16,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),
