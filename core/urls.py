@@ -6,6 +6,7 @@ from .home_views import MatureParticipantHomeView
 from .transverse_search_web import PersonalSearchWebView
 from .interoperability_views import PersonalConnectionsView
 from .m8c_participant_views import ParticipantJourneyDetailView
+from .occurrence_scanner_web import PersonalOccurrenceScannerView
 from .occurrence_experience_web import (
     PersonalOccurrenceDayOfView,
     PersonalOccurrenceDepthView,
@@ -68,6 +69,11 @@ urlpatterns = [
         "me/occurrences/<uuid:pk>/depth/<str:kind>/",
         PersonalOccurrenceDepthView.as_view(),
         name="participant-occurrence-depth",
+    ),
+    path(
+        "me/occurrences/<uuid:pk>/scanner/",
+        PersonalOccurrenceScannerView.as_view(),
+        name="participant-occurrence-scanner",
     ),
     path("me/accesses/", ParticipantAccessListView.as_view(), name="participant-accesses"),
     path(
