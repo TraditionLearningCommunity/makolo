@@ -2503,6 +2503,12 @@ class _ConversationPoint {
     this.responseMedia = const [],
     this.formRequest,
     this.responseStatus = const {},
+    this.myResponse = const {},
+    this.pollResults = const {},
+    this.canAcknowledge = false,
+    this.acknowledged = false,
+    this.canCloseResponses = false,
+    this.canResolve = false,
     this.canChangeResponse = false,
     this.replacedByPointId,
     this.authorLabel,
@@ -2541,6 +2547,12 @@ class _ConversationPoint {
   final List<Map<String, dynamic>> responseMedia;
   final Map<String, dynamic>? formRequest;
   final Map<String, dynamic> responseStatus;
+  final Map<String, dynamic> myResponse;
+  final Map<String, dynamic> pollResults;
+  final bool canAcknowledge;
+  final bool acknowledged;
+  final bool canCloseResponses;
+  final bool canResolve;
   final bool canChangeResponse;
   final String? replacedByPointId;
 
@@ -2548,6 +2560,34 @@ class _ConversationPoint {
   int? get responseCount => responseStatus['response_count'] is num
       ? (responseStatus['response_count'] as num).toInt()
       : null;
+
+  Set<String> get mySelectedOptions {
+    final value = myResponse['value'];
+    if (value is List) return value.map((item) => item.toString()).toSet();
+    return value == null ? <String>{} : {value.toString()};
+  }
+
+  int? pollCountFor(String optionId) {
+    final count = _map(pollResults['counts'])[optionId];
+    return count is num ? count.toInt() : null;
+  }
+
+  String? get myResponseLabel {
+    if (!myResponse.containsKey('value')) return null;
+    final value = myResponse['value'];
+    if (responseMode == 'single_choice' || responseMode == 'multiple_choice') {
+      final selected = mySelectedOptions;
+      return options.where((option) => selected.contains(option.id))
+          .map((option) => option.label).join(', ');
+    }
+    if (value is bool) {
+      if (kind == 'request') {
+        return value ? 'Je m’en charge' : 'Je ne peux pas';
+      }
+      return value ? 'Oui' : 'Non';
+    }
+    return value?.toString();
+  }
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -2609,6 +2649,12 @@ class _ConversationPoint {
           ? null
           : _map(row['form_request']),
       responseStatus: _map(row['response_status']),
+      myResponse: _map(row['my_response']),
+      pollResults: _map(row['poll_results']),
+      canAcknowledge: row['can_acknowledge'] == true,
+      acknowledged: row['acknowledged'] == true,
+      canCloseResponses: row['can_close_responses'] == true,
+      canResolve: row['can_resolve'] == true,
       canChangeResponse: row['can_change_response'] == true,
       replacedByPointId: _string(row['replaced_by_point_id']),
       exchangePreview: _maps(row['exchange_preview']),
