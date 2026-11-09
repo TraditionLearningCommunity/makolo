@@ -597,6 +597,7 @@ class ResourceRepository {
     required String title,
     required int versionNumber,
     required bool retainOfflineCopy,
+    String? fileExtension,
     TransferProgress? onProgress,
   }) async {
     if (retainOfflineCopy) {
@@ -620,10 +621,14 @@ class ResourceRepository {
       throw StateError('Resource owner permission withdrawn');
     }
     final staging = await ProfilePaths.stagingFiles(profileId);
+    final safeExtension = (fileExtension ?? '')
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final suffix = safeExtension.isEmpty ? '' : '.$safeExtension';
     final destination = p.join(
       staging.path,
       'resource-export-${ProfilePaths.safeProfileId(assetId)}-'
-      'v$versionNumber-${DateTime.now().toUtc().microsecondsSinceEpoch}',
+      'v$versionNumber-${DateTime.now().toUtc().microsecondsSinceEpoch}'
+      '$suffix',
     );
     try {
       await downloadVersion(
