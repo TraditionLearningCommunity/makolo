@@ -72,7 +72,7 @@ def build_organizer_page(profile, *, limit=50, offset=0):
             "kind": "project", "id": str(project.pk), "title": project.title,
             "description": project.description or "",
             "state": project.lifecycle,
-            "relation": "mine" if project.owner_profile_id == profile.pk else "space",
+            "relation": "mine" if project.owner_profile_id == profile.pk else "space" if space is not None else "shared",
             "space": {"name": space.name, "slug": space.slug} if space else None,
             "created_at": _iso(project.created_at),
             "updated_at": _iso(project.updated_at),
