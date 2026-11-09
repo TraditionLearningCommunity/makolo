@@ -50,6 +50,11 @@ def main(argv=None):
     from sharing.services import create_activity_share
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
+    from .schema import DemoSchemaNotReady, assert_demo_schema_ready
+    try:
+        assert_demo_schema_ready()
+    except DemoSchemaNotReady as exc:
+        p.error(str(exc))
     from .selection import demo_profiles
     from .editorial import group_name
     from .objectives import generate as generate_objectives
