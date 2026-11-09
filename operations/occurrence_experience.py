@@ -98,9 +98,20 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at, a
         from organizations.models import Organization
 
         selected_space = Organization.objects.filter(pk=actor_space_id).first()
-        if selected_space is None or not effective_permission_codes(
+        if selected_space is None:
+            return None
+        space_authority = effective_permission_codes(
             viewer, space=selected_space, include_platform=False,
-        ):
+        )
+        # An Activity-scoped operator can act for the owning Space without
+        # holding a global Space mandate (e.g. scanner, local operations).
+        activity_authority = (
+            effective_permission_codes(
+                viewer, activity=occurrence.activity, include_platform=False,
+            )
+            if occurrence.activity.space_id == selected_space.pk else set()
+        )
+        if not space_authority and not activity_authority:
             return None
 
     phase = occurrence_live_phase(occurrence, now=observed_at)
