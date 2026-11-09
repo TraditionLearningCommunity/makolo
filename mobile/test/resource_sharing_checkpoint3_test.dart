@@ -23,6 +23,16 @@ class _ShareResourceRepository extends ResourceRepository {
   String? requestedExtension;
 
   @override
+  Future<ResourceSourceState> readDetailSource(String assetId) async =>
+      ResourceSourceState(lastSuccessAt: DateTime.now().toUtc());
+
+  @override
+  Stream<ResourceSourceState> watchDetailSource(String assetId) =>
+      Stream.value(
+        ResourceSourceState(lastSuccessAt: DateTime.now().toUtc()),
+      );
+
+  @override
   Future<String> downloadVersionForExplicitExport({
     required String path,
     required String assetId,
