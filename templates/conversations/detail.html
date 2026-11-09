@@ -56,7 +56,7 @@
         <h2 id="conversation-timeline-heading" class="text-lg font-extrabold">Conversation</h2>
         <p class="mt-1 text-xs" style="color:var(--mk-muted)">Fil chronologique · les plus anciens en haut, les plus récents en bas. Les Points terminés sont repliables à leur place.</p>
       </div>
-      <a href="#conversation-compose" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
+      <a href="#conversation-latest" class="text-sm font-semibold" style="color:var(--mk-brand)">Derniers échanges ↓</a>
     </div>
     {% if timeline_older_query %}
       <a class="mb-5 inline-flex min-h-11 items-center rounded-xl border px-4 text-sm font-semibold" style="border-color:var(--mk-border);color:var(--mk-brand)" href="{% url 'conversations:history' conversation.pk %}?{{ timeline_older_query }}">Voir les Points précédents</a>
@@ -73,6 +73,7 @@
         <p class="rounded-xl border p-4 text-sm" style="border-color:var(--mk-border);color:var(--mk-muted)">Aucun Point accessible pour le moment.</p>
       {% endfor %}
     </div>
+    <span id="conversation-latest" tabindex="-1" class="block scroll-mt-20"></span>
   </section>
 
   {% if composer.text_mode or composer.can_create or composer.can_form or composer.media_kinds %}
