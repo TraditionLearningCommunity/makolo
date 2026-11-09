@@ -28,6 +28,33 @@
     const next = dialog.querySelector("[data-media-dialog-next]");
     let index = 0;
 
+    // Keep photo/video collections compact without hiding audio, PDF or other
+    // documents that should remain readable directly in the conversation.
+    const visualItems = items.filter((item) =>
+      item.dataset.mediaKind === "image" || item.dataset.mediaKind === "video");
+    if (visualItems.length > 4) {
+      for (const item of visualItems.slice(4)) item.hidden = true;
+      const lastVisible = visualItems[3];
+      lastVisible.style.position = "relative";
+      const more = document.createElement("button");
+      more.type = "button";
+      more.setAttribute("data-conversation-media-open", "");
+      more.setAttribute("aria-label", "Voir les autres médias");
+      more.textContent = "+" + (visualItems.length - 3);
+      Object.assign(more.style, {
+        position: "absolute",
+        inset: "0",
+        background: "rgba(0,0,0,.6)",
+        color: "white",
+        fontWeight: "700",
+        fontSize: "1.6rem",
+        width: "100%",
+        height: "100%",
+        borderRadius: "0.75rem",
+      });
+      lastVisible.append(more);
+    }
+
     function show(indexToShow) {
       index = Math.max(0, Math.min(items.length - 1, indexToShow));
       const item = items[index];
