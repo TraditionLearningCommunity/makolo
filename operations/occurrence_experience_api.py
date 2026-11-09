@@ -23,11 +23,19 @@ class _OccurrenceExperienceAPIView(APIView):
             .prefetch_related("place_links__place"),
             pk=occurrence_id,
         )
+        actor_space_id = request.query_params.get("actor_space")
+        if actor_space_id:
+            from uuid import UUID
+            try:
+                actor_space_id = UUID(actor_space_id)
+            except (ValueError, TypeError, AttributeError):
+                raise NotFound()
         data = resolve_occurrence_experience(
             occurrence=occurrence,
             viewer=request.user,
             surface=self.surface,
             observed_at=now,
+            actor_space_id=actor_space_id,
         )
         if data is None:
             raise NotFound()
