@@ -33,6 +33,12 @@ from .passport_visibility_views import PersonalPassportVisibilityAPIView
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
 from .now_media_views import PersonalNowJourneyArtifactMediaAPIView
 from .z9_views import PersonalPartnerDetailAPIView
+from .trust_resources_views import (
+    PersonalProofDetailAPIView,
+    PersonalProofsAPIView,
+    PersonalTitleDetailAPIView,
+    PersonalTitlesAPIView,
+)
 from .z8_views import (
     PersonalGroupDetailAPIView,
     PersonalResourceArchiveAPIView,
@@ -109,6 +115,27 @@ urlpatterns = [
         PersonalResourcesAPIView.as_view(),
         name="resources",
     ),
+    path(
+        "proofs/",
+        PersonalProofsAPIView.as_view(),
+        name="proofs",
+    ),
+    path(
+        "proofs/<uuid:pk>/",
+        PersonalProofDetailAPIView.as_view(),
+        name="proof-detail",
+    ),
+    path(
+        "titles/",
+        PersonalTitlesAPIView.as_view(),
+        name="titles",
+    ),
+    path(
+        "titles/<uuid:pk>/",
+        PersonalTitleDetailAPIView.as_view(),
+        name="title-detail",
+    ),
+
     path(
         "resources/create/",
         PersonalResourceCreateAPIView.as_view(),
