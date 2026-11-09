@@ -306,7 +306,8 @@ class _TrustResourceDetailScreenState
                               ],
                             ),
                           ),
-                          if (widget.onOpenPassport != null ||
+                          if ((widget.onOpenPassport != null &&
+                                  detail.passportPath != null) ||
                               detail.journeyId != null) ...[
                             const SizedBox(height: MakoloSpacing.md),
                             Wrap(
@@ -314,7 +315,8 @@ class _TrustResourceDetailScreenState
                               spacing: MakoloSpacing.sm,
                               runSpacing: MakoloSpacing.sm,
                               children: [
-                                if (widget.onOpenPassport != null)
+                                if (widget.onOpenPassport != null &&
+                                    detail.passportPath != null)
                                   MakoloActionButton(
                                     label: 'Passeport',
                                     icon: Icons.badge_outlined,
@@ -392,6 +394,7 @@ class _TrustDetail {
     required this.revokeReason,
     required this.journeyId,
     required this.verifyPath,
+    required this.passportPath,
   });
 
   final String title;
@@ -406,6 +409,7 @@ class _TrustDetail {
   final String? revokeReason;
   final String? journeyId;
   final String? verifyPath;
+  final String? passportPath;
 
   factory _TrustDetail.fromPayload(
     TrustResourceFamily family,
@@ -441,6 +445,7 @@ class _TrustDetail {
       revokeReason: _string(revocation['reason']),
       journeyId: _string(journey['id']),
       verifyPath: _string(links['verify']),
+      passportPath: _string(links['passport']),
     );
   }
 
