@@ -542,3 +542,30 @@ def attach_occurrence_place(*, occurrence: Occurrence, place, role=OccurrencePla
         link.position = position
         link.save(update_fields=["position", "updated_at"])
     return link
+
+@transaction.atomic
+def set_occurrence_live_enabled(*, occurrence, actor, enabled):
+    """Opt-in Live on one Occurrence, with owner authority checked on every change."""
+    from django.core.exceptions import PermissionDenied
+    from authorization.constants import PermissionCode
+    from authorization.services import can
+
+    if not isinstance(enabled, bool):
+        raise ValidationError({"enabled": "Valeur booléenne attendue."})
+    activity = occurrence.activity
+    authorized = can(
+        actor, PermissionCode.ACTIVITY_MANAGE,
+        activity=activity, include_platform=False,
+    ) or bool(
+        activity.space_id and can(
+            actor, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+            activity.space, include_platform=False,
+        )
+    )
+    if not authorized:
+        raise PermissionDenied("Vous ne pouvez pas configurer Makolo Live pour cette Occurrence.")
+    current = Occurrence.objects.select_for_update().get(pk=occurrence.pk)
+    if current.live_enabled != enabled:
+        current.live_enabled = enabled
+        current.save(update_fields=["live_enabled", "updated_at"])
+    return current
