@@ -49,6 +49,15 @@ final class OccurrenceContinuity {
     return end != null && !now.toUtc().isBefore(end.toUtc());
   }
 
+  /// After switching actor, never revive a previous privileged snapshot
+  /// before a successful owner reconciliation for that newly active context.
+  static bool verifiedAfterActorSwitch({
+    required DateTime? lastSuccessAt,
+    required DateTime? actorSwitchedAt,
+  }) => actorSwitchedAt == null ||
+      (lastSuccessAt != null &&
+          !lastSuccessAt.toUtc().isBefore(actorSwitchedAt.toUtc()));
+
   static bool canOfferActions({
     required bool sourceInvalidated,
     required ReachabilityState reachability,
