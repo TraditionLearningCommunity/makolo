@@ -2219,7 +2219,15 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       widget.family, widget.id, actorQuery: widget.actorQuery,
     );
     final state = await widget.repository.readSource(source);
+    // First materialize admitted N1 facts into the same actor-scoped N3
+    // snapshot. Offline reading is allowed; actions still require owner
+    // verification by a successful detail response.
+    await repository.readItem(
+      widget.family, widget.id, actorQuery: widget.actorQuery,
+    );
     final reusable = state.lastSuccessAt != null &&
+        !state.invalidated &&
+        state.lastErrorCode == null &&
         await repository.hasReusableItem(
           widget.family, widget.id, actorQuery: widget.actorQuery,
         );
