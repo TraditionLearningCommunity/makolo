@@ -353,7 +353,7 @@ class _MeHubState extends State<MeHub> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _organizerEntry(context),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
@@ -370,7 +370,7 @@ class _MeHubState extends State<MeHub> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           if (_layout == MakoloTerritoryLayout.list)
             Column(
               key: const Key('me-navigation-list'),
@@ -462,6 +462,9 @@ class _MeHubListEntry extends StatelessWidget {
       color: scheme.primary,
     ),
     onOpen: canNavigate ? onOpen : null,
+    bottomSpacing: 6,
+    headerVerticalPadding: 12,
+    previewVerticalPadding: 5,
     previews: [
       for (final item in entry.previews.take(3))
         MakoloTerritoryPreview(
