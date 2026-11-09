@@ -2142,12 +2142,14 @@ class DiscoveryItemDetailScreen extends StatefulWidget {
     required this.family,
     required this.id,
     required this.repository,
+    this.actorQuery = const DiscoveryQuery(),
     this.authenticated = false,
   });
 
   final String family;
   final String id;
   final bool authenticated;
+  final DiscoveryQuery actorQuery;
   final DiscoveryRepository repository;
 
   @override
@@ -2167,12 +2169,17 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
   void _bindSources() {
     _ownerStream = widget.repository.watchSource(
-      widget.repository.itemSource(widget.family, widget.id),
+      widget.repository.itemSource(
+        widget.family, widget.id, actorQuery: widget.actorQuery,
+      ),
     );
-    _itemStream = widget.repository.watchItem(widget.family, widget.id);
+    _itemStream = widget.repository.watchItem(
+      widget.family, widget.id, actorQuery: widget.actorQuery,
+    );
   }
 
-  String get _itemKey => '${widget.family}:${widget.id}';
+  String get _itemKey =>
+      '${widget.actorQuery.spaceId ?? 'personal'}:${widget.family}:${widget.id}';
 
   @override
   void initState() {
@@ -2186,6 +2193,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.family != widget.family ||
         oldWidget.id != widget.id ||
+        oldWidget.actorQuery.spaceId != widget.actorQuery.spaceId ||
         oldWidget.repository != widget.repository) {
       // A detail for another family/resource may never inherit N2 authority.
       ++_generation;
@@ -2207,7 +2215,14 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   Future<void> _acquire() async {
     final key = _itemKey;
     final repository = widget.repository;
-    final reusable = await repository.hasReusableItem(widget.family, widget.id);
+    final source = widget.repository.itemSource(
+      widget.family, widget.id, actorQuery: widget.actorQuery,
+    );
+    final state = await widget.repository.readSource(source);
+    final reusable = state.lastSuccessAt != null &&
+        await repository.hasReusableItem(
+          widget.family, widget.id, actorQuery: widget.actorQuery,
+        );
     if (!mounted ||
         key != _itemKey ||
         !identical(repository, widget.repository)) {
@@ -2233,9 +2248,13 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       _verifiedItemKey = null;
     });
     try {
-      await widget.repository.refreshItem(family, id);
+      await widget.repository.refreshItem(
+        family, id, actorQuery: widget.actorQuery,
+      );
       final state = await widget.repository.readSource(
-        widget.repository.itemSource(family, id),
+        widget.repository.itemSource(
+          family, id, actorQuery: widget.actorQuery,
+        ),
       );
       if (!mounted || generation != _generation || key != _itemKey) return;
       if (state.lastErrorCode == null &&
@@ -2243,7 +2262,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
           !state.lastSuccessAt!.isBefore(startedAt) &&
           !state.invalidated) {
         // The owner confirmed the current item, not merely a success stamp.
-        final projection = await widget.repository.readItem(family, id);
+        final projection = await widget.repository.readItem(
+          family, id, actorQuery: widget.actorQuery,
+        );
         final detail = _selector.detail(projection);
         if (mounted &&
             generation == _generation &&
@@ -2268,6 +2289,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   Future<void> _setSaved(bool saved) async {
     final key = _itemKey;
     if (!widget.authenticated ||
+        widget.actorQuery.isSpace ||
         _saving ||
         _refreshing ||
         _verifiedItemKey != key) {
@@ -2316,7 +2338,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
         bool needsRefresh = mayChangeOwnerState;
         if (!needsRefresh) {
           try {
-            needsRefresh = !await repository.hasReusableItem(family, id);
+            needsRefresh = !await repository.hasReusableItem(
+              family, id, actorQuery: widget.actorQuery,
+            );
           } on Object {
             needsRefresh = true;
           }
@@ -2390,7 +2414,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                             onRetry: _refresh,
                           )
                   : ListView(
-                      key: const Key('discover-personal-n2'),
+                      key: const Key('discover-possibility-n3'),
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                       children: [
                         Center(
@@ -2400,16 +2424,20 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               key: ValueKey('discover-n2-unit-$_itemKey'),
                               item: item,
                               profileId: widget.repository.profileId,
-                              allowOwnerActions: verified,
+                              allowOwnerActions: verified && !widget.actorQuery.isSpace,
                               detailMode: true,
                               onOpen: () {},
-                              onNativeAction: (path) => unawaited(
+                              onNativeAction: widget.actorQuery.isSpace
+                                  ? null
+                                  : (path) => unawaited(
                                 _openOwnerDepth(
                                   path,
                                   mayChangeOwnerState: true,
                                 ),
                               ),
-                              onOwnerDepth: (path) => unawaited(
+                              onOwnerDepth: widget.actorQuery.isSpace
+                                  ? null
+                                  : (path) => unawaited(
                                 _openOwnerDepth(
                                   path,
                                   mayChangeOwnerState: false,
@@ -2417,6 +2445,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               ),
                               onSave:
                                   widget.authenticated &&
+                                      !widget.actorQuery.isSpace &&
                                       verified &&
                                       !_saving &&
                                       (item.savedState == 'saved'
@@ -2424,12 +2453,51 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                           : item.canSave)
                                   ? () => _setSaved(item!.savedState != 'saved')
                                   : null,
-                              shareApi: widget.repository.api,
-                              shareAuthenticated: widget.authenticated,
+                              shareApi: widget.actorQuery.isSpace
+                                  ? null : widget.repository.api,
+                              shareAuthenticated:
+                                  widget.authenticated && !widget.actorQuery.isSpace,
                               baseUri: widget.repository.api.baseUri,
                             ),
                           ),
                         ),
+                        if (!widget.actorQuery.isSpace && verified &&
+                            item.wire['journey_continuation'] is Map &&
+                            (item.wire['journey_continuation'] as Map)['state'] == 'active')
+                          Builder(
+                            builder: (context) {
+                              final continuation =
+                                  item!.wire['journey_continuation'] as Map;
+                              final resource = continuation['resource'];
+                              final links = continuation['links'];
+                              final journeyId = resource is Map && resource['kind'] == 'journey'
+                                  ? resource['id'] : null;
+                              final path = links is Map ? links['native'] : null;
+                              if (journeyId is! String ||
+                                  journeyId.isEmpty ||
+                                  path != '/journeys/$journeyId') {
+                                return const SizedBox.shrink();
+                              }
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MakoloSpacing.md,
+                                  vertical: MakoloSpacing.sm,
+                                ),
+                                child: MakoloActionButton(
+                                  key: const Key('discover-n3-resume-journey'),
+                                  onPressed: () => unawaited(
+                                    _openOwnerDepth(
+                                      path,
+                                      mayChangeOwnerState: true,
+                                    ),
+                                  ),
+                                  label: 'Reprendre ma démarche',
+                                  appearance: MakoloActionAppearance.primary,
+                                  icon: Icons.route_outlined,
+                                ),
+                              );
+                            },
+                          ),
                         if (discoveryDirectionsDestinations(item).isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(
