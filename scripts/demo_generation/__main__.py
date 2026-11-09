@@ -90,6 +90,7 @@ def build_parser():
     m.add_argument("--edition",type=int,default=1)
     m.add_argument("--grant-roles",action="store_true")
     m.add_argument("--apply",action="store_true")
+    m.add_argument("--backup",action="store_true")
     return p
 
 
@@ -129,6 +130,7 @@ def run(a):
                  "--seed",str(a.seed)]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
         if a.space_id: options.extend(["--space-id",a.space_id])
+        if a.backup: options.append("--backup")
         if a.apply: options.append("--apply")
         rebalance.main(options)
         return
@@ -141,6 +143,7 @@ def run(a):
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
         if a.space_id: options.extend(["--space-id",a.space_id])
         if a.grant_roles: options.append("--grant-roles")
+        if a.backup: options.append("--backup")
         if a.apply: options.append("--apply")
         maintenance.main(options)
         return
