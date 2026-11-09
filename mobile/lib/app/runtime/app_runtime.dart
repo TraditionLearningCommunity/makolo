@@ -14,6 +14,7 @@ import '../../features/preparation/preparation_repository.dart';
 import '../../features/questionnaires/questionnaire_repository.dart';
 import '../../features/questionnaires/questionnaire_submit_coordinator.dart';
 import '../../features/resources/resource_repository.dart';
+import '../../features/resources/trust_resource_repository.dart';
 import '../../features/space/space_repository.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
@@ -64,6 +65,7 @@ class AppRuntime {
     this.requirements,
     this.preparationResources,
     this.resources,
+    this.trustResources,
     this.questionnaires,
     this.drafts,
     this.questionnaireSubmit,
@@ -110,6 +112,7 @@ class AppRuntime {
   final RequirementRepository? requirements;
   final PreparationResourcesRepository? preparationResources;
   final ResourceRepository? resources;
+  final TrustResourceRepository? trustResources;
   final QuestionnaireRepository? questionnaires;
   final DraftRepository? drafts;
   final QuestionnaireSubmitCoordinator? questionnaireSubmit;
