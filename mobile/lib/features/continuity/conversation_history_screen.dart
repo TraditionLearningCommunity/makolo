@@ -135,6 +135,10 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
     final priorQuery = _query;
     final priorSection = _section;
     final cursor = reset ? null : _nextCursor;
+    final previousExtent = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent : 0.0;
+    final previousOffset = _scrollController.hasClients
+        ? _scrollController.offset : 0.0;
     setState(() {
       _loading = true;
       _error = null;
@@ -171,6 +175,22 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
         _nextCursor = payload['next_cursor']?.toString();
         _showingLocal = false;
         _initialAttempted = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _generation ||
+            !_scrollController.hasClients) return;
+        if (reset) {
+          _scrollController.jumpTo(0);
+        } else {
+          final delta = _scrollController.position.maxScrollExtent -
+              previousExtent;
+          _scrollController.jumpTo(
+            (previousOffset + delta).clamp(
+              _scrollController.position.minScrollExtent,
+              _scrollController.position.maxScrollExtent,
+            ).toDouble(),
+          );
+        }
       });
     } on MakoloApiError catch (error) {
       if (!mounted || generation != _generation) return;
