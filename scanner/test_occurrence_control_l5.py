@@ -3,7 +3,6 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from django.urls import reverse
 from django.utils import timezone
 
 from access.models import AccessUse, AccessUseResult, CredentialStatus
@@ -49,11 +48,11 @@ class OccurrenceControlL5Tests(TestCase):
         self.token = render_access_credential(
             self.access.credentials.get(status=CredentialStatus.ACTIVE),
         )
-        self.context_url = reverse(
-            "scanner_api:occurrence-context", args=[self.occurrence.pk],
+        self.context_url = (
+            f"/api/v1/scanner/occurrences/{self.occurrence.pk}/context/"
         )
-        self.scan_url = reverse(
-            "scanner_api:occurrence-control", args=[self.occurrence.pk],
+        self.scan_url = (
+            f"/api/v1/scanner/occurrences/{self.occurrence.pk}/control/"
         )
 
     def test_non_event_scan_consumes_access_once_and_does_not_echo_secret(self):
