@@ -82,6 +82,10 @@ GoRouter createMakoloRouter(
       : '/welcome';
 
   DiscoveryQuery? publicDiscoveryQuery(Map<String, String> parameters) {
+    // Guest routes may never silently reinterpret an explicit Profile or
+    // Space request as a public field.
+    if (parameters.containsKey('context') ||
+        parameters.containsKey('space')) return null;
     try {
       return DiscoveryQuery.fromRouteParameters(parameters);
     } on FormatException {
@@ -296,11 +300,16 @@ GoRouter createMakoloRouter(
         ),
         GoRoute(
           path: '/discover/items/:family/:id',
-          builder: (context, state) => PublicPossibilityDetailScreen(
-            runtime: runtime,
-            family: state.pathParameters['family']!,
-            id: state.pathParameters['id']!,
-          ),
+          builder: (context, state) {
+            if (publicDiscoveryQuery(state.uri.queryParameters) == null) {
+              return invalidDiscoveryRoute();
+            }
+            return PublicPossibilityDetailScreen(
+              runtime: runtime,
+              family: state.pathParameters['family']!,
+              id: state.pathParameters['id']!,
+            );
+          },
         ),
         GoRoute(
           path: '/spaces',
