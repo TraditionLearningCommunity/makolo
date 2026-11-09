@@ -408,4 +408,237 @@ void main() {
       'Owner refresh',
     );
   });
+
+  test(
+    'collection denial withdraws every cached page but keeps independent resource details',
+    () async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'profile-a');
+      final api = _api((request) async => MockResponse(
+        jsonEncode({
+          'error': {'code': 'permission_denied', 'message': 'Denied'},
+        }),
+        403,
+      ));
+      addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: db,
+        profileId: 'profile-a',
+      );
+      final repository = ResourceRepository(
+        database: db,
+        store: store,
+        profileId: 'profile-a',
+        sync: sync,
+        api: api,
+      );
+
+      for (final offset in [0, 24]) {
+        await store.putProjection(
+          kind: ResourceRepository.collectionProjectionKind,
+          resourceKey: repository.collectionResourceKey(
+            query: '',
+            offset: offset,
+          ),
+          schemaVersion: 1,
+          payload: _documentsPayload(['asset-$offset']),
+        );
+      }
+      await store.putProjection(
+        kind: ResourceRepository.detailProjectionKind,
+        resourceKey: 'asset-independent',
+        schemaVersion: 1,
+        payload: {
+          'id': 'asset-independent',
+          'title': 'Détail indépendant',
+        },
+      );
+
+      await repository.refreshCollectionPage(query: '', offset: 0);
+
+      expect(
+        await store.readProjections(ResourceRepository.collectionProjectionKind),
+        isEmpty,
+      );
+      expect(
+        await repository.readDetail('asset-independent'),
+        isNotNull,
+      );
+    },
+  );
+
+  test('generic invalidation preserves a confirmed resource owner tombstone', () async {
+    const deniedId = 'asset-tombstone';
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final api = _api((request) async => MockResponse(
+      jsonEncode({
+        'error': {'code': 'permission_denied', 'message': 'Denied'},
+      }),
+      403,
+    ));
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api,
+      store: store,
+      database: db,
+      profileId: 'profile-a',
+    );
+    final repository = ResourceRepository(
+      database: db,
+      store: store,
+      profileId: 'profile-a',
+      sync: sync,
+      api: api,
+    );
+    final source = repository.detailSourceFor(deniedId);
+
+    await repository.refreshDetail(deniedId);
+    await sync.invalidate(source);
+
+    final row = await (db.select(db.syncSources)..where(
+      (item) =>
+          item.profileId.equals('profile-a') &
+          item.sourceKey.equals(source.sourceKey),
+    )).getSingle();
+    expect(row.invalidated, isTrue);
+    expect(row.lastErrorCode, 'permission_denied');
+  });
+
+  test('Credential denial cannot survive in titles or Moi previews', () async {
+    const deniedId = 'credential-denied';
+    const keptId = 'credential-kept';
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final api = _api((request) async {
+      if (request.url.path == '/api/v1/me/titles/$deniedId/') {
+        return MockResponse(
+          jsonEncode({
+            'error': {'code': 'not_found', 'message': 'Gone'},
+          }),
+          404,
+        );
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api,
+      store: store,
+      database: db,
+      profileId: 'profile-a',
+    );
+    final repository = TrustResourceRepository(
+      database: db,
+      store: store,
+      profileId: 'profile-a',
+      sync: sync,
+      api: api,
+    );
+
+    final titlesKey = repository.collectionResourceKey(
+      family: TrustResourceFamily.titles,
+      query: '',
+      status: 'all',
+      type: '',
+      sort: 'recent',
+      offset: 0,
+    );
+    await store.putProjection(
+      kind: 'personal.titles',
+      resourceKey: titlesKey,
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {'id': deniedId, 'title': 'Ancien titre'},
+          {'id': keptId, 'title': 'Titre conservé'},
+        ],
+        'count': 2,
+        'page': {'offset': 0, 'limit': 24, 'count': 2, 'has_more': false},
+      },
+    );
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: 1,
+      payload: {
+        'resources': {
+          'documents': {'items': <Object>[], 'count': 0},
+          'proofs': {'items': <Object>[], 'count': 0},
+          'credentials': {
+            'items': [
+              {'id': deniedId, 'title': 'Ancien titre'},
+              {'id': keptId, 'title': 'Titre conservé'},
+            ],
+            'count': 2,
+          },
+        },
+      },
+    );
+
+    await repository.refreshDetail(
+      TrustResourceFamily.titles,
+      deniedId,
+    );
+
+    final titles = await store.readProjection(
+      'personal.titles',
+      resourceKey: titlesKey,
+    );
+    expect(
+      (titles!.payload['items'] as List).cast<Map>().map((row) => row['id']),
+      [keptId],
+    );
+    final me = await store.readProjection('personal.me');
+    final credentials =
+        (((me!.payload['resources'] as Map)['credentials'] as Map)['items'])
+            as List;
+    expect(credentials.cast<Map>().map((row) => row['id']), [keptId]);
+  });
+
+  test('fresh Trust detail is reused without a redundant owner GET', () async {
+    var calls = 0;
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'profile-a');
+    final api = _api((request) async {
+      calls++;
+      return MockResponse('{}', 500);
+    });
+    addTearDown(api.close);
+    final sync = SyncEngine(
+      api: api,
+      store: store,
+      database: db,
+      profileId: 'profile-a',
+    );
+    final repository = TrustResourceRepository(
+      database: db,
+      store: store,
+      profileId: 'profile-a',
+      sync: sync,
+      api: api,
+    );
+    await store.putProjection(
+      kind: TrustResourceFamily.proofs.detailProjection,
+      resourceKey: 'proof-fresh',
+      schemaVersion: 1,
+      payload: {
+        'id': 'proof-fresh',
+        'proof_type_label': 'Journey accomplie',
+      },
+      receivedAt: DateTime.now().toUtc(),
+    );
+
+    await repository.ensureDetail(
+      TrustResourceFamily.proofs,
+      'proof-fresh',
+    );
+    expect(calls, 0);
+  });
+
 }
