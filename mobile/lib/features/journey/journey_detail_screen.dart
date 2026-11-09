@@ -1080,6 +1080,117 @@ class _ReadinessGroups extends StatelessWidget {
   }
 }
 
+class _JourneyPracticalCard extends StatelessWidget {
+  const _JourneyPracticalCard({required this.facts});
+
+  final JourneyPracticalFacts facts;
+
+  @override
+  Widget build(BuildContext context) {
+    final localization = MaterialLocalizations.of(context);
+    final ownerDate = facts.startDate == null
+        ? null
+        : DateTime.tryParse(facts.startDate!);
+    final date = ownerDate != null
+        ? localization.formatCompactDate(ownerDate)
+        : facts.startAt != null
+        ? localization.formatCompactDate(facts.startAt!.toLocal())
+        : null;
+    final time = facts.startTime != null && facts.startTime!.length >= 5
+        ? facts.startTime!.substring(0, 5)
+        : facts.startAt != null
+        ? localization.formatTimeOfDay(
+            TimeOfDay.fromDateTime(facts.startAt!.toLocal()),
+          )
+        : null;
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (date != null || time != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Début prévu'),
+              subtitle: Text([
+                if (date != null) date,
+                if (time != null) time,
+                if (ownerDate != null && facts.timezone != null)
+                  facts.timezone!,
+              ].join(' · ')),
+            ),
+          if (facts.placeName != null || facts.placeAddress != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.place_outlined),
+              title: Text(facts.placeName ?? 'Lieu'),
+              subtitle: [
+                facts.placeAddress,
+                facts.placeLocality,
+              ].whereType<String>().where((value) => value.isNotEmpty).isEmpty
+                  ? null
+                  : Text(
+                      [
+                        facts.placeAddress,
+                        facts.placeLocality,
+                      ].whereType<String>().where((value) => value.isNotEmpty)
+                          .join(', '),
+                    ),
+            ),
+          if (facts.accessInstructions != null)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Text(facts.accessInstructions!),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyPaymentCard extends StatelessWidget {
+  const _JourneyPaymentCard({
+    required this.payment,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+  });
+
+  final JourneyPaymentSummary payment;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = '${payment.amount} ${payment.currency}';
+    final state = switch (payment.state) {
+      'paid' || 'succeeded' || 'completed' || 'settled' => 'Payé',
+      'pending' || 'pending_payment' => 'En attente',
+      'processing' => 'En cours',
+      'failed' => 'Échec',
+      'cancelled' => 'Annulé',
+      _ => null,
+    };
+    VoidCallback? open;
+    if (payment.obligationId != null && onOpenPaymentObligation != null) {
+      open = () => onOpenPaymentObligation!(payment.obligationId!);
+    } else if (payment.orderId != null && onOpenCommerceOrder != null) {
+      open = () => onOpenCommerceOrder!(payment.orderId!);
+    }
+    return MakoloCard(
+      onTap: open,
+      semanticLabel: 'Paiement',
+      child: MakoloStatusMetadataAction(
+        title: title,
+        subtitle: payment.reason,
+        status: state == null ? null : MakoloStatus(label: state),
+        action: open == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded),
+      ),
+    );
+  }
+}
+
 class _FormCard extends StatelessWidget {
   const _FormCard({required this.form, required this.onOpen});
 
