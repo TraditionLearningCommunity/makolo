@@ -599,12 +599,12 @@ def _assessment(projection: dict) -> list[dict]:
     return facts
 
 
-def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
+def _public_owner_facts(activity_ids, opportunity_ids, *, profile=None) -> tuple[dict, dict]:
     """Batch owner identity and date facts without inferring ownership from created_by."""
     from accounts.models import UserProfile
     from activities.models import Activity
     from opportunities.models import Opportunity
-    from organizations.models import SpaceLifecycle
+    from organizations.models import OrganizationFollow, ProfileFollow, SpaceLifecycle
 
     activities = list(
         Activity.objects.filter(pk__in=activity_ids)
@@ -623,6 +623,28 @@ def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
             user__is_active=True,
         ).values_list("user_id", flat=True)
     )
+    # Only the signed-in viewer's private relationship is projected.
+    # Batch queries avoid one lookup per card and never expose follower counts.
+    followed_spaces = set()
+    followed_profiles = set()
+    viewer_id = getattr(profile, "pk", None) if _authenticated(profile) else None
+    if viewer_id is not None:
+        followed_spaces = {
+            str(value) for value in OrganizationFollow.objects.filter(
+                user_id=viewer_id,
+                organization_id__in=[
+                    activity.space_id for activity in activities
+                    if activity.space_id is not None
+                ],
+            ).values_list("organization_id", flat=True)
+        }
+        followed_profiles = {
+            str(value) for value in ProfileFollow.objects.filter(
+                user_id=viewer_id,
+                organizer_profile_id__in=profile_ids,
+            ).values_list("organizer_profile_id", flat=True)
+        }
+
     activity_facts = {}
     for activity in activities:
         owner = None
@@ -668,6 +690,18 @@ def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
                 },
                 "capabilities": ["view_public"],
             }
+        if owner is not None and viewer_id is not None:
+            identity = owner["identity"]
+            if identity["kind"] == "space":
+                owner["follow"] = {
+                    "followed": identity["id"] in followed_spaces,
+                    "can_toggle": True,
+                }
+            elif str(viewer_id) != identity["id"]:
+                owner["follow"] = {
+                    "followed": identity["id"] in followed_profiles,
+                    "can_toggle": True,
+                }
         activity_facts[str(activity.pk)] = {
             "owner": owner,
             "date": {
@@ -1308,7 +1342,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     personal_handoffs = _personal_engagement_handoffs(activity_ids, profile=profile)
     commerce_handoffs = _public_commerce_handoffs(activity_ids, profile=profile)
     owner_facts, opportunity_dates = _public_owner_facts(
-        activity_ids, opportunity_ids,
+        activity_ids, opportunity_ids, profile=profile,
     )
     resource_occurrence_scope = {activity_id: set() for activity_id in activity_ids}
     for family, _, candidate in rows:
