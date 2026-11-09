@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import 'conversation_attachment_viewer.dart';
+import 'conversation_media_group.dart';
 import 'conversation_media_sheet.dart';
 import 'conversation_repository.dart';
 
@@ -142,21 +142,6 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
     }
   }
 
-  Future<void> _openAttachment(Map<String, dynamic> attachment) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.88,
-        child: ConversationAttachmentViewer(
-          repository: widget.repository,
-          attachment: attachment,
-        ),
-      ),
-    );
-  }
-
   Future<void> _attach(String mode) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -215,16 +200,11 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         child: Text(row['body']?.toString() ?? ''),
                       ),
-                      for (final file in _entries(row['attachments']))
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () => _openAttachment(file),
-                            icon: const Icon(Icons.attach_file_rounded),
-                            label: Text(
-                              file['name']?.toString() ?? 'Pièce jointe',
-                            ),
-                          ),
+                      if (_entries(row['attachments']).isNotEmpty)
+                        ConversationMediaGroup(
+                          key: ValueKey('exchange-media-${row['id']}'),
+                          repository: widget.repository,
+                          attachments: _entries(row['attachments']),
                         ),
                       const Divider(height: 25),
                     ],
