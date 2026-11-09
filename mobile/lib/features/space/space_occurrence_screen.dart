@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../design/action_controls.dart';
 
 import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
+import '../../sync/sync_status.dart';
+import '../occurrence/occurrence_continuity.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
@@ -24,6 +27,7 @@ class SpaceOccurrenceScreen extends StatefulWidget {
     required this.space,
     required this.occurrenceId,
     required this.repository,
+    this.actorContext,
     required this.live,
     this.onOpenLive,
     this.onOpenScanner,
@@ -37,6 +41,7 @@ class SpaceOccurrenceScreen extends StatefulWidget {
   final SpaceActorIdentity space;
   final String occurrenceId;
   final SpaceOccurrenceRepository repository;
+  final ActorContextController? actorContext;
   final bool live;
   final VoidCallback? onOpenLive;
   final VoidCallback? onOpenScanner;
@@ -53,6 +58,29 @@ class SpaceOccurrenceScreen extends StatefulWidget {
 class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
     with WidgetsBindingObserver {
   bool refreshing = false;
+  int _revision = 0;
+  Timer? _reconciliationTimer;
+
+  bool get _actorValid =>
+      widget.actorContext == null ||
+      (widget.actorContext!.value is SpaceActorContext &&
+       (widget.actorContext!.value as SpaceActorContext).space == widget.space);
+
+  void _onActorChanged() {
+    _revision++;
+    if (!mounted) return;
+    setState(() => refreshing = false);
+    if (_actorValid) unawaited(_refresh());
+  }
+
+  void _startReconciliation() {
+    _reconciliationTimer?.cancel();
+    _reconciliationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (!mounted || !_actorValid) return;
+      setState(() {});
+      if (widget.live || timer.tick.isEven) unawaited(_refresh());
+    });
+  }
 
   SpaceOccurrenceSourceState get unknown => SpaceOccurrenceSourceState.unknown;
 
@@ -60,33 +88,67 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.actorContext?.addListener(_onActorChanged);
+    _startReconciliation();
     unawaited(_refresh());
   }
 
   @override
+  void didUpdateWidget(covariant SpaceOccurrenceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.actorContext != widget.actorContext) {
+      oldWidget.actorContext?.removeListener(_onActorChanged);
+      widget.actorContext?.addListener(_onActorChanged);
+    }
+    if (oldWidget.space != widget.space ||
+        oldWidget.occurrenceId != widget.occurrenceId ||
+        oldWidget.repository != widget.repository ||
+        oldWidget.live != widget.live ||
+        oldWidget.actorContext != widget.actorContext) {
+      _onActorChanged();
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_refresh());
+    if (state == AppLifecycleState.resumed) {
+      _startReconciliation();
+      unawaited(_refresh());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _reconciliationTimer?.cancel();
+    }
   }
 
   @override
   void dispose() {
+    _revision++;
+    _reconciliationTimer?.cancel();
+    widget.actorContext?.removeListener(_onActorChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _refresh() async {
-    if (refreshing) return;
+    if (refreshing || !_actorValid) return;
+    final revision = ++_revision;
+    final repository = widget.repository;
+    final space = widget.space;
+    final occurrenceId = widget.occurrenceId;
+    final live = widget.live;
     setState(() => refreshing = true);
     try {
-      if (widget.live) {
-        await widget.repository.refreshLive(widget.space, widget.occurrenceId);
+      if (live) {
+        await repository.refreshLive(space, occurrenceId);
       } else {
-        await widget.repository.refreshDayOf(widget.space, widget.occurrenceId);
+        await repository.refreshDayOf(space, occurrenceId);
       }
     } on Object {
-      // The sync owner keeps the last viewer-scoped snapshot and failure code.
+      // The owner source distinguishes access withdrawn from a timeout.
     } finally {
-      if (mounted) setState(() => refreshing = false);
+      if (mounted && _actorValid && revision == _revision) {
+        setState(() => refreshing = false);
+      }
     }
   }
 
@@ -114,7 +176,36 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                   now: DateTime.now(),
                   sourceInvalidated: state.invalidated,
                 );
-          final available = selected != null;
+          final scoped = _actorValid && projection != null &&
+              OccurrenceContinuity.matches(
+                payload: projection.payload,
+                occurrenceId: widget.occurrenceId,
+                profileId: widget.repository.profileId,
+                actorSpaceId: widget.space.id,
+                surface: widget.live ? 'live' : 'day_of',
+              );
+          final available = scoped && !state.invalidated;
+          final liveEnded = widget.live && scoped &&
+              OccurrenceContinuity.liveWindowEnded(
+                projection!.payload, now: DateTime.now(),
+              );
+          final syncVisual = SyncStatusScope.maybeOf(context)?.state;
+          final offline = syncVisual == SyncVisualState.offline ||
+              syncVisual == SyncVisualState.failed;
+          final actionsAllowed = OccurrenceContinuity.canOfferActions(
+            sourceInvalidated: state.invalidated,
+            reachability: state.reachability,
+            freshness: selected?.freshness,
+            systemOffline: offline,
+            liveEnded: liveEnded,
+          );
+          final readOnlyReason = liveEnded
+              ? 'La fenêtre Live est terminée : dernière situation connue, pas du direct.'
+              : actionsAllowed
+              ? null
+              : state.reachability != ReachabilityState.reachable || offline
+                  ? 'Réseau ou propriétaire indisponible : dernière situation connue.'
+                  : 'Situation ancienne : actualisez pour agir.';
           final surface = const ProjectionSurfaceAdapter().adapt(
             projection: ProjectionPresentationModel(
               available: available,
@@ -156,13 +247,14 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                     ? 'Vous ne pouvez plus consulter cette réalisation dans le contexte actuel.'
                     : 'Vous n’avez pas accès à cette réalisation dans cet Espace.',
                 onRetry: _refresh,
-                content: projection?.payload['surface'] ==
+                content: available && projection?.payload['surface'] ==
                         (widget.live ? 'live' : 'day_of')
                     ? OccurrenceExperienceContent(
                         payload: projection!.payload,
                         live: widget.live,
-                        remoteActionsAvailable:
-                            state.reachability != ReachabilityState.unreachable,
+                        remoteActionsAvailable: actionsAllowed,
+                        readOnlyReason: readOnlyReason,
+                        lastKnownAt: state.lastSuccessAt,
                         onOpenLive: widget.onOpenLive == null
                             ? null
                             : (_) => widget.onOpenLive!(),
@@ -173,14 +265,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                         onOpenDepth: widget.onOpenDepth,
                         onOpenHistory: widget.onOpenHistory,
                       )
-                    : _SpaceOccurrenceContent(
-                        payload: projection?.payload,
-                        freshness: selected?.freshness,
-                        live: widget.live,
-                        onOpenLive: widget.onOpenLive,
-                        onOpenScanner: widget.onOpenScanner,
-                        onBackToDayOf: widget.onBackToDayOf,
-                      ),
+                    : const SizedBox.shrink(),
               ),
             ),
           );
