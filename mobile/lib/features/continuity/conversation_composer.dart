@@ -773,6 +773,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           _mediaPath = path;
           _mediaFilename = name;
           _mediaKind = kind;
+          _mainMediaCaption = '';
         }
         _reference = null;
         _error = null;
@@ -1074,6 +1075,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                           ),
                         ),
                         TextFormField(
+                          key: ValueKey('choice-caption-$index-${media['path']}'),
                           initialValue: media['caption']?.toString() ?? '',
                           maxLength: 5000,
                           decoration: const InputDecoration(
@@ -1226,6 +1228,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   ),
                 ),
                 TextFormField(
+                  key: ValueKey('main-caption-$_mediaPath'),
                   initialValue: _mainMediaCaption,
                   maxLength: 5000,
                   decoration: const InputDecoration(
@@ -1257,6 +1260,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   ),
                 ),
                 TextFormField(
+                  key: ValueKey('point-caption-${media['path']}'),
                   initialValue: media['caption']?.toString() ?? '',
                   maxLength: 5000,
                   decoration: const InputDecoration(
