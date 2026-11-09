@@ -256,7 +256,22 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       // Prepare their owner projections before entering N3. The screen itself
       // still reads only from ProfileStore; a transport failure cannot hide it.
       await runtime.journeys?.prepareKnownJourneySources(limit: 6);
-      // Nine existing collection sources plus at most six Journey details,
+      // Preparation is a distinct owner. Acquire its metadata into the same
+      // Profile database without duplicating it in the Journey projection.
+      final ongoing = await runtime.store?.readProjection('personal.ongoing');
+      final knownJourneyIds =
+          runtime.preparationResources == null
+              ? <String>[]
+              : runtime.journeys == null
+              ? <String>[]
+              : (await runtime.journeys!.readKnownJourneyIds(ongoing));
+      for (final id in knownJourneyIds) {
+        sync.registerPreparedSource(
+          runtime.preparationResources!.sourceFor(journeyId: id),
+        );
+      }
+      // Existing collection sources, Journey detail and Preparation metadata
+      // are all bounded and can be resumed on subsequent lifecycle cycles.
       // bounded and resumed on later lifecycle passes.
       final workingSetSucceeded = await sync.refreshPreparedSources(
         maxRequests: 15,
