@@ -878,7 +878,24 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   String get _centralActionLabel {
-    if (_primaryNativePath == null) return 'Détails';
+    final native = _primaryNativePath;
+    if (native == null) return 'Détails';
+    final continuation = item.wire['journey_continuation'];
+    if (continuation is Map) {
+      final links = continuation['links'];
+      final resource = continuation['resource'];
+      if (resource is Map &&
+          resource['kind'] == 'journey' &&
+          resource['id'] is String &&
+          links is Map &&
+          links['native'] == '/journeys/${resource['id']}' &&
+          links['native'] == native &&
+          const {'active', 'finished'}.contains(continuation['state'])) {
+        return continuation['state'] == 'active'
+            ? 'Reprendre ma démarche'
+            : 'Voir ma démarche';
+      }
+    }
     final label = _serverPrimaryAction?['label'];
     if (label is String && label.trim().isNotEmpty) return label.trim();
     return switch (_serverPrimaryAction?['code']) {
