@@ -80,7 +80,10 @@ class _PreparationResourcesScreenState
     final paths = <String, String>{};
     for (final item in resources) {
       if (item.downloadUrl == null) continue;
-      final stored = await repository.readLocalResourceFile(item.id);
+      final stored = await repository.readLocalResourceFile(
+        item.id,
+        version: item.version,
+      );
       if (stored != null) paths[item.id] = stored.path;
     }
     if (!mounted || revision != _identityRevision ||
@@ -128,6 +131,7 @@ class _PreparationResourcesScreenState
     try {
       final file = await widget.repository.downloadResource(
         resourceId: resource.id,
+        version: resource.version,
         downloadPath: downloadUrl,
         title: resource.title,
         mimeType: resource.mimeType,
@@ -173,11 +177,15 @@ class _PreparationResourcesScreenState
     if (_downloading.contains(resource.id)) return;
     setState(() => _downloading.add(resource.id));
     try {
-      var local = await widget.repository.readLocalResourceFile(resource.id);
+      var local = await widget.repository.readLocalResourceFile(
+        resource.id,
+        version: resource.version,
+      );
       if (local == null && resource.downloadUrl != null) {
         local = await widget.repository.downloadResource(
           resourceId: resource.id,
-          downloadPath: resource.downloadUrl!,
+          version: resource.version,
+          downloadPath: resource.downloadUrl!
           title: resource.title,
           mimeType: resource.mimeType,
         );
