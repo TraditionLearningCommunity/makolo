@@ -33,6 +33,7 @@ def main(argv=None):
                         help="Desired maximum synthetic relations per profile")
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--backup", action="store_true", help="Create a SQLite backup before applying")
     args = parser.parse_args(argv)
     if not 1 <= args.profiles <= 100 or not 1 <= args.count <= 5000:
         parser.error("--profiles 1..100; --count 1..5000")
@@ -54,6 +55,9 @@ def main(argv=None):
 
     if connection.vendor != "sqlite":
         parser.error("Rebalancing is restricted to the demonstration SQLite")
+    if args.backup and args.apply:
+        from .scope import backup_demo_sqlite
+        print("BACKUP", backup_demo_sqlite(connection))
     people = demo_profiles(username=args.profile_username, limit=args.profiles)
     counters = Counter()
     previews = []
