@@ -251,6 +251,8 @@ class Z5DetailAPIContractTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
         row = next(item for item in data["forms"] if item["id"] == str(form_request.pk))
+        self.assertEqual(row["title"], "Formulaire Z5")
+        self.assertIn("opens_at", row)
         self.assertIn("complete_form", data["capabilities"])
         self.assertEqual(row["capabilities"], ["complete_form"])
         self.assertEqual(
