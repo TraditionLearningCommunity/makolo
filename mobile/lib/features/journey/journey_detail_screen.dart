@@ -354,8 +354,11 @@ class _JourneyContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const Key('journey-detail-content'),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: ListView(
+      key: const PageStorageKey<String>('journey-detail-content'),
       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
       children: [
         _JourneyIdentity(presentation: presentation),
@@ -366,8 +369,14 @@ class _JourneyContent extends StatelessWidget {
             child: _JourneyPath(steps: presentation.steps),
           ),
         ],
-        ?conversationEntry,
-        if (presentation.canRespondInvitation) ...[
+        if (presentation.isTerminal) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+            child: _JourneyOutcomeCard(presentation: presentation),
+          ),
+        ],
+        if (presentation.canRespondInvitation && !presentation.isTerminal) ...[
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
@@ -423,10 +432,27 @@ class _JourneyContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
             ),
-            child: MakoloAttentionBlock(
-              title: 'Pour avancer',
-              body: presentation.nextActionLabel!,
-              action: _nextActionButton(),
+            child: MakoloCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.arrow_outward_rounded,
+                          color: Color(0xFF5232DB)),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Text('Pour avancer',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(presentation.nextActionLabel!),
+                  if (_nextActionButton() case final action?) ...[
+                    const SizedBox(height: MakoloSpacing.md),
+                    action,
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: MakoloSpacing.lg),
@@ -466,13 +492,23 @@ class _JourneyContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
             ),
-            child: MakoloAttentionBlock(
-              title: presentation.liveLink != null ? 'Makolo Live' : 'Jour J',
-              body: presentation.occurrence?.label ?? 'Votre rendez-vous',
-              icon: presentation.liveLink != null
-                  ? Icons.bolt_rounded
-                  : Icons.today_rounded,
-              action: MakoloActionButton(
+            child: MakoloCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(presentation.liveLink != null
+                          ? Icons.bolt_rounded : Icons.today_rounded,
+                          color: const Color(0xFF5232DB)),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Text(presentation.liveLink != null
+                          ? 'Makolo Live' : 'Jour J',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  MakoloActionButton(
                 label: presentation.liveLink != null
                     ? 'Ouvrir Makolo Live'
                     : 'Ouvrir Jour J',
@@ -480,6 +516,8 @@ class _JourneyContent extends StatelessWidget {
                     ? () => onOpenLive(presentation.liveLink!)
                     : () => onOpenDayOf(presentation.dayOfLink!),
                 appearance: MakoloActionAppearance.primary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -638,6 +676,8 @@ class _JourneyContent extends StatelessWidget {
                   _ReferenceCard(
                     reference: presentation.activity!,
                     contextLabel: 'Activité',
+                    hideRepeatedTitle: presentation.activity!.label ==
+                        presentation.title,
                     onTap: presentation.activity!.link == null
                         ? null
                         : () => onOpenActivity(presentation.activity!),
@@ -649,6 +689,8 @@ class _JourneyContent extends StatelessWidget {
                   _ReferenceCard(
                     reference: presentation.occurrence!,
                     contextLabel: 'Occurrence',
+                    hideRepeatedTitle: presentation.occurrence!.label ==
+                        presentation.title,
                     onTap: presentation.occurrence!.link == null
                         ? null
                         : () => onOpenOccurrence(presentation.occurrence!),
@@ -658,7 +700,7 @@ class _JourneyContent extends StatelessWidget {
           ),
         ],
         if (presentation.access != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
+          const SizedBox(height: MakoloSpacing.lg),
           MakoloSection(
             title: 'Accès',
             child: _ReferenceCard(
@@ -669,7 +711,13 @@ class _JourneyContent extends StatelessWidget {
             ),
           ),
         ],
+        if (conversationEntry != null) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          conversationEntry!,
+        ],
       ],
+        ),
+      ),
     );
   }
 
@@ -1251,11 +1299,13 @@ class _ReferenceCard extends StatelessWidget {
     required this.reference,
     this.onTap,
     this.contextLabel,
+    this.hideRepeatedTitle = false,
   });
 
   final JourneyReference reference;
   final VoidCallback? onTap;
   final String? contextLabel;
+  final bool hideRepeatedTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1265,7 +1315,7 @@ class _ReferenceCard extends StatelessWidget {
         title: contextLabel ?? reference.label,
         subtitle: contextLabel == null
             ? (reference.isRequired ? 'Obligatoire' : null)
-            : reference.label,
+            : hideRepeatedTitle ? null : reference.label,
         status: MakoloHumanization.presentationLabel(reference.state) == null
             ? null
             : MakoloStatus(
