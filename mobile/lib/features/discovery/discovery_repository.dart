@@ -1365,14 +1365,19 @@ class DiscoveryRepository {
     return null;
   }
 
-  Future<StoredProjection?> readItem(String family, String id) async {
-    final source = itemSource(family, id);
+  Future<StoredProjection?> readItem(
+    String family,
+    String id, {
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
+  }) async {
+    final source = itemSource(family, id, actorQuery: actorQuery);
     final local = await _readAvailable(
       source,
       await store.readProjection(
         itemProjectionKind,
-        resourceKey: '$family:$id',
+        resourceKey: _detailResourceKey(family, id, actorQuery),
       ),
+      expectedSpaceId: actorQuery.spaceId,
     );
     if (local != null &&
         _freshEnough(local, detailFreshness.refreshRecommendedAfter!)) {
@@ -1382,6 +1387,7 @@ class DiscoveryRepository {
       family,
       id,
       newerThan: local?.receivedAt,
+      actorQuery: actorQuery,
     );
     return acquired ?? local;
   }
@@ -1389,10 +1395,14 @@ class DiscoveryRepository {
   /// Query the owner only for absent/stale information. A server-projected
   /// N1/Carte detail is enough for presentation; real actions still use the
   /// owning authenticated endpoint, not the client-side capability alone.
-  Future<bool> hasReusableItem(String family, String id) async {
-    final item = await readItem(family, id);
+  Future<bool> hasReusableItem(
+    String family,
+    String id, {
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
+  }) async {
+    final item = await readItem(family, id, actorQuery: actorQuery);
     if (item == null || item.schemaVersion != 1) return false;
-    final source = await readSource(itemSource(family, id));
+    final source = await readSource(itemSource(family, id, actorQuery: actorQuery));
     if (source.invalidated || source.lastErrorCode != null) return false;
     final observed = item.lastVerifiedOnlineAt ?? item.receivedAt;
     final elapsed = DateTime.now().toUtc().difference(observed.toUtc());
@@ -1545,13 +1555,18 @@ class DiscoveryRepository {
     await ensureItems(root, requireSpatial: true);
   }
 
-  Future<void> refreshItem(String family, String id) async {
-    await _refresh(itemSource(family, id));
-    if ((await readSource(itemSource(family, id))).lastErrorCode == null) {
+  Future<void> refreshItem(
+    String family,
+    String id, {
+    DiscoveryQuery actorQuery = const DiscoveryQuery(),
+  }) async {
+    final source = itemSource(family, id, actorQuery: actorQuery);
+    await _refresh(source);
+    if ((await readSource(source)).lastErrorCode == null) {
       await store.pruneProjectionsOfKind(
         itemProjectionKind,
         retain: maxCachedDiscoveryDetails,
-        protectResourceKeys: {'$family:$id'},
+        protectResourceKeys: {_detailResourceKey(family, id, actorQuery)},
       );
     }
   }
@@ -1798,7 +1813,8 @@ class DiscoveryRepository {
     for (final projection in cached) {
       if (projection.schemaVersion != 1) continue;
       final viewer = projection.payload['viewer'];
-      if (viewer is! Map || viewer['id'] != profileId) continue;
+      if (viewer is! Map || viewer['id'] != profileId ||
+          projection.payload['surface'] != 'discover_me') continue;
 
       final payload = Map<String, dynamic>.from(projection.payload);
       var changed = false;
