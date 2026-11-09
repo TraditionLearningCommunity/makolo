@@ -39,7 +39,7 @@
 
       {% if depth.can_manage and depth.kind == "operator_queue" %}
       <div class="mt-4 flex flex-wrap gap-2">
-        <form method="post">
+        <form method="post" data-sensitive-action="true">
           {% csrf_token %}
           <input type="hidden" name="item_id" value="{{ item.id }}">
           <input type="hidden" name="action" value="call">
@@ -48,9 +48,9 @@
         <details class="rounded-xl border p-3" style="border-color:var(--mk-border)">
           <summary class="cursor-pointer font-semibold">Changer l’état de la file</summary>
           <div class="mt-3 flex flex-wrap gap-2">
-            <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="pause" class="mk-action-button" data-variant="secondary">Pause</button></form>
-            <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="resume" class="mk-action-button" data-variant="secondary">Reprendre</button></form>
-            <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="close" class="mk-action-button" data-variant="secondary">Fermer</button></form>
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="pause" class="mk-action-button" data-variant="secondary">Pause</button></form>
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="resume" class="mk-action-button" data-variant="secondary">Reprendre</button></form>
+            <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button type="submit" name="action" value="close" class="mk-action-button" data-variant="secondary">Fermer</button></form>
           </div>
         </details>
       </div>
@@ -60,10 +60,10 @@
       <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
         <summary class="cursor-pointer font-semibold">Modifier ce point de contrôle</summary>
         <div class="mt-3 flex flex-wrap gap-2">
-          <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="open">Ouvrir</button></form>
-          <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="pause">Pause</button></form>
-          <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="resume">Reprendre</button></form>
-          <form method="post">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="close">Fermer</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="open">Ouvrir</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="pause">Pause</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="resume">Reprendre</button></form>
+          <form method="post" data-sensitive-action="true">{% csrf_token %}<input type="hidden" name="item_id" value="{{ item.id }}"><button class="mk-action-button" name="action" value="close">Fermer</button></form>
         </div>
       </details>
       {% endif %}
@@ -71,7 +71,7 @@
       {% if depth.kind == "my_queue" and item.state == "waiting" or depth.kind == "my_queue" and item.state == "called" %}
       <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
         <summary class="cursor-pointer font-semibold">Quitter ma file</summary>
-        <form method="post" class="mt-3">
+        <form method="post" data-sensitive-action="true" class="mt-3">
           {% csrf_token %}
           <input type="hidden" name="item_id" value="{{ item.id }}">
           <button type="submit" name="action" value="cancel" class="mk-action-button" data-variant="secondary">Confirmer mon retrait</button>
@@ -89,7 +89,7 @@
           {% if depth.can_manage %}
           <details>
             <summary class="cursor-pointer">Retirer l'attribution</summary>
-            <form method="post" class="mt-2">{% csrf_token %}
+            <form method="post" data-sensitive-action="true" class="mt-2">{% csrf_token %}
               <input type="hidden" name="item_id" value="{{ assignment.id }}">
               <button type="submit" name="action" value="unassign" class="mk-action-button" data-variant="secondary">Confirmer le retrait</button>
             </form>
@@ -100,7 +100,7 @@
         {% if depth.can_manage %}
         <details class="mt-3">
           <summary class="cursor-pointer font-semibold">Attribuer cette unité</summary>
-          <form method="post" class="mt-3 space-y-2">
+          <form method="post" data-sensitive-action="true" class="mt-3 space-y-2">
             {% csrf_token %}
             <input type="hidden" name="item_id" value="{{ item.id }}">
             <input type="hidden" name="unit_id" value="{{ unit.id }}">
