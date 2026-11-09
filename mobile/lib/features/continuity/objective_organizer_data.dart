@@ -106,6 +106,93 @@ class OrganizerEntry {
   }
 }
 
+/// Presentation-only tree for the locally acquired, viewer-authorized items.
+///
+/// A Journey may belong to several Dossiers. Show the Journey once under the
+/// first acquired parent (stable by id); keep all canonical dossierIds intact
+/// and surface the other associations in the UI instead of cloning the node.
+/// Missing parents remain unknown, never inferred to be independent.
+class OrganizerHierarchy {
+  OrganizerHierarchy(Iterable<OrganizerEntry> entries) {
+    final items = entries.toList();
+    _byKey = {for (final item in items) item.key: item};
+    _projects = items.where((e) => e.kind == 'project').toList();
+    _dossiers = items.where((e) => e.kind == 'dossier').toList();
+    _journeys = items.where((e) => e.kind == 'journey').toList();
+    _primaryDossier = {
+      for (final journey in _journeys)
+        journey.id: _acquiredParents(journey).isEmpty
+            ? null
+            : _acquiredParents(journey).first,
+    };
+  }
+
+  late final Map<String, OrganizerEntry> _byKey;
+  late final List<OrganizerEntry> _projects, _dossiers, _journeys;
+  late final Map<String, String?> _primaryDossier;
+
+  Map<String, OrganizerEntry> get byKey => _byKey;
+
+  List<String> _acquiredParents(OrganizerEntry journey) =>
+      journey.dossierIds.toSet()
+          .where((id) => _byKey.containsKey('dossier:$id'))
+          .toList()
+        ..sort();
+
+  List<OrganizerEntry> childrenOf(OrganizerEntry parent) => switch (parent.kind) {
+    'project' => _dossiers
+        .where((d) => d.projectId == parent.id)
+        .toList(),
+    'dossier' => _journeys
+        .where((j) => _primaryDossier[j.id] == parent.id)
+        .toList(),
+    _ => <OrganizerEntry>[],
+  };
+
+  List<OrganizerEntry> get roots => [
+    ..._projects,
+    ..._dossiers.where(
+      (d) => d.projectId == null ||
+          !_byKey.containsKey('project:${d.projectId}'),
+    ),
+    ..._journeys.where((j) => _primaryDossier[j.id] == null),
+  ];
+
+  /// Other locally acquired Dossier links that are represented elsewhere.
+  int additionalSharedLinks(OrganizerEntry dossier) => _journeys.where(
+    (j) => j.dossierIds.contains(dossier.id) &&
+        _primaryDossier[j.id] != dossier.id &&
+        _primaryDossier[j.id] != null,
+  ).length;
+
+  /// Shared relationships may include authorized parents not yet acquired.
+  int get extraLinks => _journeys.fold<int>(0, (count, journey) =>
+      count + (journey.dossierIds.toSet().length > 1
+          ? journey.dossierIds.toSet().length - 1 : 0));
+}
+
+/// Counts only the loaded collection: never imply that a partial window is
+/// the authoritative total of all Projects/Dossiers/Journeys.
+String organizerCountLabel(
+  Iterable<OrganizerEntry> entries, {
+  bool filtered = false,
+  bool partial = false,
+}) {
+  final values = entries.toList();
+  final count = values.length;
+  final kinds = values.map((e) => e.kind).toSet();
+  final type = filtered
+      ? count == 1 ? 'résultat' : 'résultats'
+      : kinds.length == 1
+      ? switch (kinds.first) {
+          'project' => count == 1 ? 'projet' : 'projets',
+          'dossier' => count == 1 ? 'dossier' : 'dossiers',
+          _ => count == 1 ? 'démarche' : 'démarches',
+        }
+      : count == 1 ? 'élément' : 'éléments';
+  return '$count $type${partial ? ' chargés' : ''}';
+}
+
 /// Local pages are identity-checked and only consumed while contiguous.
 class OrganizerPage {
   const OrganizerPage({
