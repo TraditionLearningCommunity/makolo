@@ -426,7 +426,7 @@ class OccurrenceDetailAPIView(APIView):
         )
 
         live_available = (
-            participant_occurrence_live_available(
+            occurrence.live_enabled and participant_occurrence_live_available(
                 occurrence=occurrence,
                 actor=request.user,
             )
