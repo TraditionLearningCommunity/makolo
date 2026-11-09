@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import '../../data/local/makolo_database.dart';
@@ -180,12 +181,28 @@ class PreparationResourcesRepository {
     );
   }
 
+  /// An already acquired private file belongs to the Profile and remains
+  /// available across restarts, independently of the transport.
+  Future<StoredLocalFile?> readLocalResourceFile(String resourceId) async {
+    final fileStore = await ProfileFileStore.open(
+      database: database,
+      profileId: profileId,
+    );
+    final record = await fileStore.read('preparation-resource:$resourceId');
+    if (record == null || record.owner != 'Preparation' ||
+        record.purpose != 'journey_preparation' ||
+        record.sensitivity != 'private') return null;
+    return await File(record.path).exists() ? record : null;
+  }
+
   Future<StoredLocalFile> downloadResource({
     required String resourceId,
     required String downloadPath,
     required String title,
     String? mimeType,
   }) async {
+    final existing = await readLocalResourceFile(resourceId);
+    if (existing != null) return existing;
     final client = api;
     if (client == null) {
       throw StateError('Remote Preparation owner is not configured.');
