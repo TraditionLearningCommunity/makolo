@@ -46,6 +46,7 @@ class SpaceDiscoverAPIView(_SpaceAttentionAPIView):
             profile=request.user,
             space=space,
             responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
+            params=request.query_params,
         )
         if payload is None:
             raise NotFound()
