@@ -402,12 +402,8 @@ def main(argv=None):
         p.error('--activity-prefix doit commencer par demo- et contenir a-z, 0-9 ou -')
     if a.limit < 0 or not 1 <= a.demo_slots <= 10000:
         p.error('--limit >= 0 et --demo-slots 1..10000')
-    if a.include_existing and a.apply and not a.backup:
-        p.error('--include-existing --apply exige --backup')
     if a.include_existing and a.mode == 'full':
         p.error('--mode full ne peut pas etre combine a --include-existing')
-    if a.mode == 'full' and a.apply and not (a.backup or a.output):
-        p.error('--mode full --apply exige --backup ou --output')
     source=Path(a.database).resolve()
     if not source.is_file(): p.error('Base introuvable: '+str(source))
     if a.in_place and a.output: p.error('--in-place et --output sont incompatibles')
