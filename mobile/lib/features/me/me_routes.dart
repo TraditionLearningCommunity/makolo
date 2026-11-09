@@ -461,7 +461,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   ],
                 ),
               ],
-,
+            ),
             GoRoute(
               path: 'proofs',
               builder: (context, state) {
@@ -539,7 +539,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   },
                 ),
               ],
-            )            ),
+            ),
           ],
         ),
       ],
