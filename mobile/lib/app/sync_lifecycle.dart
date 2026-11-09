@@ -252,13 +252,14 @@ class _SyncLifecycleState extends State<SyncLifecycle>
         // intentions to resume. No-blind and refetch remain owner-gated.
         await runtime.outbox?.releaseAuthenticatedReplayables();
       }
-      // Personal owner collections are acquired independently of navigation.
-      // Progress is bounded, durable and resumed on the next lifecycle cycle.
-      // C6 composes nine bounded first-page sources (including Project and
-      // Dossier). One foreground pass covers these without a separate
-      // prefetcher, media download loop or unlimited pagination.
+      // Known Journeys are part of the Profile's durable working set.
+      // Prepare their owner projections before entering N3. The screen itself
+      // still reads only from ProfileStore; a transport failure cannot hide it.
+      await runtime.journeys?.prepareKnownJourneySources(limit: 6);
+      // Nine existing collection sources plus at most six Journey details,
+      // bounded and resumed on later lifecycle passes.
       final workingSetSucceeded = await sync.refreshPreparedSources(
-        maxRequests: 9,
+        maxRequests: 15,
       );
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
