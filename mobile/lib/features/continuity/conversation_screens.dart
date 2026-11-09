@@ -1619,8 +1619,89 @@ class _PointCardState extends State<_PointCard> {
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             'Avant le ${MaterialLocalizations.of(context).formatShortDate(point.deadlineAt!)}',
-            style: Theme.of(context).textTheme.bodySmall,
+            style: theme.bodySmall,
           ),
+        ],
+        // Point-level text and its own media stay together. Never append
+        // choice/response media after all poll assertions.
+        if (point.attachments.isNotEmpty)
+          ConversationMediaGroup(
+            key: Key('conversation-point-media-group-${point.id}'),
+            repository: widget.repository,
+            attachments: point.attachments,
+          ),
+        if (point.kind == 'poll' && point.options.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Text('Choix', style: theme.titleSmall),
+          for (final option in point.options)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Container(
+                padding: const EdgeInsets.all(MakoloSpacing.sm),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        if (point.responseMode == 'multiple_choice' &&
+                            canRespond && !widget.readOnly)
+                          Checkbox(
+                            value: _choices.contains(option.id),
+                            onChanged: _busy
+                                ? null
+                                : (checked) => setState(() {
+                                    if (checked == true) {
+                                      _choices.add(option.id);
+                                    } else {
+                                      _choices.remove(option.id);
+                                    }
+                                  }),
+                          )
+                        else
+                          Icon(
+                            Icons.radio_button_unchecked_rounded,
+                            size: 18,
+                            color: muted,
+                          ),
+                        const SizedBox(width: MakoloSpacing.sm),
+                        Expanded(child: Text(option.label, style: theme.bodyMedium)),
+                        if (point.responseMode == 'single_choice' &&
+                            canRespond && !widget.readOnly)
+                          TextButton(
+                            onPressed: _busy
+                                ? null : () => _submitResponse(option.id),
+                            child: const Text('Choisir'),
+                          ),
+                      ],
+                    ),
+                    if (option.attachments.isNotEmpty)
+                      ConversationMediaGroup(
+                        key: Key('conversation-option-media-${option.id}'),
+                        repository: widget.repository,
+                        attachments: option.attachments,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          if (point.responseMode == 'multiple_choice' &&
+              canRespond && !widget.readOnly) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            MakoloActionButton(
+              label: _busy ? 'Envoi…' : 'Valider mes choix',
+              busy: _busy,
+              appearance: MakoloActionAppearance.primary,
+              onPressed: _busy || _choices.isEmpty
+                  ? null : () => _submitResponse(_choices.toList()),
+            ),
+          ],
         ],
         if (point.exchangePreview.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.sm),
@@ -1632,43 +1713,25 @@ class _PointCardState extends State<_PointCard> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final entry in point.exchangePreview.take(2))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      entry,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.bodySmall,
-                    ),
+                for (final entry in point.exchangePreview.take(2)) ...[
+                  Text(
+                    _string(entry['body']) ?? 'Contribution',
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.bodySmall,
                   ),
+                  if (_maps(entry['attachments']).isNotEmpty)
+                    ConversationMediaGroup(
+                      repository: widget.repository,
+                      attachments: _maps(entry['attachments']),
+                    ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
               ],
             ),
           ),
-        ],
-        // Seeing a poll must not depend on being allowed to vote. Show
-        // existing owner-approved choices without fabricating results.
-        if (point.kind == 'poll' &&
-            point.options.isNotEmpty &&
-            (!canRespond || widget.readOnly)) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          for (final option in point.options)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.radio_button_unchecked_rounded,
-                    size: 18,
-                    color: muted,
-                  ),
-                  const SizedBox(width: MakoloSpacing.sm),
-                  Expanded(child: Text(option.label, style: theme.bodyMedium)),
-                ],
-              ),
-            ),
         ],
         if (point.formRequest != null && widget.onOpenFormRequest != null) ...[
           const SizedBox(height: MakoloSpacing.md),
@@ -1684,12 +1747,16 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         ],
-        if (point.attachments.isNotEmpty)
-          ConversationMediaGroup(
-            key: Key('conversation-point-media-group-${point.id}'),
-            repository: widget.repository,
-            attachments: point.attachments,
-          ),
+        for (final response in point.responseMedia)
+          if (_maps(response['attachments']).isNotEmpty) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text('Média joint à une réponse accessible',
+                style: theme.labelSmall),
+            ConversationMediaGroup(
+              repository: widget.repository,
+              attachments: _maps(response['attachments']),
+            ),
+          ],
         if (point.kind == 'exchange' && widget.onOpenExchange != null)
           Align(
             alignment: Alignment.centerLeft,
@@ -1796,6 +1863,7 @@ class _PointCardState extends State<_PointCard> {
             point.responseMode != 'file' &&
             point.responseMode != 'voice' &&
             point.kind != 'exchange' &&
+            point.kind != 'poll' &&
             !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.md),
           if (point.responseMode == 'boolean')
