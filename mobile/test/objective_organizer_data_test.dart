@@ -190,8 +190,12 @@ void main() {
     expect(organizerCountLabel(journeys, filtered: true), '2 résultats');
     expect(organizerCountLabel(projects, filtered: true), '1 résultat');
     expect(organizerCountLabel(journeys, partial: true),
-        '2 démarches chargés');
+        '2 démarches chargées');
     expect(organizerCountLabel([], filtered: true), '0 résultats');
+    expect(organizerSharedLinksLabel(1),
+        '1 démarche également liée, présentée dans un autre dossier');
+    expect(organizerSharedLinksLabel(2),
+        '2 démarches également liées, présentées dans un autre dossier');
   });
 
 }
