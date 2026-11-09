@@ -599,6 +599,21 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     );
   }
 
+  Future<void> _selfEntry(String action) async {
+    if (_busy != null) return;
+    setState(() { _busy = action; _error = null; });
+    try {
+      await widget.repository.conversationSelfEntry(
+        conversationId: widget.conversationId, action: action,
+      );
+    } on Object {
+      if (mounted) setState(() => _error =
+        'Demande non confirmée. Actualisez pour connaître votre état.');
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
   Widget _members(BuildContext context, Map<String, dynamic> data) {
     final members = _map(data['members']);
     final people = _maps(members['people']);
@@ -626,6 +641,28 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 18),
+        ],
+        if (data['can_join'] == true || data['can_request_entry'] == true ||
+            data['entry_request_status'] == 'pending') ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (data['can_join'] == true)
+                FilledButton.tonal(
+                  onPressed: _busy != null ? null : () => _selfEntry('join'),
+                  child: const Text('Rejoindre'),
+                ),
+              if (data['can_request_entry'] == true)
+                OutlinedButton(
+                  onPressed: _busy != null ? null : () => _selfEntry('request'),
+                  child: const Text('Demander à rejoindre'),
+                ),
+              if (data['entry_request_status'] == 'pending')
+                const Chip(label: Text('Demande en attente')),
+            ],
+          ),
+          const SizedBox(height: 14),
         ],
         Text('Participants',
             style: Theme.of(context).textTheme.titleMedium),
