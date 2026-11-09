@@ -127,6 +127,7 @@ def conversation_point_media_sections(point, profile):
     through their file without the canonical owner permission.
     """
     from conversations.rich_services import visible_attachments_for_profile
+    from conversations.semantic_media import response_media_label
     visible = visible_attachments_for_profile(profile, point, limit=100)
     root, option_map, response_map = [], {}, {}
     for attachment in visible:
@@ -146,7 +147,10 @@ def conversation_point_media_sections(point, profile):
     return {
         "root": root,
         "choices": choices,
-        "responses": list(response_map.values()),
+        "responses": [
+            {"label": response_media_label(point, media[0].response), "files": media}
+            for media in response_map.values() if media
+        ],
     }
 
 
