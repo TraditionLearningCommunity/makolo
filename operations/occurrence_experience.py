@@ -9,6 +9,9 @@ This is deliberately additive to the existing personal and operations APIs.
 from __future__ import annotations
 
 from authorization.constants import PermissionCode
+from journeys.models import Journey
+from journeys.collaboration_services import can_access_case
+from .occurrence_experience_facts import compose_live_knowledge
 from authorization.services import can, has_platform_authority
 from core.api.day_of_projection import build_personal_day_of_data
 from scanner.permissions import user_can_scan_activity
@@ -22,6 +25,57 @@ from .permissions import (
 
 
 _LIVE_PHASES = {"arrival", "live"}
+
+
+def _institutional_journeys(*, occurrence, viewer):
+    """Shared Journey facts, not duplicated cases or a personal Access grant.
+
+    A Space's members need a current matching mandate; Dossier is optional.
+    Only Journeys attached to this actual Occurrence are projected.
+    """
+    rows = []
+    queryset = (
+        Journey.objects.filter(
+            beneficiary_space__isnull=False,
+            activity=occurrence.activity,
+            occurrence=occurrence,
+        )
+        .select_related("beneficiary_space")
+        .order_by("created_at", "id")
+    )
+    for journey in queryset:
+        if not can_access_case(viewer, journey):
+            continue
+        rows.append({
+            "id": str(journey.pk),
+            "beneficiary": {
+                "kind": "space",
+                "id": str(journey.beneficiary_space_id),
+                "name": journey.beneficiary_space.name,
+            },
+            "status": journey.status,
+            "workflow": journey.workflow,
+            "source": "journeys.journey",
+        })
+    return rows
+
+
+def _owner_permission(viewer, occurrence, permission, space_permission=None):
+    """Do not promote platform-wide authority to an owner-scoped role."""
+    if can(
+        viewer, permission, activity=occurrence.activity,
+        include_platform=False,
+    ):
+        return True
+    return bool(
+        space_permission
+        and occurrence.activity.space_id
+        and can(
+            viewer, space_permission, occurrence.activity.space,
+            include_platform=False,
+        )
+    )
+
 
 
 def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
@@ -63,38 +117,26 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
     )
     # These are independent owner permissions; no fictitious finance/logistics
     # actions or URLs are inferred from a permission code.
-    finance_allowed = can(
-        viewer, PermissionCode.ACTIVITY_FINANCE_VIEW,
-        activity=occurrence.activity, include_platform=False,
-    ) or bool(
-        occurrence.activity.space_id and can(
-            viewer, PermissionCode.FINANCE_VIEW,
-            occurrence.activity.space, include_platform=False,
-        )
+    finance_allowed = _owner_permission(
+        viewer, occurrence,
+        PermissionCode.ACTIVITY_FINANCE_VIEW, PermissionCode.FINANCE_VIEW,
     )
     platform_allowed = has_platform_authority(viewer)
     # Platform supervision is not automatically an organizer relationship.
-    owner_operations_allowed = can(
-        viewer, PermissionCode.ACTIVITY_OPERATIONS_VIEW,
-        activity=occurrence.activity, include_platform=False,
-    ) or bool(
-        occurrence.activity.space_id and can(
-            viewer, PermissionCode.SPACE_MANAGE,
-            occurrence.activity.space, include_platform=False,
-        )
+    owner_operations_allowed = _owner_permission(
+        viewer, occurrence,
+        PermissionCode.ACTIVITY_OPERATIONS_VIEW, PermissionCode.SPACE_MANAGE,
     )
     operations_allowed = operator is not None
     operations_manage = user_can_manage_activity_operations(
         viewer, occurrence.activity,
     )
-    finance_manage = can(
-        viewer, PermissionCode.ACTIVITY_FINANCE_MANAGE,
-        activity=occurrence.activity, include_platform=False,
-    ) or bool(
-        occurrence.activity.space_id and can(
-            viewer, PermissionCode.FINANCE_MANAGE,
-            occurrence.activity.space, include_platform=False,
-        )
+    finance_manage = _owner_permission(
+        viewer, occurrence,
+        PermissionCode.ACTIVITY_FINANCE_MANAGE, PermissionCode.FINANCE_MANAGE,
+    )
+    institutional = _institutional_journeys(
+        occurrence=occurrence, viewer=viewer,
     )
     sections = {}
     if participant is not None:
@@ -104,6 +146,8 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             )
             if surface == "day_of" else participant
         )
+    if institutional:
+        sections["institutional"] = institutional
     if operations_allowed:
         # Keep platform-only supervision distinct from owner-scoped organization.
         if owner_operations_allowed:
@@ -140,11 +184,17 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "permission": PermissionCode.ACTIVITY_OPERATIONS_VIEW,
         }
 
+    if institutional:
+        capabilities["institutional_journey_view"] = {
+            "source": "journeys.collaboration_services",
+            "permission": "journey.case.view",
+        }
     if not sections and not capabilities:
         return None
 
     relations = {
         "participant": participant is not None,
+        "institutional_beneficiary": bool(institutional),
         "organizer": bool(owner_operations_allowed or scanner_allowed or finance_allowed or finance_manage or (operations_manage and not platform_allowed)),
         "platform": bool(platform_allowed),
     }
@@ -161,6 +211,24 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
         "presentation": {
             "role_switch_required": False,
             "simultaneous_sections": True,
+            "primary_action_limit": None,
         },
-        # No coverage status is claimed until an owner computes it.
+        "knowledge": compose_live_knowledge(
+            occurrence=occurrence,
+            participant=participant,
+            operator=operator,
+            institutional=institutional,
+            observed_at=observed_at,
+        ),
+        "links": {
+            "day_of": (
+                f"/api/v1/operations/occurrences/{occurrence.pk}/experience/day-of/"
+            ),
+            **({
+                "live": f"/api/v1/operations/occurrences/{occurrence.pk}/experience/live/",
+            } if phase in _LIVE_PHASES else {}),
+            **({
+                "scanner": f"/api/v1/scanner/occurrences/{occurrence.pk}/context/",
+            } if scanner_allowed else {}),
+        },
     }
