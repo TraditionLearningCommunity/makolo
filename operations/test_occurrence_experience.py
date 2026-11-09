@@ -50,8 +50,21 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
             )
 
     def test_participant_and_operator_coexist_without_switch(self):
-        participant = {"access": [{"status": "valid"}], "queue": []}
-        operator = {"perspective": "operator", "queue": [], "capacity": []}
+        participant = {
+            "access": [{"status": "valid"}],
+            "queue": [],
+            "next_action": {
+                "type": "checkpoint", "source": "operations.flow",
+                "label": "Rejoindre la salle",
+            },
+        }
+        operator = {
+            "perspective": "operator", "queue": [], "capacity": [],
+            "next_action": {
+                "type": "readiness", "source": "operations.readiness",
+                "label": "Préparer le contrôle",
+            },
+        }
         data = self._resolve(
             participant=participant, operator=operator,
             owner_operations=True, scanner=True,
@@ -64,6 +77,10 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
         self.assertIn("scanner", data["capabilities"])
         self.assertIn("operations_view", data["capabilities"])
         self.assertIn("live", data["links"])
+        self.assertEqual(
+            [action["territory"] for action in data["actions"]],
+            ["participant", "organizer", "organizer"],
+        )
 
     def test_institutional_journey_is_shared_not_personal_access(self):
         institutional = [{
@@ -89,6 +106,10 @@ class OccurrenceExperienceCompositionTests(SimpleTestCase):
         # No operator facts may leak into knowledge without owner view authority.
         # A scanner can have scan permission without general operations view.
         self.assertFalse(data["relations"]["participant"])
+        self.assertFalse(any(
+            fact.get("domain") == "organizer"
+            for fact in data["knowledge"]["facts"]
+        ))
 
     def test_platform_only_is_not_organizer(self):
         operator = {"perspective": "operator", "queue": []}
