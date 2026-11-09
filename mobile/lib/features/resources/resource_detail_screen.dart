@@ -142,6 +142,22 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   ) async {
     final path = version.downloadPath;
     if (path == null || _downloading || _sharing) return;
+    if (detail.sensitivity == 'normal') {
+      final source = await widget.repository.readDetailSource(widget.assetId);
+      if (source.reachability == ReachabilityState.unreachable) {
+        final retained = await widget.repository.localVersionExists(
+          assetId: widget.assetId,
+          title: detail.title,
+          versionNumber: version.number,
+        );
+        if (!retained) {
+          if (mounted) {
+            _message('Ce fichier n’est pas disponible hors connexion.');
+          }
+          return;
+        }
+      }
+    }
     setState(() {
       _downloading = true;
       _downloadProgress = null;
