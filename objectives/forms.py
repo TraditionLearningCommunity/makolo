@@ -9,8 +9,8 @@ from journeys.models import Journey
 from organizations.models import Organization
 
 from .models import DossierJourneyLink, DossierLifecycle, Project, ProjectLifecycle
-from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile
-from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES
+from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
+from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_project
 
 
 User = get_user_model()
@@ -138,13 +138,23 @@ class DossierEditForm(forms.Form):
 
 
 class DossierProjectForm(forms.Form):
-    project = forms.ModelChoiceField(label="Projet", queryset=Project.objects.none(), required=False, help_text="Laissez vide pour retirer le Dossier de son Projet.")
+    project = forms.ModelChoiceField(
+        label="Projet", queryset=Project.objects.none(), required=False,
+        help_text="Laissez vide pour retirer le Dossier de son Projet.",
+    )
 
     def __init__(self, *args, actor, current_project=None, **kwargs):
-        super().__init__(*args, **kwargs); manage_spaces = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Project.objects.filter(lifecycle__in=PROJECT_LINKABLE_LIFECYCLES)
-        if manage_spaces is not None: queryset = queryset.filter(Q(owner_profile=actor) | Q(owning_space_id__in=manage_spaces))
-        if current_project is not None: queryset = Project.objects.filter(Q(pk=current_project.pk) | Q(pk__in=queryset.values("pk")))
-        self.fields["project"].queryset = queryset.order_by("title").distinct(); self.fields["project"].initial = current_project
+        super().__init__(*args, **kwargs)
+        eligible = projects_for_profile(actor).filter(
+            lifecycle__in=PROJECT_LINKABLE_LIFECYCLES,
+        ).select_related("owning_space")
+        ids = [row.pk for row in eligible if can_manage_project(actor, row)]
+        if current_project is not None:
+            ids.append(current_project.pk)
+        self.fields["project"].queryset = Project.objects.filter(
+            pk__in=ids,
+        ).order_by("title").distinct()
+        self.fields["project"].initial = current_project
 
 
 class DossierJourneyLinkForm(forms.Form):
