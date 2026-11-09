@@ -755,6 +755,11 @@ class DiscoveryRepository {
     }
     final actor = field['viewer'];
     if (actor is! Map || actor['id'] != profileId) return null;
+    if (query.isSpace) {
+      final spaceActor = field['actor'];
+      if (spaceActor is! Map || spaceActor['type'] != 'space' ||
+          spaceActor['id'] != query.spaceId) return null;
+    }
     return StoredProjection(
       kind: itemsProjectionKind,
       resourceKey: query.fingerprint,
@@ -841,7 +846,7 @@ class DiscoveryRepository {
     );
     return updates.asyncMap(
       (current) => query.page <= 1
-          ? _readAvailable(itemsSource(query), current)
+          ? _readAvailable(itemsSource(query), current, expectedSpaceId: query.spaceId)
           : _logicalItemsProjection(query, current),
     );
   }
@@ -853,7 +858,9 @@ class DiscoveryRepository {
     const selector = DiscoverySelector();
     final source = await readSource(itemsSource(query));
     if (source.ownerUnavailable) return null;
-    current = await _readAvailable(itemsSource(query), current);
+    current = await _readAvailable(
+      itemsSource(query), current, expectedSpaceId: query.spaceId,
+    );
     // A revoked first-page field cannot be resurrected by a derived window,
     // even if a later cursor still has locally cached rows.
     final rootQuery = query.copyWith(page: 1, clearContinuation: true);
@@ -959,8 +966,9 @@ class DiscoveryRepository {
   /// reads (including root, map and N2) must pass this gate.
   Future<StoredProjection?> _readAvailable(
     SyncSourceDefinition source,
-    StoredProjection? snapshot,
-  ) async {
+    StoredProjection? snapshot, {
+    String? expectedSpaceId,
+  }) async {
     if (snapshot == null) return null;
     if ((await readSource(source)).ownerUnavailable) return null;
     if (source.projectionKind == itemsProjectionKind) {
@@ -972,7 +980,10 @@ class DiscoveryRepository {
           viewer['id'] != profileId ||
           (surface != 'discover_me' && surface != 'discover_space') ||
           actor is! Map ||
-          (surface == 'discover_space' && actor['type'] != 'space') ||
+          (surface == 'discover_space' &&
+              (actor['type'] != 'space' ||
+                  expectedSpaceId == null ||
+                  actor['id'] != expectedSpaceId)) ||
           (surface == 'discover_me' &&
               (actor['type'] != 'profile' || actor['id'] != profileId))) {
         return null;
@@ -1016,6 +1027,7 @@ class DiscoveryRepository {
           itemsProjectionKind,
           resourceKey: query.fingerprint,
         ),
+        expectedSpaceId: query.spaceId,
       );
 
   /// Keep one-shot offline reads consistent with the watched logical field.
@@ -1442,6 +1454,8 @@ class DiscoveryRepository {
   }
 
   Future<void> indexItemPreviews(DiscoveryQuery query) async {
+    // Personal detail previews cannot be populated from a Space acquisition.
+    if (query.isSpace) return;
     final projection = await readItems(query);
     if (projection == null) return;
     await _indexDiscoveryItemPreviews(projection);
