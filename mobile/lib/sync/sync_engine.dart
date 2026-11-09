@@ -992,6 +992,22 @@ class SyncEngine {
     }
     // A denied History owner invalidates its previously received search
     // views as a family. Older in-flight pages cannot restore them.
+    // A denied Jour J invalidates the sibling Live projection for exactly the
+    // same Profile, actor and Occurrence. Live's own 404 is not reciprocal:
+    // Live may simply be disabled while Jour J remains authorized.
+    final deniedOccurrenceDayOf =
+        source.projectionKind == 'occurrence.experience.day_of';
+    final siblingLiveSourceKey = deniedOccurrenceDayOf
+        ? source.actorScope.isSpace
+            ? 'space-live-experience:${source.actorScope.spaceId}:${source.resourceKey.split('|').last}'
+            : 'live-experience:${source.resourceKey}'
+        : null;
+    if (siblingLiveSourceKey != null) {
+      final siblingKey =
+          '$profileId|${source.actorScope.stableKey}|$siblingLiveSourceKey';
+      coordinator.generations[siblingKey] =
+          (coordinator.generations[siblingKey] ?? 0) + 1;
+    }
     if (source.owner == 'ProfileHistory') {
       for (final key
           in coordinator.generations.keys
@@ -1005,6 +1021,21 @@ class SyncEngine {
         source.projectionKind,
         resourceKey: source.resourceKey,
       );
+      if (siblingLiveSourceKey != null) {
+        // Tombstone the companion before cold-start or in-flight readers can
+        // present information that the day-of owner has just withdrawn.
+        await store.deleteProjection(
+          'occurrence.experience.live',
+          resourceKey: source.resourceKey,
+        );
+        await (database.update(database.syncSources)..where(
+          (row) => row.profileId.equals(profileId) &
+              row.sourceKey.equals(siblingLiveSourceKey),
+        )).write(SyncSourcesCompanion(
+          invalidated: const Value(true),
+          lastErrorCode: Value(code),
+        ));
+      }
       if (deniedSpace != null || deniedInventory) {
         await _withdrawSpaceFacts(spaceId: deniedSpace, code: code);
       }
