@@ -169,4 +169,12 @@
       {% endif %}
     </details>
   {% endif %}
+  <footer class="mt-3 flex justify-end gap-2 text-xs" style="color:var(--mk-muted)">
+    {% if point.published_by_id == request.user.pk and point.published_at %}
+      <span title="Publication confirmée par Makolo" aria-label="Publication confirmée">✓</span>
+    {% endif %}
+    {% if point.published_at %}
+      <time datetime="{{ point.published_at|date:'c' }}" title="{{ point.published_at|date:'d/m/Y à H:i' }}">{{ point.published_at|date:'H:i' }}</time>
+    {% endif %}
+  </footer>
 </article>
