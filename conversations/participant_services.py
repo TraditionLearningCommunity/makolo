@@ -272,6 +272,11 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
             return (kind, locked)
         if locked.status == ConversationCollectiveStatus.DECLINED:
             raise ValidationError("Ce collectif a déjà refusé cette invitation.")
+        if locked.status == ConversationCollectiveStatus.REVOKED:
+            raise ValidationError(
+                "Cet accès collectif a été retiré. Une nouvelle invitation "
+                "exige une procédure explicite distincte."
+            )
         locked.status = ConversationCollectiveStatus.PENDING
         locked.expires_at = None
         locked.responded_at = None
