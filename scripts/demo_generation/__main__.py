@@ -90,7 +90,8 @@ def build_parser():
     res.add_argument("--profiles",type=int,default=30)
     res.add_argument("--profile-username")
     res.add_argument("--include-test-users",action="store_true")
-    res.add_argument("--reuse-avatar",action="store_true")
+    res.add_argument("--reuse-avatar",action="store_true",default=True)
+    res.add_argument("--no-reuse-avatar",dest="reuse_avatar",action="store_false")
     res.add_argument("--apply",action="store_true")
     res.add_argument("--backup",action="store_true")
     m=sub.add_parser("maintain",help="Completer, rafraichir ou archiver des scenarios demo")
@@ -116,7 +117,7 @@ def run(a):
                  "--profiles",str(a.profiles)]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
         if a.include_test_users: options.append("--include-test-users")
-        if a.reuse_avatar: options.append("--reuse-avatar")
+        options.append("--reuse-avatar" if a.reuse_avatar else "--no-reuse-avatar")
         if a.backup: options.append("--backup")
         if a.apply: options.append("--apply")
         return resources.main(options)
