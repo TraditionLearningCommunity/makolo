@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/occurrence/occurrence_experience_content.dart';
 
 void main() {
-  testWidgets('Jour J can show participant and organizer moves together', (tester) async {
+  testWidgets('Jour J can show participant and organizer moves together', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -52,50 +54,55 @@ void main() {
     expect(find.byType(DropdownButton<String>), findsNothing);
   });
 
-  testWidgets('Makolo Live shows coverage and owner facts without fake streaming', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: OccurrenceExperienceContent(
-            payload: const {
-              'surface': 'live',
-              'phase': 'live',
-              'context': {
-                'activity': {'title': 'Voyage'},
-                'occurrence': {'label': 'Départ'},
-              },
-              'knowledge': {
-                'coverage': {'state': 'PARTIAL'},
-                'planned_timing': {
-                  'truth': 'planned',
-                  'start_at': '2026-11-09T10:00:00+01:00',
+  testWidgets(
+    'Makolo Live shows coverage and owner facts without fake streaming',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OccurrenceExperienceContent(
+              payload: const {
+                'surface': 'live',
+                'phase': 'live',
+                'context': {
+                  'activity': {'title': 'Voyage'},
+                  'occurrence': {'label': 'Départ'},
                 },
-                'temporal_observation': {'truth': 'unknown'},
-                'spatial': {},
-                'facts': [
-                  {
-                    'domain': 'participant',
-                    'label': 'Mon appel',
-                    'truth': 'observed',
-                    'source': 'operations.queue',
-                    'value': 'called',
-                    'occurred_at': null,
+                'knowledge': {
+                  'coverage': {'state': 'PARTIAL'},
+                  'planned_timing': {
+                    'truth': 'planned',
+                    'start_at': '2026-11-09T10:00:00+01:00',
                   },
-                ],
-                'transitions': {'state': 'unavailable'},
+                  'temporal_observation': {'truth': 'unknown'},
+                  'spatial': {},
+                  'facts': [
+                    {
+                      'domain': 'participant',
+                      'label': 'Mon appel',
+                      'truth': 'observed',
+                      'source': 'operations.queue',
+                      'value': 'called',
+                      'occurred_at': null,
+                    },
+                  ],
+                  'transitions': {'state': 'unavailable'},
+                },
               },
-            },
-            live: true,
+              live: true,
+            ),
           ),
         ),
-      ),
-    );
-    expect(find.text('Couverture partielle'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Mon appel'), 160);
-    expect(find.text('Mon appel'), findsOneWidget);
-    expect(find.textContaining('Source : operations.queue'), findsOneWidget);
-  });
-  testWidgets('L5 independent owner depths keep direct actions visible', (tester) async {
+      );
+      expect(find.text('Couverture partielle'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Mon appel'), 160);
+      expect(find.text('Mon appel'), findsOneWidget);
+      expect(find.textContaining('Source : operations.queue'), findsOneWidget);
+    },
+  );
+  testWidgets('L5 independent owner depths keep direct actions visible', (
+    tester,
+  ) async {
     String? selected;
     await tester.pumpWidget(
       MaterialApp(
@@ -138,5 +145,4 @@ void main() {
     expect(selected, 'operator_queue');
     expect(find.byType(DropdownButton<String>), findsNothing);
   });
-
 }

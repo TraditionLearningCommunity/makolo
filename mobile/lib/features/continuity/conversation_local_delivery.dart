@@ -138,7 +138,8 @@ class ConversationLocalDelivery {
       .then((_) {});
 
   Future<List<Map<String, dynamic>>> _stageSemanticMedia(
-    String reference, List<Map<String, dynamic>> media,
+    String reference,
+    List<Map<String, dynamic>> media,
   ) async {
     if (media.isEmpty || media.length > 24) {
       throw ArgumentError('Entre 1 et 24 médias sont nécessaires.');
@@ -157,7 +158,8 @@ class ConversationLocalDelivery {
         final path = entry['path']?.toString() ?? '';
         final filename = entry['filename']?.toString() ?? '';
         final kind = entry['kind']?.toString() ?? '';
-        if (path.isEmpty || filename.isEmpty ||
+        if (path.isEmpty ||
+            filename.isEmpty ||
             !{'image', 'file', 'voice', 'audio', 'video'}.contains(kind)) {
           throw ArgumentError('Média structuré invalide.');
         }
@@ -169,7 +171,8 @@ class ConversationLocalDelivery {
         final dot = name.lastIndexOf('.');
         final suffix = dot > 0 ? name.substring(dot) : '.bin';
         final ext = RegExp(r'^\.[A-Za-z0-9]{1,10}$').hasMatch(suffix)
-            ? suffix : '.bin';
+            ? suffix
+            : '.bin';
         final copy = '${folder.path}/$reference-$index$ext';
         await source.copy(copy);
         staged.add({...entry, 'path': copy, 'filename': name});
@@ -355,14 +358,18 @@ class ConversationLocalDelivery {
       filename: payload['filename']?.toString(),
       localFilePath: payload['local_file_path']?.toString(),
       semanticMedia: [
-        for (final item in payload['semantic_media'] is List
-            ? payload['semantic_media'] as List : const [])
+        for (final item
+            in payload['semantic_media'] is List
+                ? payload['semantic_media'] as List
+                : const [])
           if (item is Map)
             item.map((key, value) => MapEntry(key.toString(), value)),
       ],
       options: [
-        for (final item in payload['options'] is List
-            ? payload['options'] as List : const [])
+        for (final item
+            in payload['options'] is List
+                ? payload['options'] as List
+                : const [])
           item.toString(),
       ],
     );
@@ -405,7 +412,8 @@ class ConversationLocalDelivery {
         final path = item['path']?.toString() ?? '';
         final filename = item['filename']?.toString() ?? '';
         final kind = item['kind']?.toString() ?? '';
-        if (path.isEmpty || filename.isEmpty ||
+        if (path.isEmpty ||
+            filename.isEmpty ||
             !{'image', 'file', 'voice', 'audio', 'video'}.contains(kind) ||
             !await File(path).exists()) {
           return OutboxResolution.conflict;
@@ -419,9 +427,9 @@ class ConversationLocalDelivery {
           'caption': item['caption']?.toString() ?? '',
           'mime_type': mediaMime(filename, kind),
         });
-        files.add(MakoloUploadFile(
-          fieldName: field, path: path, filename: filename,
-        ));
+        files.add(
+          MakoloUploadFile(fieldName: field, path: path, filename: filename),
+        );
       }
       final response = await api.upload(
         'api/v1/conversations/$conversationId/semantic-media/',
@@ -432,7 +440,8 @@ class ConversationLocalDelivery {
           'body': payload['body'],
           'options': jsonEncode(payload['options'] ?? <String>[]),
           'multiple_choice': payload['multiple_choice'] == true
-              ? 'true' : 'false',
+              ? 'true'
+              : 'false',
           'media_manifest': jsonEncode(manifest),
           'audience_id': payload['audience_id'],
           'represented_space_id': payload['represented_space_id'],

@@ -77,23 +77,23 @@ void main() {
     }
   });
 
-  test('personal resource ingress still goes through authentication recovery', () {
-    const destination = StructuredDestination(
-      kind: 'proof',
-      id: 'proof-1',
-    );
-    final recovery = SessionRecoveryController();
-    final resolution = const IncomingIntentResolver().resolve(
-      intent: const IncomingIntent(
-        source: IncomingIntentSource.notification,
-        destination: destination,
-      ),
-      authenticated: false,
-      recovery: recovery,
-    );
+  test(
+    'personal resource ingress still goes through authentication recovery',
+    () {
+      const destination = StructuredDestination(kind: 'proof', id: 'proof-1');
+      final recovery = SessionRecoveryController();
+      final resolution = const IncomingIntentResolver().resolve(
+        intent: const IncomingIntent(
+          source: IncomingIntentSource.notification,
+          destination: destination,
+        ),
+        authenticated: false,
+        recovery: recovery,
+      );
 
-    expect(resolution?.route, '/login');
-    expect(resolution?.requiresAuthentication, isTrue);
-    expect(recovery.initialLocation(), '/me/resources/proofs/proof-1');
-  });
+      expect(resolution?.route, '/login');
+      expect(resolution?.requiresAuthentication, isTrue);
+      expect(recovery.initialLocation(), '/me/resources/proofs/proof-1');
+    },
+  );
 }

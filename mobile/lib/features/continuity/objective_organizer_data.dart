@@ -134,41 +134,48 @@ class OrganizerHierarchy {
   Map<String, OrganizerEntry> get byKey => _byKey;
 
   List<String> _acquiredParents(OrganizerEntry journey) =>
-      journey.dossierIds.toSet()
+      journey.dossierIds
+          .toSet()
           .where((id) => _byKey.containsKey('dossier:$id'))
           .toList()
         ..sort();
 
-  List<OrganizerEntry> childrenOf(OrganizerEntry parent) => switch (parent.kind) {
-    'project' => _dossiers
-        .where((d) => d.projectId == parent.id)
-        .toList(),
-    'dossier' => _journeys
-        .where((j) => _primaryDossier[j.id] == parent.id)
-        .toList(),
-    _ => <OrganizerEntry>[],
-  };
+  List<OrganizerEntry> childrenOf(OrganizerEntry parent) =>
+      switch (parent.kind) {
+        'project' => _dossiers.where((d) => d.projectId == parent.id).toList(),
+        'dossier' =>
+          _journeys.where((j) => _primaryDossier[j.id] == parent.id).toList(),
+        _ => <OrganizerEntry>[],
+      };
 
   List<OrganizerEntry> get roots => [
     ..._projects,
     ..._dossiers.where(
-      (d) => d.projectId == null ||
-          !_byKey.containsKey('project:${d.projectId}'),
+      (d) =>
+          d.projectId == null || !_byKey.containsKey('project:${d.projectId}'),
     ),
     ..._journeys.where((j) => _primaryDossier[j.id] == null),
   ];
 
   /// Other locally acquired Dossier links that are represented elsewhere.
-  int additionalSharedLinks(OrganizerEntry dossier) => _journeys.where(
-    (j) => j.dossierIds.contains(dossier.id) &&
-        _primaryDossier[j.id] != dossier.id &&
-        _primaryDossier[j.id] != null,
-  ).length;
+  int additionalSharedLinks(OrganizerEntry dossier) => _journeys
+      .where(
+        (j) =>
+            j.dossierIds.contains(dossier.id) &&
+            _primaryDossier[j.id] != dossier.id &&
+            _primaryDossier[j.id] != null,
+      )
+      .length;
 
   /// Shared relationships may include authorized parents not yet acquired.
-  int get extraLinks => _journeys.fold<int>(0, (count, journey) =>
-      count + (journey.dossierIds.toSet().length > 1
-          ? journey.dossierIds.toSet().length - 1 : 0));
+  int get extraLinks => _journeys.fold<int>(
+    0,
+    (count, journey) =>
+        count +
+        (journey.dossierIds.toSet().length > 1
+            ? journey.dossierIds.toSet().length - 1
+            : 0),
+  );
 }
 
 /// Counts only the loaded collection: never imply that a partial window is
@@ -182,27 +189,34 @@ String organizerCountLabel(
   final count = values.length;
   final kinds = values.map((e) => e.kind).toSet();
   final type = filtered
-      ? count == 1 ? 'résultat' : 'résultats'
+      ? count == 1
+            ? 'résultat'
+            : 'résultats'
       : kinds.length == 1
       ? switch (kinds.first) {
           'project' => count == 1 ? 'projet' : 'projets',
           'dossier' => count == 1 ? 'dossier' : 'dossiers',
           _ => count == 1 ? 'démarche' : 'démarches',
         }
-      : count == 1 ? 'élément' : 'éléments';
+      : count == 1
+      ? 'élément'
+      : 'éléments';
   final loaded = partial
       ? kinds.length == 1 && kinds.first == 'journey' && !filtered
-          ? count == 1 ? ' chargée' : ' chargées'
-          : count == 1 ? ' chargé' : ' chargés'
+            ? count == 1
+                  ? ' chargée'
+                  : ' chargées'
+            : count == 1
+            ? ' chargé'
+            : ' chargés'
       : '';
   return '$count $type$loaded';
 }
 
 /// Shared links in the explorer are references, never duplicate nodes.
-String organizerSharedLinksLabel(int count) =>
-    count == 1
-        ? '1 démarche également liée, présentée dans un autre dossier'
-        : '$count démarches également liées, présentées dans un autre dossier';
+String organizerSharedLinksLabel(int count) => count == 1
+    ? '1 démarche également liée, présentée dans un autre dossier'
+    : '$count démarches également liées, présentées dans un autre dossier';
 
 /// Describe only the acquired direct children, with grammatical counts.
 String organizerMoreChildrenLabel(OrganizerEntry parent, int count) {

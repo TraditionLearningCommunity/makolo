@@ -531,7 +531,8 @@ class _NowViewState extends State<NowView> {
           .toSet();
       // A new leading item is a fresh update; pagination appended at the
       // bottom must not be presented as a new arrival.
-      final newlyAdded = previous.isNotEmpty &&
+      final newlyAdded =
+          previous.isNotEmpty &&
           widget.selection.situations.isNotEmpty &&
           !previous.contains(widget.selection.situations.first.identity) &&
           !oldWidget.loadingMore &&

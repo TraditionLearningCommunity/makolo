@@ -24,14 +24,16 @@ Future<void> _markDetailReachable(
   String id,
 ) async {
   final source = repository.detailSourceFor(family, id);
-  await database.into(database.syncSources).insert(
-    SyncSourcesCompanion.insert(
-      profileId: 'profile-a',
-      sourceKey: source.sourceKey,
-      route: source.path,
-      lastSuccessAt: Value(DateTime.now().toUtc()),
-    ),
-  );
+  await database
+      .into(database.syncSources)
+      .insert(
+        SyncSourcesCompanion.insert(
+          profileId: 'profile-a',
+          sourceKey: source.sourceKey,
+          route: source.path,
+          lastSuccessAt: Value(DateTime.now().toUtc()),
+        ),
+      );
 }
 
 class _RecordingShareGateway implements ShareGateway {
@@ -145,7 +147,9 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('Mes titres keeps issuer status and type distinct', (tester) async {
+  testWidgets('Mes titres keeps issuer status and type distinct', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');

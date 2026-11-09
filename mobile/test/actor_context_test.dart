@@ -68,26 +68,29 @@ void main() {
     );
   });
 
-  test('Space context preserves cumulative roles across store reopen', () async {
-    final controller = await ActorContextController.restore(
-      profileId: 'profile-a',
-      store: store,
-    );
-    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+  test(
+    'Space context preserves cumulative roles across store reopen',
+    () async {
+      final controller = await ActorContextController.restore(
+        profileId: 'profile-a',
+        store: store,
+      );
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
 
-    await controller.selectSpace(space);
-    await controller.selectPerspective(
-      ActorPerspective.opaque('perspective:finance'),
-    );
-    expect(controller.value, SpaceActorContext(space: space));
-    controller.dispose();
+      await controller.selectSpace(space);
+      await controller.selectPerspective(
+        ActorPerspective.opaque('perspective:finance'),
+      );
+      expect(controller.value, SpaceActorContext(space: space));
+      controller.dispose();
 
-    final reopened = FileLaunchPreferencesStore.forFile(file);
-    expect(
-      await reopened.readActorContext('profile-a'),
-      SpaceActorContext(space: space),
-    );
-  });
+      final reopened = FileLaunchPreferencesStore.forFile(file);
+      expect(
+        await reopened.readActorContext('profile-a'),
+        SpaceActorContext(space: space),
+      );
+    },
+  );
 
   test('legacy selected Mandate is restored as cumulative Space', () async {
     final space = SpaceActorIdentity(id: 'space-legacy', slug: 'space-legacy');

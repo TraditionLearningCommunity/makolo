@@ -35,7 +35,15 @@ class DocumentFormScreen extends StatefulWidget {
 }
 
 class _DocumentFormScreenState extends State<DocumentFormScreen> {
-  static const _extensions = ['pdf', 'docx', 'doc', 'txt', 'jpg', 'jpeg', 'png'];
+  static const _extensions = [
+    'pdf',
+    'docx',
+    'doc',
+    'txt',
+    'jpg',
+    'jpeg',
+    'png',
+  ];
 
   final _title = TextEditingController();
   final _picker = const NativeSystemFilePicker();
@@ -77,9 +85,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
       if (!_options.kinds.any((option) => option.id == _kind)) {
         _kind = _options.kinds.first.id;
       }
-      if (!_options.sensitivities.any(
-        (option) => option.id == _sensitivity,
-      )) {
+      if (!_options.sensitivities.any((option) => option.id == _sensitivity)) {
         _sensitivity = _options.sensitivities.first.id;
       }
     });
@@ -218,9 +224,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   }
 
   void _message(String value) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
   }
 
   @override
@@ -259,10 +263,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
               ),
               items: [
                 for (final option in _options.kinds)
-                  DropdownMenuItem(
-                    value: option.id,
-                    child: Text(option.label),
-                  ),
+                  DropdownMenuItem(value: option.id, child: Text(option.label)),
               ],
               onChanged: _busy
                   ? null
@@ -279,10 +280,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
               ),
               items: [
                 for (final option in _options.sensitivities)
-                  DropdownMenuItem(
-                    value: option.id,
-                    child: Text(option.label),
-                  ),
+                  DropdownMenuItem(value: option.id, child: Text(option.label)),
               ],
               onChanged: _busy
                   ? null
@@ -324,9 +322,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
                 child: _DateField(
                   label: 'Émission',
                   value: _issuedAt,
-                  onTap: _busy
-                      ? null
-                      : () => _chooseDate(expiry: false),
+                  onTap: _busy ? null : () => _chooseDate(expiry: false),
                   onClear: _busy || _issuedAt == null
                       ? null
                       : () => setState(() => _issuedAt = null),
@@ -337,9 +333,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
                 child: _DateField(
                   label: 'Échéance',
                   value: _expiresAt,
-                  onTap: _busy
-                      ? null
-                      : () => _chooseDate(expiry: true),
+                  onTap: _busy ? null : () => _chooseDate(expiry: true),
                   onClear: _busy || _expiresAt == null
                       ? null
                       : () => setState(() => _expiresAt = null),
@@ -397,9 +391,9 @@ String _formatDate(DateTime value) {
   return '$day/$month/${value.year}';
 }
 
-String? _contentType(String filename) => switch (
-  p.extension(filename).toLowerCase()
-) {
+String? _contentType(String filename) => switch (p
+    .extension(filename)
+    .toLowerCase()) {
   '.pdf' => 'application/pdf',
   '.docx' =>
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

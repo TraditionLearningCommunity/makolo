@@ -145,10 +145,7 @@ void main() {
     final router = _router(runtime);
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      MaterialApp.router(
-        theme: buildMakoloTheme(),
-        routerConfig: router,
-      ),
+      MaterialApp.router(theme: buildMakoloTheme(), routerConfig: router),
     );
     await tester.pumpAndSettle();
     expect(find.byTooltip('Avatar'), findsOneWidget);

@@ -62,8 +62,11 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
             projection.resourceKey,
           );
           if (source?.invalidated == true &&
-              const {'permission_denied', 'not_found'}
-                  .contains(source?.lastErrorCode)) continue;
+              const {
+                'permission_denied',
+                'not_found',
+              }.contains(source?.lastErrorCode))
+            continue;
           final journey = const JourneyDetailSelector().select(
             projection: projection,
             source: source ?? JourneySourceState.unknown,
@@ -72,14 +75,16 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
           for (final payment in journey.payments) {
             if (payment.obligationId != widget.obligationId) continue;
             if (!mounted) return;
-            setState(() => _obligation = {
-              'id': payment.obligationId,
-              'amount': payment.amount,
-              'currency': payment.currency,
-              'status': payment.state,
-              'label': 'Paiement',
-              'capabilities': <String>[],
-            });
+            setState(
+              () => _obligation = {
+                'id': payment.obligationId,
+                'amount': payment.amount,
+                'currency': payment.currency,
+                'status': payment.state,
+                'label': 'Paiement',
+                'capabilities': <String>[],
+              },
+            );
             break;
           }
           if (_obligation != null) break;

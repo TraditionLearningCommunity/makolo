@@ -154,24 +154,31 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
               source: source,
               now: DateTime.now(),
             );
-            final scoped = _actorValid && projection != null &&
+            final scoped =
+                _actorValid &&
+                projection != null &&
                 OccurrenceContinuity.matches(
                   payload: projection.payload,
                   occurrenceId: widget.occurrenceId,
                   profileId: widget.repository.profileId,
                   surface: 'day_of',
                 );
-            final available = scoped && !source.invalidated &&
+            final available =
+                scoped &&
+                !source.invalidated &&
                 OccurrenceContinuity.verifiedAfterActorSwitch(
                   lastSuccessAt: source.lastSuccessAt,
                   actorSwitchedAt: _actorSwitchedAt,
                 );
-            final liveWindowEnded = scoped &&
+            final liveWindowEnded =
+                scoped &&
                 OccurrenceContinuity.liveWindowEnded(
-                  projection!.payload, now: DateTime.now(),
+                  projection!.payload,
+                  now: DateTime.now(),
                 );
             final globalState = SyncStatusScope.maybeOf(context)?.state;
-            final offline = globalState == SyncVisualState.offline ||
+            final offline =
+                globalState == SyncVisualState.offline ||
                 globalState == SyncVisualState.failed ||
                 globalState == SyncVisualState.conflict ||
                 globalState == SyncVisualState.stale;
@@ -185,8 +192,8 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
             final readOnlyReason = actionsAllowed
                 ? null
                 : source.reachability != ReachabilityState.reachable || offline
-                    ? 'Connexion ou vérification indisponible : dernière information connue.'
-                    : 'Information ancienne : actualisez avant toute action.';
+                ? 'Connexion ou vérification indisponible : dernière information connue.'
+                : 'Information ancienne : actualisez avant toute action.';
             final unavailableWithoutContent =
                 !available &&
                 (source.invalidated ||
@@ -236,7 +243,8 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                       ? 'Impossible de vérifier cette action. Consultez l’historique si elle est terminée.'
                       : 'Cette action n’est pas accessible ici.',
                   onRetry: _refresh,
-                  content: available && projection?.payload['surface'] == 'day_of'
+                  content:
+                      available && projection?.payload['surface'] == 'day_of'
                       ? OccurrenceExperienceContent(
                           payload: projection!.payload,
                           live: false,

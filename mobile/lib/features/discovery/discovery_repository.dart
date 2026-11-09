@@ -255,7 +255,13 @@ class DiscoveryQuery {
   }
 
   String get fingerprint => base64Url
-      .encode(utf8.encode(isSpace ? '${spaceId ?? 'unresolved'}:$canonicalQuery' : canonicalQuery))
+      .encode(
+        utf8.encode(
+          isSpace
+              ? '${spaceId ?? 'unresolved'}:$canonicalQuery'
+              : canonicalQuery,
+        ),
+      )
       .replaceAll('=', '');
 
   String get path => canonicalQuery.isEmpty
@@ -273,7 +279,13 @@ class DiscoveryQuery {
   }
 
   String get mapFingerprint => base64Url
-      .encode(utf8.encode(isSpace ? '${spaceId ?? 'unresolved'}:$mapCanonicalQuery' : mapCanonicalQuery))
+      .encode(
+        utf8.encode(
+          isSpace
+              ? '${spaceId ?? 'unresolved'}:$mapCanonicalQuery'
+              : mapCanonicalQuery,
+        ),
+      )
       .replaceAll('=', '');
 
   String get mapPath {
@@ -598,10 +610,13 @@ class DiscoveryRepository {
     );
   }
 
-  String _detailResourceKey(String family, String id, DiscoveryQuery actorQuery) =>
-      actorQuery.isSpace
-          ? 'space:${actorQuery.spaceId}:$family:$id'
-          : '$family:$id';
+  String _detailResourceKey(
+    String family,
+    String id,
+    DiscoveryQuery actorQuery,
+  ) => actorQuery.isSpace
+      ? 'space:${actorQuery.spaceId}:$family:$id'
+      : '$family:$id';
 
   SyncSourceDefinition itemSource(
     String family,
@@ -788,12 +803,14 @@ class DiscoveryRepository {
       if (field['surface'] != 'discover_space' ||
           scopeActor is! Map ||
           scopeActor['type'] != 'space' ||
-          scopeActor['id'] != query.spaceId) return null;
+          scopeActor['id'] != query.spaceId)
+        return null;
     } else {
       if (field['surface'] != 'discover_me' ||
           scopeActor is! Map ||
           scopeActor['type'] != 'profile' ||
-          scopeActor['id'] != profileId) return null;
+          scopeActor['id'] != profileId)
+        return null;
     }
     return StoredProjection(
       kind: itemsProjectionKind,
@@ -881,7 +898,11 @@ class DiscoveryRepository {
     );
     return updates.asyncMap(
       (current) => query.page <= 1
-          ? _readAvailable(itemsSource(query), current, expectedSpaceId: query.spaceId)
+          ? _readAvailable(
+              itemsSource(query),
+              current,
+              expectedSpaceId: query.spaceId,
+            )
           : _logicalItemsProjection(query, current),
     );
   }
@@ -894,7 +915,9 @@ class DiscoveryRepository {
     final source = await readSource(itemsSource(query));
     if (source.ownerUnavailable) return null;
     current = await _readAvailable(
-      itemsSource(query), current, expectedSpaceId: query.spaceId,
+      itemsSource(query),
+      current,
+      expectedSpaceId: query.spaceId,
     );
     // A revoked first-page field cannot be resurrected by a derived window,
     // even if a later cursor still has locally cached rows.
@@ -1041,8 +1064,9 @@ class DiscoveryRepository {
           identity['family'] is! String ||
           identity['resource'] is! Map ||
           (expectedSpaceId == null
-              ? '${identity['family']}:${(identity['resource'] as Map)['id']}'
-              : 'space:$expectedSpaceId:${identity['family']}:${(identity['resource'] as Map)['id']}') != source.resourceKey ||
+                  ? '${identity['family']}:${(identity['resource'] as Map)['id']}'
+                  : 'space:$expectedSpaceId:${identity['family']}:${(identity['resource'] as Map)['id']}') !=
+              source.resourceKey ||
           (expectedSpaceId != null &&
               (actor is! Map ||
                   actor['type'] != 'space' ||
@@ -1235,11 +1259,13 @@ class DiscoveryRepository {
         itemProjectionKind,
         resourceKey: _detailResourceKey(family, id, actorQuery),
       )
-      .asyncMap((row) => _readAvailable(
-        itemSource(family, id, actorQuery: actorQuery),
-        row,
-        expectedSpaceId: actorQuery.spaceId,
-      ));
+      .asyncMap(
+        (row) => _readAvailable(
+          itemSource(family, id, actorQuery: actorQuery),
+          row,
+          expectedSpaceId: actorQuery.spaceId,
+        ),
+      );
 
   /// Materialize a previously acquired owner projection only on N2 demand.
   /// The server has already admitted it for this viewer: changing N1, Carte
@@ -1274,7 +1300,8 @@ class DiscoveryRepository {
         if (page.payload['surface'] != 'discover_space' ||
             pageActor is! Map ||
             pageActor['type'] != 'space' ||
-            pageActor['id'] != actorQuery.spaceId) continue;
+            pageActor['id'] != actorQuery.spaceId)
+          continue;
       } else {
         if (page.payload['surface'] != 'discover_me') continue;
       }
@@ -1325,10 +1352,7 @@ class DiscoveryRepository {
             schemaVersion: page.schemaVersion,
             payload: {
               'item': item,
-              if (actorQuery.isSpace) ...{
-                'actor': pageActor,
-                'viewer': viewer,
-              },
+              if (actorQuery.isSpace) ...{'actor': pageActor, 'viewer': viewer},
             },
             receivedAt: page.receivedAt,
             sourceGeneratedAt: page.sourceGeneratedAt,
@@ -1411,7 +1435,9 @@ class DiscoveryRepository {
   }) async {
     final item = await readItem(family, id, actorQuery: actorQuery);
     if (item == null || item.schemaVersion != 1) return false;
-    final source = await readSource(itemSource(family, id, actorQuery: actorQuery));
+    final source = await readSource(
+      itemSource(family, id, actorQuery: actorQuery),
+    );
     if (source.invalidated || source.lastErrorCode != null) return false;
     final observed = item.lastVerifiedOnlineAt ?? item.receivedAt;
     final elapsed = DateTime.now().toUtc().difference(observed.toUtc());
@@ -1822,8 +1848,10 @@ class DiscoveryRepository {
     for (final projection in cached) {
       if (projection.schemaVersion != 1) continue;
       final viewer = projection.payload['viewer'];
-      if (viewer is! Map || viewer['id'] != profileId ||
-          projection.payload['surface'] != 'discover_me') continue;
+      if (viewer is! Map ||
+          viewer['id'] != profileId ||
+          projection.payload['surface'] != 'discover_me')
+        continue;
 
       final payload = Map<String, dynamic>.from(projection.payload);
       var changed = false;

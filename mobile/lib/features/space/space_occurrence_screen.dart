@@ -65,7 +65,8 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
   bool get _actorValid =>
       widget.actorContext == null ||
       (widget.actorContext!.value is SpaceActorContext &&
-       (widget.actorContext!.value as SpaceActorContext).space == widget.space);
+          (widget.actorContext!.value as SpaceActorContext).space ==
+              widget.space);
 
   void _onActorChanged() {
     _actorSwitchedAt = DateTime.now().toUtc();
@@ -178,7 +179,9 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                   now: DateTime.now(),
                   sourceInvalidated: state.invalidated,
                 );
-          final scoped = _actorValid && projection != null &&
+          final scoped =
+              _actorValid &&
+              projection != null &&
               OccurrenceContinuity.matches(
                 payload: projection.payload,
                 occurrenceId: widget.occurrenceId,
@@ -186,20 +189,25 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                 actorSpaceId: widget.space.id,
                 surface: widget.live ? 'live' : 'day_of',
               );
-          final available = scoped && !state.invalidated &&
+          final available =
+              scoped &&
+              !state.invalidated &&
               OccurrenceContinuity.verifiedAfterActorSwitch(
                 lastSuccessAt: state.lastSuccessAt,
                 actorSwitchedAt: _actorSwitchedAt,
               );
-          final liveEnded = scoped &&
+          final liveEnded =
+              scoped &&
               OccurrenceContinuity.liveWindowEnded(
-                projection!.payload, now: DateTime.now(),
+                projection!.payload,
+                now: DateTime.now(),
               );
           final syncVisual = SyncStatusScope.maybeOf(context)?.state;
-          final offline = syncVisual == SyncVisualState.offline ||
-                syncVisual == SyncVisualState.failed ||
-                syncVisual == SyncVisualState.conflict ||
-                syncVisual == SyncVisualState.stale;
+          final offline =
+              syncVisual == SyncVisualState.offline ||
+              syncVisual == SyncVisualState.failed ||
+              syncVisual == SyncVisualState.conflict ||
+              syncVisual == SyncVisualState.stale;
           final actionsAllowed = OccurrenceContinuity.canOfferActions(
             sourceInvalidated: state.invalidated,
             reachability: state.reachability,
@@ -212,8 +220,8 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
               : actionsAllowed
               ? null
               : state.reachability != ReachabilityState.reachable || offline
-                  ? 'Réseau ou propriétaire indisponible : dernière situation connue.'
-                  : 'Situation ancienne : actualisez pour agir.';
+              ? 'Réseau ou propriétaire indisponible : dernière situation connue.'
+              : 'Situation ancienne : actualisez pour agir.';
           final surface = const ProjectionSurfaceAdapter().adapt(
             projection: ProjectionPresentationModel(
               available: available,
@@ -255,8 +263,10 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                     ? 'Vous ne pouvez plus consulter cette réalisation dans le contexte actuel.'
                     : 'Vous n’avez pas accès à cette réalisation dans cet Espace.',
                 onRetry: _refresh,
-                content: available && projection?.payload['surface'] ==
-                        (widget.live ? 'live' : 'day_of')
+                content:
+                    available &&
+                        projection?.payload['surface'] ==
+                            (widget.live ? 'live' : 'day_of')
                     ? OccurrenceExperienceContent(
                         payload: projection!.payload,
                         live: widget.live,

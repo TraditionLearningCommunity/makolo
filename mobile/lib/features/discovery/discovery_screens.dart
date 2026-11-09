@@ -93,10 +93,7 @@ DiscoveryQuery? retainedDiscoveryPosition(
       continuation.isEmpty) {
     return null;
   }
-  return initialQuery.copyWith(
-    page: page,
-    continuation: continuation,
-  );
+  return initialQuery.copyWith(page: page, continuation: continuation);
 }
 
 /// Restore only presentation hints saved in the current Profile scope.
@@ -199,7 +196,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void didUpdateWidget(covariant DiscoveryScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.repository, widget.repository) ||
-        oldWidget.initialQuery.mapFingerprint != widget.initialQuery.mapFingerprint) {
+        oldWidget.initialQuery.mapFingerprint !=
+            widget.initialQuery.mapFingerprint) {
       // Another viewer or actor cannot inherit a field, position or cursor.
       _query = widget.initialQuery;
       _verifiedFieldKey = null;
@@ -649,7 +647,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               _newPossibilitiesAvailable = false;
             }
             if (projection != null && _query.page == 1) {
-              final currentKeys = full.items.map((item) => item.candidateKey).toSet();
+              final currentKeys = full.items
+                  .map((item) => item.candidateKey)
+                  .toSet();
               final previous = _knownCandidateKeys;
               if (previous != null &&
                   previous.isNotEmpty &&
@@ -735,50 +735,55 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 RefreshIndicator(
                   onRefresh: _refreshItems,
                   child: DiscoveryExplorationView(
-                selection: displaySelection,
-                onOpen: _open,
-                onSave: _query.isSpace ? null : (item) =>
-                    _saveDiscoveryPossibility(widget.repository, item, _query),
-                baseUri: widget.repository.api.baseUri,
-                shareApi: _query.isSpace ? null : widget.repository.api,
-                profileId: widget.repository.profileId,
-                allowOwnerActions:
-                    !_query.isSpace &&
-                    !_refreshing &&
-                    _verifiedFieldKey == _query.mapFingerprint &&
-                    sourceState.lastErrorCode == null &&
-                    !sourceState.invalidated,
-                onWatch: _query.isSpace || _query.watchCriteria.isEmpty
-                    ? null
-                    : () => unawaited(
-                        _startDiscoveryWatch(
-                          context,
-                          widget.repository,
-                          _query,
+                    selection: displaySelection,
+                    onOpen: _open,
+                    onSave: _query.isSpace
+                        ? null
+                        : (item) => _saveDiscoveryPossibility(
+                            widget.repository,
+                            item,
+                            _query,
+                          ),
+                    baseUri: widget.repository.api.baseUri,
+                    shareApi: _query.isSpace ? null : widget.repository.api,
+                    profileId: widget.repository.profileId,
+                    allowOwnerActions:
+                        !_query.isSpace &&
+                        !_refreshing &&
+                        _verifiedFieldKey == _query.mapFingerprint &&
+                        sourceState.lastErrorCode == null &&
+                        !sourceState.invalidated,
+                    onWatch: _query.isSpace || _query.watchCriteria.isEmpty
+                        ? null
+                        : () => unawaited(
+                            _startDiscoveryWatch(
+                              context,
+                              widget.repository,
+                              _query,
+                            ),
+                          ),
+                    fieldKey: _query.mapFingerprint,
+                    scrollController: _fieldScroll,
+                    initialFocusedCandidateKey: _focusedCandidateKey,
+                    onFocusedCandidateChanged: (key) {
+                      _focusedCandidateKey = key;
+                      unawaited(_rememberPosition(_query));
+                    },
+                    onMap: (selected) {
+                      unawaited(_rememberPosition(_query));
+                      context.push(
+                        _query.routeLocation(
+                          '/discover/map',
+                          selectedCandidateKey: selected,
                         ),
-                      ),
-                fieldKey: _query.mapFingerprint,
-                scrollController: _fieldScroll,
-                initialFocusedCandidateKey: _focusedCandidateKey,
-                onFocusedCandidateChanged: (key) {
-                  _focusedCandidateKey = key;
-                  unawaited(_rememberPosition(_query));
-                },
-                onMap: (selected) {
-                  unawaited(_rememberPosition(_query));
-                  context.push(
-                    _query.routeLocation(
-                      '/discover/map',
-                      selectedCandidateKey: selected,
-                    ),
-                  );
-                },
-                onPage: (_) => unawaited(_loadNextPage()),
-                autoLoadMore: true,
-                loadingMore: _loadingMore,
-                loadMoreFailed: _loadMoreFailed,
-                onRetry: () => unawaited(_refreshItems()),
-              ),
+                      );
+                    },
+                    onPage: (_) => unawaited(_loadNextPage()),
+                    autoLoadMore: true,
+                    loadingMore: _loadingMore,
+                    loadMoreFailed: _loadMoreFailed,
+                    onRetry: () => unawaited(_refreshItems()),
+                  ),
                 ),
                 if (_newPossibilitiesAvailable)
                   Align(
@@ -1021,49 +1026,49 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   Widget _watchFilter() => _query.isSpace
       ? const SizedBox.shrink()
       : StreamBuilder<StoredProjection?>(
-    stream: _watchesStream,
-    builder: (context, snapshot) {
-      final results = snapshot.data?.payload['results'];
-      if (results is! List) return const SizedBox.shrink();
-      final watches = results
-          .whereType<Map>()
-          .where(
-            (row) =>
-                row['id'] is String &&
-                row['name'] is String &&
-                row['criteria'] is Map,
-          )
-          .toList();
-      if (watches.isEmpty) return const SizedBox.shrink();
-      final selected = watches.any((row) => row['id'] == _selectedWatchId)
-          ? _selectedWatchId
-          : null;
-      return KeyedSubtree(
-        key: ValueKey('discover-watch-choice-$selected'),
-        child: DropdownButtonFormField<String>(
-          key: const Key('discover-search-watch-filter'),
-          initialValue: selected,
-          decoration: const InputDecoration(
-            labelText: 'Veilles',
-            prefixIcon: Icon(Icons.radar_outlined),
-            border: OutlineInputBorder(),
-          ),
-          items: [
-            const DropdownMenuItem<String>(
-              value: '',
-              child: Text('Toutes les possibilités'),
-            ),
-            for (final watch in watches)
-              DropdownMenuItem<String>(
-                value: watch['id'] as String,
-                child: Text(watch['name'] as String),
+          stream: _watchesStream,
+          builder: (context, snapshot) {
+            final results = snapshot.data?.payload['results'];
+            if (results is! List) return const SizedBox.shrink();
+            final watches = results
+                .whereType<Map>()
+                .where(
+                  (row) =>
+                      row['id'] is String &&
+                      row['name'] is String &&
+                      row['criteria'] is Map,
+                )
+                .toList();
+            if (watches.isEmpty) return const SizedBox.shrink();
+            final selected = watches.any((row) => row['id'] == _selectedWatchId)
+                ? _selectedWatchId
+                : null;
+            return KeyedSubtree(
+              key: ValueKey('discover-watch-choice-$selected'),
+              child: DropdownButtonFormField<String>(
+                key: const Key('discover-search-watch-filter'),
+                initialValue: selected,
+                decoration: const InputDecoration(
+                  labelText: 'Veilles',
+                  prefixIcon: Icon(Icons.radar_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: '',
+                    child: Text('Toutes les possibilités'),
+                  ),
+                  for (final watch in watches)
+                    DropdownMenuItem<String>(
+                      value: watch['id'] as String,
+                      child: Text(watch['name'] as String),
+                    ),
+                ],
+                onChanged: (id) => _selectSavedWatch(id, watches),
               ),
-          ],
-          onChanged: (id) => _selectSavedWatch(id, watches),
-        ),
-      );
-    },
-  );
+            );
+          },
+        );
 
   void _applyCriteria({bool immediate = true}) {
     _selectedWatchId = null;
@@ -1561,7 +1566,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
           children: [
             OutlinedButton.icon(
               key: const Key('discover-search-clarify'),
-              onPressed: _query.isSpace || _clarifying || _search.text.trim().isEmpty
+              onPressed:
+                  _query.isSpace || _clarifying || _search.text.trim().isEmpty
                   ? null
                   : () => unawaited(_clarifySearch()),
               icon: _clarifying
@@ -1594,7 +1600,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
             key: const Key('discover-search-sources'),
-            onPressed: _query.isSpace || _researching || _search.text.trim().isEmpty
+            onPressed:
+                _query.isSpace || _researching || _search.text.trim().isEmpty
                 ? null
                 : () => unawaited(_researchSources()),
             icon: _researching
@@ -1682,13 +1689,17 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
-                            onSave: _query.isSpace ? null : (item) => _saveDiscoveryPossibility(
-                              widget.repository,
-                              item,
-                              _query,
-                            ),
+                            onSave: _query.isSpace
+                                ? null
+                                : (item) => _saveDiscoveryPossibility(
+                                    widget.repository,
+                                    item,
+                                    _query,
+                                  ),
                             baseUri: widget.repository.api.baseUri,
-                            shareApi: _query.isSpace ? null : widget.repository.api,
+                            shareApi: _query.isSpace
+                                ? null
+                                : widget.repository.api,
                             profileId: widget.repository.profileId,
                             allowOwnerActions:
                                 !_query.isSpace &&
@@ -1696,7 +1707,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                                 _verifiedFieldKey == _query.mapFingerprint &&
                                 sourceState.lastErrorCode == null &&
                                 !sourceState.invalidated,
-                            onWatch: _query.isSpace || _query.watchCriteria.isEmpty
+                            onWatch:
+                                _query.isSpace || _query.watchCriteria.isEmpty
                                 ? null
                                 : () => unawaited(
                                     _startDiscoveryWatch(
@@ -2226,11 +2238,15 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   void _bindSources() {
     _ownerStream = widget.repository.watchSource(
       widget.repository.itemSource(
-        widget.family, widget.id, actorQuery: widget.actorQuery,
+        widget.family,
+        widget.id,
+        actorQuery: widget.actorQuery,
       ),
     );
     _itemStream = widget.repository.watchItem(
-      widget.family, widget.id, actorQuery: widget.actorQuery,
+      widget.family,
+      widget.id,
+      actorQuery: widget.actorQuery,
     );
   }
 
@@ -2272,20 +2288,27 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     final key = _itemKey;
     final repository = widget.repository;
     final source = widget.repository.itemSource(
-      widget.family, widget.id, actorQuery: widget.actorQuery,
+      widget.family,
+      widget.id,
+      actorQuery: widget.actorQuery,
     );
     final state = await widget.repository.readSource(source);
     // First materialize admitted N1 facts into the same actor-scoped N3
     // snapshot. Offline reading is allowed; actions still require owner
     // verification by a successful detail response.
     await repository.readItem(
-      widget.family, widget.id, actorQuery: widget.actorQuery,
+      widget.family,
+      widget.id,
+      actorQuery: widget.actorQuery,
     );
-    final reusable = state.lastSuccessAt != null &&
+    final reusable =
+        state.lastSuccessAt != null &&
         !state.invalidated &&
         state.lastErrorCode == null &&
         await repository.hasReusableItem(
-          widget.family, widget.id, actorQuery: widget.actorQuery,
+          widget.family,
+          widget.id,
+          actorQuery: widget.actorQuery,
         );
     if (!mounted ||
         key != _itemKey ||
@@ -2313,12 +2336,12 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     });
     try {
       await widget.repository.refreshItem(
-        family, id, actorQuery: widget.actorQuery,
+        family,
+        id,
+        actorQuery: widget.actorQuery,
       );
       final state = await widget.repository.readSource(
-        widget.repository.itemSource(
-          family, id, actorQuery: widget.actorQuery,
-        ),
+        widget.repository.itemSource(family, id, actorQuery: widget.actorQuery),
       );
       if (!mounted || generation != _generation || key != _itemKey) return;
       if (state.lastErrorCode == null &&
@@ -2327,7 +2350,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
           !state.invalidated) {
         // The owner confirmed the current item, not merely a success stamp.
         final projection = await widget.repository.readItem(
-          family, id, actorQuery: widget.actorQuery,
+          family,
+          id,
+          actorQuery: widget.actorQuery,
         );
         final detail = _selector.detail(projection);
         if (mounted &&
@@ -2403,7 +2428,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
         if (!needsRefresh) {
           try {
             needsRefresh = !await repository.hasReusableItem(
-              family, id, actorQuery: widget.actorQuery,
+              family,
+              id,
+              actorQuery: widget.actorQuery,
             );
           } on Object {
             needsRefresh = true;
@@ -2478,8 +2505,11 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                             onRetry: _refresh,
                           )
                   : ListView(
-                      key: Key(widget.actorQuery.isSpace
-                          ? 'discover-space-n3' : 'discover-personal-n2'),
+                      key: Key(
+                        widget.actorQuery.isSpace
+                            ? 'discover-space-n3'
+                            : 'discover-personal-n2',
+                      ),
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                       children: [
                         Center(
@@ -2489,26 +2519,27 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               key: ValueKey('discover-n2-unit-$_itemKey'),
                               item: item,
                               profileId: widget.repository.profileId,
-                              allowOwnerActions: verified && !widget.actorQuery.isSpace,
+                              allowOwnerActions:
+                                  verified && !widget.actorQuery.isSpace,
                               collectiveReadOnly: widget.actorQuery.isSpace,
                               detailMode: true,
                               onOpen: () {},
                               onNativeAction: widget.actorQuery.isSpace
                                   ? null
                                   : (path) => unawaited(
-                                _openOwnerDepth(
-                                  path,
-                                  mayChangeOwnerState: true,
-                                ),
-                              ),
+                                      _openOwnerDepth(
+                                        path,
+                                        mayChangeOwnerState: true,
+                                      ),
+                                    ),
                               onOwnerDepth: widget.actorQuery.isSpace
                                   ? null
                                   : (path) => unawaited(
-                                _openOwnerDepth(
-                                  path,
-                                  mayChangeOwnerState: false,
-                                ),
-                              ),
+                                      _openOwnerDepth(
+                                        path,
+                                        mayChangeOwnerState: false,
+                                      ),
+                                    ),
                               onSave:
                                   widget.authenticated &&
                                       !widget.actorQuery.isSpace &&
@@ -2520,17 +2551,21 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                   ? () => _setSaved(item!.savedState != 'saved')
                                   : null,
                               shareApi: widget.actorQuery.isSpace
-                                  ? null : widget.repository.api,
+                                  ? null
+                                  : widget.repository.api,
                               shareAuthenticated:
-                                  widget.authenticated && !widget.actorQuery.isSpace,
+                                  widget.authenticated &&
+                                  !widget.actorQuery.isSpace,
                               baseUri: widget.repository.api.baseUri,
                             ),
                           ),
                         ),
-                        if (!widget.actorQuery.isSpace && verified &&
+                        if (!widget.actorQuery.isSpace &&
+                            verified &&
                             item.wire['journey_continuation'] is Map &&
                             const {'active', 'finished'}.contains(
-                              (item.wire['journey_continuation'] as Map)['state'],
+                              (item.wire['journey_continuation']
+                                  as Map)['state'],
                             ))
                           Builder(
                             builder: (context) {
@@ -2538,9 +2573,14 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                   item!.wire['journey_continuation'] as Map;
                               final resource = continuation['resource'];
                               final links = continuation['links'];
-                              final journeyId = resource is Map && resource['kind'] == 'journey'
-                                  ? resource['id'] : null;
-                              final path = links is Map ? links['native'] : null;
+                              final journeyId =
+                                  resource is Map &&
+                                      resource['kind'] == 'journey'
+                                  ? resource['id']
+                                  : null;
+                              final path = links is Map
+                                  ? links['native']
+                                  : null;
                               if (journeyId is! String ||
                                   journeyId.isEmpty ||
                                   path != '/journeys/$journeyId') {
@@ -2549,8 +2589,11 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               // An existing owner "continue" action already
                               // opens the canonical Journey: never show two
                               // buttons for the same handoff.
-                              final primary = item.engagement?['primary_action'];
-                              final destination = primary is Map ? primary['destination'] : null;
+                              final primary =
+                                  item.engagement?['primary_action'];
+                              final destination = primary is Map
+                                  ? primary['destination']
+                                  : null;
                               if (destination is Map &&
                                   primary is Map &&
                                   primary['code'] == 'continue' &&
@@ -2572,7 +2615,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                                     ),
                                   ),
                                   label: continuation['state'] == 'active'
-                                      ? 'Reprendre ma démarche' : 'Voir ma démarche',
+                                      ? 'Reprendre ma démarche'
+                                      : 'Voir ma démarche',
                                   appearance: MakoloActionAppearance.primary,
                                   icon: Icons.route_outlined,
                                 ),

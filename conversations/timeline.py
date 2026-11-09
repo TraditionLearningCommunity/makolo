@@ -34,7 +34,7 @@ def timeline_presentation(profile, point, *, interactions=None):
     lifecycle = point.lifecycle
     if actions.get("revisit") and lifecycle not in TERMINAL_LIFECYCLES:
         return {"compact": False, "summary": ""}
-    if point.shared_pinned_at and lifecycle not in TERMINAL_LIFECYCLES:
+    if getattr(point, "shared_pinned_at", None) and lifecycle not in TERMINAL_LIFECYCLES:
         return {"compact": False, "summary": ""}
     if lifecycle in TERMINAL_LIFECYCLES:
         compact = True

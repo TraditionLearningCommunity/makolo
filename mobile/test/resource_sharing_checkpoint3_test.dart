@@ -28,9 +28,7 @@ class _ShareResourceRepository extends ResourceRepository {
 
   @override
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
-      Stream.value(
-        ResourceSourceState(lastSuccessAt: DateTime.now().toUtc()),
-      );
+      Stream.value(ResourceSourceState(lastSuccessAt: DateTime.now().toUtc()));
 
   @override
   Future<String> downloadVersionForExplicitExport({
@@ -68,13 +66,9 @@ class _RecordingShareGateway implements ShareGateway {
   Future<void> shareText(String text) async {}
 
   @override
-  Future<void> shareFiles({
-    required List<String> paths,
-    String? text,
-  }) async {
+  Future<void> shareFiles({required List<String> paths, String? text}) async {
     sharedFiles.add(List<String>.from(paths));
-    existedDuringShare =
-        paths.length == 1 && await File(paths.single).exists();
+    existedDuringShare = paths.length == 1 && await File(paths.single).exists();
   }
 
   @override

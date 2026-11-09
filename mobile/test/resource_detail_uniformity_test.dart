@@ -27,9 +27,7 @@ class _ReaderRepository extends ResourceRepository {
 
   @override
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
-      Stream.value(
-        ResourceSourceState(lastSuccessAt: DateTime.now().toUtc()),
-      );
+      Stream.value(ResourceSourceState(lastSuccessAt: DateTime.now().toUtc()));
 
   @override
   Future<String> downloadVersionForReader({

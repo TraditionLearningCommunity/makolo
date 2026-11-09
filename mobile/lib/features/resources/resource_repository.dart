@@ -305,7 +305,9 @@ class ResourceRepository {
       limit: limit,
     );
     if (source.ownerDenied) return false;
-    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+    if (projection == null ||
+        source.lastErrorCode != null ||
+        source.invalidated) {
       return true;
     }
     return freshnessPolicy.evaluate(
@@ -315,14 +317,13 @@ class ResourceRepository {
         FreshnessState.fresh;
   }
 
-  Future<bool> shouldRefreshDetail(
-    String assetId, {
-    DateTime? now,
-  }) async {
+  Future<bool> shouldRefreshDetail(String assetId, {DateTime? now}) async {
     final projection = await readDetail(assetId);
     final source = await readDetailSource(assetId);
     if (source.ownerDenied) return false;
-    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+    if (projection == null ||
+        source.lastErrorCode != null ||
+        source.invalidated) {
       return true;
     }
     return freshnessPolicy.evaluate(
@@ -528,7 +529,8 @@ class ResourceRepository {
     DateTime? expiresAt,
   }) async {
     var detail = await readDetail(assetId);
-    if (detail == null || _string(_map(detail.payload['links'])['add_version']) == null) {
+    if (detail == null ||
+        _string(_map(detail.payload['links'])['add_version']) == null) {
       await refreshDetail(assetId);
       detail = await readDetail(assetId);
     }

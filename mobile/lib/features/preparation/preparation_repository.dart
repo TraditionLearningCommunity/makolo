@@ -191,12 +191,12 @@ class PreparationResourcesRepository {
       database: database,
       profileId: profileId,
     );
-    final record = await fileStore.read(
-      _resourceFileId(resourceId, version),
-    );
-    if (record == null || record.owner != 'Preparation' ||
+    final record = await fileStore.read(_resourceFileId(resourceId, version));
+    if (record == null ||
+        record.owner != 'Preparation' ||
         record.purpose != 'journey_preparation' ||
-        record.sensitivity != 'private') return null;
+        record.sensitivity != 'private')
+      return null;
     return await File(record.path).exists() ? record : null;
   }
 
@@ -207,10 +207,7 @@ class PreparationResourcesRepository {
     int version = 1,
     String? mimeType,
   }) async {
-    final existing = await readLocalResourceFile(
-      resourceId,
-      version: version,
-    );
+    final existing = await readLocalResourceFile(resourceId, version: version);
     if (existing != null) return existing;
     final client = api;
     if (client == null) {

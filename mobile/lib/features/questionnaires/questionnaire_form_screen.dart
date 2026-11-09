@@ -387,7 +387,8 @@ class _FormContent extends StatelessWidget {
           if (detail.media.isNotEmpty) ...[
             ConversationMediaGroup(
               download: repository.downloadMedia,
-              attachments: detail.media.map((item) => item.toViewerMap())
+              attachments: detail.media
+                  .map((item) => item.toViewerMap())
                   .toList(growable: false),
             ),
             const SizedBox(height: MakoloSpacing.md),
@@ -431,7 +432,8 @@ class _FormContent extends StatelessWidget {
               ConversationMediaGroup(
                 download: repository.downloadMedia,
                 attachments: question.media
-                    .map((item) => item.toViewerMap()).toList(growable: false),
+                    .map((item) => item.toViewerMap())
+                    .toList(growable: false),
               ),
             const SizedBox(height: MakoloSpacing.inner),
           ],
@@ -615,7 +617,8 @@ class _ChoiceField extends StatelessWidget {
             ConversationMediaGroup(
               download: repository.downloadMedia,
               attachments: question.media
-                  .map((item) => item.toViewerMap()).toList(growable: false),
+                  .map((item) => item.toViewerMap())
+                  .toList(growable: false),
             ),
           const SizedBox(height: MakoloSpacing.sm),
           for (var index = 0; index < question.choices.length; index++) ...[
@@ -632,7 +635,11 @@ class _ChoiceField extends StatelessWidget {
                 final value = question.choices[index];
                 if (multiple) {
                   final next = Set<String>.from(selected);
-                  if (checked) { next.add(value); } else { next.remove(value); }
+                  if (checked) {
+                    next.add(value);
+                  } else {
+                    next.remove(value);
+                  }
                   onChanged(next);
                 } else {
                   onChanged(<String>{value});
@@ -696,9 +703,11 @@ class _ChoiceMediaItem extends StatelessWidget {
             else
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                leading: Icon(selected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded),
+                leading: Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                ),
                 title: Text(choice),
                 selected: selected,
                 enabled: enabled,
@@ -709,7 +718,8 @@ class _ChoiceMediaItem extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                 child: ConversationMediaGroup(
                   download: repository.downloadMedia,
-                  attachments: media.map((item) => item.toViewerMap())
+                  attachments: media
+                      .map((item) => item.toViewerMap())
                       .toList(growable: false),
                 ),
               ),

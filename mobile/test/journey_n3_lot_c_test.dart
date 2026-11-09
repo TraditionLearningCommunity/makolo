@@ -28,7 +28,10 @@ Map<String, dynamic> _payload(
   bool withAction = false,
 }) => {
   'representation': {'title': title, 'kind_label': 'Inscription'},
-  'state': {'code': status, 'label': status == 'fulfilled' ? 'Réalisée' : 'En cours'},
+  'state': {
+    'code': status,
+    'label': status == 'fulfilled' ? 'Réalisée' : 'En cours',
+  },
   'readiness': {
     'state': withAction ? 'action_required' : 'ready',
     'ready': [],
@@ -174,7 +177,10 @@ void main() {
     addTearDown(database.close);
     final first = ProfileStore(database, 'profile-a');
     final second = ProfileStore(database, 'profile-b');
-    for (final entry in [(first, 'Badge personnel A'), (second, 'Badge personnel B')]) {
+    for (final entry in [
+      (first, 'Badge personnel A'),
+      (second, 'Badge personnel B'),
+    ]) {
       await entry.$1.putProjection(
         kind: JourneyRepository.projectionKind,
         resourceKey: 'same-id',

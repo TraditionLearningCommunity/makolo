@@ -143,29 +143,39 @@ void main() {
         walk(child);
       }
     }
+
     for (final root in hierarchy.roots) {
       walk(root);
     }
     expect(visited.length, entries.length);
     expect(visited.toSet().length, entries.length);
-    expect(hierarchy.childrenOf(hierarchy.byKey['dossier:d0-0']!)
-        .map((e) => e.id), contains('shared'));
-    expect(hierarchy.childrenOf(hierarchy.byKey['dossier:d0-1']!)
-        .map((e) => e.id), isNot(contains('shared')));
-    expect(hierarchy.additionalSharedLinks(
-        hierarchy.byKey['dossier:d0-1']!), 1);
-    expect(hierarchy.additionalSharedLinks(
-        hierarchy.byKey['dossier:d1-0']!), 1);
+    expect(
+      hierarchy.childrenOf(hierarchy.byKey['dossier:d0-0']!).map((e) => e.id),
+      contains('shared'),
+    );
+    expect(
+      hierarchy.childrenOf(hierarchy.byKey['dossier:d0-1']!).map((e) => e.id),
+      isNot(contains('shared')),
+    );
+    expect(
+      hierarchy.additionalSharedLinks(hierarchy.byKey['dossier:d0-1']!),
+      1,
+    );
+    expect(
+      hierarchy.additionalSharedLinks(hierarchy.byKey['dossier:d1-0']!),
+      1,
+    );
     expect(hierarchy.roots.map((e) => e.key), contains('dossier:independent'));
-    expect(entries.singleWhere((e) => e.id == 'shared').dossierIds,
-        ['d0-0', 'd0-1', 'd1-0']);
+    expect(entries.singleWhere((e) => e.id == 'shared').dossierIds, [
+      'd0-0',
+      'd0-1',
+      'd1-0',
+    ]);
   });
 
   test('empty Dossier stays present without fabricated Journey children', () {
     final project = OrganizerEntry.fromMap(item('project', 'p'));
-    final dossier = OrganizerEntry.fromMap(
-      item('dossier', 'd', parent: 'p'),
-    );
+    final dossier = OrganizerEntry.fromMap(item('dossier', 'd', parent: 'p'));
     final tree = OrganizerHierarchy([project, dossier]);
     expect(tree.childrenOf(project).map((row) => row.id), ['d']);
     expect(tree.childrenOf(dossier), isEmpty);
@@ -181,16 +191,16 @@ void main() {
       'dossier_ids': ['dossier-not-loaded'],
     });
     final hierarchy = OrganizerHierarchy([dossier, journey]);
-    expect(hierarchy.roots.map((e) => e.key),
-        containsAll(['dossier:d', 'journey:j']));
+    expect(
+      hierarchy.roots.map((e) => e.key),
+      containsAll(['dossier:d', 'journey:j']),
+    );
     expect(dossier.isIndependent, isFalse);
     expect(journey.isIndependent, isFalse);
   });
 
   test('count labels are grammatical and never invent a total', () {
-    final projects = [
-      OrganizerEntry.fromMap(item('project', 'p')),
-    ];
+    final projects = [OrganizerEntry.fromMap(item('project', 'p'))];
     final journeys = [
       OrganizerEntry.fromMap(item('journey', 'a')),
       OrganizerEntry.fromMap(item('journey', 'b')),
@@ -200,20 +210,33 @@ void main() {
     expect(organizerCountLabel([...projects, ...journeys]), '3 éléments');
     expect(organizerCountLabel(journeys, filtered: true), '2 résultats');
     expect(organizerCountLabel(projects, filtered: true), '1 résultat');
-    expect(organizerCountLabel(journeys, partial: true),
-        '2 démarches chargées');
+    expect(
+      organizerCountLabel(journeys, partial: true),
+      '2 démarches chargées',
+    );
     expect(organizerCountLabel([], filtered: true), '0 résultats');
-    expect(organizerSharedLinksLabel(1),
-        '1 démarche également liée, présentée dans un autre dossier');
-    expect(organizerSharedLinksLabel(2),
-        '2 démarches également liées, présentées dans un autre dossier');
-    expect(organizerMoreChildrenLabel(projects.first, 1),
-        'Et 1 autre dossier chargé');
-    expect(organizerMoreChildrenLabel(projects.first, 3),
-        'Et 3 autres dossiers chargés');
-    expect(organizerMoreChildrenLabel(
-        OrganizerEntry.fromMap(item('dossier', 'd')), 2),
-        'Et 2 autres démarches chargées');
+    expect(
+      organizerSharedLinksLabel(1),
+      '1 démarche également liée, présentée dans un autre dossier',
+    );
+    expect(
+      organizerSharedLinksLabel(2),
+      '2 démarches également liées, présentées dans un autre dossier',
+    );
+    expect(
+      organizerMoreChildrenLabel(projects.first, 1),
+      'Et 1 autre dossier chargé',
+    );
+    expect(
+      organizerMoreChildrenLabel(projects.first, 3),
+      'Et 3 autres dossiers chargés',
+    );
+    expect(
+      organizerMoreChildrenLabel(
+        OrganizerEntry.fromMap(item('dossier', 'd')),
+        2,
+      ),
+      'Et 2 autres démarches chargées',
+    );
   });
-
 }

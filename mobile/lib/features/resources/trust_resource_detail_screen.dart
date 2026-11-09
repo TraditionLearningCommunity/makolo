@@ -33,16 +33,14 @@ class TrustResourceDetailScreen extends StatefulWidget {
       _TrustResourceDetailScreenState();
 }
 
-class _TrustResourceDetailScreenState
-    extends State<TrustResourceDetailScreen> {
+class _TrustResourceDetailScreenState extends State<TrustResourceDetailScreen> {
   bool _refreshing = false;
   _TrustDetail? _cachedSummary;
   late Stream<StoredProjection?> _detail;
   late Stream<TrustResourceSourceState> _source;
 
-  String get _title => widget.family == TrustResourceFamily.proofs
-      ? 'Preuve'
-      : 'Titre';
+  String get _title =>
+      widget.family == TrustResourceFamily.proofs ? 'Preuve' : 'Titre';
 
   @override
   void initState() {
@@ -154,9 +152,7 @@ class _TrustResourceDetailScreenState
   }
 
   void _message(String value) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
   }
 
   @override
@@ -165,8 +161,7 @@ class _TrustResourceDetailScreenState
       stream: _source,
       initialData: TrustResourceSourceState.unknown,
       builder: (context, sourceSnapshot) {
-        final source =
-            sourceSnapshot.data ?? TrustResourceSourceState.unknown;
+        final source = sourceSnapshot.data ?? TrustResourceSourceState.unknown;
         return StreamBuilder<StoredProjection?>(
           stream: _detail,
           builder: (context, snapshot) {
@@ -189,8 +184,9 @@ class _TrustResourceDetailScreenState
                     MakoloIconActionButton(
                       tooltip: 'Vérifier',
                       icon: Icons.verified_outlined,
-                      onPressed:
-                          canVerifyOrShare ? () => _verify(detail!) : null,
+                      onPressed: canVerifyOrShare
+                          ? () => _verify(detail!)
+                          : null,
                     ),
                   if (detail?.verifyPath != null &&
                       widget.repository.api != null &&
@@ -262,12 +258,13 @@ class _TrustResourceDetailScreenState
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Icon(
-                                    widget.family ==
-                                            TrustResourceFamily.proofs
+                                    widget.family == TrustResourceFamily.proofs
                                         ? Icons.verified_outlined
                                         : Icons.workspace_premium_outlined,
                                     size: 34,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   ),
                                   const SizedBox(width: MakoloSpacing.md),
                                   Expanded(
@@ -277,9 +274,9 @@ class _TrustResourceDetailScreenState
                                       children: [
                                         Text(
                                           detail.title,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.headlineSmall,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall,
                                         ),
                                         if (detail.typeLabel != null) ...[
                                           const SizedBox(
@@ -311,10 +308,7 @@ class _TrustResourceDetailScreenState
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        Icons.cloud_off_outlined,
-                                        size: 18,
-                                      ),
+                                      Icon(Icons.cloud_off_outlined, size: 18),
                                       SizedBox(width: MakoloSpacing.xs),
                                       Expanded(
                                         child: Text(
@@ -335,22 +329,18 @@ class _TrustResourceDetailScreenState
                                       spacing: MakoloSpacing.sm,
                                       runSpacing: MakoloSpacing.sm,
                                       children: [
-                                        Chip(
-                                          label: Text(detail.statusLabel),
-                                        ),
+                                        Chip(label: Text(detail.statusLabel)),
                                         if (detail.issuer != null)
                                           Chip(label: Text(detail.issuer!)),
                                       ],
                                     ),
                                     if (detail.statement != null) ...[
-                                      const SizedBox(
-                                        height: MakoloSpacing.md,
-                                      ),
+                                      const SizedBox(height: MakoloSpacing.md),
                                       Text(
                                         detail.statement!,
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodyLarge,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge,
                                       ),
                                     ],
                                     const SizedBox(height: MakoloSpacing.md),
@@ -453,9 +443,8 @@ class _Fact extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
       ],

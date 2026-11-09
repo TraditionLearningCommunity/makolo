@@ -613,9 +613,9 @@ class ConversationRepository {
         'caption': item['caption']?.toString() ?? '',
         'mime_type': mediaMime(filename, mediaKind),
       });
-      files.add(MakoloUploadFile(
-        fieldName: field, path: path, filename: filename,
-      ));
+      files.add(
+        MakoloUploadFile(fieldName: field, path: path, filename: filename),
+      );
     }
     final response = await engine.api.upload(
       'api/v1/conversations/$conversationId/semantic-media/',
@@ -774,7 +774,8 @@ class ConversationRepository {
     );
     final payload = response.jsonObject();
     if (payload['point_id']?.toString() != pointId ||
-        payload['id'] == null || payload['status'] != 'active') {
+        payload['id'] == null ||
+        payload['status'] != 'active') {
       throw const FormatException('Réponse non confirmée par Conversations.');
     }
     await _refreshPublished(conversationId);
@@ -841,7 +842,9 @@ class ConversationRepository {
     if (payload['point_id']?.toString() != pointId ||
         payload['lifecycle'] != 'resolved' ||
         payload['resolution_id'] == null) {
-      throw const FormatException('Résolution non confirmée par Conversations.');
+      throw const FormatException(
+        'Résolution non confirmée par Conversations.',
+      );
     }
     await _refreshPublished(conversationId);
   }

@@ -50,61 +50,62 @@ void main() {
     expect(find.textContaining('Actualisation indisponible'), findsOneWidget);
   });
 
-  testWidgets('offline Search reuses acquired Proof and Title owner snapshots', (
-    tester,
-  ) async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'alice');
-    await store.putProjection(
-      kind: 'personal.proofs',
-      resourceKey: 'proofs:0:24',
-      schemaVersion: 1,
-      payload: {
-        'items': [
-          {
-            'id': 'proof-1',
-            'proof_type_label': 'Journey accomplie',
-            'status_label': 'Active',
-            'activity': {'title': 'Formation Makolo'},
-          },
-        ],
-      },
-    );
-    await store.putProjection(
-      kind: 'personal.titles',
-      resourceKey: 'titles:0:24',
-      schemaVersion: 1,
-      payload: {
-        'items': [
-          {
-            'id': 'credential-1',
-            'title': 'Certificat pratique',
-            'credential_type_label': 'Certificat de complétion',
-            'status_label': 'Valide',
-            'issuer': {'name': 'Institut Makolo'},
-            'activity': {'title': 'Formation pratique'},
-          },
-        ],
-      },
-    );
+  testWidgets(
+    'offline Search reuses acquired Proof and Title owner snapshots',
+    (tester) async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'alice');
+      await store.putProjection(
+        kind: 'personal.proofs',
+        resourceKey: 'proofs:0:24',
+        schemaVersion: 1,
+        payload: {
+          'items': [
+            {
+              'id': 'proof-1',
+              'proof_type_label': 'Journey accomplie',
+              'status_label': 'Active',
+              'activity': {'title': 'Formation Makolo'},
+            },
+          ],
+        },
+      );
+      await store.putProjection(
+        kind: 'personal.titles',
+        resourceKey: 'titles:0:24',
+        schemaVersion: 1,
+        payload: {
+          'items': [
+            {
+              'id': 'credential-1',
+              'title': 'Certificat pratique',
+              'credential_type_label': 'Certificat de complétion',
+              'status_label': 'Valide',
+              'issuer': {'name': 'Institut Makolo'},
+              'activity': {'title': 'Formation pratique'},
+            },
+          ],
+        },
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: TransverseRetrievalScreen(
-          runtime: _runtime(store),
-          initialQuery: 'Makolo',
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TransverseRetrievalScreen(
+            runtime: _runtime(store),
+            initialQuery: 'Makolo',
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Journey accomplie'), findsOneWidget);
-    expect(find.text('Certificat pratique'), findsOneWidget);
-    expect(find.byIcon(Icons.verified_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.workspace_premium_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
-  });
+      expect(find.text('Journey accomplie'), findsOneWidget);
+      expect(find.text('Certificat pratique'), findsOneWidget);
+      expect(find.byIcon(Icons.verified_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.workspace_premium_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(2));
+    },
+  );
 
   testWidgets('account switch does not retain previous Search results', (
     tester,

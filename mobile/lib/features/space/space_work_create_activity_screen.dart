@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -305,14 +306,18 @@ class _SpaceWorkCreateActivityScreenState
                     const SizedBox(height: MakoloSpacing.lg),
                     if (!_attempted)
                       MakoloActionButton(
-                        label: _sending ? 'Envoi en cours…' : 'Créer en brouillon',
+                        label: _sending
+                            ? 'Envoi en cours…'
+                            : 'Créer en brouillon',
                         appearance: MakoloActionAppearance.primary,
                         busy: _sending,
                         onPressed: _sending ? null : _create,
                       ),
                     if (_attempted)
                       MakoloActionButton(
-                        label: _sending ? 'Vérification…' : 'Vérifier dans Métier',
+                        label: _sending
+                            ? 'Vérification…'
+                            : 'Vérifier dans Métier',
                         appearance: MakoloActionAppearance.primary,
                         busy: _sending,
                         onPressed: _sending ? null : _verifyWithoutCreating,

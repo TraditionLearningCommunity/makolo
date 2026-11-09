@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -524,12 +525,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         title: const Text('Archiver ce document ?'),
         actions: [
           MakoloActionButton(
-              appearance: MakoloActionAppearance.quiet,
+            appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.pop(dialogContext, false),
             label: 'Annuler',
           ),
           MakoloActionButton(
-              appearance: MakoloActionAppearance.primary,
+            appearance: MakoloActionAppearance.primary,
             onPressed: () => Navigator.pop(dialogContext, true),
             label: 'Archiver',
           ),

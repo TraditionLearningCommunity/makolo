@@ -109,6 +109,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
   /// Cached recognition is not a live authorization from the owner.
   final bool allowOwnerActions;
+
   /// Space detail keeps published facts without personal Save/Share chrome.
   final bool collectiveReadOnly;
   final bool compact;

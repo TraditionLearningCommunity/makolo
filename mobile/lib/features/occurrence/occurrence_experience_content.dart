@@ -109,9 +109,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
     final contextData = _map(payload['context']);
     final activity = _map(contextData['activity']);
     final occurrence = _map(contextData['occurrence']);
-    final title = _text(occurrence['label']) ??
-        _text(activity['title']) ??
-        'Occurrence';
+    final title =
+        _text(occurrence['label']) ?? _text(activity['title']) ?? 'Occurrence';
     final previouslyLive = _map(payload['live'])['available'] == true;
     final livePhaseExpired = previouslyLive && liveWindowEnded;
     return ListView(
@@ -210,41 +209,43 @@ class OccurrenceExperienceContent extends StatelessWidget {
                       child: Semantics(
                         container: true,
                         child: MakoloCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        switch (_text(action['territory'])) {
-                          'participant' => 'Mon accomplissement',
-                          'organizer' => 'Organisation',
-                          'platform' => 'Supervision',
-                          _ => 'Action autorisée',
-                        },
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                      const SizedBox(height: MakoloSpacing.xs),
-                      Text(
-                        _text(action['label']) ?? 'Action à vérifier',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (action['kind'] == 'owner_handoff' &&
-                          action['type'] == 'scanner' &&
-                          capabilities.containsKey('scanner') &&
-                          onOpenScanner != null) ...[
-                        const SizedBox(height: MakoloSpacing.md),
-                        FilledButton.icon(
-                          onPressed: remoteActionsAvailable
-                              ? onOpenScanner
-                              : null,
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 48),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                switch (_text(action['territory'])) {
+                                  'participant' => 'Mon accomplissement',
+                                  'organizer' => 'Organisation',
+                                  'platform' => 'Supervision',
+                                  _ => 'Action autorisée',
+                                },
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              const SizedBox(height: MakoloSpacing.xs),
+                              Text(
+                                _text(action['label']) ?? 'Action à vérifier',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              if (action['kind'] == 'owner_handoff' &&
+                                  action['type'] == 'scanner' &&
+                                  capabilities.containsKey('scanner') &&
+                                  onOpenScanner != null) ...[
+                                const SizedBox(height: MakoloSpacing.md),
+                                FilledButton.icon(
+                                  onPressed: remoteActionsAvailable
+                                      ? onOpenScanner
+                                      : null,
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(0, 48),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.qr_code_scanner_rounded,
+                                  ),
+                                  label: const Text('Ouvrir Scanner'),
+                                ),
+                              ],
+                            ],
                           ),
-                          icon: const Icon(Icons.qr_code_scanner_rounded),
-                          label: const Text('Ouvrir Scanner'),
-                        ),
-                      ],
-                    ],
-                  ),
                         ),
                       ),
                     ),
@@ -297,7 +298,10 @@ class OccurrenceExperienceContent extends StatelessWidget {
           title: operator.isNotEmpty
               ? 'Conduite de l’Occurrence'
               : 'Supervision autorisée',
-          child: _operatorSection(context, operator.isNotEmpty ? operator : platform),
+          child: _operatorSection(
+            context,
+            operator.isNotEmpty ? operator : platform,
+          ),
         ),
         const SizedBox(height: MakoloSpacing.lg),
       ],
@@ -331,7 +335,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
             label: const Text('Consulter l’historique'),
           ),
         ),
-      if (!liveWindowEnded && liveStatus['available'] == true &&
+      if (!liveWindowEnded &&
+          liveStatus['available'] == true &&
           links['live'] is String &&
           onOpenLive != null) ...[
         MakoloSection(
@@ -358,9 +363,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
                   onPressed: remoteActionsAvailable
                       ? () => onOpenLive!(_text(links['live'])!)
                       : null,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Consulter Makolo Live'),
                 ),
@@ -383,7 +386,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             final buttonWidth = width < 700
-                ? width : (width - MakoloSpacing.sm) / 2;
+                ? width
+                : (width - MakoloSpacing.sm) / 2;
             return Wrap(
               spacing: MakoloSpacing.sm,
               runSpacing: MakoloSpacing.sm,
@@ -445,9 +449,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Mon accès · ${_text(access['state']) ?? 'à vérifier'}'),
-                Text(access['usable'] == true
-                    ? 'Utilisable selon ses conditions'
-                    : 'État d’utilisation à vérifier'),
+                Text(
+                  access['usable'] == true
+                      ? 'Utilisable selon ses conditions'
+                      : 'État d’utilisation à vérifier',
+                ),
                 if (_map(access['credential'])['presentable'] == true &&
                     _text(_map(access['links'])['credential']) != null &&
                     onPresentCredential != null) ...[
@@ -499,10 +505,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
     );
   }
 
-  Widget _operatorSection(
-    BuildContext context,
-    Map<String, dynamic> operator,
-  ) {
+  Widget _operatorSection(BuildContext context, Map<String, dynamic> operator) {
     final readiness = _map(operator['operational_readiness']);
     final queue = _rows(operator['queue']);
     final capacity = _rows(operator['capacity']);
@@ -559,14 +562,11 @@ class OccurrenceExperienceContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                switch (_text(coverage['state'])) {
-                  'ESTABLISHED' => 'Couverture établie',
-                  'PARTIAL' => 'Couverture partielle',
-                  _ => 'Informations indisponibles',
-                },
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text(switch (_text(coverage['state'])) {
+                'ESTABLISHED' => 'Couverture établie',
+                'PARTIAL' => 'Couverture partielle',
+                _ => 'Informations indisponibles',
+              }, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: MakoloSpacing.sm),
               Text(
                 coverage['state'] == 'PARTIAL'
@@ -574,7 +574,9 @@ class OccurrenceExperienceContent extends StatelessWidget {
                     : 'Aucun fait actuellement consultable n’est établi. Cela ne signifie pas que rien ne se passe.',
               ),
               const SizedBox(height: MakoloSpacing.sm),
-              const Text('L’heure de lecture ne prouve pas l’heure d’un événement.'),
+              const Text(
+                'L’heure de lecture ne prouve pas l’heure d’un événement.',
+              ),
             ],
           ),
         ),
@@ -586,15 +588,22 @@ class OccurrenceExperienceContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Début prévu : ${_text(planned['start_at'] ?? planned['start_date']) ?? 'à préciser'}'),
-              Text('Fin prévue : ${_text(planned['end_at'] ?? planned['end_date']) ?? 'à préciser'}'),
+              Text(
+                'Début prévu : ${_text(planned['start_at'] ?? planned['start_date']) ?? 'à préciser'}',
+              ),
+              Text(
+                'Fin prévue : ${_text(planned['end_at'] ?? planned['end_date']) ?? 'à préciser'}',
+              ),
               Text(
                 'Début réellement observé : ${_truth(_text(temporal['truth']))}',
               ),
               for (final entry in spatial.entries) ...[
                 const SizedBox(height: MakoloSpacing.sm),
-                Text(entry.key == 'participant'
-                    ? 'Mon orientation' : 'Orientation opérationnelle'),
+                Text(
+                  entry.key == 'participant'
+                      ? 'Mon orientation'
+                      : 'Orientation opérationnelle',
+                ),
                 Text(
                   'Destination prévue : ${_text(_map(_map(entry.value)['destination'])['name']) ?? 'non renseignée'}',
                 ),
@@ -623,15 +632,12 @@ class OccurrenceExperienceContent extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            switch (_text(fact['domain'])) {
-                              'participant' => 'Ma situation',
-                              'organizer' => 'Opérations',
-                              'institutional' => 'Démarche de mon Espace',
-                              _ => 'Fait autorisé',
-                            },
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
+                          Text(switch (_text(fact['domain'])) {
+                            'participant' => 'Ma situation',
+                            'organizer' => 'Opérations',
+                            'institutional' => 'Démarche de mon Espace',
+                            _ => 'Fait autorisé',
+                          }, style: Theme.of(context).textTheme.labelMedium),
                           const SizedBox(height: MakoloSpacing.xs),
                           Text(
                             _text(fact['label']) ?? 'Observation',

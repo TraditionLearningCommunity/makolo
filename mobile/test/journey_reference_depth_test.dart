@@ -356,68 +356,69 @@ void main() {
     expect(result.nextActionLabel, isNull);
   });
 
-  testWidgets('Journey N3 renders from ProfileStore without any remote client', (
-    tester,
-  ) async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-a');
-    await store.putProjection(
-      kind: JourneyRepository.projectionKind,
-      resourceKey: 'journey-local',
-      schemaVersion: 1,
-      payload: const {
-        'identity': {'workflow': 'registration'},
-        'representation': {'title': 'Recevoir mon badge'},
-        'state': {'code': 'in_progress', 'label': 'En cours'},
-        'readiness': {
-          'state': 'waiting',
-          'ready': [],
-          'actor_interventions': [],
-          'waiting': [],
-          'blockers': [],
-        },
-        'steps': [
-          {
-            'id': 'step-local',
-            'title': 'Envoyer ma demande',
-            'kind': 'submission',
-            'status': 'in_progress',
-            'depends_on': [],
+  testWidgets(
+    'Journey N3 renders from ProfileStore without any remote client',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      await store.putProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: 'journey-local',
+        schemaVersion: 1,
+        payload: const {
+          'identity': {'workflow': 'registration'},
+          'representation': {'title': 'Recevoir mon badge'},
+          'state': {'code': 'in_progress', 'label': 'En cours'},
+          'readiness': {
+            'state': 'waiting',
+            'ready': [],
+            'actor_interventions': [],
+            'waiting': [],
+            'blockers': [],
           },
-        ],
-        'forms': [],
-        'requirements': [],
-        'capabilities': [],
-      },
-    );
-    final repository = JourneyRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: JourneyDetailScreen(
-          journeyId: 'journey-local',
-          repository: repository,
-          onOpenForm: (_) {},
-          onOpenRequirement: (_) {},
-          onOpenResources: (_) {},
-          onOpenActivity: (_) {},
-          onOpenOccurrence: (_) {},
-          onOpenAccess: (_) {},
-          onOpenDayOf: (_) {},
-          onOpenLive: (_) {},
+          'steps': [
+            {
+              'id': 'step-local',
+              'title': 'Envoyer ma demande',
+              'kind': 'submission',
+              'status': 'in_progress',
+              'depends_on': [],
+            },
+          ],
+          'forms': [],
+          'requirements': [],
+          'capabilities': [],
+        },
+      );
+      final repository = JourneyRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JourneyDetailScreen(
+            journeyId: 'journey-local',
+            repository: repository,
+            onOpenForm: (_) {},
+            onOpenRequirement: (_) {},
+            onOpenResources: (_) {},
+            onOpenActivity: (_) {},
+            onOpenOccurrence: (_) {},
+            onOpenAccess: (_) {},
+            onOpenDayOf: (_) {},
+            onOpenLive: (_) {},
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('MON OBJECTIF'), findsOneWidget);
-    expect(find.text('Recevoir mon badge'), findsOneWidget);
-    expect(find.text('Où j’en suis'), findsOneWidget);
-    expect(find.text('Envoyer ma demande'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('MON OBJECTIF'), findsOneWidget);
+      expect(find.text('Recevoir mon badge'), findsOneWidget);
+      expect(find.text('Où j’en suis'), findsOneWidget);
+      expect(find.text('Envoyer ma demande'), findsOneWidget);
+    },
+  );
 
   test('N3 working-set IDs use only the acquired personal owner facts', () {
     final id = '00000000-0000-0000-0000-000000000123';
@@ -443,10 +444,7 @@ void main() {
         ],
       },
     );
-    expect(
-      JourneyRepository.knownJourneyIdsFromOngoing(projection),
-      [id],
-    );
+    expect(JourneyRepository.knownJourneyIdsFromOngoing(projection), [id]);
     expect(
       JourneyRepository.knownJourneyIdsFromOngoing(projection, limit: 0),
       isEmpty,
@@ -467,42 +465,62 @@ void main() {
         'state': {'code': 'in_progress', 'label': 'En cours'},
         'readiness': {
           'state': 'action_required',
-          'ready': [{'key': 'ready', 'summary': 'Inscription reçue'}],
-          'actor_interventions': [{
-            'key': 'form_request.request-1',
-            'summary': 'Compléter le formulaire',
-            'next': {
-              'label': 'Répondre',
-              'link': '/api/v1/questionnaires/requests/request-1/',
+          'ready': [
+            {'key': 'ready', 'summary': 'Inscription reçue'},
+          ],
+          'actor_interventions': [
+            {
+              'key': 'form_request.request-1',
+              'summary': 'Compléter le formulaire',
+              'next': {
+                'label': 'Répondre',
+                'link': '/api/v1/questionnaires/requests/request-1/',
+              },
             },
-          }],
+          ],
           'waiting': [],
           'blockers': [],
         },
         'requests': {
-          'pending': [{'id': 'request', 'state': 'pending'}],
+          'pending': [
+            {'id': 'request', 'state': 'pending'},
+          ],
           'rejected': [],
         },
-        'forms': [{
-          'id': 'request-1',
-          'title': 'Informations du participant',
-          'required': true,
-          'state': 'requested',
-          'capabilities': ['complete_form'],
-          'links': {'detail': '/api/v1/questionnaires/requests/request-1/'},
-        }],
-        'requirements': [{
-          'id': 'assessment-1',
-          'label': 'Pièce d’identité',
-          'required': true,
-          'state': 'missing',
-          'consequence': 'blocking',
-          'link': '/api/v1/me/journeys/journey-b/requirements/assessment-1/',
-        }],
+        'forms': [
+          {
+            'id': 'request-1',
+            'title': 'Informations du participant',
+            'required': true,
+            'state': 'requested',
+            'capabilities': ['complete_form'],
+            'links': {'detail': '/api/v1/questionnaires/requests/request-1/'},
+          },
+        ],
+        'requirements': [
+          {
+            'id': 'assessment-1',
+            'label': 'Pièce d’identité',
+            'required': true,
+            'state': 'missing',
+            'consequence': 'blocking',
+            'link': '/api/v1/me/journeys/journey-b/requirements/assessment-1/',
+          },
+        ],
         'payment': {
           'obligations': [
-            {'id': 'obligation-1', 'amount': '15.00', 'currency': 'USD', 'state': 'pending'},
-            {'id': 'obligation-2', 'amount': '5.00', 'currency': 'USD', 'state': 'satisfied'},
+            {
+              'id': 'obligation-1',
+              'amount': '15.00',
+              'currency': 'USD',
+              'state': 'pending',
+            },
+            {
+              'id': 'obligation-2',
+              'amount': '5.00',
+              'currency': 'USD',
+              'state': 'satisfied',
+            },
           ],
         },
         'occurrence': {
@@ -512,10 +530,7 @@ void main() {
             'start_time': '13:06:00',
             'timezone': 'Africa/Lubumbashi',
           },
-          'place': {
-            'name': 'Centre de conférence',
-            'locality': 'Lubumbashi',
-          },
+          'place': {'name': 'Centre de conférence', 'locality': 'Lubumbashi'},
         },
         'capabilities': [],
       },
@@ -534,155 +549,167 @@ void main() {
     expect(result.payments.last.obligationId, 'obligation-2');
     expect(result.practical?.startDate, '2026-12-11');
     expect(result.practical?.placeName, 'Centre de conférence');
-    expect(result.actorInterventions.single.nextLink,
-        '/api/v1/questionnaires/requests/request-1/');
+    expect(
+      result.actorInterventions.single.nextLink,
+      '/api/v1/questionnaires/requests/request-1/',
+    );
   });
 
-  test('Lot B previews only Preparation resources from its local projection', () {
-    final preview = StoredProjection(
-      kind: 'preparation.journey.resources',
-      resourceKey: 'journey-b',
-      schemaVersion: 1,
-      receivedAt: DateTime.utc(2026, 11, 9),
-      payload: const {
-        'items': [
-          {'id': 'r1', 'title': 'Guide de participation', 'kind': 'file'},
-          {'id': 'r2', 'title': 'Consignes pratiques', 'kind': 'text'},
-          {'id': '', 'title': 'Incomplete', 'kind': 'file'},
-        ],
-      },
-    );
-    final items = JourneyResourcePreview.fromProjection(preview);
-    expect(items.length, 2);
-    expect(items.first.kind, 'file');
-    expect(items.last.title, 'Consignes pratiques');
-    expect(JourneyResourcePreview.fromProjection(null), isEmpty);
-  });
+  test(
+    'Lot B previews only Preparation resources from its local projection',
+    () {
+      final preview = StoredProjection(
+        kind: 'preparation.journey.resources',
+        resourceKey: 'journey-b',
+        schemaVersion: 1,
+        receivedAt: DateTime.utc(2026, 11, 9),
+        payload: const {
+          'items': [
+            {'id': 'r1', 'title': 'Guide de participation', 'kind': 'file'},
+            {'id': 'r2', 'title': 'Consignes pratiques', 'kind': 'text'},
+            {'id': '', 'title': 'Incomplete', 'kind': 'file'},
+          ],
+        },
+      );
+      final items = JourneyResourcePreview.fromProjection(preview);
+      expect(items.length, 2);
+      expect(items.first.kind, 'file');
+      expect(items.last.title, 'Consignes pratiques');
+      expect(JourneyResourcePreview.fromProjection(null), isEmpty);
+    },
+  );
 
-  testWidgets('Lot B renders Preparation preview from the same Profile database', (
-    tester,
-  ) async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-b');
-    await store.putProjection(
-      kind: JourneyRepository.projectionKind,
-      resourceKey: 'journey-b',
-      schemaVersion: 1,
-      payload: const {
-        'representation': {'title': 'Préparer ma visite'},
-        'state': {'code': 'in_progress', 'label': 'En cours'},
-        'readiness': {
-          'state': 'ready',
-          'ready': [],
-          'actor_interventions': [],
-          'waiting': [],
-          'blockers': [],
+  testWidgets(
+    'Lot B renders Preparation preview from the same Profile database',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-b');
+      await store.putProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: 'journey-b',
+        schemaVersion: 1,
+        payload: const {
+          'representation': {'title': 'Préparer ma visite'},
+          'state': {'code': 'in_progress', 'label': 'En cours'},
+          'readiness': {
+            'state': 'ready',
+            'ready': [],
+            'actor_interventions': [],
+            'waiting': [],
+            'blockers': [],
+          },
+          'resources': {
+            'link': '/api/v1/preparation/journeys/journey-b/resources/',
+          },
+          'forms': [],
+          'requirements': [],
+          'capabilities': [],
         },
-        'resources': {
-          'link': '/api/v1/preparation/journeys/journey-b/resources/',
+      );
+      await store.putProjection(
+        kind: PreparationResourcesRepository.projectionKind,
+        resourceKey: 'journey-b',
+        schemaVersion: 1,
+        payload: const {
+          'items': [
+            {
+              'id': 'resource-1',
+              'kind': 'file',
+              'title': 'Guide de préparation',
+            },
+          ],
         },
-        'forms': [],
-        'requirements': [],
-        'capabilities': [],
-      },
-    );
-    await store.putProjection(
-      kind: PreparationResourcesRepository.projectionKind,
-      resourceKey: 'journey-b',
-      schemaVersion: 1,
-      payload: const {
-        'items': [
-          {'id': 'resource-1', 'kind': 'file', 'title': 'Guide de préparation'},
-        ],
-      },
-    );
-    final journeys = JourneyRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-b',
-    );
-    final preparation = PreparationResourcesRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-b',
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: JourneyDetailScreen(
-          journeyId: 'journey-b',
-          repository: journeys,
-          resourcesRepository: preparation,
-          onOpenForm: (_) {},
-          onOpenRequirement: (_) {},
-          onOpenResources: (_) {},
-          onOpenActivity: (_) {},
-          onOpenOccurrence: (_) {},
-          onOpenAccess: (_) {},
-          onOpenDayOf: (_) {},
-          onOpenLive: (_) {},
+      );
+      final journeys = JourneyRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-b',
+      );
+      final preparation = PreparationResourcesRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-b',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JourneyDetailScreen(
+            journeyId: 'journey-b',
+            repository: journeys,
+            resourcesRepository: preparation,
+            onOpenForm: (_) {},
+            onOpenRequirement: (_) {},
+            onOpenResources: (_) {},
+            onOpenActivity: (_) {},
+            onOpenOccurrence: (_) {},
+            onOpenAccess: (_) {},
+            onOpenDayOf: (_) {},
+            onOpenLive: (_) {},
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Guide de préparation'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Guide de préparation'), findsOneWidget);
-  });
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Guide de préparation'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Guide de préparation'), findsOneWidget);
+    },
+  );
 
-  test('Lot B prepares only locally known owner Form and Requirement links', () {
-    const journeyId = '00000000-0000-0000-0000-000000000001';
-    const formId = '00000000-0000-0000-0000-000000000002';
-    const requirementId = '00000000-0000-0000-0000-000000000003';
-    final local = StoredProjection(
-      kind: JourneyRepository.projectionKind,
-      resourceKey: journeyId,
-      schemaVersion: 1,
-      receivedAt: DateTime.utc(2026, 11, 9),
-      payload: const {
-        'forms': [
-          {
-            'id': formId,
-            'links': {'detail': '/api/v1/questionnaires/requests/$formId/'},
-          },
-          {
-            'id': formId,
-            'links': {'detail': 'https://external.example.invalid/forged'},
-          },
-        ],
-        'requirements': [
-          {
-            'id': requirementId,
-            'link': '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
-          },
-          {
-            'id': formId,
-            'link': '/api/v1/me/journeys/another/requirements/$formId/',
-          },
-        ],
-      },
-    );
-    expect(
-      JourneyRepository.knownFormLinksFromDetail(local),
-      {formId: '/api/v1/questionnaires/requests/$formId/'},
-    );
-    expect(
-      JourneyRepository.knownRequirementLinksFromDetail(
-        local,
-        journeyId: journeyId,
-      ),
-      {
-        requirementId:
-            '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
-      },
-    );
-    expect(
-      JourneyRepository.knownFormLinksFromDetail(local, limit: 0),
-      isEmpty,
-    );
-  });
-
+  test(
+    'Lot B prepares only locally known owner Form and Requirement links',
+    () {
+      const journeyId = '00000000-0000-0000-0000-000000000001';
+      const formId = '00000000-0000-0000-0000-000000000002';
+      const requirementId = '00000000-0000-0000-0000-000000000003';
+      final local = StoredProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: journeyId,
+        schemaVersion: 1,
+        receivedAt: DateTime.utc(2026, 11, 9),
+        payload: const {
+          'forms': [
+            {
+              'id': formId,
+              'links': {'detail': '/api/v1/questionnaires/requests/$formId/'},
+            },
+            {
+              'id': formId,
+              'links': {'detail': 'https://external.example.invalid/forged'},
+            },
+          ],
+          'requirements': [
+            {
+              'id': requirementId,
+              'link':
+                  '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
+            },
+            {
+              'id': formId,
+              'link': '/api/v1/me/journeys/another/requirements/$formId/',
+            },
+          ],
+        },
+      );
+      expect(JourneyRepository.knownFormLinksFromDetail(local), {
+        formId: '/api/v1/questionnaires/requests/$formId/',
+      });
+      expect(
+        JourneyRepository.knownRequirementLinksFromDetail(
+          local,
+          journeyId: journeyId,
+        ),
+        {
+          requirementId:
+              '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
+        },
+      );
+      expect(
+        JourneyRepository.knownFormLinksFromDetail(local, limit: 0),
+        isEmpty,
+      );
+    },
+  );
 }

@@ -729,8 +729,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
   }
 
   Future<void> _chooseMedia(
-    String mode, {int? optionIndex, bool append = false}
-  ) async {
+    String mode, {
+    int? optionIndex,
+    bool append = false,
+  }) async {
     if (_sending) return;
     try {
       String? path;
@@ -751,23 +753,32 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           allowedExtensions: mode == 'voice'
               ? const ['m4a', 'mp3', 'wav', 'ogg', 'webm']
               : mode == 'video'
-                  ? const ['mp4', 'webm']
-                  : const ['pdf', 'txt', 'doc', 'docx'],
+              ? const ['mp4', 'webm']
+              : const ['pdf', 'txt', 'doc', 'docx'],
         );
         path = picked?.path;
         name = picked?.name;
         kind = mode == 'voice'
-            ? 'voice' : mode == 'video' ? 'video' : 'file';
+            ? 'voice'
+            : mode == 'video'
+            ? 'video'
+            : 'file';
       }
       if (!mounted || path == null || name == null) return;
       setState(() {
         if (optionIndex != null) {
           _optionMedia.putIfAbsent(optionIndex, () => []).add({
-            'path': path, 'filename': name, 'kind': kind, 'caption': '',
+            'path': path,
+            'filename': name,
+            'kind': kind,
+            'caption': '',
           });
         } else if (append) {
           _additionalMedia.add({
-            'path': path, 'filename': name, 'kind': kind, 'caption': '',
+            'path': path,
+            'filename': name,
+            'kind': kind,
+            'caption': '',
           });
         } else {
           _mediaPath = path;
@@ -817,8 +828,10 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     final richMedia = <Map<String, dynamic>>[
       if (_mediaPath != null && _mediaFilename != null && _mediaKind != null)
         {
-          'scope': 'point', 'path': _mediaPath!,
-          'filename': _mediaFilename!, 'kind': _mediaKind!,
+          'scope': 'point',
+          'path': _mediaPath!,
+          'filename': _mediaFilename!,
+          'kind': _mediaKind!,
           'caption': _mainMediaCaption,
         },
       for (final item in _additionalMedia) {...item, 'scope': 'point'},
@@ -826,7 +839,8 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         for (final item in _optionMedia[index] ?? <Map<String, dynamic>>[])
           {...item, 'scope': 'option', 'option_index': index},
     ];
-    final hasStructuredMedia = _additionalMedia.isNotEmpty ||
+    final hasStructuredMedia =
+        _additionalMedia.isNotEmpty ||
         _optionMedia.values.any((items) => items.isNotEmpty) ||
         _mainMediaCaption.trim().isNotEmpty;
     if (richMedia.length > 24) {
@@ -835,8 +849,12 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
     }
     if (kind == 'poll' &&
         _optionMedia.values.any((items) => items.isNotEmpty) &&
-        _optionControllers.any((controller) => controller.text.trim().isEmpty)) {
-      setState(() => _error = 'Complétez chaque choix avant de joindre ses médias.');
+        _optionControllers.any(
+          (controller) => controller.text.trim().isEmpty,
+        )) {
+      setState(
+        () => _error = 'Complétez chaque choix avant de joindre ses médias.',
+      );
       return;
     }
     setState(() {
@@ -865,7 +883,8 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           );
           try {
             await delivery.clearDraft(
-              conversationId: widget.conversationId, kind: kind,
+              conversationId: widget.conversationId,
+              kind: kind,
             );
           } on Object {
             // The immutable Outbox intent remains durable.
@@ -873,18 +892,19 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
           if (mounted) widget.onQueued();
         } else {
           _reference ??= _newConversationReference();
-          final published = await widget.repository.publishSemanticPointWithMedia(
-            conversationId: widget.conversationId,
-            clientReference: _reference!,
-            kind: kind,
-            title: title,
-            body: body,
-            options: options,
-            multipleChoice: _multipleChoice,
-            media: richMedia,
-            audienceId: _audienceId,
-            representedSpaceId: _representedSpace,
-          );
+          final published = await widget.repository
+              .publishSemanticPointWithMedia(
+                conversationId: widget.conversationId,
+                clientReference: _reference!,
+                kind: kind,
+                title: title,
+                body: body,
+                options: options,
+                multipleChoice: _multipleChoice,
+                media: richMedia,
+                audienceId: _audienceId,
+                representedSpaceId: _representedSpace,
+              );
           if (mounted) widget.onPublished(published);
         }
       } else if (delivery != null) {
@@ -1039,43 +1059,59 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                           ),
                           IconButton(
                             tooltip: 'Supprimer ce choix',
-                            onPressed: _sending || _optionControllers.length <= 2
+                            onPressed:
+                                _sending || _optionControllers.length <= 2
                                 ? null
                                 : () => setState(() {
-                                    final removed = _optionControllers.removeAt(index);
+                                    final removed = _optionControllers.removeAt(
+                                      index,
+                                    );
                                     removed.removeListener(_changed);
                                     removed.dispose();
                                     _optionMedia.remove(index);
-                                    final shifted = <int, List<Map<String, dynamic>>>{};
+                                    final shifted =
+                                        <int, List<Map<String, dynamic>>>{};
                                     for (final entry in _optionMedia.entries) {
                                       shifted[entry.key > index
-                                          ? entry.key - 1 : entry.key] = entry.value;
+                                              ? entry.key - 1
+                                              : entry.key] =
+                                          entry.value;
                                     }
-                                    _optionMedia..clear()..addAll(shifted);
+                                    _optionMedia
+                                      ..clear()
+                                      ..addAll(shifted);
                                     _changed();
                                   }),
                             icon: const Icon(Icons.remove_circle_outline),
                           ),
                         ],
                       ),
-                      for (final media in _optionMedia[index] ??
-                          <Map<String, dynamic>>[]) ...[
+                      for (final media
+                          in _optionMedia[index] ??
+                              <Map<String, dynamic>>[]) ...[
                         ListTile(
                           dense: true,
                           leading: const Icon(Icons.attach_file_rounded),
-                          title: Text(media['filename']?.toString() ?? 'Média',
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          title: Text(
+                            media['filename']?.toString() ?? 'Média',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           trailing: IconButton(
                             tooltip: 'Retirer ce média du choix',
-                            onPressed: _sending ? null : () => setState(() {
-                              _optionMedia[index]!.remove(media);
-                              _reference = null;
-                            }),
+                            onPressed: _sending
+                                ? null
+                                : () => setState(() {
+                                    _optionMedia[index]!.remove(media);
+                                    _reference = null;
+                                  }),
                             icon: const Icon(Icons.close_rounded),
                           ),
                         ),
                         TextFormField(
-                          key: ValueKey('choice-caption-$index-${media['path']}'),
+                          key: ValueKey(
+                            'choice-caption-$index-${media['path']}',
+                          ),
                           initialValue: media['caption']?.toString() ?? '',
                           maxLength: 5000,
                           decoration: const InputDecoration(
@@ -1089,7 +1125,8 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                         ),
                       ],
                       if ((widget.capabilities['media_kinds'] as List?)
-                              ?.isNotEmpty == true)
+                              ?.isNotEmpty ==
+                          true)
                         Align(
                           alignment: Alignment.centerLeft,
                           child: PopupMenuButton<String>(
@@ -1101,26 +1138,37 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                               if ((widget.capabilities['media_kinds'] as List)
                                   .contains('image'))
                                 const PopupMenuItem(
-                                    value: 'photo', child: Text('Photo')),
+                                  value: 'photo',
+                                  child: Text('Photo'),
+                                ),
                               if ((widget.capabilities['media_kinds'] as List)
                                   .contains('file'))
                                 const PopupMenuItem(
-                                    value: 'document', child: Text('Document')),
+                                  value: 'document',
+                                  child: Text('Document'),
+                                ),
                               if ((widget.capabilities['media_kinds'] as List)
                                   .contains('voice'))
                                 const PopupMenuItem(
-                                    value: 'voice', child: Text('Audio')),
+                                  value: 'voice',
+                                  child: Text('Audio'),
+                                ),
                               if ((widget.capabilities['media_kinds'] as List)
                                   .contains('video'))
                                 const PopupMenuItem(
-                                    value: 'video', child: Text('Vidéo')),
+                                  value: 'video',
+                                  child: Text('Vidéo'),
+                                ),
                             ],
                             child: const Padding(
                               padding: EdgeInsets.symmetric(vertical: 7),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.add_photo_alternate_outlined, size: 18),
+                                  Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    size: 18,
+                                  ),
                                   SizedBox(width: 6),
                                   Text('Média de ce choix'),
                                 ],
@@ -1252,10 +1300,12 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   ),
                   trailing: IconButton(
                     tooltip: 'Retirer ce média',
-                    onPressed: _sending ? null : () => setState(() {
-                      _additionalMedia.remove(media);
-                      _reference = null;
-                    }),
+                    onPressed: _sending
+                        ? null
+                        : () => setState(() {
+                            _additionalMedia.remove(media);
+                            _reference = null;
+                          }),
                     icon: const Icon(Icons.close_rounded),
                   ),
                 ),
@@ -1280,22 +1330,25 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
                   tooltip: 'Ajouter un autre média au Point',
                   onSelected: (mode) => _chooseMedia(mode, append: true),
                   itemBuilder: (context) => [
-                    if ((widget.capabilities['media_kinds'] as List)
-                        .contains('image'))
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'image',
+                    ))
+                      const PopupMenuItem(value: 'photo', child: Text('Photo')),
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'file',
+                    ))
                       const PopupMenuItem(
-                        value: 'photo', child: Text('Photo')),
-                    if ((widget.capabilities['media_kinds'] as List)
-                        .contains('file'))
-                      const PopupMenuItem(
-                        value: 'document', child: Text('Document')),
-                    if ((widget.capabilities['media_kinds'] as List)
-                        .contains('voice'))
-                      const PopupMenuItem(
-                        value: 'voice', child: Text('Audio')),
-                    if ((widget.capabilities['media_kinds'] as List)
-                        .contains('video'))
-                      const PopupMenuItem(
-                        value: 'video', child: Text('Vidéo')),
+                        value: 'document',
+                        child: Text('Document'),
+                      ),
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'voice',
+                    ))
+                      const PopupMenuItem(value: 'voice', child: Text('Audio')),
+                    if ((widget.capabilities['media_kinds'] as List).contains(
+                      'video',
+                    ))
+                      const PopupMenuItem(value: 'video', child: Text('Vidéo')),
                   ],
                   child: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),

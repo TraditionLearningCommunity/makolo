@@ -336,11 +336,13 @@ class SyncEngine {
     final familyPayload = _resourceMap(payload[family]);
     final items = familyPayload?['items'];
     if (familyPayload == null || items is! List) return payload;
-    final retained = items.where((row) {
-      if (row is! Map) return true;
-      final id = row['id']?.toString();
-      return id == null || !denied.contains(id);
-    }).toList(growable: false);
+    final retained = items
+        .where((row) {
+          if (row is! Map) return true;
+          final id = row['id']?.toString();
+          return id == null || !denied.contains(id);
+        })
+        .toList(growable: false);
     if (retained.length == items.length) return payload;
     final removed = items.length - retained.length;
     final updatedFamily = <String, dynamic>{
@@ -370,11 +372,13 @@ class SyncEngine {
     if (denied.isEmpty) return payload;
     final items = payload['items'];
     if (items is! List) return payload;
-    final retained = items.where((row) {
-      if (row is! Map) return true;
-      final id = row['id']?.toString();
-      return id == null || !denied.contains(id);
-    }).toList(growable: false);
+    final retained = items
+        .where((row) {
+          if (row is! Map) return true;
+          final id = row['id']?.toString();
+          return id == null || !denied.contains(id);
+        })
+        .toList(growable: false);
     if (retained.length == items.length) return payload;
     final removed = items.length - retained.length;
     final updated = <String, dynamic>{...payload, 'items': retained};
@@ -465,11 +469,9 @@ class SyncEngine {
     final deniedId = source.resourceKey;
 
     for (final page in await store.readProjections('personal.me.resources')) {
-      final updated = _filterResourceFamilyPayload(
-        page.payload,
-        family,
-        {deniedId},
-      );
+      final updated = _filterResourceFamilyPayload(page.payload, family, {
+        deniedId,
+      });
       if (!identical(updated, page.payload)) {
         await _storeProjectionPreservingMetadata(page, updated);
       }
@@ -485,10 +487,10 @@ class SyncEngine {
           {deniedId},
         );
         if (!identical(updatedResources, resources)) {
-          await _storeProjectionPreservingMetadata(
-            root,
-            {...root.payload, 'resources': updatedResources},
-          );
+          await _storeProjectionPreservingMetadata(root, {
+            ...root.payload,
+            'resources': updatedResources,
+          });
         }
       }
     }
@@ -999,8 +1001,8 @@ class SyncEngine {
         source.projectionKind == 'occurrence.experience.day_of';
     final siblingLiveSourceKey = deniedOccurrenceDayOf
         ? source.actorScope.isSpace
-            ? 'space-live-experience:${source.actorScope.spaceId}:${source.resourceKey.split('|').last}'
-            : 'live-experience:${source.resourceKey}'
+              ? 'space-live-experience:${source.actorScope.spaceId}:${source.resourceKey.split('|').last}'
+              : 'live-experience:${source.resourceKey}'
         : null;
     if (siblingLiveSourceKey != null) {
       final siblingKey =
@@ -1029,12 +1031,16 @@ class SyncEngine {
           resourceKey: source.resourceKey,
         );
         await (database.update(database.syncSources)..where(
-          (row) => row.profileId.equals(profileId) &
-              row.sourceKey.equals(siblingLiveSourceKey),
-        )).write(SyncSourcesCompanion(
-          invalidated: const Value(true),
-          lastErrorCode: Value(code),
-        ));
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.equals(siblingLiveSourceKey),
+            ))
+            .write(
+              SyncSourcesCompanion(
+                invalidated: const Value(true),
+                lastErrorCode: Value(code),
+              ),
+            );
       }
       if (deniedSpace != null || deniedInventory) {
         await _withdrawSpaceFacts(spaceId: deniedSpace, code: code);

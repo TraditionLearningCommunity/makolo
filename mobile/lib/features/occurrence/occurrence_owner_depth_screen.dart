@@ -37,9 +37,17 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
   int _epoch = 0;
 
   static const _readKinds = {
-    'my_queue', 'my_placement', 'my_checkpoints', 'readiness',
-    'operator_queue', 'operator_placement', 'operator_checkpoints',
-    'capacity', 'commerce', 'finance', 'places',
+    'my_queue',
+    'my_placement',
+    'my_checkpoints',
+    'readiness',
+    'operator_queue',
+    'operator_placement',
+    'operator_checkpoints',
+    'capacity',
+    'commerce',
+    'finance',
+    'places',
   };
 
   bool get _actorValid {
@@ -60,12 +68,15 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
     'operator_placement' => '$_root/placement-plans/',
     'operator_checkpoints' => '$_root/checkpoints/',
     'readiness' => '$_root/readiness/',
-    'capacity' || 'finance' || 'commerce' || 'places' =>
-      '$_root/experience/insights/${widget.kind}/',
+    'capacity' ||
+    'finance' ||
+    'commerce' ||
+    'places' => '$_root/experience/insights/${widget.kind}/',
     _ => null,
   };
 
-  String get _experiencePath => '$_root/experience/day-of/'
+  String get _experiencePath =>
+      '$_root/experience/day-of/'
       '${widget.actorSpaceId == null ? '' : '?actor_space=${widget.actorSpaceId}'}';
 
   @override
@@ -142,22 +153,26 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
     try {
       final api = widget.runtime.api;
       final expected = _ownerReadPath;
-      if (api == null || !_readKinds.contains(widget.kind) ||
+      if (api == null ||
+          !_readKinds.contains(widget.kind) ||
           expected == null) {
         throw StateError('Cette profondeur n’est pas disponible');
       }
       final canonical = (await api.get(_experiencePath)).jsonObject();
       final data = canonical['data'];
-      if (data is! Map || data['identity'] is! Map ||
+      if (data is! Map ||
+          data['identity'] is! Map ||
           (data['identity'] as Map)['id']?.toString() != widget.occurrenceId ||
           data['depths'] is! List) {
         throw const FormatException('Contexte Jour J incohérent');
       }
       final matches = (data['depths'] as List)
           .whereType<Map>()
-          .where((item) =>
-              item['kind'] == widget.kind &&
-              item['read_path'] == '/$expected')
+          .where(
+            (item) =>
+                item['kind'] == widget.kind &&
+                item['read_path'] == '/$expected',
+          )
           .toList();
       if (matches.length != 1) {
         throw const FormatException('Profondeur non autorisée');
@@ -167,8 +182,10 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
       if (decoded is! List && decoded is! Map) {
         throw const FormatException('Réponse propriétaire invalide');
       }
-      if (decoded is Map && decoded['identity'] is Map &&
-          (decoded['identity'] as Map)['id']?.toString() != widget.occurrenceId) {
+      if (decoded is Map &&
+          decoded['identity'] is Map &&
+          (decoded['identity'] as Map)['id']?.toString() !=
+              widget.occurrenceId) {
         throw const FormatException('Mauvaise Occurrence');
       }
       if (!mounted || stamp != _epoch || !_actorValid) return;
@@ -181,7 +198,8 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
       setState(() {
         _payload = null;
         _depth = null;
-        _denied = error is MakoloApiError &&
+        _denied =
+            error is MakoloApiError &&
             const {401, 403, 404}.contains(error.statusCode);
       });
     } finally {
@@ -226,16 +244,19 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
       // Every mutation rechecks the canonical capability and owner permission.
       final envelope = (await api.get(_experiencePath)).jsonObject();
       final data = envelope['data'];
-      if (data is! Map || data['depths'] is! List ||
+      if (data is! Map ||
+          data['depths'] is! List ||
           !(data['depths'] as List).whereType<Map>().any(
-            (item) => item['kind'] == widget.kind &&
-                      item['read_path'] == '/${_ownerReadPath!}',
+            (item) =>
+                item['kind'] == widget.kind &&
+                item['read_path'] == '/${_ownerReadPath!}',
           )) {
         throw StateError('Mandat ou contexte retiré');
       }
       if (!_actorValid) throw StateError('Acteur modifié');
-      final currentDepth = (data['depths'] as List).whereType<Map>()
-          .firstWhere((item) => item['kind'] == widget.kind);
+      final currentDepth = (data['depths'] as List).whereType<Map>().firstWhere(
+        (item) => item['kind'] == widget.kind,
+      );
       if (widget.kind != 'my_queue' && currentDepth['can_manage'] != true) {
         throw StateError('Droit de modification retiré');
       }
@@ -273,12 +294,24 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
   static String _summary(Object? value) {
     if (value is Map) {
       return value.entries
-          .where((entry) => entry.value != null &&
-              !const {
-                'id', 'token', 'credential', 'credential_token', 'secret',
-                'email', 'payer_email', 'metadata',
-              }.contains(entry.key.toString()))
-          .map((entry) => '${_fieldLabel(entry.key.toString())} : ${_summary(entry.value)}')
+          .where(
+            (entry) =>
+                entry.value != null &&
+                !const {
+                  'id',
+                  'token',
+                  'credential',
+                  'credential_token',
+                  'secret',
+                  'email',
+                  'payer_email',
+                  'metadata',
+                }.contains(entry.key.toString()),
+          )
+          .map(
+            (entry) =>
+                '${_fieldLabel(entry.key.toString())} : ${_summary(entry.value)}',
+          )
           .join(' · ');
     }
     if (value is List) return value.map(_summary).join(' · ');
@@ -306,10 +339,21 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
   };
 
   Widget _row(BuildContext context, Map<String, dynamic> data) {
-    final label = _text(data['label'] ?? data['name'] ?? data['key'] ?? data['id']);
-    final entries = data.entries.where((entry) =>
-        !const {'id', 'key', 'label', 'name', 'units', 'assignments'}.contains(entry.key) &&
-        entry.value != null);
+    final label = _text(
+      data['label'] ?? data['name'] ?? data['key'] ?? data['id'],
+    );
+    final entries = data.entries.where(
+      (entry) =>
+          !const {
+            'id',
+            'key',
+            'label',
+            'name',
+            'units',
+            'assignments',
+          }.contains(entry.key) &&
+          entry.value != null,
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -320,55 +364,80 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
             for (final entry in entries)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text('${_fieldLabel(entry.key)} : ${_summary(entry.value)}'),
+                child: Text(
+                  '${_fieldLabel(entry.key)} : ${_summary(entry.value)}',
+                ),
               ),
-            if (widget.kind == 'operator_queue' && _depth?['can_manage'] == true && data['id'] != null) ...[
+            if (widget.kind == 'operator_queue' &&
+                _depth?['can_manage'] == true &&
+                data['id'] != null) ...[
               const SizedBox(height: 8),
               FilledButton.tonal(
-                onPressed: _busy ? null : () => _operate(
-                  path: 'api/v1/operations/queues/${data['id']}/call/',
-                  method: 'POST',
-                  label: 'Appeler la prochaine personne',
-                ),
+                onPressed: _busy
+                    ? null
+                    : () => _operate(
+                        path: 'api/v1/operations/queues/${data['id']}/call/',
+                        method: 'POST',
+                        label: 'Appeler la prochaine personne',
+                      ),
                 child: const Text('Appeler la suite'),
               ),
-              Wrap(spacing: 6, children: [
-                for (final action in ['pause', 'resume', 'close'])
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _operate(
-                      path: 'api/v1/operations/queues/${data['id']}/status/',
-                      method: 'PATCH',
-                      body: {'action': action},
-                      label: 'Changer la file : $action',
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final action in ['pause', 'resume', 'close'])
+                    OutlinedButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _operate(
+                              path:
+                                  'api/v1/operations/queues/${data['id']}/status/',
+                              method: 'PATCH',
+                              body: {'action': action},
+                              label: 'Changer la file : $action',
+                            ),
+                      child: Text(action),
                     ),
-                    child: Text(action),
-                  ),
-              ]),
+                ],
+              ),
             ],
-            if (widget.kind == 'operator_checkpoints' && _depth?['can_manage'] == true && data['id'] != null)
-              Wrap(spacing: 6, children: [
-                for (final action in ['open', 'pause', 'resume', 'close'])
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _operate(
-                      path: 'api/v1/operations/checkpoints/${data['id']}/status/',
-                      method: 'PATCH',
-                      body: {'action': action},
-                      label: 'Checkpoint : $action',
+            if (widget.kind == 'operator_checkpoints' &&
+                _depth?['can_manage'] == true &&
+                data['id'] != null)
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final action in ['open', 'pause', 'resume', 'close'])
+                    OutlinedButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _operate(
+                              path:
+                                  'api/v1/operations/checkpoints/${data['id']}/status/',
+                              method: 'PATCH',
+                              body: {'action': action},
+                              label: 'Checkpoint : $action',
+                            ),
+                      child: Text(action),
                     ),
-                    child: Text(action),
-                  ),
-              ]),
-            if (widget.kind == 'my_queue' && data['id'] != null &&
+                ],
+              ),
+            if (widget.kind == 'my_queue' &&
+                data['id'] != null &&
                 const {'waiting', 'called'}.contains(data['status']))
               OutlinedButton(
-                onPressed: _busy ? null : () => _operate(
-                  path: 'api/v1/operations/queue-entries/${data['id']}/me/cancel/',
-                  method: 'POST',
-                  label: 'Quitter cette file',
-                ),
+                onPressed: _busy
+                    ? null
+                    : () => _operate(
+                        path:
+                            'api/v1/operations/queue-entries/${data['id']}/me/cancel/',
+                        method: 'POST',
+                        label: 'Quitter cette file',
+                      ),
                 child: const Text('Quitter la file'),
               ),
-            if (widget.kind == 'operator_placement' && _depth?['can_manage'] == true)
+            if (widget.kind == 'operator_placement' &&
+                _depth?['can_manage'] == true)
               for (final unit in _rows(data['units'])) ...[
                 const Divider(),
                 Text(
@@ -378,13 +447,18 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                 for (final assignment in _rows(unit['assignments']))
                   Row(
                     children: [
-                      Expanded(child: Text('Attribution ${_text(assignment['id'])}')),
+                      Expanded(
+                        child: Text('Attribution ${_text(assignment['id'])}'),
+                      ),
                       TextButton(
-                        onPressed: _busy ? null : () => _operate(
-                          path: 'api/v1/operations/placement-assignments/${assignment['id']}/',
-                          method: 'DELETE',
-                          label: 'Retirer cette attribution',
-                        ),
+                        onPressed: _busy
+                            ? null
+                            : () => _operate(
+                                path:
+                                    'api/v1/operations/placement-assignments/${assignment['id']}/',
+                                method: 'DELETE',
+                                label: 'Retirer cette attribution',
+                              ),
                         child: const Text('Retirer'),
                       ),
                     ],
@@ -392,7 +466,8 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                 const SizedBox(height: 4),
                 OutlinedButton(
                   onPressed: _busy || unit['id'] == null
-                      ? null : () => _assignPlacement(
+                      ? null
+                      : () => _assignPlacement(
                           planId: _text(data['id']),
                           unitId: _text(unit['id']),
                         ),
@@ -424,7 +499,8 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                   value: kind,
                   items: const [
                     DropdownMenuItem(
-                      value: 'profile_id', child: Text('Profil Makolo'),
+                      value: 'profile_id',
+                      child: Text('Profil Makolo'),
                     ),
                     DropdownMenuItem(
                       value: 'external_beneficiary_id',
@@ -498,15 +574,18 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
         ],
       ),
       body: !_actorValid || _denied
-          ? const Center(child: Text(
-              'Ce contenu est privé ou votre mandat a été retiré.',
-            ))
+          ? const Center(
+              child: Text('Ce contenu est privé ou votre mandat a été retiré.'),
+            )
           : _busy && current == null
           ? const Center(child: CircularProgressIndicator())
           : depth == null
-          ? Center(child: TextButton(
-              onPressed: _load, child: const Text('Vérifier à nouveau'),
-            ))
+          ? Center(
+              child: TextButton(
+                onPressed: _load,
+                child: const Text('Vérifier à nouveau'),
+              ),
+            )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -517,10 +596,14 @@ class _OccurrenceOwnerDepthScreenState extends State<OccurrenceOwnerDepthScreen>
                 const SizedBox(height: 12),
                 if (_busy) const LinearProgressIndicator(),
                 if (lists.isEmpty && payload.isEmpty)
-                  const Card(child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text('Aucun fait disponible auprès du propriétaire.'),
-                  )),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text(
+                        'Aucun fait disponible auprès du propriétaire.',
+                      ),
+                    ),
+                  ),
                 if (lists.isEmpty && payload.isNotEmpty) _row(context, payload),
                 for (final item in lists) ...[
                   _row(context, item),

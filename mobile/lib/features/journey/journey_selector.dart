@@ -90,12 +90,14 @@ class JourneyResourcePreview {
       if (id.isEmpty || title.isEmpty) continue;
       final kind = item['kind']?.toString() ?? '';
       final description = item['description']?.toString().trim();
-      rows.add(JourneyResourcePreview(
-        id: id,
-        title: title,
-        kind: kind,
-        description: description?.isNotEmpty == true ? description : null,
-      ));
+      rows.add(
+        JourneyResourcePreview(
+          id: id,
+          title: title,
+          kind: kind,
+          description: description?.isNotEmpty == true ? description : null,
+        ),
+      );
     }
     return List.unmodifiable(rows);
   }
@@ -236,9 +238,12 @@ class JourneyDetailPresentation {
   final JourneyPracticalFacts? practical;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
-  bool get isTerminal =>
-      const {'fulfilled', 'rejected', 'cancelled', 'expired'}
-          .contains(stateCode);
+  bool get isTerminal => const {
+    'fulfilled',
+    'rejected',
+    'cancelled',
+    'expired',
+  }.contains(stateCode);
 }
 
 class JourneyDetailSelector {
@@ -251,9 +256,9 @@ class JourneyDetailSelector {
   }) {
     // An explicit owner denial is authoritative even if a stale snapshot
     // is still in a stream during SQLite invalidation.
-    final ownerDenied = source.invalidated &&
-        const {'permission_denied', 'not_found'}
-            .contains(source.lastErrorCode);
+    final ownerDenied =
+        source.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(source.lastErrorCode);
     if (projection == null || ownerDenied) {
       return JourneyDetailPresentation(
         available: false,
@@ -391,10 +396,14 @@ class JourneyDetailSelector {
     final order = _map(payment['order']);
     final latest = _map(payment['payment']);
     final obligations = _maps(payment['obligations']);
-    final obligation = obligations.isEmpty ? const <String, dynamic>{} : obligations.first;
+    final obligation = obligations.isEmpty
+        ? const <String, dynamic>{}
+        : obligations.first;
     final amount = _string(obligation['amount']) ?? _string(order['total']);
-    final currency = _string(obligation['currency']) ?? _string(order['currency']);
-    final state = _string(obligation['state']) ??
+    final currency =
+        _string(obligation['currency']) ?? _string(order['currency']);
+    final state =
+        _string(obligation['state']) ??
         _string(order['state']) ??
         _string(_map(obligation['payment'])['state']) ??
         _string(latest['state']);
@@ -427,16 +436,18 @@ class JourneyDetailSelector {
   }
 
   static List<JourneyStepSummary> _steps(Object? value) {
-    return _maps(value).map((row) {
-      return JourneyStepSummary(
-        id: _string(row['id']) ?? '',
-        title: _string(row['title']) ?? '',
-        status: _string(row['status']) ?? '',
-        kind: _string(row['kind']) ?? '',
-        dependsOn: _strings(row['depends_on']),
-      );
-    }).where((step) => step.id.isNotEmpty && step.title.isNotEmpty)
-      .toList(growable: false);
+    return _maps(value)
+        .map((row) {
+          return JourneyStepSummary(
+            id: _string(row['id']) ?? '',
+            title: _string(row['title']) ?? '',
+            status: _string(row['status']) ?? '',
+            kind: _string(row['kind']) ?? '',
+            dependsOn: _strings(row['depends_on']),
+          );
+        })
+        .where((step) => step.id.isNotEmpty && step.title.isNotEmpty)
+        .toList(growable: false);
   }
 
   static List<JourneyReadinessItem> _readinessItems(Object? value) {

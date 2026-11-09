@@ -54,7 +54,8 @@ final class OccurrenceContinuity {
   static bool verifiedAfterActorSwitch({
     required DateTime? lastSuccessAt,
     required DateTime? actorSwitchedAt,
-  }) => actorSwitchedAt == null ||
+  }) =>
+      actorSwitchedAt == null ||
       (lastSuccessAt != null &&
           !lastSuccessAt.toUtc().isBefore(actorSwitchedAt.toUtc()));
 
@@ -65,7 +66,9 @@ final class OccurrenceContinuity {
     required bool systemOffline,
     required bool liveEnded,
   }) {
-    if (sourceInvalidated || systemOffline || liveEnded ||
+    if (sourceInvalidated ||
+        systemOffline ||
+        liveEnded ||
         reachability != ReachabilityState.reachable) {
       return false;
     }

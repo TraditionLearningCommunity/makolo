@@ -308,11 +308,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
             onConversations: () => unawaited(_openSecondary('/conversations')),
             onNotifications: () => unawaited(_openSecondary('/notifications')),
-            onSearch: actor is PersonalActorContext || enableSpaceDiscoveryActions
-                ? () => context.push(discoveryQuery.routeLocation('/discover/search'))
+            onSearch:
+                actor is PersonalActorContext || enableSpaceDiscoveryActions
+                ? () => context.push(
+                    discoveryQuery.routeLocation('/discover/search'),
+                  )
                 : null,
             onMap: actor is PersonalActorContext || enableSpaceDiscoveryActions
-                ? () => context.push(discoveryQuery.routeLocation('/discover/map'))
+                ? () => context.push(
+                    discoveryQuery.routeLocation('/discover/map'),
+                  )
                 : null,
             onCalendar: actor is PersonalActorContext
                 ? () => context.push('/ongoing/calendar')

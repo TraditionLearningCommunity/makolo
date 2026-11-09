@@ -260,12 +260,11 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       // Preparation is a distinct owner. Acquire its metadata into the same
       // Profile database without duplicating it in the Journey projection.
       final ongoing = await runtime.store?.readProjection('personal.ongoing');
-      final knownJourneyIds =
-          runtime.preparationResources == null
-              ? <String>[]
-              : runtime.journeys == null
-              ? <String>[]
-              : JourneyRepository.knownJourneyIdsFromOngoing(ongoing);
+      final knownJourneyIds = runtime.preparationResources == null
+          ? <String>[]
+          : runtime.journeys == null
+          ? <String>[]
+          : JourneyRepository.knownJourneyIdsFromOngoing(ongoing);
       for (final id in knownJourneyIds) {
         sync.registerPreparedSource(
           runtime.preparationResources!.sourceFor(journeyId: id),
@@ -297,11 +296,12 @@ class _SyncLifecycleState extends State<SyncLifecycle>
           }
         }
         if (runtime.requirements != null && preparedRequirements < 6) {
-          final requirements = JourneyRepository.knownRequirementLinksFromDetail(
-            localDetail,
-            journeyId: journeyId,
-            limit: 6 - preparedRequirements,
-          );
+          final requirements =
+              JourneyRepository.knownRequirementLinksFromDetail(
+                localDetail,
+                journeyId: journeyId,
+                limit: 6 - preparedRequirements,
+              );
           for (final entry in requirements.entries) {
             sync.registerPreparedSource(
               runtime.requirements!.sourceFor(

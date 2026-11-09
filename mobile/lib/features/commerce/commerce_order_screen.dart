@@ -47,23 +47,28 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
             local.resourceKey,
           );
           if (source?.invalidated == true &&
-              const {'permission_denied', 'not_found'}
-                  .contains(source?.lastErrorCode)) continue;
+              const {
+                'permission_denied',
+                'not_found',
+              }.contains(source?.lastErrorCode))
+            continue;
           final payment = local.payload['payment'];
           if (payment is! Map) continue;
           final order = payment['order'];
           if (order is! Map || order['id'] != widget.orderId) continue;
           if (!mounted) return;
-          setState(() => _order = {
-            'id': widget.orderId,
-            'kind': 'commerce_order',
-            'status': order['state'],
-            'checkout': {
-              'total': order['total'],
-              'currency': order['currency'],
-              'payment_mode': order['payment_mode'],
+          setState(
+            () => _order = {
+              'id': widget.orderId,
+              'kind': 'commerce_order',
+              'status': order['state'],
+              'checkout': {
+                'total': order['total'],
+                'currency': order['currency'],
+                'payment_mode': order['payment_mode'],
+              },
             },
-          });
+          );
           break;
         }
       } on Object {

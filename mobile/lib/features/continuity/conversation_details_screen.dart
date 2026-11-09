@@ -114,7 +114,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     }
   }
 
-  Future<void> _openAttachment(Map<String, dynamic> attachment, {
+  Future<void> _openAttachment(
+    Map<String, dynamic> attachment, {
     List<Map<String, dynamic>> gallery = const [],
   }) async {
     await showModalBottomSheet<void>(
@@ -127,7 +128,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           repository: widget.repository,
           attachment: attachment,
           gallery: gallery,
-          initialIndex: gallery.indexWhere((item) => item['id'] == attachment['id']),
+          initialIndex: gallery.indexWhere(
+            (item) => item['id'] == attachment['id'],
+          ),
         ),
       ),
     );
@@ -427,11 +430,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                                   attachment['kind'] == 'video'
                                       ? Icons.ondemand_video_outlined
                                       : attachment['kind'] == 'audio' ||
-                                              attachment['kind'] == 'voice'
-                                          ? Icons.graphic_eq_outlined
-                                          : attachment['mime_type'] == 'application/pdf'
-                                              ? Icons.picture_as_pdf_outlined
-                                              : Icons.description_outlined,
+                                            attachment['kind'] == 'voice'
+                                      ? Icons.graphic_eq_outlined
+                                      : attachment['mime_type'] ==
+                                            'application/pdf'
+                                      ? Icons.picture_as_pdf_outlined
+                                      : Icons.description_outlined,
                                   color: colors.primary,
                                   size: 38,
                                 ),

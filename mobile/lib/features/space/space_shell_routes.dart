@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -189,7 +190,8 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
         ),
         onOpenItem: (family, id) => context.push(
           Uri(
-            path: '/discover/items/${Uri.encodeComponent(family)}/'
+            path:
+                '/discover/items/${Uri.encodeComponent(family)}/'
                 '${Uri.encodeComponent(id)}',
             queryParameters: {'context': 'space', 'space': actor.space.slug},
           ).toString(),
@@ -254,7 +256,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            'Impossible d’afficher les informations.'
+                            'Impossible d’afficher les informations.',
                           ),
                         ),
                         MakoloActionButton(
@@ -337,7 +339,8 @@ class _SpaceProjectionBody extends StatelessWidget {
         children: [
           const MakoloEmptyState(
             title: 'Rien à afficher pour le moment.',
-            body: 'Vous pouvez actualiser pour voir les dernières informations.',
+            body:
+                'Vous pouvez actualiser pour voir les dernières informations.',
             icon: Icons.info_outline_rounded,
           ),
           MakoloActionButton(
@@ -818,9 +821,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           currentActor.space.slug == widget.slug) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Cette modification n’a pas été enregistrée.',
-            ),
+            content: Text('Cette modification n’a pas été enregistrée.'),
           ),
         );
       }
@@ -928,7 +929,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(_depthRowLabel(row)),
-              const Text('Ce rôle s’ajoute aux mandats existants. Les autorisations déjà accordées restent actives.'),
+              const Text(
+                'Ce rôle s’ajoute aux mandats existants. Les autorisations déjà accordées restent actives.',
+              ),
               DropdownButtonFormField<String>(
                 initialValue: selected,
                 isExpanded: true,
@@ -1384,9 +1387,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                       title: 'Aucun fait public de vérification actif.',
                     )
               else
-                const MakoloEmptyState(
-                  title: 'Vérifications indisponibles.',
-                ),
+                const MakoloEmptyState(title: 'Vérifications indisponibles.'),
             const Text(
               'Ces faits ne constituent pas un score global de confiance.',
             ),

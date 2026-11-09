@@ -113,12 +113,7 @@ void main() {
           'sort': 'recent',
           'count': 8,
           'items': const [],
-          'page': {
-            'offset': 0,
-            'limit': 24,
-            'count': 8,
-            'has_more': false,
-          },
+          'page': {'offset': 0, 'limit': 24, 'count': 8, 'has_more': false},
         },
       );
 
@@ -193,10 +188,7 @@ void main() {
               'status': 'active',
               'current_version': {
                 'version': 2,
-                'validity': {
-                  'state': 'current',
-                  'expires_at': '2028-08-12',
-                },
+                'validity': {'state': 'current', 'expires_at': '2028-08-12'},
               },
             },
             {
@@ -281,63 +273,62 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets(
-    'a document already visible keeps its safe summary offline',
-    (tester) async {
-      final database = MakoloDatabase.memory();
-      addTearDown(database.close);
-      final store = ProfileStore(database, 'profile-a');
-      final repository = ResourceRepository(
-        database: database,
-        store: store,
-        profileId: 'profile-a',
-      );
-      await store.putProjection(
-        kind: ResourceRepository.collectionProjectionKind,
-        resourceKey: repository.collectionResourceKey(query: '', offset: 0),
-        schemaVersion: 1,
-        payload: {
-          'documents': {
-            'query': null,
-            'view': 'current',
-            'sort': 'recent',
-            'filters': {'kind': null, 'sensitivity': null},
-            'items': [
-              {
-                'id': 'asset-seen',
-                'title': 'Document déjà connu',
-                'asset_kind_label': 'Attestation',
-                'sensitivity': 'sensitive',
-                'sensitivity_label': 'Sensible',
-                'status': 'active',
-              },
-            ],
-            'page': {'offset': 0, 'limit': 24, 'has_more': false},
-          },
+  testWidgets('a document already visible keeps its safe summary offline', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = ResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+    );
+    await store.putProjection(
+      kind: ResourceRepository.collectionProjectionKind,
+      resourceKey: repository.collectionResourceKey(query: '', offset: 0),
+      schemaVersion: 1,
+      payload: {
+        'documents': {
+          'query': null,
+          'view': 'current',
+          'sort': 'recent',
+          'filters': {'kind': null, 'sensitivity': null},
+          'items': [
+            {
+              'id': 'asset-seen',
+              'title': 'Document déjà connu',
+              'asset_kind_label': 'Attestation',
+              'sensitivity': 'sensitive',
+              'sensitivity_label': 'Sensible',
+              'status': 'active',
+            },
+          ],
+          'page': {'offset': 0, 'limit': 24, 'has_more': false},
         },
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildMakoloTheme(),
-          home: ResourceDetailScreen(
-            assetId: 'asset-seen',
-            repository: repository,
-            personal: PersonalRepository(store),
-            onOpenJourney: (_) {},
-            onAddVersion: () {},
-            onArchived: () {},
-          ),
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ResourceDetailScreen(
+          assetId: 'asset-seen',
+          repository: repository,
+          personal: PersonalRepository(store),
+          onOpenJourney: (_) {},
+          onAddVersion: () {},
+          onArchived: () {},
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Document déjà connu'), findsOneWidget);
-      expect(find.textContaining('Attestation · Sensible'), findsOneWidget);
-      expect(find.byTooltip('Télécharger'), findsNothing);
-      expect(find.byTooltip('Nouvelle version'), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+    expect(find.text('Document déjà connu'), findsOneWidget);
+    expect(find.textContaining('Attestation · Sensible'), findsOneWidget);
+    expect(find.byTooltip('Télécharger'), findsNothing);
+    expect(find.byTooltip('Nouvelle version'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'sensitive document keeps explicit download but no offline retention promise',
@@ -420,78 +411,77 @@ void main() {
     },
   );
 
-  testWidgets(
-    'PersonalAsset detail keeps provenance honest and copy concise',
-    (tester) async {
-      final database = MakoloDatabase.memory();
-      addTearDown(database.close);
-      final store = ProfileStore(database, 'profile-a');
-      final repository = ResourceRepository(
-        database: database,
-        store: store,
-        profileId: 'profile-a',
-      );
-      await store.putProjection(
-        kind: ResourceRepository.detailProjectionKind,
-        resourceKey: 'asset-1',
-        schemaVersion: 1,
-        payload: {
-          'id': 'asset-1',
-          'title': 'Passeport RDC',
-          'asset_kind_label': 'Document d’identité',
-          'sensitivity': 'normal',
-          'sensitivity_label': 'Normale',
-          'status': 'active',
-          'current_version': {
-            'id': 'version-2',
-            'version': 2,
-            'current': true,
-            'mime_type': 'application/pdf',
-            'validity': {'state': 'current'},
-            'provenance': {'kind': 'unknown'},
-            'links': {},
-          },
-          'versions': {
-            'items': [
-              {
-                'id': 'version-2',
-                'version': 2,
-                'current': true,
-                'mime_type': 'application/pdf',
-                'validity': {'state': 'current'},
-                'provenance': {'kind': 'unknown'},
-                'links': {},
-              },
-            ],
-          },
+  testWidgets('PersonalAsset detail keeps provenance honest and copy concise', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final repository = ResourceRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+    );
+    await store.putProjection(
+      kind: ResourceRepository.detailProjectionKind,
+      resourceKey: 'asset-1',
+      schemaVersion: 1,
+      payload: {
+        'id': 'asset-1',
+        'title': 'Passeport RDC',
+        'asset_kind_label': 'Document d’identité',
+        'sensitivity': 'normal',
+        'sensitivity_label': 'Normale',
+        'status': 'active',
+        'current_version': {
+          'id': 'version-2',
+          'version': 2,
+          'current': true,
+          'mime_type': 'application/pdf',
+          'validity': {'state': 'current'},
+          'provenance': {'kind': 'unknown'},
           'links': {},
         },
-      );
+        'versions': {
+          'items': [
+            {
+              'id': 'version-2',
+              'version': 2,
+              'current': true,
+              'mime_type': 'application/pdf',
+              'validity': {'state': 'current'},
+              'provenance': {'kind': 'unknown'},
+              'links': {},
+            },
+          ],
+        },
+        'links': {},
+      },
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildMakoloTheme(),
-          home: ResourceDetailScreen(
-            assetId: 'asset-1',
-            repository: repository,
-            personal: PersonalRepository(store),
-            onOpenJourney: (_) {},
-            onAddVersion: () {},
-            onArchived: () {},
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ResourceDetailScreen(
+          assetId: 'asset-1',
+          repository: repository,
+          personal: PersonalRepository(store),
+          onOpenJourney: (_) {},
+          onAddVersion: () {},
+          onArchived: () {},
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      expect(find.text('Passeport RDC'), findsOneWidget);
-      expect(find.textContaining('Provenance : Inconnue'), findsOneWidget);
-      expect(
-        find.textContaining('Conserver un document ne suffit pas'),
-        findsNothing,
-      );
-      expect(find.textContaining('Requirement'), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(milliseconds: 1));
-    },
-  );
+    expect(find.text('Passeport RDC'), findsOneWidget);
+    expect(find.textContaining('Provenance : Inconnue'), findsOneWidget);
+    expect(
+      find.textContaining('Conserver un document ne suffit pas'),
+      findsNothing,
+    );
+    expect(find.textContaining('Requirement'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
 }

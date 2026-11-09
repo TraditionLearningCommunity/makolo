@@ -238,12 +238,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(
-      const Duration(milliseconds: 350),
-      () {
-        if (mounted) _setScope(query: value.trim());
-      },
-    );
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _setScope(query: value.trim());
+    });
   }
 
   Future<void> _showSort() async {
@@ -329,8 +326,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     ChoiceChip(
                       label: const Text('Toutes'),
                       selected: sensitivity.isEmpty,
-                      onSelected: (_) =>
-                          setSheetState(() => sensitivity = ''),
+                      onSelected: (_) => setSheetState(() => sensitivity = ''),
                     ),
                     for (final option in view.sensitivityOptions)
                       ChoiceChip(
@@ -428,134 +424,138 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 860),
                     child: ListView(
-                  controller: _scroll,
-                  key: PageStorageKey<String>(
-                    'documents:$_query:$_view:$_kind:$_sensitivity:$_sort',
-                  ),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  children: [
-                    TextField(
-                      controller: _search,
-                      onChanged: _onSearchChanged,
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        hintText: 'Rechercher',
-                        prefixIcon: Icon(Icons.search_rounded),
+                      controller: _scroll,
+                      key: PageStorageKey<String>(
+                        'documents:$_query:$_view:$_kind:$_sensitivity:$_sort',
                       ),
-                    ),
-                    const SizedBox(height: MakoloSpacing.md),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _ViewChip(
-                            label: 'Tous',
-                            selected: _view == 'current',
-                            onSelected: () => _setScope(view: 'current'),
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          _ViewChip(
-                            label: 'À échéance',
-                            selected: _view == 'expiring',
-                            onSelected: () => _setScope(view: 'expiring'),
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          _ViewChip(
-                            label: 'Archivés',
-                            selected: _view == 'archived',
-                            onSelected: () => _setScope(view: 'archived'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Row(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(MakoloSpacing.inner),
                       children: [
-                        if (view.total != null && view.total! > 0)
-                          Text(
-                            '${view.total}',
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                        TextField(
+                          controller: _search,
+                          onChanged: _onSearchChanged,
+                          textInputAction: TextInputAction.search,
+                          decoration: const InputDecoration(
+                            hintText: 'Rechercher',
+                            prefixIcon: Icon(Icons.search_rounded),
                           ),
-                        const Spacer(),
-                        MakoloIconActionButton(
-                          tooltip: 'Filtrer',
-                          icon: Icons.tune_rounded,
-                          onPressed: () => _showFilters(view),
                         ),
-                        MakoloIconActionButton(
-                          tooltip: 'Trier',
-                          icon: Icons.swap_vert_rounded,
-                          onPressed: _showSort,
+                        const SizedBox(height: MakoloSpacing.md),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _ViewChip(
+                                label: 'Tous',
+                                selected: _view == 'current',
+                                onSelected: () => _setScope(view: 'current'),
+                              ),
+                              const SizedBox(width: MakoloSpacing.sm),
+                              _ViewChip(
+                                label: 'À échéance',
+                                selected: _view == 'expiring',
+                                onSelected: () => _setScope(view: 'expiring'),
+                              ),
+                              const SizedBox(width: MakoloSpacing.sm),
+                              _ViewChip(
+                                label: 'Archivés',
+                                selected: _view == 'archived',
+                                onSelected: () => _setScope(view: 'archived'),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Row(
+                          children: [
+                            if (view.total != null && view.total! > 0)
+                              Text(
+                                '${view.total}',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                    ),
+                              ),
+                            const Spacer(),
+                            MakoloIconActionButton(
+                              tooltip: 'Filtrer',
+                              icon: Icons.tune_rounded,
+                              onPressed: () => _showFilters(view),
+                            ),
+                            MakoloIconActionButton(
+                              tooltip: 'Trier',
+                              icon: Icons.swap_vert_rounded,
+                              onPressed: _showSort,
+                            ),
+                          ],
+                        ),
+                        if (view.hasSnapshot &&
+                            (source.reachability ==
+                                    ReachabilityState.unreachable ||
+                                _refreshFailed))
+                          const _ResourceContinuityNotice(
+                            message:
+                                'Données enregistrées sur cet appareil. '
+                                'Mise à jour indisponible.',
+                          ),
+                        if (!view.hasSnapshot && _initializing)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: MakoloSpacing.xl,
+                            ),
+                            child: Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          )
+                        else if (!view.hasSnapshot &&
+                            (_refreshFailed ||
+                                source.invalidated ||
+                                source.reachability ==
+                                    ReachabilityState.unreachable))
+                          _ResourceUnavailable(
+                            ownerDenied: source.ownerDenied,
+                            onRetry: _refreshFirst,
+                          )
+                        else if (view.items.isEmpty)
+                          _EmptyDocuments(
+                            query: _query,
+                            archived: _view == 'archived',
+                            onAdd: _view == 'archived'
+                                ? null
+                                : widget.onAddDocument,
+                          )
+                        else
+                          for (final item in view.items)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: MakoloSpacing.sm,
+                              ),
+                              child: _DocumentCard(
+                                item: item,
+                                onTap: () => widget.onOpenDocument(item.id),
+                              ),
+                            ),
+                        if (_loadingMore && view.hasMore)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(MakoloSpacing.md),
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          ),
+                        if (_loadFailed && view.hasMore)
+                          Center(
+                            child: MakoloActionButton(
+                              label: 'Réessayer',
+                              appearance: MakoloActionAppearance.quiet,
+                              onPressed: () {
+                                setState(() => _loadFailed = false);
+                                unawaited(_loadMore(view));
+                              },
+                            ),
+                          ),
                       ],
-                    ),
-                    if (view.hasSnapshot &&
-                        (source.reachability == ReachabilityState.unreachable ||
-                            _refreshFailed))
-                      const _ResourceContinuityNotice(
-                        message:
-                            'Données enregistrées sur cet appareil. '
-                            'Mise à jour indisponible.',
-                      ),
-                    if (!view.hasSnapshot && _initializing)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: MakoloSpacing.xl,
-                        ),
-                        child: Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      )
-                    else if (!view.hasSnapshot &&
-                        (_refreshFailed ||
-                            source.invalidated ||
-                            source.reachability == ReachabilityState.unreachable))
-                      _ResourceUnavailable(
-                        ownerDenied: source.ownerDenied,
-                        onRetry: _refreshFirst,
-                      )
-                    else if (view.items.isEmpty)
-                      _EmptyDocuments(
-                        query: _query,
-                        archived: _view == 'archived',
-                        onAdd: _view == 'archived'
-                            ? null
-                            : widget.onAddDocument,
-                      )
-                    else
-                      for (final item in view.items)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: MakoloSpacing.sm,
-                          ),
-                          child: _DocumentCard(
-                            item: item,
-                            onTap: () => widget.onOpenDocument(item.id),
-                          ),
-                        ),
-                    if (_loadingMore && view.hasMore)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(MakoloSpacing.md),
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      ),
-                    if (_loadFailed && view.hasMore)
-                      Center(
-                        child: MakoloActionButton(
-                          label: 'Réessayer',
-                          appearance: MakoloActionAppearance.quiet,
-                          onPressed: () {
-                            setState(() => _loadFailed = false);
-                            unawaited(_loadMore(view));
-                          },
-                        ),
-                      ),
-                  ],
                     ),
                   ),
                 ),
@@ -982,4 +982,5 @@ String? _string(Object? value) {
   return text == null || text.isEmpty ? null : text;
 }
 
-int? _int(Object? value) => value is num ? value.toInt() : int.tryParse('$value');
+int? _int(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('$value');

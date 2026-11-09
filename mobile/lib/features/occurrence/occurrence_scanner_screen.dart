@@ -144,13 +144,15 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       final identity = data['identity'];
       final links = data['links'];
       final space = data['space'];
-      if (identity is! Map || identity['id']?.toString() != widget.occurrenceId ||
+      if (identity is! Map ||
+          identity['id']?.toString() != widget.occurrenceId ||
           links is! Map ||
           links['scan'] != '/$_controlPath' ||
           !(data['capabilities'] is List &&
               (data['capabilities'] as List).contains('scan')) ||
           (widget.actorSpaceId != null &&
-              (space is! Map || space['id']?.toString() != widget.actorSpaceId))) {
+              (space is! Map ||
+                  space['id']?.toString() != widget.actorSpaceId))) {
         throw const FormatException('Contexte Scanner incohérent');
       }
       if (!mounted || epoch != _epoch || !_actorValid) return;
@@ -158,7 +160,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     } on Object catch (error) {
       if (!mounted || epoch != _epoch) return;
       setState(() {
-        _denied = error is MakoloApiError &&
+        _denied =
+            error is MakoloApiError &&
             const {401, 403, 404}.contains(error.statusCode);
         _context = null;
       });
@@ -169,9 +172,14 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
 
   Future<void> _offerToken(String raw) async {
     final token = raw.trim();
-    if (token.isEmpty || token.length > 1024 ||
-        _busy || _confirming || _checking || !_actorValid ||
-        _context == null) return;
+    if (token.isEmpty ||
+        token.length > 1024 ||
+        _busy ||
+        _confirming ||
+        _checking ||
+        !_actorValid ||
+        _context == null)
+      return;
     final revision = _epoch;
     setState(() {
       _confirming = true;
@@ -217,14 +225,16 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       final verified = (await api.get(_contextPath)).jsonObject()['data'];
       if (verified is! Map ||
           (verified['identity'] is! Map ||
-              (verified['identity'] as Map)['id']?.toString() != widget.occurrenceId) ||
+              (verified['identity'] as Map)['id']?.toString() !=
+                  widget.occurrenceId) ||
           (verified['capabilities'] is! List ||
               !(verified['capabilities'] as List).contains('scan')) ||
           (verified['links'] is! Map ||
               (verified['links'] as Map)['scan'] != '/$_controlPath') ||
           (widget.actorSpaceId != null &&
               (verified['space'] is! Map ||
-                  (verified['space'] as Map)['id']?.toString() != widget.actorSpaceId))) {
+                  (verified['space'] as Map)['id']?.toString() !=
+                      widget.actorSpaceId))) {
         throw StateError('Mandat Scanner à renouveler');
       }
       final result = (await api.post(
@@ -242,7 +252,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       setState(() {
         _result = {
           'accepted': false,
-          'message': error is MakoloApiError &&
+          'message':
+              error is MakoloApiError &&
                   const {401, 403, 404}.contains(error.statusCode)
               ? 'Votre autorisation de contrôle doit être revérifiée.'
               : 'Contrôle non confirmé. Vérifiez la connexion avant un nouvel essai.',
@@ -279,13 +290,18 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       ),
       body: !_actorValid || _denied
           ? const Center(
-              child: Text('Ce Scanner n’est plus autorisé dans le contexte actif.'),
+              child: Text(
+                'Ce Scanner n’est plus autorisé dans le contexte actif.',
+              ),
             )
           : data == null
           ? Center(
               child: _checking
                   ? const CircularProgressIndicator()
-                  : TextButton(onPressed: _load, child: const Text('Réessayer')),
+                  : TextButton(
+                      onPressed: _load,
+                      child: const Text('Réessayer'),
+                    ),
             )
           : ListView(
               padding: const EdgeInsets.all(20),
@@ -308,8 +324,10 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(_result!['message']?.toString() ??
-                                'Résultat du contrôle à vérifier.'),
+                            child: Text(
+                              _result!['message']?.toString() ??
+                                  'Résultat du contrôle à vérifier.',
+                            ),
                           ),
                         ],
                       ),
@@ -320,7 +338,9 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                   onPressed: _busy || _checking || _confirming
                       ? null
                       : () => setState(() => _camera = !_camera),
-                  icon: Icon(_camera ? Icons.close : Icons.qr_code_scanner_rounded),
+                  icon: Icon(
+                    _camera ? Icons.close : Icons.qr_code_scanner_rounded,
+                  ),
                   label: Text(_camera ? 'Fermer la caméra' : 'Scanner un QR'),
                 ),
                 if (_camera) ...[
@@ -329,7 +349,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                     height: 280,
                     child: MakoloCodeScanner(
                       onCode: (code) {
-                        if (_camera && !_busy) unawaited(_offerToken(code.value));
+                        if (_camera && !_busy)
+                          unawaited(_offerToken(code.value));
                       },
                     ),
                   ),

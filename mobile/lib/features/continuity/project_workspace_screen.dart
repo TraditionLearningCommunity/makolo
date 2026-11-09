@@ -281,8 +281,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     const SizedBox(height: 10),
                     MakoloActionButton(
                       label: deadline == null
-                            ? 'Échéance facultative'
-                            : _humanDate(deadline!),
+                          ? 'Échéance facultative'
+                          : _humanDate(deadline!),
                       onPressed: () async {
                         final picked = await showDatePicker(
                           context: dialog,
@@ -1102,10 +1102,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             suffixIcon: _search.text.isEmpty
                 ? null
                 : MakoloIconActionButton(
-                  tooltip: 'Effacer la recherche',
-                  icon: Icons.close_rounded,
-                  onPressed: _search.clear,
-                ),
+                    tooltip: 'Effacer la recherche',
+                    icon: Icons.close_rounded,
+                    onPressed: _search.clear,
+                  ),
           ),
         ),
         const SizedBox(height: 11),
@@ -1149,9 +1149,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         const SizedBox(height: 13),
         Text(
           '${filtered.length} '
-          '${_search.text.trim().isNotEmpty || _stateFilter != 'all' || _readinessFilter != 'all'
-              ? (filtered.length == 1 ? 'résultat' : 'résultats')
-              : (filtered.length == 1 ? 'dossier' : 'dossiers')} '
+          '${_search.text.trim().isNotEmpty || _stateFilter != 'all' || _readinessFilter != 'all' ? (filtered.length == 1 ? 'résultat' : 'résultats') : (filtered.length == 1 ? 'dossier' : 'dossiers')} '
           '${filtered.length == 1 ? 'chargé' : 'chargés'}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -1386,10 +1384,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 child: _refreshing
                     ? const CircularProgressIndicator.adaptive()
                     : MakoloActionButton(
-                      label: _failed ? 'Réessayer' : 'Charger ce Projet',
-                      onPressed: _refresh,
-                      appearance: MakoloActionAppearance.quiet,
-                    ),
+                        label: _failed ? 'Réessayer' : 'Charger ce Projet',
+                        onPressed: _refresh,
+                        appearance: MakoloActionAppearance.quiet,
+                      ),
               );
             }
             return StreamBuilder<List<StoredProjection>>(
@@ -1419,56 +1417,58 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                    key: const PageStorageKey<String>(
-                      'project-workspace-scroll',
-                    ),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
-                    children: [
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 950),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _header(project),
-                              if (_offline)
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 10),
-                                  child: Text(
-                                    'Données locales disponibles hors ligne.',
+                      key: const PageStorageKey<String>(
+                        'project-workspace-scroll',
+                      ),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 950),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _header(project),
+                                if (_offline)
+                                  const Padding(
+                                    padding: EdgeInsets.only(top: 10),
+                                    child: Text(
+                                      'Données locales disponibles hors ligne.',
+                                    ),
                                   ),
-                                ),
-                              const SizedBox(height: 16),
-                              _actionBar(project),
-                              const SizedBox(height: 23),
-                              _tabs(),
-                              const SizedBox(height: 24),
-                              if (_mode == _ProjectMode.summary)
-                                _summary(project, rows, more)
-                              else if (_mode == _ProjectMode.dossiers)
-                                _dossierList(project, rows)
-                              else
-                                _calendar(project, rows),
-                              if (more && !_offline && !_failed)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 18),
-                                  child: Center(
-                                    child: CircularProgressIndicator.adaptive(),
+                                const SizedBox(height: 16),
+                                _actionBar(project),
+                                const SizedBox(height: 23),
+                                _tabs(),
+                                const SizedBox(height: 24),
+                                if (_mode == _ProjectMode.summary)
+                                  _summary(project, rows, more)
+                                else if (_mode == _ProjectMode.dossiers)
+                                  _dossierList(project, rows)
+                                else
+                                  _calendar(project, rows),
+                                if (more && !_offline && !_failed)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 18),
+                                    child: Center(
+                                      child:
+                                          CircularProgressIndicator.adaptive(),
+                                    ),
                                   ),
-                                ),
-                              if (_failed)
-                                MakoloActionButton(
-                                  label: 'Actualisation impossible · Réessayer',
-                                  onPressed: _refresh,
-                                  appearance: MakoloActionAppearance.quiet,
-                                ),
-                              if (_busy) const LinearProgressIndicator(),
-                            ],
+                                if (_failed)
+                                  MakoloActionButton(
+                                    label:
+                                        'Actualisation impossible · Réessayer',
+                                    onPressed: _refresh,
+                                    appearance: MakoloActionAppearance.quiet,
+                                  ),
+                                if (_busy) const LinearProgressIndicator(),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
                     ),
                   ),
                 );

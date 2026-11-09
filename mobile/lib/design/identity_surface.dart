@@ -20,6 +20,7 @@ class MakoloIdentityPortrait extends StatelessWidget {
   final Widget leading;
   final String? eyebrow;
   final String? subtitle;
+
   /// Limit long institutional summaries without changing owner data.
   /// Omitted for personal identity to preserve its existing presentation.
   final int? subtitleMaxLines;
@@ -138,7 +139,11 @@ class MakoloPassportGateway extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.badge_outlined, color: Colors.white, size: 32),
+                  const Icon(
+                    Icons.badge_outlined,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                   const SizedBox(width: MakoloSpacing.compact),
                   Expanded(
                     child: Column(
@@ -376,7 +381,10 @@ class MakoloTerritoryListCard extends StatelessWidget {
                       const SizedBox(width: 6),
                     ],
                     if (onOpen != null)
-                      Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: scheme.onSurfaceVariant,
+                      ),
                   ],
                 ),
               ),

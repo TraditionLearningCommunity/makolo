@@ -90,7 +90,8 @@ class JourneyRepository {
     if (parts.length != sizes.length) return false;
     for (var i = 0; i < parts.length; i++) {
       if (parts[i].length != sizes[i] ||
-          int.tryParse(parts[i], radix: 16) == null) return false;
+          int.tryParse(parts[i], radix: 16) == null)
+        return false;
     }
     return true;
   }
@@ -132,7 +133,8 @@ class JourneyRepository {
       if (row is! Map) continue;
       final id = row['id']?.toString() ?? '';
       final link = row['link']?.toString() ?? '';
-      if (!_isUuid(id) || !_isUuid(journeyId) ||
+      if (!_isUuid(id) ||
+          !_isUuid(journeyId) ||
           link != '/api/v1/me/journeys/$journeyId/requirements/$id/') {
         continue;
       }
@@ -141,6 +143,7 @@ class JourneyRepository {
     }
     return Map.unmodifiable(links);
   }
+
   /// Prepare owner details already referenced by the personal working set.
   /// Only stored Profile facts select identities; no page or widget cache.
   Future<int> prepareKnownJourneySources({int limit = 6}) async {

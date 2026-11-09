@@ -43,7 +43,7 @@ def associate_presentation_media(*, actor, activity, asset, purpose, occurrence=
 
 @transaction.atomic
 def publish_presentation_media(*, actor, media_use):
-    use = PresentationMediaUse.objects.select_for_update().select_related("activity", "asset", "occurrence").get(pk=media_use.pk)
+    use = PresentationMediaUse.objects.select_for_update(of=("self",)).select_related("activity", "asset", "occurrence").get(pk=media_use.pk)
     _require_manage(actor, use.activity)
     _require_asset_use(actor, use.asset, use.activity)
     if use.state != PresentationMediaState.DRAFT:

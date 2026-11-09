@@ -96,10 +96,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!mounted || source.invalidated) return;
     if (first == null ||
         HistoryRepository.freshnessPolicy.evaluate(
-          first,
-          now: DateTime.now(),
-          invalidated: source.invalidated,
-        ) != FreshnessState.fresh) {
+              first,
+              now: DateTime.now(),
+              invalidated: source.invalidated,
+            ) !=
+            FreshnessState.fresh) {
       await _refreshFirst();
     }
     if (mounted) unawaited(_acquireRemainingHistory());

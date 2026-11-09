@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -133,7 +134,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       city.text = location['city']?.toString() ?? '';
       country.text = location['country']?.toString() ?? '';
       selectedCountry = countryForValue(country.text);
-      countryHasUnselectedInput = selectedCountry == null && country.text.trim().isNotEmpty;
+      countryHasUnselectedInput =
+          selectedCountry == null && country.text.trim().isNotEmpty;
       setState(() {
         publicProfile = identity['public_profile'] == true;
         confirmed = {
@@ -336,7 +338,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                         : '120 caractères maximum.',
                   ),
                   Autocomplete<MakoloCountry>(
-                    key: ValueKey('space-country-${loadedSpaceId ?? widget.slug}'),
+                    key: ValueKey(
+                      'space-country-${loadedSpaceId ?? widget.slug}',
+                    ),
                     initialValue: TextEditingValue(
                       text: selectedCountry?.label ?? country.text,
                     ),
@@ -357,8 +361,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                         countryHasUnselectedInput = false;
                       });
                     },
-                    fieldViewBuilder: (context, editor, focusNode, onSubmitted) =>
-                        Focus(
+                    fieldViewBuilder:
+                        (context, editor, focusNode, onSubmitted) => Focus(
                           onFocusChange: (focused) {
                             if (focused) return;
                             final selected = countryForValue(editor.text);
@@ -375,7 +379,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                               selectedCountry = selected;
                               country.text = selected?.code ?? '';
                               countryHasUnselectedInput =
-                                  selected == null && editor.text.trim().isNotEmpty;
+                                  selected == null &&
+                                  editor.text.trim().isNotEmpty;
                             });
                           },
                           child: TextFormField(
@@ -385,7 +390,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                               labelText: 'Pays',
                               hintText: 'Rechercher un pays',
                               prefixIcon: const Icon(Icons.public_outlined),
-                              suffixIcon: selectedCountry != null &&
+                              suffixIcon:
+                                  selectedCountry != null &&
                                       !countryHasUnselectedInput
                                   ? const Icon(Icons.check_circle_outline)
                                   : null,

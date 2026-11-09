@@ -342,7 +342,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             if (repository == null) {
               return const MakoloSecondaryScreen(
                 title: 'Mes ressources',
-                message: 'Vos ressources ne sont pas disponibles sur cet appareil.',
+                message:
+                    'Vos ressources ne sont pas disponibles sur cet appareil.',
               );
             }
             return ResourcesScreen(
@@ -479,14 +480,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 if (repository == null) {
                   return const MakoloSecondaryScreen(
                     title: 'Mes preuves',
-                    message: 'Vos preuves ne sont pas disponibles sur cet appareil.',
+                    message:
+                        'Vos preuves ne sont pas disponibles sur cet appareil.',
                   );
                 }
                 return TrustResourceCollectionScreen(
                   family: TrustResourceFamily.proofs,
                   repository: repository,
-                  onOpenItem: (id) =>
-                      context.push('/me/resources/proofs/$id'),
+                  onOpenItem: (id) => context.push('/me/resources/proofs/$id'),
                 );
               },
               routes: [
@@ -519,14 +520,14 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 if (repository == null) {
                   return const MakoloSecondaryScreen(
                     title: 'Mes titres',
-                    message: 'Vos titres ne sont pas disponibles sur cet appareil.',
+                    message:
+                        'Vos titres ne sont pas disponibles sur cet appareil.',
                   );
                 }
                 return TrustResourceCollectionScreen(
                   family: TrustResourceFamily.titles,
                   repository: repository,
-                  onOpenItem: (id) =>
-                      context.push('/me/resources/titles/$id'),
+                  onOpenItem: (id) => context.push('/me/resources/titles/$id'),
                 );
               },
               routes: [
@@ -537,7 +538,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                     if (repository == null) {
                       return const MakoloSecondaryScreen(
                         title: 'Titre',
-                        message: 'Ce titre n’est pas disponible sur cet appareil.',
+                        message:
+                            'Ce titre n’est pas disponible sur cet appareil.',
                       );
                     }
                     return TrustResourceDetailScreen(

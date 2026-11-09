@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../presentation/contracts/space_presentation.dart';
@@ -148,14 +149,14 @@ class SpaceWorkG4Depth extends StatelessWidget {
                 children: [
                   if (offset > 0)
                     MakoloActionButton(
-                  appearance: MakoloActionAppearance.secondary,
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: () =>
                           onPageChange(offset > limit ? offset - limit : 0),
                       label: 'Précédentes',
                     ),
                   if (hasMore)
                     MakoloActionButton(
-                  appearance: MakoloActionAppearance.secondary,
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: () => onPageChange(offset + limit),
                       label: 'Voir les suivantes',
                     ),

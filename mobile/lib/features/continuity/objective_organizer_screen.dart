@@ -348,8 +348,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _relation != 'all' ||
       _period != 'all';
 
-  bool get _hasAnyFilters =>
-      _hasSelectionFilters || _hasExtraFilters;
+  bool get _hasAnyFilters => _hasSelectionFilters || _hasExtraFilters;
 
   void _clearFilters() {
     _search.clear();
@@ -390,7 +389,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     runSpacing: 10,
                     children: [
                       _dropdown(
-                        'Type', _kind,
+                        'Type',
+                        _kind,
                         const {
                           'all': 'Tous les types',
                           'project': 'Projets',
@@ -401,7 +401,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         icon: Icons.category_outlined,
                       ),
                       _dropdown(
-                        'État', _status,
+                        'État',
+                        _status,
                         const {
                           'all': 'Tous les états',
                           'draft': 'En préparation',
@@ -414,7 +415,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         icon: Icons.tune_rounded,
                       ),
                       _dropdown(
-                        'Contexte', _relation,
+                        'Contexte',
+                        _relation,
                         const {
                           'all': 'Tous les contextes',
                           'mine': 'Personnel',
@@ -581,9 +583,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       children: [
         const Icon(Icons.add_rounded, size: 17),
         const SizedBox(width: 3),
-        Text(label, style: const TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w700,
-        )),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
       ],
     );
     final style = ButtonStyle(
@@ -628,10 +631,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         _createQuickAction('project', 'Projet'),
       ],
     );
-    final modes = OrganizerViewSwitcher(
-      selected: _mode,
-      onSelected: _setMode,
-    );
+    final modes = OrganizerViewSwitcher(selected: _mode, onSelected: _setMode);
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -646,11 +646,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 MediaQuery.textScalerOf(context).scale(14) > 15) {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  create,
-                  const SizedBox(width: 12),
-                  modes,
-                ]),
+                child: Row(
+                  children: [create, const SizedBox(width: 12), modes],
+                ),
               );
             }
             return Row(
@@ -684,9 +682,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               'Mes démarches',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
       actions: _searchOpen
           ? [
@@ -714,21 +711,20 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                     : null,
               ),
               MakoloIconActionButton(
-                tooltip: _kind != 'all' ||
-                        _status != 'all' ||
-                        _relation != 'all'
+                tooltip:
+                    _kind != 'all' || _status != 'all' || _relation != 'all'
                     ? 'Filtres actifs'
                     : 'Filtrer',
                 onPressed: _showContentFilters,
                 icon: Icons.tune_rounded,
-                color: _kind != 'all' ||
-                        _status != 'all' ||
-                        _relation != 'all'
+                color: _kind != 'all' || _status != 'all' || _relation != 'all'
                     ? Theme.of(context).colorScheme.primary
                     : null,
               ),
               MakoloIconActionButton(
-                tooltip: _hasExtraFilters ? 'Dates et tri actifs' : 'Dates et tri',
+                tooltip: _hasExtraFilters
+                    ? 'Dates et tri actifs'
+                    : 'Dates et tri',
                 onPressed: _advancedFilters,
                 icon: Icons.sort_rounded,
                 color: _hasExtraFilters
@@ -811,193 +807,207 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               child: RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView(
-                key: const PageStorageKey<String>('organizer-scroll'),
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(
-                  _mode == OrganizerMode.explorer ? 4 : 16,
-                  10,
-                  _mode == OrganizerMode.explorer ? 4 : 16,
-                  44,
-                ),
-                children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 960),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-
-                          if (source.invalidated)
-                            Column(
-                              children: [
-                                ListTile(
-                                  leading: Icon(
-                                    source.lastErrorCode == 'permission_denied'
-                                        ? Icons.lock_outline
-                                        : Icons.sync_problem_outlined,
+                  key: const PageStorageKey<String>('organizer-scroll'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    _mode == OrganizerMode.explorer ? 4 : 16,
+                    10,
+                    _mode == OrganizerMode.explorer ? 4 : 16,
+                    44,
+                  ),
+                  children: [
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (source.invalidated)
+                              Column(
+                                children: [
+                                  ListTile(
+                                    leading: Icon(
+                                      source.lastErrorCode ==
+                                              'permission_denied'
+                                          ? Icons.lock_outline
+                                          : Icons.sync_problem_outlined,
+                                    ),
+                                    title: Text(
+                                      source.lastErrorCode ==
+                                              'permission_denied'
+                                          ? 'Vous n’avez pas accès à cet espace.'
+                                          : source.lastErrorCode == 'not_found'
+                                          ? 'Cet espace de démarches est momentanément introuvable.'
+                                          : 'Retrouvons vos démarches.',
+                                    ),
+                                    subtitle: Text(
+                                      source.lastErrorCode ==
+                                              'permission_denied'
+                                          ? 'Vérifiez le compte utilisé.'
+                                          : 'Vos autres rubriques restent disponibles.',
+                                    ),
                                   ),
-                                  title: Text(
-                                    source.lastErrorCode == 'permission_denied'
-                                        ? 'Vous n’avez pas accès à cet espace.'
-                                        : source.lastErrorCode == 'not_found'
-                                        ? 'Cet espace de démarches est momentanément introuvable.'
-                                        : 'Retrouvons vos démarches.',
+                                  TextButton.icon(
+                                    onPressed: _refreshing ? null : _refresh,
+                                    icon: const Icon(Icons.refresh_rounded),
+                                    label: const Text('Réessayer'),
                                   ),
-                                  subtitle: Text(
-                                    source.lastErrorCode == 'permission_denied'
-                                        ? 'Vérifiez le compte utilisé.'
-                                        : 'Vos autres rubriques restent disponibles.',
+                                ],
+                              )
+                            else if (!page.hasFirst) ...[
+                              if (_refreshing)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(30),
+                                    child: Column(
+                                      children: [
+                                        CircularProgressIndicator.adaptive(),
+                                        SizedBox(height: 14),
+                                        Text('Nous préparons vos démarches…'),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: _refreshing ? null : _refresh,
-                                  icon: const Icon(Icons.refresh_rounded),
-                                  label: const Text('Réessayer'),
-                                ),
-                              ],
-                            )
-                          else if (!page.hasFirst) ...[
-                            if (_refreshing)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(30),
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.all(20),
                                   child: Column(
                                     children: [
-                                      CircularProgressIndicator.adaptive(),
-                                      SizedBox(height: 14),
-                                      Text('Nous préparons vos démarches…'),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            else
-                              Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      source.lastErrorCode ==
-                                                  'endpoint_unavailable' ||
-                                              source.lastErrorCode ==
-                                                  'not_found'
-                                          ? 'Vos démarches ne sont pas encore disponibles ici.'
-                                          : _failed
-                                          ? 'Impossible d’afficher vos démarches pour le moment.'
-                                          : 'Retrouvez vos projets, dossiers et démarches ici.',
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      offline
-                                          ? 'Réessayez lorsque la connexion revient.'
-                                          : source.lastErrorCode ==
+                                      Text(
+                                        source.lastErrorCode ==
                                                     'endpoint_unavailable' ||
                                                 source.lastErrorCode ==
                                                     'not_found'
-                                          ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
-                                          : 'Touchez Réessayer pour les retrouver.',
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    MakoloActionButton(
-                                      label: 'Réessayer',
-                                      onPressed: _refreshing ? null : _refresh,
-                                      icon: Icons.refresh_rounded,
-                                      appearance: MakoloActionAppearance.quiet,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ] else ...[
-                            if (offline)
-                              const ListTile(
-                                dense: true,
-                                leading: Icon(Icons.offline_bolt_outlined),
-                                title: Text('Vos démarches sont disponibles'),
-                                subtitle: Text(
-                                  'Les nouveautés apparaîtront à la prochaine connexion.',
-                                ),
-                              ),
-                            if (_search.text.trim().isNotEmpty &&
-                                flat.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 8,
-                                  bottom: 12,
-                                ),
-                                child: Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: [
-                                    for (final item in flat.take(5))
-                                      ActionChip(
-                                        avatar: Icon(item.icon, size: 17),
-                                        label: Text(item.title),
-                                        onPressed: () => widget.onOpenItem(
-                                          item.kind,
-                                          item.id,
-                                        ),
+                                            ? 'Vos démarches ne sont pas encore disponibles ici.'
+                                            : _failed
+                                            ? 'Impossible d’afficher vos démarches pour le moment.'
+                                            : 'Retrouvez vos projets, dossiers et démarches ici.',
+                                        textAlign: TextAlign.center,
                                       ),
-                                  ],
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        offline
+                                            ? 'Réessayez lorsque la connexion revient.'
+                                            : source.lastErrorCode ==
+                                                      'endpoint_unavailable' ||
+                                                  source.lastErrorCode ==
+                                                      'not_found'
+                                            ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
+                                            : 'Touchez Réessayer pour les retrouver.',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      MakoloActionButton(
+                                        label: 'Réessayer',
+                                        onPressed: _refreshing
+                                            ? null
+                                            : _refresh,
+                                        icon: Icons.refresh_rounded,
+                                        appearance:
+                                            MakoloActionAppearance.quiet,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                organizerCountLabel(
-                                  flat,
-                                  filtered: _hasSelectionFilters,
-                                  partial: page.hasMore,
+                            ] else ...[
+                              if (offline)
+                                const ListTile(
+                                  dense: true,
+                                  leading: Icon(Icons.offline_bolt_outlined),
+                                  title: Text('Vos démarches sont disponibles'),
+                                  subtitle: Text(
+                                    'Les nouveautés apparaîtront à la prochaine connexion.',
+                                  ),
                                 ),
-                                style: Theme.of(context).textTheme.labelMedium,
-                              ),
-                            ),
-                            if (shown.isEmpty)
-                              _empty(entries.isEmpty)
-                            else if (_mode == OrganizerMode.cards)
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final itemWidth = constraints.maxWidth >= 700
-                                      ? (constraints.maxWidth - 12) / 2
-                                      : constraints.maxWidth;
-                                  return Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
+                              if (_search.text.trim().isNotEmpty &&
+                                  flat.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 8,
+                                    bottom: 12,
+                                  ),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
                                     children: [
-                                      for (final item in shown)
-                                        SizedBox(
-                                          width: itemWidth,
-                                          child: _card(item, children(item), hierarchy),
+                                      for (final item in flat.take(5))
+                                        ActionChip(
+                                          avatar: Icon(item.icon, size: 17),
+                                          label: Text(item.title),
+                                          onPressed: () => widget.onOpenItem(
+                                            item.kind,
+                                            item.id,
+                                          ),
                                         ),
                                     ],
-                                  );
-                                },
-                              )
-                            else if (_mode == OrganizerMode.list || showFlat)
-                              for (final item in flat) _row(item, byKey)
-                            else
-                              for (final item in roots)
-                                _tree(item, children, visible, hierarchy, 0),
-                            if (page.hasMore && !offline && !_failed)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 18),
-                                child: Center(
-                                  child: CircularProgressIndicator.adaptive(),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Text(
+                                  organizerCountLabel(
+                                    flat,
+                                    filtered: _hasSelectionFilters,
+                                    partial: page.hasMore,
+                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium,
                                 ),
                               ),
-                            if (_failed)
-                              TextButton.icon(
-                                onPressed: _refresh,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text(
-                                  'Impossible de mettre à jour · Réessayer',
+                              if (shown.isEmpty)
+                                _empty(entries.isEmpty)
+                              else if (_mode == OrganizerMode.cards)
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final itemWidth =
+                                        constraints.maxWidth >= 700
+                                        ? (constraints.maxWidth - 12) / 2
+                                        : constraints.maxWidth;
+                                    return Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: [
+                                        for (final item in shown)
+                                          SizedBox(
+                                            width: itemWidth,
+                                            child: _card(
+                                              item,
+                                              children(item),
+                                              hierarchy,
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                )
+                              else if (_mode == OrganizerMode.list || showFlat)
+                                for (final item in flat) _row(item, byKey)
+                              else
+                                for (final item in roots)
+                                  _tree(item, children, visible, hierarchy, 0),
+                              if (page.hasMore && !offline && !_failed)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 18),
+                                  child: Center(
+                                    child: CircularProgressIndicator.adaptive(),
+                                  ),
                                 ),
-                              ),
+                              if (_failed)
+                                TextButton.icon(
+                                  onPressed: _refresh,
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: const Text(
+                                    'Impossible de mettre à jour · Réessayer',
+                                  ),
+                                ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
                 ),
               ),
             );
@@ -1035,7 +1045,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     ),
   );
 
-  Widget _card(OrganizerEntry item, List<OrganizerEntry> children, OrganizerHierarchy hierarchy) {
+  Widget _card(
+    OrganizerEntry item,
+    List<OrganizerEntry> children,
+    OrganizerHierarchy hierarchy,
+  ) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: EdgeInsets.zero,
@@ -1171,10 +1185,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               else if (parent != null)
                 'Dans : ${parent.title}',
               if (item.kind == 'journey' &&
-                  item.dossierIds.isNotEmpty && parent == null)
+                  item.dossierIds.isNotEmpty &&
+                  parent == null)
                 'Dossier non chargé',
               if (item.kind == 'dossier' &&
-                  item.projectId != null && parent == null)
+                  item.projectId != null &&
+                  parent == null)
                 'Projet non chargé',
               if (item.displayDate != null) item.displayDate!,
             ].join(' · '),
@@ -1207,9 +1223,14 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               if (expandable)
                 IconButton(
                   key: Key('organizer-expand-$key'),
-                  tooltip: expanded ? 'Replier ${item.title}' : 'Déplier ${item.title}',
+                  tooltip: expanded
+                      ? 'Replier ${item.title}'
+                      : 'Déplier ${item.title}',
                   visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 44),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 44,
+                  ),
                   padding: EdgeInsets.zero,
                   onPressed: _hasSelectionFilters
                       ? null
@@ -1267,16 +1288,21 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                       'Liée à ${item.dossierIds.toSet().length} dossiers',
                                     if (item.kind == 'journey' &&
                                         item.dossierIds.isNotEmpty &&
-                                        !item.dossierIds.any((id) =>
-                                            hierarchy.byKey.containsKey('dossier:$id')))
+                                        !item.dossierIds.any(
+                                          (id) => hierarchy.byKey.containsKey(
+                                            'dossier:$id',
+                                          ),
+                                        ))
                                       'Dossier non chargé',
                                     if (item.kind == 'dossier' &&
                                         item.projectId != null &&
                                         !hierarchy.byKey.containsKey(
-                                            'project:${item.projectId}'))
+                                          'project:${item.projectId}',
+                                        ))
                                       'Projet non chargé',
                                     if (item.kind == 'dossier' &&
-                                        hierarchy.additionalSharedLinks(item) > 0)
+                                        hierarchy.additionalSharedLinks(item) >
+                                            0)
                                       organizerSharedLinksLabel(
                                         hierarchy.additionalSharedLinks(item),
                                       ),
@@ -1296,7 +1322,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           ),
         ),
         if (expanded)
-          for (final child in nodes) _tree(child, children, visible, hierarchy, depth + 1),
+          for (final child in nodes)
+            _tree(child, children, visible, hierarchy, depth + 1),
       ],
     );
   }

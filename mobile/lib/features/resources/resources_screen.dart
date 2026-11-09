@@ -74,11 +74,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       for (final family in TrustResourceFamily.values) {
         tasks.add(
           ensureOnly
-              ? trust.ensureCollectionPage(
-                  family: family,
-                  query: '',
-                  offset: 0,
-                )
+              ? trust.ensureCollectionPage(family: family, query: '', offset: 0)
               : trust.refreshCollectionPage(
                   family: family,
                   query: '',
@@ -142,69 +138,74 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     titlePages: titleSnapshot.data ?? const [],
                   );
                   return StreamBuilder<ResourceSourceState>(
-            stream: _source,
-            initialData: ResourceSourceState.unknown,
-            builder: (context, sourceSnapshot) {
-              final source =
-                  sourceSnapshot.data ?? ResourceSourceState.unknown;
-              return RefreshIndicator(
-                onRefresh: _refresh,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 860),
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(MakoloSpacing.inner),
-                      children: [
-                        if (source.reachability ==
-                                ReachabilityState.unreachable ||
-                            source.invalidated) ...[
-                          Semantics(
-                            liveRegion: true,
-                            child: Text(
-                              source.ownerDenied
-                                  ? 'Les compteurs de ressources ne sont plus disponibles.'
-                                  : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
+                    stream: _source,
+                    initialData: ResourceSourceState.unknown,
+                    builder: (context, sourceSnapshot) {
+                      final source =
+                          sourceSnapshot.data ?? ResourceSourceState.unknown;
+                      return RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 860),
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(
+                                MakoloSpacing.inner,
+                              ),
+                              children: [
+                                if (source.reachability ==
+                                        ReachabilityState.unreachable ||
+                                    source.invalidated) ...[
+                                  Semantics(
+                                    liveRegion: true,
+                                    child: Text(
+                                      source.ownerDenied
+                                          ? 'Les compteurs de ressources ne sont plus disponibles.'
+                                          : 'Les compteurs ne peuvent pas être actualisés pour le moment.',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
                                   ),
+                                  const SizedBox(height: MakoloSpacing.md),
+                                ],
+                                _ResourceEntry(
+                                  icon: Icons.folder_copy_outlined,
+                                  title: 'Mes documents',
+                                  subtitle: 'Fichiers et pièces personnelles',
+                                  count: counts.documents,
+                                  onTap: widget.onOpenDocuments,
+                                ),
+                                const SizedBox(height: MakoloSpacing.md),
+                                _ResourceEntry(
+                                  icon: Icons.verified_outlined,
+                                  title: 'Mes preuves',
+                                  subtitle: 'Participations et faits attestés',
+                                  count: counts.proofs,
+                                  onTap: widget.onOpenProofs,
+                                ),
+                                const SizedBox(height: MakoloSpacing.md),
+                                _ResourceEntry(
+                                  icon: Icons.workspace_premium_outlined,
+                                  title: 'Mes titres',
+                                  subtitle:
+                                      'Attestations et certificats délivrés',
+                                  count: counts.titles,
+                                  onTap: widget.onOpenTitles,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: MakoloSpacing.md),
-                        ],
-                        _ResourceEntry(
-                  icon: Icons.folder_copy_outlined,
-                  title: 'Mes documents',
-                  subtitle: 'Fichiers et pièces personnelles',
-                  count: counts.documents,
-                  onTap: widget.onOpenDocuments,
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                _ResourceEntry(
-                  icon: Icons.verified_outlined,
-                  title: 'Mes preuves',
-                  subtitle: 'Participations et faits attestés',
-                  count: counts.proofs,
-                  onTap: widget.onOpenProofs,
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                _ResourceEntry(
-                  icon: Icons.workspace_premium_outlined,
-                  title: 'Mes titres',
-                  subtitle: 'Attestations et certificats délivrés',
-                  count: counts.titles,
-                  onTap: widget.onOpenTitles,
-                ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
+                        ),
+                      );
+                    },
+                  );
                 },
               );
             },
@@ -265,9 +266,8 @@ class _ResourceEntry extends StatelessWidget {
           const SizedBox(width: MakoloSpacing.sm),
           Text(
             '$count',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: Theme.of(context).colorScheme.primary),
           ),
         ],
         if (onTap != null) ...[
@@ -362,4 +362,5 @@ String? _string(Object? value) {
   return text == null || text.isEmpty ? null : text;
 }
 
-int? _int(Object? value) => value is num ? value.toInt() : int.tryParse('$value');
+int? _int(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('$value');

@@ -364,8 +364,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                     const SizedBox(height: 12),
                     MakoloActionButton(
                       label: deadline == null
-                            ? 'Échéance facultative'
-                            : 'Échéance : ${_dateLabel(dialog, deadline!)}',
+                          ? 'Échéance facultative'
+                          : 'Échéance : ${_dateLabel(dialog, deadline!)}',
                       onPressed: () async {
                         final result = await showDatePicker(
                           context: dialog,
@@ -1183,10 +1183,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             suffixIcon: _search.text.isEmpty
                 ? null
                 : MakoloIconActionButton(
-                  tooltip: 'Effacer la recherche',
-                  icon: Icons.close_rounded,
-                  onPressed: _search.clear,
-                ),
+                    tooltip: 'Effacer la recherche',
+                    icon: Icons.close_rounded,
+                    onPressed: _search.clear,
+                  ),
           ),
         ),
         const SizedBox(height: 10),
@@ -1227,10 +1227,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         Text(
           _search.text.trim().isNotEmpty || _filter != 'all'
               ? '${items.length} '
-                '${items.length == 1 ? 'résultat' : 'résultats'} '
-                'parmi les démarches chargées'
+                    '${items.length == 1 ? 'résultat' : 'résultats'} '
+                    'parmi les démarches chargées'
               : '${items.length} '
-                '${items.length == 1 ? 'démarche chargée' : 'démarches chargées'}',
+                    '${items.length == 1 ? 'démarche chargée' : 'démarches chargées'}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
@@ -1756,10 +1756,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 child: _refreshing
                     ? const CircularProgressIndicator.adaptive()
                     : MakoloActionButton(
-                      label: _failed ? 'Réessayer' : 'Charger ce Dossier',
-                      onPressed: _refresh,
-                      appearance: MakoloActionAppearance.quiet,
-                    ),
+                        label: _failed ? 'Réessayer' : 'Charger ce Dossier',
+                        onPressed: _refresh,
+                        appearance: MakoloActionAppearance.quiet,
+                      ),
               );
             }
             final data = snapshot.payload;

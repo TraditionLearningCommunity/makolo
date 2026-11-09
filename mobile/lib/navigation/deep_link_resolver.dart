@@ -69,13 +69,9 @@ class DeepLinkResolver {
             ? null
             : '/me/resources/documents/${target.id}';
       case 'proof':
-        return target.id.isEmpty
-            ? null
-            : '/me/resources/proofs/${target.id}';
+        return target.id.isEmpty ? null : '/me/resources/proofs/${target.id}';
       case 'credential':
-        return target.id.isEmpty
-            ? null
-            : '/me/resources/titles/${target.id}';
+        return target.id.isEmpty ? null : '/me/resources/titles/${target.id}';
       case 'resource_collection':
         return '/me/resources';
       case 'proof_collection':

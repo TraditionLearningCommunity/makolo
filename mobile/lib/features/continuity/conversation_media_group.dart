@@ -67,8 +67,10 @@ class ConversationMediaGroup extends StatelessWidget {
               if (image)
                 IgnorePointer(
                   child: ConversationAttachmentViewer(
-                    key: ValueKey('conversation-inline-image-' +
-                        (attachment['id']?.toString() ?? index.toString())),
+                    key: ValueKey(
+                      'conversation-inline-image-' +
+                          (attachment['id']?.toString() ?? index.toString()),
+                    ),
                     repository: repository,
                     download: download,
                     attachment: attachment,
@@ -87,16 +89,15 @@ class ConversationMediaGroup extends StatelessWidget {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      vertical: 7, horizontal: 9,
+                      vertical: 7,
+                      horizontal: 9,
                     ),
                     color: Colors.black54,
                     child: Text(
                       caption.isNotEmpty ? caption : 'Vidéo',
                       maxLines: compact ? 2 : 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white, fontSize: 12,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ),
@@ -119,12 +120,11 @@ class ConversationMediaGroup extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall,
               ),
             ),
-          if (visual.length == 1 && attachments[visual.single]['kind'] == 'image')
-            SizedBox(
-              height: 206,
-              child: visualTile(visual.single),
-            ),
-          if (visual.length == 1 && attachments[visual.single]['kind'] == 'video')
+          if (visual.length == 1 &&
+              attachments[visual.single]['kind'] == 'image')
+            SizedBox(height: 206, child: visualTile(visual.single)),
+          if (visual.length == 1 &&
+              attachments[visual.single]['kind'] == 'video')
             ConversationPointMediaTile(
               attachment: attachments[visual.single],
               onOpen: () => _open(context, visual.single),
@@ -179,8 +179,10 @@ class ConversationMediaGroup extends StatelessWidget {
             ),
           for (final index in other)
             ConversationPointMediaTile(
-              key: ValueKey('conversation-inline-file-' +
-                  (attachments[index]['id']?.toString() ?? index.toString())),
+              key: ValueKey(
+                'conversation-inline-file-' +
+                    (attachments[index]['id']?.toString() ?? index.toString()),
+              ),
               attachment: attachments[index],
               onOpen: () => _open(context, index),
               preview: ConversationAttachmentViewer(

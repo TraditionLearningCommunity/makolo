@@ -81,10 +81,11 @@ class _PreparationResourcesScreenState
     int revision,
     PreparationResourcesRepository repository,
     String id,
-  ) => mounted &&
-       revision == _identityRevision &&
-       identical(repository, widget.repository) &&
-       id == widget.journeyId;
+  ) =>
+      mounted &&
+      revision == _identityRevision &&
+      identical(repository, widget.repository) &&
+      id == widget.journeyId;
 
   Future<void> _restoreLocalFiles(StoredProjection? projection) async {
     final revision = _identityRevision;
@@ -99,8 +100,10 @@ class _PreparationResourcesScreenState
       );
       if (stored != null) paths[item.id] = stored.path;
     }
-    if (!mounted || revision != _identityRevision ||
-        !identical(repository, widget.repository)) return;
+    if (!mounted ||
+        revision != _identityRevision ||
+        !identical(repository, widget.repository))
+      return;
     setState(() {
       _downloaded
         ..clear()
@@ -234,7 +237,11 @@ class _PreparationResourcesScreenState
     } on Object {
       if (_sameOwner(revision, repository, id)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ce document ne peut pas être ouvert pour le moment.')),
+          const SnackBar(
+            content: Text(
+              'Ce document ne peut pas être ouvert pour le moment.',
+            ),
+          ),
         );
       }
     } finally {
@@ -247,7 +254,9 @@ class _PreparationResourcesScreenState
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
-      key: ValueKey('resources:${widget.repository.profileId}:${widget.journeyId}'),
+      key: ValueKey(
+        'resources:${widget.repository.profileId}:${widget.journeyId}',
+      ),
       stream: widget.repository.watchResources(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<OwnerSourceState>(
@@ -255,9 +264,12 @@ class _PreparationResourcesScreenState
           initialData: OwnerSourceState.unknown,
           builder: (context, sourceSnapshot) {
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
-            final ownerDenied = source.invalidated &&
-                const {'permission_denied', 'not_found'}
-                    .contains(source.lastErrorCode);
+            final ownerDenied =
+                source.invalidated &&
+                const {
+                  'permission_denied',
+                  'not_found',
+                }.contains(source.lastErrorCode);
             final projection = ownerDenied ? null : projectionSnapshot.data;
             final items = _PreparationResource.fromProjection(projection);
             final freshness = projection == null

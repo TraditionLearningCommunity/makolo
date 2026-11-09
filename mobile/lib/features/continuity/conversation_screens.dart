@@ -797,8 +797,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final mostRecentPending = outgoing.isEmpty
         ? null
         : (outgoing.toList()
-              ..sort((a, b) => a.observedAt.compareTo(b.observedAt))).last;
-    final latestId = mostRecentPending != null &&
+                ..sort((a, b) => a.observedAt.compareTo(b.observedAt)))
+              .last;
+    final latestId =
+        mostRecentPending != null &&
             (lastPublished == null ||
                 !mostRecentPending.observedAt.isBefore(lastPublished))
         ? mostRecentPending.reference
@@ -983,8 +985,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       detail.timelineNextCursor ?? '',
       for (final point in detail.timeline)
         '${point.id}:${point.updatedAt?.toIso8601String() ?? ''}:'
-        '${point.lifecycle ?? ''}:${point.timelineCompact}:'
-        '${point.responseStatus['responded'] == true}',
+            '${point.lifecycle ?? ''}:${point.timelineCompact}:'
+            '${point.responseStatus['responded'] == true}',
     ].join('|');
   }
 
@@ -1002,17 +1004,21 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final cursor = _olderAvailableCursor(detail);
     if (cursor == null || cursor.isEmpty) return;
     final previousMax = _timelineScroll.hasClients
-        ? _timelineScroll.position.maxScrollExtent : 0.0;
+        ? _timelineScroll.position.maxScrollExtent
+        : 0.0;
     final previousOffset = _timelineScroll.hasClients
-        ? _timelineScroll.offset : 0.0;
+        ? _timelineScroll.offset
+        : 0.0;
     setState(() {
       _loadingOlder = true;
       _olderError = null;
     });
     try {
       final result = await widget.repository.pointDepth(
-        conversationId: widget.id, section: 'all',
-        cursor: cursor, limit: 40,
+        conversationId: widget.id,
+        section: 'all',
+        cursor: cursor,
+        limit: 40,
       );
       if (!mounted || _activeTimelineSignature != signature) return;
       final older = _maps(result['results'])
@@ -1037,16 +1043,19 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_timelineScroll.hasClients) return;
         final delta = _timelineScroll.position.maxScrollExtent - previousMax;
-        final target = (previousOffset + delta).clamp(
-          _timelineScroll.position.minScrollExtent,
-          _timelineScroll.position.maxScrollExtent,
-        ).toDouble();
+        final target = (previousOffset + delta)
+            .clamp(
+              _timelineScroll.position.minScrollExtent,
+              _timelineScroll.position.maxScrollExtent,
+            )
+            .toDouble();
         _timelineScroll.jumpTo(target);
       });
     } on Object {
       if (mounted) {
-        setState(() => _olderError =
-          'Impossible de charger les Points précédents. Vous pouvez réessayer.');
+        setState(
+          () => _olderError = 'Impossible de charger les Points précédents. Vous pouvez réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingOlder = false);
@@ -1077,8 +1086,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     if (detail.hasTimeline) {
       // The server supplied a profile-scoped, cursor-bounded true chronology.
       // Never rebuild it from priority / attention sections again.
-      if (_olderLoaded &&
-          _olderBaseSignature == _timelineSignature(detail)) {
+      if (_olderLoaded && _olderBaseSignature == _timelineSignature(detail)) {
         add(_olderPoints, readOnly: false);
       }
       add(detail.timeline, readOnly: false);
@@ -1087,16 +1095,14 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       add(
         detail.points.where(
           (point) =>
-              point.section == 'pour_moi' ||
-              point.attentionReason == 'resolve',
+              point.section == 'pour_moi' || point.attentionReason == 'resolve',
         ),
         readOnly: false,
       );
       add(
         detail.points.where(
           (point) =>
-              point.section != 'pour_moi' &&
-              point.attentionReason != 'resolve',
+              point.section != 'pour_moi' && point.attentionReason != 'resolve',
         ),
         readOnly: true,
       );
@@ -1141,7 +1147,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     return Padding(
       key: Key('conversation-completed-$groupId'),
       padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.inner, 0, MakoloSpacing.inner, MakoloSpacing.sm,
+        MakoloSpacing.inner,
+        0,
+        MakoloSpacing.inner,
+        MakoloSpacing.sm,
       ),
       child: DecoratedBox(
         decoration: BoxDecoration(
@@ -1171,7 +1180,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 }),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: MakoloSpacing.md, vertical: MakoloSpacing.sm,
+                    horizontal: MakoloSpacing.md,
+                    vertical: MakoloSpacing.sm,
                   ),
                   child: Row(
                     children: [
@@ -1200,7 +1210,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                         ),
                       ),
                       Icon(
-                        expanded ? Icons.expand_less_rounded
+                        expanded
+                            ? Icons.expand_less_rounded
                             : Icons.expand_more_rounded,
                       ),
                     ],
@@ -1211,7 +1222,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             if (expanded)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.sm, 0, MakoloSpacing.sm, MakoloSpacing.sm,
+                  MakoloSpacing.sm,
+                  0,
+                  MakoloSpacing.sm,
+                  MakoloSpacing.sm,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1266,126 +1280,125 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   }
 
   Widget _pendingWidget(BuildContext context, ConversationOutgoing intent) {
-      final blocked = intent.isBlocked;
-      final state = intent.state;
-      final (status, icon) = switch (state) {
-        'confirmed' => ('Envoyé', Icons.check_rounded),
-        'queued' => ('En attente', Icons.schedule_rounded),
-        'in_flight' => ('Envoi en cours', Icons.schedule_rounded),
-        'failed' => ('À réessayer', Icons.error_outline_rounded),
-        'conflict' => ('Non envoyé · à vérifier', Icons.error_outline_rounded),
-        _ => ('En attente de confirmation', Icons.help_outline_rounded),
-      };
-      final color = blocked
-          ? Theme.of(context).colorScheme.error
-          : Theme.of(context).colorScheme.onSurfaceVariant;
+    final blocked = intent.isBlocked;
+    final state = intent.state;
+    final (status, icon) = switch (state) {
+      'confirmed' => ('Envoyé', Icons.check_rounded),
+      'queued' => ('En attente', Icons.schedule_rounded),
+      'in_flight' => ('Envoi en cours', Icons.schedule_rounded),
+      'failed' => ('À réessayer', Icons.error_outline_rounded),
+      'conflict' => ('Non envoyé · à vérifier', Icons.error_outline_rounded),
+      _ => ('En attente de confirmation', Icons.help_outline_rounded),
+    };
+    final color = blocked
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
-          key: Key('conversation-outgoing-${intent.reference}'),
-          padding: const EdgeInsets.fromLTRB(
-            MakoloSpacing.inner,
-            0,
-            MakoloSpacing.inner,
-            MakoloSpacing.sm,
+      key: Key('conversation-outgoing-${intent.reference}'),
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.inner,
+        0,
+        MakoloSpacing.inner,
+        MakoloSpacing.sm,
+      ),
+      child: ConversationPointShell(
+        kind: intent.kind,
+        isMine: true,
+        publishedAt: intent.observedAt,
+        statusIcon: Tooltip(
+          message: status,
+          child: Semantics(
+            label: status,
+            child: Icon(icon, size: 15, color: color),
           ),
-          child: ConversationPointShell(
-            kind: intent.kind,
-            isMine: true,
-            publishedAt: intent.observedAt,
-            statusIcon: Tooltip(
-              message: status,
-              child: Semantics(
-                label: status,
-                child: Icon(icon, size: 15, color: color),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (intent.title.trim().isNotEmpty)
+              Text(
+                intent.title,
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (intent.title.trim().isNotEmpty)
-                  Text(
-                    intent.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                if (intent.body.trim().isNotEmpty)
-                  Text(
-                    intent.body,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                if (intent.semanticMedia.isNotEmpty) ...[
-                  for (final media in intent.semanticMedia)
-                    if (media['scope'] == 'point')
-                      _pendingSemanticMedia(context, media),
-                  if (intent.kind == 'poll')
-                    for (var index = 0; index < intent.options.length; index++)
-                      Padding(
-                        padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(MakoloSpacing.sm),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(intent.options[index],
-                                  style: Theme.of(context).textTheme.bodyMedium),
-                              for (final media in intent.semanticMedia)
-                                if (media['scope'] == 'option' &&
-                                    media['option_index'] == index)
-                                  _pendingSemanticMedia(context, media),
-                            ],
-                          ),
-                        ),
+            if (intent.body.trim().isNotEmpty)
+              Text(intent.body, style: Theme.of(context).textTheme.bodyMedium),
+            if (intent.semanticMedia.isNotEmpty) ...[
+              for (final media in intent.semanticMedia)
+                if (media['scope'] == 'point')
+                  _pendingSemanticMedia(context, media),
+              if (intent.kind == 'poll')
+                for (var index = 0; index < intent.options.length; index++)
+                  Padding(
+                    padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(MakoloSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                ],
-                if (intent.mediaKind != null) ...[
-                  const SizedBox(height: MakoloSpacing.sm),
-                  if (intent.mediaKind == 'image' &&
-                      intent.localFilePath != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(intent.localFilePath!),
-                        height: 155,
-                        width: 250,
-                        fit: BoxFit.cover,
-                        cacheWidth: 750,
-                        errorBuilder: (context, error, trace) => const Icon(
-                          Icons.image_not_supported_outlined,
-                          size: 48,
-                        ),
-                      ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Icon(
-                          intent.mediaKind == 'voice' ||
-                                  intent.mediaKind == 'audio'
-                              ? Icons.graphic_eq_rounded
-                              : intent.mediaKind == 'video'
-                              ? Icons.play_circle_outline_rounded
-                              : Icons.insert_drive_file_outlined,
-                          size: 22,
-                        ),
-                        const SizedBox(width: MakoloSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            intent.filename ?? 'Pièce jointe',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            intent.options[index],
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
-                        ),
-                      ],
+                          for (final media in intent.semanticMedia)
+                            if (media['scope'] == 'option' &&
+                                media['option_index'] == index)
+                              _pendingSemanticMedia(context, media),
+                        ],
+                      ),
                     ),
-                ],
-              ],
-            ),
-          ),
-        );
+                  ),
+            ],
+            if (intent.mediaKind != null) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              if (intent.mediaKind == 'image' && intent.localFilePath != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(intent.localFilePath!),
+                    height: 155,
+                    width: 250,
+                    fit: BoxFit.cover,
+                    cacheWidth: 750,
+                    errorBuilder: (context, error, trace) => const Icon(
+                      Icons.image_not_supported_outlined,
+                      size: 48,
+                    ),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Icon(
+                      intent.mediaKind == 'voice' || intent.mediaKind == 'audio'
+                          ? Icons.graphic_eq_rounded
+                          : intent.mediaKind == 'video'
+                          ? Icons.play_circle_outline_rounded
+                          : Icons.insert_drive_file_outlined,
+                      size: 22,
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        intent.filename ?? 'Pièce jointe',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _timeline(
@@ -1401,7 +1414,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       // An owner-confirmed Point can fall outside the recent 40-item window
       // while still appearing in the legacy active/essential projections.
       for (final point in [
-        ...detail.points, ...detail.essential, ...detail.elsewhere,
+        ...detail.points,
+        ...detail.essential,
+        ...detail.elsewhere,
         if (detail.focusedPoint != null) detail.focusedPoint!,
       ])
         if (point.clientReference != null) point.clientReference!,
@@ -1417,7 +1432,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     DateTime? previousDay;
     final children = <Widget>[];
     final olderCursor = _olderAvailableCursor(detail);
-    final focusOutsideWindow = detail.hasTimeline &&
+    final focusOutsideWindow =
+        detail.hasTimeline &&
         detail.focusedPoint != null &&
         !entries.any((entry) => entry.point.id == detail.focusedPoint!.id);
     if (focusOutsideWindow) {
@@ -1447,28 +1463,36 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       children.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            MakoloSpacing.inner, MakoloSpacing.sm,
-            MakoloSpacing.inner, MakoloSpacing.md,
+            MakoloSpacing.inner,
+            MakoloSpacing.sm,
+            MakoloSpacing.inner,
+            MakoloSpacing.md,
           ),
           child: Column(
             children: [
               OutlinedButton.icon(
                 key: const Key('conversation-load-older'),
-                onPressed: _loadingOlder ? null : () => _loadOlderPoints(detail),
+                onPressed: _loadingOlder
+                    ? null
+                    : () => _loadOlderPoints(detail),
                 icon: _loadingOlder
                     ? const SizedBox(
-                        width: 18, height: 18,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.keyboard_arrow_up_rounded),
-                label: Text(_loadingOlder
-                    ? 'Chargement…' : 'Voir les Points plus anciens'),
+                label: Text(
+                  _loadingOlder
+                      ? 'Chargement…'
+                      : 'Voir les Points plus anciens',
+                ),
               ),
               if (_olderError != null)
-                Text(_olderError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    )),
+                Text(
+                  _olderError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
             ],
           ),
         ),
@@ -1476,22 +1500,29 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     }
     // Owner points and Profile-private pending intents share one chronological
     // ordering. Pending files are not silently moved after newer publications.
-    final combined = <({
-      DateTime? at,
-      _ConversationTimelineEntry? point,
-      ConversationOutgoing? outgoing,
-      int order,
-    })>[];
+    final combined =
+        <
+          ({
+            DateTime? at,
+            _ConversationTimelineEntry? point,
+            ConversationOutgoing? outgoing,
+            int order,
+          })
+        >[];
     var order = 0;
     for (final entry in entries) {
       combined.add((
         at: entry.point.publishedAt ?? entry.point.updatedAt,
-        point: entry, outgoing: null, order: order++,
+        point: entry,
+        outgoing: null,
+        order: order++,
       ));
     }
     for (final intent in visibleOutgoing) {
       combined.add((
-        at: intent.observedAt, point: null, outgoing: intent,
+        at: intent.observedAt,
+        point: null,
+        outgoing: intent,
         order: order++,
       ));
     }
@@ -1513,8 +1544,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final entry = combined[index];
       final local = entry.at?.toLocal();
       if (local != null &&
-          (previousDay == null ||
-              !DateUtils.isSameDay(previousDay, local))) {
+          (previousDay == null || !DateUtils.isSameDay(previousDay, local))) {
         children.add(_dayDivider(context, local));
         previousDay = local;
       }
@@ -1525,13 +1555,12 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
             DateUtils.isSameDay(local, combined[next].at?.toLocal())) {
           next++;
         }
-        children.add(_completedTimelineGroup(
-          context,
-          [
+        children.add(
+          _completedTimelineGroup(context, [
             for (final candidate in combined.sublist(index, next))
               candidate.point!,
-          ],
-        ));
+          ]),
+        );
         index = next;
       } else if (entry.point != null) {
         children.add(
@@ -1955,8 +1984,12 @@ class _PointCardState extends State<_PointCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.point.id != widget.point.id ||
         oldWidget.representedSpaceId != widget.representedSpaceId ||
-        oldWidget.point.responseForScope(oldWidget.representedSpaceId)['submitted_at'] !=
-            widget.point.responseForScope(widget.representedSpaceId)['submitted_at']) {
+        oldWidget.point.responseForScope(
+              oldWidget.representedSpaceId,
+            )['submitted_at'] !=
+            widget.point.responseForScope(
+              widget.representedSpaceId,
+            )['submitted_at']) {
       _choices
         ..clear()
         ..addAll(
@@ -1986,7 +2019,8 @@ class _PointCardState extends State<_PointCard> {
         conversationId: widget.conversationId,
         pointId: widget.point.id,
       );
-      if (mounted) setState(() => _feedback = 'Prise de connaissance enregistrée.');
+      if (mounted)
+        setState(() => _feedback = 'Prise de connaissance enregistrée.');
     } on Object {
       try {
         await widget.repository.refreshDetail(widget.conversationId);
@@ -2056,7 +2090,10 @@ class _PointCardState extends State<_PointCard> {
       ),
     );
     if (!mounted || approved != true) return;
-    setState(() { _busy = true; _feedback = null; });
+    setState(() {
+      _busy = true;
+      _feedback = null;
+    });
     try {
       await widget.repository.closePointResponses(
         conversationId: widget.conversationId,
@@ -2070,8 +2107,9 @@ class _PointCardState extends State<_PointCard> {
         // The authoritative state may have changed concurrently.
       }
       if (mounted) {
-        setState(() => _feedback =
-            'Ce Point a pu changer. Clôture non confirmée : vérifiez son état.');
+        setState(
+          () => _feedback = 'Ce Point a pu changer. Clôture non confirmée : vérifiez son état.',
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -2155,7 +2193,10 @@ class _PointCardState extends State<_PointCard> {
       _resolutionSelections
         ..clear()
         ..addAll((answer['options'] as List).cast<String>());
-      setState(() { _busy = true; _feedback = null; });
+      setState(() {
+        _busy = true;
+        _feedback = null;
+      });
       try {
         await widget.repository.resolvePoint(
           conversationId: widget.conversationId,
@@ -2175,8 +2216,10 @@ class _PointCardState extends State<_PointCard> {
           // Preserve the resolution draft for an explicit retry.
         }
         if (mounted) {
-          setState(() => _feedback =
-              'Résolution non confirmée. Votre texte est conservé ici.');
+          setState(
+            () => _feedback =
+                'Résolution non confirmée. Votre texte est conservé ici.',
+          );
         }
       } finally {
         if (mounted) setState(() => _busy = false);
@@ -2198,7 +2241,8 @@ class _PointCardState extends State<_PointCard> {
     final point = widget.point;
     final canRespond =
         (widget.representedSpaceId == null
-            ? point.canRespond : point.responseWindowOpen) &&
+            ? point.canRespond
+            : point.responseWindowOpen) &&
         (!point.hasRespondedForScope(widget.representedSpaceId) ||
             point.canChangeResponse);
     final theme = Theme.of(context).textTheme;
@@ -2259,7 +2303,8 @@ class _PointCardState extends State<_PointCard> {
                     Row(
                       children: [
                         if (point.responseMode == 'multiple_choice' &&
-                            canRespond && !widget.readOnly)
+                            canRespond &&
+                            !widget.readOnly)
                           Checkbox(
                             value: _choices.contains(option.id),
                             onChanged: _busy
@@ -2274,21 +2319,27 @@ class _PointCardState extends State<_PointCard> {
                           )
                         else
                           Icon(
-                            point.selectedOptionsForScope(
-                              widget.representedSpaceId,
-                            ).contains(option.id)
+                            point
+                                    .selectedOptionsForScope(
+                                      widget.representedSpaceId,
+                                    )
+                                    .contains(option.id)
                                 ? Icons.check_circle_rounded
                                 : Icons.radio_button_unchecked_rounded,
                             size: 18,
                             color: muted,
                           ),
                         const SizedBox(width: MakoloSpacing.sm),
-                        Expanded(child: Text(option.label, style: theme.bodyMedium)),
+                        Expanded(
+                          child: Text(option.label, style: theme.bodyMedium),
+                        ),
                         if (point.responseMode == 'single_choice' &&
-                            canRespond && !widget.readOnly)
+                            canRespond &&
+                            !widget.readOnly)
                           TextButton(
                             onPressed: _busy
-                                ? null : () => _submitResponse(option.id),
+                                ? null
+                                : () => _submitResponse(option.id),
                             child: const Text('Choisir'),
                           ),
                       ],
@@ -2321,15 +2372,16 @@ class _PointCardState extends State<_PointCard> {
               ),
             ),
           if (point.responseMode == 'multiple_choice' &&
-              canRespond && !widget.readOnly) ...[
+              canRespond &&
+              !widget.readOnly) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloActionButton(
               label: _busy ? 'Envoi…' : 'Valider mes choix',
               busy: _busy,
               appearance: MakoloActionAppearance.primary,
               onPressed: _busy || _choices.isEmpty
-                  ? null : () =>
-                      _submitResponse(_choices.toList()..sort()),
+                  ? null
+                  : () => _submitResponse(_choices.toList()..sort()),
             ),
           ],
         ],
@@ -2384,8 +2436,10 @@ class _PointCardState extends State<_PointCard> {
             if ((_string(response['label']) ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                child: Text(_string(response['label'])!,
-                    style: theme.bodyMedium),
+                child: Text(
+                  _string(response['label'])!,
+                  style: theme.bodyMedium,
+                ),
               ),
             ConversationMediaGroup(
               repository: widget.repository,
@@ -2416,8 +2470,11 @@ class _PointCardState extends State<_PointCard> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  point.responseLabelForScope(widget.representedSpaceId) == null ||
-                          point.responseLabelForScope(widget.representedSpaceId)!.isEmpty
+                  point.responseLabelForScope(widget.representedSpaceId) ==
+                              null ||
+                          point
+                              .responseLabelForScope(widget.representedSpaceId)!
+                              .isEmpty
                       ? 'Réponse enregistrée'
                       : 'Réponse enregistrée : ${point.responseLabelForScope(widget.representedSpaceId)}',
                   style: theme.bodySmall?.copyWith(color: muted),
@@ -2526,11 +2583,15 @@ class _PointCardState extends State<_PointCard> {
               spacing: MakoloSpacing.sm,
               children: [
                 MakoloActionButton(
-                  label: point.kind == 'request' ? "Je m'en charge" : 'Oui, je confirme',
+                  label: point.kind == 'request'
+                      ? "Je m'en charge"
+                      : 'Oui, je confirme',
                   onPressed: _busy ? null : () => _submitResponse(true),
                 ),
                 MakoloActionButton(
-                  label: point.kind == 'request' ? 'Je ne peux pas' : 'Non, je ne confirme pas',
+                  label: point.kind == 'request'
+                      ? 'Je ne peux pas'
+                      : 'Non, je ne confirme pas',
                   onPressed: _busy ? null : () => _submitResponse(false),
                 ),
               ],
@@ -3033,9 +3094,7 @@ class _ConversationPersonalState {
       );
 }
 
-Widget _pendingSemanticMedia(
-  BuildContext context, Map<String, dynamic> media,
-) {
+Widget _pendingSemanticMedia(BuildContext context, Map<String, dynamic> media) {
   final path = media['path']?.toString() ?? '';
   final filename = media['filename']?.toString() ?? 'Média';
   final kind = media['kind']?.toString();
@@ -3049,7 +3108,10 @@ Widget _pendingSemanticMedia(
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.file(
-              File(path), height: 150, width: 250, fit: BoxFit.contain,
+              File(path),
+              height: 150,
+              width: 250,
+              fit: BoxFit.contain,
               cacheWidth: 750,
               errorBuilder: (context, error, trace) =>
                   const Icon(Icons.image_not_supported_outlined),
@@ -3058,15 +3120,19 @@ Widget _pendingSemanticMedia(
         else
           Row(
             children: [
-              Icon(kind == 'voice' || kind == 'audio'
-                  ? Icons.graphic_eq_rounded
-                  : kind == 'video'
+              Icon(
+                kind == 'voice' || kind == 'audio'
+                    ? Icons.graphic_eq_rounded
+                    : kind == 'video'
                     ? Icons.play_circle_outline_rounded
-                    : Icons.description_outlined),
+                    : Icons.description_outlined,
+              ),
               const SizedBox(width: MakoloSpacing.sm),
               Expanded(
                 child: Text(
-                  filename, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  filename,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -3081,7 +3147,9 @@ Widget _pendingSemanticMedia(
 
 class _ConversationOption {
   const _ConversationOption({
-    required this.id, required this.label, this.attachments = const [],
+    required this.id,
+    required this.label,
+    this.attachments = const [],
   });
 
   final String id;
@@ -3220,8 +3288,10 @@ class _ConversationPoint {
     final value = response['value'];
     if (responseMode == 'single_choice' || responseMode == 'multiple_choice') {
       final selected = selectedOptionsForScope(spaceId);
-      return options.where((option) => selected.contains(option.id))
-          .map((option) => option.label).join(', ');
+      return options
+          .where((option) => selected.contains(option.id))
+          .map((option) => option.label)
+          .join(', ');
     }
     if (value is bool) {
       if (kind == 'request') {

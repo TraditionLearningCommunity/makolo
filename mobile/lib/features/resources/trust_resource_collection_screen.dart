@@ -48,8 +48,9 @@ class _TrustResourceCollectionScreenState
   late Stream<List<StoredProjection>> _pages;
   late Stream<TrustResourceSourceState> _source;
 
-  String get _title =>
-      widget.family == TrustResourceFamily.proofs ? 'Mes preuves' : 'Mes titres';
+  String get _title => widget.family == TrustResourceFamily.proofs
+      ? 'Mes preuves'
+      : 'Mes titres';
 
   @override
   void initState() {
@@ -213,12 +214,7 @@ class _TrustResourceCollectionScreenState
     }
   }
 
-  void _setScope({
-    String? query,
-    String? status,
-    String? type,
-    String? sort,
-  }) {
+  void _setScope({String? query, String? status, String? type, String? sort}) {
     final nextQuery = query ?? _query;
     final nextStatus = status ?? _status;
     final nextType = type ?? _type;
@@ -245,12 +241,9 @@ class _TrustResourceCollectionScreenState
 
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(
-      const Duration(milliseconds: 350),
-      () {
-        if (mounted) _setScope(query: value.trim());
-      },
-    );
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _setScope(query: value.trim());
+    });
   }
 
   Future<void> _showSort() async {
@@ -417,106 +410,110 @@ class _TrustResourceCollectionScreenState
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 860),
                     child: ListView(
-                  controller: _scroll,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  children: [
-                    TextField(
-                      controller: _search,
-                      onChanged: _onSearchChanged,
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        hintText: 'Rechercher',
-                        prefixIcon: Icon(Icons.search_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: MakoloSpacing.md),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(children: _statusChips()),
-                    ),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Row(
+                      controller: _scroll,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(MakoloSpacing.inner),
                       children: [
-                        if (view.total != null && view.total! > 0)
-                          Text(
-                            '${view.total}',
-                            style: Theme.of(context).textTheme.labelLarge
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                        TextField(
+                          controller: _search,
+                          onChanged: _onSearchChanged,
+                          textInputAction: TextInputAction.search,
+                          decoration: const InputDecoration(
+                            hintText: 'Rechercher',
+                            prefixIcon: Icon(Icons.search_rounded),
                           ),
-                        const Spacer(),
-                        MakoloIconActionButton(
-                          tooltip: 'Filtrer',
-                          icon: Icons.tune_rounded,
-                          onPressed: () => _showTypeFilter(view),
                         ),
-                        MakoloIconActionButton(
-                          tooltip: 'Trier',
-                          icon: Icons.swap_vert_rounded,
-                          onPressed: _showSort,
+                        const SizedBox(height: MakoloSpacing.md),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(children: _statusChips()),
                         ),
-                      ],
-                    ),
-                    if (view.hasSnapshot &&
-                        (source.reachability == ReachabilityState.unreachable ||
-                            _refreshFailed))
-                      const _TrustContinuityNotice(),
-                    if (!view.hasSnapshot && _initializing)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: MakoloSpacing.xl,
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Row(
+                          children: [
+                            if (view.total != null && view.total! > 0)
+                              Text(
+                                '${view.total}',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                    ),
+                              ),
+                            const Spacer(),
+                            MakoloIconActionButton(
+                              tooltip: 'Filtrer',
+                              icon: Icons.tune_rounded,
+                              onPressed: () => _showTypeFilter(view),
+                            ),
+                            MakoloIconActionButton(
+                              tooltip: 'Trier',
+                              icon: Icons.swap_vert_rounded,
+                              onPressed: _showSort,
+                            ),
+                          ],
                         ),
-                        child: Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      )
-                    else if (!view.hasSnapshot &&
-                        (_refreshFailed ||
-                            source.invalidated ||
-                            source.reachability == ReachabilityState.unreachable))
-                      _TrustUnavailable(
-                        family: widget.family,
-                        ownerDenied: source.ownerDenied,
-                        onRetry: _refreshFirst,
-                      )
-                    else if (view.items.isEmpty)
-                      _EmptyTrustCollection(
-                        family: widget.family,
-                        query: _query,
-                      )
-                    else
-                      for (final item in view.items)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: MakoloSpacing.sm,
-                          ),
-                          child: _TrustResourceCard(
+                        if (view.hasSnapshot &&
+                            (source.reachability ==
+                                    ReachabilityState.unreachable ||
+                                _refreshFailed))
+                          const _TrustContinuityNotice(),
+                        if (!view.hasSnapshot && _initializing)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: MakoloSpacing.xl,
+                            ),
+                            child: Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          )
+                        else if (!view.hasSnapshot &&
+                            (_refreshFailed ||
+                                source.invalidated ||
+                                source.reachability ==
+                                    ReachabilityState.unreachable))
+                          _TrustUnavailable(
                             family: widget.family,
-                            item: item,
-                            onTap: () => widget.onOpenItem(item.id),
+                            ownerDenied: source.ownerDenied,
+                            onRetry: _refreshFirst,
+                          )
+                        else if (view.items.isEmpty)
+                          _EmptyTrustCollection(
+                            family: widget.family,
+                            query: _query,
+                          )
+                        else
+                          for (final item in view.items)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: MakoloSpacing.sm,
+                              ),
+                              child: _TrustResourceCard(
+                                family: widget.family,
+                                item: item,
+                                onTap: () => widget.onOpenItem(item.id),
+                              ),
+                            ),
+                        if (_loadingMore && view.hasMore)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(MakoloSpacing.md),
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
                           ),
-                        ),
-                    if (_loadingMore && view.hasMore)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(MakoloSpacing.md),
-                          child: CircularProgressIndicator.adaptive(),
-                        ),
-                      ),
-                    if (_loadFailed && view.hasMore)
-                      Center(
-                        child: MakoloActionButton(
-                          label: 'Réessayer',
-                          appearance: MakoloActionAppearance.quiet,
-                          onPressed: () {
-                            setState(() => _loadFailed = false);
-                            unawaited(_loadMore(view));
-                          },
-                        ),
-                      ),
-                  ],
+                        if (_loadFailed && view.hasMore)
+                          Center(
+                            child: MakoloActionButton(
+                              label: 'Réessayer',
+                              appearance: MakoloActionAppearance.quiet,
+                              onPressed: () {
+                                setState(() => _loadFailed = false);
+                                unawaited(_loadMore(view));
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -582,11 +579,11 @@ class _TrustUnavailable extends StatelessWidget {
         Text(
           ownerDenied
               ? family == TrustResourceFamily.proofs
-                  ? 'Ces preuves ne sont plus disponibles.'
-                  : 'Ces titres ne sont plus disponibles.'
+                    ? 'Ces preuves ne sont plus disponibles.'
+                    : 'Ces titres ne sont plus disponibles.'
               : family == TrustResourceFamily.proofs
-                  ? 'Impossible d’actualiser vos preuves.'
-                  : 'Impossible d’actualiser vos titres.',
+              ? 'Impossible d’actualiser vos preuves.'
+              : 'Impossible d’actualiser vos titres.',
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: MakoloSpacing.md),
@@ -730,10 +727,9 @@ class _TrustCollectionView {
       return (_string(payload['query']) ?? '') == query &&
           (_string(payload['status']) ?? 'all') == status &&
           (_string(
-                    payload[
-                        family == TrustResourceFamily.proofs
-                            ? 'proof_type'
-                            : 'credential_type'],
+                    payload[family == TrustResourceFamily.proofs
+                        ? 'proof_type'
+                        : 'credential_type'],
                   ) ??
                   '') ==
               type &&
@@ -757,10 +753,9 @@ class _TrustCollectionView {
           return (_string(payload['query']) ?? '').isEmpty &&
               (_string(payload['status']) ?? 'all') == 'all' &&
               (_string(
-                        payload[
-                            family == TrustResourceFamily.proofs
-                                ? 'proof_type'
-                                : 'credential_type'],
+                        payload[family == TrustResourceFamily.proofs
+                            ? 'proof_type'
+                            : 'credential_type'],
                       ) ??
                       '')
                   .isEmpty &&
@@ -826,9 +821,7 @@ class _TrustCollectionView {
     final needle = query.casefold();
     final visible = localSearch
         ? items
-              .where(
-                (item) => item.searchText.contains(needle),
-              )
+              .where((item) => item.searchText.contains(needle))
               .toList(growable: false)
         : items;
 
@@ -838,7 +831,9 @@ class _TrustCollectionView {
       typeOptions: List.unmodifiable(typeOptions),
       hasMore: localSearch ? false : page['has_more'] == true,
       nextOffset: localSearch ? 0 : offset + limit,
-      total: localSearch ? visible.length : _int(selected.first.payload['count']),
+      total: localSearch
+          ? visible.length
+          : _int(selected.first.payload['count']),
     );
   }
 
@@ -898,7 +893,8 @@ String? _string(Object? value) {
   return text == null || text.isEmpty ? null : text;
 }
 
-int? _int(Object? value) => value is num ? value.toInt() : int.tryParse('$value');
+int? _int(Object? value) =>
+    value is num ? value.toInt() : int.tryParse('$value');
 
 String? _displayDate(String? value) {
   if (value == null) return null;

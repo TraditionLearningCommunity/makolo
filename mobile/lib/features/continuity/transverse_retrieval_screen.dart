@@ -188,10 +188,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
             : value['proof_type_label']?.toString();
         if (title == null || title.isEmpty) continue;
         rows.add({
-          'source': {
-            'kind': credentials ? 'credential' : 'proof',
-            'id': id,
-          },
+          'source': {'kind': credentials ? 'credential' : 'proof', 'id': id},
           'title': title,
           'human_type': credentials ? 'Titre' : 'Preuve',
           'relation': credentials ? 'Mon titre' : 'Ma preuve',
@@ -431,9 +428,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     if (!widget.history && query.isEmpty) return [];
     final normalized = query.toLowerCase();
     final filtered = rows.where((row) {
-      final text = (
-        row['search_text'] ?? row['title'] ?? ''
-      ).toString().toLowerCase();
+      final text = (row['search_text'] ?? row['title'] ?? '')
+          .toString()
+          .toLowerCase();
       return normalized.isEmpty || text.contains(normalized);
     });
     return _deduplicate(filtered.toList());

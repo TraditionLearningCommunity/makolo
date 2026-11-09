@@ -251,18 +251,23 @@ class OutboxRepository {
   /// Profile-scoped diagnostics only: no payload or private identifiers
   /// are disclosed to the global UI.
   Future<List<OutboxConflictDetail>> readConflicts() async {
-    final rows = await (database.select(database.outboxOperations)
-          ..where((row) =>
-              row.profileId.equals(profileId) &
-              row.state.equals(OutboxState.conflict.wireValue))
-          ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]))
-        .get();
+    final rows =
+        await (database.select(database.outboxOperations)
+              ..where(
+                (row) =>
+                    row.profileId.equals(profileId) &
+                    row.state.equals(OutboxState.conflict.wireValue),
+              )
+              ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]))
+            .get();
     return rows
-        .map((row) => OutboxConflictDetail(
-              operationKind: row.operationKind,
-              owner: row.owner,
-              errorCode: row.lastErrorCode,
-            ))
+        .map(
+          (row) => OutboxConflictDetail(
+            operationKind: row.operationKind,
+            owner: row.owner,
+            errorCode: row.lastErrorCode,
+          ),
+        )
         .toList(growable: false);
   }
 

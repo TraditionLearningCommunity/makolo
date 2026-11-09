@@ -77,10 +77,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     unawaited(_rememberLayout(key, next));
   }
 
-  Future<void> _rememberLayout(
-    String key,
-    MakoloTerritoryLayout next,
-  ) async {
+  Future<void> _rememberLayout(String key, MakoloTerritoryLayout next) async {
     try {
       await _storage.write(
         key: key,
@@ -129,9 +126,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         .where((item) => item['combined'] != true)
         .toList(growable: false);
     final teamVisible =
-        !limited &&
-        team?['visibility'] == 'visible' &&
-        team?['items'] is List;
+        !limited && team?['visibility'] == 'visible' && team?['items'] is List;
     final teamRows = teamVisible
         ? _rows(team?['items'])
         : const <Map<String, dynamic>>[];
@@ -196,7 +191,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Les personnes avec qui nous travaillons',
           icon: Icons.groups_outlined,
           target: route('team'),
-          count: team?['active_members'] is int &&
+          count:
+              team?['active_members'] is int &&
                   (team!['active_members'] as int) >= 0
               ? team!['active_members'] as int
               : null,
@@ -227,8 +223,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Documents et outils de cet Espace',
           icon: Icons.folder_copy_outlined,
           target: resourcesTarget,
-          count: resources?['count'] is int &&
-                  (resources!['count'] as int) >= 0
+          count: resources?['count'] is int && (resources!['count'] as int) >= 0
               ? resources!['count'] as int
               : null,
           previews: [
@@ -263,7 +258,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           ],
         ),
     ];
-
 
     void open(String target) {
       if (widget.onOpen != null) {
@@ -414,7 +408,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                 SizedBox(
                                   width: itemWidth,
                                   child: MakoloTerritoryGridCard(
-                                    tapKey: Key('space-us-grid-${entry.keyName}'),
+                                    tapKey: Key(
+                                      'space-us-grid-${entry.keyName}',
+                                    ),
                                     title: entry.title,
                                     subtitle: entry.subtitle,
                                     symbol: Icon(
@@ -596,7 +592,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     onOpen: () => open(target),
     headerVerticalPadding: MakoloSpacing.compact,
   );
-
 }
 
 /// A display-only adaptation of facts already scoped by the Space owner.

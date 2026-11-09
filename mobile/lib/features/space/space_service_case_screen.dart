@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -175,7 +176,7 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
         ),
         actions: [
           MakoloActionButton(
-                                  appearance: MakoloActionAppearance.quiet,
+            appearance: MakoloActionAppearance.quiet,
             onPressed: () => Navigator.of(dialogContext).pop(false),
             label: 'Annuler',
           ),
@@ -256,7 +257,7 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                     ),
                   if (data == null)
                     MakoloActionButton(
-                                  appearance: MakoloActionAppearance.quiet,
+                      appearance: MakoloActionAppearance.quiet,
                       onPressed: _loading ? null : _load,
                       label: 'Vérifier les droits et actualiser',
                     ),
@@ -417,12 +418,12 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                       ),
                     const SizedBox(height: 20),
                     MakoloActionButton(
-                              appearance: MakoloActionAppearance.secondary,
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: _loading ? null : _load,
                       label: 'Actualiser le dossier',
                     ),
                     MakoloActionButton(
-                              appearance: MakoloActionAppearance.secondary,
+                      appearance: MakoloActionAppearance.secondary,
                       onPressed: () => context.pop(),
                       label: 'Retour à la prestation',
                     ),

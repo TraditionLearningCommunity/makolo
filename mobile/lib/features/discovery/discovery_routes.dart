@@ -28,8 +28,13 @@ DiscoveryQuery? _routeQuery(Map<String, String> params, AppRuntime runtime) {
   }
 }
 
-String _contextualItemRoute(String family, String id, DiscoveryQuery query) => Uri(
-  path: '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
+String _contextualItemRoute(
+  String family,
+  String id,
+  DiscoveryQuery query,
+) => Uri(
+  path:
+      '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
   queryParameters: query.isSpace
       ? {'context': 'space', 'space': query.spaceSlug!}
       : null,
@@ -93,9 +98,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
               ? _contextualItemRoute('activity', id, query)
               : '/activities/$id',
         ),
-        onOpenItem: (family, id) => context.push(
-          _contextualItemRoute(family, id, query),
-        ),
+        onOpenItem: (family, id) =>
+            context.push(_contextualItemRoute(family, id, query)),
       );
     },
   ),
@@ -133,9 +137,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           if (!query.isSpace) context.push('/occurrences/$id');
         },
         onOpenItem: (family, id) async {
-          await context.push<void>(
-            _contextualItemRoute(family, id, query),
-          );
+          await context.push<void>(_contextualItemRoute(family, id, query));
         },
       );
     },

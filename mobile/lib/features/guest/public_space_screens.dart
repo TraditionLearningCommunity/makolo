@@ -714,121 +714,127 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       body: SafeArea(
         child: LoadMoreOnScroll(
           hasMore: _hasNext && _error == null,
-        loading: _loading,
-        loadMore: _loadNextPage,
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: ListView(
-            key: const Key('guest-public-space-detail'),
-            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-            children: [
-              if (_loading && _space.isEmpty)
-                const Center(child: CircularProgressIndicator())
-              else if (_error != null && _space.isEmpty) ...[
-                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-                TextButton(onPressed: _load, child: const Text('Réessayer')),
-              ] else ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MakoloSpacing.lg,
+          loading: _loading,
+          loadMore: _loadNextPage,
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              key: const Key('guest-public-space-detail'),
+              padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
+              children: [
+                if (_loading && _space.isEmpty)
+                  const Center(child: CircularProgressIndicator())
+                else if (_error != null && _space.isEmpty) ...[
+                  Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
-                  child: _PublicSpaceIdentity(space: _space),
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MakoloSpacing.lg,
-                  ),
-                  child: OutlinedButton.icon(
-                    key: const Key('public-space-passport-action'),
-                    onPressed: _openPublicPassport,
-                    icon: const Icon(Icons.badge_outlined),
-                    label: const Text('Voir le Passeport'),
-                  ),
-                ),
-                if (_field(_space, 'description').isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.lg),
+                  TextButton(onPressed: _load, child: const Text('Réessayer')),
+                ] else ...[
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: MakoloSpacing.lg,
                     ),
-                    child: Text('À propos', style: theme.textTheme.titleMedium),
+                    child: _PublicSpaceIdentity(space: _space),
                   ),
-                  const SizedBox(height: MakoloSpacing.xs),
+                  const SizedBox(height: MakoloSpacing.md),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: MakoloSpacing.lg,
                     ),
-                    child: Text(_field(_space, 'description')),
+                    child: OutlinedButton.icon(
+                      key: const Key('public-space-passport-action'),
+                      onPressed: _openPublicPassport,
+                      icon: const Icon(Icons.badge_outlined),
+                      label: const Text('Voir le Passeport'),
+                    ),
                   ),
-                ],
-                const SizedBox(height: MakoloSpacing.xl),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MakoloSpacing.lg,
-                  ),
-                  child: Text(
-                    'Ce que propose cet Espace',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                ),
-                if (_count > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                    child: Padding(
+                  if (_field(_space, 'description').isNotEmpty) ...[
+                    const SizedBox(height: MakoloSpacing.lg),
+                    Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: MakoloSpacing.lg,
                       ),
                       child: Text(
-                        '$_count possibilités',
-                        style: theme.textTheme.bodySmall,
+                        'À propos',
+                        style: theme.textTheme.titleMedium,
                       ),
                     ),
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MakoloSpacing.lg,
+                      ),
+                      child: Text(_field(_space, 'description')),
+                    ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.xl),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MakoloSpacing.lg,
+                    ),
+                    child: Text(
+                      'Ce que propose cet Espace',
+                      style: theme.textTheme.titleLarge,
+                    ),
                   ),
-                const SizedBox(height: MakoloSpacing.xl),
-                const Divider(height: 1),
-                const SizedBox(height: MakoloSpacing.md),
-                if (_possibilities.isEmpty && !_loading && _error == null)
-                  const Text(
-                    'Cet Espace ne propose pas encore de possibilité publique.',
-                  ),
-                for (final possibility in _possibilities)
-                  PublicPossibilityCard(
-                    item: possibility,
-                    compact: true,
-                    baseUri: widget.runtime.api?.baseUri,
-                    shareApi: widget.runtime.api,
-                    onSignIn: () {
-                      if (widget.runtime.isAuthenticated) {
-                        _openPossibility(possibility);
-                        return;
-                      }
-                      widget.runtime.recovery.requireAuthentication(
-                        '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
-                      );
-                      context.push('/login');
-                    },
-                    onSave: () async {
-                      if (widget.runtime.isAuthenticated) {
-                        _openPossibility(possibility);
-                        return;
-                      }
-                      widget.runtime.recovery.requireAuthentication(
-                        '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
-                      );
-                      if (context.mounted) context.push('/login');
-                    },
-                    onTap: () => _openPossibility(possibility),
-                  ),
-                if (_loading && _possibilities.isNotEmpty)
-                  const Center(child: CircularProgressIndicator()),
-                if (_error == null && !_hasNext && _possibilities.isNotEmpty)
-                  const Center(child: Text('Vous avez tout exploré.')),
+                  if (_count > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MakoloSpacing.lg,
+                        ),
+                        child: Text(
+                          '$_count possibilités',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: MakoloSpacing.xl),
+                  const Divider(height: 1),
+                  const SizedBox(height: MakoloSpacing.md),
+                  if (_possibilities.isEmpty && !_loading && _error == null)
+                    const Text(
+                      'Cet Espace ne propose pas encore de possibilité publique.',
+                    ),
+                  for (final possibility in _possibilities)
+                    PublicPossibilityCard(
+                      item: possibility,
+                      compact: true,
+                      baseUri: widget.runtime.api?.baseUri,
+                      shareApi: widget.runtime.api,
+                      onSignIn: () {
+                        if (widget.runtime.isAuthenticated) {
+                          _openPossibility(possibility);
+                          return;
+                        }
+                        widget.runtime.recovery.requireAuthentication(
+                          '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
+                        );
+                        context.push('/login');
+                      },
+                      onSave: () async {
+                        if (widget.runtime.isAuthenticated) {
+                          _openPossibility(possibility);
+                          return;
+                        }
+                        widget.runtime.recovery.requireAuthentication(
+                          '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
+                        );
+                        if (context.mounted) context.push('/login');
+                      },
+                      onTap: () => _openPossibility(possibility),
+                    ),
+                  if (_loading && _possibilities.isNotEmpty)
+                    const Center(child: CircularProgressIndicator()),
+                  if (_error == null && !_hasNext && _possibilities.isNotEmpty)
+                    const Center(child: Text('Vous avez tout exploré.')),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }

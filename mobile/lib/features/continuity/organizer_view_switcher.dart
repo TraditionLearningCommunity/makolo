@@ -26,11 +26,18 @@ class OrganizerViewSwitcher extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _mode(context, OrganizerMode.cards, Icons.grid_view_rounded, 'Cartes'),
+          _mode(
+            context,
+            OrganizerMode.cards,
+            Icons.grid_view_rounded,
+            'Cartes',
+          ),
           _mode(context, OrganizerMode.list, Icons.view_list_rounded, 'Liste'),
           _mode(
-            context, OrganizerMode.explorer,
-            Icons.account_tree_rounded, 'Explorateur',
+            context,
+            OrganizerMode.explorer,
+            Icons.account_tree_rounded,
+            'Explorateur',
           ),
         ],
       ),
@@ -38,7 +45,10 @@ class OrganizerViewSwitcher extends StatelessWidget {
   }
 
   Widget _mode(
-    BuildContext context, OrganizerMode mode, IconData icon, String label,
+    BuildContext context,
+    OrganizerMode mode,
+    IconData icon,
+    String label,
   ) {
     final isSelected = mode == selected;
     final scheme = Theme.of(context).colorScheme;
@@ -49,9 +59,7 @@ class OrganizerViewSwitcher extends StatelessWidget {
         tooltip: 'Vue $label',
         onPressed: () => onSelected(mode),
         icon: Icon(icon, size: 19),
-        color: isSelected
-            ? scheme.onPrimaryContainer
-            : scheme.onSurfaceVariant,
+        color: isSelected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
         style: IconButton.styleFrom(
           fixedSize: const Size(44, 44),
           padding: EdgeInsets.zero,
@@ -59,9 +67,7 @@ class OrganizerViewSwitcher extends StatelessWidget {
           backgroundColor: isSelected
               ? scheme.primaryContainer
               : Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );

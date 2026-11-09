@@ -154,7 +154,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       _invitationNotice = null;
     });
     try {
-      final endpoint = 'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/';
+      final endpoint =
+          'api/v1/me/journeys/${Uri.encodeComponent(id)}/invitation/';
       final current = (await api.get(endpoint)).jsonObject();
       if (!_isCurrent(revision, id, repository)) return;
       final actions = current['capabilities'];
@@ -163,8 +164,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
           !actions.contains(decision)) {
         await _refresh();
         if (_isCurrent(revision, id, repository)) {
-          setState(() => _invitationNotice =
-              'Cette invitation a changé. Consultez son état actuel.');
+          setState(
+            () => _invitationNotice =
+                'Cette invitation a changé. Consultez son état actuel.',
+          );
         }
         return;
       }
@@ -180,9 +183,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       }
       await _refresh();
       if (_isCurrent(revision, id, repository)) {
-        setState(() => _invitationNotice = decision == 'accept'
-            ? 'Invitation acceptée.'
-            : 'Invitation refusée.');
+        setState(
+          () => _invitationNotice = decision == 'accept'
+              ? 'Invitation acceptée.'
+              : 'Invitation refusée.',
+        );
       }
     } on Object {
       // A lost acknowledgement cannot be treated as failure or success.
@@ -195,16 +200,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         await _refresh();
         if (_isCurrent(revision, id, repository)) {
           final status = current['status'];
-          setState(() => _invitationNotice = status == 'confirmed'
-              ? 'Invitation acceptée.'
-              : status == 'cancelled'
-              ? 'Invitation refusée.'
-              : 'Vérifiez votre invitation avant de réessayer.');
+          setState(
+            () => _invitationNotice = status == 'confirmed'
+                ? 'Invitation acceptée.'
+                : status == 'cancelled'
+                ? 'Invitation refusée.'
+                : 'Vérifiez votre invitation avant de réessayer.',
+          );
         }
       } on Object {
         if (_isCurrent(revision, id, repository)) {
-          setState(() => _invitationNotice =
-              'Aucune confirmation pour le moment. Vous pouvez réessayer.');
+          setState(
+            () => _invitationNotice =
+                'Aucune confirmation pour le moment. Vous pouvez réessayer.',
+          );
         }
       }
     } finally {
@@ -217,7 +226,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      key: ValueKey('journey:${widget.repository.profileId}:${widget.journeyId}'),
+      key: ValueKey(
+        'journey:${widget.repository.profileId}:${widget.journeyId}',
+      ),
       stream: widget.repository.watchDetail(widget.journeyId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<JourneySourceState>(
@@ -234,10 +245,13 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
             final available = presentation.available;
             // A missing local detail is not a transport failure. Keep the
             // page in its normal shell; only an explicit owner denial removes it.
-            final ownerDenied = !available &&
+            final ownerDenied =
+                !available &&
                 source.invalidated &&
-                const {'permission_denied', 'not_found'}
-                    .contains(source.lastErrorCode);
+                const {
+                  'permission_denied',
+                  'not_found',
+                }.contains(source.lastErrorCode);
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -288,35 +302,35 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       widget.journeyId,
                     ),
                     builder: (context, resourcesSnapshot) => _JourneyContent(
-                    presentation: presentation,
-                    resourcesPreview: JourneyResourcePreview.fromProjection(
-                      resourcesSnapshot.data,
-                    ),
-                    resourcesKnown: resourcesSnapshot.data != null,
-                    onOpenPaymentObligation: widget.onOpenPaymentObligation,
-                    onOpenCommerceOrder: widget.onOpenCommerceOrder,
-                    invitationEnabled:
-                        widget.api != null && !_respondingInvitation,
-                    invitationNotice: _invitationNotice,
-                    onInvitationDecision: _respondToInvitation,
-                    onOpenForm: widget.onOpenForm,
-                    onOpenRequirement: widget.onOpenRequirement,
-                    onOpenResources: widget.onOpenResources,
-                    onOpenActivity: widget.onOpenActivity,
-                    onOpenOccurrence: widget.onOpenOccurrence,
-                    onOpenAccess: widget.onOpenAccess,
-                    onOpenDayOf: widget.onOpenDayOf,
-                    onOpenLive: widget.onOpenLive,
-                    conversationEntry:
-                        widget.conversations != null &&
-                            widget.onOpenConversation != null
-                        ? ConversationContextAction(
-                            repository: widget.conversations!,
-                            kind: 'journey',
-                            contextId: widget.journeyId,
-                            onOpen: widget.onOpenConversation!,
-                          )
-                        : null,
+                      presentation: presentation,
+                      resourcesPreview: JourneyResourcePreview.fromProjection(
+                        resourcesSnapshot.data,
+                      ),
+                      resourcesKnown: resourcesSnapshot.data != null,
+                      onOpenPaymentObligation: widget.onOpenPaymentObligation,
+                      onOpenCommerceOrder: widget.onOpenCommerceOrder,
+                      invitationEnabled:
+                          widget.api != null && !_respondingInvitation,
+                      invitationNotice: _invitationNotice,
+                      onInvitationDecision: _respondToInvitation,
+                      onOpenForm: widget.onOpenForm,
+                      onOpenRequirement: widget.onOpenRequirement,
+                      onOpenResources: widget.onOpenResources,
+                      onOpenActivity: widget.onOpenActivity,
+                      onOpenOccurrence: widget.onOpenOccurrence,
+                      onOpenAccess: widget.onOpenAccess,
+                      onOpenDayOf: widget.onOpenDayOf,
+                      onOpenLive: widget.onOpenLive,
+                      conversationEntry:
+                          widget.conversations != null &&
+                              widget.onOpenConversation != null
+                          ? ConversationContextAction(
+                              repository: widget.conversations!,
+                              kind: 'journey',
+                              contextId: widget.journeyId,
+                              onOpen: widget.onOpenConversation!,
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -375,365 +389,377 @@ class _JourneyContent extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
         child: ListView(
-      key: const PageStorageKey<String>('journey-detail-content'),
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-      children: [
-        _JourneyIdentity(presentation: presentation),
-        if (presentation.steps.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloSection(
-            title: 'Où j’en suis',
-            child: _JourneyPath(steps: presentation.steps),
-          ),
-        ],
-        if (presentation.isTerminal) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
-            child: _JourneyOutcomeCard(presentation: presentation),
-          ),
-        ],
-        if (presentation.canRespondInvitation && !presentation.isTerminal) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-              vertical: MakoloSpacing.lg,
-            ),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.inner),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Votre invitation',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: MakoloSpacing.md),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
+          key: const PageStorageKey<String>('journey-detail-content'),
+          padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
+          children: [
+            _JourneyIdentity(presentation: presentation),
+            if (presentation.steps.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Où j’en suis',
+                child: _JourneyPath(steps: presentation.steps),
+              ),
+            ],
+            if (presentation.isTerminal) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: _JourneyOutcomeCard(presentation: presentation),
+              ),
+            ],
+            if (presentation.canRespondInvitation &&
+                !presentation.isTerminal) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                  vertical: MakoloSpacing.lg,
+                ),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(MakoloSpacing.inner),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        MakoloActionButton(
-                          label: 'Accepter',
-                          onPressed: invitationEnabled
-                              ? () => onInvitationDecision('accept')
-                              : null,
-                          appearance: MakoloActionAppearance.primary,
+                        Text(
+                          'Votre invitation',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        MakoloActionButton(
-                          label: 'Refuser',
-                          onPressed: invitationEnabled
-                              ? () => onInvitationDecision('decline')
-                              : null,
-                          appearance: MakoloActionAppearance.secondary,
+                        const SizedBox(height: MakoloSpacing.md),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: [
+                            MakoloActionButton(
+                              label: 'Accepter',
+                              onPressed: invitationEnabled
+                                  ? () => onInvitationDecision('accept')
+                                  : null,
+                              appearance: MakoloActionAppearance.primary,
+                            ),
+                            MakoloActionButton(
+                              label: 'Refuser',
+                              onPressed: invitationEnabled
+                                  ? () => onInvitationDecision('decline')
+                                  : null,
+                              appearance: MakoloActionAppearance.secondary,
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+                ),
+              ),
+            ],
+            if (invitationNotice != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: Text(invitationNotice!),
+              ),
+            if (!presentation.isTerminal &&
+                presentation.nextActionLabel != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.arrow_outward_rounded,
+                            color: Color(0xFF5232DB),
+                          ),
+                          const SizedBox(width: MakoloSpacing.sm),
+                          Text(
+                            'Pour avancer',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      Text(presentation.nextActionLabel!),
+                      if (action != null) ...[
+                        const SizedBox(height: MakoloSpacing.md),
+                        action,
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (presentation.rejectedRequests > 0) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: MakoloAttentionBlock(
+                  title: 'Une demande a été refusée',
+                  body: 'Consultez les informations de votre démarche.',
+                  icon: Icons.info_outline_rounded,
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (presentation.pendingRequests > 0 &&
+                presentation.waiting.isEmpty &&
+                presentation.actorInterventions.isEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: const MakoloCard(
+                  child: ListTile(
+                    leading: Icon(Icons.hourglass_empty_rounded),
+                    title: Text('En attente de réponse'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (presentation.liveLink != null ||
+                presentation.dayOfLink != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            presentation.liveLink != null
+                                ? Icons.bolt_rounded
+                                : Icons.today_rounded,
+                            color: const Color(0xFF5232DB),
+                          ),
+                          const SizedBox(width: MakoloSpacing.sm),
+                          Text(
+                            presentation.liveLink != null
+                                ? 'Makolo Live'
+                                : 'Jour J',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      MakoloActionButton(
+                        label: presentation.liveLink != null
+                            ? 'Ouvrir Makolo Live'
+                            : 'Ouvrir Jour J',
+                        onPressed: presentation.liveLink != null
+                            ? () => onOpenLive(presentation.liveLink!)
+                            : () => onOpenDayOf(presentation.dayOfLink!),
+                        appearance: MakoloActionAppearance.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (!presentation.isTerminal &&
+                (presentation.actorInterventions.isNotEmpty ||
+                    presentation.blockers.isNotEmpty ||
+                    presentation.waiting.isNotEmpty ||
+                    presentation.ready.isNotEmpty)) ...[
+              MakoloSection(
+                title: 'Préparation',
+                child: _ReadinessGroups(
+                  presentation: presentation,
+                  ownerAction: _ownerActionForLink,
+                ),
+              ),
+            ],
+            if (presentation.resourcesLink != null &&
+                (!resourcesKnown || resourcesPreview.isNotEmpty)) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Documents et instructions',
+                child: MakoloCard(
+                  semanticLabel: 'Voir les documents et instructions',
+                  onTap: () => onOpenResources(presentation.resourcesLink!),
+                  child: Column(
+                    children: [
+                      for (final resource in resourcesPreview.take(3))
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(switch (resource.kind) {
+                            'file' => Icons.insert_drive_file_outlined,
+                            'url' => Icons.link_rounded,
+                            'text' => Icons.notes_rounded,
+                            _ => Icons.description_outlined,
+                          }, color: const Color(0xFF5232DB)),
+                          title: Text(resource.title),
+                          subtitle: resource.description == null
+                              ? null
+                              : Text(
+                                  resource.description!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                        ),
+                      if (resourcesPreview.isEmpty)
+                        const MakoloStatusMetadataAction(
+                          title: 'Documents et instructions',
+                          action: Icon(Icons.chevron_right_rounded),
+                        ),
+                      if (resourcesPreview.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                resourcesPreview.length > 3
+                                    ? 'Voir les ${resourcesPreview.length} ressources'
+                                    : 'Voir les ressources',
+                                style: const TextStyle(
+                                  color: Color(0xFF5232DB),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (presentation.forms.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.xl),
+              MakoloSection(
+                title: 'Formulaires',
+                child: Column(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < presentation.forms.length;
+                      index++
+                    ) ...[
+                      _FormCard(
+                        form: presentation.forms[index],
+                        onOpen: onOpenForm,
+                      ),
+                      if (index < presentation.forms.length - 1)
+                        const SizedBox(height: MakoloSpacing.sm),
+                    ],
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-        if (invitationNotice != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: Text(invitationNotice!),
-          ),
-        if (!presentation.isTerminal &&
-            presentation.nextActionLabel != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: MakoloCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.arrow_outward_rounded,
-                          color: Color(0xFF5232DB)),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Text('Pour avancer',
-                          style: Theme.of(context).textTheme.titleMedium),
+            ],
+            if (presentation.requirements.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.xl),
+              MakoloSection(
+                title: 'Éléments nécessaires',
+                child: Column(
+                  children: [
+                    for (
+                      var index = 0;
+                      index < presentation.requirements.length;
+                      index++
+                    ) ...[
+                      _ReferenceCard(
+                        reference: presentation.requirements[index],
+                        onTap: () =>
+                            onOpenRequirement(presentation.requirements[index]),
+                      ),
+                      if (index < presentation.requirements.length - 1)
+                        const SizedBox(height: MakoloSpacing.sm),
                     ],
-                  ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  Text(presentation.nextActionLabel!),
-                  if (action != null) ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    action,
                   ],
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (presentation.rejectedRequests > 0) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: MakoloAttentionBlock(
-              title: 'Une demande a été refusée',
-              body: 'Consultez les informations de votre démarche.',
-              icon: Icons.info_outline_rounded,
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (presentation.pendingRequests > 0 &&
-            presentation.waiting.isEmpty &&
-            presentation.actorInterventions.isEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: const MakoloCard(
-              child: ListTile(
-                leading: Icon(Icons.hourglass_empty_rounded),
-                title: Text('En attente de réponse'),
+            ],
+            if (presentation.practical?.hasContent == true) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'À retenir',
+                child: _JourneyPracticalCard(facts: presentation.practical!),
               ),
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (presentation.liveLink != null ||
-            presentation.dayOfLink != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: MakoloCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(presentation.liveLink != null
-                          ? Icons.bolt_rounded : Icons.today_rounded,
-                          color: const Color(0xFF5232DB)),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Text(presentation.liveLink != null
-                          ? 'Makolo Live' : 'Jour J',
-                          style: Theme.of(context).textTheme.titleMedium),
+            ],
+            if (presentation.payments.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Paiement',
+                child: Column(
+                  children: [
+                    for (final item in presentation.payments) ...[
+                      _JourneyPaymentCard(
+                        payment: item,
+                        onOpenPaymentObligation: onOpenPaymentObligation,
+                        onOpenCommerceOrder: onOpenCommerceOrder,
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
                     ],
-                  ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  MakoloActionButton(
-                label: presentation.liveLink != null
-                    ? 'Ouvrir Makolo Live'
-                    : 'Ouvrir Jour J',
-                onPressed: presentation.liveLink != null
-                    ? () => onOpenLive(presentation.liveLink!)
-                    : () => onOpenDayOf(presentation.dayOfLink!),
-                appearance: MakoloActionAppearance.primary,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (!presentation.isTerminal &&
-            (presentation.actorInterventions.isNotEmpty ||
-             presentation.blockers.isNotEmpty ||
-             presentation.waiting.isNotEmpty ||
-             presentation.ready.isNotEmpty)) ...[
-          MakoloSection(
-            title: 'Préparation',
-            child: _ReadinessGroups(
-              presentation: presentation,
-              ownerAction: _ownerActionForLink,
-            ),
-          ),
-        ],
-        if (presentation.resourcesLink != null &&
-            (!resourcesKnown || resourcesPreview.isNotEmpty)) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloSection(
-            title: 'Documents et instructions',
-            child: MakoloCard(
-              semanticLabel: 'Voir les documents et instructions',
-              onTap: () => onOpenResources(presentation.resourcesLink!),
-              child: Column(
-                children: [
-                  for (final resource in resourcesPreview.take(3))
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        switch (resource.kind) {
-                          'file' => Icons.insert_drive_file_outlined,
-                          'url' => Icons.link_rounded,
-                          'text' => Icons.notes_rounded,
-                          _ => Icons.description_outlined,
-                        },
-                        color: const Color(0xFF5232DB),
+            ],
+            if (presentation.activity != null ||
+                presentation.occurrence != null) ...[
+              const SizedBox(height: MakoloSpacing.xl),
+              MakoloSection(
+                title: 'Contexte',
+                child: Column(
+                  children: [
+                    if (presentation.activity != null)
+                      _ReferenceCard(
+                        reference: presentation.activity!,
+                        contextLabel: 'Activité',
+                        hideRepeatedTitle:
+                            presentation.activity!.label == presentation.title,
+                        onTap: presentation.activity!.link == null
+                            ? null
+                            : () => onOpenActivity(presentation.activity!),
                       ),
-                      title: Text(resource.title),
-                      subtitle: resource.description == null
-                          ? null : Text(
-                              resource.description!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  if (resourcesPreview.isEmpty)
-                    const MakoloStatusMetadataAction(
-                      title: 'Documents et instructions',
-                      action: Icon(Icons.chevron_right_rounded),
-                    ),
-                  if (resourcesPreview.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            resourcesPreview.length > 3
-                                ? 'Voir les ${resourcesPreview.length} ressources'
-                                : 'Voir les ressources',
-                            style: const TextStyle(
-                              color: Color(0xFF5232DB),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded),
-                        ],
+                    if (presentation.activity != null &&
+                        presentation.occurrence != null)
+                      const SizedBox(height: MakoloSpacing.sm),
+                    if (presentation.occurrence != null)
+                      _ReferenceCard(
+                        reference: presentation.occurrence!,
+                        contextLabel: 'Occurrence',
+                        hideRepeatedTitle:
+                            presentation.occurrence!.label ==
+                            presentation.title,
+                        onTap: presentation.occurrence!.link == null
+                            ? null
+                            : () => onOpenOccurrence(presentation.occurrence!),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
-        if (presentation.forms.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Formulaires',
-            child: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < presentation.forms.length;
-                  index++
-                ) ...[
-                  _FormCard(
-                    form: presentation.forms[index],
-                    onOpen: onOpenForm,
-                  ),
-                  if (index < presentation.forms.length - 1)
-                    const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-        ],
-        if (presentation.requirements.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Éléments nécessaires',
-            child: Column(
-              children: [
-                for (
-                  var index = 0;
-                  index < presentation.requirements.length;
-                  index++
-                ) ...[
-                  _ReferenceCard(
-                    reference: presentation.requirements[index],
-                    onTap: () =>
-                        onOpenRequirement(presentation.requirements[index]),
-                  ),
-                  if (index < presentation.requirements.length - 1)
-                    const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-        ],
-        if (presentation.practical?.hasContent == true) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloSection(
-            title: 'À retenir',
-            child: _JourneyPracticalCard(facts: presentation.practical!),
-          ),
-        ],
-        if (presentation.payments.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloSection(
-            title: 'Paiement',
-            child: Column(
-              children: [
-                for (final item in presentation.payments) ...[
-                  _JourneyPaymentCard(
-                    payment: item,
-                    onOpenPaymentObligation: onOpenPaymentObligation,
-                    onOpenCommerceOrder: onOpenCommerceOrder,
-                  ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                ],
-              ],
-            ),
-          ),
-        ],
-        if (presentation.activity != null ||
-            presentation.occurrence != null) ...[
-          const SizedBox(height: MakoloSpacing.xl),
-          MakoloSection(
-            title: 'Contexte',
-            child: Column(
-              children: [
-                if (presentation.activity != null)
-                  _ReferenceCard(
-                    reference: presentation.activity!,
-                    contextLabel: 'Activité',
-                    hideRepeatedTitle: presentation.activity!.label ==
-                        presentation.title,
-                    onTap: presentation.activity!.link == null
-                        ? null
-                        : () => onOpenActivity(presentation.activity!),
-                  ),
-                if (presentation.activity != null &&
-                    presentation.occurrence != null)
-                  const SizedBox(height: MakoloSpacing.sm),
-                if (presentation.occurrence != null)
-                  _ReferenceCard(
-                    reference: presentation.occurrence!,
-                    contextLabel: 'Occurrence',
-                    hideRepeatedTitle: presentation.occurrence!.label ==
-                        presentation.title,
-                    onTap: presentation.occurrence!.link == null
-                        ? null
-                        : () => onOpenOccurrence(presentation.occurrence!),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        if (presentation.access != null) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          MakoloSection(
-            title: 'Accès',
-            child: _ReferenceCard(
-              reference: presentation.access!,
-              onTap: presentation.access!.link == null
-                  ? null
-                  : () => onOpenAccess(presentation.access!),
-            ),
-          ),
-        ],
-        if (conversationEntry != null) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          conversationEntry!,
-        ],
-      ],
+            ],
+            if (presentation.access != null) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Accès',
+                child: _ReferenceCard(
+                  reference: presentation.access!,
+                  onTap: presentation.access!.link == null
+                      ? null
+                      : () => onOpenAccess(presentation.access!),
+                ),
+              ),
+            ],
+            if (conversationEntry != null) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              conversationEntry!,
+            ],
+          ],
         ),
       ),
     );
@@ -847,7 +873,10 @@ class _JourneyOutcomeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(outcome.$1, style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  outcome.$1,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 if (presentation.journeyState.trim().isNotEmpty)
                   Text(presentation.journeyState),
               ],
@@ -1077,10 +1106,7 @@ class _JourneyStepRow extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if (label != null)
-                    Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(label, style: Theme.of(context).textTheme.bodySmall),
                   if (dependencies.isNotEmpty)
                     Text(
                       'Après : ${dependencies.join(', ')}',
@@ -1110,11 +1136,16 @@ class _ReadinessGroups extends StatelessWidget {
     final actorInterventions = [
       for (final item in presentation.actorInterventions)
         if (presentation.nextActionKey == null ||
-            item.key != presentation.nextActionKey) item,
+            item.key != presentation.nextActionKey)
+          item,
     ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
       ('De votre côté', actorInterventions, Icons.touch_app_outlined),
-      ('Bloque la suite', presentation.blockers, Icons.report_gmailerrorred_rounded),
+      (
+        'Bloque la suite',
+        presentation.blockers,
+        Icons.report_gmailerrorred_rounded,
+      ),
       ('En attente', presentation.waiting, Icons.hourglass_empty_rounded),
     ];
     final visible = groups.where((item) => item.$2.isNotEmpty).toList();
@@ -1141,9 +1172,7 @@ class _ReadinessGroups extends StatelessWidget {
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final item in group.$2)
                   Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: MakoloSpacing.sm,
-                    ),
+                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1154,10 +1183,8 @@ class _ReadinessGroups extends StatelessWidget {
                             padding: const EdgeInsets.only(
                               top: MakoloSpacing.sm,
                             ),
-                            child: ownerAction(
-                                  item.nextLabel!,
-                                  item.nextLink,
-                                ) ??
+                            child:
+                                ownerAction(item.nextLabel!, item.nextLink) ??
                                 const SizedBox.shrink(),
                           ),
                       ],
@@ -1227,28 +1254,30 @@ class _JourneyPracticalCard extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.calendar_month_outlined),
               title: const Text('Début prévu'),
-              subtitle: Text([
-                if (date != null) date,
-                if (time != null) time,
-                if (ownerDate != null && facts.timezone != null)
-                  facts.timezone!,
-              ].join(' · ')),
+              subtitle: Text(
+                [
+                  if (date != null) date,
+                  if (time != null) time,
+                  if (ownerDate != null && facts.timezone != null)
+                    facts.timezone!,
+                ].join(' · '),
+              ),
             ),
           if (facts.placeName != null || facts.placeAddress != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.place_outlined),
               title: Text(facts.placeName ?? 'Lieu'),
-              subtitle: [
-                facts.placeAddress,
-                facts.placeLocality,
-              ].whereType<String>().where((value) => value.isNotEmpty).isEmpty
+              subtitle:
+                  [facts.placeAddress, facts.placeLocality]
+                      .whereType<String>()
+                      .where((value) => value.isNotEmpty)
+                      .isEmpty
                   ? null
                   : Text(
-                      [
-                        facts.placeAddress,
-                        facts.placeLocality,
-                      ].whereType<String>().where((value) => value.isNotEmpty)
+                      [facts.placeAddress, facts.placeLocality]
+                          .whereType<String>()
+                          .where((value) => value.isNotEmpty)
                           .join(', '),
                     ),
             ),
@@ -1302,9 +1331,7 @@ class _JourneyPaymentCard extends StatelessWidget {
         title: title,
         subtitle: payment.reason,
         status: state == null ? null : MakoloStatus(label: state),
-        action: open == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded),
+        action: open == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -1371,7 +1398,9 @@ class _ReferenceCard extends StatelessWidget {
         title: contextLabel ?? reference.label,
         subtitle: contextLabel == null
             ? (reference.isRequired ? 'Obligatoire' : null)
-            : hideRepeatedTitle ? null : reference.label,
+            : hideRepeatedTitle
+            ? null
+            : reference.label,
         status: MakoloHumanization.presentationLabel(reference.state) == null
             ? null
             : MakoloStatus(

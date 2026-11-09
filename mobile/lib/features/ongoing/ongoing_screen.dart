@@ -413,7 +413,8 @@ class _OngoingFieldState extends State<_OngoingField> {
     } else {
       final before = oldWidget.items.map((item) => item.id).toSet();
       // Only a new leading continuity merits attention, not older pages.
-      final added = before.isNotEmpty &&
+      final added =
+          before.isNotEmpty &&
           widget.items.isNotEmpty &&
           !before.contains(widget.items.first.id) &&
           !oldWidget.moreBusy &&
@@ -468,105 +469,105 @@ class _OngoingFieldState extends State<_OngoingField> {
   Widget build(BuildContext context) => Stack(
     children: [
       ListView.separated(
-    controller: _scroll,
-    key: const PageStorageKey<String>('ongoing-field'),
-    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-    itemCount: widget.items.length + 1,
-    // Like Discover, the breathing space must be visibly distinct from
-    // the unit canvas, not just an invisible gap of the same background.
-    // Only separate actual continuities, never the pagination sentinel.
-    separatorBuilder: (context, index) => index < widget.items.length - 1
-        ? ColoredBox(
-            key: const Key('ongoing-unit-gutter'),
-            color: context.makoloSurfaces.surface,
-            child: const SizedBox(height: MakoloSpacing.sm),
-          )
-        : const SizedBox.shrink(),
-    itemBuilder: (context, index) {
-      if (index == widget.items.length) {
-        if (widget.moreError != null) {
-          return Center(
-            child: MakoloActionButton(
-              label: 'Réessayer',
-              onPressed: widget.onMore,
-              icon: Icons.refresh_rounded,
-              appearance: MakoloActionAppearance.quiet,
-            ),
-          );
-        }
-        if (widget.moreBusy) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(MakoloSpacing.md),
-              child: CircularProgressIndicator.adaptive(),
-            ),
-          );
-        }
-        if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
-          return const SizedBox.shrink();
-        }
-        return const SizedBox(height: MakoloSpacing.xl);
-      }
-      final item = widget.items[index];
-      final expanded = _expanded.contains(item.id);
-      final hasDetail = _ongoingVisibleDetailGroups(item).isNotEmpty;
-      // Keep one continuity, its recognition media, details and commands
-      // within the same visual boundary. The actions always close the unit.
-      return DecoratedBox(
-        key: ValueKey<String>('ongoing-unit-${item.id}'),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _OngoingRow(
-              profileId: widget.profileId,
-              item: item,
-              selected: item.id == widget.selected?.id,
-              stale: widget.stale,
-              onTap: () => widget.onSelect(item),
-              baseUri: widget.baseUri,
-              api: widget.api,
-            ),
-            if (item.resources.isNotEmpty)
-              _OngoingResourceList(
-                item: item,
-                baseUri: widget.baseUri,
-                compact: true,
-              ),
-            if (hasDetail) ...[
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: () => setState(() {
-                    if (!_expanded.add(item.id)) _expanded.remove(item.id);
-                  }),
-                  icon: Icon(
-                    expanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                  ),
-                  label: Text(expanded ? 'Voir moins' : 'Voir plus'),
+        controller: _scroll,
+        key: const PageStorageKey<String>('ongoing-field'),
+        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
+        itemCount: widget.items.length + 1,
+        // Like Discover, the breathing space must be visibly distinct from
+        // the unit canvas, not just an invisible gap of the same background.
+        // Only separate actual continuities, never the pagination sentinel.
+        separatorBuilder: (context, index) => index < widget.items.length - 1
+            ? ColoredBox(
+                key: const Key('ongoing-unit-gutter'),
+                color: context.makoloSurfaces.surface,
+                child: const SizedBox(height: MakoloSpacing.sm),
+              )
+            : const SizedBox.shrink(),
+        itemBuilder: (context, index) {
+          if (index == widget.items.length) {
+            if (widget.moreError != null) {
+              return Center(
+                child: MakoloActionButton(
+                  label: 'Réessayer',
+                  onPressed: widget.onMore,
+                  icon: Icons.refresh_rounded,
+                  appearance: MakoloActionAppearance.quiet,
+                ),
+              );
+            }
+            if (widget.moreBusy) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(MakoloSpacing.md),
+                  child: CircularProgressIndicator.adaptive(),
+                ),
+              );
+            }
+            if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
+              return const SizedBox.shrink();
+            }
+            return const SizedBox(height: MakoloSpacing.xl);
+          }
+          final item = widget.items[index];
+          final expanded = _expanded.contains(item.id);
+          final hasDetail = _ongoingVisibleDetailGroups(item).isNotEmpty;
+          // Keep one continuity, its recognition media, details and commands
+          // within the same visual boundary. The actions always close the unit.
+          return DecoratedBox(
+            key: ValueKey<String>('ongoing-unit-${item.id}'),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
-              if (expanded) _OngoingN1Details(item: item),
-            ],
-            _OngoingN1Actions(
-              key: ValueKey<String>('ongoing-actions-${item.id}'),
-              item: item,
-              api: widget.api,
-              baseUri: widget.baseUri,
-              onSave: widget.onSave,
             ),
-          ],
-        ),
-      );
-    },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _OngoingRow(
+                  profileId: widget.profileId,
+                  item: item,
+                  selected: item.id == widget.selected?.id,
+                  stale: widget.stale,
+                  onTap: () => widget.onSelect(item),
+                  baseUri: widget.baseUri,
+                  api: widget.api,
+                ),
+                if (item.resources.isNotEmpty)
+                  _OngoingResourceList(
+                    item: item,
+                    baseUri: widget.baseUri,
+                    compact: true,
+                  ),
+                if (hasDetail) ...[
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() {
+                        if (!_expanded.add(item.id)) _expanded.remove(item.id);
+                      }),
+                      icon: Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                      ),
+                      label: Text(expanded ? 'Voir moins' : 'Voir plus'),
+                    ),
+                  ),
+                  if (expanded) _OngoingN1Details(item: item),
+                ],
+                _OngoingN1Actions(
+                  key: ValueKey<String>('ongoing-actions-${item.id}'),
+                  item: item,
+                  api: widget.api,
+                  baseUri: widget.baseUri,
+                  onSave: widget.onSave,
+                ),
+              ],
+            ),
+          );
+        },
       ),
       if (_newContinuitiesAvailable)
         Align(

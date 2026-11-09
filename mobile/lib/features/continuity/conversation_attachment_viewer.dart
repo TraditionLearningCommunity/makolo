@@ -51,8 +51,8 @@ class _ConversationAttachmentViewerState
   late int _index;
   int _generation = 0;
   bool _exporting = false;
-  Map<String, dynamic> get _attachment => widget.gallery.isEmpty
-      ? widget.attachment : widget.gallery[_index];
+  Map<String, dynamic> get _attachment =>
+      widget.gallery.isEmpty ? widget.attachment : widget.gallery[_index];
   File? _file;
   String? _error;
   AudioPlayer? _audio;
@@ -62,7 +62,8 @@ class _ConversationAttachmentViewerState
   void initState() {
     super.initState();
     _index = widget.gallery.isEmpty
-        ? 0 : widget.initialIndex.clamp(0, widget.gallery.length - 1).toInt();
+        ? 0
+        : widget.initialIndex.clamp(0, widget.gallery.length - 1).toInt();
     if (!widget.inline || _attachment['kind'] == 'image') _download();
   }
 
@@ -74,11 +75,11 @@ class _ConversationAttachmentViewerState
       _error = 'Lecteur privé indisponible.';
       return;
     }
-    _future = downloader(
+    _future =
+        downloader(
           attachmentId: current['id']?.toString() ?? '',
           filename: current['name']?.toString() ?? 'fichier',
-        )
-        .then((file) async {
+        ).then((file) async {
           if (!mounted || generation != _generation) {
             await file.delete().catchError((Object _) => file);
             throw StateError('Média abandonné.');
@@ -143,8 +144,11 @@ class _ConversationAttachmentViewerState
   }
 
   Future<void> _navigate(int next) async {
-    if (widget.gallery.isEmpty || next < 0 ||
-        next >= widget.gallery.length || _exporting) return;
+    if (widget.gallery.isEmpty ||
+        next < 0 ||
+        next >= widget.gallery.length ||
+        _exporting)
+      return;
     ++_generation;
     await _release();
     if (!mounted) return;
@@ -170,20 +174,23 @@ class _ConversationAttachmentViewerState
         final saved = await widget.downloads.save(
           source: file,
           fileName: makoloDownloadName(stem, extension),
-          mimeType: _attachment['mime_type']?.toString() ??
+          mimeType:
+              _attachment['mime_type']?.toString() ??
               'application/octet-stream',
         );
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Enregistré : ' + saved)),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Enregistré : ' + saved)));
         }
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(share
-              ? 'Partage indisponible.' : 'Téléchargement indisponible.')),
+          SnackBar(
+            content: Text(
+              share ? 'Partage indisponible.' : 'Téléchargement indisponible.',
+            ),
+          ),
         );
       }
     } finally {
@@ -227,7 +234,8 @@ class _ConversationAttachmentViewerState
             final duration = player.duration ?? Duration.zero;
             final position = state.data ?? Duration.zero;
             final maximum = duration.inMilliseconds > 0
-                ? duration.inMilliseconds.toDouble() : 1.0;
+                ? duration.inMilliseconds.toDouble()
+                : 1.0;
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -245,12 +253,18 @@ class _ConversationAttachmentViewerState
                         unawaited(player.play());
                       }
                     },
-                    icon: Icon(player.playing
-                        ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                    icon: Icon(
+                      player.playing
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                    ),
                   ),
                 ),
                 Slider(
-                  value: position.inMilliseconds.toDouble().clamp(0, maximum).toDouble(),
+                  value: position.inMilliseconds
+                      .toDouble()
+                      .clamp(0, maximum)
+                      .toDouble(),
                   max: maximum,
                   onChanged: duration > Duration.zero
                       ? (v) => player.seek(Duration(milliseconds: v.round()))
@@ -272,7 +286,8 @@ class _ConversationAttachmentViewerState
           builder: (context, _) {
             final value = player.value;
             final maximum = value.duration.inMilliseconds > 0
-                ? value.duration.inMilliseconds.toDouble() : 1.0;
+                ? value.duration.inMilliseconds.toDouble()
+                : 1.0;
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -296,17 +311,21 @@ class _ConversationAttachmentViewerState
                           player.play();
                         }
                       },
-                      icon: Icon(value.isPlaying
-                          ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                      icon: Icon(
+                        value.isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
                     ),
                     Expanded(
                       child: Slider(
                         value: value.position.inMilliseconds
-                            .toDouble().clamp(0, maximum).toDouble(),
+                            .toDouble()
+                            .clamp(0, maximum)
+                            .toDouble(),
                         max: maximum,
-                        onChanged: (v) => player.seekTo(
-                          Duration(milliseconds: v.round()),
-                        ),
+                        onChanged: (v) =>
+                            player.seekTo(Duration(milliseconds: v.round())),
                       ),
                     ),
                     Text(_time(value.position) + '/' + _time(value.duration)),
@@ -356,9 +375,15 @@ class _ConversationAttachmentViewerState
     final kind = _attachment['kind']?.toString() ?? 'file';
     final mime = _attachment['mime_type']?.toString() ?? '';
     if (widget.inline) {
-      final height = kind == 'image' || kind == 'video' ||
-              mime == 'application/pdf' || mime == 'text/plain'
-          ? 220.0 : kind == 'voice' || kind == 'audio' ? 144.0 : 84.0;
+      final height =
+          kind == 'image' ||
+              kind == 'video' ||
+              mime == 'application/pdf' ||
+              mime == 'text/plain'
+          ? 220.0
+          : kind == 'voice' || kind == 'audio'
+          ? 144.0
+          : 84.0;
       if (_future == null) {
         final label = switch (kind) {
           'audio' || 'voice' => 'Écouter le message vocal',
@@ -403,11 +428,15 @@ class _ConversationAttachmentViewerState
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (kind != 'image' && kind != 'video' &&
-                kind != 'audio' && kind != 'voice' &&
-                mime != 'application/pdf' && mime != 'text/plain') {
-              return const Center(child: Icon(
-                Icons.description_outlined, size: 42));
+            if (kind != 'image' &&
+                kind != 'video' &&
+                kind != 'audio' &&
+                kind != 'voice' &&
+                mime != 'application/pdf' &&
+                mime != 'text/plain') {
+              return const Center(
+                child: Icon(Icons.description_outlined, size: 42),
+              );
             }
             return ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -423,10 +452,17 @@ class _ConversationAttachmentViewerState
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(galleryLength > 1
-              ? title + ' · ' + (_index + 1).toString() +
-                  '/' + galleryLength.toString()
-              : title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: Text(
+            galleryLength > 1
+                ? title +
+                      ' · ' +
+                      (_index + 1).toString() +
+                      '/' +
+                      galleryLength.toString()
+                : title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           actions: [
             if (galleryLength > 1) ...[
               IconButton(
@@ -437,20 +473,23 @@ class _ConversationAttachmentViewerState
               IconButton(
                 tooltip: 'Média suivant',
                 onPressed: _index + 1 < galleryLength
-                    ? () => _navigate(_index + 1) : null,
+                    ? () => _navigate(_index + 1)
+                    : null,
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
             ],
             IconButton(
               tooltip: 'Télécharger',
               onPressed: _file == null || _exporting
-                  ? null : () => _fileAction(share: false),
+                  ? null
+                  : () => _fileAction(share: false),
               icon: const Icon(Icons.download_outlined),
             ),
             IconButton(
               tooltip: 'Partager le fichier',
               onPressed: _file == null || _exporting
-                  ? null : () => _fileAction(share: true),
+                  ? null
+                  : () => _fileAction(share: true),
               icon: const Icon(Icons.share_outlined),
             ),
             IconButton(
@@ -469,7 +508,10 @@ class _ConversationAttachmentViewerState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Pièce inaccessible ou connexion indisponible.'),
-                    TextButton(onPressed: _retry, child: const Text('Réessayer')),
+                    TextButton(
+                      onPressed: _retry,
+                      child: const Text('Réessayer'),
+                    ),
                   ],
                 ),
               );
@@ -479,7 +521,8 @@ class _ConversationAttachmentViewerState
             }
             return Column(
               children: [
-                if ((_attachment['caption']?.toString().trim() ?? '').isNotEmpty)
+                if ((_attachment['caption']?.toString().trim() ?? '')
+                    .isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text(
@@ -492,8 +535,12 @@ class _ConversationAttachmentViewerState
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Text(_error!, style: TextStyle(
-                      color: Theme.of(context).colorScheme.error)),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
                   ),
                 Expanded(child: _read(snapshot.data!)),
               ],

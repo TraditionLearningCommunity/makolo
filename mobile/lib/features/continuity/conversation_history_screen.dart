@@ -136,9 +136,11 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
     final priorSection = _section;
     final cursor = reset ? null : _nextCursor;
     final previousExtent = _scrollController.hasClients
-        ? _scrollController.position.maxScrollExtent : 0.0;
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
     final previousOffset = _scrollController.hasClients
-        ? _scrollController.offset : 0.0;
+        ? _scrollController.offset
+        : 0.0;
     setState(() {
       _loading = true;
       _error = null;
@@ -177,18 +179,22 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
         _initialAttempted = true;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || generation != _generation ||
-            !_scrollController.hasClients) return;
+        if (!mounted ||
+            generation != _generation ||
+            !_scrollController.hasClients)
+          return;
         if (reset) {
           _scrollController.jumpTo(0);
         } else {
-          final delta = _scrollController.position.maxScrollExtent -
-              previousExtent;
+          final delta =
+              _scrollController.position.maxScrollExtent - previousExtent;
           _scrollController.jumpTo(
-            (previousOffset + delta).clamp(
-              _scrollController.position.minScrollExtent,
-              _scrollController.position.maxScrollExtent,
-            ).toDouble(),
+            (previousOffset + delta)
+                .clamp(
+                  _scrollController.position.minScrollExtent,
+                  _scrollController.position.maxScrollExtent,
+                )
+                .toDouble(),
           );
         }
       });
@@ -265,8 +271,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
     final widgets = <Widget>[];
     DateTime? previousDay;
     DateTime? publishedDate(Map<String, dynamic> row) => DateTime.tryParse(
-      row['published_at']?.toString() ??
-          row['updated_at']?.toString() ?? '',
+      row['published_at']?.toString() ?? row['updated_at']?.toString() ?? '',
     )?.toLocal();
 
     var index = 0;

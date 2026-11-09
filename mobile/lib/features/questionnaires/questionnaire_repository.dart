@@ -74,8 +74,12 @@ class QuestionnaireMedia {
       );
 
   Map<String, dynamic> toViewerMap() => {
-    'id': id, 'kind': kind, 'name': name, 'mime_type': mimeType,
-    'caption': caption, 'download_path': downloadPath,
+    'id': id,
+    'kind': kind,
+    'name': name,
+    'mime_type': mimeType,
+    'caption': caption,
+    'download_path': downloadPath,
   };
 }
 
@@ -213,10 +217,14 @@ class QuestionnaireRequestDetail {
                 choices: choices,
                 media: _parseQuestionnaireMedia(question['media']),
                 choiceMedia: {
-                  for (final entry in question['choice_media'] is List
-                      ? question['choice_media'] as List : const [])
+                  for (final entry
+                      in question['choice_media'] is List
+                          ? question['choice_media'] as List
+                          : const [])
                     if (entry is Map && entry['index'] is int)
-                      entry['index'] as int: _parseQuestionnaireMedia(entry['media']),
+                      entry['index'] as int: _parseQuestionnaireMedia(
+                        entry['media'],
+                      ),
                 },
               );
             })
@@ -381,7 +389,9 @@ class QuestionnaireRepository {
   }) async {
     final engine = sync;
     if (engine == null) {
-      throw StateError('Connexion nécessaire pour lire ce média de questionnaire.');
+      throw StateError(
+        'Connexion nécessaire pour lire ce média de questionnaire.',
+      );
     }
     if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(attachmentId)) {
       throw const FormatException('Identifiant de média invalide.');
@@ -390,7 +400,8 @@ class QuestionnaireRepository {
     final dot = basename.lastIndexOf('.');
     final ext = dot > 0 ? basename.substring(dot) : '.bin';
     final safeExt = RegExp(r'^\.[A-Za-z0-9]{1,9}$').hasMatch(ext)
-        ? ext : '.bin';
+        ? ext
+        : '.bin';
     final temp = await getTemporaryDirectory();
     final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
     final dir = Directory('${temp.path}/questionnaire-$safeProfile');
@@ -410,6 +421,7 @@ class QuestionnaireRepository {
       rethrow;
     }
   }
+
   static String _relativeApiPath(String value) {
     final trimmed = value.trim();
     if (trimmed.startsWith('/')) return trimmed.substring(1);

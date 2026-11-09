@@ -143,27 +143,34 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
                 now: DateTime.now(),
                 sourceInvalidated: source.invalidated,
               );
-        final scoped = _actorValid && projection != null &&
+        final scoped =
+            _actorValid &&
+            projection != null &&
             OccurrenceContinuity.matches(
               payload: projection.payload,
               occurrenceId: widget.occurrenceId,
               profileId: widget.repository.profileId,
               surface: 'live',
             );
-        final available = scoped && !source.invalidated &&
+        final available =
+            scoped &&
+            !source.invalidated &&
             OccurrenceContinuity.verifiedAfterActorSwitch(
               lastSuccessAt: source.lastSuccessAt,
               actorSwitchedAt: _actorSwitchedAt,
             );
-        final liveEnded = scoped && OccurrenceContinuity.liveWindowEnded(
-          projection!.payload,
-          now: DateTime.now(),
-        );
+        final liveEnded =
+            scoped &&
+            OccurrenceContinuity.liveWindowEnded(
+              projection!.payload,
+              now: DateTime.now(),
+            );
         final globalState = SyncStatusScope.maybeOf(context)?.state;
-        final offline = globalState == SyncVisualState.offline ||
-                globalState == SyncVisualState.failed ||
-                globalState == SyncVisualState.conflict ||
-                globalState == SyncVisualState.stale;
+        final offline =
+            globalState == SyncVisualState.offline ||
+            globalState == SyncVisualState.failed ||
+            globalState == SyncVisualState.conflict ||
+            globalState == SyncVisualState.stale;
         final actionsAllowed = OccurrenceContinuity.canOfferActions(
           sourceInvalidated: source.invalidated,
           reachability: source.reachability,
@@ -176,8 +183,8 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
             : actionsAllowed
             ? null
             : source.reachability != ReachabilityState.reachable || offline
-                ? 'Dernière situation connue. Source actuellement inaccessible.'
-                : 'Situation ancienne, réconciliation requise.';
+            ? 'Dernière situation connue. Source actuellement inaccessible.'
+            : 'Situation ancienne, réconciliation requise.';
         final unavailable =
             !available &&
             !refreshing &&

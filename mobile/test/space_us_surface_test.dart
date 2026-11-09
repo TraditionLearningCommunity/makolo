@@ -112,13 +112,18 @@ void main() {
       expect(find.text('Passeport Makolo'), findsNothing);
       expect(find.text('Notre Passeport'), findsOneWidget);
       expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
-      expect(find.byKey(const Key('space-us-territories-list')), findsOneWidget);
+      expect(
+        find.byKey(const Key('space-us-territories-list')),
+        findsOneWidget,
+      );
       expect(find.text('Notre espace'), findsOneWidget);
       await tester.ensureVisible(find.text('Notre Passeport'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Notre Passeport'));
       expect(routes, ['/space/atelier/us/passport']);
-      await tester.ensureVisible(find.byKey(const Key('space-us-entry-relationships')));
+      await tester.ensureVisible(
+        find.byKey(const Key('space-us-entry-relationships')),
+      );
       await tester.tap(find.byKey(const Key('space-us-entry-relationships')));
       expect(routes.last, '/space/atelier/us/relationships');
       await tester.scrollUntilVisible(
@@ -157,7 +162,9 @@ void main() {
   }
 
   for (final width in [320.0, 360.0, 393.0]) {
-    testWidgets('Nous compact grid stays two-up at width $width', (tester) async {
+    testWidgets('Nous compact grid stays two-up at width $width', (
+      tester,
+    ) async {
       tester.view.physicalSize = Size(width, 940);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -176,10 +183,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+      await tester.ensureVisible(
+        find.byKey(const Key('space-us-layout-toggle')),
+      );
       await tester.tap(find.byIcon(Icons.grid_view_rounded));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
+      expect(
+        find.byKey(const Key('space-us-territories-grid')),
+        findsOneWidget,
+      );
 
       final first = find.byKey(const Key('space-us-grid-responsibilities'));
       final second = find.byKey(const Key('space-us-grid-team'));
@@ -199,41 +211,42 @@ void main() {
     });
   }
 
-  testWidgets('Nous identity truncates presentation visually, not owner facts', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(360, 940);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final projection = _projection();
-    final description = List.filled(
-      12,
-      'Notre Espace accompagne des rencontres et des activités collectives.',
-    ).join(' ');
-    (projection['identity'] as Map<String, dynamic>)['description'] =
-        description;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(
-          body: SpaceUsSurface(
-            payload: projection,
-            fallbackSpaceName: 'Fallback',
-            onOpen: (_) {},
+  testWidgets(
+    'Nous identity truncates presentation visually, not owner facts',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 940);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final projection = _projection();
+      final description = List.filled(
+        12,
+        'Notre Espace accompagne des rencontres et des activités collectives.',
+      ).join(' ');
+      (projection['identity'] as Map<String, dynamic>)['description'] =
+          description;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            body: SpaceUsSurface(
+              payload: projection,
+              fallbackSpaceName: 'Fallback',
+              onOpen: (_) {},
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text(description), findsOneWidget);
-    expect(
-      tester.getSize(find.byKey(const Key('space-us-identity-card'))).height,
-      lessThan(200),
-    );
-    expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(description), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('space-us-identity-card'))).height,
+        lessThan(200),
+      );
+      expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Nous management uses shared cards and real Space handoffs', (
     tester,
@@ -356,7 +369,8 @@ void main() {
           body: SpaceUsSurface(
             payload: projection,
             fallbackSpaceName: 'Fallback',
-            onOpen: (_) => fail('No restricted institution destination may open'),
+            onOpen: (_) =>
+                fail('No restricted institution destination may open'),
           ),
         ),
       ),
@@ -428,7 +442,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Statuts de l’Espace'), findsOneWidget);
     expect(find.textContaining('private_media'), findsNothing);
-    await tester.ensureVisible(find.byKey(const Key('space-us-entry-resources')));
+    await tester.ensureVisible(
+      find.byKey(const Key('space-us-entry-resources')),
+    );
     await tester.tap(find.byKey(const Key('space-us-entry-resources')));
     expect(opened.single, '/space/atelier/us/resources');
   });
@@ -572,5 +588,4 @@ void main() {
     expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
     expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
   });
-
 }

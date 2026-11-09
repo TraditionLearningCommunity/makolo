@@ -127,18 +127,19 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     });
     try {
       const retainOfflineCopy = false;
-      final pathOnDevice = await widget.repository.downloadVersionForExplicitExport(
-        path: path,
-        assetId: widget.assetId,
-        title: detail.title,
-        versionNumber: version.number,
-        retainOfflineCopy: retainOfflineCopy,
-        fileExtension: _extensionForMime(version.mimeType),
-        onProgress: (transferred, total) {
-          if (!mounted || total <= 0) return;
-          setState(() => _downloadProgress = transferred / total);
-        },
-      );
+      final pathOnDevice = await widget.repository
+          .downloadVersionForExplicitExport(
+            path: path,
+            assetId: widget.assetId,
+            title: detail.title,
+            versionNumber: version.number,
+            retainOfflineCopy: retainOfflineCopy,
+            fileExtension: _extensionForMime(version.mimeType),
+            onProgress: (transferred, total) {
+              if (!mounted || total <= 0) return;
+              setState(() => _downloadProgress = transferred / total);
+            },
+          );
       final exportedFile = File(pathOnDevice);
       try {
         final extension = _extensionForMime(version.mimeType);
@@ -177,10 +178,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     }
   }
 
-  Future<void> _share(
-    _ResourceDetail detail,
-    _ResourceVersion version,
-  ) async {
+  Future<void> _share(_ResourceDetail detail, _ResourceVersion version) async {
     final path = version.downloadPath;
     if (path == null || _sharing || _downloading) return;
     setState(() {
@@ -323,9 +321,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   }
 
   void _message(String value) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
   }
 
   @override
@@ -365,12 +361,10 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                           detail!.currentVersion!.mimeType == 'application/pdf'
                           ? 'Télécharger le PDF'
                           : 'Télécharger',
-                      icon:
-                          detail.currentVersion!.mimeType == 'application/pdf'
+                      icon: detail.currentVersion!.mimeType == 'application/pdf'
                           ? Icons.picture_as_pdf_outlined
                           : Icons.download_rounded,
-                      onPressed:
-                          !canDownload || _downloading || _sharing
+                      onPressed: !canDownload || _downloading || _sharing
                           ? null
                           : () => _download(detail, detail.currentVersion!),
                     ),
@@ -477,7 +471,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                   Icon(
                                     Icons.description_outlined,
                                     size: 32,
-                                    color: Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                   ),
                                   const SizedBox(width: MakoloSpacing.md),
                                   Expanded(
@@ -487,9 +483,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                       children: [
                                         Text(
                                           detail.title,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.headlineSmall,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .headlineSmall,
                                         ),
                                         const SizedBox(
                                           height: MakoloSpacing.xs,
@@ -522,10 +518,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Icon(
-                                        Icons.cloud_off_outlined,
-                                        size: 18,
-                                      ),
+                                      Icon(Icons.cloud_off_outlined, size: 18),
                                       SizedBox(width: MakoloSpacing.xs),
                                       Expanded(
                                         child: Text(
@@ -549,7 +542,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                 _VersionSummary(
                                   version: detail.currentVersion!,
                                   onOpen:
-                                      detail.currentVersion!.downloadPath != null &&
+                                      detail.currentVersion!.downloadPath !=
+                                              null &&
                                           canUseNetworkActions
                                       ? () => _openCurrentFile(
                                           detail,
@@ -563,9 +557,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                 children: [
                                   Text(
                                     'Versions',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge,
                                   ),
                                   const Spacer(),
                                   if (detail.versions.isNotEmpty)
@@ -575,9 +569,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                           .textTheme
                                           .labelLarge
                                           ?.copyWith(
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                           ),
                                     ),
                                   if (detail.addVersionPath != null &&
@@ -622,10 +616,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
 }
 
 class _VersionSummary extends StatelessWidget {
-  const _VersionSummary({
-    required this.version,
-    required this.onOpen,
-  });
+  const _VersionSummary({required this.version, required this.onOpen});
 
   final _ResourceVersion version;
   final VoidCallback? onOpen;
@@ -636,34 +627,33 @@ class _VersionSummary extends StatelessWidget {
     onTap: onOpen,
     child: MakoloCard(
       child: Row(
-      children: [
-        Icon(_fileIconForMime(version.mimeType)),
-        const SizedBox(width: MakoloSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Version ${version.number}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: MakoloSpacing.xs),
-              Text(
-                [
-                  version.validityLabel,
-                  'Provenance : ${version.provenanceLabel}',
-                ].join(' · '),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+        children: [
+          Icon(_fileIconForMime(version.mimeType)),
+          const SizedBox(width: MakoloSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Version ${version.number}',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ),
-            ],
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(
+                  [
+                    version.validityLabel,
+                    'Provenance : ${version.provenanceLabel}',
+                  ].join(' · '),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        if (onOpen != null)
-          const Icon(Icons.chevron_right_rounded),
-      ],
-    ),
+          if (onOpen != null) const Icon(Icons.chevron_right_rounded),
+        ],
+      ),
     ),
   );
 }
@@ -695,10 +685,7 @@ class _VersionRow extends StatelessWidget {
                 ),
                 const SizedBox(height: MakoloSpacing.xs),
                 Text(
-                  [
-                    version.validityLabel,
-                    version.provenanceLabel,
-                  ].join(' · '),
+                  [version.validityLabel, version.provenanceLabel].join(' · '),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -750,11 +737,8 @@ class _JourneyChooser extends StatelessWidget {
                             final choice = choices[index];
                             return ListTile(
                               title: Text(choice.title),
-                              trailing: const Icon(
-                                Icons.chevron_right_rounded,
-                              ),
-                              onTap: () =>
-                                  Navigator.of(context).pop(choice),
+                              trailing: const Icon(Icons.chevron_right_rounded),
+                              onTap: () => Navigator.of(context).pop(choice),
                             );
                           },
                         ),

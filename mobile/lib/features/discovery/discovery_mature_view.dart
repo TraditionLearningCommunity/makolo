@@ -678,21 +678,22 @@ class _DiscoveryMapPreview extends StatelessWidget {
             const Divider(height: 1),
             Row(
               children: [
-                if (!collectiveReadOnly) Expanded(
-                  child: IconButton(
-                    key: const Key('discover-map-save'),
-                    tooltip: saving
-                        ? 'Enregistrement…'
-                        : saved
-                        ? 'Retirer des enregistrements'
-                        : 'Enregistrer',
-                    onPressed: canChangeSaved && !saving ? onSave : null,
-                    icon: DiscoveryOrbitIcon(
-                      saved: saved,
-                      color: Theme.of(context).colorScheme.primary,
+                if (!collectiveReadOnly)
+                  Expanded(
+                    child: IconButton(
+                      key: const Key('discover-map-save'),
+                      tooltip: saving
+                          ? 'Enregistrement…'
+                          : saved
+                          ? 'Retirer des enregistrements'
+                          : 'Enregistrer',
+                      onPressed: canChangeSaved && !saving ? onSave : null,
+                      icon: DiscoveryOrbitIcon(
+                        saved: saved,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
-                ),
                 Expanded(
                   child: MakoloIconActionButton(
                     key: const Key('discover-map-open-n2'),
@@ -701,23 +702,24 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     icon: Icons.arrow_forward_rounded,
                   ),
                 ),
-                if (!collectiveReadOnly) Expanded(
-                  child: Center(
-                    child: DiscoveryShareControl(
-                      key: ValueKey(
-                        'discover-map-share-${(resolved ?? item).candidateKey}',
+                if (!collectiveReadOnly)
+                  Expanded(
+                    child: Center(
+                      child: DiscoveryShareControl(
+                        key: ValueKey(
+                          'discover-map-share-${(resolved ?? item).candidateKey}',
+                        ),
+                        item: resolved ?? item,
+                        api: shareApi,
+                        authenticated: shareAuthenticated,
+                        // Same owner Sharing operation as N1, in a map-safe sheet.
+                        enabled: resolved != null && !saving,
+                        showAsSheet: true,
+                        baseUri: baseUri,
+                        iconOnly: true,
                       ),
-                      item: resolved ?? item,
-                      api: shareApi,
-                      authenticated: shareAuthenticated,
-                      // Same owner Sharing operation as N1, in a map-safe sheet.
-                      enabled: resolved != null && !saving,
-                      showAsSheet: true,
-                      baseUri: baseUri,
-                      iconOnly: true,
                     ),
                   ),
-                ),
               ],
             ),
           ],

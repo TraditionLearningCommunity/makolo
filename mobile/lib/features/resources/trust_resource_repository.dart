@@ -11,7 +11,8 @@ enum TrustResourceFamily {
   proofs,
   titles;
 
-  String get segment => this == TrustResourceFamily.proofs ? 'proofs' : 'titles';
+  String get segment =>
+      this == TrustResourceFamily.proofs ? 'proofs' : 'titles';
   String get collectionProjection => this == TrustResourceFamily.proofs
       ? 'personal.proofs'
       : 'personal.titles';
@@ -147,19 +148,17 @@ class TrustResourceRepository {
     );
   }
 
-  SyncSourceDefinition detailSourceFor(
-    TrustResourceFamily family,
-    String id,
-  ) => SyncSourceDefinition.projectionEnvelope(
-    sourceKey: detailSourceKey(family, id),
-    owner: 'Trust',
-    path: 'api/v1/me/${family.segment}/${Uri.encodeComponent(id)}/',
-    projectionKind: family.detailProjection,
-    resourceKey: id,
-    indexedResourceKind: family.indexedKind,
-    category: SyncSourceCategory.keyedDetail,
-    freshnessPolicy: freshnessPolicy,
-  );
+  SyncSourceDefinition detailSourceFor(TrustResourceFamily family, String id) =>
+      SyncSourceDefinition.projectionEnvelope(
+        sourceKey: detailSourceKey(family, id),
+        owner: 'Trust',
+        path: 'api/v1/me/${family.segment}/${Uri.encodeComponent(id)}/',
+        projectionKind: family.detailProjection,
+        resourceKey: id,
+        indexedResourceKind: family.indexedKind,
+        category: SyncSourceCategory.keyedDetail,
+        freshnessPolicy: freshnessPolicy,
+      );
 
   Stream<List<StoredProjection>> watchCollectionPages(
     TrustResourceFamily family,
@@ -191,10 +190,8 @@ class TrustResourceRepository {
     ),
   );
 
-  Future<StoredProjection?> readDetail(
-    TrustResourceFamily family,
-    String id,
-  ) => store.readProjection(family.detailProjection, resourceKey: id);
+  Future<StoredProjection?> readDetail(TrustResourceFamily family, String id) =>
+      store.readProjection(family.detailProjection, resourceKey: id);
 
   Future<bool> shouldRefreshCollectionPage({
     required TrustResourceFamily family,
@@ -225,7 +222,9 @@ class TrustResourceRepository {
       limit: limit,
     );
     if (source.ownerDenied) return false;
-    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+    if (projection == null ||
+        source.lastErrorCode != null ||
+        source.invalidated) {
       return true;
     }
     return freshnessPolicy.evaluate(
@@ -243,7 +242,9 @@ class TrustResourceRepository {
     final projection = await readDetail(family, id);
     final source = await readDetailSource(family, id);
     if (source.ownerDenied) return false;
-    if (projection == null || source.lastErrorCode != null || source.invalidated) {
+    if (projection == null ||
+        source.lastErrorCode != null ||
+        source.invalidated) {
       return true;
     }
     return freshnessPolicy.evaluate(
@@ -345,8 +346,7 @@ class TrustResourceRepository {
     final row =
         await (database.select(database.syncSources)..where(
               (item) =>
-                  item.profileId.equals(profileId) &
-                  item.sourceKey.equals(key),
+                  item.profileId.equals(profileId) & item.sourceKey.equals(key),
             ))
             .getSingleOrNull();
     return row == null
