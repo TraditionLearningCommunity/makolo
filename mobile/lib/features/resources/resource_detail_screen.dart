@@ -121,22 +121,6 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   ) async {
     final path = version.downloadPath;
     if (path == null || _downloading || _sharing) return;
-    if (detail.sensitivity == 'normal') {
-      final source = await widget.repository.readDetailSource(widget.assetId);
-      if (source.reachability == ReachabilityState.unreachable) {
-        final retained = await widget.repository.localVersionExists(
-          assetId: widget.assetId,
-          title: detail.title,
-          versionNumber: version.number,
-        );
-        if (!retained) {
-          if (mounted) {
-            _message('Ce fichier n’est pas disponible hors connexion.');
-          }
-          return;
-        }
-      }
-    }
     setState(() {
       _downloading = true;
       _downloadProgress = null;
@@ -362,9 +346,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
             final networkAvailable =
                 source.reachability == ReachabilityState.reachable;
             final canUseNetworkActions = ownerAvailable && networkAvailable;
-            final canDownload =
-                ownerAvailable &&
-                (networkAvailable || detail?.sensitivity == 'normal');
+            final canDownload = canUseNetworkActions;
 
             return Scaffold(
               appBar: AppBar(
@@ -747,30 +729,38 @@ class _JourneyChooser extends StatelessWidget {
       stream: personal.watchOngoing(),
       builder: (context, snapshot) {
         final choices = _journeys(snapshot.data?.payload);
-        return Padding(
-          padding: const EdgeInsets.all(MakoloSpacing.inner),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Choisir une démarche',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: MakoloSpacing.md),
-              if (choices.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-                  child: Text('Aucune démarche disponible'),
-                )
-              else
-                for (final choice in choices)
-                  ListTile(
-                    title: Text(choice.title),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => Navigator.of(context).pop(choice),
-                  ),
-            ],
+        return FractionallySizedBox(
+          heightFactor: 0.72,
+          child: Padding(
+            padding: const EdgeInsets.all(MakoloSpacing.inner),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Choisir une démarche',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                Expanded(
+                  child: choices.isEmpty
+                      ? const Center(child: Text('Aucune démarche disponible'))
+                      : ListView.builder(
+                          itemCount: choices.length,
+                          itemBuilder: (context, index) {
+                            final choice = choices[index];
+                            return ListTile(
+                              title: Text(choice.title),
+                              trailing: const Icon(
+                                Icons.chevron_right_rounded,
+                              ),
+                              onTap: () =>
+                                  Navigator.of(context).pop(choice),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         );
       },
