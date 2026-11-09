@@ -813,6 +813,31 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       setState(() => _error = 'Prévoyez entre 2 et 12 choix différents.');
       return;
     }
+    final richMedia = <Map<String, dynamic>>[
+      if (_mediaPath != null && _mediaFilename != null && _mediaKind != null)
+        {
+          'scope': 'point', 'path': _mediaPath!,
+          'filename': _mediaFilename!, 'kind': _mediaKind!,
+          'caption': _mainMediaCaption,
+        },
+      for (final item in _additionalMedia) {...item, 'scope': 'point'},
+      for (var index = 0; index < _optionControllers.length; index++)
+        for (final item in _optionMedia[index] ?? <Map<String, dynamic>>[])
+          {...item, 'scope': 'option', 'option_index': index},
+    ];
+    final hasStructuredMedia = _additionalMedia.isNotEmpty ||
+        _optionMedia.values.any((items) => items.isNotEmpty) ||
+        _mainMediaCaption.trim().isNotEmpty;
+    if (richMedia.length > 24) {
+      setState(() => _error = 'Prévoyez au maximum 24 médias.');
+      return;
+    }
+    if (kind == 'poll' &&
+        _optionMedia.values.any((items) => items.isNotEmpty) &&
+        _optionControllers.any((controller) => controller.text.trim().isEmpty)) {
+      setState(() => _error = 'Complétez chaque choix avant de joindre ses médias.');
+      return;
+    }
     setState(() {
       _sending = true;
       _error = null;
@@ -821,7 +846,33 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       _saveDraft();
       await _draftWrites;
       final delivery = widget.repository.delivery;
-      if (delivery != null) {
+      if (hasStructuredMedia && richMedia.isNotEmpty) {
+        // All files and their positions are committed by the owner in one
+        // request. An unavailable transport leaves this draft untouched.
+        _reference ??= _newConversationReference();
+        final published = await widget.repository.publishSemanticPointWithMedia(
+          conversationId: widget.conversationId,
+          clientReference: _reference!,
+          kind: kind,
+          title: title,
+          body: body,
+          options: options,
+          multipleChoice: _multipleChoice,
+          media: richMedia,
+          audienceId: _audienceId,
+          representedSpaceId: _representedSpace,
+        );
+        if (delivery != null) {
+          try {
+            await delivery.clearDraft(
+              conversationId: widget.conversationId, kind: kind,
+            );
+          } on Object {
+            // Published content stays confirmed even if draft cleanup fails.
+          }
+        }
+        if (mounted) widget.onPublished(published);
+      } else if (delivery != null) {
         await delivery.queue(
           conversationId: widget.conversationId,
           mode: _mediaPath == null ? 'point' : 'media',
