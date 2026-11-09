@@ -53,6 +53,9 @@ class LiveRepository {
         path: 'api/v1/operations/occurrences/$occurrenceId/experience/live/',
         projectionKind: projectionKind,
         resourceKey: occurrenceId,
+        expectedOccurrenceId: occurrenceId,
+        expectedViewerProfileId: profileId,
+        expectedSurface: 'live',
         category: SyncSourceCategory.boundedOperational,
         freshnessPolicy: freshnessPolicy,
       );
