@@ -110,8 +110,13 @@ def _collective_manage_allowed(actor, *, space=None, group=None):
 def _visible_group(actor, group, *, exact=False):
     if group.status != GroupStatus.ACTIVE:
         return False
-    if can_view_group(actor, group):
+    if group.owner_profile_id == getattr(actor, "pk", None) or can_view_group(actor, group):
         return True
+    if group.space_id and group.discoverability == GroupDiscoverability.SPACE_ONLY:
+        return TeamMembership.objects.filter(
+            team__organization_id=group.space_id, team__is_active=True,
+            user=actor, status=TeamMembershipStatus.ACTIVE,
+        ).exists()
     return group.discoverability in (
         {GroupDiscoverability.LISTED, GroupDiscoverability.UNLISTED}
         if exact else {GroupDiscoverability.LISTED}
@@ -194,6 +199,10 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
         raise PermissionDenied("Vous ne pouvez pas inviter dans cette Conversation.")
     if conversation.lifecycle != ConversationLifecycle.OPEN:
         raise ValidationError("Cette Conversation n'est pas ouverte aux invitations.")
+    if conversation.context.kind == "direct":
+        raise ValidationError(
+            "Une Conversation directe conserve uniquement les deux Profils consentants."
+        )
     identifier = _identity(identifier)
     kind = (kind or "").strip().lower()
     if kind == "profile":
