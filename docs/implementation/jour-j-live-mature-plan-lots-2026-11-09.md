@@ -1,6 +1,6 @@
 # Jour J & Makolo Live Mature — plan d'implémentation par lots
 
-**Statut :** L1–L5 développés sur la branche #522, sans exécution de CI ni certification technique ; L6–L7 restent à réaliser.  
+**Statut :** L1–L6 développés sur la branche #522, sans exécution de CI ni certification technique ; L7 reste à réaliser.  
 **Date :** 9 novembre 2026.  
 **Branche de rattachement :** PR #522, `fix/discover-a-continuation-context-20261014`.  
 **Contrat cible :** `docs/ux/Makolo_Jour_J_et_Live_Contrat_Cible_Mature_Unifie_2026-11-09.md`.  
@@ -225,6 +225,56 @@ L7 Scénarios finaux / validation / intégration
 
 **Sortie L5 :** profondeurs minimales et cohérentes, connectées aux owners sans duplication de domaine.
 
+## État d'exécution — L6 (9 novembre 2026)
+
+**L6 a reçu sa passe d'implémentation sur #522.** Les tests ciblés sont versionnés mais non exécutés ; la certification de leurs résultats et la revue visuelle de l'application restent à effectuer en L7. Aucun déploiement, merge ou migration n'a été effectué pour L6.
+
+### L6.1 — Réconciliation et fraîcheur
+
+- Les trois écrans Flutter unifiés (Jour J Profil, Live Profil, Jour J/Live Space) rechargent depuis Operations à l'ouverture et à la reprise, avec une actualisation périodique tant qu'ils restent au premier plan : 60 secondes pour Jour J, 30 secondes pour Live.
+- Les requêtes obsolètes après changement de widget ou d'acteur ne peuvent plus rétablir l'état visuel du précédent contexte.
+- `OccurrenceExperienceContent` sépare une lecture fraîche d'une **dernière information connue** : source inaccessible, échec de synchronisation, fraîcheur expirée, ou fenêtre Live connue comme terminée.
+- Les données d'une ancienne fenêtre Live peuvent être lisibles uniquement comme information historique explicitement étiquetée, jamais comme fait « observé actuellement ». Le handoff vers Live disparaît de Jour J si la fin connue de la fenêtre est atteinte.
+- Web : les pages personnelles, Space, Scanner et profondeurs portent `Cache-Control: no-store`. Le fragment `continuity_guard.html` et `static/js/occurrence_continuity.js` revérifient la page au retour d'onglet/BFCache et signalent une lecture vieille de plus de deux minutes ; les commandes Web de cette page deviennent inactives jusqu'à nouvelle vérification.
+
+### L6.2 — Isolation de données
+
+- `SyncSourceDefinition.projectionEnvelope` accepte des contraintes strictes **optionnelles**, appliquées ici aux seuls snapshots Occurrence : `expectedOccurrenceId`, `expectedViewerProfileId`, `expectedActorSpaceId` et `expectedSurface`. Toute réponse incompatible lève une erreur de contrat **avant `store.putProjection`**.
+- Operations expose `context.viewer_profile_id` et l'identifiant réel de l'Occurrence. Une projection `actor_space` conserve explicitement l'identité du Space mandaté.
+- Le stockage reste dans les bases séparées par Profil et dans les clés réelles déjà présentes : `occurrenceId` pour Profil ; `spaceId|occurrenceId` et `SyncActorScope.space` pour Espace. Pas de cache métier ou statut supplémentaire.
+- Les écrans réévaluent l'identité **même en lecture d'anciens snapshots** ; une projection non compatible n'est pas affichée. Après un retour à un acteur précédent, ils attendent une nouvelle réponse propriétaire réussie avant de présenter ses données privées, afin d'éviter une réapparition momentanée d'un mandat retiré.
+
+### L6.3 — Révocation et commandes
+
+- `SyncEngine` conserve ses tombstones propriétaires sur `403/404` et supprime atomiquement la projection visée ; la nouvelle logique retire également le **Live frère pour le même Profil/Space/Occurrence** lorsqu'un Jour J devient inaccessible. Une réponse Live `404` retire seulement Live et laisse Jour J légitime intact.
+- La génération de synchronisation du Live frère est invalidée, empêchant une ancienne requête Live arrivée après le refus Jour J de réhydrater la représentation privée.
+- Une panne réseau ou un `5xx` ne se transforme pas en révocation : les dernières données connues restent marquées comme telles, sans mutation déclenchable.
+- Scanner Flutter : reprise = nouvelle vérification, arrêt de la caméra et purge de la saisie/résultat quand l'application quitte le premier plan, blocage des doubles confirmations et vérification du handoff owner avant le POST. Les profondeurs Flutter annulent leur état privé affiché lors d'une suspension.
+- Le contrôle serveur reste l'autorité pour chaque mutation ; un bouton ou un cache ne peut accorder un nouveau Mandate. Jour J ne crée ni deuxième Access, ni deuxième Capacity ni nouveau flux d'incident.
+
+### L6.4 — Robustesse et accessibilité
+
+- Les cartes de plusieurs obligations `actions[]` sont disposées en une colonne Compact et deux colonnes Medium/Wide si la largeur réelle le permet : **les deux obligations restent présentes simultanément**, sans sélecteur de rôle.
+- Les profondeurs utilisent la même adaptation de largeur ; boutons minimum 48 px logiques, libellés textuels, messages de statut `Semantics(liveRegion: true)` en Flutter et `role=status/aria-live` sur Web.
+- Les listes préservent leur position via `PageStorageKey` tenant compte du Profil, de l'Occurrence, de l'acteur Space et de la surface. Le retour depuis une profondeur utilise la navigation établie.
+- Les mutations Web de type file/checkpoint/placement et activation Live demandent une confirmation, même lorsque plusieurs responsabilités coexistent. Le Web Scanner ne conserve pas un code non envoyé pendant un changement d'onglet.
+
+### L6.5 — Contrats ajoutés mais non exécutés
+
+- `mobile/test/occurrence_continuity_l6_test.dart` : identité, espace/Profil, fin Live, hors ligne, révocation, actions simultanées et texte agrandi Compact/Wide.
+- `mobile/test/occurrence_scope_parser_l6_test.dart` : rejet avant cache des réponses d'Occurrence, viewer, Space ou surface divergents.
+- `mobile/test/occurrence_sync_revocation_l6_test.dart` : retrait du Live frère, absence de purge de Jour J sur Live `404`, panne réseau, isolation Space A/B et réponse Live tardive.
+- `operations/test_experience_continuity_l6.py` : scopes et URL canoniques, refus après révocation, Live opt-out, en-têtes de confidentialité Web/API.
+- Assertions Scanner Web héritées de L4 mises à jour selon la **vraie capacité canonique L5** (la caméra ne démarre jamais toute seule), sans relâcher le contrôle d'autorité ni le test de révocation.
+- **Non exécutés :** tests Django, Flutter, visuels, CI, simulations offline réelles, cold start/foreground en appareil et smoke tests. Ils sont requis pour la certification finale L7.
+
+### Frontières conservées
+
+- Un `end_at` connu permet d'arrêter localement la présentation Live courante ; pour les Occurrences à dates sans heure terminale, la nouvelle vérification serveur régulière reste la seule autorité de fin de fenêtre.
+- Le retrait d'une permission n'est pas détecté magiquement hors connexion : les informations affichées sont alors explicitement **dernières données connues et non autorisations actuelles**, et toute action propriétaire nécessite une nouvelle lecture.
+- Les tuteurs multiporteurs Dossier, les médias incidents sans owner publiable, les paiements et réservations de capacité ne sont pas réimplémentés dans Jour J ou Live.
+- Aucune CI n'a été lancée et aucune conformité visuelle ou technique de L6 n'est déclarée sans preuve d'exécution.
+
 ### L6 — Continuité et présentation robuste (P1)
 
 - **L6.1** Réconciliation à l'ouverture, au refresh et au retour au premier plan ; distinction état courant / dernière information connue / source inaccessible.
@@ -269,4 +319,4 @@ L7 Scénarios finaux / validation / intégration
 - Aucun lot ne doit imposer une nouvelle migration, nouvelle API ou nouveau domaine sans démonstration de nécessité après L0.
 - Chaque changement de code devra être annoncé avant commit/push ; préserver la branche et la CI, ne pas modifier `main` directement.
 
-**État de ce document : L1–L5 sont développés sur #522, non certifiés faute d'exécution des validations ; L6–L7 ne sont pas clôturés.**
+**État de ce document : L1–L6 sont développés sur #522, non certifiés faute d'exécution des validations ; L7 reste ouvert.**
