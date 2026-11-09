@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/local/profile_store.dart';
+import '../features/discovery/discovery_repository.dart';
 import '../design/behavior_primitives.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
@@ -250,6 +251,24 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     final syncStatus = SyncStatusScope.maybeOf(context);
     final useRail = MakoloLayout.useNavigationRail(MediaQuery.sizeOf(context));
     final destinations = MakoloDestination.primaryForActor(actor);
+    // Search and Map navigate the same Discovery field for the active actor.
+    // An earlier Profile or Space exploration must never survive an actor switch.
+    final rememberedExploration = widget.runtime.discovery?.activeExploration;
+    final discoveryQuery = switch (actor) {
+      SpaceActorContext(:final space) =>
+        rememberedExploration?.isSpace == true &&
+                rememberedExploration?.spaceId == space.id &&
+                rememberedExploration?.spaceSlug == space.slug
+            ? rememberedExploration!
+            : DiscoveryQuery(spaceSlug: space.slug, spaceId: space.id),
+      PersonalActorContext() =>
+        rememberedExploration?.isSpace == true
+            ? const DiscoveryQuery()
+            : rememberedExploration ?? const DiscoveryQuery(),
+    };
+    final enableSpaceDiscoveryActions =
+        actor is SpaceActorContext &&
+        destination.door == MakoloPrimaryDoor.discover;
 
     return StreamBuilder<StoredProjection?>(
       stream: _meStream,
@@ -302,21 +321,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
             onConversations: () => unawaited(_openSecondary('/conversations')),
             onNotifications: () => unawaited(_openSecondary('/notifications')),
-            onSearch: actor is PersonalActorContext
-                ? () => context.push(
-                    widget.runtime.discovery?.activeExploration.routeLocation(
-                          '/discover/search',
-                        ) ??
-                        '/discover/search',
-                  )
+            onSearch: actor is PersonalActorContext || enableSpaceDiscoveryActions
+                ? () => context.push(discoveryQuery.routeLocation('/discover/search'))
                 : null,
-            onMap: actor is PersonalActorContext
-                ? () => context.push(
-                    widget.runtime.discovery?.activeExploration.routeLocation(
-                          '/discover/map',
-                        ) ??
-                        '/discover/map',
-                  )
+            onMap: actor is PersonalActorContext || enableSpaceDiscoveryActions
+                ? () => context.push(discoveryQuery.routeLocation('/discover/map'))
                 : null,
             onCalendar: actor is PersonalActorContext
                 ? () => context.push('/ongoing/calendar')
