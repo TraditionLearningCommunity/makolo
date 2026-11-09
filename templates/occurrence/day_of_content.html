@@ -169,7 +169,7 @@
   <section class="mk-panel p-5 sm:p-6" aria-labelledby="day-of-live-settings">
     <h3 id="day-of-live-settings" class="text-lg font-bold">Publication Makolo Live</h3>
     <p class="mt-2 text-sm" style="color:var(--mk-muted)">Live est facultatif pour chaque Occurrence. L'activer rend sa lecture possible uniquement pendant la fenêtre admissible ; cela ne crée aucun fait observé.</p>
-    <form method="post" class="mt-4">
+    <form method="post" data-sensitive-action="true" class="mt-4">
       {% csrf_token %}
       <input type="hidden" name="action" value="configure_live">
       {% if occurrence.live_enabled %}
