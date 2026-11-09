@@ -847,31 +847,45 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       await _draftWrites;
       final delivery = widget.repository.delivery;
       if (hasStructuredMedia && richMedia.isNotEmpty) {
-        // All files and their positions are committed by the owner in one
-        // request. An unavailable transport leaves this draft untouched.
-        _reference ??= _newConversationReference();
-        final published = await widget.repository.publishSemanticPointWithMedia(
-          conversationId: widget.conversationId,
-          clientReference: _reference!,
-          kind: kind,
-          title: title,
-          body: body,
-          options: options,
-          multipleChoice: _multipleChoice,
-          media: richMedia,
-          audienceId: _audienceId,
-          representedSpaceId: _representedSpace,
-        );
         if (delivery != null) {
+          // Stage all files in the Profile-private Outbox before closing the
+          // editor. Replays preserve exact media/choice placement and identity.
+          await delivery.queue(
+            conversationId: widget.conversationId,
+            mode: 'semantic_media',
+            kind: kind,
+            title: title,
+            body: body,
+            options: options,
+            multipleChoice: _multipleChoice,
+            semanticMedia: richMedia,
+            audienceId: _audienceId,
+            representedSpaceId: _representedSpace,
+          );
           try {
             await delivery.clearDraft(
               conversationId: widget.conversationId, kind: kind,
             );
           } on Object {
-            // Published content stays confirmed even if draft cleanup fails.
+            // The immutable Outbox intent remains durable.
           }
+          if (mounted) widget.onQueued();
+        } else {
+          _reference ??= _newConversationReference();
+          final published = await widget.repository.publishSemanticPointWithMedia(
+            conversationId: widget.conversationId,
+            clientReference: _reference!,
+            kind: kind,
+            title: title,
+            body: body,
+            options: options,
+            multipleChoice: _multipleChoice,
+            media: richMedia,
+            audienceId: _audienceId,
+            representedSpaceId: _representedSpace,
+          );
+          if (mounted) widget.onPublished(published);
         }
-        if (mounted) widget.onPublished(published);
       } else if (delivery != null) {
         await delivery.queue(
           conversationId: widget.conversationId,
