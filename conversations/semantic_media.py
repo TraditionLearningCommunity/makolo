@@ -56,6 +56,7 @@ def publish_semantic_point_with_media(
         raise ValidationError({"kind": "Type de Point inconnu."})
     policy = getattr(conversation, "policy", None)
     validated = []
+    total_bytes = 0
     for item in media_items:
         scope = item.get("scope")
         index = item.get("option_index")
@@ -64,6 +65,9 @@ def publish_semantic_point_with_media(
         caption = item.get("caption", "")
         if scope not in {"point", "option"} or file is None:
             raise ValidationError({"media": "Emplacement de média invalide."})
+        total_bytes += int(getattr(file, "size", 0) or 0)
+        if total_bytes > 64 * 1024 * 1024:
+            raise ValidationError({"media": "Ensemble de médias trop volumineux."})
         if scope == "option" and (
             kind != ConversationPointKind.POLL
             or not isinstance(index, int) or isinstance(index, bool)
