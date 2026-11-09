@@ -117,7 +117,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
           setState(() {
             _rows
               ..clear()
-              ..addAll(_pointRows(cached.payload['results']));
+              ..addAll(_pointRows(cached.payload['results']).reversed);
             _nextCursor = cached.payload['next_cursor']?.toString();
             _showingLocal = true;
           });
@@ -153,12 +153,20 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
           _section != priorSection) {
         return;
       }
-      final arrived = _pointRows(payload['results']);
+      // C5 returns newest-first to advance the signed keyset cursor.
+      // Every page is displayed oldest-first, with older pages prepended.
+      final arrived = _pointRows(payload['results']).reversed.toList();
       setState(() {
         if (reset) _rows.clear();
         final known = _rows.map((row) => row['id']?.toString()).toSet();
+        final fresh = <Map<String, dynamic>>[];
         for (final row in arrived) {
-          if (known.add(row['id']?.toString())) _rows.add(row);
+          if (known.add(row['id']?.toString())) fresh.add(row);
+        }
+        if (reset) {
+          _rows.addAll(fresh);
+        } else {
+          _rows.insertAll(0, fresh);
         }
         _nextCursor = payload['next_cursor']?.toString();
         _showingLocal = false;
