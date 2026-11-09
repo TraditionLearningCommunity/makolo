@@ -347,7 +347,10 @@ class ConversationComposeView(ConversationDetailView):
                     title=request.POST.get("title", ""),
                     body=request.POST.get("body", ""),
                     audience_id=request.POST.get("audience_id") or None,
-                    options=options, represented_space=represented_space,
+                    options=options,
+                    multiple_choice=(kind == "poll" and
+                                     request.POST.get("multiple_choice") == "true"),
+                    represented_space=represented_space,
                     client_reference=ref,
                 )
                 point_id = point.pk
