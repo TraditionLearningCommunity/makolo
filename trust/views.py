@@ -65,6 +65,13 @@ def _safe_collection_return(candidate, *, fallback):
     return candidate
 
 
+class _PrivateNoStoreTemplateMixin:
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 def _error_text(exc):
     if hasattr(exc, "message_dict"):
         return "; ".join(str(value) for values in exc.message_dict.values() for value in values)
@@ -225,7 +232,7 @@ class EvidenceDownloadView(LoginRequiredMixin, View):
         return response
 
 
-class MyProofsView(LoginRequiredMixin, TemplateView):
+class MyProofsView(_PrivateNoStoreTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "trust/my_proofs.html"
     login_url = "core:login"
 
@@ -285,7 +292,7 @@ class MyProofsView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class ProofDetailView(LoginRequiredMixin, TemplateView):
+class ProofDetailView(_PrivateNoStoreTemplateMixin, LoginRequiredMixin, TemplateView):
     template_name = "trust/proof_detail.html"
     login_url = "core:login"
 
