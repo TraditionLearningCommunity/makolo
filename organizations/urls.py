@@ -87,6 +87,7 @@ from .space_retrieval_detail_web import (
 from .space_ws5_web import (
     SpaceMarkWS5View,
     SpaceOccurrenceDayOfView,
+    SpaceOccurrenceDepthView,
     SpaceOccurrenceLiveView,
     SpaceOccurrenceScannerActionView,
     SpaceOccurrenceScannerView,
@@ -126,6 +127,7 @@ urlpatterns = [
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/live/", SpaceOccurrenceLiveView.as_view(), name="space-occurrence-live"),
+    path("<slug:slug>/occurrences/<uuid:occurrence_id>/depth/<str:kind>/", SpaceOccurrenceDepthView.as_view(), name="space-occurrence-depth"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
