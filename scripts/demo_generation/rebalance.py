@@ -43,8 +43,6 @@ def main(argv=None):
         parser.error("--per-profile 1..30")
     if args.profile_username and not args.profile_username.startswith("world_"):
         parser.error("Rebalancing requires a synthetic world_* profile")
-    if args.direction == "trim" and args.apply and not args.backup:
-        parser.error("--direction trim --apply requires --backup")
     if args.space_id and args.target != "spaces":
         parser.error("--space-id requires --target spaces")
     if not args.activity_prefix.startswith("demo-"):
