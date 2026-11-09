@@ -101,6 +101,74 @@ void main() {
     );
   });
 
+  test('N3 Space wire verifies the real actor and viewer before caching', () {
+    final envelope = <String, dynamic>{
+      'meta': {
+        'projection': 'discovery.item',
+        'schema_version': 1,
+        'scope': 'space',
+        'generated_at': '2026-11-09T08:00:00+00:00',
+      },
+      'data': {
+        'actor': {'type': 'space', 'id': 'space-a'},
+        'viewer': {'type': 'profile', 'id': 'profile-1'},
+        'item': {
+          'identity': {
+            'family': 'activity',
+            'candidate_key': 'activity:one',
+            'resource': {'kind': 'activity', 'id': 'one'},
+          },
+          'representation': {'title': 'Possibilité publique'},
+          'capabilities': ['view'],
+        },
+      },
+    };
+    final verified = DiscoveryWire.receiveItem(
+      envelope,
+      scope: 'space',
+      expectedSpaceId: 'space-a',
+      expectedViewerId: 'profile-1',
+    );
+    expect((verified['representation'] as Map)['title'], 'Possibilité publique');
+    expect(
+      () => DiscoveryWire.receiveItem(
+        envelope, scope: 'space',
+        expectedSpaceId: 'space-b', expectedViewerId: 'profile-1',
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryWire.receiveItem(
+        envelope, scope: 'space',
+        expectedSpaceId: 'space-a', expectedViewerId: 'other-viewer',
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryWire.receiveItem(envelope, scope: 'personal'),
+      throwsFormatException,
+    );
+  });
+
+  test('N3 has one route and one detail widget across actor contexts', () {
+    final routes = File('lib/features/discovery/discovery_routes.dart')
+        .readAsStringSync();
+    final screens = File('lib/features/discovery/discovery_screens.dart')
+        .readAsStringSync();
+    final unit = File('lib/presentation/possibilities/discovery_possibility_unit.dart')
+        .readAsStringSync();
+    final repository = File('lib/features/discovery/discovery_repository.dart')
+        .readAsStringSync();
+    expect(routes, contains("path: '/discover/items/:family/:id'"));
+    expect(routes, contains('actorQuery: actorQuery'));
+    expect(routes, contains('DiscoveryItemDetailScreen('));
+    expect(screens, contains("Key('discover-n3-resume-journey')"));
+    expect(screens, contains('collectiveReadOnly: widget.actorQuery.isSpace'));
+    expect(unit, contains('widget.collectiveReadOnly'));
+    expect(repository, contains("sourceKey: 'discovery-item:$resourceKey'"));
+    expect(repository, contains("page.payload['surface'] != 'discover_space'"));
+  });
+
   test('Space shell reuses canonical N1 and generic search/map routes', () {
     final shell = File('lib/features/space/space_shell_routes.dart').readAsStringSync();
     final routes = File('lib/features/discovery/discovery_routes.dart').readAsStringSync();
