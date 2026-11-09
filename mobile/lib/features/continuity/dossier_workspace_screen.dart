@@ -630,14 +630,14 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         ),
       if (_cap(data, 'dossier.dependency.add'))
         MakoloActionButton(
-          label: 'Dépendance',
+          label: 'Ajouter un prérequis',
           onPressed: _canMutate ? () => _newDependency(data) : null,
           icon: Icons.account_tree_outlined,
           appearance: MakoloActionAppearance.secondary,
         ),
       if (_cap(data, 'dossier.project.manage'))
         MakoloActionButton(
-          label: 'Projet',
+          label: 'Rattachement',
           onPressed: _canMutate ? () => _projectAction(data) : null,
           icon: Icons.drive_file_move_outlined,
           appearance: MakoloActionAppearance.secondary,
@@ -704,7 +704,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'DOSSIER · ${_text(_map(data['owner'])['label'])}',
+                    _text(_map(data['owner'])['label']),
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: theme.colorScheme.primary,
                       letterSpacing: .5,
@@ -1225,7 +1225,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          '${items.length} résultat(s) dans les démarches visibles',
+          '${items.length} '
+          '${_search.text.trim().isNotEmpty || _filter != 'all'
+              ? (items.length == 1 ? 'résultat' : 'résultats')
+              : (items.length == 1 ? 'démarche' : 'démarches')} '
+          'parmi les démarches visibles',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
