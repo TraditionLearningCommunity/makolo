@@ -142,6 +142,61 @@ class SpaceOccurrenceLiveView(_SpaceOccurrenceWebMixin):
         return context
 
 
+class SpaceOccurrenceDepthView(_SpaceOccurrenceWebMixin):
+    """One owner-backed depth for a Space actor, not another role-mode page."""
+    template_name = "organizations/space/depth.html"
+    space_nav_key = ""
+    space_page_title = "Profondeur Jour J"
+
+    def get_context_data(self, **kwargs):
+        from operations.occurrence_web_depth import depth_page
+
+        context = super().get_context_data(**kwargs)
+        occurrence = self.get_occurrence()
+        projection = resolve_occurrence_experience(
+            occurrence=occurrence,
+            viewer=self.request.user,
+            surface="day_of", observed_at=timezone.now(),
+            actor_space_id=self.space.pk,
+        )
+        if projection is None:
+            raise Http404
+        kind = self.kwargs["kind"]
+        context["projection"] = projection
+        context.update(depth_page(
+            occurrence=occurrence, actor=self.request.user,
+            projection=projection, kind=kind,
+        ))
+        context["depth_kind"] = kind
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from operations.occurrence_web_depth import execute_depth_action
+
+        occurrence = self.get_occurrence()
+        projection = resolve_occurrence_experience(
+            occurrence=occurrence, viewer=request.user,
+            surface="day_of", observed_at=timezone.now(),
+            actor_space_id=self.space.pk,
+        )
+        if projection is None:
+            raise Http404
+        kind = self.kwargs["kind"]
+        try:
+            execute_depth_action(
+                occurrence=occurrence, actor=request.user,
+                projection=projection, kind=kind, submitted=request.POST,
+            )
+            messages.success(request, "Opération confirmée par le propriétaire.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        return redirect(
+            "organizations:space-occurrence-depth",
+            slug=self.space.slug, occurrence_id=occurrence.pk, kind=kind,
+        )
+
+
 class SpaceOccurrenceScannerView(_SpaceOccurrenceWebMixin):
     template_name = "organizations/space/scanner.html"
     space_nav_key = ""
