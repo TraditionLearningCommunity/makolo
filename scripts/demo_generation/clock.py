@@ -188,6 +188,14 @@ def ids(db, table, foreign_key, identifier):
 def safe_eligible(db, occ_id):
     """Never move an executed or terminal scenario in the ordinary mode."""
     cols = table_columns(db, 'activities_occurrence')
+    if 'activity_id' in cols and 'status' in table_columns(db, 'activities_activity'):
+        activity = db.execute(
+            'SELECT a.status FROM activities_activity a '
+            'JOIN activities_occurrence o ON o.activity_id=a.id WHERE o.id=?',
+            (occ_id,),
+        ).fetchone()
+        if activity and activity[0] != 'published':
+            return False
     if 'status' in cols:
         status = db.execute(
             'SELECT status FROM activities_occurrence WHERE id=?', (occ_id,)
@@ -200,6 +208,15 @@ def safe_eligible(db, occ_id):
     for aid in accesses:
         if ids(db, 'access_accessuse', 'access_id', aid):
             return False
+        credential_cols = table_columns(db, 'access_accesscredential')
+        if 'status' in credential_cols:
+            for cred in ids(db, 'access_accesscredential', 'access_id', aid):
+                result = db.execute(
+                    'SELECT status FROM access_accesscredential WHERE id=?',
+                    (cred,),
+                ).fetchone()
+                if result and result[0] in ('revoked', 'expired'):
+                    return False
     jcols = table_columns(db, 'journeys_journey')
     for jid in ids(db, 'journeys_journey', 'occurrence_id', occ_id):
         if 'status' in jcols:
@@ -413,7 +430,8 @@ def main(argv=None):
                 skipped+=1
                 continue
             eligible+=1
-            new_start=(demo_slot(occ_id,index,now,tz) if a.demo_live and index<a.demo_slots else target_for(occ_id,now,duration))
+            slot_index=eligible-1
+            new_start=(demo_slot(occ_id,slot_index,now,tz) if a.demo_live and slot_index<a.demo_slots else target_for(occ_id,now,duration))
             delta=new_start-old
             if a.apply:
                 result=move_occurrence(db,occ_id,delta,mode=a.mode)
