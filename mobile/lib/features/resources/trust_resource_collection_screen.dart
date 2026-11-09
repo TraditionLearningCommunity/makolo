@@ -698,6 +698,14 @@ class _TrustCollectionView {
             context: family == TrustResourceFamily.proofs
                 ? _string(activity['title'])
                 : _string(issuer['name']) ?? _string(activity['title']),
+            searchText: [
+              title,
+              _string(activity['title']),
+              _string(issuer['name']),
+              _string(row['proof_type_label']),
+              _string(row['credential_type_label']),
+              _string(row['status_label']),
+            ].whereType<String>().join(' ').casefold(),
             statusLabel: _string(row['status_label']),
             date: _displayDate(_string(row['issued_at'])),
           ),
@@ -714,9 +722,7 @@ class _TrustCollectionView {
     final visible = localSearch
         ? items
               .where(
-                (item) =>
-                    item.title.casefold().contains(needle) ||
-                    (item.context?.casefold().contains(needle) ?? false),
+                (item) => item.searchText.contains(needle),
               )
               .toList(growable: false)
         : items;
@@ -739,6 +745,7 @@ class _TrustItem {
     required this.id,
     required this.title,
     required this.context,
+    required this.searchText,
     required this.statusLabel,
     required this.date,
   });
@@ -746,6 +753,7 @@ class _TrustItem {
   final String id;
   final String title;
   final String? context;
+  final String searchText;
   final String? statusLabel;
   final String? date;
 }
