@@ -8,14 +8,10 @@ import '../../sync/sync_status.dart';
 import '../occurrence/occurrence_continuity.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
-import '../../design/makolo_components.dart';
-import '../../design/makolo_patterns.dart';
-import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../data/local/profile_store.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
-import '../../sync/freshness.dart';
 import '../occurrence/occurrence_experience_content.dart';
 import 'live_repository.dart';
 
