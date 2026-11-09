@@ -814,7 +814,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           MakoloFollowIconButton(
             key: const Key('discover-owner-follow'),
             followed: followed,
-            onPressed: _followingBusy ? null : _toggleFollow,
+            busy: _followingBusy,
+            onPressed: _toggleFollow,
           ),
         if (item.wire['date'] is Map &&
             (item.wire['date'] as Map)['kind'] == 'added_at') ...[
