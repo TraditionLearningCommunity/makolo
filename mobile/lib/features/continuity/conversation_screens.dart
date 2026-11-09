@@ -2272,15 +2272,19 @@ class _ConversationPersonalState {
 }
 
 class _ConversationOption {
-  const _ConversationOption({required this.id, required this.label});
+  const _ConversationOption({
+    required this.id, required this.label, this.attachments = const [],
+  });
 
   final String id;
   final String label;
+  final List<Map<String, dynamic>> attachments;
 
   factory _ConversationOption.fromMap(Map<String, dynamic> row) =>
       _ConversationOption(
         id: _string(row['id']) ?? '',
         label: _string(row['label']) ?? '',
+        attachments: _maps(row['attachments']),
       );
 }
 
@@ -2307,6 +2311,7 @@ class _ConversationPoint {
     this.updatedAt,
     this.exchangePreview = const [],
     this.attachments = const [],
+    this.responseMedia = const [],
     this.formRequest,
     this.responseStatus = const {},
     this.canChangeResponse = false,
@@ -2342,8 +2347,9 @@ class _ConversationPoint {
   final DateTime? validUntil;
   final DateTime? publishedAt;
   final DateTime? updatedAt;
-  final List<String> exchangePreview;
+  final List<Map<String, dynamic>> exchangePreview;
   final List<Map<String, dynamic>> attachments;
+  final List<Map<String, dynamic>> responseMedia;
   final Map<String, dynamic>? formRequest;
   final Map<String, dynamic> responseStatus;
   final bool canChangeResponse;
@@ -2409,16 +2415,14 @@ class _ConversationPoint {
       publishedAt: DateTime.tryParse(_string(row['published_at']) ?? ''),
       updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
       attachments: _maps(row['attachments']),
+      responseMedia: _maps(row['response_media']),
       formRequest: _map(row['form_request']).isEmpty
           ? null
           : _map(row['form_request']),
       responseStatus: _map(row['response_status']),
       canChangeResponse: row['can_change_response'] == true,
       replacedByPointId: _string(row['replaced_by_point_id']),
-      exchangePreview: [
-        for (final row in _maps(row['exchange_preview']))
-          if (_string(row['body']) != null) _string(row['body'])!,
-      ],
+      exchangePreview: _maps(row['exchange_preview']),
     );
   }
 }
