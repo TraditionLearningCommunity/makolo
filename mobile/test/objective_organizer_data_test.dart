@@ -196,6 +196,13 @@ void main() {
         '1 démarche également liée, présentée dans un autre dossier');
     expect(organizerSharedLinksLabel(2),
         '2 démarches également liées, présentées dans un autre dossier');
+    expect(organizerMoreChildrenLabel(projects.first, 1),
+        'Et 1 autre dossier chargé');
+    expect(organizerMoreChildrenLabel(projects.first, 3),
+        'Et 3 autres dossiers chargés');
+    expect(organizerMoreChildrenLabel(
+        OrganizerEntry.fromMap(item('dossier', 'd')), 2),
+        'Et 2 autres démarches chargées');
   });
 
 }
