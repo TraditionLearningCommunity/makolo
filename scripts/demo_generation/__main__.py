@@ -46,6 +46,10 @@ def build_parser():
         s.add_argument("--count",type=int,default=50,help="Budget de scenarios par module")
         s.add_argument("--profiles",type=int,default=30,help="Profils world_* candidats")
         s.add_argument("--profile-username",default=None,help="Cibler explicitement un beneficiaire par username (aucun compte code en dur)")
+        s.add_argument("--objectives-projects",type=int,default=4,help="Projets par profil pour objectives (1..8)")
+        s.add_argument("--objectives-dossiers-per-project",type=int,default=3,help="Dossiers par Projet (1..6)")
+        s.add_argument("--objectives-independent",type=int,default=2,help="Dossiers independants par profil (0..6)")
+        s.add_argument("--objectives-journeys-per-dossier",type=int,default=2,help="Journeys canoniques liees par Dossier (0..4)")
         s.add_argument("--seed",type=int,default=2026,help="Graine de repartition stable (Conversations)")
         s.add_argument("--conversation-points",type=int,default=4,choices=(1,2,3,4))
         s.add_argument("--conversation-include-test-users",action="store_true",
@@ -165,6 +169,11 @@ def run(a):
         raise SystemExit(str(exc)) from exc
     if not 1<=a.count<=100000 or not 1<=a.profiles<=100:
         raise SystemExit("--count 1..100000 ; --profiles 1..100")
+    if not (1<=a.objectives_projects<=8 and
+            1<=a.objectives_dossiers_per_project<=6 and
+            0<=a.objectives_independent<=6 and
+            0<=a.objectives_journeys_per_dossier<=4):
+        raise SystemExit("Objectives: --objectives-projects 1..8, --objectives-dossiers-per-project 1..6, --objectives-independent 0..6, --objectives-journeys-per-dossier 0..4")
     scans=min(a.count,200) if a.scans is None else a.scans
     orders=min(a.count,200) if a.orders is None else a.orders
     if not 0<=scans<=100000 or not 0<=orders<=100000:
@@ -254,6 +263,13 @@ def run(a):
         argv=["--domains",",".join(sorted(community_selected)),
               "--count",str(min(a.count,2000)),
               "--profiles",str(max(a.profiles,2))]
+        if "objectives" in community_selected:
+            argv.extend([
+                "--objectives-projects",str(a.objectives_projects),
+                "--objectives-dossiers-per-project",str(a.objectives_dossiers_per_project),
+                "--objectives-independent",str(a.objectives_independent),
+                "--objectives-journeys-per-dossier",str(a.objectives_journeys_per_dossier),
+            ])
         if apply: argv.append("--apply")
         if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         community.main(argv)
