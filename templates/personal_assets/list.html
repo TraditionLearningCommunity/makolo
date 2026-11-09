@@ -52,7 +52,7 @@
 
   <section class="space-y-3" aria-label="Mes documents">
     {% for item in items %}
-      <a href="{% url 'personal_assets:detail' item.asset.pk %}" class="mk-panel block p-4 transition hover:-translate-y-0.5">
+      <a href="{% url 'personal_assets:detail' item.asset.pk %}?return={{ request.get_full_path|urlencode }}" class="mk-panel block p-4 transition hover:-translate-y-0.5">
         <div class="flex items-start gap-3">
           <i data-lucide="list" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
           <div class="min-w-0 flex-1">
