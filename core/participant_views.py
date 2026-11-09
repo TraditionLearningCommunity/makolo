@@ -433,6 +433,9 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "live": live,
                 "live_url": reverse("core:participant-occurrence-live", kwargs={"pk": journey.occurrence_id}) if live else None,
                 "journey_steps": list(journey.steps.all().order_by("position", "created_at", "id")),
+                "journey_form_requests": list(
+                    journey.form_requests.select_related("form_version").order_by("created_at", "id")
+                ),
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
