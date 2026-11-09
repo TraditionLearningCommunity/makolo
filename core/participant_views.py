@@ -30,7 +30,6 @@ from .participant_actions import participant_accept_invitation, participant_decl
 from .history_presentation import history_access_label, history_journey_label
 from .participant_presentation import (
     access_status_label,
-    journey_progress,
     journey_status_label,
     next_participant_action,
     occurrence_timing,
@@ -433,7 +432,7 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "mature": mature,
                 "live": live,
                 "live_url": reverse("core:participant-occurrence-live", kwargs={"pk": journey.occurrence_id}) if live else None,
-                "progress": journey_progress(journey),
+                "journey_steps": list(journey.steps.all().order_by("position", "created_at", "id")),
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
