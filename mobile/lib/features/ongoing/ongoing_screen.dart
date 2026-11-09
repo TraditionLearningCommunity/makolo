@@ -902,41 +902,53 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
             children: [
               if (canSave)
                 Expanded(
-                  child: IconButton(
-                    key: const Key('ongoing-n1-save'),
-                    onPressed: _busy ? null : _save,
-                    tooltip: saved ? 'Enregistré' : 'Enregistrer',
-                    icon: _busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : DiscoveryOrbitIcon(
-                            saved: saved,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                  child: MakoloRoundedActionSlot(
+                    active: saved,
+                    child: IconButton(
+                      key: const Key('ongoing-n1-save'),
+                      onPressed: _busy ? null : _save,
+                      tooltip: saved ? 'Enregistré' : 'Enregistrer',
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : DiscoveryOrbitIcon(
+                              saved: saved,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                    ),
                   ),
                 ),
-              if (route != null)
+              if (route != null) ...[
+                if (canSave) const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
-                  child: MakoloIconActionButton(
-                    key: const Key('ongoing-n1-primary'),
-                    onPressed: () => context.push(route),
-                    tooltip: label,
-                    icon: _ongoingPrimaryIcon(widget.item),
+                  child: MakoloRoundedActionSlot(
+                    child: MakoloIconActionButton(
+                      key: const Key('ongoing-n1-primary'),
+                      onPressed: () => context.push(route),
+                      tooltip: label,
+                      icon: _ongoingPrimaryIcon(widget.item),
+                    ),
                   ),
                 ),
-              if (sharedItem != null)
+              ],
+              if (sharedItem != null) ...[
+                if (canSave || route != null)
+                  const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
-                  child: DiscoveryShareControl(
-                    item: sharedItem,
-                    api: widget.api,
-                    authenticated: true,
-                    iconOnly: true,
-                    baseUri: widget.baseUri,
+                  child: MakoloRoundedActionSlot(
+                    child: DiscoveryShareControl(
+                      item: sharedItem,
+                      api: widget.api,
+                      authenticated: true,
+                      iconOnly: true,
+                      baseUri: widget.baseUri,
+                    ),
                   ),
                 ),
+              ],
             ],
           ),
         ),
