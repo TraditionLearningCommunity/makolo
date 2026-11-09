@@ -1,0 +1,10 @@
+{% extends 'base/app.html' %}
+{% block title %}Jour J · {{ activity.title }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-5 pb-10">
+  <nav aria-label="Retour" class="flex flex-wrap gap-2">
+    <a class="mk-action-button" data-variant="secondary" href="{% url 'core:participant-ongoing' %}">Retour à En cours</a>
+  </nav>
+  {% include 'occurrence/day_of_content.html' %}
+</div>
+{% endblock %}
