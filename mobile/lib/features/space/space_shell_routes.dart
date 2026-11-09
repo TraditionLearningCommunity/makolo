@@ -181,10 +181,16 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
         key: ValueKey('space-discovery:${actor.space.id}'),
         initialQuery: query,
         repository: discovery,
-        onOpenActivity: (id) => context.push('/activities/$id'),
+        onOpenActivity: (id) => context.push(
+          Uri(
+            path: '/discover/items/activity/${Uri.encodeComponent(id)}',
+            queryParameters: {'context': 'space', 'space': actor.space.slug},
+          ).toString(),
+        ),
         onOpenItem: (family, id) => context.push(
           Uri(
-            path: '/discover/items/$family/$id',
+            path: '/discover/items/${Uri.encodeComponent(family)}/'
+                '${Uri.encodeComponent(id)}',
             queryParameters: {'context': 'space', 'space': actor.space.slug},
           ).toString(),
         ),
