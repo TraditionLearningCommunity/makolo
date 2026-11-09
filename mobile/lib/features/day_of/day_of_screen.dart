@@ -160,6 +160,10 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                   surface: 'day_of',
                 );
             final available = scoped && !source.invalidated;
+            final liveWindowEnded = scoped &&
+                OccurrenceContinuity.liveWindowEnded(
+                  projection!.payload, now: DateTime.now(),
+                );
             final globalState = SyncStatusScope.maybeOf(context)?.state;
             final offline = globalState == SyncVisualState.offline ||
                 globalState == SyncVisualState.failed;
@@ -229,6 +233,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                           payload: projection!.payload,
                           live: false,
                           remoteActionsAvailable: actionsAllowed,
+                          liveWindowEnded: liveWindowEnded,
                           readOnlyReason: readOnlyReason,
                           lastKnownAt: source.lastSuccessAt,
                           onOpenAccess: widget.onOpenAccess,
