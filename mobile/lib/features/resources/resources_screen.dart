@@ -47,11 +47,11 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   }
 
   Future<void> _ensure() async {
-    final cached = await widget.repository.readCollectionPage(
-      query: '',
-      offset: 0,
-    );
-    if (cached == null && mounted) await _refresh();
+    try {
+      await widget.repository.ensureCollectionPage(query: '', offset: 0);
+    } on Object {
+      // The hub remains a navigation surface even when counts cannot refresh.
+    }
   }
 
   Future<void> _refresh() async {
