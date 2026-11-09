@@ -633,4 +633,56 @@ void main() {
     expect(find.text('Guide de préparation'), findsOneWidget);
   });
 
+  test('Lot B prepares only locally known owner Form and Requirement links', () {
+    const journeyId = '00000000-0000-0000-0000-000000000001';
+    const formId = '00000000-0000-0000-0000-000000000002';
+    const requirementId = '00000000-0000-0000-0000-000000000003';
+    final local = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: journeyId,
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 9),
+      payload: const {
+        'forms': [
+          {
+            'id': formId,
+            'links': {'detail': '/api/v1/questionnaires/requests/$formId/'},
+          },
+          {
+            'id': formId,
+            'links': {'detail': 'https://external.example.invalid/forged'},
+          },
+        ],
+        'requirements': [
+          {
+            'id': requirementId,
+            'link': '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
+          },
+          {
+            'id': formId,
+            'link': '/api/v1/me/journeys/another/requirements/$formId/',
+          },
+        ],
+      },
+    );
+    expect(
+      JourneyRepository.knownFormLinksFromDetail(local),
+      {formId: '/api/v1/questionnaires/requests/$formId/'},
+    );
+    expect(
+      JourneyRepository.knownRequirementLinksFromDetail(
+        local,
+        journeyId: journeyId,
+      ),
+      {
+        requirementId:
+            '/api/v1/me/journeys/$journeyId/requirements/$requirementId/',
+      },
+    );
+    expect(
+      JourneyRepository.knownFormLinksFromDetail(local, limit: 0),
+      isEmpty,
+    );
+  });
+
 }
