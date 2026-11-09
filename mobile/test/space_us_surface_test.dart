@@ -109,28 +109,30 @@ void main() {
       expect(find.text('Paramètres institutionnels'), findsNothing);
       expect(tester.takeException(), isNull);
       expect(find.text('Passeport Makolo'), findsOneWidget);
+      expect(find.byKey(const Key('space-us-territories-list')), findsOneWidget);
+      expect(find.text('Notre espace'), findsOneWidget);
       await tester.ensureVisible(find.text('Passeport de cet Espace'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Passeport de cet Espace'));
       expect(routes, ['/space/atelier/us/passport']);
-      await tester.ensureVisible(find.text('Explorer les relations'));
-      await tester.tap(find.text('Explorer les relations'));
+      await tester.ensureVisible(find.byKey(const Key('space-us-entry-relationships')));
+      await tester.tap(find.byKey(const Key('space-us-entry-relationships')));
       expect(routes.last, '/space/atelier/us/relationships');
       await tester.scrollUntilVisible(
-        find.text('Consulter les ressources'),
+        find.byKey(const Key('space-us-entry-resources')),
         250,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Consulter les ressources'));
+      await tester.tap(find.byKey(const Key('space-us-entry-resources')));
       expect(routes.last, '/space/atelier/us/resources');
       await tester.scrollUntilVisible(
-        find.text('Consulter les faits de confiance'),
+        find.byKey(const Key('space-us-entry-trust')),
         250,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Consulter les faits de confiance'));
+      await tester.tap(find.byKey(const Key('space-us-entry-trust')));
       expect(routes.last, '/space/atelier/us/trust');
       await tester.scrollUntilVisible(
         find.text('Modifier les informations collectives'),
@@ -171,11 +173,11 @@ void main() {
     expect(find.text('Amina'), findsNothing);
     expect(find.text('Kasa'), findsNothing);
     expect(find.text('Partenaires'), findsNothing);
-    expect(find.text('Ouvrir l’équipe'), findsNothing);
-    expect(find.text('Explorer les relations'), findsNothing);
+    expect(find.text('Notre équipe'), findsNothing);
+    expect(find.text('Nos relations'), findsNothing);
     expect(find.text('Modifier les informations collectives'), findsNothing);
     expect(find.text('Passeport de cet Espace'), findsNothing);
-    expect(find.text('Consulter les ressources'), findsNothing);
+    expect(find.text('Nos ressources'), findsNothing);
     expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
@@ -225,7 +227,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Atelier collectif'), findsOneWidget);
     expect(find.text('Amina'), findsNothing);
-    expect(find.text('Ouvrir l’équipe'), findsNothing);
+    expect(find.text('Notre équipe'), findsNothing);
   });
 
   testWidgets('sparse relations avoid empty preview rows', (tester) async {
@@ -254,7 +256,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Amina'), findsOneWidget);
     expect(find.text('Partenaires'), findsNothing);
-    expect(find.text('Explorer les relations'), findsOneWidget);
+    expect(find.text('Nos relations'), findsOneWidget);
   });
 
   testWidgets('Nous presents institutional documents without private data', (
@@ -285,8 +287,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Statuts de l’Espace'), findsOneWidget);
     expect(find.textContaining('private_media'), findsNothing);
-    await tester.ensureVisible(find.text('Consulter les ressources'));
-    await tester.tap(find.text('Consulter les ressources'));
+    await tester.ensureVisible(find.byKey(const Key('space-us-entry-resources')));
+    await tester.tap(find.byKey(const Key('space-us-entry-resources')));
     expect(opened.single, '/space/atelier/us/resources');
   });
 
@@ -309,7 +311,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Consulter les ressources'), findsNothing);
+    expect(find.text('Nos ressources'), findsNothing);
   });
 
   testWidgets('forged cross-Space link is not presented', (tester) async {
@@ -329,6 +331,105 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Explorer les relations'), findsNothing);
+    expect(find.text('Nos relations'), findsOneWidget);
+    final card = tester.widget<InkWell>(
+      find.byKey(const Key('space-us-entry-relationships')),
+    );
+    expect(card.onTap, isNull);
   });
+  testWidgets('Nous switches to the shared grid and keeps owner handoffs', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: _projection(),
+            fallbackSpaceName: 'Fallback',
+            onOpen: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    await tester.tap(find.byIcon(Icons.grid_view_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
+    expect(find.byKey(const Key('space-us-territories-list')), findsNothing);
+    expect(find.text('Amina'), findsNothing);
+    await tester.ensureVisible(find.byKey(const Key('space-us-grid-team')));
+    await tester.tap(find.byKey(const Key('space-us-grid-team')));
+    expect(opened.single, '/space/atelier/us/team');
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    await tester.tap(find.byIcon(Icons.view_list_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
+  });
+
+  testWidgets('switching Spaces clears the previous presentation and routes', (
+    tester,
+  ) async {
+    final opened = <String>[];
+    final payload = _projection();
+    Widget surface(Map<String, dynamic> value) => MaterialApp(
+      theme: buildMakoloTheme(),
+      home: Scaffold(
+        body: SpaceUsSurface(
+          payload: value,
+          fallbackSpaceName: 'Fallback',
+          onOpen: opened.add,
+        ),
+      ),
+    );
+    await tester.pumpWidget(surface(payload));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.grid_view_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
+    final next = _projection();
+    (next['identity'] as Map<String, dynamic>)['slug'] = 'different-space';
+    (next['identity'] as Map<String, dynamic>)['name'] = 'Autre collectif';
+    await tester.pumpWidget(surface(next));
+    await tester.pumpAndSettle();
+    expect(find.text('Autre collectif'), findsOneWidget);
+    expect(find.byKey(const Key('space-us-territories-list')), findsOneWidget);
+    // Old projection handoffs are rejected when they point at another Space.
+    expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
+    expect(opened, isEmpty);
+  });
+
+  testWidgets('revoked institutional visibility removes team and resources', (
+    tester,
+  ) async {
+    final visible = _projection();
+    final hidden = _projection();
+    (hidden['team'] as Map<String, dynamic>)['visibility'] = 'restricted';
+    (hidden['resources'] as Map<String, dynamic>)['visibility'] = 'restricted';
+    Widget surface(Map<String, dynamic> value) => MaterialApp(
+      theme: buildMakoloTheme(),
+      home: Scaffold(
+        body: SpaceUsSurface(
+          payload: value,
+          fallbackSpaceName: 'Fallback',
+          onOpen: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpWidget(surface(visible));
+    await tester.pumpAndSettle();
+    // The previous test may have stored a Grid preference on this device.
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    await tester.tap(find.byIcon(Icons.view_list_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
+    await tester.pumpWidget(surface(hidden));
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
+  });
+
 }

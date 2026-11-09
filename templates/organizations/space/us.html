@@ -1,7 +1,9 @@
 {% extends 'organizations/space/ws4_base.html' %}
+{% load static %}
+{% block extra_css %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/space-us-n1.css' %}">{% endblock %}
 {% block space_content %}
 {% load conversation_tags %}
-<section class="mk-ws4-stack" aria-labelledby="space-us-heading">
+<section class="mk-ws4-stack mk-us-n1" data-space-us-root aria-labelledby="space-us-heading">
   {% if us_projection_error %}
   <div class="mk-ws4-state mk-ws4-state--wide" role="alert"><i data-lucide="triangle-alert" aria-hidden="true"></i><div><strong>Impossible d’actualiser Nous.</strong><p>Réessayez pour obtenir les dernières informations.</p></div></div>
   {% else %}
@@ -42,14 +44,21 @@
   </section>
   {% endif %}
 
-  <div class="mk-ws4-grid mk-ws4-grid--us">
+  <div class="mk-us-n1-hub-heading">
+    <h3 id="space-us-territories-heading">Notre espace</h3>
+    <div class="mk-us-n1-layout-switch" role="group" aria-label="Présentation des territoires">
+      <button type="button" data-us-layout-choice="list" aria-pressed="true" title="Afficher en liste"><i data-lucide="list" aria-hidden="true"></i><span>Liste</span></button>
+      <button type="button" data-us-layout-choice="grid" aria-pressed="false" title="Afficher en grille"><i data-lucide="layout-grid" aria-hidden="true"></i><span>Grille</span></button>
+    </div>
+  </div>
+  <div class="mk-ws4-grid mk-ws4-grid--us mk-us-n1-grid" data-us-territories data-us-layout="list" data-us-space-id="{{ projection.identity.id }}" aria-labelledby="space-us-territories-heading">
     {% if projection.authority.scope == 'activity_limited' %}
     <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Contexte limité à certaines activités</strong><p>Vous avez accès uniquement aux informations liées à vos activités.</p></div></div>
     {% endif %}
     {% if projection.authority.scope == 'space' %}
-    <section class="mk-ws4-card" aria-labelledby="space-us-team">
+    <section class="mk-ws4-card{% if projection.team.visibility != 'visible' %} mk-us-n1-restricted{% endif %}" aria-labelledby="space-us-team">
       <div class="mk-ws4-card-head">
-        <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Équipe</h3></div>
+        <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Notre équipe</h3></div>
         {% if projection.team.visibility == "visible" %}<strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>{% endif %}
       </div>
       {% if projection.team.items %}
@@ -87,7 +96,7 @@
     {% if projection.relationships.sections %}
     <section class="mk-ws4-card" aria-labelledby="space-us-relations">
       <div class="mk-ws4-card-head">
-        <div><span class="mk-ws4-eyebrow">Réseau collectif</span><h3 id="space-us-relations">Personnes & relations</h3></div>
+        <div><span class="mk-ws4-eyebrow">Réseau collectif</span><h3 id="space-us-relations">Nos relations</h3></div>
       </div>
       <ul class="mk-ws4-list">
         {% for relation_key, relation_section in projection.relationships.sections.items %}
@@ -129,7 +138,7 @@
     {% if projection.ownership.items %}
     <section class="mk-ws4-card" aria-labelledby="space-us-ownership">
       <div class="mk-ws4-card-head">
-        <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Gouvernance</h3></div>
+        <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Notre gouvernance</h3></div>
       </div>
       <ul class="mk-ws4-list">
         {% for owner in projection.ownership.items %}
@@ -140,9 +149,9 @@
     </section>
     {% endif %}
 
-    <section class="mk-ws4-card" aria-labelledby="space-us-trust">
+    <section class="mk-ws4-card mk-us-n1-trust" aria-labelledby="space-us-trust">
       <div class="mk-ws4-card-head">
-        <div><span class="mk-ws4-eyebrow">Confiance</span><h3 id="space-us-trust">Faits de vérification</h3></div>
+        <div><span class="mk-ws4-eyebrow">Faits de vérification</span><h3 id="space-us-trust">Notre confiance</h3></div>
       </div>
       {% if projection.trust.verified %}
         <div class="mk-ws4-state"><i data-lucide="badge-check" aria-hidden="true"></i><div><strong>Vérification active</strong><p>Des informations de vérification sont disponibles.</p></div></div>

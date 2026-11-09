@@ -1,0 +1,47 @@
+/* Nous N1: the same compact identity/territory presentation grammar as Moi.
+   Does not alter Space permissions, owner links, or domain projections. */
+.mk-us-n1 { gap: 14px; }
+.mk-us-n1 .mk-ws4-heading h2 { font-size: clamp(1.35rem, 3vw, 1.8rem); line-height: 1.24; letter-spacing: -.025em; }
+.mk-us-n1 .mk-ws4-hero { padding: 16px; border-radius: 18px; box-shadow: none; }
+.mk-us-n1 .mk-ws4-card--passport { border-radius: 16px; padding: 16px; }
+.mk-us-n1-hub-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 8px; padding: 0 4px; }
+.mk-us-n1-hub-heading h3 { margin: 0; font-size: 1.12rem; font-weight: 850; letter-spacing: -.025em; }
+.mk-us-n1-layout-switch { display: inline-flex; gap: 3px; padding: 3px; border-radius: 12px; border: 1px solid var(--mk-border); background: var(--mk-surface-muted); }
+.mk-us-n1-layout-switch button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 6px 11px; border-radius: 9px; font-size: .8rem; font-weight: 750; color: var(--mk-muted); }
+.mk-us-n1-layout-switch button[aria-pressed="true"] { background: var(--mk-surface-solid); color: var(--mk-brand); box-shadow: var(--mk-shadow-sm); }
+.mk-us-n1-layout-switch button:focus-visible { outline: 3px solid var(--mk-brand); outline-offset: 2px; }
+.mk-us-n1-layout-switch svg { width: 17px; height: 17px; }
+.mk-us-n1-grid { gap: 9px; }
+.mk-us-n1-grid[data-us-layout="list"] { grid-template-columns: minmax(0, 1fr); }
+.mk-us-n1-grid > .mk-ws4-state--wide { grid-column: 1 / -1; }
+.mk-us-n1-grid .mk-ws4-card { padding: 14px 16px; border-radius: 15px; box-shadow: none; }
+.mk-us-n1-grid .mk-ws4-card-head h3 { font-size: 1rem; letter-spacing: -.015em; }
+.mk-us-n1-grid .mk-ws4-list { margin-top: 8px; }
+.mk-us-n1-grid .mk-ws4-list > li { padding: 7px 0; }
+.mk-us-n1-grid .mk-ws4-deep-link { margin-top: 8px; }
+.mk-us-n1-grid[data-us-layout="grid"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; align-items: stretch; }
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-card { min-height: 145px; display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; }
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-list,
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-card > p,
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-note,
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-empty,
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-card .mk-ws4-state { display: none; }
+.mk-us-n1-grid[data-us-layout="grid"] .mk-us-n1-restricted .mk-ws4-note,
+.mk-us-n1-grid[data-us-layout="grid"] .mk-us-n1-trust .mk-ws4-empty { display: block; margin-top: 10px; }
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-card-head { gap: 8px; }
+.mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-deep-link { margin-top: 12px; }
+.mk-us-n1 .mk-ws4-actions { margin-top: 8px; }
+@media (max-width: 560px) {
+  .mk-us-n1 .mk-ws4-hero { grid-template-columns: auto minmax(0, 1fr); gap: 12px; }
+  .mk-us-n1-hub-heading { padding: 0; }
+  .mk-us-n1-layout-switch button { padding: 7px 9px; }
+  .mk-us-n1-grid[data-us-layout="grid"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-card { padding: 12px; }
+  .mk-us-n1-grid[data-us-layout="grid"] .mk-ws4-count { min-width: 30px; height: 30px; }
+}
+@media (max-width: 360px) {
+  .mk-us-n1-grid[data-us-layout="grid"] { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-us-n1-layout-switch button { transition: none; }
+}

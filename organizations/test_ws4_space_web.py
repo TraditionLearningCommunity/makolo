@@ -111,7 +111,7 @@ class WS4SpaceWebTests(TestCase):
             f"?responsibility={quote(mandate['key'], safe='')}",
         )
         self.assertContains(response, "Faits de vérification")
-        self.assertContains(response, "Personnes & relations")
+        self.assertContains(response, "Nos relations")
         self.assertNotContains(response, "Au moins 4 relations dans cet aperçu")
         self.assertContains(response, "Paramètres de l’Espace")
         self.assertContains(response, "Connexions")
@@ -123,6 +123,24 @@ class WS4SpaceWebTests(TestCase):
         self.assertNotIn("permissions", html)
         self.assertNotIn("health score", html)
         self.assertNotIn("performance score", html)
+
+    def test_nous_compact_layout_uses_owner_links_without_new_business_route(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url("organizations:space-us"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-space-us-root')
+        self.assertContains(response, 'data-us-territories')
+        self.assertContains(response, 'data-us-layout="list"')
+        self.assertContains(response, 'data-us-layout-choice="list"')
+        self.assertContains(response, 'data-us-layout-choice="grid"')
+        self.assertContains(response, 'aria-pressed="false"')
+        self.assertContains(response, 'css/space-us-n1.css')
+        self.assertContains(response, 'js/space-us-layout.js')
+        self.assertContains(response, "Notre espace")
+        self.assertContains(response, self.url("organizations:space-us"))
+        self.assertNotContains(response, 'data-us-layout-choice="objectives"')
+        self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_n3_authority_web_revalidates_selection_without_disclosing_n1(self):
         self.client.force_login(self.owner)

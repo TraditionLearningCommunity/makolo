@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../design/makolo_theme.dart';
@@ -6,7 +9,7 @@ import '../../design/identity_surface.dart';
 
 /// The collective identity of the active Space. All rows originate in
 /// server-scoped owner projections; this widget never infers authority.
-class SpaceUsSurface extends StatelessWidget {
+class SpaceUsSurface extends StatefulWidget {
   const SpaceUsSurface({
     super.key,
     required this.payload,
@@ -19,13 +22,83 @@ class SpaceUsSurface extends StatelessWidget {
   final ValueChanged<String>? onOpen;
 
   @override
+  State<SpaceUsSurface> createState() => _SpaceUsSurfaceState();
+}
+
+class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
+  static const _storage = FlutterSecureStorage();
+  MakoloTerritoryLayout _layout = MakoloTerritoryLayout.list;
+
+  String? get _spaceSlug => _value(_map(widget.payload['identity'])?['slug']);
+
+  String? get _layoutKey {
+    final slug = _spaceSlug;
+    return slug == null ? null : 'space.us.layout.$slug';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_restoreLayout());
+  }
+
+  @override
+  void didUpdateWidget(covariant SpaceUsSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previous = _value(_map(oldWidget.payload['identity'])?['slug']);
+    if (previous != _spaceSlug) {
+      _layout = MakoloTerritoryLayout.list;
+      unawaited(_restoreLayout());
+    }
+  }
+
+  Future<void> _restoreLayout() async {
+    final key = _layoutKey;
+    if (key == null) return;
+    try {
+      final saved = await _storage.read(key: key);
+      if (!mounted || key != _layoutKey) return;
+      setState(() {
+        _layout = saved == 'grid'
+            ? MakoloTerritoryLayout.grid
+            : MakoloTerritoryLayout.list;
+      });
+    } on Object {
+      // A device preference is never required to display owner-backed data.
+    }
+  }
+
+  void _chooseLayout(MakoloTerritoryLayout next) {
+    if (next == _layout) return;
+    setState(() => _layout = next);
+    final key = _layoutKey;
+    if (key == null) return;
+    unawaited(_rememberLayout(key, next));
+  }
+
+  Future<void> _rememberLayout(
+    String key,
+    MakoloTerritoryLayout next,
+  ) async {
+    try {
+      await _storage.write(
+        key: key,
+        value: next == MakoloTerritoryLayout.grid ? 'grid' : 'list',
+      );
+    } on Object {
+      // The presentation switch remains functional without secure storage.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final payload = widget.payload;
     final identity = _map(payload['identity']);
     final authority = _map(payload['authority']);
     final limited =
         authority?['scope'] == 'activity_limited' ||
         authority?['limited_to_activities'] == true;
-    final name = _value(identity?['name']) ?? fallbackSpaceName;
+    final name = _value(identity?['name']) ?? widget.fallbackSpaceName;
     final description = _value(identity?['description']);
     final institutionalLabel = _value(
       _map(_map(payload['organization'])?['operating_preset'])?['label'],
@@ -93,10 +166,102 @@ class SpaceUsSurface extends StatelessWidget {
             _value(handoffs?['subscription']) == '/space/$slug/subscription'
         ? '/space/$slug/subscription'
         : null;
+    final trustTarget = limited ? null : route('trust');
+
+    // Each entry is composed only from already-authorized Space projections.
+    // A missing handoff never becomes a fabricated N2/N3 destination.
+    final territories = <_SpaceUsTerritory>[
+      _SpaceUsTerritory(
+        keyName: 'responsibilities',
+        title: 'Ma place dans cet Espace',
+        subtitle: 'Mes rôles autorisés dans ce collectif',
+        icon: Icons.assignment_ind_outlined,
+        target: route('responsibilities'),
+        previews: [
+          if (responsibilities.isEmpty) 'Aucun autre rôle visible.',
+          for (final item in responsibilities.take(3))
+            _value(item['label']) ?? 'Rôle',
+        ],
+      ),
+      if (teamVisible)
+        _SpaceUsTerritory(
+          keyName: 'team',
+          title: 'Notre équipe',
+          subtitle: 'Les personnes avec qui nous travaillons',
+          icon: Icons.groups_outlined,
+          target: route('team'),
+          count: team?['active_members'] is int &&
+                  (team!['active_members'] as int) >= 0
+              ? team['active_members'] as int
+              : null,
+          previews: [
+            if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
+            for (final item in teamRows.take(3))
+              _value(_map(item['profile'])?['name']) ?? 'Membre',
+          ],
+        ),
+      if (!limited && relationSections.isNotEmpty)
+        _SpaceUsTerritory(
+          keyName: 'relationships',
+          title: 'Nos relations',
+          subtitle: 'Personnes, groupes et partenaires visibles',
+          icon: Icons.hub_outlined,
+          target: route('relationships'),
+          previews: [
+            if (displayedRelations.isEmpty)
+              'Aucune relation visible dans cet aperçu.',
+            for (final item in displayedRelations.take(3))
+              _relationLabel(item.key),
+          ],
+        ),
+      if (resourcesVisible)
+        _SpaceUsTerritory(
+          keyName: 'resources',
+          title: 'Nos ressources',
+          subtitle: 'Documents et outils de cet Espace',
+          icon: Icons.folder_copy_outlined,
+          target: resourcesTarget,
+          count: resources?['count'] is int &&
+                  (resources!['count'] as int) >= 0
+              ? resources['count'] as int
+              : null,
+          previews: [
+            if (resourceRows.isEmpty) 'Aucune ressource dans cet aperçu.',
+            for (final item in resourceRows.take(3))
+              _value(item['title']) ?? 'Ressource',
+          ],
+        ),
+      if (ownershipRows.isNotEmpty)
+        _SpaceUsTerritory(
+          keyName: 'ownership',
+          title: 'Notre gouvernance',
+          subtitle: 'Représentation et autorité de cet Espace',
+          icon: Icons.admin_panel_settings_outlined,
+          target: route('ownership'),
+          previews: [
+            for (final item in ownershipRows.take(3))
+              _value(_map(item['profile'])?['name']) ?? 'Représentant',
+          ],
+        ),
+      if (trustTarget != null)
+        _SpaceUsTerritory(
+          keyName: 'trust',
+          title: 'Notre confiance',
+          subtitle: 'Faits de vérification disponibles',
+          icon: Icons.verified_user_outlined,
+          target: trustTarget,
+          previews: [
+            _map(payload['trust'])?['verified'] == true
+                ? 'Des faits publics de vérification sont établis.'
+                : 'Aucune vérification publique active à afficher.',
+          ],
+        ),
+    ];
+
 
     void open(String target) {
-      if (onOpen != null) {
-        onOpen!(target);
+      if (widget.onOpen != null) {
+        widget.onOpen!(target);
       } else {
         context.push(target);
       }
@@ -184,180 +349,85 @@ class SpaceUsSurface extends StatelessWidget {
                       _passportCard(context, passportTarget, open),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
-                    _sectionTitle(
-                      context,
-                      'Ma place dans cet Espace',
-                      'Vos rôles autorisés, distincts des tâches confiées.',
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Notre espace',
+                            style: text.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        MakoloTerritoryViewToggle(
+                          toggleKey: const Key('space-us-layout-toggle'),
+                          value: _layout,
+                          onChanged: _chooseLayout,
+                        ),
+                      ],
                     ),
-                    if (responsibilities.isEmpty)
-                      _quiet(context, 'Aucun autre rôle visible.')
+                    const SizedBox(height: MakoloSpacing.sm),
+                    if (_layout == MakoloTerritoryLayout.list)
+                      Column(
+                        key: const Key('space-us-territories-list'),
+                        children: [
+                          for (final entry in territories)
+                            MakoloTerritoryListCard(
+                              tapKey: Key('space-us-entry-${entry.keyName}'),
+                              title: entry.title,
+                              subtitle: entry.subtitle,
+                              count: entry.count,
+                              symbol: Icon(
+                                entry.icon,
+                                color: scheme.primary,
+                                size: 24,
+                              ),
+                              onOpen: entry.target == null
+                                  ? null
+                                  : () => open(entry.target!),
+                              previews: [
+                                for (final value in entry.previews)
+                                  MakoloTerritoryPreview(title: value),
+                              ],
+                            ),
+                        ],
+                      )
                     else
-                      _panel(
-                        context,
-                        children: [
-                          for (final item in responsibilities)
-                            _fact(
-                              context,
-                              Icons.assignment_ind_outlined,
-                              _value(item['label']) ?? 'Responsabilité',
-                              _value(_map(item['activity'])?['title']) ??
-                                  'Autorité ou périmètre lié à ce rôle',
-                            ),
-                        ],
-                      ),
-                    if (route('responsibilities') case final target?) ...[
-                      _action(context, 'Comprendre mes rôles', target, open),
-                    ],
-                    if (!limited) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        'L’équipe',
-                        'Les personnes avec qui nous travaillons.',
-                      ),
-                      if (teamVisible) ...[
-                        _panel(
-                          context,
-                          children: [
-                            if (teamRows.isEmpty)
-                              _quiet(context, 'Aucun membre actif visible.')
-                            else
-                              for (final person in teamRows.take(3))
-                                _fact(
-                                  context,
-                                  Icons.person_outline_rounded,
-                                  _value(_map(person['profile'])?['name']) ??
-                                      'Membre',
-                                  'Équipe principale',
+                      LayoutBuilder(
+                        builder: (context, field) {
+                          final twoColumns = field.maxWidth >= 320;
+                          final itemWidth = twoColumns
+                              ? (field.maxWidth - 12) / 2
+                              : field.maxWidth;
+                          return Wrap(
+                            key: const Key('space-us-territories-grid'),
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              for (final entry in territories)
+                                SizedBox(
+                                  width: itemWidth,
+                                  child: MakoloTerritoryGridCard(
+                                    tapKey: Key('space-us-grid-${entry.keyName}'),
+                                    title: entry.title,
+                                    subtitle: entry.subtitle,
+                                    symbol: Icon(
+                                      entry.icon,
+                                      color: scheme.primary,
+                                      size: 32,
+                                    ),
+                                    countDescription: entry.count == null
+                                        ? null
+                                        : '${entry.count} éléments visibles',
+                                    onOpen: entry.target == null
+                                        ? null
+                                        : () => open(entry.target!),
+                                  ),
                                 ),
-                            if (team?['has_more'] == true ||
-                                teamRows.length > 3)
-                              _quiet(
-                                context,
-                                'D’autres personnes sont à retrouver dans l’équipe.',
-                              ),
-                          ],
-                        ),
-                        if (route('team') case final target?)
-                          _action(context, 'Ouvrir l’équipe', target, open),
-                      ] else
-                        _quiet(
-                          context,
-                          'La composition de l’équipe est réservée '
-                          'aux personnes autorisées.',
-                        ),
-                    ],
-                    if (!limited && relationSections.isNotEmpty) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        _value(relations?['label']) ?? 'Personnes & relations',
-                        'Les contacts, groupes et partenaires visibles.',
+                            ],
+                          );
+                        },
                       ),
-                      if (displayedRelations.isNotEmpty)
-                        _panel(
-                          context,
-                          children: [
-                            for (final entry in displayedRelations)
-                              _fact(
-                                context,
-                                _relationIcon(entry.key),
-                                _relationLabel(entry.key),
-                                _relationSummary(_map(entry.value)),
-                              ),
-                          ],
-                        ),
-                      if (route('relationships') case final target?)
-                        _action(
-                          context,
-                          'Explorer les relations',
-                          target,
-                          open,
-                        ),
-                    ],
-                    if (resourcesVisible) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        'Nos ressources',
-                        'Documents et outils appartenant à cet Espace.',
-                      ),
-                      if (resourceRows.isEmpty)
-                        _quiet(
-                          context,
-                          'Aucun document ou modèle institutionnel disponible.',
-                        )
-                      else
-                        _panel(
-                          context,
-                          children: [
-                            for (final resource in resourceRows.take(3))
-                              _fact(
-                                context,
-                                Icons.folder_outlined,
-                                _value(resource['title']) ?? 'Ressource',
-                                _value(resource['detail']) ??
-                                    'Ressource institutionnelle',
-                              ),
-                            if (resources?['has_more'] == true ||
-                                resourceRows.length > 3)
-                              _quiet(
-                                context,
-                                'D’autres ressources sont disponibles.',
-                              ),
-                          ],
-                        ),
-                      _action(
-                        context,
-                        'Consulter les ressources',
-                        resourcesTarget,
-                        open,
-                      ),
-                    ],
-                    if (ownershipRows.isNotEmpty) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        'Gouvernance',
-                        'Les personnes qui représentent et gouvernent cet Espace.',
-                      ),
-                      _panel(
-                        context,
-                        children: [
-                          for (final owner in ownershipRows)
-                            _fact(
-                              context,
-                              Icons.verified_user_outlined,
-                              _value(_map(owner['profile'])?['name']) ??
-                                  'Représentant',
-                              _value(_map(owner['responsibility'])?['label']) ??
-                                  'Autorité Space',
-                            ),
-                        ],
-                      ),
-                      if (route('ownership') case final target?)
-                        _action(context, 'Voir la gouvernance', target, open),
-                    ],
-                    if (route('trust') case final target?) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        'Confiance',
-                        'Des faits vérifiables, sans classement global du collectif.',
-                      ),
-                      _notice(
-                        context,
-                        _map(payload['trust'])?['verified'] == true
-                            ? 'Des faits publics de vérification sont établis.'
-                            : 'Aucune vérification publique active à afficher.',
-                      ),
-                      _action(
-                        context,
-                        'Consulter les faits de confiance',
-                        target,
-                        open,
-                      ),
-                    ],
                     if (subscriptionTarget != null ||
                         connectionsTarget != null ||
                         settingsTarget != null ||
@@ -366,45 +436,37 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         'Informations et gestion',
-                        'Les autres fonctions de cet Espace.',
+                        'Les fonctions institutionnelles autorisées.',
                       ),
                     ],
-                    if (subscriptionTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
+                    if (subscriptionTarget != null)
                       _action(
                         context,
                         'Abonnement de cet Espace',
                         subscriptionTarget,
                         open,
                       ),
-                    ],
-                    if (connectionsTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
+                    if (connectionsTarget != null)
                       _action(
                         context,
                         'Gérer les connexions de cet Espace',
                         connectionsTarget,
                         open,
                       ),
-                    ],
-                    if (settingsTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
+                    if (settingsTarget != null)
                       _action(
                         context,
                         'Modifier les informations collectives',
                         settingsTarget,
                         open,
                       ),
-                    ],
-                    if (pilotTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
+                    if (pilotTarget != null)
                       _action(
                         context,
                         'Comprendre notre activité',
                         pilotTarget,
                         open,
                       ),
-                    ],
                     const SizedBox(height: MakoloSpacing.xl),
                   ],
                 ),
@@ -453,27 +515,6 @@ class SpaceUsSurface extends StatelessWidget {
     'partners' => 'Partenaires',
     _ => 'Relations',
   };
-
-  static IconData _relationIcon(String kind) => switch (kind) {
-    'team' => Icons.groups_outlined,
-    'groups' => Icons.hub_outlined,
-    'crm_contacts' => Icons.contacts_outlined,
-    'audiences' => Icons.people_outline,
-    'partners' => Icons.handshake_outlined,
-    _ => Icons.link_outlined,
-  };
-
-  static String _relationSummary(Map<String, dynamic>? section) {
-    final items = _rows(section?['items']);
-    if (items.isEmpty) {
-      return 'Aucune relation visible';
-    }
-    final count = items.length;
-    final label = count == 1 ? 'relation visible' : 'relations visibles';
-    return section?['has_more'] == true
-        ? '$count $label dans cet aperçu · d’autres sont disponibles'
-        : '$count $label';
-  }
 
   static Widget _sectionTitle(
     BuildContext context,
@@ -532,55 +573,6 @@ class SpaceUsSurface extends StatelessWidget {
     );
   }
 
-  static Widget _panel(
-    BuildContext context, {
-    required List<Widget> children,
-  }) => Card(
-    margin: EdgeInsets.zero,
-    clipBehavior: Clip.antiAlias,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: MakoloSpacing.md,
-        vertical: MakoloSpacing.sm,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
-    ),
-  );
-
-  static Widget _fact(
-    BuildContext context,
-    IconData icon,
-    String name,
-    String subtitle,
-  ) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
-        const SizedBox(width: MakoloSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(name, style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 3),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-
-  static Widget _quiet(BuildContext context, String message) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-    child: Text(message, style: Theme.of(context).textTheme.bodySmall),
-  );
-
   static Widget _notice(BuildContext context, String message) => Container(
     width: double.infinity,
     padding: const EdgeInsets.all(MakoloSpacing.md),
@@ -634,4 +626,25 @@ class SpaceUsSurface extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// A display-only adaptation of facts already scoped by the Space owner.
+class _SpaceUsTerritory {
+  const _SpaceUsTerritory({
+    required this.keyName,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.target,
+    this.count,
+    this.previews = const [],
+  });
+
+  final String keyName;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final String? target;
+  final int? count;
+  final List<String> previews;
 }
