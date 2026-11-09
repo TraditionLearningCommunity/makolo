@@ -184,6 +184,7 @@ class JourneyDetailPresentation {
     this.pendingRequests = 0,
     this.rejectedRequests = 0,
     this.payment,
+    this.payments = const [],
     this.practical,
     this.workflowKind = '',
     this.stateCode = '',
@@ -229,6 +230,7 @@ class JourneyDetailPresentation {
   final int pendingRequests;
   final int rejectedRequests;
   final JourneyPaymentSummary? payment;
+  final List<JourneyPaymentSummary> payments;
   final JourneyPracticalFacts? practical;
 
   bool get canCompleteAnyForm => forms.any((form) => form.canComplete);
@@ -295,6 +297,7 @@ class JourneyDetailSelector {
       pendingRequests: _maps(requests['pending']).length,
       rejectedRequests: _maps(requests['rejected']).length,
       payment: _payment(payload['payment']),
+      payments: _payments(payload['payment']),
       practical: _practical(occurrence),
       summary: summary != null && summary.toLowerCase() != title.toLowerCase()
           ? summary
@@ -347,6 +350,30 @@ class JourneyDetailSelector {
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );
+  }
+
+  static List<JourneyPaymentSummary> _payments(Object? value) {
+    final payload = _map(value);
+    if (payload.isEmpty) return const [];
+    final obligations = _maps(payload['obligations']);
+    if (obligations.isNotEmpty) {
+      return List.unmodifiable([
+        for (final row in obligations)
+          if (_string(row['amount']) != null &&
+              _string(row['currency']) != null &&
+              _string(row['state']) != null)
+            JourneyPaymentSummary(
+              amount: _string(row['amount'])!,
+              currency: _string(row['currency'])!,
+              state: _string(_map(row['payment'])['state']) ??
+                  _string(row['state'])!,
+              reason: _string(row['reason']),
+              obligationId: _string(row['id']),
+            ),
+      ]);
+    }
+    final single = _payment(value);
+    return single == null ? const [] : [single];
   }
 
   static JourneyPaymentSummary? _payment(Object? value) {
