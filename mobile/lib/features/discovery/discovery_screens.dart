@@ -696,9 +696,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 onSave: _query.isSpace ? null : (item) =>
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
-                shareApi: widget.repository.api,
+                shareApi: _query.isSpace ? null : widget.repository.api,
                 profileId: widget.repository.profileId,
                 allowOwnerActions:
+                    !_query.isSpace &&
                     !_refreshing &&
                     _verifiedFieldKey == _query.mapFingerprint &&
                     sourceState.lastErrorCode == null &&
@@ -1631,9 +1632,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                               _query,
                             ),
                             baseUri: widget.repository.api.baseUri,
-                            shareApi: widget.repository.api,
+                            shareApi: _query.isSpace ? null : widget.repository.api,
                             profileId: widget.repository.profileId,
                             allowOwnerActions:
+                                !_query.isSpace &&
                                 !_refreshing &&
                                 _verifiedFieldKey == _query.mapFingerprint &&
                                 sourceState.lastErrorCode == null &&
@@ -2032,7 +2034,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                     resolveItem: _verifiedMapDetail,
                     // Same Save owner flow as Découvrir N1. An admitted location
                     // never creates its own saved state or mutation path.
-                    onSave: widget.authenticated
+                    onSave: widget.authenticated && !_query.isSpace
                         ? (item) => _saveDiscoveryPossibility(
                             widget.repository,
                             item,
@@ -2040,13 +2042,14 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                           )
                         : null,
                     allowOwnerActions:
+                        !_query.isSpace &&
                         !_refreshing &&
                         source.lastSuccessAt != null &&
                         source.lastErrorCode == null &&
                         !source.invalidated,
                     baseUri: widget.repository.api.baseUri,
-                    shareApi: widget.repository.api,
-                    shareAuthenticated: widget.authenticated,
+                    shareApi: _query.isSpace ? null : widget.repository.api,
+                    shareAuthenticated: widget.authenticated && !_query.isSpace,
                     onRetry: () => unawaited(_refresh(force: true)),
                     onOpen: (item) => unawaited(_openDetail(item)),
                   );
