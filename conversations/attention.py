@@ -19,6 +19,7 @@ from .services import can_manage_conversation, can_view_conversation
 
 
 ATTENTION_LIFECYCLES = {ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED}
+ACTION_REASONS = frozenset({"respond", "acknowledge", "form", "resolve"})
 
 
 @dataclass(frozen=True)
@@ -192,7 +193,7 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
             ),
         )
         .order_by("deadline_at", "-importance", "published_at")[
-            : max(int(limit or 100) * 4, 100)
+            : max(int(limit or 100) * 8, 160)
         ]
     )
     items = []
@@ -230,14 +231,15 @@ def has_conversation_attention(profile, *, at=None):
     Conversation attention semantics instead of treating unread activity as
     attention, and stops as soon as one qualifying Point is found.
     """
-    return bool(attention_points_for_profile(profile, at=at, limit=1))
+    return any(item.reason in ACTION_REASONS for item in attention_points_for_profile(profile, at=at, limit=50))
 
 
 def conversation_attention_count(profile, *, at=None, limit=1000):
-    return sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=limit))
+    return sum(item.reason in ACTION_REASONS for item in attention_points_for_profile(profile, at=at, limit=limit))
 
 
 def conversation_attention_badge_count(profile, *, at=None, cap=10):
     """Return a UI badge count capped at the requested bound."""
     cap = max(int(cap), 1)
-    return sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))) if cap < 1 else min(cap, sum(item.reason in {"respond", "acknowledge", "form", "resolve"} for item in attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))))
+    items = attention_points_for_profile(profile, at=at, limit=max(cap * 3, 50))
+    return min(cap, sum(item.reason in ACTION_REASONS for item in items))
