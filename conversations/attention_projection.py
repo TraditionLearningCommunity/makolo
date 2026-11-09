@@ -6,6 +6,7 @@ history, creates a second lifecycle, or grants access by being in a summary.
 from datetime import timedelta
 
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 
 from .attention import ACTION_REASONS, point_attention_reason
@@ -31,7 +32,7 @@ def _safe_preview(point, profile, reason):
     if reason == "result" and point_resolution_visible_to(profile, point):
         try:
             return (point.resolution.summary or "Résultat disponible")[:160]
-        except (AttributeError, Exception):
+        except (AttributeError, ObjectDoesNotExist):
             pass
     return (point.title or point.body or point.get_kind_display() or "Point")[:160]
 
@@ -86,7 +87,7 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
     info_from = at - timedelta(days=14)
     if opened is not None and opened > info_from:
         info_from = opened
-    points = (
+    points_qs = (
         ConversationPoint.objects.filter(
             conversation=conversation,
         ).filter(
@@ -102,8 +103,23 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
             "expected_action_audience", "resolution_audience", "published_by",
         ).prefetch_related("options", "responses").order_by(
             "-published_at", "-id",
-        )[: max(limit * 6, 240)]
+        )
     )
+    points = list(points_qs[: max(limit * 6, 240)])
+    # Explicitly revisited older Points are also meaningful today, even if
+    # they fell outside the newest visible publication window.
+    older_revisit = list(
+        ConversationPoint.objects.filter(
+            conversation=conversation,
+            user_states__profile=profile,
+            user_states__revisit_at__isnull=False,
+        ).select_related(
+            "conversation", "visibility_audience", "response_audience",
+            "expected_action_audience", "resolution_audience", "published_by",
+        ).distinct().order_by("-user_states__revisit_at")[:limit]
+    )
+    seen = {point.pk for point in points}
+    points.extend(point for point in older_revisit if point.pk not in seen)
     sections = {"for_me": [], "to_resolve": [], "to_know": []}
     visibility_cache, audience_cache, history_cache = {}, {}, {}
     for point in points:
@@ -113,6 +129,10 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
         ):
             continue
         reason = point_attention_reason(profile, point, at=at)
+        if reason not in ACTION_REASONS and point.user_states.filter(
+            profile=profile, revisit_at__isnull=False,
+        ).exists():
+            reason = "revisit"
         if reason in {"respond", "acknowledge", "form"}:
             bucket = "for_me"
         elif reason == "resolve":
