@@ -120,6 +120,34 @@ ne modifie pas les états des Journey, ne simule pas une réussite externe et ne
 transmet aucun secret. Les dépendances nécessitent au moins deux Journey
 existantes, accessibles au porteur et reliées au même Dossier.
 
+### SQLite occupée pendant `generate --domains objectives`
+
+Sur Windows, `django.db.utils.OperationalError: database is locked`
+signifie qu'une autre connexion ou transaction empêche l'écriture SQLite.
+Ce message **ne signifie pas** que le Profil ciblé est interdit ni qu'il
+faut effacer la base. La configuration Django prévoit déjà une attente
+`DJANGO_SQLITE_TIMEOUT_SECONDS` (20 secondes par défaut). Le générateur
+réessaie maintenant jusqu'à trois fois **la transaction complète du Profil**
+après rollback et reconnexion, exclusivement pour les erreurs de verrou
+SQLite. Les autres erreurs restent visibles.
+
+Avant une relance sur une **base de démonstration isolée**, arrêter les
+serveurs Django, tâches de seed concurrentes et outils SQLite qui ont ouvert
+la même base. Vérifier la cible SQLite réelle via la configuration, sans
+supprimer le fichier de base ni les fichiers `-wal`/`-shm` manuellement.
+
+```powershell
+git pull --ff-only
+python -m scripts.demo_generation plan --domains objectives --profile-username beta_alain --count 1 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+python -m scripts.demo_generation generate --domains objectives --profile-username beta_alain --count 1 --objectives-projects 6 --objectives-dossiers-per-project 4 --objectives-independent 3
+```
+
+Un `plan` n'écrit rien. Si une tentative de génération échoue, la
+transaction du Profil entier est annulée ; une nouvelle exécution peut
+reprendre le plan sans dupliquer les éléments déjà validés auparavant.
+Un verrou qui persiste nécessite de trouver la connexion concurrente :
+ne jamais désactiver la protection des écritures ou forcer le déverrouillage.
+
 La commande Django `seed_mobile_objectives_demo`, auparavant proposée,
 **n'est plus disponible** : elle dépendait d'un persona codé en dur et d'une
 validation de tout `demo_seed` sans rapport direct avec Objectives.
