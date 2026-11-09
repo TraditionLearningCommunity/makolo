@@ -53,4 +53,10 @@
       {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune nouveauté utile à signaler.</p>{% endfor %}
     </div>
   </div>
+  {% if attention.more_actions %}
+    <p class="mt-4 text-xs" style="color:var(--mk-muted)">
+      Cette synthèse affiche les premiers Points de chaque catégorie.
+      Les autres actions restent accessibles dans le fil et l'historique.
+    </p>
+  {% endif %}
 </section>
