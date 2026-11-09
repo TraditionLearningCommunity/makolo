@@ -688,33 +688,245 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     return output;
   }
 
-  Widget _actionBar(Map<String, dynamic> project) => Wrap(
-    spacing: 9,
-    runSpacing: 9,
-    children: [
-      if (_has(project, 'project.dossier.create'))
-        MakoloActionButton(
-          label: 'Créer un dossier',
-          onPressed: _enabled ? _create : null,
-          icon: Icons.create_new_folder_outlined,
-          appearance: MakoloActionAppearance.primary,
+  Future<void> _grantProjectAccess(Map<String, dynamic> project) async {
+    final collaboration = _map(project['collaboration']);
+    final roles = _list(collaboration['roles']);
+    final candidates = _list(collaboration['candidate_profiles']);
+    if (roles.isEmpty) return;
+    final email = TextEditingController();
+    final form = GlobalKey<FormState>();
+    String roleCode = _text(roles.first['code']);
+    String? profileId;
+    final values = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialog) => StatefulBuilder(
+        builder: (dialog, update) => AlertDialog(
+          title: const Text('Donner accès au Projet'),
+          content: Form(
+            key: form,
+            child: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Un rôle Projet ne donne pas automatiquement accès aux '
+                      'Dossiers ni aux démarches associées.',
+                    ),
+                    const SizedBox(height: 12),
+                    if (candidates.isNotEmpty) ...[
+                      const Text('Personnes déjà connues dans les Dossiers'),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final candidate in candidates)
+                            ChoiceChip(
+                              label: Text(_text(candidate['label'])),
+                              selected: profileId == _text(candidate['id']),
+                              onSelected: (_) => update(() {
+                                profileId = _text(candidate['id']);
+                                email.clear();
+                              }),
+                            ),
+                        ],
+                      ),
+                      if (collaboration['candidate_profiles_partial'] == true)
+                        const Text('Cette liste de personnes est partielle.'),
+                      const SizedBox(height: 12),
+                    ],
+                    TextFormField(
+                      controller: email,
+                      decoration: const InputDecoration(
+                        labelText: 'Ou adresse e-mail Makolo exacte',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (value) {
+                        if (value.isNotEmpty) update(() => profileId = null);
+                      },
+                      validator: (value) =>
+                          profileId == null &&
+                                  (value == null || !value.contains('@'))
+                              ? 'Choisissez une personne ou indiquez son e-mail'
+                              : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: roleCode,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Rôle'),
+                      items: [
+                        for (final role in roles)
+                          DropdownMenuItem<String>(
+                            value: _text(role['code']),
+                            child: Text(_text(role['label'])),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) update(() => roleCode = value);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            MakoloActionButton(
+              label: 'Annuler',
+              appearance: MakoloActionAppearance.quiet,
+              onPressed: () => Navigator.pop(dialog),
+            ),
+            MakoloActionButton(
+              label: 'Accorder',
+              appearance: MakoloActionAppearance.primary,
+              onPressed: () {
+                if (!(form.currentState?.validate() ?? false)) return;
+                Navigator.pop(dialog, <String, dynamic>{
+                  'action': 'grant',
+                  'role_code': roleCode,
+                  if (profileId != null) 'profile_id': profileId,
+                  if (profileId == null) 'email': email.text.trim(),
+                });
+              },
+            ),
+          ],
         ),
-      if (_has(project, 'project.dossier.link'))
-        MakoloActionButton(
-          label: 'Rattacher un dossier',
-          onPressed: _enabled ? () => _link(project) : null,
-          icon: Icons.link_rounded,
-          appearance: MakoloActionAppearance.secondary,
+      ),
+    );
+    email.dispose();
+    if (values != null && mounted) await _send('${_base}authority/', values);
+  }
+
+  Future<void> _projectAccess(Map<String, dynamic> project) async {
+    final members = _list(_map(project['collaboration'])['members']);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(
+              title: Text('Accès au Projet'),
+              subtitle: Text(
+                'Les responsabilités de Dossier restent indépendantes '
+                'des permissions du Projet.',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_outlined),
+              title: const Text('Donner accès à une personne'),
+              onTap: () {
+                Navigator.pop(sheet);
+                _grantProjectAccess(project);
+              },
+            ),
+            for (final member in members)
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: Text(_text(member['label'])),
+                subtitle: Text(_text(member['role'])),
+                trailing: _has(member, 'revoke')
+                    ? const Icon(Icons.person_remove_outlined)
+                    : null,
+                onTap: _has(member, 'revoke') && _enabled
+                    ? () async {
+                        Navigator.pop(sheet);
+                        final yes = await _confirm(
+                          'Retirer cet accès ?',
+                          'La personne perdra ce mandat Projet. '
+                          'Ses éventuelles responsabilités sur les Dossiers '
+                          'ne seront pas supprimées.',
+                          'Révoquer',
+                        );
+                        if (yes && mounted) {
+                          await _send('${_base}authority/', {
+                            'action': 'revoke',
+                            'mandate_id': _text(member['id']),
+                          });
+                        }
+                      }
+                    : null,
+              ),
+          ],
         ),
-      if (_has(project, 'project.lifecycle'))
-        MakoloActionButton(
-          label: 'Changer l’état',
-          onPressed: _enabled ? () => _lifecycle(project) : null,
-          icon: Icons.change_circle_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-    ],
-  );
+      ),
+    );
+  }
+
+  Widget _actionBar(Map<String, dynamic> project) {
+    final create = _has(project, 'project.dossier.create');
+    final actions = [
+      if (_has(project, 'project.dossier.link')) 'link',
+      if (_has(project, 'project.edit')) 'edit',
+      if (_has(project, 'project.lifecycle')) 'lifecycle',
+      if (_has(project, 'project.authority.manage')) 'authority',
+    ];
+    if (!create && actions.isEmpty) return const SizedBox.shrink();
+    return Row(
+      children: [
+        if (create)
+          MakoloActionButton(
+            label: 'Créer un dossier',
+            onPressed: _enabled ? _create : null,
+            icon: Icons.create_new_folder_outlined,
+            appearance: MakoloActionAppearance.primary,
+          ),
+        if (create && actions.isNotEmpty) const SizedBox(width: 8),
+        if (actions.isNotEmpty)
+          PopupMenuButton<String>(
+            tooltip: 'Actions du Projet',
+            enabled: _enabled,
+            onSelected: (choice) {
+              switch (choice) {
+                case 'link':
+                  _link(project);
+                case 'edit':
+                  _edit(project);
+                case 'lifecycle':
+                  _lifecycle(project);
+                case 'authority':
+                  _projectAccess(project);
+              }
+            },
+            itemBuilder: (_) => [
+              if (actions.contains('link'))
+                const PopupMenuItem(
+                  value: 'link', child: Text('Rattacher un Dossier'),
+                ),
+              if (actions.contains('edit'))
+                const PopupMenuItem(
+                  value: 'edit', child: Text('Modifier le Projet'),
+                ),
+              if (actions.contains('lifecycle'))
+                const PopupMenuItem(
+                  value: 'lifecycle', child: Text('Changer l’état'),
+                ),
+              if (actions.contains('authority'))
+                const PopupMenuItem(
+                  value: 'authority', child: Text('Gérer les accès'),
+                ),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.more_horiz_rounded, size: 20),
+                  SizedBox(width: 4),
+                  Text('Actions'),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _header(Map<String, dynamic> project) {
     final horizon = _map(project['horizon']);
@@ -729,67 +941,65 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 55,
-              height: 55,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(12),
                 color: theme.colorScheme.primary.withValues(alpha: .08),
               ),
               child: Icon(
                 Icons.folder_special_outlined,
-                size: 29,
+                size: 23,
                 color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _text(owner['label']),
-                    style: theme.textTheme.labelMedium?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.primary,
-                      letterSpacing: .7,
                     ),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 3),
                   Text(
                     _text(horizon['title']),
-                    style: theme.textTheme.headlineSmall?.copyWith(
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _humanState(_map(project['state'])['code']),
+                    style: theme.textTheme.bodySmall,
                   ),
                 ],
               ),
             ),
-            if (_has(project, 'project.edit'))
-              MakoloIconActionButton(
-                tooltip: 'Modifier ce Projet',
-                onPressed: _enabled ? () => _edit(project) : null,
-                icon: Icons.edit_outlined,
-              ),
           ],
         ),
         if (_text(horizon['description']).trim().isNotEmpty) ...[
-          const SizedBox(height: 13),
-          Text(_text(horizon['description'])),
+          const SizedBox(height: 8),
+          Text(_text(horizon['description']),
+              style: theme.textTheme.bodySmall),
         ],
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            Chip(label: Text(_humanState(_map(project['state'])['code']))),
-            if (start != null)
-              Chip(label: Text('Début · ${_humanDate(start)}')),
-            if (end != null)
-              Chip(label: Text('Fin de l’horizon · ${_humanDate(end)}')),
-          ],
-        ),
+        if (start != null || end != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 7),
+            child: Text(
+              [
+                if (start != null) 'Début : ${_humanDate(start)}',
+                if (end != null) 'Fin : ${_humanDate(end)}',
+              ].join(' · '),
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
         if (widget.conversations != null && widget.onOpenConversation != null)
           Padding(
-            padding: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.only(top: 6),
             child: ConversationContextAction(
               repository: widget.conversations!,
               kind: 'project',
@@ -803,50 +1013,80 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
 
   Widget _tabs() => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 480) {
-        return Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            for (final (mode, label, icon) in [
-              (_ProjectMode.summary, 'Synthèse', Icons.dashboard_outlined),
-              (_ProjectMode.dossiers, 'Dossiers', Icons.folder_copy_outlined),
-              (
-                _ProjectMode.calendar,
-                'Calendrier',
-                Icons.calendar_month_outlined,
-              ),
-            ])
-              ChoiceChip(
-                selected: _mode == mode,
-                avatar: Icon(icon, size: 17),
-                label: Text(label),
-                onSelected: (_) => setState(() => _mode = mode),
-              ),
+      if (constraints.maxWidth >= 480) {
+        return SegmentedButton<_ProjectMode>(
+          showSelectedIcon: false,
+          selected: {_mode},
+          segments: const [
+            ButtonSegment(
+              value: _ProjectMode.summary,
+              icon: Icon(Icons.dashboard_outlined),
+              label: Text('Synthèse'),
+            ),
+            ButtonSegment(
+              value: _ProjectMode.dossiers,
+              icon: Icon(Icons.folder_copy_outlined),
+              label: Text('Dossiers'),
+            ),
+            ButtonSegment(
+              value: _ProjectMode.calendar,
+              icon: Icon(Icons.calendar_month_outlined),
+              label: Text('Calendrier'),
+            ),
           ],
+          onSelectionChanged: (value) => setState(() => _mode = value.first),
         );
       }
-      return SegmentedButton<_ProjectMode>(
-        showSelectedIcon: false,
-        selected: {_mode},
-        segments: const [
-          ButtonSegment(
-            value: _ProjectMode.summary,
-            icon: Icon(Icons.dashboard_outlined),
-            label: Text('Synthèse'),
-          ),
-          ButtonSegment(
-            value: _ProjectMode.dossiers,
-            icon: Icon(Icons.folder_copy_outlined),
-            label: Text('Dossiers'),
-          ),
-          ButtonSegment(
-            value: _ProjectMode.calendar,
-            icon: Icon(Icons.calendar_month_outlined),
-            label: Text('Calendrier'),
-          ),
+      final scheme = Theme.of(context).colorScheme;
+      const items = [
+        (_ProjectMode.summary, 'Synthèse', Icons.dashboard_outlined),
+        (_ProjectMode.dossiers, 'Dossiers', Icons.folder_copy_outlined),
+        (_ProjectMode.calendar, 'Calendrier', Icons.calendar_month_outlined),
+      ];
+      return Row(
+        children: [
+          for (final (mode, label, icon) in items)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Semantics(
+                  selected: _mode == mode,
+                  button: true,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => setState(() => _mode = mode),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: _mode == mode
+                            ? scheme.primaryContainer
+                            : scheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(icon, size: 16,
+                            color: _mode == mode
+                                ? scheme.onPrimaryContainer
+                                : scheme.onSurfaceVariant),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(label,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
-        onSelectionChanged: (value) => setState(() => _mode = value.first),
       );
     },
   );
