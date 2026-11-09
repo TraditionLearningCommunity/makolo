@@ -23,7 +23,6 @@ import 'conversation_list_tile.dart';
 import 'conversation_details_screen.dart';
 import 'conversation_composer.dart';
 import 'conversation_point_presentation.dart';
-import 'conversation_attachment_viewer.dart';
 import 'conversation_media_group.dart';
 import 'conversation_exchange_sheet.dart';
 import 'conversation_media_sheet.dart';
@@ -673,21 +672,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   String? _justPublishedPointId;
   Map<String, dynamic> _activeComposer = const {};
 
-  Future<void> _openAttachment(Map<String, dynamic> attachment) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (context) => FractionallySizedBox(
-        heightFactor: 0.88,
-        child: ConversationAttachmentViewer(
-          repository: widget.repository,
-          attachment: attachment,
-        ),
-      ),
-    );
-  }
-
   Future<void> _openResponseMedia(_ConversationPoint point, String mode) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -930,7 +914,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         representedSpaceId: widget.representedSpaceId,
         readOnly: readOnly,
         onOpenFormRequest: widget.onOpenFormRequest,
-        onOpenAttachment: _openAttachment,
         onOpenExchange: () => _openExchange(point),
         onRespondWithMedia: (mode) => _openResponseMedia(point, mode),
         onOpenRelatedPoint: widget.onOpenRelatedPoint,
@@ -1510,7 +1493,6 @@ class _PointCard extends StatefulWidget {
     this.representedSpaceId,
     this.readOnly = false,
     this.onOpenFormRequest,
-    this.onOpenAttachment,
     this.onOpenExchange,
     this.onRespondWithMedia,
     this.onOpenRelatedPoint,
@@ -1522,8 +1504,6 @@ class _PointCard extends StatefulWidget {
   final String? representedSpaceId;
   final bool readOnly;
   final Future<void> Function(String requestId)? onOpenFormRequest;
-  final Future<void> Function(Map<String, dynamic> attachment)?
-  onOpenAttachment;
   final VoidCallback? onOpenExchange;
   final ValueChanged<String>? onRespondWithMedia;
   final ValueChanged<String>? onOpenRelatedPoint;
