@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Mandate
-from authorization.services import can, grant_dossier_role, revoke_mandate, validate_role_for_dossier
+from authorization.services import can, grant_dossier_role, grant_project_role, revoke_mandate, validate_role_for_dossier, validate_role_for_project
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from journeys.models import JourneyStatus
@@ -65,6 +65,9 @@ def can_view_project(actor, project):
     if not getattr(actor, "is_authenticated", False): return False
     if can(actor, PermissionCode.PLATFORM_MANAGE): return True
     if project.owner_profile_id == actor.pk: return True
+    if can(actor, PermissionCode.PROJECT_VIEW, project=project): return True
+    if can(actor, PermissionCode.PROJECT_MANAGE, project=project): return True
+    if can(actor, PermissionCode.PROJECT_AUTHORITY_MANAGE, project=project): return True
     if project.owning_space_id:
         return can(actor, PermissionCode.SPACE_VIEW, space=project.owning_space) or can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space)
     return False
@@ -74,7 +77,45 @@ def can_manage_project(actor, project):
     if not getattr(actor, "is_authenticated", False): return False
     if can(actor, PermissionCode.PLATFORM_MANAGE): return True
     if project.owner_profile_id == actor.pk: return True
+    if can(actor, PermissionCode.PROJECT_MANAGE, project=project): return True
     return bool(project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space))
+
+
+def can_manage_project_authority(actor, project):
+    if not getattr(actor, "is_authenticated", False): return False
+    if can(actor, PermissionCode.PLATFORM_MANAGE): return True
+    if project.owner_profile_id == actor.pk: return True
+    if project.owning_space_id and can(actor, PermissionCode.SPACE_MANAGE, space=project.owning_space): return True
+    return can(actor, PermissionCode.PROJECT_AUTHORITY_MANAGE, project=project)
+
+
+@transaction.atomic
+def grant_project_authority(*, actor, project, profile, role):
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    if not getattr(profile, "is_active", False):
+        raise ValidationError("Le collaborateur doit disposer d'un compte Makolo actif.")
+    validate_role_for_project(role)
+    return grant_project_role(
+        profile=profile, project=project, role=role, granted_by=actor,
+        source="objectives-service",
+    )
+
+
+@transaction.atomic
+def revoke_project_authority(*, actor, project, mandate):
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    mandate = Mandate.objects.select_for_update().filter(
+        pk=mandate.pk, scope_type=AuthorityScope.PROJECT, project=project,
+    ).first()
+    if mandate is None:
+        raise ValidationError("Ce Mandat n'appartient pas au Projet.")
+    return revoke_mandate(mandate=mandate, actor=actor)
 
 
 def can_use_journey_for_dossier(actor, journey):
