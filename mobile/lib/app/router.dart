@@ -769,6 +769,12 @@ GoRouter createMakoloRouter(
             onOpenLive: () => context.push(
               '/space/occurrences/${state.pathParameters['id']}/live',
             ),
+            onOpenAccess: (accessId, detailPath) =>
+                context.push('/accesses/$accessId'),
+            onPresentCredential: (accessId, credentialPath) => context.push(
+              '/accesses/$accessId/credential',
+              extra: credentialPath,
+            ),
           );
         },
       ),
