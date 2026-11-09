@@ -169,6 +169,14 @@
       {% endif %}
     </details>
   {% endif %}
+  <form method="post" action="{% url 'conversations:point-personal-state' point.pk %}"
+        class="mt-3">
+    {% csrf_token %}
+    <button class="mk-btn mk-btn-secondary" type="submit" name="action" value="revisit"
+            aria-label="{% if actions.revisit %}Ne plus revoir ce Point{% else %}Revoir ce Point plus tard{% endif %}">
+      {% if actions.revisit %}✓ À revoir · retirer{% else %}Revoir ce Point{% endif %}
+    </button>
+  </form>
   <footer class="mt-3 flex justify-end gap-2 text-xs" style="color:var(--mk-muted)">
     {% if point.published_by_id == request.user.pk and point.published_at %}
       <span title="Publication confirmée par Makolo" aria-label="Publication confirmée">✓</span>
