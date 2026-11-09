@@ -791,8 +791,17 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     if ((entries.isEmpty && outgoing.isEmpty) || _focusedPointId != null) {
       return;
     }
-    final latestId = outgoing.isNotEmpty
-        ? outgoing.last.reference
+    final lastPublished = entries.isNotEmpty
+        ? entries.last.point.publishedAt ?? entries.last.point.updatedAt
+        : null;
+    final mostRecentPending = outgoing.isEmpty
+        ? null
+        : (outgoing.toList()
+              ..sort((a, b) => a.observedAt.compareTo(b.observedAt))).last;
+    final latestId = mostRecentPending != null &&
+            (lastPublished == null ||
+                !mostRecentPending.observedAt.isBefore(lastPublished))
+        ? mostRecentPending.reference
         : entries.last.point.id;
     final receivedId = entries.isEmpty ? null : entries.last.point.id;
     final hasNewMessages =
@@ -1256,136 +1265,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     );
   }
 
-  Widget _timeline(
-    BuildContext context,
-    _ConversationDetail detail, {
-    List<ConversationOutgoing> outgoing = const [],
-  }) {
-    final entries = _timelineEntries(detail);
-    final ownerReferences = <String>{
-      for (final entry in entries)
-        if (entry.point.clientReference != null) entry.point.clientReference!,
-      for (final entry in entries) ...entry.point.exchangeReferences,
-    };
-    final visibleOutgoing = [
-      for (final intent in outgoing)
-        if (!(intent.isConfirmed && ownerReferences.contains(intent.reference)))
-          intent,
-    ];
-    _positionTimeline(entries, visibleOutgoing);
-    _focusAfterLayout();
-    _activeTimelineSignature = _timelineSignature(detail);
-    DateTime? previousDay;
-    final children = <Widget>[];
-    final olderCursor = _olderAvailableCursor(detail);
-    final focusOutsideWindow = detail.hasTimeline &&
-        detail.focusedPoint != null &&
-        !entries.any((entry) => entry.point.id == detail.focusedPoint!.id);
-    if (focusOutsideWindow) {
-      children.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: MakoloSpacing.inner,
-            vertical: MakoloSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                child: Text(
-                  'Point ciblé · hors des derniers échanges',
-                  style: Theme.of(context).textTheme.labelMedium,
-                ),
-              ),
-              _pointWidget(detail.focusedPoint!, readOnly: false),
-            ],
-          ),
-        ),
-      );
-    }
-    if (olderCursor != null && olderCursor.isNotEmpty) {
-      children.add(
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            MakoloSpacing.inner, MakoloSpacing.sm,
-            MakoloSpacing.inner, MakoloSpacing.md,
-          ),
-          child: Column(
-            children: [
-              OutlinedButton.icon(
-                key: const Key('conversation-load-older'),
-                onPressed: _loadingOlder ? null : () => _loadOlderPoints(detail),
-                icon: _loadingOlder
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.keyboard_arrow_up_rounded),
-                label: Text(_loadingOlder
-                    ? 'Chargement…' : 'Voir les Points plus anciens'),
-              ),
-              if (_olderError != null)
-                Text(_olderError!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    )),
-            ],
-          ),
-        ),
-      );
-    }
-    var index = 0;
-    while (index < entries.length) {
-      final entry = entries[index];
-      final timestamp = entry.point.publishedAt ?? entry.point.updatedAt;
-      final local = timestamp?.toLocal();
-      if (local != null &&
-          (previousDay == null ||
-              !DateUtils.isSameDay(previousDay, local))) {
-        children.add(_dayDivider(context, local));
-        previousDay = local;
-      }
-      if (entry.point.timelineCompact) {
-        var next = index + 1;
-        while (next < entries.length &&
-            entries[next].point.timelineCompact &&
-            (local == null
-                ? entries[next].point.publishedAt == null &&
-                    entries[next].point.updatedAt == null
-                : DateUtils.isSameDay(
-                    local,
-                    (entries[next].point.publishedAt ??
-                            entries[next].point.updatedAt)
-                        ?.toLocal(),
-                  ))) {
-          next++;
-        }
-        children.add(_completedTimelineGroup(
-          context, entries.sublist(index, next),
-        ));
-        index = next;
-      } else {
-        children.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: _pointWidget(entry.point, readOnly: entry.readOnly),
-          ),
-        );
-        index++;
-      }
-    }
-    // A locally accepted intent is rendered without claiming owner delivery.
-    // It disappears only when the owner projection contains its own
-    // client_reference, not merely because an HTTP request was started.
-    for (final intent in visibleOutgoing) {
-      final date = intent.observedAt.toLocal();
-      if (previousDay == null || !DateUtils.isSameDay(previousDay, date)) {
-        children.add(_dayDivider(context, date));
-        previousDay = date;
-      }
+  Widget _pendingWidget(BuildContext context, ConversationOutgoing intent) {
       final blocked = intent.isBlocked;
       final state = intent.state;
       final (status, icon) = switch (state) {
@@ -1399,8 +1279,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       final color = blocked
           ? Theme.of(context).colorScheme.error
           : Theme.of(context).colorScheme.onSurfaceVariant;
-      children.add(
-        Padding(
+    return Padding(
           key: Key('conversation-outgoing-${intent.reference}'),
           padding: const EdgeInsets.fromLTRB(
             MakoloSpacing.inner,
@@ -1506,8 +1385,164 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               ],
             ),
           ),
+        );
+  }
+
+  Widget _timeline(
+    BuildContext context,
+    _ConversationDetail detail, {
+    List<ConversationOutgoing> outgoing = const [],
+  }) {
+    final entries = _timelineEntries(detail);
+    final ownerReferences = <String>{
+      for (final entry in entries)
+        if (entry.point.clientReference != null) entry.point.clientReference!,
+      for (final entry in entries) ...entry.point.exchangeReferences,
+    };
+    final visibleOutgoing = [
+      for (final intent in outgoing)
+        if (!(intent.isConfirmed && ownerReferences.contains(intent.reference)))
+          intent,
+    ];
+    _positionTimeline(entries, visibleOutgoing);
+    _focusAfterLayout();
+    _activeTimelineSignature = _timelineSignature(detail);
+    DateTime? previousDay;
+    final children = <Widget>[];
+    final olderCursor = _olderAvailableCursor(detail);
+    final focusOutsideWindow = detail.hasTimeline &&
+        detail.focusedPoint != null &&
+        !entries.any((entry) => entry.point.id == detail.focusedPoint!.id);
+    if (focusOutsideWindow) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MakoloSpacing.inner,
+            vertical: MakoloSpacing.sm,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                child: Text(
+                  'Point ciblé · hors des derniers échanges',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+              ),
+              _pointWidget(detail.focusedPoint!, readOnly: false),
+            ],
+          ),
         ),
       );
+    }
+    if (olderCursor != null && olderCursor.isNotEmpty) {
+      children.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MakoloSpacing.inner, MakoloSpacing.sm,
+            MakoloSpacing.inner, MakoloSpacing.md,
+          ),
+          child: Column(
+            children: [
+              OutlinedButton.icon(
+                key: const Key('conversation-load-older'),
+                onPressed: _loadingOlder ? null : () => _loadOlderPoints(detail),
+                icon: _loadingOlder
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.keyboard_arrow_up_rounded),
+                label: Text(_loadingOlder
+                    ? 'Chargement…' : 'Voir les Points plus anciens'),
+              ),
+              if (_olderError != null)
+                Text(_olderError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    )),
+            ],
+          ),
+        ),
+      );
+    }
+    // Owner points and Profile-private pending intents share one chronological
+    // ordering. Pending files are not silently moved after newer publications.
+    final combined = <({
+      DateTime? at,
+      _ConversationTimelineEntry? point,
+      ConversationOutgoing? outgoing,
+      int order,
+    })>[];
+    var order = 0;
+    for (final entry in entries) {
+      combined.add((
+        at: entry.point.publishedAt ?? entry.point.updatedAt,
+        point: entry, outgoing: null, order: order++,
+      ));
+    }
+    for (final intent in visibleOutgoing) {
+      combined.add((
+        at: intent.observedAt, point: null, outgoing: intent,
+        order: order++,
+      ));
+    }
+    combined.sort((left, right) {
+      final a = left.at;
+      final b = right.at;
+      if (a != null && b != null) {
+        final dateOrder = a.compareTo(b);
+        if (dateOrder != 0) return dateOrder;
+      } else if (a != null) {
+        return 1;
+      } else if (b != null) {
+        return -1;
+      }
+      return left.order.compareTo(right.order);
+    });
+    var index = 0;
+    while (index < combined.length) {
+      final entry = combined[index];
+      final local = entry.at?.toLocal();
+      if (local != null &&
+          (previousDay == null ||
+              !DateUtils.isSameDay(previousDay, local))) {
+        children.add(_dayDivider(context, local));
+        previousDay = local;
+      }
+      if (entry.point?.point.timelineCompact == true) {
+        var next = index + 1;
+        while (next < combined.length &&
+            combined[next].point?.point.timelineCompact == true &&
+            DateUtils.isSameDay(local, combined[next].at?.toLocal())) {
+          next++;
+        }
+        children.add(_completedTimelineGroup(
+          context,
+          [
+            for (final candidate in combined.sublist(index, next))
+              candidate.point!,
+          ],
+        ));
+        index = next;
+      } else if (entry.point != null) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: _pointWidget(
+              entry.point!.point,
+              readOnly: entry.point!.readOnly,
+            ),
+          ),
+        );
+        index++;
+      } else {
+        children.add(_pendingWidget(context, entry.outgoing!));
+        index++;
+      }
     }
     if (children.isEmpty) {
       children.add(
