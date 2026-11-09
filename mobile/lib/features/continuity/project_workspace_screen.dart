@@ -595,7 +595,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       if (mounted) setState(() => _ignoreOlderPages = false);
     } on Object {
       _lastOffset = null;
-      _notice('Suite indisponible, réessayez après reconnexion.');
+      if (mounted) {
+        setState(() => _failed = true);
+        _notice('Suite indisponible. Actualisez pour réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
