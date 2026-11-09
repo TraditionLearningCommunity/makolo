@@ -912,11 +912,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                   'Les nouveautés apparaîtront à la prochaine connexion.',
                                 ),
                               ),
-                            if (page.hasMore)
-                              Text(
-                                'D’autres éléments peuvent encore apparaître.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
                             if (_search.text.trim().isNotEmpty &&
                                 flat.isNotEmpty)
                               Padding(
