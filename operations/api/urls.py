@@ -12,6 +12,7 @@ from operations.live_api import OccurrenceLiveAPIView, OccurrenceOperationalRead
 from operations.occurrence_experience_api import (
     OccurrenceExperienceDayOfAPIView,
     OccurrenceExperienceLiveAPIView,
+    OccurrenceExperienceLiveConfigurationAPIView,
 )
 from operations.offline_api import OccurrenceOfflineActionPackAPIView
 from operations.placement_api import (
@@ -66,6 +67,11 @@ urlpatterns = [
         "occurrences/<uuid:occurrence_id>/experience/live/",
         OccurrenceExperienceLiveAPIView.as_view(),
         name="occurrence-experience-live",
+    ),
+    path(
+        "occurrences/<uuid:occurrence_id>/experience/live-configuration/",
+        OccurrenceExperienceLiveConfigurationAPIView.as_view(),
+        name="occurrence-experience-live-configuration",
     ),
     path(
         "occurrences/<uuid:occurrence_id>/readiness/",
