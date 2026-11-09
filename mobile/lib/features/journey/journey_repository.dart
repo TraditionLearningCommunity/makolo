@@ -90,8 +90,9 @@ class JourneyRepository {
     if (parts.length != sizes.length) return false;
     for (var i = 0; i < parts.length; i++) {
       if (parts[i].length != sizes[i] ||
-          int.tryParse(parts[i], radix: 16) == null)
+          int.tryParse(parts[i], radix: 16) == null) {
         return false;
+      }
     }
     return true;
   }

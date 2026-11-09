@@ -40,7 +40,7 @@ class _ShareResourceRepository extends ResourceRepository {
     String? fileExtension,
     TransferProgress? onProgress,
   }) async {
-    this.retainedOfflineCopy = retainOfflineCopy;
+    retainedOfflineCopy = retainOfflineCopy;
     requestedExtension = fileExtension;
     final directory = await Directory.systemTemp.createTemp(
       'makolo-resource-share-',

@@ -451,7 +451,7 @@ class _MeHubListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MakoloTerritoryListCard(
-    tapKey: Key('me-entry-' + entry.kind),
+    tapKey: Key('me-entry-${entry.kind}'),
     title: entry.title,
     subtitle: entry.subtitle,
     count: entry.count,
@@ -504,7 +504,7 @@ class _MeHubGridEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MakoloTerritoryGridCard(
-    tapKey: Key('me-grid-' + entry.kind),
+    tapKey: Key('me-grid-${entry.kind}'),
     title: entry.title,
     subtitle: entry.subtitle,
     countDescription: _countDescription,

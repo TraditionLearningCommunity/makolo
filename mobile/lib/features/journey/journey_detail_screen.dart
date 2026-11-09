@@ -1256,8 +1256,8 @@ class _JourneyPracticalCard extends StatelessWidget {
               title: const Text('Début prévu'),
               subtitle: Text(
                 [
-                  if (date != null) date,
-                  if (time != null) time,
+                  ?date,
+                  ?time,
                   if (ownerDate != null && facts.timezone != null)
                     facts.timezone!,
                 ].join(' · '),

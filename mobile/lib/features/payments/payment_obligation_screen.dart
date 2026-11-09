@@ -65,8 +65,9 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
               const {
                 'permission_denied',
                 'not_found',
-              }.contains(source?.lastErrorCode))
+              }.contains(source?.lastErrorCode)) {
             continue;
+          }
           final journey = const JourneyDetailSelector().select(
             projection: projection,
             source: source ?? JourneySourceState.unknown,

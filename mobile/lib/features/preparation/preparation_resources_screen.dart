@@ -102,8 +102,9 @@ class _PreparationResourcesScreenState
     }
     if (!mounted ||
         revision != _identityRevision ||
-        !identical(repository, widget.repository))
+        !identical(repository, widget.repository)) {
       return;
+    }
     setState(() {
       _downloaded
         ..clear()
@@ -185,12 +186,12 @@ class _PreparationResourcesScreenState
         fileName: makoloDownloadName(resource.title, extension),
         mimeType: mime,
       );
-      if (!_sameOwner(revision, repository, id)) return;
+      if (!_sameOwner(revision, repository, id) || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Enregistré dans Téléchargements : $saved')),
       );
     } on Object {
-      if (!_sameOwner(revision, repository, id)) return;
+      if (!_sameOwner(revision, repository, id) || !mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -235,7 +236,7 @@ class _PreparationResourcesScreenState
         resource.title,
       );
     } on Object {
-      if (_sameOwner(revision, repository, id)) {
+      if (_sameOwner(revision, repository, id) && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(

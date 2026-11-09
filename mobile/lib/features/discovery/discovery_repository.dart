@@ -215,7 +215,7 @@ class DiscoveryQuery {
   Map<String, String> get parameters {
     return <String, String>{
       if (isSpace) 'context': 'space',
-      if (spaceSlug != null) 'space': spaceSlug!,
+      'space': ?spaceSlug,
       if (text.trim().isNotEmpty) 'q': text.trim(),
       if (place.trim().isNotEmpty) 'place': place.trim(),
       if (when.trim().isNotEmpty) 'when': when.trim(),
@@ -803,14 +803,16 @@ class DiscoveryRepository {
       if (field['surface'] != 'discover_space' ||
           scopeActor is! Map ||
           scopeActor['type'] != 'space' ||
-          scopeActor['id'] != query.spaceId)
+          scopeActor['id'] != query.spaceId) {
         return null;
+      }
     } else {
       if (field['surface'] != 'discover_me' ||
           scopeActor is! Map ||
           scopeActor['type'] != 'profile' ||
-          scopeActor['id'] != profileId)
+          scopeActor['id'] != profileId) {
         return null;
+      }
     }
     return StoredProjection(
       kind: itemsProjectionKind,
@@ -1300,8 +1302,9 @@ class DiscoveryRepository {
         if (page.payload['surface'] != 'discover_space' ||
             pageActor is! Map ||
             pageActor['type'] != 'space' ||
-            pageActor['id'] != actorQuery.spaceId)
+            pageActor['id'] != actorQuery.spaceId) {
           continue;
+        }
       } else {
         if (page.payload['surface'] != 'discover_me') continue;
       }
@@ -1850,8 +1853,9 @@ class DiscoveryRepository {
       final viewer = projection.payload['viewer'];
       if (viewer is! Map ||
           viewer['id'] != profileId ||
-          projection.payload['surface'] != 'discover_me')
+          projection.payload['surface'] != 'discover_me') {
         continue;
+      }
 
       final payload = Map<String, dynamic>.from(projection.payload);
       var changed = false;

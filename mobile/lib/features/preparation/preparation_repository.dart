@@ -195,8 +195,9 @@ class PreparationResourcesRepository {
     if (record == null ||
         record.owner != 'Preparation' ||
         record.purpose != 'journey_preparation' ||
-        record.sensitivity != 'private')
+        record.sensitivity != 'private') {
       return null;
+    }
     return await File(record.path).exists() ? record : null;
   }
 

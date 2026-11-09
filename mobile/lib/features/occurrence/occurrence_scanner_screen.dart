@@ -178,8 +178,9 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
         _confirming ||
         _checking ||
         !_actorValid ||
-        _context == null)
+        _context == null) {
       return;
+    }
     final revision = _epoch;
     setState(() {
       _confirming = true;
@@ -349,8 +350,9 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                     height: 280,
                     child: MakoloCodeScanner(
                       onCode: (code) {
-                        if (_camera && !_busy)
+                        if (_camera && !_busy) {
                           unawaited(_offerToken(code.value));
+                        }
                       },
                     ),
                   ),
