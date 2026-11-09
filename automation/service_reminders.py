@@ -339,7 +339,9 @@ def _run_conversation_point_reminders(now):
                 f"conversation-deadline:{point.pk}:{point.deadline_at.isoformat()}:"
                 f"{milestone}:{recipient.pk}"
             )[:255]
-            notification = create_notification(
+            from notifications.models import Notification
+            already_created = Notification.objects.filter(dedup_key=dedup).exists()
+            create_notification(
                 recipient=recipient,
                 kind=NotificationKind.SYSTEM,
                 category=NotificationCategory.SYSTEM,
@@ -361,9 +363,7 @@ def _run_conversation_point_reminders(now):
                 queue_push=recipient.pk not in muted_ids,
                 template_key="conversation.point.action_required",
             )
-            if notification.created_at >= now - timedelta(minutes=2):
-                # An existing deduped notification may be recent; do not
-                # mistake recency for creation. This tally is indicative only.
+            if not already_created:
                 created += 1
     return created
 
