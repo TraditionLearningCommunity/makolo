@@ -21,6 +21,7 @@
 
     const body = dialog.querySelector("[data-media-dialog-body]");
     const title = dialog.querySelector("[data-media-dialog-title]");
+    const caption = dialog.querySelector("[data-media-dialog-caption]");
     const status = dialog.querySelector("[data-media-dialog-status]");
     const download = dialog.querySelector("[data-media-dialog-download]");
     const share = dialog.querySelector("[data-media-dialog-share]");
@@ -65,6 +66,7 @@
       title.textContent = (item.dataset.mediaName || "Média") + " · " +
         (index + 1) + "/" + items.length;
       status.textContent = "";
+      caption.textContent = item.dataset.mediaCaption || "";
       body.replaceChildren();
       if (!inline && !file) {
         body.textContent = "Ce média n'est plus disponible.";
