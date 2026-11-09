@@ -1,6 +1,6 @@
 # Jour J & Makolo Live Mature — plan d'implémentation par lots
 
-**Statut :** L1 et L2 implémentés côté serveur sur #522, en attente d'exécution des validations ; L3 à L7 restent à réaliser.  
+**Statut :** L1–L4 développés sur la branche #522, sans exécution de CI ni certification technique ; L5–L7 restent à réaliser.  
 **Date :** 9 novembre 2026.  
 **Branche de rattachement :** PR #522, `fix/discover-a-continuation-context-20261014`.  
 **Contrat cible :** `docs/ux/Makolo_Jour_J_et_Live_Contrat_Cible_Mature_Unifie_2026-11-09.md`.  
@@ -43,6 +43,42 @@ La coexistence visuelle **n'est pas une fusion de permission**. Les domaines own
 - **L5 :** handoffs/écrans métier complets, permissions de mutations et cas des représentants d'un bénéficiaire externe. La représentation d'un enfant par plusieurs Profils n'est pas introduite artificiellement ici.
 - **Autres workflows :** `Access` reste individuel ; Commerce/Services ne reçoivent pas automatiquement un accès institutionnel. Une Journey Space constitue une démarche institutionnelle, pas une admission physique.
 - **Avant clôture technique et merge :** exécuter les tests ciblés, vérifier la migration en environnement de test, contrôler les consommateurs Journey/Services/Commerce/Access, puis seulement les suites et la CI pertinentes. Ne pas déclarer « certifié » sans ces preuves.
+
+## État d'exécution — L3 + L4 (9 novembre 2026)
+
+**Implémentation Web, Flutter et opt-in serveur enregistrée sur #522.** Les validations de compilation, Django, Flutter, migration et CI ne sont pas exécutées à la demande du propriétaire. Ne pas qualifier ces lots de certifiés.
+
+### L3 — Jour J unifié
+
+- La projection `occurrence.experience.day_of` alimente maintenant les repositories Flutter Profil et Space, sans mode participant/organisateur. `OccurrenceExperienceContent` est la présentation partagée pour toutes les entrées.
+- Les blocs d'accomplissement personnel, Journey institutionnelle, opérations, responsabilités financières, Scanner et Capacity coexistent suivant les autorisations réellement renvoyées. Les actions importantes restent simultanément visibles. Les opérations sans handoff existant sont présentées comme capacités, sans bouton trompeur.
+- Le Web Profil a une entrée `/me/occurrences/<id>/day-of/`. Le Web Space et le Web Profil partagent le même fragment de contenu. Une Journey dont le Space est bénéficiaire peut apparaître depuis son Space même si l'Occurrence est organisée par un autre acteur.
+- La source mobile Space transmet `actor_space` ; le backend vérifie le mandat effectif, filtre les Journeys institutionnelles du Space choisi et ne fusionne pas les opérations d'un autre Space.
+- La page personnelle d'une Journey propose l'accès à Jour J quand une Occurrence est liée. Le Dossier/Projet demeure facultatif.
+
+### L4 — Live unique et *facultatif*
+
+- `Occurrence.live_enabled` est une permission produit de publication, initialisée à `False` pour toute Occurrence (migration additive `activities/migrations/0005_occurrence_live_opt_in.py`).
+- Activation/désactivation réservée au gestionnaire Activity/Space via `activities.services.set_occurrence_live_enabled`, endpoint propriétaire `POST /api/v1/operations/occurrences/<id>/experience/live-configuration/` et formulaires Web autorisés.
+- Les GET composés Live renvoient indisponible si l'Occurrence n'est pas activée ou hors de la fenêtre arrival/live ; Jour J reste accessible. Les liens Live historiques et leurs capacités ne sont plus proposés automatiquement par la seule existence d'une Journey ou d'un horaire.
+- `occurrence.experience.live` est consommée par Flutter et Web ; la page reality-first affiche couverture, dates prévues, faits owner-backed, incertitude de position, source et fraîcheur. Elle n'invente pas de delta, média, ou streaming.
+- Les fichiers de navigation historiques restent compatibles ; une entrée directe vers un Live indisponible ne crée aucun droit ni projection nouvelle.
+
+### Fichiers principaux
+
+- `activities/models.py`, `activities/services.py`, migration `0005_occurrence_live_opt_in` ;
+- `operations/occurrence_experience.py`, `operations/occurrence_experience_api.py`, `operations/api/urls.py`, `operations/occurrence_experience_facts.py` ;
+- `organizations/space_ws5_web.py`, `core/occurrence_experience_web.py`, `core/urls.py`, `core/m8c_participant_views.py` ;
+- `templates/occurrence/day_of_content.html`, `templates/occurrence/live_content.html`, wrappers Web Profil et Space ;
+- `mobile/lib/features/occurrence/occurrence_experience_content.dart`, repositories et écrans DayOf/Live/Space, liens de navigation ;
+- tests ajoutés : `operations/test_occurrence_experience_live_optin.py`, `core/test_occurrence_experience_web.py`, `mobile/test/occurrence_experience_content_test.dart`, extensions de `operations/test_occurrence_experience.py` et `journeys/test_space_beneficiary.py`.
+
+### Limites et livraison
+
+- Les pages L3/L4 consomment la grammaire nouvelle, mais le Scanner **mobile** ne dispose pas encore d'un écran / route propriétaire : les droits sont signalés, aucun faux bouton de navigation n'est créé. Les profondeurs métiers sont L5.
+- Une Journey Space est une bénéficience institutionnelle, non un credential collectif ou une admission physique. La délégation multi-tuteurs externe relève d'une évolution canonique distincte.
+- Les anciennes projections opérationnelles restent disponibles comme services de faits / compatibilité ; elles ne remplacent pas les nouvelles pages.
+- **Validation non exécutée** : migration en base, tests serveurs, Flutter, rendu Web et CI ; aucune prétention de livraison en production et aucune fusion de #522.
 
 ## Évolution canonique Journey — bénéficiaire Space (passe ciblée)
 
@@ -188,4 +224,4 @@ L7 Scénarios finaux / validation / intégration
 - Aucun lot ne doit imposer une nouvelle migration, nouvelle API ou nouveau domaine sans démonstration de nécessité après L0.
 - Chaque changement de code devra être annoncé avant commit/push ; préserver la branche et la CI, ne pas modifier `main` directement.
 
-**État de ce document : L1 et L2 sont développés sur la branche #522 (sans validation d'exécution) ; les lots L3 à L7 ne sont pas clôturés.**
+**État de ce document : L1–L4 sont développés sur #522, non certifiés faute d'exécution des validations ; L5–L7 ne sont pas clôturés.**
