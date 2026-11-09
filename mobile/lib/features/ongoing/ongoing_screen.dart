@@ -412,8 +412,12 @@ class _OngoingFieldState extends State<_OngoingField> {
       _newContinuitiesAvailable = false;
     } else {
       final before = oldWidget.items.map((item) => item.id).toSet();
+      // Only a new leading continuity merits attention, not older pages.
       final added = before.isNotEmpty &&
-          widget.items.any((item) => !before.contains(item.id));
+          widget.items.isNotEmpty &&
+          !before.contains(widget.items.first.id) &&
+          !oldWidget.moreBusy &&
+          !widget.moreBusy;
       if (added &&
           _scroll.hasClients &&
           _scroll.offset >= 120 &&
