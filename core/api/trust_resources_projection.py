@@ -58,6 +58,10 @@ def _proof_payload(proof, *, detail=False):
         ),
     }
     capabilities = ["view_detail", "open_journey"]
+    if proof.status == ProofStatus.ACTIVE:
+        links["passport"] = reverse("personal-projections:passport")
+        links["passport_web"] = reverse("sharing:passport-me")
+        capabilities.append("open_passport")
     if proof.is_public:
         links["verify"] = reverse(
             "trust:proof-verify",
@@ -186,7 +190,9 @@ def _credential_payload(credential, *, detail=False):
             kwargs={"public_id": credential.public_id},
         ),
     }
-    capabilities = ["view_detail", "verify_publicly"]
+    capabilities = ["view_detail", "verify_publicly", "open_passport"]
+    links["passport"] = reverse("personal-projections:passport")
+    links["passport_web"] = reverse("sharing:passport-me")
     if credential.journey_id:
         links["journey"] = reverse(
             "core:participant-journey-detail",
