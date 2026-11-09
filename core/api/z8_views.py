@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError as DjangoValidationError
 from django.db import transaction
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.utils import timezone
 from django.utils.text import slugify
 
