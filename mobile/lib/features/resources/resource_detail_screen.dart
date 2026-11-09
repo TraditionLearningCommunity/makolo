@@ -71,7 +71,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     _detail = widget.repository.watchDetail(widget.assetId);
     _source = widget.repository.watchDetailSource(widget.assetId);
     unawaited(_loadKnownSummary());
-    unawaited(_refresh());
+    unawaited(_ensureFresh());
   }
 
   Future<void> _loadKnownSummary() async {
@@ -89,6 +89,19 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       }
     } on Object {
       // A list row remains a summary, never a permission grant.
+    }
+  }
+
+  Future<void> _ensureFresh() async {
+    if (_refreshing) return;
+    try {
+      if (!await widget.repository.shouldRefreshDetail(widget.assetId)) return;
+      if (mounted) setState(() => _refreshing = true);
+      await widget.repository.refreshDetail(widget.assetId);
+    } on Object {
+      // Keep already acquired metadata visible.
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
@@ -299,195 +312,284 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: _detail,
-      builder: (context, snapshot) {
-        final projection = snapshot.data;
-        final detail = projection != null
-            ? _ResourceDetail.fromPayload(projection.payload)
-            : _cachedSummary;
+    return StreamBuilder<ResourceSourceState>(
+      stream: _source,
+      initialData: ResourceSourceState.unknown,
+      builder: (context, sourceSnapshot) {
+        final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
+        return StreamBuilder<StoredProjection?>(
+          stream: _detail,
+          builder: (context, snapshot) {
+            final projection = snapshot.data;
+            final detail = projection != null
+                ? _ResourceDetail.fromPayload(projection.payload)
+                : _cachedSummary;
+            final ownerAvailable = !source.invalidated && !source.ownerDenied;
+            final networkAvailable =
+                source.reachability == ReachabilityState.reachable;
+            final canUseNetworkActions = ownerAvailable && networkAvailable;
+            final canDownload =
+                ownerAvailable &&
+                (networkAvailable || detail?.sensitivity == 'normal');
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Document'),
-            actions: [
-              if (detail?.currentVersion?.downloadPath != null)
-                MakoloIconActionButton(
-                  tooltip: 'Télécharger',
-                  icon: Icons.download_rounded,
-                  onPressed: _downloading || _sharing
-                      ? null
-                      : () => _download(detail!, detail.currentVersion!),
-                ),
-              if (detail?.currentVersion?.downloadPath != null)
-                MakoloIconActionButton(
-                  tooltip: 'Partager',
-                  icon: Icons.send_outlined,
-                  onPressed: _sharing || _downloading
-                      ? null
-                      : () => _share(detail!, detail.currentVersion!),
-                ),
-              if (detail?.reusePath != null)
-                MakoloIconActionButton(
-                  tooltip: 'Utiliser',
-                  icon: Icons.drive_file_move_outline,
-                  onPressed: () => _reuse(detail!),
-                ),
-              if (detail?.addVersionPath != null)
-                MakoloIconActionButton(
-                  tooltip: 'Nouvelle version',
-                  icon: Icons.note_add_outlined,
-                  onPressed: widget.onAddVersion,
-                ),
-              if (detail?.archivePath != null)
-                MakoloIconActionButton(
-                  tooltip: 'Archiver',
-                  icon: Icons.archive_outlined,
-                  onPressed: _archiving ? null : () => _archive(detail!),
-                ),
-            ],
-          ),
-          body: detail == null
-              ? Center(
-                  child: _refreshing
-                      ? const CircularProgressIndicator.adaptive()
-                      : const Text('Document indisponible'),
-                )
-              : StreamBuilder<ResourceSourceState>(
-                  stream: _source,
-                  initialData: ResourceSourceState.unknown,
-                  builder: (context, sourceSnapshot) {
-                    final source =
-                        sourceSnapshot.data ?? ResourceSourceState.unknown;
-                    if (source.invalidated) {
-                      return const Center(
-                        child: Text('Document indisponible'),
-                      );
-                    }
-                    return RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(MakoloSpacing.inner),
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Document'),
+                actions: [
+                  if (detail?.currentVersion?.downloadPath != null &&
+                      ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Télécharger',
+                      icon: Icons.download_rounded,
+                      onPressed:
+                          !canDownload || _downloading || _sharing
+                          ? null
+                          : () => _download(detail!, detail.currentVersion!),
+                    ),
+                  if (detail?.currentVersion?.downloadPath != null &&
+                      ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Partager',
+                      icon: Icons.send_outlined,
+                      onPressed:
+                          !canUseNetworkActions || _sharing || _downloading
+                          ? null
+                          : () => _share(detail!, detail.currentVersion!),
+                    ),
+                  if (detail?.reusePath != null && ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Utiliser',
+                      icon: Icons.drive_file_move_outline,
+                      onPressed: canUseNetworkActions
+                          ? () => _reuse(detail!)
+                          : null,
+                    ),
+                  if (detail?.addVersionPath != null && ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Nouvelle version',
+                      icon: Icons.note_add_outlined,
+                      onPressed:
+                          canUseNetworkActions ? widget.onAddVersion : null,
+                    ),
+                  if (detail?.archivePath != null && ownerAvailable)
+                    MakoloIconActionButton(
+                      tooltip: 'Archiver',
+                      icon: Icons.archive_outlined,
+                      onPressed: !canUseNetworkActions || _archiving
+                          ? null
+                          : () => _archive(detail!),
+                    ),
+                  MakoloIconActionButton(
+                    tooltip: 'Actualiser',
+                    icon: Icons.refresh_rounded,
+                    onPressed: _refreshing ? null : _refresh,
+                  ),
+                ],
+              ),
+              body: detail == null
+                  ? Center(
+                      child: _refreshing
+                          ? const CircularProgressIndicator.adaptive()
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Document indisponible'),
+                                const SizedBox(height: MakoloSpacing.md),
+                                MakoloActionButton(
+                                  label: 'Réessayer',
+                                  appearance: MakoloActionAppearance.quiet,
+                                  onPressed: _refresh,
+                                ),
+                              ],
+                            ),
+                    )
+                  : source.invalidated
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.description_outlined,
-                                size: 32,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: MakoloSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      detail.title,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.headlineSmall,
-                                    ),
-                                    const SizedBox(height: MakoloSpacing.xs),
-                                    Text(
-                                      [
-                                        detail.kindLabel,
-                                        detail.sensitivityLabel,
-                                        if (detail.archived) 'Archivé',
-                                      ].join(' · '),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (source.reachability ==
-                                  ReachabilityState.unreachable)
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 8),
-                                  child: Icon(
-                                    Icons.cloud_off_outlined,
-                                    size: 18,
-                                  ),
-                                ),
-                            ],
+                          const Text('Document indisponible'),
+                          const SizedBox(height: MakoloSpacing.md),
+                          MakoloActionButton(
+                            label: 'Réessayer',
+                            appearance: MakoloActionAppearance.quiet,
+                            onPressed: _refresh,
                           ),
-                          if ((_downloading || _sharing) &&
-                              _downloadProgress != null) ...[
-                            const SizedBox(height: MakoloSpacing.md),
-                            LinearProgressIndicator(value: _downloadProgress),
-                          ],
-                          const SizedBox(height: MakoloSpacing.lg),
-                          if (detail.currentVersion != null)
-                            _VersionSummary(version: detail.currentVersion!),
-                          if (detail.currentVersion != null &&
-                              detail.sensitivity == 'normal')
-                            FutureBuilder<bool>(
-                              future: _knownLocalCopy(detail),
-                              builder: (context, localSnapshot) =>
-                                  localSnapshot.data == true
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(
-                                        top: MakoloSpacing.sm,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.offline_pin_outlined,
-                                            size: 18,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                          const SizedBox(
-                                            width: MakoloSpacing.xs,
-                                          ),
-                                          const Text('Disponible hors connexion'),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                          const SizedBox(height: MakoloSpacing.xl),
-                          Row(
-                            children: [
-                              Text(
-                                'Versions',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${detail.versions.length}',
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: MakoloSpacing.sm),
-                          for (final version in detail.versions)
-                            _VersionRow(
-                              version: version,
-                              canDownload: version.downloadPath != null,
-                              onDownload: _downloading
-                                  ? null
-                                  : () => _download(detail, version),
-                            ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(MakoloSpacing.inner),
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.description_outlined,
+                                    size: 32,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: MakoloSpacing.md),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          detail.title,
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.headlineSmall,
+                                        ),
+                                        const SizedBox(
+                                          height: MakoloSpacing.xs,
+                                        ),
+                                        Text(
+                                          [
+                                            detail.kindLabel,
+                                            detail.sensitivityLabel,
+                                            if (detail.archived) 'Archivé',
+                                          ].join(' · '),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (source.reachability ==
+                                  ReachabilityState.unreachable) ...[
+                                const SizedBox(height: MakoloSpacing.sm),
+                                Semantics(
+                                  liveRegion: true,
+                                  child: const Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_off_outlined,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: MakoloSpacing.xs),
+                                      Expanded(
+                                        child: Text(
+                                          'Données enregistrées sur cet appareil. '
+                                          'Mise à jour indisponible.',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if ((_downloading || _sharing) &&
+                                  _downloadProgress != null) ...[
+                                const SizedBox(height: MakoloSpacing.md),
+                                LinearProgressIndicator(
+                                  value: _downloadProgress,
+                                ),
+                              ],
+                              const SizedBox(height: MakoloSpacing.lg),
+                              if (detail.currentVersion != null)
+                                _VersionSummary(
+                                  version: detail.currentVersion!,
+                                ),
+                              if (detail.currentVersion != null &&
+                                  detail.sensitivity == 'normal')
+                                FutureBuilder<bool>(
+                                  future: _knownLocalCopy(detail),
+                                  builder: (context, localSnapshot) =>
+                                      localSnapshot.data == true
+                                      ? const Padding(
+                                          padding: EdgeInsets.only(
+                                            top: MakoloSpacing.sm,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.offline_pin_outlined,
+                                                size: 18,
+                                              ),
+                                              SizedBox(
+                                                width: MakoloSpacing.xs,
+                                              ),
+                                              Text(
+                                                'Disponible hors connexion',
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              if (detail.currentVersion != null &&
+                                  detail.sensitivity != 'normal' &&
+                                  source.reachability ==
+                                      ReachabilityState.unreachable)
+                                const Padding(
+                                  padding: EdgeInsets.only(
+                                    top: MakoloSpacing.sm,
+                                  ),
+                                  child: Text(
+                                    'Fichier disponible lorsque vous êtes connecté.',
+                                  ),
+                                ),
+                              const SizedBox(height: MakoloSpacing.xl),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Versions',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${detail.versions.length}',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: MakoloSpacing.sm),
+                              for (final version in detail.versions)
+                                _VersionRow(
+                                  version: version,
+                                  canDownload:
+                                      version.downloadPath != null &&
+                                      canDownload,
+                                  onDownload:
+                                      version.downloadPath == null ||
+                                          !canDownload ||
+                                          _downloading ||
+                                          _sharing
+                                      ? null
+                                      : () => _download(detail, version),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+            );
+          },
         );
       },
     );
