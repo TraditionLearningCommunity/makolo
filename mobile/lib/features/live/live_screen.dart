@@ -220,6 +220,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
                       payload: projection!.payload,
                       live: true,
                       remoteActionsAvailable: actionsAllowed,
+                      liveWindowEnded: liveEnded,
                       readOnlyReason: readOnlyReason,
                       lastKnownAt: source.lastSuccessAt,
                       onBackToDayOf: widget.onBackToDayOf,
