@@ -752,6 +752,39 @@ GoRouter createMakoloRouter(
       ...dayOfRoutes(runtime),
       ...liveRoutes(runtime),
       GoRoute(
+        path: '/occurrences/:id/scanner',
+        builder: (context, state) {
+          if (runtime.api == null ||
+              runtime.actorContext?.value is SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Scanner',
+              message: 'Ouvrez le Scanner depuis le contexte autorisé.',
+            );
+          }
+          return OccurrenceScannerScreen(
+            runtime: runtime,
+            occurrenceId: state.pathParameters['id']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/occurrences/:id/scanner',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (runtime.api == null || actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Scanner',
+              message: 'Un Espace mandaté est requis pour le contrôle.',
+            );
+          }
+          return OccurrenceScannerScreen(
+            runtime: runtime,
+            occurrenceId: state.pathParameters['id']!,
+            actorSpaceId: actor.space.id,
+          );
+        },
+      ),
+      GoRoute(
         path: '/space/occurrences/:id/day-of',
         builder: (context, state) {
           final actor = runtime.actorContext?.value;
