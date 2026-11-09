@@ -137,7 +137,10 @@ void main() {
         },
       );
 
-      await repository.refreshDetail(deniedId);
+      await expectLater(
+        repository.refreshDetail(deniedId),
+        throwsA(isA<MakoloApiError>()),
+      );
 
       final page = await repository.readCollectionPage(query: '', offset: 0);
       final pageItems =
@@ -228,7 +231,10 @@ void main() {
         offset: 0,
       );
       await entered.future;
-      await repository.refreshDetail(deniedId);
+      await expectLater(
+        repository.refreshDetail(deniedId),
+        throwsA(isA<MakoloApiError>()),
+      );
       release.complete();
       await collection;
 
@@ -329,9 +335,12 @@ void main() {
         },
       );
 
-      await repository.refreshDetail(
-        TrustResourceFamily.proofs,
-        deniedId,
+      await expectLater(
+        repository.refreshDetail(
+          TrustResourceFamily.proofs,
+          deniedId,
+        ),
+        throwsA(isA<MakoloApiError>()),
       );
       await repository.refreshCollectionPage(
         family: TrustResourceFamily.proofs,
@@ -497,7 +506,10 @@ void main() {
     );
     final source = repository.detailSourceFor(deniedId);
 
-    await repository.refreshDetail(deniedId);
+    await expectLater(
+      repository.refreshDetail(deniedId),
+      throwsA(isA<MakoloApiError>()),
+    );
     await sync.invalidate(source);
 
     final row = await (db.select(db.syncSources)..where(
@@ -580,9 +592,12 @@ void main() {
       },
     );
 
-    await repository.refreshDetail(
-      TrustResourceFamily.titles,
-      deniedId,
+    await expectLater(
+      repository.refreshDetail(
+        TrustResourceFamily.titles,
+        deniedId,
+      ),
+      throwsA(isA<MakoloApiError>()),
     );
 
     final titles = await store.readProjection(
