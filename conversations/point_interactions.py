@@ -26,6 +26,7 @@ def point_interactions_for_profile(profile, point, *, at=None):
             "can_close_responses": False, "can_resolve": False,
             "acknowledged": False, "my_response": None, "poll_results": None,
             "response_window_open": False, "represented_responses": [],
+            "response_hint": None,
         }
     mine = point.responses.filter(
         actor=profile, represented_space__isnull=True,
@@ -51,6 +52,28 @@ def point_interactions_for_profile(profile, point, *, at=None):
         and (mine is None or point.allow_response_change
              or point.kind == ConversationPointKind.EXCHANGE)
     )
+    response_hint = None
+    if point.response_mode != ConversationPointResponseMode.NONE and point.kind not in {
+        ConversationPointKind.EXCHANGE, ConversationPointKind.FORM_REQUEST,
+    }:
+        if point.conversation.lifecycle != ConversationLifecycle.OPEN:
+            response_hint = "Cette Conversation est fermée."
+        elif point.lifecycle == ConversationPointLifecycle.RESOLVED:
+            response_hint = "Ce Point est résolu."
+        elif point.lifecycle == ConversationPointLifecycle.RESPONSE_CLOSED:
+            response_hint = "Les réponses sont closes."
+        elif point.lifecycle not in {ConversationPointLifecycle.OPEN}:
+            response_hint = "Ce Point n'accepte plus de réponse."
+        elif point.opens_at and at < point.opens_at:
+            response_hint = "La période de réponse n'a pas encore commencé."
+        elif point.deadline_at and at >= point.deadline_at:
+            response_hint = "La date limite de réponse est dépassée."
+        elif point.valid_until and at >= point.valid_until:
+            response_hint = "Ce Point n'est plus valide."
+        elif mine is not None and not point.allow_response_change:
+            response_hint = "Votre réponse est déjà enregistrée."
+        elif not point_response_allowed(profile, point, at=at):
+            response_hint = "Ce Point ne vous demande pas de réponse."
     can_acknowledge = bool(
         point.conversation.lifecycle == ConversationLifecycle.OPEN
         and point.lifecycle in {
@@ -116,6 +139,7 @@ def point_interactions_for_profile(profile, point, *, at=None):
         poll_results = {"response_count": total, "counts": counts}
     return {
         "can_respond": can_respond,
+        "response_hint": response_hint,
         "response_window_open": response_window_open,
         "represented_responses": represented_responses,
         "can_acknowledge": can_acknowledge,
