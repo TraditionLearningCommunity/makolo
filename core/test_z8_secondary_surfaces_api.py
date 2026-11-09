@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 from datetime import date
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -275,6 +278,55 @@ class Z8SecondarySurfacesAPIContractTests(TestCase):
             ).status_code,
             404,
         )
+
+    def test_docx_resource_exposes_bounded_private_text_reader(self):
+        asset = create_personal_asset(
+            controller=self.user,
+            subject_profile=self.user,
+            title="Compte rendu Z8",
+        )
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as document:
+            document.writestr(
+                "word/document.xml",
+                (
+                    '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                    'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>'
+                    'Lecture DOCX dans Makolo'
+                    '</w:t></w:r></w:p></w:body></w:document>'
+                ),
+            )
+        version = create_personal_asset_version(
+            actor=self.user,
+            asset=asset,
+            uploaded_file=SimpleUploadedFile(
+                "compte-rendu.docx",
+                buffer.getvalue(),
+                content_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+            ),
+        )
+
+        response = self.client.get(
+            f"/api/v1/me/resources/versions/{version.pk}/download/?view=text"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["Content-Type"].startswith("text/plain"))
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(
+            response["Content-Security-Policy"],
+            "default-src 'none'; sandbox",
+        )
+        self.assertContains(response, "Lecture DOCX dans Makolo")
+
+        _, _, pdf_version = self._asset_with_versions(title="PDF Z8")
+        rejected = self.client.get(
+            f"/api/v1/me/resources/versions/{pdf_version.pk}/download/?view=text"
+        )
+        self.assertEqual(rejected.status_code, 404)
 
     def test_archived_resource_remains_inspectable_but_not_downloadable(self):
         asset, _, current = self._asset_with_versions(title="Archive Z8")
