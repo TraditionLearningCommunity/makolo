@@ -1594,18 +1594,23 @@ class _PointCardState extends State<_PointCard> {
   @override
   void initState() {
     super.initState();
-    _choices.addAll(widget.point.mySelectedOptions);
+    _choices.addAll(
+      widget.point.selectedOptionsForScope(widget.representedSpaceId),
+    );
   }
 
   @override
   void didUpdateWidget(covariant _PointCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.point.id != widget.point.id ||
-        oldWidget.point.myResponse['submitted_at'] !=
-            widget.point.myResponse['submitted_at']) {
+        oldWidget.representedSpaceId != widget.representedSpaceId ||
+        oldWidget.point.responseForScope(oldWidget.representedSpaceId)['submitted_at'] !=
+            widget.point.responseForScope(widget.representedSpaceId)['submitted_at']) {
       _choices
         ..clear()
-        ..addAll(widget.point.mySelectedOptions);
+        ..addAll(
+          widget.point.selectedOptionsForScope(widget.representedSpaceId),
+        );
     }
   }
 
@@ -1841,7 +1846,10 @@ class _PointCardState extends State<_PointCard> {
   Widget build(BuildContext context) {
     final point = widget.point;
     final canRespond =
-        point.canRespond && (!point.hasResponded || point.canChangeResponse);
+        (widget.representedSpaceId == null
+            ? point.canRespond : point.responseWindowOpen) &&
+        (!point.hasRespondedForScope(widget.representedSpaceId) ||
+            point.canChangeResponse);
     final theme = Theme.of(context).textTheme;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final body = Column(
@@ -1915,7 +1923,9 @@ class _PointCardState extends State<_PointCard> {
                           )
                         else
                           Icon(
-                            point.mySelectedOptions.contains(option.id)
+                            point.selectedOptionsForScope(
+                              widget.representedSpaceId,
+                            ).contains(option.id)
                                 ? Icons.check_circle_rounded
                                 : Icons.radio_button_unchecked_rounded,
                             size: 18,
@@ -2042,7 +2052,7 @@ class _PointCardState extends State<_PointCard> {
               appearance: MakoloActionAppearance.quiet,
             ),
           ),
-        if (point.hasResponded)
+        if (point.hasRespondedForScope(widget.representedSpaceId))
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
             child: Row(
@@ -2055,10 +2065,10 @@ class _PointCardState extends State<_PointCard> {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  point.myResponseLabel == null ||
-                          point.myResponseLabel!.isEmpty
+                  point.responseLabelForScope(widget.representedSpaceId) == null ||
+                          point.responseLabelForScope(widget.representedSpaceId)!.isEmpty
                       ? 'Réponse enregistrée'
-                      : 'Réponse enregistrée : ${point.myResponseLabel}',
+                      : 'Réponse enregistrée : ${point.responseLabelForScope(widget.representedSpaceId)}',
                   style: theme.bodySmall?.copyWith(color: muted),
                 ),
               ],
