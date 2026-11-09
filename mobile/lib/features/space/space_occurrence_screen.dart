@@ -185,7 +185,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                 surface: widget.live ? 'live' : 'day_of',
               );
           final available = scoped && !state.invalidated;
-          final liveEnded = widget.live && scoped &&
+          final liveEnded = scoped &&
               OccurrenceContinuity.liveWindowEnded(
                 projection!.payload, now: DateTime.now(),
               );
@@ -197,7 +197,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
             reachability: state.reachability,
             freshness: selected?.freshness,
             systemOffline: offline,
-            liveEnded: liveEnded,
+            liveEnded: widget.live && liveEnded,
           );
           final readOnlyReason = liveEnded
               ? 'La fenêtre Live est terminée : dernière situation connue, pas du direct.'
@@ -253,6 +253,7 @@ class _SpaceOccurrenceScreenState extends State<SpaceOccurrenceScreen>
                         payload: projection!.payload,
                         live: widget.live,
                         remoteActionsAvailable: actionsAllowed,
+                        liveWindowEnded: liveEnded,
                         readOnlyReason: readOnlyReason,
                         lastKnownAt: state.lastSuccessAt,
                         onOpenLive: widget.onOpenLive == null
