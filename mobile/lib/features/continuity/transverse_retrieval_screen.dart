@@ -606,7 +606,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       final path = switch (kind) {
         'journey' => '/journeys/$id',
         'access' => '/accesses/$id',
-        'personal_asset' => '/me/resources/$id',
+        'personal_asset' => '/me/resources/documents/$id',
+        'proof' => '/me/resources/proofs/$id',
+        'credential' => '/me/resources/titles/$id',
         'group' => '/groups/$id',
         'commerce_order' => '/me/orders/$id',
         _ => null,
