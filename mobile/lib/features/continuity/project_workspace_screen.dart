@@ -744,7 +744,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'PROJET · ${_text(owner['label'])}',
+                    _text(owner['label']),
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: theme.colorScheme.primary,
                       letterSpacing: .7,
@@ -1145,7 +1145,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
         const SizedBox(height: 13),
         Text(
-          '${filtered.length} résultat(s) acquis',
+          '${filtered.length} '
+          '${_search.text.trim().isNotEmpty || _stateFilter != 'all' || _readinessFilter != 'all'
+              ? (filtered.length == 1 ? 'résultat' : 'résultats')
+              : (filtered.length == 1 ? 'dossier' : 'dossiers')} '
+          'chargés',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
