@@ -378,6 +378,11 @@ def acknowledge_point(*, actor, point):
         ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
     }:
         raise ValidationError("Ce Point n'attend plus de confirmation de lecture.")
+    now = timezone.now()
+    if locked.opens_at and locked.opens_at > now:
+        raise ValidationError("La prise de connaissance n'est pas encore ouverte.")
+    if locked.valid_until and locked.valid_until <= now:
+        raise ValidationError("Ce Point n'est plus valide.")
     state, _ = ConversationPointUserState.objects.select_for_update().get_or_create(point=locked, profile=actor)
     now = timezone.now()
     state.seen_at = state.seen_at or now
