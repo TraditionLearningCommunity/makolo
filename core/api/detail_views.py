@@ -7,6 +7,7 @@ from core.participant_selectors import (
     participant_journeys,
 )
 from operations.participant_occurrence_live import participant_occurrence_live_available
+from operations.occurrence_live import occurrence_live_phase
 from readiness import resolve_journey_readiness
 from readiness.selectors import participant_readiness_queryset
 from services.models import ServiceRequirementAssessment
@@ -47,6 +48,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             True
             if journey.occurrence_id
             and journey.occurrence.live_enabled
+            and occurrence_live_phase(journey.occurrence) in {"arrival", "live"}
             and participant_occurrence_live_available(
                 occurrence=journey.occurrence,
                 actor=request.user,
