@@ -29,6 +29,9 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
             context.push('/occurrences/${state.pathParameters['id']}/live'),
         onOpenScanner: () =>
             context.push('/occurrences/${state.pathParameters['id']}/scanner'),
+        onOpenDepth: (kind) => context.push(
+          '/occurrences/${state.pathParameters['id']}/depth/${Uri.encodeComponent(kind)}',
+        ),
       );
     },
   ),
