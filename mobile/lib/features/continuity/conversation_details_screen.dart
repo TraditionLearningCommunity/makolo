@@ -601,54 +601,159 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
 
   Widget _members(BuildContext context, Map<String, dynamic> data) {
     final members = _map(data['members']);
-    final scope = members['scope']?.toString() ?? 'restricted';
     final people = _maps(members['people']);
-    if (scope == 'restricted') {
-      return _empty(
-        context,
-        Icons.people_outline_rounded,
-        'Les personnes concernées dépendent du contexte de cette conversation. '
-        'Leur liste n’est pas affichée ici.',
-      );
-    }
-    if (people.isEmpty) {
-      return _empty(
-        context,
-        Icons.people_outline_rounded,
-        'Aucune participation explicite à afficher.',
-      );
-    }
+    final invitations = _maps(members['invitations']);
+    final collectives = _maps(members['collectives']);
+    final derived = _map(members['derived']);
+    final manage = members['can_manage'] == true || data['can_manage'] == true;
+    final restricted = members['scope'] == 'restricted';
+    final colors = Theme.of(context).colorScheme;
     return ListView(
       key: const Key('conversation-details-members-list'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
-          child: Text(
-            scope == 'group' && members['total_count'] is num
-                ? '${members['total_count']} membres du Groupe'
-                : 'Personnes visibles',
-            style: Theme.of(context).textTheme.titleMedium,
+        if (manage) ...[
+          FilledButton.icon(
+            key: const Key('conversation-invite-identifier'),
+            onPressed: _busy != null ? null : _inviteByIdentifier,
+            icon: const Icon(Icons.person_add_alt_rounded),
+            label: const Text('Ajouter avec un identifiant Makolo'),
           ),
-        ),
-        if (scope == 'group' &&
-            members['total_count'] is num &&
-            (members['total_count'] as num).toInt() > people.length)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-            child: Text(
-              'Aperçu des premières personnes. Voir le Groupe pour la liste complète.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+          const SizedBox(height: 10),
+          Text(
+            'Aucun contact obligatoire. L’invitation attend l’acceptation '
+            'du Profil ou d’un responsable du collectif.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        for (final member in people)
+          const SizedBox(height: 18),
+        ],
+        Text('Participants',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (restricted)
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-              child: const Icon(Icons.person_outline_rounded),
+            leading: const Icon(Icons.lock_outline_rounded),
+            title: const Text('Liste privée'),
+            subtitle: Text(
+              members['explanation']?.toString() ??
+                'Les personnes concernées dépendent du contexte.',
             ),
-            title: Text(member['label']?.toString() ?? 'Personne'),
-            subtitle: member['is_me'] == true ? const Text('Vous') : null,
+          )
+        else ...[
+          if (people.isEmpty)
+            const ListTile(
+              title: Text('Aucune participation explicite à afficher'),
+            ),
+          for (final member in people)
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: colors.primaryContainer,
+                child: const Icon(Icons.person_outline_rounded),
+              ),
+              title: Text(member['label']?.toString() ?? 'Profil'),
+              subtitle: Text(
+                '@${member['identifier'] ?? ''}' +
+                (member['is_me'] == true ? ' · Vous' : ''),
+              ),
+              trailing: manage && member['participation_id'] != null
+                  ? IconButton(
+                      tooltip: 'Retirer cette participation explicite',
+                      onPressed: _busy != null ? null : () =>
+                          _manageParticipant(
+                            'remove', member['participation_id'].toString(),
+                          ),
+                      icon: const Icon(Icons.person_remove_outlined),
+                    )
+                  : null,
+            ),
+        ],
+        if (derived.isNotEmpty) ...[
+          const Divider(height: 24),
+          ListTile(
+            leading: const Icon(Icons.groups_outlined),
+            title: Text(derived['label']?.toString() ?? 'Groupe'),
+            subtitle: Text(
+              'Accès dérivé du Groupe · ${derived['identifier'] ?? ''}. '
+              'Il ne crée aucune participation explicite.',
+            ),
+          ),
+        ],
+        if (manage) ...[
+          const Divider(height: 26),
+          Text('Invitations individuelles',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          if (invitations.isEmpty)
+            const ListTile(title: Text('Aucune invitation en attente')),
+          for (final item in invitations)
+            ListTile(
+              leading: const Icon(Icons.mark_email_unread_outlined),
+              title: Text('@${item['identifier'] ?? ''}'),
+              subtitle: Text(item['status']?.toString() ?? 'En attente'),
+              trailing: item['status'] == 'pending'
+                  ? TextButton(
+                      onPressed: _busy != null ? null : () =>
+                          _manageParticipant('cancel', item['id'].toString()),
+                      child: const Text('Annuler'),
+                    )
+                  : null,
+            ),
+          const Divider(height: 26),
+          Text('Espaces et Groupes',
+              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Les membres actuels sont dérivés après acceptation du collectif.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (collectives.isEmpty)
+            const ListTile(title: Text('Aucun collectif invité')),
+          for (final item in collectives)
+            ListTile(
+              leading: Icon(item['kind'] == 'space'
+                  ? Icons.apartment_rounded : Icons.groups_rounded),
+              title: Text(item['label']?.toString() ?? 'Collectif'),
+              subtitle: Text('${item['identifier'] ?? ''} · '
+                  '${item['status'] ?? ''}'),
+              trailing: item['status'] == 'pending' ||
+                      item['status'] == 'active'
+                  ? TextButton(
+                      onPressed: _busy != null ? null : () =>
+                          _manageParticipant('revoke', item['id'].toString()),
+                      child: const Text('Retirer'),
+                    )
+                  : null,
+            ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _busy != null ? null : _openJoinRequests,
+            icon: const Icon(Icons.person_search_outlined),
+            label: const Text('Gérer les demandes d’entrée'),
+          ),
+        ],
+        if (people.any((item) => item['is_me'] == true &&
+            item['participation_id'] != null)) ...[
+          const SizedBox(height: 18),
+          OutlinedButton(
+            onPressed: _busy != null ? null : () async {
+              setState(() => _busy = 'leave');
+              try {
+                await widget.repository.conversationSelfEntry(
+                  conversationId: widget.conversationId, action: 'leave',
+                );
+              } on Object {
+                if (mounted) setState(() =>
+                  _error = 'Sortie non confirmée. Vérifiez votre accès.');
+              } finally {
+                if (mounted) setState(() => _busy = null);
+              }
+            },
+            child: const Text('Quitter ma participation explicite'),
+          ),
+        ],
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(_error!, style: TextStyle(color: colors.error)),
           ),
       ],
     );
