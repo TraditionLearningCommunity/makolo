@@ -54,6 +54,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
 
   bool _refreshing = false;
   int _revision = 0;
+  DateTime? _actorSwitchedAt;
   Timer? _reconciliationTimer;
 
   bool get _actorValid =>
@@ -61,6 +62,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
       widget.actorContext!.value is! SpaceActorContext;
 
   void _onActorChanged() {
+    _actorSwitchedAt = DateTime.now().toUtc();
     _revision++;
     if (!mounted) return;
     setState(() => _refreshing = false);
@@ -159,7 +161,11 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                   profileId: widget.repository.profileId,
                   surface: 'day_of',
                 );
-            final available = scoped && !source.invalidated;
+            final available = scoped && !source.invalidated &&
+                OccurrenceContinuity.verifiedAfterActorSwitch(
+                  lastSuccessAt: source.lastSuccessAt,
+                  actorSwitchedAt: _actorSwitchedAt,
+                );
             final liveWindowEnded = scoped &&
                 OccurrenceContinuity.liveWindowEnded(
                   projection!.payload, now: DateTime.now(),
