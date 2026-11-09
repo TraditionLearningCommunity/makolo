@@ -1,8 +1,8 @@
 # Conversations — Lot 1 : médias intégrés et visionneuses
 
 Date : 9 novembre 2026  
-Dépôt : \`TraditionLearningCommunity/makolo\`  
-Branche : \`fix/discover-a-continuation-context-20261014\` (PR #522)
+Dépôt : `TraditionLearningCommunity/makolo`  
+Branche : `fix/discover-a-continuation-context-20261014` (PR #522)
 
 ## Objectif
 
@@ -16,10 +16,10 @@ Aucun nouveau domaine, modèle ou chemin de stockage public.
 
 ## Flutter
 
-- Réutilisation de \`ConversationAttachmentViewer\`, de
-  \`PrivatePdfView\` / \`PrivateVideoControllerFactory\`, de
-  \`AndroidDeviceDownloads\` et de \`SystemShareGateway\`.
-- \`ConversationMediaGroup\` rassemble les pièces d'un Point ; les photos sont
+- Réutilisation de `ConversationAttachmentViewer`, de
+  `PrivatePdfView` / `PrivateVideoControllerFactory`, de
+  `AndroidDeviceDownloads` et de `SystemShareGateway`.
+- `ConversationMediaGroup` rassemble les pièces d'un Point ; les photos sont
   présentées en mosaïque bornée à quatre cases, avec compteur de surplus.
   Les messages audio, PDF et texte conservent des contrôles inline sur demande.
 - Vidéo seule : lecture inline à la demande ; ensembles photo/vidéo :
@@ -40,21 +40,21 @@ intégré fictif, ni conversion implicite côté serveur.
 
 ## Web
 
-- Nouveau fragment \`_attachment_gallery.html\` commun aux Points et aux
+- Nouveau fragment `_attachment_gallery.html` commun aux Points et aux
   entrées d'Échange ; lecture directe image/audio/vidéo, PDF et texte brut.
 - Grille multimédia et visionneuse modale pilotée par
-  \`conversations-media-gallery.js\` : navigation, téléchargement, partage
+  `conversations-media-gallery.js` : navigation, téléchargement, partage
   explicite si Web Share Files est disponible, compactage des grands
   ensembles visuels sans masquer les autres documents.
 - Tous les liens pointent vers les routes d'attachment déjà contrôlées.
   Aucun média privé n'est chargé depuis une URL publique non autorisée.
 - Autorisation d'aperçu inline uniquement pour types MIME strictement listés,
-  avec \`nosniff\`, \`private, no-store\` et ACL existante.
-- PDF/texte dans un iframe same-origin : adaptation de \`frame-src\` à
-  \`'self'\` limitée aux vues HTML privées de Conversation, d'Historique
-  et d'Échange. Le CSP global demeure inchangé et \`frame-ancestors 'none'\`
+  avec `nosniff`, `private, no-store` et ACL existante.
+- PDF/texte dans un iframe same-origin : adaptation de `frame-src` à
+  `'self'` limitée aux vues HTML privées de Conversation, d'Historique
+  et d'Échange. Le CSP global demeure inchangé et `frame-ancestors 'none'`
   reste en vigueur. La route de média conserve
-  \`X-Frame-Options: SAMEORIGIN\`.
+  `X-Frame-Options: SAMEORIGIN`.
 
 ## Hors périmètre de ce lot
 
