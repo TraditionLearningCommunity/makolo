@@ -529,10 +529,13 @@ class _NowViewState extends State<NowView> {
       final previous = oldWidget.selection.situations
           .map((item) => item.identity)
           .toSet();
+      // A new leading item is a fresh update; pagination appended at the
+      // bottom must not be presented as a new arrival.
       final newlyAdded = previous.isNotEmpty &&
-          widget.selection.situations.any(
-            (item) => !previous.contains(item.identity),
-          );
+          widget.selection.situations.isNotEmpty &&
+          !previous.contains(widget.selection.situations.first.identity) &&
+          !oldWidget.loadingMore &&
+          !widget.loadingMore;
       if (newlyAdded &&
           _fieldController.hasClients &&
           _fieldController.offset >= 120 &&
