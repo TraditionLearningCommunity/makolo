@@ -50,8 +50,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   _HistoryView? _loadedView;
   final ScrollController _scroll = ScrollController();
   bool _requestedInitialRefresh = false;
-  bool _preparingOffline = false;
-  String? _preparationMessage;
+  bool _acquiringHistory = false;
 
   @override
   void initState() {
@@ -94,17 +93,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _requestedInitialRefresh = true;
     final first = await widget.repository.readPage(offset: 0);
     final source = await widget.repository.readFirstPageSource();
-    if (!mounted) return;
-    if (first == null) {
+    if (!mounted || source.invalidated) return;
+    if (first == null ||
+        HistoryRepository.freshnessPolicy.evaluate(
+          first,
+          now: DateTime.now(),
+          invalidated: source.invalidated,
+        ) != FreshnessState.fresh) {
       await _refreshFirst();
-      return;
     }
-    final freshness = HistoryRepository.freshnessPolicy.evaluate(
-      first,
-      now: DateTime.now(),
-      invalidated: source.invalidated,
-    );
-    if (freshness != FreshnessState.fresh) await _refreshFirst();
+    if (mounted) unawaited(_acquireRemainingHistory());
+  }
+
+  Future<void> _acquireRemainingHistory() async {
+    if (_acquiringHistory) return;
+    _acquiringHistory = true;
+    try {
+      // Persist available owner pages directly into the Profile database.
+      await widget.repository.prepareHistoryOffline(
+        shouldContinue: () => mounted,
+      );
+    } on Object {
+      // Previously acquired pages remain visible on network failure.
+    } finally {
+      _acquiringHistory = false;
+    }
   }
 
   Future<void> _refreshFirst() async {
@@ -178,37 +191,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'journey' => 'journeys',
     _ => 'all',
   };
-
-  Future<void> _prepareOffline() async {
-    if (_preparingOffline) return;
-    setState(() {
-      _preparingOffline = true;
-      _preparationMessage = null;
-    });
-    try {
-      final complete = await widget.repository.prepareHistoryOffline(
-        shouldContinue: () => mounted,
-      );
-      if (!mounted) return;
-      setState(
-        () => _preparationMessage = complete
-            ? 'Les éléments d’historique actuellement disponibles '
-                  'ont été enregistrés sur cet appareil.'
-            : 'Les éléments déjà enregistrés restent accessibles hors connexion. '
-                  'Reconnectez-vous pour terminer la préparation.',
-      );
-    } on Object {
-      if (mounted) {
-        setState(
-          () => _preparationMessage =
-              'Les événements déjà reçus restent disponibles. '
-              'La préparation complète n’a pas abouti.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _preparingOffline = false);
-    }
-  }
 
   Future<void> _remoteSearch({bool more = false}) async {
     if (_searching) return;
@@ -505,21 +487,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ],
                           ),
                           const SizedBox(height: MakoloSpacing.sm),
-                          MakoloActionButton(
-                            label: 'Préparer mon historique hors connexion',
-                            onPressed: _preparingOffline
-                                ? null
-                                : () => unawaited(_prepareOffline()),
-                            icon: Icons.download_for_offline_outlined,
-                            appearance: MakoloActionAppearance.secondary,
-                          ),
-                          if (_preparingOffline) ...[
-                            const LinearProgressIndicator(),
-                            const Text('Préparation en cours…'),
-                          ],
-                          if (_preparationMessage != null)
-                            Text(_preparationMessage!),
-                          const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerRight,
                             child: MakoloIconActionButton(
