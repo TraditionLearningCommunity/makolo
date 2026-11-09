@@ -286,6 +286,14 @@ def resolve_occurrence_experience(*, occurrence, viewer, surface, observed_at):
             "kind": "occurrence",
             "id": str(occurrence.pk),
         },
+        "context": {
+            "activity": {"id": str(occurrence.activity_id), "title": occurrence.activity.title},
+            "occurrence": {
+                "id": str(occurrence.pk),
+                "label": occurrence.label or None,
+                "state": occurrence.status,
+            },
+        },
         "surface": surface,
         "phase": phase,
         "live": {
