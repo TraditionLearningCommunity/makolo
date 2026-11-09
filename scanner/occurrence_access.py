@@ -7,7 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from access.models import AccessUseResult
-from access.services import resolve_access_credential, validate_access
+from .canonical_services import scan_access_credential
 from operations.checkpoint_services import observe_checkpoint
 from operations.models import CheckpointStatus, OccurrenceCheckpoint
 
@@ -49,18 +49,13 @@ def control_occurrence_access(*, occurrence, actor, token, client_reference=""):
                 "checkpoint_observed": False,
             }
 
-    credential = resolve_access_credential(token)
-    outcome = validate_access(
-        access=credential.access,
-        credential=credential,
-        controller=actor,
-        authority_check=lambda user, access: (
-            user_can_scan_activity(
-                user, access.activity, occurrence=occurrence,
-            ) and access.activity_id == occurrence.activity_id
-        ),
-        expected_activity=occurrence.activity,
-        expected_occurrence=occurrence,
+    # Canonical Scanner -> Access path. Do not clone credential validation
+    # or its idempotent use handling in an Occurrence-specific UI adapter.
+    outcome = scan_access_credential(
+        token=token,
+        actor=actor,
+        activity=occurrence.activity,
+        occurrence=occurrence,
         source="scanner-occurrence",
         client_reference=client_reference,
     )
