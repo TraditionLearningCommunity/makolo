@@ -37,6 +37,18 @@ enum ReplayPolicy {
   bool get stopsOnAmbiguousResult => this == ReplayPolicy.noBlindRetry;
 }
 
+class OutboxConflictDetail {
+  const OutboxConflictDetail({
+    required this.operationKind,
+    required this.owner,
+    this.errorCode,
+  });
+
+  final String operationKind;
+  final String owner;
+  final String? errorCode;
+}
+
 class OutboxResourceOperation {
   const OutboxResourceOperation({
     required this.state,
@@ -234,6 +246,24 @@ class OutboxRepository {
       ..orderBy([(row) => OrderingTerm.desc(row.observedAt)])
       ..limit(1);
     return query.getSingleOrNull();
+  }
+
+  /// Profile-scoped diagnostics only: no payload or private identifiers
+  /// are disclosed to the global UI.
+  Future<List<OutboxConflictDetail>> readConflicts() async {
+    final rows = await (database.select(database.outboxOperations)
+          ..where((row) =>
+              row.profileId.equals(profileId) &
+              row.state.equals(OutboxState.conflict.wireValue))
+          ..orderBy([(row) => OrderingTerm.desc(row.observedAt)]))
+        .get();
+    return rows
+        .map((row) => OutboxConflictDetail(
+              operationKind: row.operationKind,
+              owner: row.owner,
+              errorCode: row.lastErrorCode,
+            ))
+        .toList(growable: false);
   }
 
   Stream<OutboxSummary> watchSummary() {
