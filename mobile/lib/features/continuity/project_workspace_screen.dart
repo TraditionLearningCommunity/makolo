@@ -1569,21 +1569,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Calendrier',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Les échéances des Dossiers sont des jalons ponctuels, '
-          'pas des périodes ni des pourcentages d’avancement.',
-        ),
-        const SizedBox(height: 13),
+        if (start != null || end != null)
         Card(
           elevation: 0,
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1593,12 +1583,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       ?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  start == null && end == null
-                      ? 'Dates non renseignées'
-                      : 'Début : ${start == null ? 'non défini' : _humanDate(start)}'
-                            ' · Fin : ${end == null ? 'non définie' : _humanDate(end)}',
-                ),
+                Text([
+                  if (start != null) 'Début : ${_humanDate(start)}',
+                  if (end != null) 'Fin : ${_humanDate(end)}',
+                ].join(' · ')),
                 if (start != null && end != null && end.isAfter(start))
                   Padding(
                     padding: const EdgeInsets.only(top: 15),
@@ -1608,34 +1596,42 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 11),
-        Wrap(
-          spacing: 6,
-          runSpacing: 7,
+        Row(
           children: [
-            for (final (mode, label) in [
-              (_ProjectTime.all, 'Tous'),
-              (_ProjectTime.next30, '30 prochains jours'),
-              (_ProjectTime.overdue, 'En retard'),
-              (_ProjectTime.undated, 'Sans date'),
-              (_ProjectTime.active, 'Dossiers actifs'),
-            ])
-              ChoiceChip(
-                selected: _time == mode,
-                label: Text(label),
-                onSelected: (_) => setState(() => _time = mode),
+            PopupMenuButton<_ProjectTime>(
+              tooltip: 'Filtrer les jalons',
+              initialValue: _time,
+              icon: Icon(
+                Icons.filter_alt_outlined,
+                color: _time == _ProjectTime.all
+                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                    : Theme.of(context).colorScheme.primary,
               ),
-            MakoloActionButton(
-              label: 'Aujourd’hui',
-              onPressed: () => setState(() => _time = _ProjectTime.next30),
-              appearance: MakoloActionAppearance.quiet,
+              onSelected: (mode) => setState(() => _time = mode),
+              itemBuilder: (_) => [
+                for (final (mode, label) in [
+                  (_ProjectTime.all, 'Tous'),
+                  (_ProjectTime.next30, '30 prochains jours'),
+                  (_ProjectTime.overdue, 'En retard'),
+                  (_ProjectTime.undated, 'Sans date'),
+                  (_ProjectTime.active, 'Dossiers actifs'),
+                ])
+                  CheckedPopupMenuItem<_ProjectTime>(
+                    value: mode, checked: _time == mode,
+                    child: Text(label),
+                  ),
+              ],
+            ),
+            MakoloIconActionButton(
+              tooltip: '30 prochains jours',
               icon: Icons.today_outlined,
+              onPressed: () => setState(() => _time = _ProjectTime.next30),
             ),
           ],
         ),
         const SizedBox(height: 11),
         if (milestones.isEmpty)
-          _empty('Aucun jalon correspondant.')
+          _empty('Aucun jalon visible.')
         else
           for (final row in milestones)
             ListTile(
