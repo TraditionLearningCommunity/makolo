@@ -367,6 +367,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
                     AnimatedSwitcher(
+                      key: ValueKey<String>('space-us-switcher-${_spaceSlug ?? ''}'),
                       duration: MakoloMotion.effective(
                         context,
                         MakoloMotion.short,
