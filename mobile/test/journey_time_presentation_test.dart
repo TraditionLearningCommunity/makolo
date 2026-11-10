@@ -17,11 +17,7 @@ void main() {
       ];
       for (final item in cases) {
         expect(
-          JourneyDayPresentation.badge(
-            date,
-            item.$1,
-            timezoneName: zone,
-          ),
+          JourneyDayPresentation.badge(date, item.$1, timezoneName: zone),
           item.$2,
         );
       }
@@ -67,32 +63,35 @@ void main() {
       );
     });
 
-    test('formats clock and place without technical timezone or duplicates', () {
-      expect(JourneyDayPresentation.clock('09:00:00'), '09h00');
-      expect(JourneyDayPresentation.clock('23:59'), '23h59');
-      expect(JourneyDayPresentation.clock('25:60:00'), isNull);
-      expect(
-        JourneyDayPresentation.place(
-          name: 'Lubumbashi',
-          locality: 'Lubumbashi',
-        ),
-        'Lubumbashi',
-      );
-      expect(
-        JourneyDayPresentation.additionalPlace(
-          name: 'Lubumbashi',
-          locality: 'Lubumbashi',
-        ),
-        isNull,
-      );
-      expect(
-        JourneyDayPresentation.additionalPlace(
-          name: 'Centre de conférence',
-          locality: 'Lubumbashi',
-          address: 'Avenue centrale',
-        ),
-        'Avenue centrale · Lubumbashi',
-      );
-    });
+    test(
+      'formats clock and place without technical timezone or duplicates',
+      () {
+        expect(JourneyDayPresentation.clock('09:00:00'), '09h00');
+        expect(JourneyDayPresentation.clock('23:59'), '23h59');
+        expect(JourneyDayPresentation.clock('25:60:00'), isNull);
+        expect(
+          JourneyDayPresentation.place(
+            name: 'Lubumbashi',
+            locality: 'Lubumbashi',
+          ),
+          'Lubumbashi',
+        );
+        expect(
+          JourneyDayPresentation.additionalPlace(
+            name: 'Lubumbashi',
+            locality: 'Lubumbashi',
+          ),
+          isNull,
+        );
+        expect(
+          JourneyDayPresentation.additionalPlace(
+            name: 'Centre de conférence',
+            locality: 'Lubumbashi',
+            address: 'Avenue centrale',
+          ),
+          'Avenue centrale · Lubumbashi',
+        );
+      },
+    );
   });
 }

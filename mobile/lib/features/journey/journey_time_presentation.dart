@@ -40,11 +40,7 @@ class JourneyDayPresentation {
         calendarNow.day + 1,
       );
     } else {
-      next = DateTime(
-        calendarNow.year,
-        calendarNow.month,
-        calendarNow.day + 1,
-      );
+      next = DateTime(calendarNow.year, calendarNow.month, calendarNow.day + 1);
     }
     final delay = next.difference(now);
     return delay.isNegative ? const Duration(seconds: 1) : delay;
@@ -170,9 +166,10 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
     final now = DateTime.now();
     _midnight = Timer(
       JourneyDayPresentation.nextMidnightDelay(
-        now,
-        timezoneName: widget.timezoneName,
-      ) + const Duration(seconds: 1),
+            now,
+            timezoneName: widget.timezoneName,
+          ) +
+          const Duration(seconds: 1),
       () {
         if (!mounted) return;
         setState(() {});
