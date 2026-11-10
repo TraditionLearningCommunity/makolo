@@ -101,7 +101,15 @@ class MakoloIconActionButton extends StatelessWidget {
     icon: Icon(icon),
     onPressed: onPressed,
     color: color,
-    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+    style: IconButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      side: failed
+          ? BorderSide(color: Theme.of(context).colorScheme.error)
+          : null,
+      backgroundColor: failed
+          ? Theme.of(context).colorScheme.error.withValues(alpha: 0.05)
+          : Colors.transparent,
+    ),
   );
 }
 
@@ -206,16 +214,20 @@ class MakoloFollowIconButton extends StatelessWidget {
     required this.followed,
     required this.onPressed,
     this.busy = false,
+    this.failed = false,
   });
 
   final bool followed;
   final VoidCallback? onPressed;
   final bool busy;
+  final bool failed;
 
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: busy
         ? 'Suivi en cours…'
+        : failed
+        ? 'Suivi non confirmé. Réessayer'
         : followed
         ? 'Ne plus suivre'
         : 'Suivre',
