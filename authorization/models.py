@@ -101,7 +101,7 @@ class Role(models.Model):
             errors["scope_type"] = "Les rôles Activité disponibles actuellement sont des rôles système Makolo."
         if self.scope_type == AuthorityScope.PROJECT and (not self.is_system or self.organization_id):
             errors["scope_type"] = "Les rôles Projet disponibles actuellement sont des rôles système Makolo."
-        if self.scope_type == AuthorityScope.DOSSIER and (not self.is_system or self.organization_id or self.project_id):
+        if self.scope_type == AuthorityScope.DOSSIER and (not self.is_system or self.organization_id):
             errors["scope_type"] = "Les rôles Dossier disponibles actuellement sont des rôles système Makolo."
         if errors:
             raise ValidationError(errors)
