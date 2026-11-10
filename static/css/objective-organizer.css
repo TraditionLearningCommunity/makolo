@@ -454,3 +454,14 @@
   .mk-organizer__views {display:inline-flex;width:auto}
   .mk-organizer__views > button {flex:0 0 48px}
 }
+
+/* Dense project/dossier cards without clipping the names of linked items. */
+.mk-organizer__results--cards {gap:10px}
+.mk-organizer__card {padding:12px;border-radius:14px}
+.mk-organizer__card-head > svg {width:23px;height:23px}
+.mk-organizer__card-title {margin-top:8px;font-size:16px;line-height:1.35}
+.mk-organizer__card-description {margin:5px 0 10px;font-size:12px}
+.mk-organizer__tag {padding:4px 7px}
+.mk-organizer__preview {margin-top:9px;padding-top:7px}
+.mk-organizer__preview-item {padding:5px 0;white-space:normal;overflow-wrap:anywhere}
+.mk-organizer__list-link {min-height:58px;padding:9px 8px;gap:9px}
