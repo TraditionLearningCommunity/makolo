@@ -2,11 +2,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
-from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Role
-from authorization.services import space_ids_with_permission
 from journeys.models import Journey
-from organizations.models import Organization
 
 from .models import DossierJourneyLink, DossierLifecycle, Project, ProjectLifecycle
 from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
