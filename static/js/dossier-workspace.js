@@ -10,6 +10,11 @@
   let data;
   try { data = JSON.parse(source.textContent); } catch (_) { return; }
   if (data.identity?.id !== root.dataset.dossierId) return;
+  const lens = data.actor_context || {kind: 'personal'};
+  const spaceSlug = lens.kind === 'space' ? lens.space?.slug : null;
+  if (lens.kind === 'space' && typeof spaceSlug !== 'string') return;
+  const scopeSuffix = spaceSlug ? '?context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
 
   const stage = root.querySelector('[data-dossier-content]');
   const rows = Array.isArray(data.visible_journeys) ? data.visible_journeys : [];
@@ -88,7 +93,7 @@
   function submit(url, fields) {
     if (!csrf || validUrl(url) === '#') return;
     const form = el('form');
-    form.method = 'post'; form.action = url; form.hidden = true;
+    form.method = 'post'; form.action = url + scopeSuffix; form.hidden = true;
     for (const [key, value] of Object.entries({
       csrfmiddlewaretoken: csrf, ...(fields || {}),
     })) {
