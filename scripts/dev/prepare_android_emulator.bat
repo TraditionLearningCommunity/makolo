@@ -11,16 +11,22 @@ if errorlevel 1 (
   echo [Makolo] Android SDK adb is not on PATH.
   exit /b 1
 )
-where flutter >nul 2>&1
-if errorlevel 1 (
-  echo [Makolo] Flutter is not on PATH.
-  exit /b 1
-)
-
 echo [Makolo] Checking Android emulator...
 adb start-server >nul 2>&1
 call :read_state
+
+rem When Android is already ready, do not relaunch or disturb it.
+if /i "!MAKOLO_STATE!"=="device" (
+  call :check_boot
+  if "!MAKOLO_BOOT!"=="1" goto :ready
+)
+
 if /i "!MAKOLO_STATE!"=="absent" (
+  where flutter >nul 2>&1
+  if errorlevel 1 (
+    echo [Makolo] Flutter is not on PATH.
+    exit /b 1
+  )
   echo [Makolo] Starting !MAKOLO_AVD!...
   flutter emulators --launch "!MAKOLO_AVD!"
   if errorlevel 1 (
@@ -35,8 +41,7 @@ set "MAKOLO_ADB_RESTARTED=0"
 for /L %%I in (1,1,120) do (
   call :read_state
   if /i "!MAKOLO_STATE!"=="device" (
-    set "MAKOLO_BOOT="
-    for /f "tokens=*" %%B in ('adb -s !MAKOLO_DEVICE! shell getprop sys.boot_completed 2^>nul') do set "MAKOLO_BOOT=%%B"
+    call :check_boot
     if "!MAKOLO_BOOT!"=="1" goto :ready
   )
   if /i "!MAKOLO_STATE!"=="offline" if %%I GEQ 15 if "!MAKOLO_ADB_RESTARTED!"=="0" (
@@ -56,6 +61,11 @@ exit /b 1
 
 :ready
 echo [Makolo] Emulator ready: !MAKOLO_DEVICE!.
+exit /b 0
+
+:check_boot
+set "MAKOLO_BOOT="
+for /f "tokens=*" %%B in ('adb -s !MAKOLO_DEVICE! shell getprop sys.boot_completed 2^>nul') do set "MAKOLO_BOOT=%%B"
 exit /b 0
 
 :read_state
