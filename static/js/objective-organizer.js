@@ -205,11 +205,11 @@
     head.appendChild(element('span', 'mk-organizer__state', humanState(row)));
     card.appendChild(head);
     card.appendChild(link(row, 'mk-organizer__card-title'));
-    card.appendChild(element('p', 'mk-organizer__card-description',
-      row.description || kindLabel(row)));
+    if (row.description?.trim())
+      card.appendChild(element('p', 'mk-organizer__card-description',
+        row.description));
     const tags = element('div', 'mk-organizer__tags');
     appendTag(tags, kindLabel(row));
-    if (row.space && row.space.name) appendTag(tags, row.space.name);
     appendTag(tags, displayDate(row));
     card.appendChild(tags);
     const preview = children(row, rows, options).slice(0, 3);
