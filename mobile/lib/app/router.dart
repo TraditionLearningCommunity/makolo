@@ -739,7 +739,8 @@ GoRouter createMakoloRouter(
               repository == null) {
             return const MakoloSecondaryScreen(
               title: 'Projets et dossiers',
-              message: 'Choisissez l’Espace autorisé pour consulter ses dossiers.',
+              message:
+                  'Choisissez l’Espace autorisé pour consulter ses dossiers.',
             );
           }
           return ObjectiveOrganizerScreen(

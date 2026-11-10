@@ -62,7 +62,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   Future<void> _loadSpaces() async {
     final row = await widget.repository.readOrganizerPage(
-      0, spaceSlug: widget.spaceActor?.slug,
+      0,
+      spaceSlug: widget.spaceActor?.slug,
     );
     if (!mounted || !_actorValid) return;
     final items = row?.payload['manageable_spaces'];
@@ -159,8 +160,10 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   );
 
   Future<void> _submit() async {
-    if (_submitting || !_actorValid ||
-        !(_form.currentState?.validate() ?? false)) return;
+    if (_submitting ||
+        !_actorValid ||
+        !(_form.currentState?.validate() ?? false))
+      return;
     if (_isProject &&
         _start != null &&
         _end != null &&
@@ -195,7 +198,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       // The mutation is confirmed. The parent list is now revalidated.
       try {
         await widget.repository.refreshOrganizerPage(
-          0, spaceSlug: widget.spaceActor?.slug,
+          0,
+          spaceSlug: widget.spaceActor?.slug,
         );
       } on Object {
         // The new detail still opens; the organizer can retry its refresh.
@@ -216,9 +220,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   Widget build(BuildContext context) {
     if (!_actorValid) {
       return const Scaffold(
-        body: Center(
-          child: Text('Cet Espace n’est plus le contexte actif.'),
-        ),
+        body: Center(child: Text('Cet Espace n’est plus le contexte actif.')),
       );
     }
     final project = _isProject;
@@ -295,9 +297,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                           value: widget.spaceActor!.id,
                           child: Text(
                             _spaces
-                                .where((space) => space.$1 == widget.spaceActor!.id)
-                                .map((space) => space.$2)
-                                .firstOrNull ?? widget.spaceActor!.slug,
+                                    .where(
+                                      (space) =>
+                                          space.$1 == widget.spaceActor!.id,
+                                    )
+                                    .map((space) => space.$2)
+                                    .firstOrNull ??
+                                widget.spaceActor!.slug,
                           ),
                         )
                       else ...[
