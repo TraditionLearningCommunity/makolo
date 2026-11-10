@@ -1590,7 +1590,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             ),
             ObjectiveFilterReset(
-              active: _search.text.trim().isNotEmpty ||
+              active:
+                  _search.text.trim().isNotEmpty ||
                   _stateFilter != 'all' ||
                   _readinessFilter != 'all' ||
                   _sort != _ProjectSort.deadline,

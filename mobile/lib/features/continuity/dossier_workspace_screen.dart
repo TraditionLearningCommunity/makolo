@@ -1345,8 +1345,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               ),
             ),
             ObjectiveFilterReset(
-              active: _search.text.trim().isNotEmpty ||
-                  _filter != 'all' || _sort != _ListSort.recent,
+              active:
+                  _search.text.trim().isNotEmpty ||
+                  _filter != 'all' ||
+                  _sort != _ListSort.recent,
               onClear: () {
                 _search.clear();
                 setState(() {

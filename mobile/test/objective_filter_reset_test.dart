@@ -9,10 +9,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ObjectiveFilterReset(
-            active: false,
-            onClear: () {},
-          ),
+          body: ObjectiveFilterReset(active: false, onClear: () {}),
         ),
       ),
     );
@@ -26,10 +23,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: ObjectiveFilterReset(
-            active: true,
-            onClear: () => calls++,
-          ),
+          body: ObjectiveFilterReset(active: true, onClear: () => calls++),
         ),
       ),
     );
