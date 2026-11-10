@@ -42,6 +42,26 @@ async function linkJourney(page, name) {
   await page.locator('#dossier-link button[type="submit"]').click();
 }
 
+test('one Objectives organizer shares its icon views and filters across actor scopes', async ({ page }) => {
+  await login(page, 'owner@e2e.makolo.test');
+  for (const route of [
+    '/objectives/',
+    '/objectives/?context=space&space=makolo-e2e-events',
+  ]) {
+    await page.goto(route);
+    await expect(page.getByRole('heading', { name: 'Mes démarches' })).toBeVisible();
+    await expect(page.locator('[data-filter-relation]')).toHaveCount(0);
+    await expect(page.locator('[data-filter-placement]')).toHaveCount(1);
+    await expect(page.getByRole('note', { name: /Espace actif/i })).toHaveCount(0);
+    for (const mode of ['cards', 'list', 'explorer']) {
+      const button = page.locator('[data-view="' + mode + '"]');
+      await expect(button).toHaveAttribute('aria-label', /\S/);
+      await expect(button).toHaveText('');
+    }
+    await expectNoHorizontalOverflow(page);
+  }
+});
+
 test('visitor cannot open private Objectives surfaces', async ({ page }) => {
   await page.goto('/objectives/');
   await expect(page).toHaveURL(/\/login\/\?next=/);
