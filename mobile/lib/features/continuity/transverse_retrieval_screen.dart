@@ -1,6 +1,10 @@
 import 'dart:async';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../design/behavior_primitives.dart';
 
 import '../../design/action_controls.dart';
 
@@ -42,6 +46,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   bool _failed = false;
   bool _revoked = false;
   bool _invalidPeriod = false;
+  bool _editingSearch = false;
+  bool _ownerResultsKnown = false;
+  Timer? _searchDebounce;
   int _offset = 0;
   bool _more = false;
   int _version = 0;
@@ -82,9 +89,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         oldWidget.initialQuery != widget.initialQuery ||
         oldWidget.runtime.session?.profileId !=
             widget.runtime.session?.profileId) {
+      _searchDebounce?.cancel();
       _version++;
+      _editingSearch = false;
+      _ownerResultsKnown = false;
       _local = [];
       _remote = [];
+      _editingSearch = false;
+      _ownerResultsKnown = false;
       _unavailableSources = [];
       _limitedSources = [];
       _more = false;
@@ -101,6 +113,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   void _onActorChanged() {
+    _searchDebounce?.cancel();
     _version++;
     if (!mounted) return;
     final valid = _actorValid;
@@ -125,6 +138,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     _query.dispose();
     super.dispose();
@@ -449,7 +463,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   Future<void> _submit({bool more = false}) async {
+    _searchDebounce?.cancel();
     if (!_actorValid) return;
+    if (_editingSearch && mounted) {
+      setState(() => _editingSearch = false);
+    }
     if (widget.history &&
         _isSpace &&
         _startDate != null &&
@@ -477,6 +495,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       setState(() {
         _local = local;
         _remote = [];
+        _ownerResultsKnown = false;
         _offset = 0;
         _more = false;
         _failed = false;
@@ -553,6 +572,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       if (!mounted || !_actorValid || version != _version) return;
       setState(() {
         _remote = _deduplicate(more ? [..._remote, ...items] : items);
+        _ownerResultsKnown = true;
         // Full owner refresh supersedes local snippets. Partial owner
         // failures leave device data intact but do not reassert its authority.
         // It can be retrieved again only under the active actor's local scope.
@@ -600,6 +620,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
           _unavailableSources = [];
           _limitedSources = [];
           _revoked = true;
+          _ownerResultsKnown = false;
           _local = [];
           _remote = [];
         }
@@ -674,7 +695,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = _remote.isEmpty && (_failed || _loading) ? _local : _remote;
+    final rows = _ownerResultsKnown ? _remote : _local;
     final grouped = <String, List<int>>{};
     for (var i = 0; i < rows.length; i++) {
       grouped.putIfAbsent(_groupLabel(rows[i]), () => []).add(i);
@@ -716,17 +737,23 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         maxLength: 120,
                         textInputAction: TextInputAction.search,
                         onChanged: (_) {
+                          // Keep the last results identifiable until the new
+                          // query can present a local or owner-backed answer.
+                          _searchDebounce?.cancel();
                           _version++;
                           setState(() {
-                            _remote = [];
-                            _local = [];
-                            _more = false;
-                            _offset = 0;
+                            _editingSearch = true;
                             _failed = false;
-                            _unavailableSources = [];
-                            _limitedSources = [];
                             _selected = null;
                           });
+                          _searchDebounce = Timer(
+                            const Duration(milliseconds: 350),
+                            () {
+                              if (mounted && _actorValid) {
+                                unawaited(_submit());
+                              }
+                            },
+                          );
                         },
                         decoration: InputDecoration(
                           labelText: widget.history
@@ -735,7 +762,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           suffixIcon: MakoloIconActionButton(
                             tooltip: 'Lancer la recherche',
                             icon: Icons.search,
-                            onPressed: () => _submit(),
+                            onPressed: _loading && !_editingSearch
+                                ? null
+                                : () => _submit(),
+                            phase: _loading && !_editingSearch
+                                ? MakoloActionPhase.processing
+                                : _failed
+                                ? MakoloActionPhase.failed
+                                : MakoloActionPhase.available,
                           ),
                         ),
                         onSubmitted: (_) => _submit(),
@@ -749,7 +783,22 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           'Impossible d’actualiser la recherche. '
                           'Les résultats affichés peuvent être incomplets.',
                         ),
-                      if (_loading) const LinearProgressIndicator(),
+                      if (_loading && rows.isNotEmpty)
+                        const LinearProgressIndicator(),
+                      if (_editingSearch && rows.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history_rounded, size: 16),
+                              const SizedBox(width: 6),
+                              Text('Résultats précédents',
+                                  style: Theme.of(context).textTheme.labelSmall),
+                            ],
+                          ),
+                        ),
+                      if (_loading && rows.isEmpty)
+                        const MakoloSkeleton(lines: 3),
                       if (_unavailableSources.isNotEmpty)
                         const Text(
                           'Certaines informations n’ont pas été actualisées.',
@@ -840,7 +889,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      if (rows.isEmpty && !_loading)
+                      if (rows.isEmpty && !_loading && !_failed && !_editingSearch)
                         Text(
                           _query.text.trim().isEmpty && !widget.history
                               ? 'Saisissez ce que vous souhaitez retrouver.'
@@ -889,6 +938,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           onPressed: _loading
                               ? null
                               : () => _submit(more: true),
+                          icon: Icons.expand_more_rounded,
+                          phase: _loading
+                              ? MakoloActionPhase.processing
+                              : MakoloActionPhase.available,
                         ),
                       const SizedBox(height: 16),
                       Text(
