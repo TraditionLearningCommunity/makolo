@@ -38,8 +38,8 @@ Future<void> showMakoloQuickPreview(
   List<String> facts = const [],
   String? actionLabel,
   VoidCallback? onOpen,
-}) {
-  return showModalBottomSheet<void>(
+}) async {
+  await showModalBottomSheet<void>(
     context: context,
     useSafeArea: true,
     showDragHandle: true,
