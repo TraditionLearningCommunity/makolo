@@ -31,6 +31,16 @@ class MandateModelTests(TestCase):
         self.space_role = get_system_role(SystemRoleCode.FINANCE)
         self.platform_role = get_system_role(SystemRoleCode.PLATFORM_ADMIN, scope_type=AuthorityScope.PLATFORM)
 
+    def test_canonical_dossier_and_project_system_roles_validate(self):
+        # A Role is a permission bundle, not a Mandate: it has no
+        # project_id or dossier_id. Scope targets live only on Mandate.
+        for role_code, scope_type in [
+            (SystemRoleCode.DOSSIER_MANAGER, AuthorityScope.DOSSIER),
+            (SystemRoleCode.PROJECT_MANAGER, AuthorityScope.PROJECT),
+        ]:
+            role = get_system_role(role_code, scope_type=scope_type)
+            role.full_clean()
+
     def test_platform_scope_rejects_space(self):
         mandate = Mandate(profile=self.profile, role=self.platform_role, scope_type=AuthorityScope.PLATFORM, space=self.space)
         with self.assertRaises(ValidationError): mandate.full_clean()
