@@ -10,20 +10,17 @@
     {% if project %}<a href="{% url 'objectives:project-detail' project.pk %}{{ scope_query }}">{{ project.title }}</a><span>/</span>{% endif %}
     <span aria-current="page">Dossier</span>
   </nav>
-  {% if workspace.actor_context.kind == "space" %}
-  <p role="note">Espace actif : {{ workspace.owner.label }} · actions selon vos autorisations.</p>
-  {% endif %}
   <header class="mk-dossier__hero">
     <div class="mk-dossier__identity">
       <span class="mk-dossier__symbol" aria-hidden="true"><i data-lucide="folder-open"></i></span>
       <div class="mk-dossier__identity-body">
-        <p class="mk-dossier__eyebrow">Dossier · {{ workspace.owner.label }}</p>
+        <p class="mk-dossier__eyebrow">Dossier</p>
         <h1>{{ dossier.title }}</h1>
         {% if dossier.description %}<p class="mk-dossier__desc">{{ dossier.description }}</p>{% endif %}
         <div class="mk-dossier__facts">
           <span>{{ dossier.get_lifecycle_display }}</span>
           {% if dossier.deadline %}<span>Échéance · {{ dossier.deadline|date:"d/m/Y" }}</span>{% endif %}
-          <span>{{ workspace.readiness.label }}{% if workspace.readiness.partial %} · vue partielle{% endif %}</span>
+          {% if workspace.readiness.state %}<span>{{ workspace.readiness.label }}{% if workspace.readiness.partial %} · vue partielle{% endif %}</span>{% endif %}
         </div>
       </div>
     </div>
@@ -69,14 +66,14 @@
     {% endif %}
   </div>
   <div class="mk-dossier__tabs mk-interaction-tabs" role="group" aria-label="Vues du Dossier">
-    <button type="button" data-dossier-view="overview" aria-pressed="true">
-      <i data-lucide="layout-dashboard"></i> Vue d’ensemble</button>
-    <button type="button" data-dossier-view="list" aria-pressed="false">
-      <i data-lucide="list"></i> Liste</button>
-    <button type="button" data-dossier-view="timeline" aria-pressed="false">
-      <i data-lucide="calendar-range"></i> Chronologie</button>
-    <button type="button" data-dossier-view="dependencies" aria-pressed="false">
-      <i data-lucide="git-branch"></i> Dépendances</button>
+    <button type="button" data-dossier-view="overview" aria-pressed="true" aria-label="Vue d’ensemble" title="Vue d’ensemble">
+      <i data-lucide="layout-dashboard" aria-hidden="true"></i></button>
+    <button type="button" data-dossier-view="list" aria-pressed="false" aria-label="Liste" title="Liste">
+      <i data-lucide="list" aria-hidden="true"></i></button>
+    <button type="button" data-dossier-view="timeline" aria-pressed="false" aria-label="Chronologie" title="Chronologie">
+      <i data-lucide="calendar-range" aria-hidden="true"></i></button>
+    <button type="button" data-dossier-view="dependencies" aria-pressed="false" aria-label="Dépendances" title="Dépendances">
+      <i data-lucide="git-branch" aria-hidden="true"></i></button>
   </div>
   <section class="mk-dossier__body">
     <div data-dossier-content aria-live="polite">
