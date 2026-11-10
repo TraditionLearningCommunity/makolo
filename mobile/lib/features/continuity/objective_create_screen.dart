@@ -41,8 +41,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   bool get _isProject => widget.kind == 'project';
   bool get _actorValid {
     final owner = widget.spaceActor;
-    if (owner == null) return true;
     final selected = widget.actorContext?.value;
+    if (owner == null) return selected is! SpaceActorContext;
     return selected is SpaceActorContext && selected.space == owner;
   }
 
@@ -71,7 +71,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
             '${date.day.toString().padLeft(2, '0')}';
 
   String _human(DateTime? value) {
-    if (value == null) return 'Non renseignée';
+    if (value == null) return 'Facultatif';
     return '${value.day.toString().padLeft(2, '0')}/'
         '${value.month.toString().padLeft(2, '0')}/${value.year}';
   }
@@ -202,7 +202,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   Widget build(BuildContext context) {
     if (!_actorValid) {
       return const Scaffold(
-        body: Center(child: Text('Cet Espace n’est plus le contexte actif.')),
+        body: Center(child: Text('La création doit être rouverte.')),
       );
     }
     final project = _isProject;
