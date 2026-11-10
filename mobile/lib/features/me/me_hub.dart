@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../platform/preferences/secure_string_preferences.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/identity_surface.dart';
@@ -32,7 +32,7 @@ class MeHub extends StatefulWidget {
 }
 
 class _MeHubState extends State<MeHub> {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = SecureStringPreferences();
   MakoloTerritoryLayout _layout = MakoloTerritoryLayout.list;
   StreamSubscription<List<StoredProjection>>? _accessSubscription;
   StreamSubscription<List<StoredProjection>>? _historySubscription;
