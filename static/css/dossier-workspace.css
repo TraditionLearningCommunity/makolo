@@ -151,3 +151,25 @@
 @media(prefers-reduced-motion:reduce){
  .mk-dossier *{scroll-behavior:auto!important;transition:none!important}
 }
+
+
+/* Shared Objective grammar: icon-only views and compact meaningful facts. */
+.mk-dossier__path {margin-bottom:13px}
+.mk-dossier__hero {gap:12px;padding-bottom:12px}
+.mk-dossier__symbol {width:43px;height:43px;border-radius:12px}
+.mk-dossier__symbol svg {width:23px;height:23px}
+.mk-dossier__identity {gap:10px}
+.mk-dossier__hero h1 {font-size:clamp(23px,2.8vw,32px)}
+.mk-dossier__desc {margin-top:8px}
+.mk-dossier__facts {margin-top:10px}
+.mk-dossier__facts span {padding:4px 8px}
+.mk-dossier__actions {gap:7px;margin:4px 0 13px}
+.mk-dossier__tabs {margin-bottom:13px;gap:2px}
+.mk-dossier__tabs button {min-width:46px;min-height:44px;padding:9px 12px}
+.mk-dossier__tabs svg {width:20px;height:20px}
+.mk-dossier__focus {padding:11px;margin:9px 0}
+.mk-dossier__metrics {gap:7px;margin:10px 0}
+.mk-dossier__metric {min-width:100px;padding:9px 11px}
+.mk-dossier__metric strong {font-size:23px}
+.mk-dossier__subhead {margin:15px 0 8px}
+.mk-dossier__journey {padding:10px;margin:7px 0}
