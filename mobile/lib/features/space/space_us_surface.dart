@@ -454,14 +454,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               },
                             ),
                     ),
-                    if (settingsTarget != null ||
-                        pilotTarget != null) ...[
+                    if (settingsTarget != null || pilotTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.inner),
-                      _sectionTitle(
-                        context,
-                        'Informations et gestion',
-                        '',
-                      ),
+                      _sectionTitle(context, 'Informations et gestion', ''),
                     ],
                     if (settingsTarget != null)
                       _managementAction(

@@ -366,7 +366,10 @@ void main() {
     expect(find.text('Informations et gestion'), findsOneWidget);
     expect(find.text('Abonnement de cet Espace'), findsNothing);
     expect(find.text('Gérer les connexions de cet Espace'), findsNothing);
-    expect(find.text('Les fonctions institutionnelles autorisées.'), findsNothing);
+    expect(
+      find.text('Les fonctions institutionnelles autorisées.'),
+      findsNothing,
+    );
   });
 
   testWidgets('authorized Space team shows people rather than generic symbol', (
