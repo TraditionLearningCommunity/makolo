@@ -1,9 +1,8 @@
+import '../../platform/media/native_media_picker.dart';
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../design/action_controls.dart';
 
@@ -783,18 +782,17 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       String? name;
       String kind;
       if (mode == 'photo' || mode == 'camera') {
-        final picked = await ImagePicker().pickImage(
-          source: mode == 'camera' ? ImageSource.camera : ImageSource.gallery,
-          imageQuality: 90,
+        final picked = await NativeMediaPicker.pickImage(
+          camera: mode == 'camera',
+          quality: 90,
           maxWidth: 2200,
         );
         path = picked?.path;
         name = picked?.name;
         kind = 'image';
       } else {
-        final picked = await FilePicker.pickFile(
-          type: FileType.custom,
-          allowedExtensions: mode == 'voice'
+        final picked = await NativeMediaPicker.pickDocument(
+                    mode == 'voice'
               ? const ['m4a', 'mp3', 'wav', 'ogg', 'webm']
               : mode == 'video'
               ? const ['mp4', 'webm']
