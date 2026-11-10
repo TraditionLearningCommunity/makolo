@@ -1,12 +1,30 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:timezone/data/latest.dart' as timezone_data;
+import 'package:timezone/timezone.dart' as tz;
 
 /// Calendar presentation only: it never decides Journey or Jour J capabilities.
 /// The owner provides a civil occurrence date (YYYY-MM-DD). We compare civil
 /// calendar dates, not elapsed 24-hour intervals (DST-safe day counts).
 class JourneyDayPresentation {
   const JourneyDayPresentation._();
+
+  static bool _timezonesReady = false;
+
+  static DateTime? _currentCalendarDate(DateTime now, String? timezoneName) {
+    if (timezoneName == null || timezoneName.isEmpty) return now.toLocal();
+    try {
+      if (!_timezonesReady) {
+        timezone_data.initializeTimeZones();
+        _timezonesReady = true;
+      }
+      return tz.TZDateTime.from(now.toUtc(), tz.getLocation(timezoneName));
+    } on Exception {
+      // No marker is safer than a marker in an unknown timezone.
+      return null;
+    }
+  }
 
   static DateTime? civilDate(String? value) {
     if (value == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
@@ -23,18 +41,31 @@ class JourneyDayPresentation {
     return date;
   }
 
-  /// Date is defined by the Occurrence; "today" follows the user's civil
-  /// calendar so the badge stays useful even without network access.
-  static int? dayOffset(String? occurrenceDate, DateTime now) {
+  /// Compare calendar days in the Occurrence's own IANA timezone. All
+  /// timezone rules are bundled on-device: never a network dependency.
+  static int? dayOffset(
+    String? occurrenceDate,
+    DateTime now, {
+    String? timezoneName,
+  }) {
     final date = civilDate(occurrenceDate);
     if (date == null) return null;
-    final today = now.toLocal();
+    final today = _currentCalendarDate(now, timezoneName);
+    if (today == null) return null;
     final civilToday = DateTime.utc(today.year, today.month, today.day);
     return civilToday.difference(date).inDays;
   }
 
-  static String? badge(String? occurrenceDate, DateTime now) {
-    final offset = dayOffset(occurrenceDate, now);
+  static String? badge(
+    String? occurrenceDate,
+    DateTime now, {
+    String? timezoneName,
+  }) {
+    final offset = dayOffset(
+      occurrenceDate,
+      now,
+      timezoneName: timezoneName,
+    );
     if (offset == null) return null;
     if (offset == 0) return 'Jour J';
     return offset < 0 ? 'Jour −${-offset}' : 'Jour J +$offset';
@@ -83,9 +114,14 @@ class JourneyDayPresentation {
 /// Lightweight civil-date badge. Re-evaluated at the next local midnight;
 /// there is no API request, fake event status or perpetual polling.
 class JourneyDayBadge extends StatefulWidget {
-  const JourneyDayBadge({super.key, required this.occurrenceDate});
+  const JourneyDayBadge({
+    super.key,
+    required this.occurrenceDate,
+    this.timezoneName,
+  });
 
   final String occurrenceDate;
+  final String? timezoneName;
 
   @override
   State<JourneyDayBadge> createState() => _JourneyDayBadgeState();
@@ -103,7 +139,8 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
   @override
   void didUpdateWidget(covariant JourneyDayBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.occurrenceDate != widget.occurrenceDate) {
+    if (oldWidget.occurrenceDate != widget.occurrenceDate ||
+        oldWidget.timezoneName != widget.timezoneName) {
       _midnight?.cancel();
       _schedule();
     }
@@ -133,10 +170,12 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
     final offset = JourneyDayPresentation.dayOffset(
       widget.occurrenceDate,
       DateTime.now(),
+      timezoneName: widget.timezoneName,
     );
     final label = JourneyDayPresentation.badge(
       widget.occurrenceDate,
       DateTime.now(),
+      timezoneName: widget.timezoneName,
     );
     if (offset == null || label == null) return const SizedBox.shrink();
     final spoken = offset == 0
