@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
+import '../../platform/notifications/push_permission_gateway.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -222,12 +222,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     setState(() => _busy = true);
     PushEndpointRegistrar? registrar;
     try {
-      final authorization = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: false,
-        sound: true,
-      );
-      if (authorization.authorizationStatus == AuthorizationStatus.denied) {
+      if (!await PushPermissionGateway.request()) {
         throw StateError('Permission de notifications refusée.');
       }
       registrar = PushEndpointRegistrar(
