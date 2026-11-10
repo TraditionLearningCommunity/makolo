@@ -1167,7 +1167,8 @@ bool _showReadinessItem(
   JourneyReadinessItem item,
 ) {
   if (item.key == presentation.nextActionKey &&
-      presentation.nextActionKey != null) return false;
+      presentation.nextActionKey != null)
+    return false;
   final repeatingObjective =
       item.summary.trim().toLowerCase() ==
       presentation.title.trim().toLowerCase();
@@ -1207,12 +1208,14 @@ class _ReadinessGroups extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var index = 0; index < groups.length; index++) ...[
-            if (index > 0)
-              const Divider(height: MakoloSpacing.lg),
+            if (index > 0) const Divider(height: MakoloSpacing.lg),
             Row(
               children: [
-                Icon(groups[index].$3,
-                    size: 21, color: const Color(0xFF5232DB)),
+                Icon(
+                  groups[index].$3,
+                  size: 21,
+                  color: const Color(0xFF5232DB),
+                ),
                 const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
                   child: Text(
@@ -1246,12 +1249,13 @@ class _ReadinessGroups extends StatelessWidget {
               ),
           ],
           if (presentation.ready.isNotEmpty) ...[
-            if (groups.isNotEmpty)
-              const Divider(height: MakoloSpacing.lg),
+            if (groups.isNotEmpty) const Divider(height: MakoloSpacing.lg),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: const Icon(Icons.check_circle_outline_rounded,
-                  color: Color(0xFF5232DB)),
+              leading: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF5232DB),
+              ),
               title: Text(
                 '${presentation.ready.length} élément${presentation.ready.length > 1 ? 's' : ''} en ordre',
               ),
@@ -1260,8 +1264,10 @@ class _ReadinessGroups extends StatelessWidget {
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.check_rounded,
-                        color: Color(0xFF5232DB)),
+                    leading: const Icon(
+                      Icons.check_rounded,
+                      color: Color(0xFF5232DB),
+                    ),
                     title: Text(item.summary),
                   ),
               ],
@@ -1405,19 +1411,21 @@ class _JourneyPaymentCard extends StatelessWidget {
       onTap: open,
       child: ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.account_balance_wallet_outlined,
-            color: Color(0xFF5232DB)),
+        leading: const Icon(
+          Icons.account_balance_wallet_outlined,
+          color: Color(0xFF5232DB),
+        ),
         title: Text('${payment.amount} ${payment.currency}'),
         subtitle: label == null && payment.reason == null
             ? null
-            : Text([
-                if (label != null) label,
-                if (payment.reason != null &&
-                    payment.reason!.isNotEmpty) payment.reason!,
-              ].join(' · ')),
-        trailing: open == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded),
+            : Text(
+                [
+                  if (label != null) label,
+                  if (payment.reason != null && payment.reason!.isNotEmpty)
+                    payment.reason!,
+                ].join(' · '),
+              ),
+        trailing: open == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -1436,25 +1444,24 @@ class _FormCard extends StatelessWidget {
         : MakoloHumanization.presentationLabel(form.state);
     final deadline = form.dueAt == null
         ? null
-        : MaterialLocalizations.of(context).formatMediumDate(
-            form.dueAt!.toLocal(),
-          );
+        : MaterialLocalizations.of(context)
+              .formatMediumDate(form.dueAt!.toLocal());
     return MakoloCard(
       onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(
-          form.canComplete
-              ? Icons.edit_document
-              : Icons.description_outlined,
+          form.canComplete ? Icons.edit_document : Icons.description_outlined,
           color: const Color(0xFF5232DB),
         ),
         title: Text(form.title),
-        subtitle: Text([
-          if (label != null) label,
-          if (form.required) 'Obligatoire',
-          if (deadline != null) 'Avant le $deadline',
-        ].join(' · ')),
+        subtitle: Text(
+          [
+            if (label != null) label,
+            if (form.required) 'Obligatoire',
+            if (deadline != null) 'Avant le $deadline',
+          ].join(' · '),
+        ),
         trailing: form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
             : null,
@@ -1486,13 +1493,15 @@ class _ReferenceCard extends StatelessWidget {
     final symbol = switch (contextLabel) {
       'Activité' => Icons.info_outline_rounded,
       'Occurrence' => Icons.calendar_today_outlined,
-      _ => reference.label == 'Accès'
-          ? Icons.badge_outlined
-          : Icons.fact_check_outlined,
+      _ =>
+        reference.label == 'Accès'
+            ? Icons.badge_outlined
+            : Icons.fact_check_outlined,
     };
     final state = MakoloHumanization.presentationLabel(reference.state);
     final subtitle = [
-      if (contextLabel != null && !hideRepeatedTitle &&
+      if (contextLabel != null &&
+          !hideRepeatedTitle &&
           reference.label.trim().isNotEmpty &&
           reference.label != contextLabel)
         reference.label,

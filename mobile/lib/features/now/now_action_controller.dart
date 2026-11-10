@@ -150,7 +150,8 @@ class _NowActionGroupState extends State<NowActionGroup> {
         _sending ||
         _confirming ||
         _needsVerification ||
-        _confirmedByOwner) return;
+        _confirmedByOwner)
+      return;
     final path = NowOwnerAction.authorizedPath(widget.situation, action);
     if (path == null) return;
 
@@ -204,8 +205,7 @@ class _NowActionGroupState extends State<NowActionGroup> {
       if (!mounted) return;
       setState(() {
         _needsVerification = true;
-        _error =
-            'Décision non confirmée. Vérifiez son état avant toute nouvelle action.';
+        _error = 'Décision non confirmée. Vérifiez son état avant toute nouvelle action.';
       });
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -231,8 +231,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
       }
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Vérification indisponible. Consultez la situation avant de réessayer.');
+        setState(
+          () => _error = 'Vérification indisponible. Consultez la situation avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _verifying = false);
@@ -321,7 +322,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   ? MakoloActionPhase.unavailable
                   : MakoloActionPhase.available;
               return MakoloActionButton(
-                key: ValueKey('now-business-action-${widget.situation.identity}-$index'),
+                key: ValueKey(
+                  'now-business-action-${widget.situation.identity}-$index',
+                ),
                 label: label,
                 onPressed: callback,
                 icon: index == 0 ? Icons.arrow_forward_rounded : null,
