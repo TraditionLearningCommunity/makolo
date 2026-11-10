@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+
+import '../../design/action_controls.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -415,20 +417,26 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
+              MakoloActionButton(
                 onPressed: _submitting || !selectedModeAvailable
                     ? null
                     : _createOrder,
-                icon: const Icon(Icons.shopping_bag_outlined),
-                label: Text(
-                  _submitting
-                      ? 'Vérification…'
-                      : !widget.runtime.isAuthenticated
-                      ? 'Se connecter pour continuer'
-                      : _attempted
-                      ? 'Revérifier la commande'
-                      : 'Créer la commande',
-                ),
+                icon: Icons.shopping_bag_outlined,
+                label: _submitting
+                    ? 'Vérification…'
+                    : !widget.runtime.isAuthenticated
+                    ? 'Se connecter pour continuer'
+                    : _attempted
+                    ? 'Revérifier la commande'
+                    : 'Créer la commande',
+                appearance: MakoloActionAppearance.primary,
+                phase: _submitting
+                    ? MakoloActionPhase.processing
+                    : _error != null && _attempted
+                    ? MakoloActionPhase.failed
+                    : !selectedModeAvailable
+                    ? MakoloActionPhase.unavailable
+                    : MakoloActionPhase.available,
               ),
             ],
             if (_attempted) ...[
