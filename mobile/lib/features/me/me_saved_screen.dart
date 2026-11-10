@@ -411,7 +411,8 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                     widget.onOpen((row['activity'] as Map)['id'].toString()),
               ),
           if ((_bootstrapping || _loading) &&
-              _rows.isEmpty && !_hasKnownCollection)
+              _rows.isEmpty &&
+              !_hasKnownCollection)
             const MakoloSkeleton(lines: 3),
           if (_loading && (_rows.isNotEmpty || _hasKnownCollection))
             const Center(
