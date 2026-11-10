@@ -1004,8 +1004,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _metric(String count, String title) => Container(
-    constraints: const BoxConstraints(minWidth: 125),
-    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+    constraints: const BoxConstraints(minWidth: 96),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
     decoration: BoxDecoration(
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       borderRadius: BorderRadius.circular(14),
@@ -1065,11 +1065,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   )
                 : null,
           ),
-        Text(
-          'Responsabilité et autorité restent distinctes ; '
-          'elles ne créent aucun droit automatique sur les Journeys.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
       ],
     );
   }
@@ -1079,122 +1074,87 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final deps = _rows(data['visible_dependencies']);
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
+    final completed = items.where((row) => row['state'] == 'fulfilled').length;
+    final actions = items.where(
+      (row) => row['readiness_state'] == 'action_required',
+    ).length;
+    final prerequisites = deps.where((row) => row['state'] == 'active').length;
+    final readinessState = _text(readiness['state']);
+    final hasReadiness = readinessState.isNotEmpty &&
+        (items.isNotEmpty || readinessState != 'ready');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Vue d’ensemble',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 7),
-        const Text(
-          'Ce qui avance, ce qui attend et la prochaine intervention utile.',
-        ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 0,
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: .065),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _text(readiness['label']).isNotEmpty
-                      ? _text(readiness['label'])
-                      : 'Situation non disponible',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  next.isNotEmpty
-                      ? 'Prochaine intervention : ${_text(next['label'])}'
-                      : readiness['partial'] == true
-                      ? 'La situation collective est partielle.'
-                      : 'Aucune intervention personnelle explicitement signalée.',
-                ),
-                if (next['journey_id'] != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: MakoloActionButton(
-                      label: 'Voir la démarche',
-                      onPressed: () =>
-                          widget.onOpenJourney(_text(next['journey_id'])),
-                      appearance: MakoloActionAppearance.quiet,
-                      icon: Icons.arrow_forward_rounded,
-                    ),
-                  ),
-                if (_text(readiness['hidden_signal']).isNotEmpty)
-                  Text(
-                    _text(readiness['hidden_signal']),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-              ],
+        if (hasReadiness) ...[
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              next.isNotEmpty ? Icons.priority_high_rounded
+                  : Icons.fact_check_outlined,
+              color: Theme.of(context).colorScheme.primary,
             ),
+            title: Text(
+              _text(readiness['label']),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: next.isNotEmpty
+                ? Text(_text(next['label']))
+                : readiness['partial'] == true
+                    ? const Text('Informations visibles partielles')
+                    : null,
+            trailing: next['journey_id'] != null
+                ? MakoloIconActionButton(
+                    tooltip: 'Ouvrir la démarche',
+                    icon: Icons.arrow_forward_rounded,
+                    onPressed: () =>
+                        widget.onOpenJourney(_text(next['journey_id'])),
+                  )
+                : null,
           ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 9,
-          runSpacing: 9,
-          children: [
-            _metric('${items.length}', 'Démarches visibles'),
-            _metric(
-              '${items.where((r) => r['state'] == 'fulfilled').length}',
-              'Réalisées',
-            ),
-            _metric(
-              '${items.where((r) => r['readiness_state'] == 'action_required').length}',
-              'Action requise',
-            ),
-            _metric(
-              '${deps.where((r) => r['state'] == 'active').length}',
-              'Prérequis visibles actifs',
-            ),
-          ],
-        ),
-        const SizedBox(height: 21),
-        Text(
-          'Démarches du Dossier',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 11),
-        if (items.isEmpty)
-          _empty('Aucune démarche visible liée.')
-        else
+          const SizedBox(height: 7),
+        ],
+        if (items.isNotEmpty || prerequisites > 0)
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              if (items.isNotEmpty)
+                _metric('${items.length}', 'Démarches'),
+              if (completed > 0)
+                _metric('$completed', 'Réalisées'),
+              if (actions > 0)
+                _metric('$actions', 'Action requise'),
+              if (prerequisites > 0)
+                _metric('$prerequisites', 'Prérequis'),
+            ],
+          ),
+        if (items.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            'Démarches',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 7),
           for (final row in items.take(7)) _journeyTile(row, compact: true),
-        if (items.length > 7)
-          MakoloActionButton(
-            label: 'Voir toutes les démarches',
-            onPressed: () => setState(() => _mode = _DossierMode.list),
-            appearance: MakoloActionAppearance.quiet,
-            icon: Icons.list_rounded,
-          ),
+          if (items.length > 7)
+            MakoloActionButton(
+              label: 'Voir toutes les démarches',
+              onPressed: () => setState(() => _mode = _DossierMode.list),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.list_rounded,
+            ),
+        ] else
+          _empty('Aucune démarche visible.'),
         _collaboration(data),
       ],
     );
   }
 
   Widget _empty(String message) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 28),
-    child: Column(
-      children: [
-        Icon(
-          Icons.folder_open_outlined,
-          size: 39,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-    ),
+    padding: const EdgeInsets.symmetric(vertical: 14),
+    child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
   );
 
   static String _fold(String input) {
