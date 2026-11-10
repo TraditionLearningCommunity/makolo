@@ -513,10 +513,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                       _dropdown(
                         'Rattachement',
                         _placement,
-                        const {
-                          'all': 'Tous',
-                          'independent': 'Indépendants',
-                        },
+                        const {'all': 'Tous', 'independent': 'Indépendants'},
                         (v) => change(() => _placement = v),
                         icon: Icons.folder_open_outlined,
                       ),
@@ -895,7 +892,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   final flat = _ordered(entries.where(_matches));
                   final showFlat =
                       _mode == OrganizerMode.list ||
-                      (_mode == OrganizerMode.cards && (_kind != 'all' || _placement == 'independent'));
+                      (_mode == OrganizerMode.cards &&
+                          (_kind != 'all' || _placement == 'independent'));
                   final shown = showFlat ? flat : roots;
 
                   return NotificationListener<ScrollNotification>(
