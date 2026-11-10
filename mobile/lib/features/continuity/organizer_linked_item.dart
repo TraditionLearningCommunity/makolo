@@ -35,7 +35,7 @@ class OrganizerLinkedItem extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: 11,
-            vertical: dense ? 9 : 12,
+            vertical: dense ? 5 : 10,
           ),
           child: Row(
             children: [
@@ -47,16 +47,16 @@ class OrganizerLinkedItem extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: dense ? null : 3,
                       style: Theme.of(context).textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    Text(
-                      kind,
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: scheme.onSurfaceVariant),
-                    ),
+                    if (!dense)
+                      Text(
+                        kind,
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
                   ],
                 ),
               ),
@@ -64,7 +64,7 @@ class OrganizerLinkedItem extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 color: scheme.primary,
-                size: 23,
+                size: dense ? 18 : 23,
               ),
             ],
           ),
