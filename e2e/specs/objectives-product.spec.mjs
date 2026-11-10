@@ -30,7 +30,16 @@ async function selectFirstRealOption(select) {
 }
 
 function visibleJourneysSection(page) {
-  return page.getByRole('heading', { name: 'Démarches visibles' }).locator('..');
+  // The icon-only views do not repeat a presentation heading.
+  return page.locator('[data-dossier-content]');
+}
+
+async function linkJourney(page, name) {
+  await page.locator('[data-dialog-open="dossier-link"]').click();
+  await page.locator('#dossier-link select[name="journey"]').selectOption({
+    label: name,
+  });
+  await page.locator('#dossier-link button[type="submit"]').click();
 }
 
 test('visitor cannot open private Objectives surfaces', async ({ page }) => {
@@ -45,49 +54,56 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/objectives/');
 
-  await expect(page.getByRole('heading', { name: 'Mes Dossiers' })).toBeVisible();
-  await page.getByRole('link', { name: 'Créer un Dossier' }).click();
+  await expect(page.getByRole('heading', { name: 'Mes démarches' })).toBeVisible();
+  await page.getByRole('link', { name: /Créer un dossier/i }).click();
 
-  await page.getByLabel(/^Objectif\s*:$/).fill('Préparer le départ D6 bis');
-  await page.getByLabel(/^Description\s*:$/).fill('Smoke test produit du train Objectives.');
-  await page.getByRole('button', { name: 'Créer le Dossier' }).click();
+  await page.locator('input[name="title"]').fill('Préparer le départ D6 bis');
+  await page.locator('textarea[name="description"]').fill('Smoke test produit du train Objectives.');
+  await page.getByRole('button', { name: /Créer le dossier/i }).click();
   await expect(page.getByRole('heading', { name: 'Préparer le départ D6 bis' })).toBeVisible();
   const dossierUrl = page.url();
 
-  const journeySelect = page.getByLabel(/^Démarche\s*:$/);
-  await journeySelect.selectOption({ label: 'Accompagnement Services V1 E2E' });
-  await page.getByRole('button', { name: 'Lier la démarche' }).click();
+  await linkJourney(page, 'Accompagnement Services V1 E2E');
   await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
-  await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Inscription communautaire E2E' });
-  await page.getByRole('button', { name: 'Lier la démarche' }).click();
+  await linkJourney(page, 'Inscription communautaire E2E');
   await expect(visibleJourneysSection(page).getByText('Inscription communautaire E2E', { exact: true })).toBeVisible();
 
-  await page.getByLabel('Démarche dépendante').selectOption({ label: 'Accompagnement Services V1 E2E' });
-  await page.getByLabel('Démarche requise').selectOption({ label: 'Inscription communautaire E2E' });
-  await page.getByRole('button', { name: 'Ajouter la dépendance' }).click();
-  await expect(page.getByText(/Accompagnement Services V1 E2E.*nécessite.*Inscription communautaire E2E/)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Avancement' })).toBeVisible();
+  await page.locator('[data-dialog-open="dossier-dependency"]').click();
+  await page.locator('#dossier-dependency select[name="dependent_link"]')
+    .selectOption({ label: 'Accompagnement Services V1 E2E' });
+  await page.locator('#dossier-dependency select[name="required_link"]')
+    .selectOption({ label: 'Inscription communautaire E2E' });
+  await page.locator('#dossier-dependency button[type="submit"]').click();
+  await page.locator('[data-dossier-view="dependencies"]').click();
+  await expect(page.locator('.mk-dossier__dep-list')).toContainText('Inscription communautaire E2E');
+  await expect(page.locator('.mk-dossier__dep-list')).toContainText('Accompagnement Services V1 E2E');
+  await expect(page.locator('.mk-dossier__dep-list')).toContainText('est requis avant');
 
-  const nativeJourneySelect = page.getByLabel(/^Démarche\s*:$/);
+  await page.locator('[data-dialog-open="dossier-link"]').click();
+  const nativeJourneySelect = page.locator('#dossier-link select[name="journey"]');
   await nativeJourneySelect.focus();
   await expect(nativeJourneySelect).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: 'Lier la démarche' })).toBeFocused();
+  await expect(page.locator('#dossier-link button[type="submit"]')).toBeFocused();
+  await page.locator('#dossier-link [data-dialog-close]').click();
   await expectNoSeriousAxeViolations(page);
 
   await page.goto('/objectives/projects/new/');
-  await page.getByLabel(/^Titre\s*:$/).fill('Projet D6 bis E2E');
-  await page.getByLabel(/^Description\s*:$/).fill('Horizon durable du smoke Objectives.');
-  await page.getByRole('button', { name: 'Créer le Projet' }).click();
+  await page.locator('input[name="title"]').fill('Projet D6 bis E2E');
+  await page.locator('textarea[name="description"]').fill('Horizon durable du smoke Objectives.');
+  await page.getByRole('button', { name: /Créer le projet/i }).click();
   await expect(page.getByRole('heading', { name: 'Projet D6 bis E2E' })).toBeVisible();
 
-  await page.getByLabel(/^Dossier\s*:$/).selectOption({ label: 'Préparer le départ D6 bis' });
-  await page.getByRole('button', { name: 'Rattacher le Dossier' }).click();
+  await page.locator('[data-dialog-open="project-link"]').click();
+  await page.locator('#project-link select[name="dossier"]')
+    .selectOption({ label: 'Préparer le départ D6 bis' });
+  await page.locator('#project-link button[type="submit"]').click();
   await expect(page.getByText('Préparer le départ D6 bis', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Retirer du Projet' }).click();
-  await expect(page.getByText('Aucun Dossier visible dans ce Projet.')).toBeVisible();
+  await page.getByRole('button', { name: 'Détacher Préparer le départ D6 bis' }).click();
+  await page.locator('dialog.mk-project__dialog button').filter({ hasText: 'Détacher' }).click();
+  await expect(page.getByText('Aucun Dossier visible.')).toBeVisible();
 
   await page.goto(dossierUrl);
   await expect(page.getByRole('heading', { name: 'Préparer le départ D6 bis' })).toBeVisible();
@@ -97,32 +113,33 @@ test('authorized Space owner can create Space Dossier and Project', async ({ pag
   await login(page, 'owner@e2e.makolo.test');
 
   await page.goto('/objectives/new/?context=space&space=makolo-e2e-events');
-  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier Espace D6 bis');
+  await page.locator('input[name="title"]').fill('Dossier Espace D6 bis');
   await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Créer le Dossier' }).click();
+  await page.getByRole('button', { name: /Créer le dossier/i }).click();
   await expect(page.getByRole('heading', { name: 'Dossier Espace D6 bis' })).toBeVisible();
 
   await page.goto('/objectives/projects/new/?context=space&space=makolo-e2e-events');
-  await page.getByLabel(/^Titre\s*:$/).fill('Projet Espace D6 bis');
+  await page.locator('input[name="title"]').fill('Projet Espace D6 bis');
   await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Créer le Projet' }).click();
+  await page.getByRole('button', { name: /Créer le projet/i }).click();
   await expect(page.getByRole('heading', { name: 'Projet Espace D6 bis' })).toBeVisible();
 
-  await page.getByLabel(/^Dossier\s*:$/).selectOption({ label: 'Dossier Espace D6 bis' });
-  await page.getByRole('button', { name: 'Rattacher le Dossier' }).click();
+  await page.locator('[data-dialog-open="project-link"]').click();
+  await page.locator('#project-link select[name="dossier"]')
+    .selectOption({ label: 'Dossier Espace D6 bis' });
+  await page.locator('#project-link button[type="submit"]').click();
   await expect(page.getByText('Dossier Espace D6 bis', { exact: true })).toBeVisible();
 });
 
 test('membership alone is not Dossier authority and Dossier access does not reveal a private Journey', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
   await page.goto('/objectives/new/?context=space&space=makolo-e2e-services');
-  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier confidentiel D6 bis');
+  await page.locator('input[name="title"]').fill('Dossier confidentiel D6 bis');
   await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Créer le Dossier' }).click();
+  await page.getByRole('button', { name: /Créer le dossier/i }).click();
   const dossierUrl = page.url();
 
-  await page.getByLabel(/^Démarche\s*:$/).selectOption({ label: 'Accompagnement Services V1 E2E' });
-  await page.getByRole('button', { name: 'Lier la démarche' }).click();
+  await linkJourney(page, 'Accompagnement Services V1 E2E');
   await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toBeVisible();
 
   await page.context().clearCookies();
@@ -133,10 +150,11 @@ test('membership alone is not Dossier authority and Dossier access does not reve
   await page.context().clearCookies();
   await login(page, 'staff@e2e.makolo.test');
   await page.goto(dossierUrl);
-  const collaborator = page.getByLabel(/^Collaborateur\s*:$/);
+  await page.locator('[data-dialog-open="dossier-authority"]').click();
+  const collaborator = page.locator('#dossier-authority select[name="profile"]');
   await collaborator.selectOption({ label: 'Service Same-Space' });
-  await selectFirstRealOption(page.getByLabel('Niveau d’accès'));
-  await page.getByRole('button', { name: 'Accorder l’accès' }).click();
+  await selectFirstRealOption(page.locator('#dossier-authority select[name="role"]'));
+  await page.locator('#dossier-authority button[type="submit"]').click();
 
   await page.context().clearCookies();
   await login(page, 'service.same-space@e2e.makolo.test');
@@ -144,22 +162,22 @@ test('membership alone is not Dossier authority and Dossier access does not reve
   expect(response?.status()).toBe(200);
   await expect(page.getByRole('heading', { name: 'Dossier confidentiel D6 bis' })).toBeVisible();
   await expect(visibleJourneysSection(page).getByText('Accompagnement Services V1 E2E', { exact: true })).toHaveCount(0);
-  await expect(visibleJourneysSection(page).getByText('Aucune démarche visible liée.')).toBeVisible();
+  await expect(visibleJourneysSection(page).getByText('Aucune démarche visible.')).toBeVisible();
   await expectNoSeriousAxeViolations(page);
 });
 
 test('@mobile Objectives Dossier and Project surfaces remain touch-usable without horizontal overflow', async ({ page }) => {
   await login(page, 'participant@e2e.makolo.test');
   await page.goto('/objectives/');
-  await expect(page.getByRole('heading', { name: 'Mes Dossiers' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mes démarches' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await expectTouchTargets(page);
   await expectNoSeriousAxeViolations(page);
 
-  await page.getByRole('link', { name: 'Créer un Dossier' }).click();
+  await page.getByRole('link', { name: /Créer un dossier/i }).click();
   await expectNoHorizontalOverflow(page);
-  await page.getByLabel(/^Objectif\s*:$/).fill('Dossier mobile D6 bis');
-  await page.getByRole('button', { name: 'Créer le Dossier' }).click();
+  await page.locator('input[name="title"]').fill('Dossier mobile D6 bis');
+  await page.getByRole('button', { name: /Créer le dossier/i }).click();
   await expect(page.getByRole('heading', { name: 'Dossier mobile D6 bis' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
   await expectTouchTargets(page);
