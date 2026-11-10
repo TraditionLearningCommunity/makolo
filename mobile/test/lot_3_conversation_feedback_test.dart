@@ -36,21 +36,19 @@ class _DeferredComposerRepository implements ConversationRepository {
 }
 
 void main() {
-  Future<void> render(
-    WidgetTester tester,
-    ConversationRepository repository,
-  ) => tester.pumpWidget(
-    MaterialApp(
-      home: Scaffold(
-        body: ConversationComposer(
-          repository: repository,
-          conversationId: 'conversation-a',
-          capabilities: const {'text_mode': 'information'},
-          onPublished: (_) {},
+  Future<void> render(WidgetTester tester, ConversationRepository repository) =>
+      tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationComposer(
+              repository: repository,
+              conversationId: 'conversation-a',
+              capabilities: const {'text_mode': 'information'},
+              onPublished: (_) {},
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   testWidgets('one pending conversation send cannot be tapped twice', (
     tester,
