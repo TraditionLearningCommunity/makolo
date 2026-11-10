@@ -792,8 +792,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                             children: [
                               const Icon(Icons.history_rounded, size: 16),
                               const SizedBox(width: 6),
-                              Text('Résultats précédents',
-                                  style: Theme.of(context).textTheme.labelSmall),
+                              Text(
+                                'Résultats précédents',
+                                style: Theme.of(context).textTheme.labelSmall,
+                              ),
                             ],
                           ),
                         ),
@@ -889,7 +891,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      if (rows.isEmpty && !_loading && !_failed && !_editingSearch)
+                      if (rows.isEmpty &&
+                          !_loading &&
+                          !_failed &&
+                          !_editingSearch)
                         Text(
                           _query.text.trim().isEmpty && !widget.history
                               ? 'Saisissez ce que vous souhaitez retrouver.'
