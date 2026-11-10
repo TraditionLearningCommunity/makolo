@@ -209,6 +209,77 @@ class D5CrossContextClosureTests(TestCase):
         self.dossier_b.refresh_from_db()
         self.assertEqual(self.dossier_b.title, "Resultat B")
 
+    def test_scoped_organizer_retracts_dossier_after_mandate_revocation(self):
+        organizer_url = reverse("objectives_api:organizer")
+        before_a = self.client.get(organizer_url + self.scope(self.space_a))
+        before_b = self.client.get(organizer_url + self.scope(self.space_b))
+        self.assertEqual(before_a.status_code, 200, before_a.data)
+        self.assertEqual(before_b.status_code, 200, before_b.data)
+
+        def identities(response):
+            return {
+                (row["kind"], row["id"]) for row in response.data["data"]["items"]
+            }
+
+        self.assertIn(("dossier", str(self.dossier_a.pk)), identities(before_a))
+        self.assertIn(("dossier", str(self.dossier_b.pk)), identities(before_b))
+        self.assertIn(
+            ("journey", str(self.shared_journey.pk)), identities(before_a),
+        )
+        revoke_dossier_authority(
+            actor=self.owner, dossier=self.dossier_a, mandate=self.mandate_a,
+        )
+
+        after_a = self.client.get(organizer_url + self.scope(self.space_a))
+        after_b = self.client.get(organizer_url + self.scope(self.space_b))
+        self.assertEqual(after_a.status_code, 200, after_a.data)
+        self.assertEqual(after_b.status_code, 200, after_b.data)
+        self.assertIn(("project", str(self.project_a1.pk)), identities(after_a))
+        self.assertNotIn(("dossier", str(self.dossier_a.pk)), identities(after_a))
+        self.assertNotIn(
+            ("journey", str(self.shared_journey.pk)), identities(after_a),
+        )
+        self.assertIn(("dossier", str(self.dossier_b.pk)), identities(after_b))
+        self.assertIn(
+            ("journey", str(self.shared_journey.pk)), identities(after_b),
+        )
+
+    def test_private_journey_is_hidden_and_web_uses_same_dossier_authority(self):
+        private_activity = Activity.objects.create(
+            title="D5 private action", owner_profile=self.owner,
+            created_by=self.owner,
+        )
+        private_journey = Journey.objects.create(
+            activity=private_activity, initiated_by=self.owner,
+            beneficiary=self.owner, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.DRAFT,
+        )
+        link_journey(
+            actor=self.owner, dossier=self.dossier_a, journey=private_journey,
+        )
+        api = self.client.get(
+            self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+        )
+        self.assertEqual(api.status_code, 200, api.data)
+        visible = {
+            row["id"] for row in api.data["data"]["visible_journeys"]
+        }
+        self.assertIn(str(self.shared_journey.pk), visible)
+        self.assertNotIn(str(private_journey.pk), visible)
+        web_url = reverse(
+            "objectives:dossier-detail", args=[self.dossier_a.pk],
+        )
+        self.assertEqual(self.client.get(web_url).status_code, 200)
+        revoke_dossier_authority(
+            actor=self.owner, dossier=self.dossier_a, mandate=self.mandate_a,
+        )
+        self.assertEqual(self.client.get(web_url).status_code, 404)
+        self.assertEqual(
+            self.client.get(
+                self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+            ).status_code, 404,
+        )
+
     def test_membership_only_and_cross_space_action_are_never_authority(self):
         self.client.force_authenticate(user=self.outsider)
         for resource in (
