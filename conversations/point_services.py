@@ -338,7 +338,6 @@ def submit_point_response(*, actor, point, value=None, represented_space=None, c
 
 
 @transaction.atomic
-@transaction.atomic
 def update_point_personal_state(*, actor, point, revisit=None, pinned=None):
     """Viewer-owned state only; does not close, resolve or reorder the Point."""
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related(
@@ -364,6 +363,7 @@ def update_point_personal_state(*, actor, point, revisit=None, pinned=None):
     return state
 
 
+@transaction.atomic
 def acknowledge_point(*, actor, point):
     locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation", "visibility_audience").get(pk=point.pk)
     if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
