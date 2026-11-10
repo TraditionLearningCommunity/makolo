@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Mes documents | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-4xl space-y-4">
@@ -29,17 +30,17 @@
 
       <div class="grid gap-2 sm:grid-cols-3">
         <label class="sr-only" for="kind-filter">Type</label>
-        <select id="kind-filter" name="kind" class="mk-interaction-field" onchange="this.form.submit()">
+        <select id="kind-filter" name="kind" class="mk-interaction-field" data-submit-on-change>
           <option value="">Tous les types</option>
           {% for value, label in kind_options %}<option value="{{ value }}" {% if kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
         <label class="sr-only" for="sensitivity-filter">Confidentialité</label>
-        <select id="sensitivity-filter" name="sensitivity" class="mk-interaction-field" onchange="this.form.submit()">
+        <select id="sensitivity-filter" name="sensitivity" class="mk-interaction-field" data-submit-on-change>
           <option value="">Toute confidentialité</option>
           {% for value, label in sensitivity_options %}<option value="{{ value }}" {% if sensitivity == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
         <label class="sr-only" for="sort-documents">Trier</label>
-        <select id="sort-documents" name="sort" class="mk-interaction-field" onchange="this.form.submit()">
+        <select id="sort-documents" name="sort" class="mk-interaction-field" data-submit-on-change>
           <option value="recent" {% if active_sort == 'recent' %}selected{% endif %}>Plus récents</option>
           <option value="oldest" {% if active_sort == 'oldest' %}selected{% endif %}>Plus anciens</option>
           <option value="title" {% if active_sort == 'title' %}selected{% endif %}>Nom A–Z</option>
@@ -90,4 +91,5 @@
   </nav>
   {% endif %}
 </div>
+<script src="{% static 'js/auto_submit_filters.js' %}" defer></script>
 {% endblock %}
