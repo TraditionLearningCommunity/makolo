@@ -26,7 +26,15 @@
     descending: false,
     loading: false,
   };
-  const viewKey = 'mk.organizer.mode.' + initial.actor.id;
+  const lens = initial.actor_context || {kind: 'personal'};
+  const spaceSlug = lens.kind === 'space' ? lens.space?.slug : null;
+  if (lens.kind === 'space' && typeof spaceSlug !== 'string') return;
+  const scopeParam = spaceSlug ? '&context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
+  const scopeSuffix = spaceSlug ? '?context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
+  const viewKey = 'mk.organizer.mode.' + initial.actor.id +
+    (spaceSlug ? ':space:' + spaceSlug : '');
   try {
     const saved = localStorage.getItem(viewKey);
     if (['cards', 'list', 'explorer'].includes(saved)) state.mode = saved;
@@ -69,7 +77,11 @@
     .replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('fr');
   const validUrl = (value) => typeof value === 'string' &&
     value.startsWith('/') && !value.startsWith('//');
-  const url = (row) => validUrl(row.web_url) ? row.web_url : '#';
+  const url = (row) => {
+    if (!validUrl(row.web_url)) return '#';
+    return spaceSlug && (row.kind === 'project' || row.kind === 'dossier')
+      ? row.web_url + scopeSuffix : row.web_url;
+  };
   const all = () => {
     const seen = new Set();
     return state.rows.filter((row) => {
@@ -366,7 +378,7 @@
     try {
       const offset = state.nextOffset;
       const response = await fetch('/api/v1/objectives/organizer/?limit=50&offset=' +
-        encodeURIComponent(offset), {
+        encodeURIComponent(offset) + scopeParam, {
         method: 'GET',
         credentials: 'same-origin',
         headers: {Accept: 'application/json'},
@@ -374,8 +386,11 @@
       if (!response.ok) throw new Error('Organizer continuation unavailable');
       const envelope = await response.json();
       const incoming = envelope.data;
+      const incomingLens = incoming?.actor_context || {kind: 'personal'};
       if (!incoming || !incoming.actor ||
           incoming.actor.id !== initial.actor.id ||
+          incomingLens.kind !== lens.kind ||
+          (spaceSlug && incomingLens.space?.slug !== spaceSlug) ||
           !incoming.page || incoming.page.offset !== offset ||
           !Array.isArray(incoming.items)) throw new Error('Organizer owner mismatch');
       state.rows.push(...incoming.items);
