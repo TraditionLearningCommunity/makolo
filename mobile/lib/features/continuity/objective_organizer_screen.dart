@@ -14,6 +14,7 @@ import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'objective_organizer_data.dart';
 import 'organizer_view_switcher.dart';
+import 'organizer_linked_item.dart';
 import 'objective_repository.dart';
 
 class ObjectiveOrganizerScreen extends StatefulWidget {
@@ -1040,19 +1041,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                         ),
                                       ),
                                   ] else ...[
-                                    if (offline)
-                                      const ListTile(
-                                        dense: true,
-                                        leading: Icon(
-                                          Icons.offline_bolt_outlined,
-                                        ),
-                                        title: Text(
-                                          'Vos démarches sont disponibles',
-                                        ),
-                                        subtitle: Text(
-                                          'Les nouveautés apparaîtront à la prochaine connexion.',
-                                        ),
-                                      ),
                                     if (_search.text.trim().isNotEmpty &&
                                         flat.isNotEmpty)
                                       Padding(
@@ -1088,7 +1076,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                         organizerCountLabel(
                                           flat,
                                           filtered: _hasSelectionFilters,
-                                          partial: page.hasMore,
                                         ),
                                         style: Theme.of(context)
                                             .textTheme
@@ -1267,22 +1254,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   ),
                 ),
               if (children.isNotEmpty) ...[
-                const Divider(height: 28),
+                const SizedBox(height: 12),
                 for (final child in children.take(3))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 7),
-                    child: Row(
-                      children: [
-                        Icon(child.icon, size: 17, color: scheme.primary),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            child.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                    child: OrganizerLinkedItem(
+                      key: Key('organizer-child-${child.key}'),
+                      title: child.title,
+                      kind: child.kindLabel,
+                      icon: child.icon,
+                      dense: true,
+                      onOpen: () => widget.onOpenItem(child.kind, child.id),
                     ),
                   ),
                 if (children.length > 3)
@@ -1316,39 +1298,69 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         : item.kind == 'journey' && visibleParents.isNotEmpty
         ? visibleParents.first
         : null;
-    return Column(
-      children: [
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 4),
-          leading: Icon(
-            item.icon,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          title: Text(item.title),
-          subtitle: Text(
-            [
-              item.kindLabel,
-              item.humanState,
-              if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
-                'Liée à ${item.dossierIds.toSet().length} dossiers'
-              else if (parent != null)
-                'Dans : ${parent.title}',
-              if (item.kind == 'journey' &&
-                  item.dossierIds.isNotEmpty &&
-                  parent == null)
-                'Dossier non chargé',
-              if (item.kind == 'dossier' &&
-                  item.projectId != null &&
-                  parent == null)
-                'Projet non chargé',
-              if (item.displayDate != null) item.displayDate!,
-            ].join(' · '),
-          ),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => widget.onOpenItem(item.kind, item.id),
+    final details = <String>[
+      item.humanState,
+      if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
+        'Liée à ${item.dossierIds.toSet().length} dossiers'
+      else if (parent != null)
+        'Dans : ${parent.title}',
+      if (item.kind == 'journey' && item.dossierIds.isNotEmpty && parent == null)
+        'Dossier non affiché',
+      if (item.kind == 'dossier' && item.projectId != null && parent == null)
+        'Projet non affiché',
+      if (item.displayDate != null) item.displayDate!,
+    ];
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
-        const Divider(height: 1),
-      ],
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: Key('organizer-row-${item.key}'),
+          onTap: () => widget.onOpenItem(item.kind, item.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+            child: Row(
+              children: [
+                Icon(item.icon, size: 25, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${item.kindLabel} · ${details.join(' · ')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: scheme.primary),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1423,10 +1435,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                               children: [
                                 Text(
                                   item.title,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 Text(
                                   [
@@ -1460,6 +1470,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ],
                       ),

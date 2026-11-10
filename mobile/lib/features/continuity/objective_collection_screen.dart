@@ -302,11 +302,6 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
                           ),
                         ),
                       ),
-                    if (_offline && page.hasMore)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Suite disponible après reconnexion.'),
-                      ),
                     if (_loadingMore)
                       const Padding(
                         padding: EdgeInsets.all(16),
@@ -321,16 +316,6 @@ class _ObjectiveCollectionScreenState extends State<ObjectiveCollectionScreen> {
                           onPressed: _retry,
                           appearance: MakoloActionAppearance.quiet,
                         ),
-                      ),
-                    if (_hasFirst &&
-                        !_loadingMore &&
-                        !_failed &&
-                        !_offline &&
-                        !page.hasMore &&
-                        page.items.isNotEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 20),
-                        child: Center(child: Text('Vous avez tout vu')),
                       ),
                   ],
                 ),
@@ -350,25 +335,65 @@ class _ObjectiveRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    title: Text(item.title),
-    subtitle: Text(
-      [
-        if (item.space != null) item.space!,
-        switch (item.state) {
-          'draft' => 'En préparation',
-          'active' => 'En cours',
-          'completed' => 'Terminé',
-          'cancelled' => 'Annulé',
-          'archived' => 'Archivé',
-          _ => 'État indisponible',
-        },
-      ].join(' · '),
-    ),
-    trailing: const Icon(Icons.chevron_right_rounded),
-    contentPadding: EdgeInsets.zero,
-    onTap: onTap,
-  );
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final state = switch (item.state) {
+      'draft' => 'En préparation',
+      'active' => 'En cours',
+      'completed' => 'Terminé',
+      'cancelled' => 'Annulé',
+      'archived' => 'Archivé',
+      _ => 'État indisponible',
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: Key('objective-collection-row-${item.id}'),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            child: Row(
+              children: [
+                Icon(Icons.folder_outlined, color: scheme.primary, size: 25),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        [if (item.space != null) item.space!, state].join(' · '),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: scheme.primary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ObjectiveItem {
