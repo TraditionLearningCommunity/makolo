@@ -1059,7 +1059,10 @@ class _JourneyIdentity extends StatelessWidget {
                       label: placeLabel,
                     ),
                   if (civil != null)
-                    JourneyDayBadge(occurrenceDate: facts!.startDate!),
+                    JourneyDayBadge(
+                      occurrenceDate: facts!.startDate!,
+                      timezoneName: facts.timezone,
+                    ),
                 ],
               ),
             ],
