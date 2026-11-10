@@ -746,64 +746,75 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
         children: [
           Text('Documents et ressources', style: theme.textTheme.titleSmall),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final resource in shown)
-            Padding(
-              padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-              child: InkWell(
-                key: ValueKey(
-                  'ongoing-resource-${resource['id'] ?? resource['title']}',
-                ),
-                onTap: _canOpen(resource) ? () => _open(resource) : null,
-                borderRadius: BorderRadius.circular(MakoloRadii.small),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Row(
-                    children: [
-                      Icon(_icon(resource), size: 20, color: muted),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              resource['title'].toString(),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: _canOpen(resource)
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface,
-                                fontWeight: _canOpen(resource)
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                            if (resource['description'] is String &&
-                                (resource['description'] as String)
-                                    .trim()
-                                    .isNotEmpty)
-                              Text(
-                                resource['description'] as String,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: muted,
+          AnimatedSize(
+            duration: MakoloMotion.effective(
+              context,
+              MakoloMotion.short,
+            ),
+            alignment: Alignment.topCenter,
+            child: Column(
+              children: [
+              for (final resource in shown)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                  child: InkWell(
+                    key: ValueKey(
+                      'ongoing-resource-${resource['id'] ?? resource['title']}',
+                    ),
+                    onTap: _canOpen(resource) ? () => _open(resource) : null,
+                    borderRadius: BorderRadius.circular(MakoloRadii.small),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Row(
+                        children: [
+                          Icon(_icon(resource), size: 20, color: muted),
+                          const SizedBox(width: MakoloSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  resource['title'].toString(),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: _canOpen(resource)
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurface,
+                                    fontWeight: _canOpen(resource)
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
                                 ),
-                              ),
+                                if (resource['description'] is String &&
+                                    (resource['description'] as String)
+                                        .trim()
+                                        .isNotEmpty)
+                                  Text(
+                                    resource['description'] as String,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: muted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (_canOpen(resource)) ...[
+                            const SizedBox(width: MakoloSpacing.xs),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: muted,
+                            ),
                           ],
-                        ),
+                        ],
                       ),
-                      if (_canOpen(resource)) ...[
-                        const SizedBox(width: MakoloSpacing.xs),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                          color: muted,
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
+          ),
           if (widget.compact && entries.length > 2)
             TextButton(
               onPressed: () => setState(() => _showAll = !_showAll),
