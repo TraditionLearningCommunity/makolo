@@ -52,10 +52,7 @@ void main() {
       brightness: Brightness.dark,
       textScale: 1.6,
       reduceMotion: true,
-      child: const SizedBox(
-        height: 180,
-        child: MakoloMediaSkeleton(),
-      ),
+      child: const SizedBox(height: 180, child: MakoloMediaSkeleton()),
     );
     expect(find.bySemanticsLabel('Chargement du média'), findsOneWidget);
     expect(tester.takeException(), isNull);
