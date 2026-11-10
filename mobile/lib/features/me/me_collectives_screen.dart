@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/makolo_patterns.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
@@ -193,13 +194,40 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                     for (final item in territory.items)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: Text(item.title),
+                        leading: CircleAvatar(
+                          child: Icon(
+                            item.destination.kind == 'space'
+                                ? Icons.apartment_rounded
+                                : Icons.groups_outlined,
+                          ),
+                        ),
+                        title: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: item.subtitle == null
                             ? null
-                            : Text(item.subtitle!),
+                            : Text(item.subtitle!, maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
+                        onLongPress: () => showMakoloQuickPreview(
+                          context,
+                          title: item.title,
+                          eyebrow: item.destination.kind == 'space'
+                              ? 'Espace'
+                              : 'Collectif',
+                          summary: item.subtitle,
+                          icon: item.destination.kind == 'space'
+                              ? Icons.apartment_rounded
+                              : Icons.groups_outlined,
+                          facts: item.metadata,
+                          onOpen: item.canOpen
+                              ? () => widget.onOpenDestination(item.destination)
+                              : null,
+                        ),
                         trailing: item.canOpen
                             ? const Icon(Icons.chevron_right_rounded)
                             : null,
