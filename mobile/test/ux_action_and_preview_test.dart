@@ -4,6 +4,7 @@ import 'package:makolo_mobile/design/action_controls.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/makolo_patterns.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_unit.dart';
 
 void main() {
   testWidgets('action feedback shows processing, failure and confirmation', (
@@ -204,4 +205,26 @@ void main() {
       expect(find.byTooltip('Suivi non confirmé. Réessayer'), findsOneWidget);
     },
   );
+  test('follow scope shares confirmed state without duplicate requests', () {
+    final controller = DiscoveryFollowController();
+    const owner = 'space:demo';
+
+    expect(controller.followedFor(owner), isNull);
+    expect(controller.begin(owner), isTrue);
+    expect(controller.isPending(owner), isTrue);
+    expect(controller.begin(owner), isFalse);
+
+    controller.confirm(owner, true);
+    expect(controller.followedFor(owner), isTrue);
+
+    controller.finish(owner);
+    expect(controller.isPending(owner), isFalse);
+    expect(controller.begin(owner), isTrue);
+
+    controller.clear();
+    expect(controller.isPending(owner), isFalse);
+    expect(controller.followedFor(owner), isNull);
+    controller.dispose();
+  });
+
 }
