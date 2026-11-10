@@ -28,6 +28,7 @@ dependencies:
   home_widget: 0.10.0
   image_picker: 1.2.3
   intl: 0.20.3
+  timezone: 0.11.1
   json_annotation: 4.12.0
   local_auth: 3.0.2
   maplibre_gl: 0.27.1
