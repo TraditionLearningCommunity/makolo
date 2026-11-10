@@ -43,6 +43,24 @@ void main() {
     }
   }
 
+  testWidgets('private media loading stays accessible on compact dark views', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(260, 420),
+      brightness: Brightness.dark,
+      textScale: 1.6,
+      reduceMotion: true,
+      child: const SizedBox(
+        height: 180,
+        child: MakoloMediaSkeleton(),
+      ),
+    );
+    expect(find.bySemanticsLabel('Chargement du média'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'published media respects motion settings without fetching an untrusted URL',
     (tester) async {
