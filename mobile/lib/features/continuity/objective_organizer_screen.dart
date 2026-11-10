@@ -246,7 +246,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           repository == widget.repository &&
           revision == _scopeRevision &&
           _actorValid) {
-        final confirmed = !owner.invalidated &&
+        final confirmed =
+            !owner.invalidated &&
             owner.lastErrorCode == null &&
             owner.lastSuccessAt != null &&
             local != null;

@@ -241,11 +241,15 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     try {
       await repo.refresh(ObjectiveDepth.project, id, spaceSlug: spaceSlug);
       final source = await repo.readSource(
-        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.project,
+        id,
+        spaceSlug: spaceSlug,
       );
-      if (mounted && revision == _contextRevision &&
-          (source.invalidated || source.lastErrorCode != null ||
-           source.lastSuccessAt == null)) {
+      if (mounted &&
+          revision == _contextRevision &&
+          (source.invalidated ||
+              source.lastErrorCode != null ||
+              source.lastSuccessAt == null)) {
         setState(() => _failed = true);
       }
     } on Object {

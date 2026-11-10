@@ -267,11 +267,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     try {
       await repo.refresh(ObjectiveDepth.dossier, id, spaceSlug: spaceSlug);
       final source = await repo.readSource(
-        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.dossier,
+        id,
+        spaceSlug: spaceSlug,
       );
-      if (mounted && revision == _contextRevision &&
-          (source.invalidated || source.lastErrorCode != null ||
-           source.lastSuccessAt == null)) {
+      if (mounted &&
+          revision == _contextRevision &&
+          (source.invalidated ||
+              source.lastErrorCode != null ||
+              source.lastSuccessAt == null)) {
         setState(() => _failed = true);
       }
     } on Object {
