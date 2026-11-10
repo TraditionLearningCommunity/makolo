@@ -52,6 +52,39 @@ class MakoloSkeleton extends StatelessWidget {
   }
 }
 
+/// Stable, non-flashing media placeholder for private inline viewers.
+/// Its parent owns the media dimensions and authorization.
+class MakoloMediaSkeleton extends StatelessWidget {
+  const MakoloMediaSkeleton({super.key, this.icon = Icons.image_outlined});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: 'Chargement du média',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(MakoloRadii.small),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 30,
+            color: scheme.onSurfaceVariant.withValues(alpha: 0.65),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// An initial-loading silhouette matching the two mobile feed units.
 /// Only use it when no locally retained projection is available.
 enum MakoloCardSkeletonKind { discover, ongoing }
