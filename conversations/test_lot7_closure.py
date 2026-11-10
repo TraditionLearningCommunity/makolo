@@ -176,6 +176,82 @@ class Lot7AttentionContractTests(TestCase):
         ).status_code, 404)
 
 
+    def test_deadline_reminder_is_idempotent_and_stops_after_a_response(self):
+        from automation.service_reminders import _run_conversation_point_reminders
+        from notifications.services import _conversation_delivery_allowed
+
+        now = timezone.now()
+        point = self.question(deadline_at=now + timedelta(days=1, minutes=10))
+        milestone = point.deadline_at - timedelta(days=1)
+        self.assertEqual(_run_conversation_point_reminders(milestone), 1)
+        self.assertEqual(_run_conversation_point_reminders(milestone), 0)
+        notifications = Notification.objects.filter(
+            recipient=self.member,
+            metadata__point_id=str(point.pk),
+            template_key="conversation.point.action_required",
+        )
+        self.assertEqual(notifications.count(), 1)
+        notification = notifications.get()
+        self.assertTrue(_conversation_delivery_allowed(notification))
+
+        submit_point_response(
+            actor=self.member, point=point, value="Réponse acquise",
+            client_reference="lot7-reminder-answered",
+        )
+        self.assertEqual(_run_conversation_point_reminders(milestone), 0)
+        self.assertFalse(_conversation_delivery_allowed(notification))
+
+    def test_notification_revalidation_respects_muting_without_erasing_in_app(self):
+        from notifications.models import NotificationCategory, NotificationKind
+        from notifications.services import (
+            _conversation_delivery_allowed, create_notification,
+        )
+        from .services import update_personal_conversation_state
+
+        point = self.question()
+        notification = create_notification(
+            recipient=self.member, kind=NotificationKind.SYSTEM,
+            category=NotificationCategory.SYSTEM,
+            title="Action attendue", message="Un Point demande votre attention.",
+            action_url=reverse("conversations:detail", kwargs={"pk": self.conversation.pk}),
+            metadata={
+                "conversation_id": str(self.conversation.pk),
+                "point_id": str(point.pk),
+            },
+            queue_email=False, queue_push=False,
+            template_key="conversation.point.action_required",
+        )
+        self.assertTrue(_conversation_delivery_allowed(notification))
+        update_personal_conversation_state(
+            actor=self.member, conversation=self.conversation, mute=True,
+        )
+        self.assertFalse(_conversation_delivery_allowed(notification))
+        self.assertTrue(Notification.objects.filter(
+            pk=notification.pk, read_at__isnull=True,
+        ).exists())
+        update_personal_conversation_state(
+            actor=self.member, conversation=self.conversation, mute=False,
+        )
+        self.assertTrue(_conversation_delivery_allowed(notification))
+
+    def test_scheduled_opening_alert_is_once_and_never_before_opening(self):
+        from automation.service_reminders import _run_conversation_point_openings
+
+        opens = timezone.now() + timedelta(minutes=15)
+        point = self.question(opens_at=opens)
+        self.assertEqual(
+            _run_conversation_point_openings(opens - timedelta(minutes=1)), 0,
+        )
+        observed = opens + timedelta(minutes=2)
+        self.assertEqual(_run_conversation_point_openings(observed), 1)
+        self.assertEqual(_run_conversation_point_openings(observed), 0)
+        self.assertEqual(Notification.objects.filter(
+            recipient=self.member,
+            metadata__point_id=str(point.pk),
+            template_key="conversation.point.action_required",
+        ).count(), 1)
+
+
 class Lot7CollectiveConsentTests(TestCase):
     def setUp(self):
         self.manager = User.objects.create_user(username="lot7-group-manager", password="StrongPass2026!")
