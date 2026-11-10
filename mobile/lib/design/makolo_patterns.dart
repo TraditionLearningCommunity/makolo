@@ -76,7 +76,8 @@ Future<void> showMakoloQuickPreview(
                         style: Theme.of(sheetContext).textTheme.labelSmall
                             ?.copyWith(
                               color: Theme.of(sheetContext)
-                                  .colorScheme.onSurfaceVariant,
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                       ),
                   ],
@@ -86,11 +87,7 @@ Future<void> showMakoloQuickPreview(
           ),
           if (summary != null && summary.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text(
-              summary,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(summary, maxLines: 4, overflow: TextOverflow.ellipsis),
           ],
           for (final fact in facts.take(4))
             if (fact.trim().isNotEmpty)
