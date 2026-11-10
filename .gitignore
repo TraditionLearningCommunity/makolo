@@ -94,6 +94,7 @@ dist/
 
 .vscode/*
 !.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 *.code-workspace
 
