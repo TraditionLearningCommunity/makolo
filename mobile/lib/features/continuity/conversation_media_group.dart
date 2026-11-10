@@ -7,7 +7,7 @@ import 'conversation_repository.dart';
 /// Group private attachments by their owning Point. Photos are a compact
 /// gallery; audio, PDF and text are readable inline on explicit interaction.
 /// No media URL or client-side authorization is manufactured here.
-class ConversationMediaGroup extends StatelessWidget {
+class ConversationMediaGroup extends StatefulWidget {
   const ConversationMediaGroup({
     super.key,
     this.repository,
@@ -19,7 +19,17 @@ class ConversationMediaGroup extends StatelessWidget {
   final PrivateMediaDownloader? download;
   final List<Map<String, dynamic>> attachments;
 
+  @override
+  State<ConversationMediaGroup> createState() => _ConversationMediaGroupState();
+}
+
+class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
+  bool _opening = false;
+
   Future<void> _open(BuildContext context, int index) async {
+    if (_opening) return;
+    _opening = true;
+    try {
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
@@ -27,18 +37,24 @@ class ConversationMediaGroup extends StatelessWidget {
       builder: (_) => FractionallySizedBox(
         heightFactor: .92,
         child: ConversationAttachmentViewer(
-          repository: repository,
-          download: download,
-          attachment: attachments[index],
-          gallery: attachments,
+          repository: widget.repository,
+          download: widget.download,
+          attachment: widget.attachments[index],
+          gallery: widget.attachments,
           initialIndex: index,
         ),
       ),
     );
+    } finally {
+      _opening = false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final attachments = widget.attachments;
+    final repository = widget.repository;
+    final download = widget.download;
     if (attachments.isEmpty) return const SizedBox.shrink();
     final visual = <int>[];
     final other = <int>[];
@@ -135,16 +151,19 @@ class ConversationMediaGroup extends StatelessWidget {
               ),
             ),
           if (visual.length > 1)
-            SizedBox(
-              height: 224,
-              child: GridView.builder(
+            LayoutBuilder(
+              builder: (context, constraints) => GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
+                shrinkWrap: true,
                 itemCount: visual.length > 4 ? 4 : visual.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: constraints.maxWidth < 220 ? 1 : 2,
                   crossAxisSpacing: 4,
                   mainAxisSpacing: 4,
-                  childAspectRatio: 1.35,
+                  mainAxisExtent: constraints.maxWidth < 220
+                      ? 148
+                      : ((constraints.maxWidth - 4) / 2 / 1.35)
+                          .clamp(112.0, 180.0).toDouble(),
                 ),
                 itemBuilder: (context, cell) {
                   final index = visual[cell];
