@@ -512,18 +512,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         (v) => change(() => _status = v),
                         icon: Icons.tune_rounded,
                       ),
-                      _dropdown(
-                        'Contexte',
-                        _relation,
-                        const {
-                          'all': 'Tous les contextes',
-                          'mine': 'Personnel',
-                          'space': 'Espace',
-                          'independent': 'Indépendants',
-                        },
-                        (v) => change(() => _relation = v),
-                        icon: Icons.account_tree_outlined,
-                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -1068,6 +1056,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                           ],
                                         ),
                                       ),
+                                    if (flat.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                         vertical: 12,
@@ -1154,30 +1143,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         );
 
   Widget _empty(bool noData) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 38),
-    child: Column(
-      children: [
-        Icon(
-          Icons.folder_open_outlined,
-          size: 38,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          noData
-              ? 'Votre espace est prêt.'
-              : 'Aucun résultat pour ces critères.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          noData
-              ? 'Créez un projet ou un dossier pour organiser ce qui compte pour vous.'
-              : 'Modifiez la recherche ou les filtres.',
-          textAlign: TextAlign.center,
-        ),
-      ],
+    padding: const EdgeInsets.symmetric(vertical: 18),
+    child: Text(
+      noData ? 'Aucune démarche.' : 'Aucun résultat.',
+      style: Theme.of(context).textTheme.bodyMedium,
     ),
   );
 
@@ -1198,13 +1167,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         borderRadius: BorderRadius.circular(18),
         onTap: () => widget.onOpenItem(item.kind, item.id),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(item.icon, color: scheme.primary, size: 26),
+                  Icon(item.icon, color: scheme.primary, size: 23),
                   const Spacer(),
                   Text(
                     item.humanState,
@@ -1215,7 +1184,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   Icon(Icons.arrow_forward_rounded, color: scheme.primary),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Text(
                 item.title,
                 style: Theme.of(context).textTheme.titleMedium
@@ -1231,13 +1200,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 7),
               Wrap(
                 spacing: 7,
                 runSpacing: 7,
                 children: [
                   _tag(item.kindLabel),
-                  if (item.space != null) _tag(item.space!),
                   if (item.displayDate != null) _tag(item.displayDate!),
                 ],
               ),
@@ -1254,10 +1222,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   ),
                 ),
               if (children.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 7),
                 for (final child in children.take(3))
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 7),
+                    padding: const EdgeInsets.only(bottom: 4),
                     child: OrganizerLinkedItem(
                       key: Key('organizer-child-${child.key}'),
                       title: child.title,
@@ -1281,7 +1249,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   Widget _tag(String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.primary.withValues(alpha: .07),
       borderRadius: BorderRadius.circular(9),
