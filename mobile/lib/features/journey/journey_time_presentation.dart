@@ -26,6 +26,30 @@ class JourneyDayPresentation {
     }
   }
 
+  /// The event's midnight may occur at a different time from the device's.
+  static Duration nextMidnightDelay(DateTime now, {String? timezoneName}) {
+    final calendarNow = _currentCalendarDate(now, timezoneName);
+    if (calendarNow == null) return const Duration(hours: 1);
+    DateTime next;
+    if (timezoneName != null && timezoneName.isNotEmpty) {
+      final zone = tz.getLocation(timezoneName);
+      next = tz.TZDateTime(
+        zone,
+        calendarNow.year,
+        calendarNow.month,
+        calendarNow.day + 1,
+      );
+    } else {
+      next = DateTime(
+        calendarNow.year,
+        calendarNow.month,
+        calendarNow.day + 1,
+      );
+    }
+    final delay = next.difference(now);
+    return delay.isNegative ? const Duration(seconds: 1) : delay;
+  }
+
   static DateTime? civilDate(String? value) {
     if (value == null || !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
       return null;
@@ -144,9 +168,11 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
 
   void _schedule() {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
     _midnight = Timer(
-      tomorrow.difference(now) + const Duration(seconds: 1),
+      JourneyDayPresentation.nextMidnightDelay(
+        now,
+        timezoneName: widget.timezoneName,
+      ) + const Duration(seconds: 1),
       () {
         if (!mounted) return;
         setState(() {});
@@ -163,14 +189,15 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
     final offset = JourneyDayPresentation.dayOffset(
       widget.occurrenceDate,
-      DateTime.now(),
+      now,
       timezoneName: widget.timezoneName,
     );
     final label = JourneyDayPresentation.badge(
       widget.occurrenceDate,
-      DateTime.now(),
+      now,
       timezoneName: widget.timezoneName,
     );
     if (offset == null || label == null) return const SizedBox.shrink();
