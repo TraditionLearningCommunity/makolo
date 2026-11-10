@@ -29,11 +29,27 @@ def _calculate_point_interactions(profile, point, *, at=None):
             "response_window_open": False, "represented_responses": [],
             "response_hint": None,
         }
-    mine = point.responses.filter(
-        actor=profile, represented_space__isnull=True,
-        status=ConversationPointResponseStatus.ACTIVE,
-    ).order_by("-submitted_at", "-pk").first()
-    state = point.user_states.filter(profile=profile).first()
+    # The list owner already prefetches viewer-specific active responses and
+    # state. Do not reissue N per-Point reads on that path. Instance-local
+    # attributes cannot be supplied by a client or shared across HTTP requests.
+    prefetched_responses = getattr(point, "_attention_profile_responses", None)
+    if prefetched_responses is None:
+        mine = point.responses.filter(
+            actor=profile, represented_space__isnull=True,
+            status=ConversationPointResponseStatus.ACTIVE,
+        ).order_by("-submitted_at", "-pk").first()
+    else:
+        mine = max(
+            prefetched_responses,
+            key=lambda row: (row.submitted_at, str(row.pk)),
+            default=None,
+        )
+    prefetched_states = getattr(point, "_attention_profile_states", None)
+    state = (
+        (prefetched_states[0] if prefetched_states else None)
+        if prefetched_states is not None
+        else point.user_states.filter(profile=profile).first()
+    )
     active = (
         point.conversation.lifecycle == ConversationLifecycle.OPEN
         and point.lifecycle == ConversationPointLifecycle.OPEN
