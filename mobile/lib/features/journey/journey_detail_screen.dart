@@ -26,8 +26,8 @@ import 'journey_time_presentation.dart';
 
 Color _journeyAccent(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.secondary
-        : MakoloColors.indigo;
+    ? Theme.of(context).colorScheme.secondary
+    : MakoloColors.indigo;
 
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({
