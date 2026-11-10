@@ -54,6 +54,11 @@ def build_parser():
         s.add_argument("--conversation-points",type=int,default=4,choices=(1,2,3,4))
         s.add_argument("--conversation-include-test-users",action="store_true",
                        help="Inclure les comptes existants beta_* et mobile_mature_*")
+        s.add_argument("--conversation-usernames",default=None,
+                       help="Liste de usernames principaux, separes par des virgules")
+        s.add_argument("--conversation-selection",choices=("random","ordered"),default="random")
+        s.add_argument("--conversation-max-participants",type=int,default=8)
+        s.add_argument("--conversation-context-types",default="all")
         s.add_argument("--scans",type=int,default=None)
         s.add_argument("--orders",type=int,default=None)
         s.add_argument("--grant-roles",action="store_true",help="Concession explicite des Mandates demo")
@@ -309,6 +314,10 @@ def run(a):
         options=["--count",str(min(a.count,2000)), "--profiles",str(a.profiles),
                  "--seed",str(a.seed), "--points",str(a.conversation_points)]
         if a.profile_username: options.extend(["--profile-username",a.profile_username])
+        if a.conversation_usernames: options.extend(["--profile-usernames",a.conversation_usernames])
+        options.extend(["--selection",a.conversation_selection,
+                        "--max-participants",str(a.conversation_max_participants),
+                        "--context-types",a.conversation_context_types])
         if a.conversation_include_test_users: options.append("--include-test-users")
         if apply: options.append("--apply")
         conversations.main(options)
