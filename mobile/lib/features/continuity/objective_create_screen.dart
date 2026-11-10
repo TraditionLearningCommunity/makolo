@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
 
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../network/makolo_api_client.dart';
 import 'objective_repository.dart';
 
@@ -13,12 +15,16 @@ class ObjectiveCreateScreen extends StatefulWidget {
     required this.api,
     required this.repository,
     required this.onCreated,
+    this.spaceActor,
+    this.actorContext,
   });
 
   final String kind;
   final MakoloApiClient api;
   final ObjectiveRepository repository;
   final ValueChanged<String> onCreated;
+  final SpaceActorIdentity? spaceActor;
+  final ActorContextController? actorContext;
 
   @override
   State<ObjectiveCreateScreen> createState() => _ObjectiveCreateScreenState();
@@ -35,16 +41,30 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   String? _error;
 
   bool get _isProject => widget.kind == 'project';
+  bool get _actorValid {
+    final owner = widget.spaceActor;
+    if (owner == null) return true;
+    final selected = widget.actorContext?.value;
+    return selected is SpaceActorContext && selected.space == owner;
+  }
+
+  void _onActorChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
+    _spaceId = widget.spaceActor?.id;
+    widget.actorContext?.addListener(_onActorChanged);
     _loadSpaces();
   }
 
   Future<void> _loadSpaces() async {
-    final row = await widget.repository.readOrganizerPage(0);
-    if (!mounted) return;
+    final row = await widget.repository.readOrganizerPage(
+      0, spaceSlug: widget.spaceActor?.slug,
+    );
+    if (!mounted || !_actorValid) return;
     final items = row?.payload['manageable_spaces'];
     if (items is! List) return;
     setState(
@@ -58,6 +78,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   @override
   void dispose() {
+    widget.actorContext?.removeListener(_onActorChanged);
     _title.dispose();
     _description.dispose();
     super.dispose();
@@ -138,7 +159,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   );
 
   Future<void> _submit() async {
-    if (_submitting || !(_form.currentState?.validate() ?? false)) return;
+    if (_submitting || !_actorValid ||
+        !(_form.currentState?.validate() ?? false)) return;
     if (_isProject &&
         _start != null &&
         _end != null &&
@@ -152,11 +174,15 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     });
     try {
       final result = await widget.api.post(
-        'api/v1/objectives/${_isProject ? 'projects' : 'dossiers'}/',
+        'api/v1/objectives/${_isProject ? 'projects' : 'dossiers'}/'
+        '${ObjectiveRepository.contextQuery(widget.spaceActor?.slug)}',
         body: {
           'title': _title.text.trim(),
           'description': _description.text.trim(),
-          if (_spaceId != null) 'owning_space_id': _spaceId,
+          if (widget.spaceActor != null)
+            'owning_space_id': widget.spaceActor!.id
+          else if (_spaceId != null)
+            'owning_space_id': _spaceId,
           if (_isProject && _start != null) 'starts_on': _iso(_start),
           if (_isProject && _end != null) 'ends_on': _iso(_end),
           if (!_isProject && _deadline != null) 'deadline': _iso(_deadline),
@@ -168,11 +194,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       }
       // The mutation is confirmed. The parent list is now revalidated.
       try {
-        await widget.repository.refreshOrganizerPage(0);
+        await widget.repository.refreshOrganizerPage(
+          0, spaceSlug: widget.spaceActor?.slug,
+        );
       } on Object {
         // The new detail still opens; the organizer can retry its refresh.
       }
-      if (mounted) widget.onCreated(id);
+      if (mounted && _actorValid) widget.onCreated(id);
     } on Object {
       if (mounted) {
         setState(
@@ -255,17 +283,29 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Personnel — Moi'),
-                      ),
-                      for (final space in _spaces)
+                      if (widget.spaceActor != null)
                         DropdownMenuItem<String>(
-                          value: space.$1,
-                          child: Text(space.$2),
+                          value: widget.spaceActor!.id,
+                          child: Text(
+                            _spaces
+                                .where((space) => space.$1 == widget.spaceActor!.id)
+                                .map((space) => space.$2)
+                                .firstOrNull ?? widget.spaceActor!.slug,
+                          ),
+                        )
+                      else ...[
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Personnel — Moi'),
                         ),
+                        for (final space in _spaces)
+                          DropdownMenuItem<String>(
+                            value: space.$1,
+                            child: Text(space.$2),
+                          ),
+                      ],
                     ],
-                    onChanged: _submitting
+                    onChanged: _submitting || widget.spaceActor != null
                         ? null
                         : (value) => setState(() => _spaceId = value),
                   ),

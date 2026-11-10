@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../app/runtime/actor_context.dart';
 import '../../navigation/secondary_screen.dart';
 import '../resources/document_form_screen.dart';
 import '../resources/documents_screen.dart';
@@ -169,10 +170,24 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                     message: 'Création momentanément indisponible.',
                   );
                 }
+                final spaceSlug = state.uri.queryParameters['space'];
+                final actor = runtime.actorContext?.value;
+                if (spaceSlug != null &&
+                    (actor is! SpaceActorContext ||
+                        actor.space.slug != spaceSlug)) {
+                  return const MakoloSecondaryScreen(
+                    title: 'Créer',
+                    message: 'Revenez à l’Espace autorisé pour créer.',
+                  );
+                }
                 return ObjectiveCreateScreen(
                   kind: kind!,
                   repository: runtime.objectives!,
                   api: runtime.api!,
+                  spaceActor: spaceSlug != null && actor is SpaceActorContext
+                      ? actor.space
+                      : null,
+                  actorContext: runtime.actorContext,
                   onCreated: (id) => context.pushReplacement(
                     kind == 'project' ? '/projects/$id' : '/dossiers/$id',
                   ),
