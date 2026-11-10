@@ -1383,8 +1383,7 @@ class _JourneyPaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = '${payment.amount} ${payment.currency}';
-    final state = switch (payment.state) {
+    final label = switch (payment.state) {
       'paid' || 'succeeded' || 'completed' || 'settled' => 'Payé',
       'pending' || 'pending_payment' => 'En attente',
       'processing' => 'En cours',
@@ -1404,12 +1403,21 @@ class _JourneyPaymentCard extends StatelessWidget {
     }
     return MakoloCard(
       onTap: open,
-      semanticLabel: 'Paiement',
-      child: MakoloStatusMetadataAction(
-        title: title,
-        subtitle: payment.reason,
-        status: state == null ? null : MakoloStatus(label: state),
-        action: open == null ? null : const Icon(Icons.chevron_right_rounded),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.account_balance_wallet_outlined,
+            color: Color(0xFF5232DB)),
+        title: Text('${payment.amount} ${payment.currency}'),
+        subtitle: label == null && payment.reason == null
+            ? null
+            : Text([
+                if (label != null) label,
+                if (payment.reason != null &&
+                    payment.reason!.isNotEmpty) payment.reason!,
+              ].join(' · ')),
+        trailing: open == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -1423,31 +1431,31 @@ class _FormCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metadata = <MakoloMetadataItem>[
-      if (form.required) const MakoloMetadataItem('Obligatoire'),
-      if (form.dueAt != null)
-        MakoloMetadataItem(
-          'Échéance ${MaterialLocalizations.of(context).formatCompactDate(form.dueAt!.toLocal())}',
-          icon: Icons.event_outlined,
-        ),
-    ];
+    final label = form.canComplete
+        ? 'À compléter'
+        : MakoloHumanization.presentationLabel(form.state);
+    final deadline = form.dueAt == null
+        ? null
+        : MaterialLocalizations.of(context).formatMediumDate(
+            form.dueAt!.toLocal(),
+          );
     return MakoloCard(
-      semanticLabel: 'Formulaire',
-      onTap: form.detailLink.isNotEmpty ? () => onOpen(form) : null,
-      child: MakoloStatusMetadataAction(
-        title: form.title,
-        subtitle: form.canComplete
-            ? 'À compléter'
-            : form.state == 'completed'
-            ? 'Terminé'
-            : null,
-        status: MakoloHumanization.presentationLabel(form.state) == null
-            ? null
-            : MakoloStatus(
-                label: MakoloHumanization.presentationLabel(form.state)!,
-              ),
-        metadata: metadata,
-        action: form.detailLink.isNotEmpty
+      onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          form.canComplete
+              ? Icons.edit_document
+              : Icons.description_outlined,
+          color: const Color(0xFF5232DB),
+        ),
+        title: Text(form.title),
+        subtitle: Text([
+          if (label != null) label,
+          if (form.required) 'Obligatoire',
+          if (deadline != null) 'Avant le $deadline',
+        ].join(' · ')),
+        trailing: form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
             : null,
       ),
@@ -1470,21 +1478,37 @@ class _ReferenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = switch (contextLabel) {
+      'Activité' => 'À propos de l’activité',
+      'Occurrence' => 'Date ou séance',
+      _ => reference.label == 'Accès' ? 'Mon accès' : reference.label,
+    };
+    final symbol = switch (contextLabel) {
+      'Activité' => Icons.info_outline_rounded,
+      'Occurrence' => Icons.calendar_today_outlined,
+      _ => reference.label == 'Accès'
+          ? Icons.badge_outlined
+          : Icons.fact_check_outlined,
+    };
+    final state = MakoloHumanization.presentationLabel(reference.state);
+    final subtitle = [
+      if (contextLabel != null && !hideRepeatedTitle &&
+          reference.label.trim().isNotEmpty &&
+          reference.label != contextLabel)
+        reference.label,
+      if (contextLabel == null && reference.isRequired) 'Obligatoire',
+      if (state != null) state,
+    ].join(' · ');
     return MakoloCard(
       onTap: onTap,
-      child: MakoloStatusMetadataAction(
-        title: contextLabel ?? reference.label,
-        subtitle: contextLabel == null
-            ? (reference.isRequired ? 'Obligatoire' : null)
-            : hideRepeatedTitle
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(symbol, color: const Color(0xFF5232DB)),
+        title: Text(title),
+        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+        trailing: onTap == null
             ? null
-            : reference.label,
-        status: MakoloHumanization.presentationLabel(reference.state) == null
-            ? null
-            : MakoloStatus(
-                label: MakoloHumanization.presentationLabel(reference.state)!,
-              ),
-        action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
+            : const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
