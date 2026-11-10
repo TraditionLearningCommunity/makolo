@@ -207,7 +207,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   bool get _offline =>
       SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
-  bool get _canMutate => widget.api != null && !_busy && !_offline;
+  bool get _canMutate =>
+      widget.api != null && !_busy && !_offline && !_refreshing && !_failed;
   String get _path => 'api/v1/objectives/dossiers/${widget.id}/';
 
   Future<void> _acquire() async {
@@ -265,6 +266,14 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     });
     try {
       await repo.refresh(ObjectiveDepth.dossier, id, spaceSlug: spaceSlug);
+      final source = await repo.readSource(
+        ObjectiveDepth.dossier, id, spaceSlug: spaceSlug,
+      );
+      if (mounted && revision == _contextRevision &&
+          (source.invalidated || source.lastErrorCode != null ||
+           source.lastSuccessAt == null)) {
+        setState(() => _failed = true);
+      }
     } on Object {
       if (mounted && id == widget.id && revision == _contextRevision) {
         setState(() => _failed = true);

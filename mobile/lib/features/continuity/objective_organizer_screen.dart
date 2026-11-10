@@ -207,7 +207,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           revision != _scopeRevision ||
           !_actorValid)
         return;
-      _readCreateCapability(local);
+      // A cached Space organizer is not a fresh permission grant.
+      if (slug == null) _readCreateCapability(local);
       // Permissions may have changed since the last Space acquisition.
       if (slug != null ||
           local == null ||
@@ -245,12 +246,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           repository == widget.repository &&
           revision == _scopeRevision &&
           _actorValid) {
-        _readCreateCapability(local);
-        setState(() {
-          _failed =
-              owner.lastErrorCode != null ||
-              (local == null && owner.lastSuccessAt == null);
-        });
+        final confirmed = !owner.invalidated &&
+            owner.lastErrorCode == null &&
+            owner.lastSuccessAt != null &&
+            local != null;
+        _readCreateCapability(confirmed ? local : null);
+        setState(() => _failed = !confirmed);
       }
     } on Object {
       if (mounted &&

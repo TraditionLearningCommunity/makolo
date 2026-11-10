@@ -185,7 +185,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       (row['capabilities'] as List).contains(capability);
   bool get _offline =>
       SyncStatusScope.maybeOf(context)?.state == SyncVisualState.offline;
-  bool get _enabled => widget.api != null && !_busy && !_offline;
+  bool get _enabled =>
+      widget.api != null && !_busy && !_offline && !_refreshing && !_failed;
   String get _base => 'api/v1/objectives/projects/${widget.id}/';
 
   Future<void> _acquire() async {
@@ -239,6 +240,14 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     });
     try {
       await repo.refresh(ObjectiveDepth.project, id, spaceSlug: spaceSlug);
+      final source = await repo.readSource(
+        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+      );
+      if (mounted && revision == _contextRevision &&
+          (source.invalidated || source.lastErrorCode != null ||
+           source.lastSuccessAt == null)) {
+        setState(() => _failed = true);
+      }
     } on Object {
       if (mounted && id == widget.id && revision == _contextRevision) {
         setState(() => _failed = true);
