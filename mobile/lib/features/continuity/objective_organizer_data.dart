@@ -257,8 +257,7 @@ class OrganizerPage {
       if (lens is! Map || lens['kind'] != 'space') return false;
       final space = lens['space'];
       return space is Map && space['slug'] == spaceSlug;
-    }).toList()
-      ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+    }).toList()..sort((a, b) => _offset(a).compareTo(_offset(b)));
     final result = <OrganizerEntry>[];
     final seen = <String>{};
     var expected = 0;
