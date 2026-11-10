@@ -785,5 +785,67 @@ class DemoGenerationCLITests(unittest.TestCase):
             self.assertIn(b"Makolo", upload.read())
 
 
+    def test_conversation_multi_principal_cli_routes_explicit_usernames(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "conversations", "--count", "25",
+            "--conversation-usernames", "beta_alain,world_002_grace,world_003_sarah",
+            "--conversation-max-participants", "8",
+            "--conversation-context-types", "space,group,journey",
+            "--conversation-selection", "random",
+        ])
+        with patch("scripts.demo_generation.conversations.main") as conversations:
+            run(args)
+        options = conversations.call_args.args[0]
+        self.assertIn("beta_alain,world_002_grace,world_003_sarah", options)
+        self.assertIn("--profile-usernames", options)
+        self.assertIn("--max-participants", options)
+        self.assertIn("space,group,journey", options)
+        self.assertNotIn("--apply", options)
+
+    def test_conversation_selection_uses_all_explicit_main_profiles(self):
+        from scripts.demo_generation.conversations import (
+            parse_usernames, ordered_principals, ordered_participants,
+        )
+        from types import SimpleNamespace
+        self.assertEqual(
+            parse_usernames(single="beta_alain",
+                            multiple="world_002_grace,beta_alain,world_003_sarah"),
+            ("beta_alain", "world_002_grace", "world_003_sarah"),
+        )
+        people = [SimpleNamespace(pk=str(i)) for i in range(8)]
+        self.assertEqual(
+            [p.pk for p in ordered_principals(people, 27)],
+            [p.pk for p in ordered_principals(people, 27)],
+        )
+        selected = ordered_participants(people, seed=27, reference="demo", limit=5)
+        self.assertEqual(len({p.pk for p in selected}), 5)
+
+    def test_conversation_context_selection_fairness_and_collective_priority(self):
+        from types import SimpleNamespace
+        from scripts.demo_generation.conversations import select_contexts
+        owners = [SimpleNamespace(pk="first"), SimpleNamespace(pk="second")]
+        pools = {
+            "activity": [("activity", "activity", SimpleNamespace(pk=str(i)),
+                          owners[0], "Act", "ongoing") for i in range(12)],
+            "space": [("space", "space", SimpleNamespace(pk="s1"),
+                       owners[1], "Space", "ongoing")],
+            "group": [("group", "group", SimpleNamespace(pk="g1"),
+                       owners[0], "Group", "ongoing")],
+        }
+        chosen = select_contexts(
+            pools, count=4, seed=17, kinds={"activity", "space", "group"}
+        )
+        self.assertEqual(len(chosen), 4)
+        self.assertEqual({x[3].pk for x in chosen},
+                         {"first", "second"})
+        self.assertEqual({x[0] for x in chosen[:2]}, {"space", "group"})
+        self.assertEqual(
+            [(x[0], x[2].pk) for x in chosen],
+            [(x[0], x[2].pk) for x in select_contexts(
+                pools, count=4, seed=17,
+                kinds={"activity", "space", "group"},
+            )],
+        )
+
 if __name__ == "__main__":
     unittest.main()
