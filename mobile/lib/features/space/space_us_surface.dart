@@ -414,7 +414,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                 // The index has the same compact two-up composition
                                 // as Moi even after Space's responsive shell margins.
                                 // At very narrow widths prefer readable single cards.
-                                final twoColumns = field.maxWidth >= 260;
+                                final scaledBody = MediaQuery.textScalerOf(context).scale(16);
+                                final twoColumns = field.maxWidth >= 260 &&
+                                    scaledBody < 24;
                                 final itemWidth = twoColumns
                                     ? (field.maxWidth - 10) / 2
                                     : field.maxWidth;
