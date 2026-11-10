@@ -151,6 +151,10 @@ def _assemble_dossier_readiness(
         journey_results=journey_results,
         unsatisfied_dependencies=unsatisfied,
     )
+    # A viewer without any visible Journey must never read "Prêt" as
+    # proof that an inaccessible graph is complete.
+    if status == ReadinessStatus.READY and not visible_ids:
+        status = None
 
     hidden_dependency_for_visible = set()
     visible_dependencies = []
