@@ -367,18 +367,23 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                   (row['activity'] as Map)['title']?.toString() ?? '',
                 ),
                 trailing: IconButton(
-                  tooltip: _removing == (row['activity'] as Map)['id'].toString()
+                  tooltip:
+                      _removing == (row['activity'] as Map)['id'].toString()
                       ? 'Retrait en cours'
-                      : _removeFailedFor == (row['activity'] as Map)['id'].toString()
+                      : _removeFailedFor ==
+                            (row['activity'] as Map)['id'].toString()
                       ? 'Retrait non confirmé. Réessayer'
                       : 'Retirer des enregistrements',
                   onPressed: _removing != null
                       ? null
-                      : () => _remove((row['activity'] as Map)['id'].toString()),
+                      : () =>
+                            _remove((row['activity'] as Map)['id'].toString()),
                   icon: MakoloActionFeedback(
-                    phase: _removing == (row['activity'] as Map)['id'].toString()
+                    phase:
+                        _removing == (row['activity'] as Map)['id'].toString()
                         ? MakoloActionPhase.processing
-                        : _removeFailedFor == (row['activity'] as Map)['id'].toString()
+                        : _removeFailedFor ==
+                              (row['activity'] as Map)['id'].toString()
                         ? MakoloActionPhase.failed
                         : MakoloActionPhase.available,
                     child: DiscoveryOrbitIcon(
