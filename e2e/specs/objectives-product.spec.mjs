@@ -49,7 +49,7 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
   await page.getByRole('link', { name: 'Créer un Dossier' }).click();
 
   await page.getByLabel(/^Objectif\s*:$/).fill('Préparer le départ D6 bis');
-  await page.getByLabel(/^Contexte\s*:$/).fill('Smoke test produit du train Objectives.');
+  await page.getByLabel(/^Description\s*:$/).fill('Smoke test produit du train Objectives.');
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   await expect(page.getByRole('heading', { name: 'Préparer le départ D6 bis' })).toBeVisible();
   const dossierUrl = page.url();
@@ -78,7 +78,7 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
 
   await page.goto('/objectives/projects/new/');
   await page.getByLabel(/^Titre\s*:$/).fill('Projet D6 bis E2E');
-  await page.getByLabel(/^Contexte\s*:$/).fill('Horizon durable du smoke Objectives.');
+  await page.getByLabel(/^Description\s*:$/).fill('Horizon durable du smoke Objectives.');
   await page.getByRole('button', { name: 'Créer le Projet' }).click();
   await expect(page.getByRole('heading', { name: 'Projet D6 bis E2E' })).toBeVisible();
 
@@ -96,15 +96,15 @@ test('participant can compose a Dossier, dependencies and a Project', async ({ p
 test('authorized Space owner can create Space Dossier and Project', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
 
-  await page.goto('/objectives/new/');
+  await page.goto('/objectives/new/?context=space&space=makolo-e2e-events');
   await page.getByLabel(/^Objectif\s*:$/).fill('Dossier Espace D6 bis');
-  await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Events' });
+  await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   await expect(page.getByRole('heading', { name: 'Dossier Espace D6 bis' })).toBeVisible();
 
-  await page.goto('/objectives/projects/new/');
+  await page.goto('/objectives/projects/new/?context=space&space=makolo-e2e-events');
   await page.getByLabel(/^Titre\s*:$/).fill('Projet Espace D6 bis');
-  await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Events' });
+  await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
   await page.getByRole('button', { name: 'Créer le Projet' }).click();
   await expect(page.getByRole('heading', { name: 'Projet Espace D6 bis' })).toBeVisible();
 
@@ -115,9 +115,9 @@ test('authorized Space owner can create Space Dossier and Project', async ({ pag
 
 test('membership alone is not Dossier authority and Dossier access does not reveal a private Journey', async ({ page }) => {
   await login(page, 'staff@e2e.makolo.test');
-  await page.goto('/objectives/new/');
+  await page.goto('/objectives/new/?context=space&space=makolo-e2e-services');
   await page.getByLabel(/^Objectif\s*:$/).fill('Dossier confidentiel D6 bis');
-  await page.getByLabel('Espace porteur').selectOption({ label: 'Makolo E2E Services' });
+  await expect(page.getByLabel('Espace porteur')).toHaveCount(0);
   await page.getByRole('button', { name: 'Créer le Dossier' }).click();
   const dossierUrl = page.url();
 
