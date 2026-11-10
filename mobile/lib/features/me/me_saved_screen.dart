@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
@@ -40,6 +41,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   int _offset = 0;
   bool _hasMore = true, _loading = false, _failed = false;
   bool _hasKnownCollection = false;
+  bool _bootstrapping = true;
   String? _removing;
   String? _removeFailedFor;
   int _generation = 0;
@@ -59,6 +61,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       _loading = false;
       _failed = false;
       _hasKnownCollection = false;
+      _bootstrapping = true;
       _removing = null;
       _removeFailedFor = null;
       unawaited(_bootstrap());
@@ -111,7 +114,10 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
     } on Object {
       // Missing owner collection does not become an authoritative empty list.
     }
-    if (_stillSame(version, personal)) await _next(reset: true);
+    if (_stillSame(version, personal)) {
+      setState(() => _bootstrapping = false);
+      await _next(reset: true);
+    }
   }
 
   Future<void> _restoreRootPreview() async {
@@ -404,7 +410,10 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                 onTap: () =>
                     widget.onOpen((row['activity'] as Map)['id'].toString()),
               ),
-          if (_loading)
+          if ((_bootstrapping || _loading) &&
+              _rows.isEmpty && !_hasKnownCollection)
+            const MakoloSkeleton(lines: 3),
+          if (_loading && (_rows.isNotEmpty || _hasKnownCollection))
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
