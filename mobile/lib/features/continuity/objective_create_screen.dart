@@ -268,7 +268,6 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     icon: Icons.check_rounded,
                     appearance: MakoloActionAppearance.primary,
                   ),
-
                 ],
               ),
             ),

@@ -802,23 +802,28 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 const PopupMenuItem(value: 'edit', child: Text('Modifier')),
               if (menu.contains('dependency'))
                 const PopupMenuItem(
-                  value: 'dependency', child: Text('Ajouter un prérequis'),
+                  value: 'dependency',
+                  child: Text('Ajouter un prérequis'),
                 ),
               if (menu.contains('project'))
                 const PopupMenuItem(
-                  value: 'project', child: Text('Rattachement au Projet'),
+                  value: 'project',
+                  child: Text('Rattachement au Projet'),
                 ),
               if (menu.contains('lifecycle'))
                 const PopupMenuItem(
-                  value: 'lifecycle', child: Text('Changer l’état'),
+                  value: 'lifecycle',
+                  child: Text('Changer l’état'),
                 ),
               if (menu.contains('assign'))
                 const PopupMenuItem(
-                  value: 'assign', child: Text('Responsabilité'),
+                  value: 'assign',
+                  child: Text('Responsabilité'),
                 ),
               if (menu.contains('grant'))
                 const PopupMenuItem(
-                  value: 'grant', child: Text('Gérer les accès'),
+                  value: 'grant',
+                  child: Text('Gérer les accès'),
                 ),
             ],
           ),
@@ -925,16 +930,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     selected: _mode,
     options: const [
       ObjectiveViewOption(
-        _DossierMode.overview, Icons.dashboard_outlined, 'Vue d’ensemble',
+        _DossierMode.overview,
+        Icons.dashboard_outlined,
+        'Vue d’ensemble',
+      ),
+      ObjectiveViewOption(_DossierMode.list, Icons.list_rounded, 'Liste'),
+      ObjectiveViewOption(
+        _DossierMode.timeline,
+        Icons.calendar_month_outlined,
+        'Chronologie',
       ),
       ObjectiveViewOption(
-        _DossierMode.list, Icons.list_rounded, 'Liste',
-      ),
-      ObjectiveViewOption(
-        _DossierMode.timeline, Icons.calendar_month_outlined, 'Chronologie',
-      ),
-      ObjectiveViewOption(
-        _DossierMode.dependencies, Icons.account_tree_outlined, 'Dépendances',
+        _DossierMode.dependencies,
+        Icons.account_tree_outlined,
+        'Dépendances',
       ),
     ],
     onSelected: (mode) => setState(() => _mode = mode),
@@ -1075,12 +1084,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
     final completed = items.where((row) => row['state'] == 'fulfilled').length;
-    final actions = items.where(
-      (row) => row['readiness_state'] == 'action_required',
-    ).length;
+    final actions = items
+        .where((row) => row['readiness_state'] == 'action_required')
+        .length;
     final prerequisites = deps.where((row) => row['state'] == 'active').length;
     final readinessState = _text(readiness['state']);
-    final hasReadiness = readinessState.isNotEmpty &&
+    final hasReadiness =
+        readinessState.isNotEmpty &&
         (items.isNotEmpty || readinessState != 'ready');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1090,7 +1100,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             dense: true,
             contentPadding: EdgeInsets.zero,
             leading: Icon(
-              next.isNotEmpty ? Icons.priority_high_rounded
+              next.isNotEmpty
+                  ? Icons.priority_high_rounded
                   : Icons.fact_check_outlined,
               color: Theme.of(context).colorScheme.primary,
             ),
@@ -1101,8 +1112,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             subtitle: next.isNotEmpty
                 ? Text(_text(next['label']))
                 : readiness['partial'] == true
-                    ? const Text('Informations visibles partielles')
-                    : null,
+                ? const Text('Informations visibles partielles')
+                : null,
             trailing: next['journey_id'] != null
                 ? MakoloIconActionButton(
                     tooltip: 'Ouvrir la démarche',
@@ -1119,14 +1130,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             spacing: 7,
             runSpacing: 7,
             children: [
-              if (items.isNotEmpty)
-                _metric('${items.length}', 'Démarches'),
-              if (completed > 0)
-                _metric('$completed', 'Réalisées'),
-              if (actions > 0)
-                _metric('$actions', 'Action requise'),
-              if (prerequisites > 0)
-                _metric('$prerequisites', 'Prérequis'),
+              if (items.isNotEmpty) _metric('${items.length}', 'Démarches'),
+              if (completed > 0) _metric('$completed', 'Réalisées'),
+              if (actions > 0) _metric('$actions', 'Action requise'),
+              if (prerequisites > 0) _metric('$prerequisites', 'Prérequis'),
             ],
           ),
         if (items.isNotEmpty) ...[

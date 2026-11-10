@@ -1152,13 +1152,19 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     selected: _mode,
     options: const [
       ObjectiveViewOption(
-        _ProjectMode.summary, Icons.dashboard_outlined, 'Synthèse',
+        _ProjectMode.summary,
+        Icons.dashboard_outlined,
+        'Synthèse',
       ),
       ObjectiveViewOption(
-        _ProjectMode.dossiers, Icons.folder_copy_outlined, 'Dossiers',
+        _ProjectMode.dossiers,
+        Icons.folder_copy_outlined,
+        'Dossiers',
       ),
       ObjectiveViewOption(
-        _ProjectMode.calendar, Icons.calendar_month_outlined, 'Calendrier',
+        _ProjectMode.calendar,
+        Icons.calendar_month_outlined,
+        'Calendrier',
       ),
     ],
     onSelected: (mode) => setState(() => _mode = mode),
@@ -1275,19 +1281,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
           ),
         if (rows.isNotEmpty)
-        Wrap(
-          spacing: 9,
-          runSpacing: 9,
-          children: [
-            if (rows.isNotEmpty) _metric(
-              rows.length,
-              partial ? 'Dossiers acquis (partiel)' : 'Dossiers visibles',
-            ),
-            if (active > 0) _metric(active, 'En cours'),
-            if (draft > 0) _metric(draft, 'En préparation'),
-            if (done > 0) _metric(done, 'Terminés'),
-          ],
-        ),
+          Wrap(
+            spacing: 9,
+            runSpacing: 9,
+            children: [
+              if (rows.isNotEmpty)
+                _metric(
+                  rows.length,
+                  partial ? 'Dossiers acquis (partiel)' : 'Dossiers visibles',
+                ),
+              if (active > 0) _metric(active, 'En cours'),
+              if (draft > 0) _metric(draft, 'En préparation'),
+              if (done > 0) _metric(done, 'Terminés'),
+            ],
+          ),
         if (next.isNotEmpty)
           ListTile(
             leading: const Icon(Icons.event_outlined),
@@ -1316,11 +1323,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
         ],
         if (rows.isNotEmpty) const SizedBox(height: 14),
-        if (rows.isNotEmpty) Text(
-          'Dossiers du Projet',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
+        if (rows.isNotEmpty)
+          Text(
+            'Dossiers du Projet',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
         if (rows.isNotEmpty) const SizedBox(height: 9),
         if (rows.isEmpty)
           _empty('Aucun dossier visible pour le moment.')
@@ -1372,8 +1380,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             subtitle: const Text('Responsabilité de Dossier'),
           ),
         if (collaboration['contributors_partial'] == true)
-          Text('Interventions visibles uniquement.',
-              style: textTheme.bodySmall),
+          Text(
+            'Interventions visibles uniquement.',
+            style: textTheme.bodySmall,
+          ),
       ],
     );
   }
