@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../platform/preferences/secure_string_preferences.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../design/makolo_theme.dart';
@@ -27,7 +27,7 @@ class SpaceUsSurface extends StatefulWidget {
 }
 
 class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = SecureStringPreferences();
   MakoloTerritoryLayout _layout = MakoloTerritoryLayout.list;
 
   String? get _spaceSlug => _value(_map(widget.payload['identity'])?['slug']);
