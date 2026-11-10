@@ -1,3 +1,4 @@
+import '../../platform/media/native_media_picker.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -5,8 +6,6 @@ import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
 
-import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'conversation_repository.dart';
 
@@ -196,18 +195,17 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       String? name;
       final String kind;
       if (mode == 'photo') {
-        final image = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 90,
+        final image = await NativeMediaPicker.pickImage(
+          camera: false,
+          quality: 90,
           maxWidth: 2200,
         );
         path = image?.path;
         name = image?.name;
         kind = 'image';
       } else {
-        final file = await FilePicker.pickFile(
-          type: FileType.custom,
-          allowedExtensions: const ['pdf', 'txt', 'doc', 'docx'],
+        final file = await NativeMediaPicker.pickDocument(
+                    const ['pdf', 'txt', 'doc', 'docx'],
         );
         path = file?.path;
         name = file?.name;
