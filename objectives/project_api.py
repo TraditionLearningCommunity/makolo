@@ -156,8 +156,10 @@ class ProjectDossiersAPIView(APIView):
             return Response({"detail": "Pagination invalide."},
                             status=status.HTTP_400_BAD_REQUEST)
         limit, offset = args
-        data = project_dossier_page(request.user, project, limit=limit, offset=offset)
-        data["actor_context"] = context.describe(project)
+        data = project_dossier_page(
+            request.user, project, limit=limit, offset=offset,
+            actor_context=context,
+        )
         return Response(projection_envelope(
             projection="objective.project.dossiers.collection",
             data=data,
@@ -203,7 +205,7 @@ class ProjectDossierActionAPIView(APIView):
         context = resolve_objective_context(request.query_params)
         project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
         dossier = get_object_or_404(
-            dossiers_for_profile(request.user)
+            context.filter(dossiers_for_profile(request.user))
             .filter(project_links__project=project, project_links__is_active=True),
             pk=dossier_id,
         )

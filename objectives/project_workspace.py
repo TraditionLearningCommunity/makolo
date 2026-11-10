@@ -32,7 +32,7 @@ def _date(value):
     return value.isoformat() if value is not None else None
 
 
-def _dossier_row(dossier, *, actor, project_id, can_manage_parent):
+def _dossier_row(dossier, *, actor, project_id, can_manage_parent, actor_context=None):
     readiness = resolve_dossier_readiness(dossier, viewer=actor)
     manageable = can_manage_parent and can_manage_dossier(actor, dossier)
     return {
@@ -51,7 +51,8 @@ def _dossier_row(dossier, *, actor, project_id, can_manage_parent):
             "hidden_signal": readiness.hidden_signal,
         },
         "capabilities": ["unlink", "move"] if manageable else [],
-        "link": f"/api/v1/objectives/dossiers/{dossier.pk}/",
+        "link": (f"/api/v1/objectives/dossiers/{dossier.pk}/"
+                 + (actor_context.query_suffix() if actor_context else "")),
         "web_url": reverse("objectives:dossier-detail", kwargs={"dossier_id": dossier.pk}),
         "web_actions": ({
             "unlink": reverse("objectives:project-unlink-dossier", kwargs={
@@ -66,18 +67,26 @@ def _dossier_row(dossier, *, actor, project_id, can_manage_parent):
     }
 
 
-def project_dossier_page(actor, project, *, offset=0, limit=50):
-    # The window and its count are strictly limited to Dossiers visible to actor.
+def project_dossier_page(actor, project, *, offset=0, limit=50, actor_context=None):
+    # The window and its count are limited to the authorized actor AND the
+    # selected Space lens. A linked Dossier from another Space stays hidden.
     visible = visible_dossiers_for_project(actor, project)
+    if actor_context is not None:
+        visible = actor_context.filter(visible)
     chunk = list(visible[offset:offset + limit + 1])
     more = len(chunk) > limit
     manageable = can_manage_project(actor, project)
     items = [
-        _dossier_row(dossier, actor=actor, project_id=project.pk, can_manage_parent=manageable)
+        _dossier_row(
+            dossier, actor=actor, project_id=project.pk,
+            can_manage_parent=manageable, actor_context=actor_context,
+        )
         for dossier in chunk[:limit]
     ]
     return {
         "actor": {"type": "profile", "id": str(actor.pk)},
+        "actor_context": (actor_context.describe(project) if actor_context
+                          else {"kind": "personal"}),
         "project_id": str(project.pk),
         "items": items,
         "page": {
@@ -155,7 +164,7 @@ def _project_collaboration(actor, project, dossiers, *, partial):
     }
 
 
-def project_workspace(actor, project):
+def project_workspace(actor, project, *, actor_context=None):
     manageable = can_manage_project(actor, project)
     can_link = manageable and project.lifecycle in PROJECT_LINKABLE_LIFECYCLES
     can_create = can_link and (
@@ -165,9 +174,14 @@ def project_workspace(actor, project):
             actor, PermissionCode.SPACE_MANAGE, space=project.owning_space,
         ))
     )
-    visible = project_dossier_page(actor, project)
+    visible = project_dossier_page(
+        actor, project, actor_context=actor_context,
+    )
+    collaboration_dossiers = visible_dossiers_for_project(actor, project)
+    if actor_context is not None:
+        collaboration_dossiers = actor_context.filter(collaboration_dossiers)
     collaboration = _project_collaboration(
-        actor, project, visible_dossiers_for_project(actor, project)[:50],
+        actor, project, collaboration_dossiers[:50],
         partial=visible["page"]["has_more"],
     )
     # Choices are deliberately bounded; the UI explicitly signals partial choices.
@@ -176,9 +190,11 @@ def project_workspace(actor, project):
     candidates_more = False
     projects_more = False
     if can_link:
+        independent = manageable_dossiers_for_profile(actor)
+        if actor_context is not None:
+            independent = actor_context.filter(independent)
         available = list(
-            manageable_dossiers_for_profile(actor)
-            .exclude(project_links__is_active=True)
+            independent.exclude(project_links__is_active=True)
             .order_by("title", "id")[:51]
         )
         candidates_more = len(available) > 50
@@ -187,9 +203,11 @@ def project_workspace(actor, project):
             for row in available[:50]
         ]
     if manageable:
+        destinations = projects_for_profile(actor)
+        if actor_context is not None:
+            destinations = actor_context.filter(destinations)
         eligible = list(
-            projects_for_profile(actor)
-            .filter(lifecycle__in=PROJECT_LINKABLE_LIFECYCLES)
+            destinations.filter(lifecycle__in=PROJECT_LINKABLE_LIFECYCLES)
             .exclude(pk=project.pk)
             .order_by("title", "id")[:101]
         )
@@ -205,6 +223,9 @@ def project_workspace(actor, project):
     )
     return {
         "identity": {"kind": "project", "id": str(project.pk)},
+        "viewer": {"kind": "profile", "id": str(actor.pk)},
+        "actor_context": (actor_context.describe(project) if actor_context
+                          else {"kind": "personal"}),
         "horizon": {
             "title": project.title,
             "description": project.description or None,
@@ -214,8 +235,11 @@ def project_workspace(actor, project):
         "state": {"code": project.lifecycle},
         "owner": {
             "kind": "space" if project.owning_space_id else "profile",
+            "id": str(project.owning_space_id or project.owner_profile_id),
             "label": project.owning_space.name if project.owning_space_id else "Projet personnel",
             "holder": _person(project.owner_profile) if project.owner_profile_id else None,
+            **({"slug": project.owning_space.slug}
+               if project.owning_space_id else {}),
         },
         "visible_dossiers": visible["items"],
         "dossiers_page": visible["page"],
@@ -232,7 +256,9 @@ def project_workspace(actor, project):
         "move_targets": other_projects,
         "move_targets_partial": projects_more,
         "links": {
-            "self": f"/api/v1/objectives/projects/{project.pk}/",
-            "dossiers": f"/api/v1/objectives/projects/{project.pk}/dossiers/",
+            "self": (f"/api/v1/objectives/projects/{project.pk}/"
+                     + (actor_context.query_suffix() if actor_context else "")),
+            "dossiers": (f"/api/v1/objectives/projects/{project.pk}/dossiers/"
+                         + (actor_context.query_suffix() if actor_context else "")),
         },
     }

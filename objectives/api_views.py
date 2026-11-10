@@ -58,8 +58,7 @@ class ProjectDetailAPIView(APIView):
 
         context = resolve_objective_context(request.query_params)
         project = get_object_or_404(context.filter(projects_for_profile(request.user)), pk=pk)
-        data = project_workspace(request.user, project)
-        data["actor_context"] = context.describe(project)
+        data = project_workspace(request.user, project, actor_context=context)
         return Response(
             projection_envelope(
                 projection="objective.project.detail",
