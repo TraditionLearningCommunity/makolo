@@ -394,13 +394,6 @@ class _JourneyContent extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
           children: [
             _JourneyIdentity(presentation: presentation),
-            if (presentation.steps.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Où j’en suis',
-                child: _JourneyPath(steps: presentation.steps),
-              ),
-            ],
             if (presentation.isTerminal) ...[
               const SizedBox(height: MakoloSpacing.lg),
               Padding(
@@ -567,6 +560,13 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: MakoloSpacing.lg),
+            ],
+            if (presentation.steps.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Où j’en suis',
+                child: _JourneyPath(steps: presentation.steps),
+              ),
             ],
             if (!presentation.isTerminal &&
                 (presentation.actorInterventions.isNotEmpty ||
@@ -1083,35 +1083,32 @@ class _JourneyPath extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = steps.where((step) => !step.isTerminal).toList();
-    final past = steps.where((step) => step.isTerminal).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final step in active) ...[
-          _JourneyStepRow(step: step, allSteps: steps),
-          const SizedBox(height: MakoloSpacing.sm),
-        ],
-        if (past.isNotEmpty && active.isNotEmpty)
-          Card(
-            margin: EdgeInsets.zero,
-            child: ExpansionTile(
-              leading: const Icon(Icons.check_circle_outline_rounded),
+    final current = steps.where((step) => !step.isTerminal).toList();
+    final previous = steps.where((step) => step.isTerminal).toList();
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final step in current)
+            _JourneyStepRow(step: step, allSteps: steps),
+          if (previous.isNotEmpty && current.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle_outline_rounded,
+                  color: Color(0xFF5232DB)),
               title: Text(
-                '${past.length} étape${past.length > 1 ? 's' : ''} passée${past.length > 1 ? 's' : ''}',
+                '${previous.length} étape${previous.length > 1 ? 's' : ''} passée${previous.length > 1 ? 's' : ''}',
               ),
               children: [
-                for (final step in past)
+                for (final step in previous)
                   _JourneyStepRow(step: step, allSteps: steps),
               ],
             ),
-          ),
-        if (active.isEmpty)
-          for (final step in past) ...[
-            _JourneyStepRow(step: step, allSteps: steps),
-            const SizedBox(height: MakoloSpacing.sm),
-          ],
-      ],
+          if (current.isEmpty)
+            for (final step in previous)
+              _JourneyStepRow(step: step, allSteps: steps),
+        ],
+      ),
     );
   }
 }
@@ -1147,36 +1144,18 @@ class _JourneyStepRow extends StatelessWidget {
         for (final candidate in allSteps)
           if (candidate.id == id) candidate.title,
     ];
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(MakoloSpacing.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 24, color: const Color(0xFF5232DB)),
-            const SizedBox(width: MakoloSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    step.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (label != null)
-                    Text(label, style: Theme.of(context).textTheme.bodySmall),
-                  if (dependencies.isNotEmpty)
-                    Text(
-                      'Après : ${dependencies.join(', ')}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ListTile(
+      dense: true,
+      visualDensity: VisualDensity.compact,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: const Color(0xFF5232DB)),
+      title: Text(step.title),
+      subtitle: label == null && dependencies.isEmpty
+          ? null
+          : Text([
+              if (label != null) label,
+              if (dependencies.isNotEmpty) 'Après : ${dependencies.join(', ')}',
+            ].join(' · ')),
     );
   }
 }
