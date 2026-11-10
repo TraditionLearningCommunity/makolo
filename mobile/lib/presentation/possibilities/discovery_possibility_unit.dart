@@ -37,17 +37,40 @@ class DiscoveryFollowScope extends StatefulWidget {
 
 class DiscoveryFollowController extends ChangeNotifier {
   final Map<String, bool> _confirmed = <String, bool>{};
+  final Set<String> _pending = <String>{};
+  bool _disposed = false;
 
   bool? followedFor(String key) => _confirmed[key];
+  bool isPending(String key) => _pending.contains(key);
+
+  bool begin(String key) {
+    if (_disposed || !_pending.add(key)) return false;
+    notifyListeners();
+    return true;
+  }
+
+  void finish(String key) {
+    if (!_pending.remove(key) || _disposed) return;
+    notifyListeners();
+  }
 
   void confirm(String key, bool followed) {
+    if (_disposed) return;
     _confirmed[key] = followed;
     notifyListeners();
   }
 
   void clear() {
+    if (_disposed) return;
     _confirmed.clear();
+    _pending.clear();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }
 
@@ -314,6 +337,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (_followingBusy || target == null || api == null) return;
     final key = '${target['kind']}:${target['id']}';
     final followScope = DiscoveryFollowScope.maybeOf(context);
+    if (followScope != null && !followScope.begin(key)) return;
     final currentlyFollowed =
         followScope?.followedFor(key) ??
         _confirmedFollowed ??
@@ -349,6 +373,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         );
       }
     } finally {
+      followScope?.finish(key);
       if (mounted) setState(() => _followingBusy = false);
     }
   }
@@ -789,12 +814,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final followKey = followTarget == null
         ? null
         : '${followTarget['kind']}:${followTarget['id']}';
+    final followScope = DiscoveryFollowScope.maybeOf(context);
     final followed =
-        (followKey == null
-            ? null
-            : DiscoveryFollowScope.maybeOf(context)?.followedFor(followKey)) ??
+        (followKey == null ? null : followScope?.followedFor(followKey)) ??
         _confirmedFollowed ??
         (followTarget?['followed'] == true);
+    final followPending =
+        followKey != null && (followScope?.isPending(followKey) ?? false);
     final navigable =
         owner?['capabilities'] is List &&
         (owner!['capabilities'] as List).contains('view_public') &&
@@ -861,7 +887,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           MakoloFollowIconButton(
             key: const Key('discover-owner-follow'),
             followed: followed,
-            busy: _followingBusy,
+            busy: _followingBusy || followPending,
             failed: _followFailed,
             onPressed: _toggleFollow,
           ),
