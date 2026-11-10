@@ -172,6 +172,9 @@ class _OngoingScreenState extends State<OngoingScreen> {
               state: MakoloSurfacePresentation(
                 availability: MakoloAvailabilityCue.loading,
               ),
+              initialLoading: MakoloCardSkeleton(
+                kind: MakoloCardSkeletonKind.ongoing,
+              ),
               content: SizedBox.shrink(),
             );
           }
