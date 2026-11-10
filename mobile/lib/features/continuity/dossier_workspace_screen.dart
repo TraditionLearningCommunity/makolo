@@ -1321,16 +1321,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        Text(
-          _search.text.trim().isNotEmpty || _filter != 'all'
-              ? '${items.length} '
-                    '${items.length == 1 ? 'résultat' : 'résultats'} '
-                    'parmi les démarches chargées'
-              : '${items.length} '
-                    '${items.length == 1 ? 'démarche chargée' : 'démarches chargées'}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
+        if (items.isNotEmpty &&
+            (_search.text.trim().isNotEmpty || _filter != 'all'))
+          Text(
+            '${items.length} résultat${items.length > 1 ? 's' : ''}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        if (items.isNotEmpty) const SizedBox(height: 10),
         if (items.isEmpty)
           _empty(
             all.isEmpty
