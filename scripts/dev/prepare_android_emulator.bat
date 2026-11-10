@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem Makolo Android emulator startup for VS Code (Windows).
+rem Makolo Android emulator startup from PowerShell (Windows).
 rem Never wipe emulator data or terminate unrelated Android devices.
 set "MAKOLO_AVD=Makolo_API_35"
 set "MAKOLO_DEVICE=emulator-5554"
@@ -35,20 +35,25 @@ if /i "!MAKOLO_STATE!"=="absent" (
   )
 )
 
-rem An offline device is expected briefly during boot.
-rem Retry once with a fresh adb server, without touching emulator data.
-set "MAKOLO_ADB_RESTARTED=0"
+rem Wait for Android boot without restarting adb.
+rem Restarting adb can invalidate VS Code / Flutter device sessions.
+set "MAKOLO_OFFLINE_CHECKS=0"
 for /L %%I in (1,1,120) do (
   call :read_state
   if /i "!MAKOLO_STATE!"=="device" (
     call :check_boot
     if "!MAKOLO_BOOT!"=="1" goto :ready
   )
-  if /i "!MAKOLO_STATE!"=="offline" if %%I GEQ 15 if "!MAKOLO_ADB_RESTARTED!"=="0" (
-    echo [Makolo] Reconnecting adb...
-    adb kill-server >nul 2>&1
-    adb start-server >nul 2>&1
-    set "MAKOLO_ADB_RESTARTED=1"
+  if /i "!MAKOLO_STATE!"=="offline" (
+    set /a MAKOLO_OFFLINE_CHECKS+=1 >nul
+    if !MAKOLO_OFFLINE_CHECKS! GEQ 20 (
+      echo [Makolo] Emulator is stuck offline; adb will not be restarted automatically.
+      echo [Makolo] Close the stale emulator session before starting a new one.
+      echo [Makolo] Check: adb devices
+      exit /b 1
+    )
+  ) else (
+    set "MAKOLO_OFFLINE_CHECKS=0"
   )
   if %%I EQU 1 echo [Makolo] Waiting for Android to boot...
   if %%I EQU 60 echo [Makolo] Still waiting: !MAKOLO_STATE!.
@@ -56,7 +61,7 @@ for /L %%I in (1,1,120) do (
 )
 
 echo [Makolo] Emulator did not become ready: !MAKOLO_STATE!.
-echo [Makolo] Check Android Studio Device Manager - Cold Boot Now if it remains offline.
+echo [Makolo] Check the emulator window and adb devices; do not start a second copy.
 exit /b 1
 
 :ready
