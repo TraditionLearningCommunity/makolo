@@ -1236,14 +1236,19 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     tooltip: title,
     initialValue: selected,
     onSelected: onChange,
+    icon: Icon(
+      title == 'Tri' ? Icons.sort_rounded : Icons.filter_alt_outlined,
+      color: selected == 'all' || (title == 'Tri' && selected == 'recent')
+          ? Theme.of(context).colorScheme.onSurfaceVariant
+          : Theme.of(context).colorScheme.primary,
+    ),
     itemBuilder: (_) => [
       for (final option in options.entries)
-        PopupMenuItem(value: option.key, child: Text(option.value)),
+        CheckedPopupMenuItem<String>(
+          value: option.key, checked: option.key == selected,
+          child: Text(option.value),
+        ),
     ],
-    child: Chip(
-      avatar: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-      label: Text(options[selected] ?? title),
-    ),
   );
 
   Widget _journeyList(Map<String, dynamic> data) {
@@ -1252,14 +1257,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Toutes les démarches',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 7),
-        const Text('Recherche et classement locaux des démarches acquises.'),
-        const SizedBox(height: 14),
         TextField(
           controller: _search,
           decoration: InputDecoration(
