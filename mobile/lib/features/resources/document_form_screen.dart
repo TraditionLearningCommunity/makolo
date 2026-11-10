@@ -57,6 +57,8 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   StoredLocalFile? _file;
   String? _filename;
   bool _busy = false;
+  bool _saved = false;
+  bool _saveFailed = false;
 
   @override
   void initState() {
@@ -163,7 +165,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_busy) return;
+    if (_busy || _saved) return;
     final file = _file;
     final filename = _filename;
     if (file == null || filename == null) {
@@ -186,7 +188,10 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
       return;
     }
 
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _saveFailed = false;
+    });
     try {
       final id = widget.isVersion
           ? await widget.repository.addDocumentVersionForAsset(
@@ -208,16 +213,26 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
               expiresAt: _expiresAt,
             );
 
+      // Once the owner confirms the new asset, cleanup errors are not
+      // interpreted as another failed submission.
+      if (mounted) setState(() => _saved = true);
       final store = _fileStore;
       if (store != null) {
-        await store.remove(file.fileId);
+        try {
+          await store.remove(file.fileId);
+        } on Object {
+          // Cleanup is best-effort after the confirmed owner result.
+        }
       }
       _file = null;
       _filename = null;
       if (!mounted) return;
       widget.onSaved(widget.isVersion ? widget.assetId! : id);
     } on Object {
-      if (mounted) _message('Enregistrement impossible.');
+      if (mounted && !_saved) {
+        setState(() => _saveFailed = true);
+        _message('Enregistrement non confirmé. Vérifiez avant de réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -237,7 +252,14 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
           MakoloIconActionButton(
             tooltip: 'Enregistrer',
             icon: Icons.check_rounded,
-            onPressed: _busy ? null : _submit,
+            onPressed: _busy || _saved ? null : _submit,
+            phase: _busy
+                ? MakoloActionPhase.processing
+                : _saved
+                ? MakoloActionPhase.confirmed
+                : _saveFailed
+                ? MakoloActionPhase.failed
+                : MakoloActionPhase.available,
           ),
         ],
       ),
