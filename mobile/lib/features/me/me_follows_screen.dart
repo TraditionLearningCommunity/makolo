@@ -209,11 +209,21 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     ),
                     for (final item in spaces)
                       ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.apartment_rounded)),
-                        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: item.subtitle == null ? null : Text(
-                          item.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.apartment_rounded),
                         ),
+                        title: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: item.subtitle == null
+                            ? null
+                            : Text(
+                                item.subtitle!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         trailing: item.canOpen
                             ? const Icon(Icons.chevron_right_rounded)
                             : null,
@@ -242,11 +252,21 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     ),
                     for (final item in people)
                       ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
-                        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: item.subtitle == null ? null : Text(
-                          item.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.person_outline_rounded),
                         ),
+                        title: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: item.subtitle == null
+                            ? null
+                            : Text(
+                                item.subtitle!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         trailing: item.canOpen
                             ? const Icon(Icons.chevron_right_rounded)
                             : null,

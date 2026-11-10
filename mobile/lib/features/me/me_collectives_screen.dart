@@ -208,8 +208,11 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
                         ),
                         subtitle: item.subtitle == null
                             ? null
-                            : Text(item.subtitle!, maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            : Text(
+                                item.subtitle!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
