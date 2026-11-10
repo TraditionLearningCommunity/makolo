@@ -15,6 +15,7 @@ import '../../sync/sync_status.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
+import 'objective_context_banner.dart';
 
 enum _DossierMode { overview, list, timeline, dependencies }
 
@@ -85,6 +86,8 @@ class DossierWorkspaceScreen extends StatefulWidget {
     this.conversations,
     this.onOpenConversation,
     this.actorContext,
+    this.sourceProjectId,
+    this.onReturnToProject,
   });
   final String id;
   final ObjectiveRepository repository;
@@ -94,6 +97,8 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
   final ActorContextController? actorContext;
+  final String? sourceProjectId;
+  final VoidCallback? onReturnToProject;
 
   @override
   State<DossierWorkspaceScreen> createState() => _DossierWorkspaceState();
@@ -109,6 +114,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   _TimeScale _timeScale = _TimeScale.month;
   String _filter = 'all';
   String? _spaceSlug;
+  int _contextRevision = 0;
   bool _refreshing = false, _busy = false, _failed = false;
 
   String? get _selectedSpaceSlug {
@@ -116,15 +122,22 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     return actor is SpaceActorContext ? actor.space.slug : null;
   }
 
-  String get _scopeQuery => ObjectiveRepository.contextQuery(_spaceSlug);
+  void _resetPresentation() {
+    _mode = _DossierMode.overview;
+    _filter = 'all';
+    _sort = _ListSort.recent;
+    _timeScale = _TimeScale.month;
+    _transform.value = Matrix4.identity();
+  }
 
   void _actorChanged() {
     final next = _selectedSpaceSlug;
     if (!mounted || next == _spaceSlug) return;
     _search.clear();
     setState(() {
+      _contextRevision++;
       _spaceSlug = next;
-      _mode = _DossierMode.overview;
+      _resetPresentation();
       _refreshing = false;
       _busy = false;
       _failed = false;
@@ -168,10 +181,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (old.id != widget.id ||
         old.repository != widget.repository ||
         nextSpace != _spaceSlug) {
+      _contextRevision++;
       _spaceSlug = nextSpace;
       _bind();
-      _mode = _DossierMode.overview;
-      _transform.value = Matrix4.identity();
+      _resetPresentation();
+      _refreshing = false;
+      _busy = false;
       unawaited(_acquire());
     }
   }
@@ -198,6 +213,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final repo = widget.repository;
     final id = widget.id;
     final spaceSlug = _spaceSlug;
+    final revision = _contextRevision;
     try {
       final cached = await repo.read(
         ObjectiveDepth.dossier,
@@ -212,7 +228,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       if (!mounted ||
           widget.id != id ||
           widget.repository != repo ||
-          _spaceSlug != spaceSlug)
+          revision != _contextRevision)
         return;
       if (cached == null ||
           cached.payload['visible_journeys_complete'] != true ||
@@ -225,7 +241,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         unawaited(_refresh());
       }
     } on Object {
-      if (mounted && repo == widget.repository && _spaceSlug == spaceSlug) {
+      if (mounted && repo == widget.repository &&
+          revision == _contextRevision) {
         setState(() => _failed = true);
       }
     }
@@ -236,6 +253,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final repo = widget.repository;
     final id = widget.id;
     final spaceSlug = _spaceSlug;
+    final revision = _contextRevision;
     setState(() {
       _refreshing = true;
       _failed = false;
@@ -243,11 +261,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     try {
       await repo.refresh(ObjectiveDepth.dossier, id, spaceSlug: spaceSlug);
     } on Object {
-      if (mounted && id == widget.id && _spaceSlug == spaceSlug) {
+      if (mounted && id == widget.id &&
+          revision == _contextRevision) {
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && id == widget.id && _spaceSlug == spaceSlug) {
+      if (mounted && id == widget.id &&
+          revision == _contextRevision) {
         setState(() => _refreshing = false);
       }
     }
@@ -266,7 +286,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     bool edit = false,
   }) async {
     if (!_canMutate) return false;
+    final revision = _contextRevision;
     final spaceSlug = _spaceSlug;
+    final suffix = ObjectiveRepository.contextQuery(spaceSlug);
     setState(() => _busy = true);
     try {
       final before = await widget.repository.read(
@@ -274,17 +296,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         widget.id,
         spaceSlug: spaceSlug,
       );
-      if (spaceSlug != _spaceSlug) return false;
+      if (revision != _contextRevision) return false;
       final oldParent = _text(_map(before?.payload['parent_project'])['id']);
       if (edit) {
-        await widget.api!.patch('$_path$_scopeQuery', body: fields);
+        await widget.api!.patch('$_path$suffix', body: fields);
       } else {
         await widget.api!.post(
-          '${_path}actions/$_scopeQuery',
+          '${_path}actions/$suffix',
           body: {'action': action, ...fields},
         );
       }
-      if (spaceSlug != _spaceSlug) return false;
+      if (revision != _contextRevision) return false;
       try {
         await widget.repository.refresh(
           ObjectiveDepth.dossier,
@@ -310,18 +332,26 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           }
         }
       } on Object {
-        _notice(
-          'Action confirmée ; actualisez vos données pour voir le nouvel état.',
-        );
+        if (mounted && revision == _contextRevision) {
+          _notice(
+            'Action confirmée ; actualisez vos données pour voir le nouvel état.',
+          );
+        }
         return true;
       }
-      _notice('Modification enregistrée.');
+      if (mounted && revision == _contextRevision) {
+        _notice('Modification enregistrée.');
+      }
       return true;
     } on Object {
-      _notice('Action non confirmée. Vérifiez les droits et la connexion.');
+      if (mounted && revision == _contextRevision) {
+        _notice('Action non confirmée. Vérifiez les droits et la connexion.');
+      }
       return false;
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && revision == _contextRevision) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -753,10 +783,21 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       children: [
         if (parent.isNotEmpty && widget.onOpenProject != null)
           MakoloActionButton(
-            label: _text(parent['title']),
-            onPressed: () => widget.onOpenProject!(_text(parent['id'])),
+            label: widget.sourceProjectId == _text(parent['id'])
+                ? 'Retour au Projet · ${_text(parent['title'])}'
+                : 'Ouvrir le Projet · ${_text(parent['title'])}',
+            onPressed: () {
+              if (widget.sourceProjectId == _text(parent['id']) &&
+                  widget.onReturnToProject != null) {
+                widget.onReturnToProject!();
+              } else {
+                widget.onOpenProject!(_text(parent['id']));
+              }
+            },
             appearance: MakoloActionAppearance.quiet,
-            icon: Icons.arrow_back_rounded,
+            icon: widget.sourceProjectId == _text(parent['id'])
+                ? Icons.arrow_back_rounded
+                : Icons.folder_special_outlined,
           ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1828,7 +1869,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             if (owner.invalidated) {
               return const Center(
                 child: Text(
-                  'Ce Dossier n’est plus accessible depuis ce Profil.',
+                  'Ce Dossier n’est plus accessible dans ce contexte.',
                 ),
               );
             }
@@ -1860,6 +1901,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          ObjectiveContextBanner(payload: data),
+                          const SizedBox(height: 12),
                           _header(data),
                           if (_offline)
                             const Padding(

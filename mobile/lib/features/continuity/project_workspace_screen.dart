@@ -14,6 +14,7 @@ import '../../sync/sync_status.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
+import 'objective_context_banner.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
 
@@ -281,12 +282,16 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         );
         await widget.repository.refreshOrganizerPage(0);
       } on Object {
-        _notice(
-          'Action enregistrée. Actualisez les données lorsque le réseau est disponible.',
-        );
+        if (mounted && revision == _contextRevision) {
+          _notice(
+            'Action enregistrée. Actualisez les données lorsque le réseau est disponible.',
+          );
+        }
         return true;
       }
-      _notice('Modification enregistrée.');
+      if (mounted && revision == _contextRevision) {
+        _notice('Modification enregistrée.');
+      }
       return true;
     } on Object {
       if (mounted && revision == _contextRevision) {
@@ -1818,7 +1823,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             if (source.invalidated) {
               return const Center(
                 child: Text(
-                  'Ce Projet n’est plus accessible depuis ce Profil.',
+                  'Ce Projet n’est plus accessible dans ce contexte.',
                 ),
               );
             }
@@ -1873,6 +1878,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                ObjectiveContextBanner(payload: project),
+                                const SizedBox(height: 12),
                                 _header(project),
                                 if (_offline)
                                   const Padding(

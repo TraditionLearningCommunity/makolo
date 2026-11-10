@@ -207,6 +207,17 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         id: state.pathParameters['id']!,
         repository: repository,
         actorContext: runtime.actorContext,
+        sourceProjectId: state.uri.queryParameters['from_project'],
+        onReturnToProject: () {
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            final fromProject = state.uri.queryParameters['from_project'];
+            if (fromProject != null) {
+              context.push('/projects/${Uri.encodeComponent(fromProject)}');
+            }
+          }
+        },
         api: runtime.api,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
