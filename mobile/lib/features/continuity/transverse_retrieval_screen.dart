@@ -97,6 +97,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       _version++;
       _editingSearch = false;
       _ownerResultsKnown = false;
+      _loading = false;
       _local = [];
       _remote = [];
       _editingSearch = false;
@@ -517,7 +518,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     }
     final api = widget.runtime.api;
     if (api == null) {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && version == _version) {
+        setState(() {
+          _failed = true;
+          _loading = false;
+        });
+      }
       return;
     }
     final nextOffset = more ? _offset : 0;
@@ -752,6 +758,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           _version++;
                           setState(() {
                             _editingSearch = true;
+                            _loading = false;
                             _failed = false;
                             _selected = null;
                           });
