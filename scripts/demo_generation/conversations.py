@@ -122,6 +122,52 @@ def scenario_reference(kind, target_id, phase, index):
     return "demo-conv-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:44]
 
 
+def parse_usernames(*, single=None, multiple=None):
+    """One or several principal usernames, with deterministic de-duplication."""
+    names = []
+    for value in (single, multiple):
+        if value:
+            for entry in value.split(","):
+                name = entry.strip()
+                if name and name not in names:
+                    names.append(name)
+    return tuple(names)
+
+
+def ordered_principals(people, seed, *, random_selection=True):
+    """Stable seeded sampling; never changes any account."""
+    choices = list(people)
+    if random_selection:
+        random.Random(seed).shuffle(choices)
+    return choices
+
+
+def fair_context_order(selected, seed):
+    """Round-robin by principal, preferring collective contexts per actor."""
+    rng = random.Random(seed)
+    grouped = {}
+    for item in selected:
+        grouped.setdefault(item[3].pk, []).append(item)
+    for values in grouped.values():
+        rng.shuffle(values)
+        values.sort(key=lambda item: item[0] not in ("space", "group"))
+    actor_ids = sorted(grouped, key=str)
+    rng.shuffle(actor_ids)
+    result = []
+    while any(grouped.values()):
+        for actor_id in actor_ids:
+            if grouped[actor_id]:
+                result.append(grouped[actor_id].pop(0))
+    return result
+
+
+def ordered_participants(users, *, seed, reference, limit):
+    """Vary speakers using only actual eligible viewer profiles."""
+    people = list(users)
+    random.Random(str(seed) + ":" + str(reference)).shuffle(people)
+    return people[:limit]
+
+
 def collect_candidates(people, now, limit):
     from django.db.models import Q
     from authorization.constants import PermissionCode
@@ -222,6 +268,12 @@ def main(argv=None):
                         help="Maximum distinct context Conversations (not Points)")
     parser.add_argument("--profiles", type=int, default=30)
     parser.add_argument("--profile-username", default=None)
+    parser.add_argument("--profile-usernames", default=None,
+                        help="Comma-separated principal usernames")
+    parser.add_argument("--selection", choices=("random", "ordered"), default="random")
+    parser.add_argument("--max-participants", type=int, default=8)
+    parser.add_argument("--context-types", default="all",
+                        help="all or comma-separated context kinds")
     parser.add_argument("--include-test-users", action="store_true",
                         help="Include existing beta_* and mobile_mature_* users")
     parser.add_argument("--seed", type=int, default=2026)
@@ -229,6 +281,17 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not 1 <= args.count <= 2000 or not 1 <= args.profiles <= 100:
         parser.error("count 1..2000, profiles 1..100")
+    if not 1 <= args.max_participants <= 30:
+        parser.error("--max-participants must be 1..30")
+    kinds = {"space", "group", "occurrence", "activity",
+             "journey", "dossier", "project", "proposal"}
+    selected_kinds = kinds if args.context_types == "all" else set(
+        part.strip() for part in args.context_types.split(",")
+    )
+    if not selected_kinds or not selected_kinds <= kinds:
+        parser.error("--context-types must be all or a list of " + ",".join(sorted(kinds)))
+    principals = parse_usernames(single=args.profile_username,
+                                 multiple=args.profile_usernames)
     import django
     django.setup()
     from django.contrib.auth import get_user_model
@@ -256,17 +319,26 @@ def main(argv=None):
         parser.error("SQLite demo uniquement")
     U = get_user_model()
     queryset = U.objects.filter(is_active=True, is_staff=False, is_superuser=False)
-    if args.profile_username:
-        queryset = queryset.filter(username=args.profile_username)
-    elif args.include_test_users:
-        queryset = queryset.filter(
-            Q(username__startswith="world_") |
-            Q(username__startswith="beta_") |
-            Q(username__startswith="mobile_mature_")
-        )
+    if principals:
+        people = list(queryset.filter(username__in=principals))
+        missing = set(principals) - {person.username for person in people}
+        if missing:
+            parser.error("Profils principaux introuvables/ineligibles: " +
+                         ", ".join(sorted(missing)))
+        people.sort(key=lambda person: principals.index(person.username))
     else:
-        queryset = queryset.filter(username__startswith="world_")
-    people = list(queryset.order_by("username")[:args.profiles])
+        if args.include_test_users:
+            queryset = queryset.filter(
+                Q(username__startswith="world_") |
+                Q(username__startswith="beta_") |
+                Q(username__startswith="mobile_mature_")
+            )
+        else:
+            queryset = queryset.filter(username__startswith="world_")
+        people = ordered_principals(
+            list(queryset.order_by("username")), args.seed,
+            random_selection=args.selection == "random",
+        )[:args.profiles]
     if not people:
         parser.error("Aucun profil éligible; aucun utilisateur ne sera créé")
     now = timezone.now()
@@ -282,6 +354,9 @@ def main(argv=None):
     while len(selected) < args.count:
         made_progress = False
         for bucket in buckets:
+            selected_kind = "occurrence" if bucket in ("past", "live", "future") else bucket
+            if selected_kind not in selected_kinds:
+                continue
             candidates = pools.get(bucket, [])
             while candidates:
                 item = candidates.pop()
@@ -295,8 +370,10 @@ def main(argv=None):
                 break
         if not made_progress:
             break
+    selected = fair_context_order(selected, args.seed)
     counts = Counter()
     counts["profiles"] = len(people)
+    counts["principal_profiles_explicit"] = len(principals)
     counts["eligible_contexts"] = sum(len(x) for x in pools.values()) + len(selected)
     counts["selected_contexts"] = len(selected)
     from conversations.models import ConversationContext
@@ -342,10 +419,22 @@ def main(argv=None):
                 # Explicitly materialize only participants already granted
                 # contextual viewing rights by the canonical audience selector.
                 eligible = conversation_viewer_ids(conversation) - {actor.pk}
-                demo_participants = list(U.objects.filter(
-                    pk__in=eligible, is_active=True, is_staff=False, is_superuser=False,
-                    username__startswith="world_",
-                ).order_by("username")[:3])
+                eligible_people = U.objects.filter(
+                    pk__in=eligible, is_active=True, is_staff=False,
+                    is_superuser=False,
+                ).filter(
+                    Q(username__startswith="world_") |
+                    Q(username__startswith="beta_") |
+                    Q(username__startswith="mobile_mature_")
+                ).order_by("username")
+                demo_participants = ordered_participants(
+                    eligible_people, seed=args.seed,
+                    reference=conversation.pk, limit=args.max_participants,
+                )
+                counts["eligible_peers"] += eligible_people.count()
+                counts["selected_peers"] += len(demo_participants)
+                if not demo_participants:
+                    counts["single_viewer_contexts"] += 1
                 for participant in demo_participants:
                     if ConversationParticipation.objects.filter(
                         conversation=conversation, profile=participant,
@@ -387,16 +476,13 @@ def main(argv=None):
                     # A targeted Profile may converse with *other* existing
                     # synthetic users already eligible in this context.
                     # Never impersonate arbitrary beta/real users.
+                    speakers = ordered_participants(
+                        demo_participants, seed=args.seed,
+                        reference=ref, limit=len(demo_participants),
+                    )
                     respondent = next((
-                        person for person in U.objects.filter(
-                            pk__in=viewers, is_active=True, is_staff=False,
-                            is_superuser=False,
-                        ).filter(
-                            Q(username__startswith="world_") |
-                            Q(username__startswith="beta_") |
-                            Q(username__startswith="mobile_mature_")
-                        ).order_by("username")
-                        if point_response_allowed(person, point)
+                        person for person in speakers
+                        if person.pk in viewers and point_response_allowed(person, point)
                     ), None)
                     try:
                         with transaction.atomic():
