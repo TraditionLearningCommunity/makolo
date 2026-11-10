@@ -31,7 +31,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      // An indeterminate progress indicator never settles by definition.
+      await tester.pump(const Duration(milliseconds: 240));
     }
 
     await render(MakoloActionPhase.available);
