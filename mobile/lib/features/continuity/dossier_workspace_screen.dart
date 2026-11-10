@@ -15,7 +15,7 @@ import '../../sync/sync_status.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
-import 'objective_context_banner.dart';
+import 'objective_workspace_view_switcher.dart';
 import 'objective_filter_reset.dart';
 
 enum _DossierMode { overview, list, timeline, dependencies }
@@ -755,54 +755,76 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (yes) await _command('mandate_revoke', {'mandate_id': row['id']});
   }
 
-  Widget _controls(Map<String, dynamic> data) => Wrap(
-    spacing: 9,
-    runSpacing: 9,
-    children: [
-      if (_cap(data, 'dossier.journey.link'))
-        MakoloActionButton(
-          label: 'Lier une démarche',
-          onPressed: _canMutate ? () => _link(data) : null,
-          icon: Icons.link_rounded,
-          appearance: MakoloActionAppearance.primary,
-        ),
-      if (_cap(data, 'dossier.dependency.add'))
-        MakoloActionButton(
-          label: 'Ajouter un prérequis',
-          onPressed: _canMutate ? () => _newDependency(data) : null,
-          icon: Icons.account_tree_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-      if (_cap(data, 'dossier.project.manage'))
-        MakoloActionButton(
-          label: 'Rattachement',
-          onPressed: _canMutate ? () => _projectAction(data) : null,
-          icon: Icons.drive_file_move_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-      if (_cap(data, 'dossier.lifecycle'))
-        MakoloActionButton(
-          label: 'Changer l’état',
-          onPressed: _canMutate ? () => _lifecycle(data) : null,
-          icon: Icons.change_circle_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-      if (_cap(data, 'dossier.assignment.manage'))
-        MakoloActionButton(
-          label: 'Responsabilité',
-          onPressed: _canMutate ? () => _assign(data) : null,
-          icon: Icons.person_add_alt_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-      if (_cap(data, 'dossier.authority.manage'))
-        MakoloActionButton(
-          label: 'Mandat',
-          onPressed: _canMutate ? () => _grant(data) : null,
-          icon: Icons.shield_outlined,
-          appearance: MakoloActionAppearance.secondary,
-        ),
-    ],
-  );
+  Widget _controls(Map<String, dynamic> data) {
+    final canLink = _cap(data, 'dossier.journey.link');
+    final menu = [
+      if (_cap(data, 'dossier.edit')) 'edit',
+      if (_cap(data, 'dossier.dependency.add')) 'dependency',
+      if (_cap(data, 'dossier.project.manage')) 'project',
+      if (_cap(data, 'dossier.lifecycle')) 'lifecycle',
+      if (_cap(data, 'dossier.assignment.manage')) 'assign',
+      if (_cap(data, 'dossier.authority.manage')) 'grant',
+    ];
+    if (!canLink && menu.isEmpty) return const SizedBox.shrink();
+    return Row(
+      children: [
+        if (canLink)
+          MakoloActionButton(
+            label: 'Lier une démarche',
+            onPressed: _canMutate ? () => _link(data) : null,
+            icon: Icons.link_rounded,
+            appearance: MakoloActionAppearance.primary,
+          ),
+        if (canLink && menu.isNotEmpty) const SizedBox(width: 9),
+        if (menu.isNotEmpty)
+          PopupMenuButton<String>(
+            tooltip: 'Actions du Dossier',
+            enabled: _canMutate,
+            icon: const Icon(Icons.more_horiz_rounded),
+            onSelected: (action) {
+              switch (action) {
+                case 'edit':
+                  _edit(data);
+                case 'dependency':
+                  _newDependency(data);
+                case 'project':
+                  _projectAction(data);
+                case 'lifecycle':
+                  _lifecycle(data);
+                case 'assign':
+                  _assign(data);
+                case 'grant':
+                  _grant(data);
+              }
+            },
+            itemBuilder: (_) => [
+              if (menu.contains('edit'))
+                const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+              if (menu.contains('dependency'))
+                const PopupMenuItem(
+                  value: 'dependency', child: Text('Ajouter un prérequis'),
+                ),
+              if (menu.contains('project'))
+                const PopupMenuItem(
+                  value: 'project', child: Text('Rattachement au Projet'),
+                ),
+              if (menu.contains('lifecycle'))
+                const PopupMenuItem(
+                  value: 'lifecycle', child: Text('Changer l’état'),
+                ),
+              if (menu.contains('assign'))
+                const PopupMenuItem(
+                  value: 'assign', child: Text('Responsabilité'),
+                ),
+              if (menu.contains('grant'))
+                const PopupMenuItem(
+                  value: 'grant', child: Text('Gérer les accès'),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
 
   Widget _header(Map<String, dynamic> data) {
     final objective = _map(data['objective']);
@@ -853,14 +875,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _text(_map(data['owner'])['label']),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      letterSpacing: .5,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
                     _text(objective['title']),
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
@@ -869,12 +883,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 ],
               ),
             ),
-            if (_cap(data, 'dossier.edit'))
-              MakoloIconActionButton(
-                tooltip: 'Modifier le Dossier',
-                onPressed: _canMutate ? () => _edit(data) : null,
-                icon: Icons.edit_outlined,
-              ),
           ],
         ),
         if (_text(objective['description']).isNotEmpty) ...[
@@ -892,13 +900,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             Chip(label: Text(_humanState(_map(data['state'])['code']))),
             if (deadline != null)
               Chip(label: Text('Échéance · ${_dateLabel(context, deadline)}')),
-            Chip(
-              label: Text(
-                _text(readiness['label']).isNotEmpty
-                    ? _text(readiness['label'])
-                    : 'Situation à confirmer',
-              ),
-            ),
+            if (_text(readiness['state']).isNotEmpty &&
+                _text(readiness['label']).isNotEmpty)
+              Chip(label: Text(_text(readiness['label']))),
             if (readiness['partial'] == true)
               const Chip(label: Text('Vue partielle')),
           ],
@@ -917,57 +921,23 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     );
   }
 
-  Widget _tabs() => LayoutBuilder(
-    builder: (context, bounds) {
-      final buttons = [
-        (_DossierMode.overview, 'Vue d’ensemble', Icons.dashboard_outlined),
-        (_DossierMode.list, 'Liste', Icons.list_rounded),
-        (_DossierMode.timeline, 'Chronologie', Icons.calendar_month_outlined),
-        (_DossierMode.dependencies, 'Dépendances', Icons.account_tree_outlined),
-      ];
-      if (bounds.maxWidth < 650) {
-        return Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          children: [
-            for (final (mode, label, icon) in buttons)
-              ChoiceChip(
-                selected: _mode == mode,
-                label: Text(label),
-                avatar: Icon(icon, size: 16),
-                onSelected: (_) => setState(() => _mode = mode),
-              ),
-          ],
-        );
-      }
-      return SegmentedButton<_DossierMode>(
-        showSelectedIcon: false,
-        selected: {_mode},
-        segments: const [
-          ButtonSegment(
-            value: _DossierMode.overview,
-            label: Text('Vue d’ensemble'),
-            icon: Icon(Icons.dashboard_outlined),
-          ),
-          ButtonSegment(
-            value: _DossierMode.list,
-            label: Text('Liste'),
-            icon: Icon(Icons.list),
-          ),
-          ButtonSegment(
-            value: _DossierMode.timeline,
-            label: Text('Chronologie'),
-            icon: Icon(Icons.calendar_month_outlined),
-          ),
-          ButtonSegment(
-            value: _DossierMode.dependencies,
-            label: Text('Dépendances'),
-            icon: Icon(Icons.account_tree_outlined),
-          ),
-        ],
-        onSelectionChanged: (values) => setState(() => _mode = values.first),
-      );
-    },
+  Widget _tabs() => ObjectiveWorkspaceViewSwitcher<_DossierMode>(
+    selected: _mode,
+    options: const [
+      ObjectiveViewOption(
+        _DossierMode.overview, Icons.dashboard_outlined, 'Vue d’ensemble',
+      ),
+      ObjectiveViewOption(
+        _DossierMode.list, Icons.list_rounded, 'Liste',
+      ),
+      ObjectiveViewOption(
+        _DossierMode.timeline, Icons.calendar_month_outlined, 'Chronologie',
+      ),
+      ObjectiveViewOption(
+        _DossierMode.dependencies, Icons.account_tree_outlined, 'Dépendances',
+      ),
+    ],
+    onSelected: (mode) => setState(() => _mode = mode),
   );
 
   Widget _journeyTile(Map<String, dynamic> row, {bool compact = false}) {
@@ -1950,8 +1920,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          ObjectiveContextBanner(payload: data),
-                          const SizedBox(height: 12),
                           _header(data),
                           if (_offline)
                             const Padding(
@@ -1960,11 +1928,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                                 'Mode hors ligne · données locales acquises.',
                               ),
                             ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 9),
                           _controls(data),
-                          const SizedBox(height: 23),
+                          const SizedBox(height: 11),
                           _tabs(),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 12),
                           if (_mode == _DossierMode.overview)
                             _overview(data)
                           else if (_mode == _DossierMode.list)
