@@ -115,16 +115,17 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   }
 
   Future<void> _restoreRootPreview() async {
+    final version = _generation;
+    final personal = widget.personal;
     try {
-      final snapshot = await widget.personal.store.readProjection(
-        'personal.me',
-      );
+      final snapshot = await personal.store.readProjection('personal.me');
+      if (!_stillSame(version, personal)) return;
       final local = MeLocalPreview.forProfile(
         snapshot,
-        widget.personal.store.profileId,
+        personal.store.profileId,
       );
       final bookmarks = local?.collection('considerations', 'bookmarks');
-      if (mounted && bookmarks != null) {
+      if (_stillSame(version, personal) && bookmarks != null) {
         final cached = (bookmarks['items'] as List)
             .whereType<Map<String, dynamic>>()
             .toList();
@@ -145,14 +146,17 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   }
 
   Future<void> _retainKnownCollection() async {
-    await widget.personal.store.putProjection(
+    final personal = widget.personal;
+    final items = _rows.map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+    await personal.store.putProjection(
       kind: _savedProjectionKind,
       resourceKey: _savedResourceKey,
       schemaVersion: 1,
       payload: {
-        'actor': {'type': 'profile', 'id': widget.personal.store.profileId},
+        'actor': {'type': 'profile', 'id': personal.store.profileId},
         'family': 'bookmarks',
-        'items': _rows,
+        'items': items,
         'next_offset': _offset,
         'has_more': _hasMore,
       },
@@ -281,7 +285,9 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         // The owner already confirmed removal; never report it as failed
         // because the read-model reflection could not be written.
       }
+      if (!_stillSame(version, personal)) return;
       await _next(reset: true);
+      if (!_stillSame(version, personal)) return;
       // Invalidate the single personal read model, not a duplicate save store.
       // In the composed app, all Me mutations reconcile via one canonical
       // owner source instead of re-parsing and writing a separate root in UI.
