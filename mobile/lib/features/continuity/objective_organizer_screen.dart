@@ -802,16 +802,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                           : null,
                     ),
                     MakoloIconActionButton(
-                      tooltip:
-                          _kind != 'all' ||
-                              _status != 'all' 
+                      tooltip: _kind != 'all' || _status != 'all'
                           ? 'Filtres actifs'
                           : 'Filtrer',
                       onPressed: _showContentFilters,
                       icon: Icons.tune_rounded,
-                      color:
-                          _kind != 'all' ||
-                              _status != 'all' 
+                      color: _kind != 'all' || _status != 'all'
                           ? Theme.of(context).colorScheme.primary
                           : null,
                     ),
@@ -885,8 +881,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   final flat = _ordered(entries.where(_matches));
                   final showFlat =
                       _mode == OrganizerMode.list ||
-                      (_mode == OrganizerMode.cards &&
-                          (_kind != 'all'));
+                      (_mode == OrganizerMode.cards && (_kind != 'all'));
                   final shown = showFlat ? flat : roots;
 
                   return NotificationListener<ScrollNotification>(
