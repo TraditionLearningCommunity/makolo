@@ -1,10 +1,9 @@
+import '../../platform/media/native_media_picker.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -228,20 +227,17 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       String? name;
       String kind = widget.mode == 'document' ? 'file' : 'image';
       if (widget.mode == 'document') {
-        final selected = await FilePicker.pickFile(
-          type: FileType.custom,
-          allowedExtensions: const ['pdf', 'txt', 'doc', 'docx'],
+        final selected = await NativeMediaPicker.pickDocument(
+                    const ['pdf', 'txt', 'doc', 'docx'],
         );
         if (selected != null) {
           path = selected.path;
           name = selected.name;
         }
       } else {
-        final selected = await ImagePicker().pickImage(
-          source: widget.mode == 'camera'
-              ? ImageSource.camera
-              : ImageSource.gallery,
-          imageQuality: 90,
+        final selected = await NativeMediaPicker.pickImage(
+          camera: widget.mode == 'camera',
+          quality: 90,
           maxWidth: 2200,
         );
         path = selected?.path;
