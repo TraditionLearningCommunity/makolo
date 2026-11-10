@@ -124,6 +124,34 @@ class Lot7AttentionContractTests(TestCase):
         self.assertEqual(item["reason"], "upcoming")
         self.assertFalse(item["actionable"])
 
+    def test_future_expected_audience_alone_does_not_create_fake_action(self):
+        manager_only = create_audience_set(
+            actor=self.manager, conversation=self.conversation,
+            label="Réponse réservée au gestionnaire",
+        )
+        add_audience_rule(
+            actor=self.manager, audience_set=manager_only,
+            operation=ConversationAudienceRuleOperation.INCLUDE,
+            kind=ConversationAudienceRuleKind.EXPLICIT_PROFILE,
+            profile=self.manager,
+        )
+        point = create_point(
+            actor=self.manager, conversation=self.conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Le membre est ciblé mais n'a pas le droit de répondre",
+            visibility_audience=self.audience,
+            expected_action_audience=self.audience,
+            response_audience=manager_only,
+            opens_at=timezone.now() + timedelta(hours=6),
+        )
+        self.assertIsNone(point_attention_reason(self.member, point))
+        lens = conversation_attention_sections(self.member, self.conversation)
+        self.assertNotIn(
+            str(point.pk), [entry["id"] for entry in lens["to_know"]],
+        )
+        self.assertEqual(lens["action_count"], 0)
+
     def test_acknowledgement_before_opening_is_denied_on_server(self):
         point = create_point(
             actor=self.manager, conversation=self.conversation,
