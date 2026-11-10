@@ -37,6 +37,7 @@ class _SpaceTransportDepartureOperationsScreenState
   Map<String, dynamic>? _owner;
   bool _loading = true;
   bool _posting = false;
+  bool _confirming = false;
   bool _requiresVerification = false;
   int _epoch = 0;
   int _vehiclesOffset = 0;
@@ -94,6 +95,7 @@ class _SpaceTransportDepartureOperationsScreenState
       _owner = null;
       _error = null;
       _posting = false;
+      _confirming = false;
       _requiresVerification = false;
       _vehiclesOffset = 0;
       _loading = _actorValid;
@@ -165,6 +167,7 @@ class _SpaceTransportDepartureOperationsScreenState
         !_actorValid ||
         _loading ||
         _posting ||
+        _confirming ||
         _requiresVerification) {
       return;
     }
@@ -173,6 +176,7 @@ class _SpaceTransportDepartureOperationsScreenState
       'reschedule' => 'Reprogrammer ce départ ?',
       _ => 'Annuler ce départ ?',
     };
+    setState(() => _confirming = true);
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -196,7 +200,9 @@ class _SpaceTransportDepartureOperationsScreenState
         ],
       ),
     );
-    if (accepted != true || !_actorValid || !mounted) return;
+    if (!mounted || !_actorValid) return;
+    setState(() => _confirming = false);
+    if (accepted != true) return;
     final epoch = _epoch;
     setState(() {
       _posting = true;
@@ -321,7 +327,7 @@ class _SpaceTransportDepartureOperationsScreenState
                               '${row['physical_capacity']} places physiques',
                             ),
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: _posting || _requiresVerification
+                            onTap: _posting || _confirming || _requiresVerification
                                 ? null
                                 : () => _command(
                                     'assign_vehicle',
@@ -382,8 +388,14 @@ class _SpaceTransportDepartureOperationsScreenState
                       MakoloActionButton(
                         label: 'Confirmer la reprogrammation',
                         appearance: MakoloActionAppearance.primary,
-                        busy: _posting,
-                        onPressed: _posting || _requiresVerification
+                        phase: _posting
+                            ? MakoloActionPhase.processing
+                            : _requiresVerification
+                            ? MakoloActionPhase.failed
+                            : _confirming
+                            ? MakoloActionPhase.unavailable
+                            : MakoloActionPhase.available,
+                        onPressed: _posting || _confirming || _requiresVerification
                             ? null
                             : () => _command('reschedule'),
                       ),
@@ -394,7 +406,14 @@ class _SpaceTransportDepartureOperationsScreenState
                         label: 'Annuler ce départ',
                         appearance: MakoloActionAppearance.danger,
                         icon: Icons.cancel_outlined,
-                        onPressed: _posting || _requiresVerification
+                        phase: _posting
+                            ? MakoloActionPhase.processing
+                            : _requiresVerification
+                            ? MakoloActionPhase.failed
+                            : _confirming
+                            ? MakoloActionPhase.unavailable
+                            : MakoloActionPhase.available,
+                        onPressed: _posting || _confirming || _requiresVerification
                             ? null
                             : () => _command('cancel'),
                       ),
