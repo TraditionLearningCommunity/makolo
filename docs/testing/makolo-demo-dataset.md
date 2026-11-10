@@ -681,3 +681,57 @@ python -m scripts.demo_generation resources --profile-username beta_alain --appl
 Une rubrique peut rester vide si les faits ou les autorités nécessaires
 n'existent pas ; c'est différent de la génération des documents, qui ne
 requiert pas de Journey.
+
+
+## Conversations collectives et profils principaux multiples (novembre 2026)
+
+Le générateur de Conversations distingue désormais **profils principaux** et
+**participants** : un profil ciblé est l'acteur principal, pas son propre
+interlocuteur. Le script cherche des contextes réels appartenant aux profils
+sélectionnés (Space, Group, Activity, Occurrence, Journey, Dossier, Project,
+ActionProposal). Les autres participants proviennent du sélecteur canonique
+`conversation_viewer_ids`, et les réponses passent par les permissions des
+Points. Aucune Conversation `DIRECT` et aucun droit nouveau ne sont inventés.
+
+```bash
+# Aperçu : profils world_* prélevés de manière pseudo-aléatoire reproductible.
+python -m scripts.demo_generation plan --domains conversations --profiles 30 --count 80 --seed 2026
+
+# Génération générale, avec comptes beta_* et mobile_mature_* déjà présents.
+python -m scripts.demo_generation generate --domains conversations --conversation-include-test-users --profiles 40 --count 80 --seed 2026
+
+# Un seul principal, plusieurs interlocuteurs permis par ses contextes.
+python -m scripts.demo_generation generate --domains conversations --profile-username beta_alain --count 30 --conversation-max-participants 8
+
+# Trois profils principaux, dont les Conversations sont distribuées.
+python -m scripts.demo_generation generate --domains conversations --conversation-usernames beta_alain,world_002_grace,world_003_sarah --count 60 --conversation-max-participants 10
+
+# Cinq profils / contextes collectifs (sans obligation de tout remplir).
+python -m scripts.demo_generation generate --domains conversations --conversation-usernames beta_alain,world_002_grace,world_003_sarah,world_004_naomi,world_005_esther --conversation-context-types space,group,activity,occurrence --count 80
+
+# Choix ordonné, reproductible sans tirage, pour comparer des démonstrations.
+python -m scripts.demo_generation plan --domains conversations --conversation-selection ordered --profiles 20
+```
+
+- `--profile-username` reste compatible (un profil principal).
+  `--conversation-usernames` est une liste séparée par virgules : une,
+  trois, cinq personnes ou davantage. Les deux peuvent être combinés sans
+  doublons. La liste explicite n'est pas tronquée par `--profiles`.
+- Sans username, `--conversation-selection random` (défaut) sélectionne des
+  profils existants avec un tirage **déterministe** par `--seed`. `ordered`
+  conserve le tri alphabétique. Sans opt-in, le vivier reste `world_*`.
+- `--conversation-max-participants` vaut 8 par défaut (1 à 30).
+  Ce sont des **autres personnes éligibles** et non des interlocuteurs
+  fabriqués. Les profils ne répondent jamais à leurs propres Points comme
+  faux correspondants ; des interlocuteurs distincts sont choisis selon le
+  contexte et la graine.
+- Les contextes sont répartis entre les acteurs avant la limite `--count`;
+  les Spaces et Groups admissibles sont favorisés. Une Conversation avec un
+  seul profil reste permise si aucune autre personne n'a le droit d'y accéder.
+  Le nombre de participants réel dépend des membres des Espaces, Groupes,
+  participants de l'Activity et autres relations effectivement présentes.
+- Les Conversations et Points gardent leurs références d'idempotence.
+  Relancer avec une autre graine varie la sélection ou les répondants
+  admissibles, sans créer des copies de chaque Conversation existante.
+- Les modifications s'appliquent à la SQLite configurée seulement via
+  `generate`, jamais via `plan`. Aucune sauvegarde implicite.
