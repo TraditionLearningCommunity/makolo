@@ -42,6 +42,8 @@ class JourneyPracticalFacts {
     this.startAt,
     this.startDate,
     this.startTime,
+    this.endDate,
+    this.endTime,
     this.timezone,
     this.placeName,
     this.placeAddress,
@@ -51,6 +53,8 @@ class JourneyPracticalFacts {
   final DateTime? startAt;
   final String? startDate;
   final String? startTime;
+  final String? endDate;
+  final String? endTime;
   final String? timezone;
   final String? placeName;
   final String? placeAddress;
@@ -71,11 +75,13 @@ class JourneyResourcePreview {
     required this.title,
     required this.kind,
     this.description,
+    this.mimeType,
   });
   final String id;
   final String title;
   final String kind;
   final String? description;
+  final String? mimeType;
 
   static List<JourneyResourcePreview> fromProjection(
     StoredProjection? projection,
@@ -96,6 +102,7 @@ class JourneyResourcePreview {
           title: title,
           kind: kind,
           description: description?.isNotEmpty == true ? description : null,
+          mimeType: item['mime_type']?.toString(),
         ),
       );
     }
@@ -426,6 +433,8 @@ class JourneyDetailSelector {
       startAt: _dateTime(timing['start_at']),
       startDate: _string(timing['start_date']),
       startTime: _string(timing['start_time']),
+      endDate: _string(timing['end_date']),
+      endTime: _string(timing['end_time']),
       timezone: _string(timing['timezone']),
       placeName: _string(place['name']),
       placeAddress: _string(place['address']),
