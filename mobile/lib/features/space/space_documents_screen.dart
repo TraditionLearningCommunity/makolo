@@ -1,4 +1,4 @@
-import 'package:file_picker/file_picker.dart';
+import '../../platform/media/native_media_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
@@ -165,9 +165,8 @@ class _SpaceDocumentsScreenState extends State<SpaceDocumentsScreen> {
 
   Future<void> _add() async {
     if (_busy || !_canManage || _actor == null) return;
-    final chosen = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg'],
+    final chosen = await NativeMediaPicker.pickDocument(
+            ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg'],
     );
     if (chosen == null || !mounted) return;
     if (chosen.path == null) return;
