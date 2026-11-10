@@ -136,6 +136,35 @@ class D6WebActorContextTests(TestCase):
         self.assertIn(self.pa.pk, projects)
         self.assertNotIn(self.pb.pk, projects)
 
+    def test_read_only_dossier_mandate_does_not_show_space_create_actions(self):
+        from authorization.models import AuthorityScope, Role
+        from authorization.services import grant_dossier_role
+
+        role = Role.objects.get(
+            scope_type=AuthorityScope.DOSSIER,
+            code=SystemRoleCode.DOSSIER_VIEWER,
+        )
+        grant_dossier_role(
+            profile=self.outsider, dossier=self.da,
+            role=role, granted_by=self.viewer,
+        )
+        self.client.force_login(self.outsider)
+        result = self.client.get(
+            reverse("objectives:organizer") + self.scope(self.a),
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(
+            result.context["organizer_data"]["manageable_spaces"], [],
+        )
+        self.assertContains(result, "Dossier A")
+        self.assertNotContains(result, "Créer un dossier")
+        self.assertNotContains(result, "Créer un projet")
+        self.assertEqual(
+            self.client.get(
+                reverse("objectives:dossier-create") + self.scope(self.a),
+            ).status_code, 404,
+        )
+
     def test_scoped_web_post_cannot_move_to_a_foreign_space(self):
         move = self.client.post(
             reverse(
