@@ -161,9 +161,6 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
         body: {
           'title': _title.text.trim(),
           'description': _description.text.trim(),
-          if (widget.spaceActor != null)
-            'owning_space_id': widget.spaceActor!.id
-
           if (_isProject && _start != null) 'starts_on': _iso(_start),
           if (_isProject && _end != null) 'ends_on': _iso(_end),
           if (!_isProject && _deadline != null) 'deadline': _iso(_deadline),
