@@ -400,6 +400,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
               TextField(
                 key: const Key('conversation-form-title'),
                 controller: _title,
+                readOnly: _sending,
                 maxLength: 220,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
@@ -427,6 +428,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                           child: TextField(
                             key: Key('conversation-form-question-$index'),
                             controller: _questionControllers[index],
+                            readOnly: _sending,
                             minLines: 1,
                             maxLines: 3,
                             maxLength: 220,
