@@ -396,7 +396,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       controller: description,
                       maxLines: 3,
                       decoration: const InputDecoration(
-                        labelText: 'Contexte',
+                        labelText: 'Description',
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -1288,7 +1288,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               if (rows.isNotEmpty)
                 _metric(
                   rows.length,
-                  partial ? 'Dossiers acquis (partiel)' : 'Dossiers visibles',
+                  partial ? 'Dossiers affichés' : 'Dossiers',
                 ),
               if (active > 0) _metric(active, 'En cours'),
               if (draft > 0) _metric(draft, 'En préparation'),
@@ -1336,7 +1336,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           for (final row in rows.take(6)) _dossierCard(row, project),
         if (rows.length > 6)
           MakoloActionButton(
-            label: 'Voir tous les Dossiers acquis',
+            label: 'Voir les dossiers',
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
             appearance: MakoloActionAppearance.quiet,
           ),
@@ -1452,7 +1452,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           controller: _search,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search),
-            hintText: 'Rechercher parmi les dossiers acquis',
+            hintText: 'Rechercher un dossier',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(13)),
             suffixIcon: _search.text.isEmpty
                 ? null
