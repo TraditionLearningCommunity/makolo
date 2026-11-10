@@ -52,6 +52,112 @@ class MakoloSkeleton extends StatelessWidget {
   }
 }
 
+/// An initial-loading silhouette matching the two mobile feed units.
+/// Only use it when no locally retained projection is available.
+enum MakoloCardSkeletonKind { discover, ongoing }
+
+class MakoloCardSkeleton extends StatelessWidget {
+  const MakoloCardSkeleton({
+    super.key,
+    required this.kind,
+    this.count = 2,
+  });
+
+  final MakoloCardSkeletonKind kind;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest
+        .withValues(alpha: 0.7);
+    final outline = Theme.of(context).colorScheme.outlineVariant;
+    Widget slab(double width, double height, {bool pill = false}) => Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(pill ? 999 : MakoloRadii.small),
+      ),
+    );
+
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: kind == MakoloCardSkeletonKind.discover
+          ? 'Chargement des possibilités'
+          : 'Chargement des éléments en cours',
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var index = 0; index < count; index++) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (kind == MakoloCardSkeletonKind.discover)
+                          slab(38, 38, pill: true)
+                        else
+                          slab(20, 20, pill: true),
+                        const SizedBox(width: MakoloSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              slab(110, 13),
+                              const SizedBox(height: MakoloSpacing.xs),
+                              slab(68, 9),
+                            ],
+                          ),
+                        ),
+                        slab(55, 10),
+                      ],
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    slab(250, 20),
+                    const SizedBox(height: MakoloSpacing.sm),
+                    slab(double.infinity, 12),
+                    const SizedBox(height: MakoloSpacing.xs),
+                    slab(190, 12),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.xs,
+                  vertical: MakoloSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    for (var action = 0; action < 3; action++) ...[
+                      if (action > 0)
+                        const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: outline),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (index < count - 1)
+                Divider(height: MakoloSpacing.md, color: outline),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 enum SuccessFeedbackKind { savedOnDevice, pendingSync, synced, confirmed }
 
 class SuccessFeedback extends StatelessWidget {
