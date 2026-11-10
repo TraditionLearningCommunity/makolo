@@ -314,6 +314,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           spaceSlug: spaceSlug,
         );
         await widget.repository.refreshOrganizerPage(0);
+        if (revision != _contextRevision) return true;
         final refreshed = await widget.repository.read(
           ObjectiveDepth.dossier,
           widget.id,
@@ -323,9 +324,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           _map(refreshed?.payload['parent_project'])['id'],
         );
         for (final parentId in {oldParent, newParent}) {
+          if (revision != _contextRevision) return true;
           if (parentId.isEmpty) continue;
           try {
-            await widget.repository.refresh(ObjectiveDepth.project, parentId);
+            await widget.repository.refresh(
+              ObjectiveDepth.project, parentId, spaceSlug: spaceSlug,
+            );
           } on Object {
             // The Dossier mutation is already confirmed; a hidden or
             // unreachable Project must not turn it into a second mutation.

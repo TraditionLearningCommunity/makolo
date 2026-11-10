@@ -281,6 +281,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           spaceSlug: spaceSlug,
         );
         await widget.repository.refreshOrganizerPage(0);
+        if (revision != _contextRevision) return true;
       } on Object {
         if (mounted && revision == _contextRevision) {
           _notice(

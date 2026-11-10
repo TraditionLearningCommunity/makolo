@@ -18,7 +18,7 @@ class ObjectiveContextBanner extends StatelessWidget {
     final inSpace = lens['kind'] == 'space';
     final name = (owner['label']?.toString() ?? '').trim();
     final title = inSpace
-        ? 'Espace actif : \${name.isEmpty ? 'Espace' : name}'
+        ? 'Espace actif : ${name.isEmpty ? 'Espace' : name}'
         : 'Consultation depuis mon Profil';
     final detail = name.isEmpty
         ? 'Actions et informations selon les permissions serveur.'
