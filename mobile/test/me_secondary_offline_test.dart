@@ -358,6 +358,55 @@ void main() {
     expect(find.textContaining('hors connexion'), findsNothing);
   });
 
+  testWidgets('switching Profiles immediately removes former saved items', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+    final alice = await _seed(database);
+    final bob = PersonalRepository(ProfileStore(database, 'profile-b'));
+    await bob.store.putProjection(
+      kind: 'personal.me.preview',
+      resourceKey: 'considerations:bookmarks:known',
+      schemaVersion: 1,
+      payload: {
+        'actor': {'type': 'profile', 'id': 'profile-b'},
+        'family': 'bookmarks',
+        'next_offset': 1,
+        'has_more': false,
+        'items': [
+          {
+            'id': 'saved-b',
+            'activity': {'id': 'activity-b', 'title': 'Possibilité de Bob'},
+          },
+        ],
+      },
+    );
+    final api = _OfflineApi();
+    Widget screen(PersonalRepository personal) => MaterialApp(
+      home: MeSavedScreen(
+        api: api,
+        personal: personal,
+        onOpen: (_) {},
+        onDiscover: () {},
+      ),
+    );
+    await tester.pumpWidget(screen(alice));
+    await tester.pumpAndSettle();
+    expect(find.text('Possibilité connue'), findsOneWidget);
+
+    await tester.pumpWidget(screen(bob));
+    await tester.pump();
+    expect(find.text('Possibilité connue'), findsNothing);
+    await tester.pumpAndSettle();
+    expect(find.text('Possibilité de Bob'), findsOneWidget);
+    expect(find.text('Possibilité connue'), findsNothing);
+  });
+
   testWidgets('passport never exposes private export from a local summary', (
     tester,
   ) async {
