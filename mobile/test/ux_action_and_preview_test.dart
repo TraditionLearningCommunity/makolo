@@ -226,5 +226,4 @@ void main() {
     expect(controller.followedFor(owner), isNull);
     controller.dispose();
   });
-
 }
