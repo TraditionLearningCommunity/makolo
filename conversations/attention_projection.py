@@ -71,6 +71,17 @@ def _upcoming_action_is_real(profile, point, *, at):
 
 
 def _info_reason(profile, point, *, at, last_opened):
+    if (
+        point.lifecycle == ConversationPointLifecycle.OPEN
+        and point.opens_at and at < point.opens_at
+    ):
+        # Published metadata is not an already-open piece of information.
+        # The only possible early signal is a truly actionable future window.
+        return (
+            "upcoming" if point.opens_at <= at + timedelta(days=7)
+            and _upcoming_action_is_real(profile, point, at=at)
+            else None
+        )
     if point.lifecycle == ConversationPointLifecycle.RESOLVED:
         if point.resolved_at and (last_opened is None or point.resolved_at > last_opened):
             return "result"
@@ -81,13 +92,6 @@ def _info_reason(profile, point, *, at, last_opened):
         and (last_opened is None or point.published_at > last_opened)
     ):
         return "information"
-    if (
-        point.lifecycle == ConversationPointLifecycle.OPEN
-        and point.opens_at
-        and at < point.opens_at <= at + timedelta(days=7)
-        and _upcoming_action_is_real(profile, point, at=at)
-    ):
-        return "upcoming"
     return None
 
 
