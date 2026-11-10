@@ -6,7 +6,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+
 import '../../platform/files/native_directories.dart';
+
 import 'package:record/record.dart';
 
 import 'conversation_repository.dart';

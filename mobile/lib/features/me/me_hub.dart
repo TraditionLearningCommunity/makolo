@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../platform/preferences/secure_string_preferences.dart';
 
 import '../../data/local/profile_store.dart';

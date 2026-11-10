@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../platform/notifications/push_permission_gateway.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';

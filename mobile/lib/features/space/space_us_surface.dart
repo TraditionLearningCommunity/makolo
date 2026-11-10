@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import '../../platform/preferences/secure_string_preferences.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../design/makolo_theme.dart';

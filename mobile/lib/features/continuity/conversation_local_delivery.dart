@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
+
 import '../../platform/files/native_directories.dart';
 
 import '../../auth/token_store.dart';
