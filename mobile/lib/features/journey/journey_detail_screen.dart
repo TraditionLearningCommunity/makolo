@@ -24,6 +24,11 @@ import 'journey_repository.dart';
 import 'journey_selector.dart';
 import 'journey_time_presentation.dart';
 
+Color _journeyAccent(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.secondary
+        : MakoloColors.indigo;
+
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({
     super.key,
@@ -510,9 +515,9 @@ class _JourneyContent extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.arrow_outward_rounded,
-                            color: Color(0xFF5232DB),
+                            color: _journeyAccent(context),
                           ),
                           const SizedBox(width: MakoloSpacing.sm),
                           Text(
@@ -578,7 +583,7 @@ class _JourneyContent extends StatelessWidget {
                             presentation.liveLink != null
                                 ? Icons.bolt_rounded
                                 : Icons.today_rounded,
-                            color: const Color(0xFF5232DB),
+                            color: _journeyAccent(context),
                           ),
                           const SizedBox(width: MakoloSpacing.sm),
                           Text(
@@ -638,7 +643,7 @@ class _JourneyContent extends StatelessWidget {
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
                             _resourceIcon(resource),
-                            color: const Color(0xFF5232DB),
+                            color: _journeyAccent(context),
                           ),
                           title: Text(resource.title),
                           subtitle: resource.description == null
@@ -905,7 +910,7 @@ class _JourneyOutcomeCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(outcome.$2, size: 28, color: const Color(0xFF5232DB)),
+          Icon(outcome.$2, size: 28, color: _journeyAccent(context)),
           const SizedBox(width: MakoloSpacing.md),
           Expanded(
             child: Column(
@@ -1144,9 +1149,9 @@ class _JourneyPath extends StatelessWidget {
           if (previous.isNotEmpty && current.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.check_circle_outline_rounded,
-                color: Color(0xFF5232DB),
+                color: _journeyAccent(context),
               ),
               title: Text(
                 '${previous.length} étape${previous.length > 1 ? 's' : ''} passée${previous.length > 1 ? 's' : ''}',
@@ -1200,7 +1205,7 @@ class _JourneyStepRow extends StatelessWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: const Color(0xFF5232DB)),
+      leading: Icon(icon, color: _journeyAccent(context)),
       title: Text(step.title),
       subtitle: label == null && dependencies.isEmpty
           ? null
@@ -1267,7 +1272,7 @@ class _ReadinessGroups extends StatelessWidget {
                 Icon(
                   groups[index].$3,
                   size: 21,
-                  color: const Color(0xFF5232DB),
+                  color: _journeyAccent(context),
                 ),
                 const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
@@ -1305,9 +1310,9 @@ class _ReadinessGroups extends StatelessWidget {
             if (groups.isNotEmpty) const Divider(height: MakoloSpacing.lg),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.check_circle_outline_rounded,
-                color: Color(0xFF5232DB),
+                color: _journeyAccent(context),
               ),
               title: Text(
                 '${presentation.ready.length} élément${presentation.ready.length > 1 ? 's' : ''} en ordre',
@@ -1317,9 +1322,9 @@ class _ReadinessGroups extends StatelessWidget {
                   ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.check_rounded,
-                      color: Color(0xFF5232DB),
+                      color: _journeyAccent(context),
                     ),
                     title: Text(item.summary),
                   ),
@@ -1396,9 +1401,9 @@ class _JourneyPracticalCard extends StatelessWidget {
           if (additionalPlace != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.directions_outlined,
-                color: Color(0xFF5232DB),
+                color: _journeyAccent(context),
               ),
               title: const Text('Adresse'),
               subtitle: Text(additionalPlace),
@@ -1406,9 +1411,9 @@ class _JourneyPracticalCard extends StatelessWidget {
           if (endLabel.isNotEmpty)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.event_available_outlined,
-                color: Color(0xFF5232DB),
+                color: _journeyAccent(context),
               ),
               title: const Text('Fin prévue'),
               subtitle: Text(endLabel),
@@ -1416,9 +1421,9 @@ class _JourneyPracticalCard extends StatelessWidget {
           if (facts.accessInstructions?.trim().isNotEmpty == true)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(
+              leading: Icon(
                 Icons.info_outline_rounded,
-                color: Color(0xFF5232DB),
+                color: _journeyAccent(context),
               ),
               title: const Text('Sur place'),
               subtitle: Text(facts.accessInstructions!),
@@ -1464,9 +1469,9 @@ class _JourneyPaymentCard extends StatelessWidget {
       onTap: open,
       dense: true,
       contentPadding: EdgeInsets.zero,
-      leading: const Icon(
+      leading: Icon(
         Icons.account_balance_wallet_outlined,
-        color: Color(0xFF5232DB),
+        color: _journeyAccent(context),
       ),
       title: Text('${payment.amount} ${payment.currency}'),
       subtitle: label == null && payment.reason == null
@@ -1504,7 +1509,7 @@ class _FormCard extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         leading: Icon(
           form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
-          color: const Color(0xFF5232DB),
+          color: _journeyAccent(context),
         ),
         title: Text(form.title),
         subtitle: Text(
@@ -1564,7 +1569,7 @@ class _ReferenceCard extends StatelessWidget {
       onTap: onTap,
       child: ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: Icon(symbol, color: const Color(0xFF5232DB)),
+        leading: Icon(symbol, color: _journeyAccent(context)),
         title: Text(title),
         subtitle: subtitle.isEmpty ? null : Text(subtitle),
         trailing: onTap == null
