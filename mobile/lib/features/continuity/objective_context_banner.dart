@@ -46,15 +46,11 @@ class ObjectiveContextBanner extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      detail,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text(detail, style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
               ),

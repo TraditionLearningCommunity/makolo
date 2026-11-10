@@ -241,7 +241,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         unawaited(_refresh());
       }
     } on Object {
-      if (mounted && repo == widget.repository &&
+      if (mounted &&
+          repo == widget.repository &&
           revision == _contextRevision) {
         setState(() => _failed = true);
       }
@@ -261,13 +262,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     try {
       await repo.refresh(ObjectiveDepth.dossier, id, spaceSlug: spaceSlug);
     } on Object {
-      if (mounted && id == widget.id &&
-          revision == _contextRevision) {
+      if (mounted && id == widget.id && revision == _contextRevision) {
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && id == widget.id &&
-          revision == _contextRevision) {
+      if (mounted && id == widget.id && revision == _contextRevision) {
         setState(() => _refreshing = false);
       }
     }
@@ -328,7 +327,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           if (parentId.isEmpty) continue;
           try {
             await widget.repository.refresh(
-              ObjectiveDepth.project, parentId, spaceSlug: spaceSlug,
+              ObjectiveDepth.project,
+              parentId,
+              spaceSlug: spaceSlug,
             );
           } on Object {
             // The Dossier mutation is already confirmed; a hidden or
