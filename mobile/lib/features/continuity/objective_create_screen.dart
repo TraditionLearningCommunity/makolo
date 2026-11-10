@@ -106,36 +106,41 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     });
   }
 
-  Widget _dateField(String field, String label, DateTime? value) => Row(
-    children: [
-      Expanded(child: Text('$label : ${_human(value)}')),
-      MakoloActionButton(
-        label: 'Choisir',
-        appearance: MakoloActionAppearance.quiet,
-        onPressed: _submitting ? null : () => _chooseDate(field),
-        icon: Icons.calendar_today_outlined,
-      ),
-      if (value != null)
+  Widget _dateField(String field, String label, DateTime? value) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    dense: true,
+    title: Text(label),
+    subtitle: value == null ? null : Text(_human(value)),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         MakoloIconActionButton(
-          tooltip: 'Effacer la date',
-          onPressed: _submitting
-              ? null
-              : () => setState(() {
-                  switch (field) {
-                    case 'start':
-                      _start = null;
-                      break;
-                    case 'end':
-                      _end = null;
-                      break;
-                    default:
-                      _deadline = null;
-                      break;
-                  }
-                }),
-          icon: Icons.close_rounded,
+          tooltip: 'Choisir : $label',
+          onPressed: _submitting ? null : () => _chooseDate(field),
+          icon: Icons.calendar_today_outlined,
         ),
-    ],
+        if (value != null)
+          MakoloIconActionButton(
+            tooltip: 'Effacer : $label',
+            onPressed: _submitting
+                ? null
+                : () => setState(() {
+                    switch (field) {
+                      case 'start':
+                        _start = null;
+                        break;
+                      case 'end':
+                        _end = null;
+                        break;
+                      default:
+                        _deadline = null;
+                        break;
+                    }
+                  }),
+            icon: Icons.close_rounded,
+          ),
+      ],
+    ),
   );
 
   Future<void> _submit() async {
