@@ -366,86 +366,90 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                       ],
                     ),
                     const SizedBox(height: MakoloSpacing.sm),
-                    if (_layout == MakoloTerritoryLayout.list)
-                      Column(
-                        key: const Key('space-us-territories-list'),
-                        children: [
-                          for (final entry in territories)
-                            MakoloTerritoryListCard(
-                              tapKey: Key('space-us-entry-${entry.keyName}'),
-                              title: entry.title,
-                              subtitle: entry.subtitle,
-                              count: entry.count,
-                              symbol: entry.people.isEmpty
-                                  ? Icon(
-                                      entry.icon,
-                                      color: scheme.primary,
-                                      size: 24,
-                                    )
-                                  : MakoloPeopleAvatarStack(
-                                      names: entry.people,
-                                      totalCount: entry.count,
-                                      size: 30,
-                                    ),
-                              onOpen: entry.target == null
-                                  ? null
-                                  : () => open(entry.target!),
-                              previews: [
-                                for (final value in entry.previews)
-                                  MakoloTerritoryPreview(title: value),
-                              ],
-                            ),
-                        ],
-                      )
-                    else
-                      LayoutBuilder(
-                        builder: (context, field) {
-                          // The index has the same compact two-up composition
-                          // as Moi even after Space's responsive shell margins.
-                          // At very narrow widths prefer readable single cards.
-                          final twoColumns = field.maxWidth >= 260;
-                          final itemWidth = twoColumns
-                              ? (field.maxWidth - 10) / 2
-                              : field.maxWidth;
-                          return Wrap(
-                            key: const Key('space-us-territories-grid'),
-                            spacing: 10,
-                            runSpacing: 10,
+                    AnimatedSwitcher(
+                      duration: MakoloMotion.effective(context, MakoloMotion.short),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      child: _layout == MakoloTerritoryLayout.list
+                          ?                       Column(
+                            key: const Key('space-us-territories-list'),
                             children: [
                               for (final entry in territories)
-                                SizedBox(
-                                  width: itemWidth,
-                                  child: MakoloTerritoryGridCard(
-                                    tapKey: Key(
-                                      'space-us-grid-${entry.keyName}',
-                                    ),
-                                    title: entry.title,
-                                    subtitle: entry.subtitle,
-                                    symbol: entry.people.isEmpty
-                                        ? Icon(
-                                            entry.icon,
-                                            color: scheme.primary,
-                                            size: 32,
-                                          )
-                                        : MakoloPeopleAvatarStack(
-                                            names: entry.people,
-                                            totalCount: entry.count,
-                                            size: 31,
-                                          ),
-                                    countDescription: entry.count == null
-                                        ? null
-                                        : entry.count == 1
-                                        ? '1 élément visible'
-                                        : '${entry.count} éléments visibles',
-                                    onOpen: entry.target == null
-                                        ? null
-                                        : () => open(entry.target!),
-                                  ),
+                                MakoloTerritoryListCard(
+                                  tapKey: Key('space-us-entry-${entry.keyName}'),
+                                  title: entry.title,
+                                  subtitle: entry.subtitle,
+                                  count: entry.count,
+                                  symbol: entry.people.isEmpty
+                                      ? Icon(
+                                          entry.icon,
+                                          color: scheme.primary,
+                                          size: 24,
+                                        )
+                                      : MakoloPeopleAvatarStack(
+                                          names: entry.people,
+                                          totalCount: entry.count,
+                                          size: 30,
+                                        ),
+                                  onOpen: entry.target == null
+                                      ? null
+                                      : () => open(entry.target!),
+                                  previews: [
+                                    for (final value in entry.previews)
+                                      MakoloTerritoryPreview(title: value),
+                                  ],
                                 ),
                             ],
-                          );
-                        },
-                      ),
+                          )
+                          : LayoutBuilder(
+                            builder: (context, field) {
+                              // The index has the same compact two-up composition
+                              // as Moi even after Space's responsive shell margins.
+                              // At very narrow widths prefer readable single cards.
+                              final twoColumns = field.maxWidth >= 260;
+                              final itemWidth = twoColumns
+                                  ? (field.maxWidth - 10) / 2
+                                  : field.maxWidth;
+                              return Wrap(
+                                key: const Key('space-us-territories-grid'),
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  for (final entry in territories)
+                                    SizedBox(
+                                      width: itemWidth,
+                                      child: MakoloTerritoryGridCard(
+                                        tapKey: Key(
+                                          'space-us-grid-${entry.keyName}',
+                                        ),
+                                        title: entry.title,
+                                        subtitle: entry.subtitle,
+                                        symbol: entry.people.isEmpty
+                                            ? Icon(
+                                                entry.icon,
+                                                color: scheme.primary,
+                                                size: 32,
+                                              )
+                                            : MakoloPeopleAvatarStack(
+                                                names: entry.people,
+                                                totalCount: entry.count,
+                                                size: 31,
+                                              ),
+                                        countDescription: entry.count == null
+                                            ? null
+                                            : entry.count == 1
+                                            ? '1 élément visible'
+                                            : '${entry.count} éléments visibles',
+                                        onOpen: entry.target == null
+                                            ? null
+                                            : () => open(entry.target!),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                    ),
                     if (subscriptionTarget != null ||
                         connectionsTarget != null ||
                         settingsTarget != null ||
