@@ -10,6 +10,9 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
+from organizations.models import Organization
 from objectives.models import Dossier, Project
 from objectives.forms import DossierCreateForm, ProjectCreateForm
 from objectives.readiness import resolve_dossier_readiness
@@ -77,6 +80,52 @@ class EmptyObjectivePresentationTests(TestCase):
         self.assertNotIn(
             "owning_space", ProjectCreateForm(actor=self.owner).fields,
         )
+
+    def test_space_creation_uses_only_explicit_authorized_route(self):
+        space = Organization.objects.create(
+            name="Objectifs Espace Autorisé", created_by=self.owner,
+        )
+        grant_space_role(
+            profile=self.owner, space=space,
+            role=SystemRoleCode.SPACE_ADMIN, granted_by=self.owner,
+        )
+        for kind, model in [
+            ("project", Project),
+            ("dossier", Dossier),
+        ]:
+            url = reverse(f"objectives_api:{kind}-list")
+            route = f"{url}?context=space&space={space.slug}"
+            result = self.client.post(
+                route, {"title": f"{kind} de cet Espace"}, format="json",
+            )
+            self.assertEqual(result.status_code, 201, result.data)
+            created = model.objects.get(pk=result.data["id"])
+            self.assertEqual(created.owning_space_id, space.pk)
+            self.assertIsNone(created.owner_profile_id)
+
+    def test_space_route_rejects_another_owner_and_unauthorized_actor(self):
+        owner_space = Organization.objects.create(
+            name="Espace Route", created_by=self.owner,
+        )
+        other_space = Organization.objects.create(
+            name="Espace Étranger", created_by=self.owner,
+        )
+        grant_space_role(
+            profile=self.owner, space=owner_space,
+            role=SystemRoleCode.SPACE_ADMIN, granted_by=self.owner,
+        )
+        url = (
+            reverse("objectives_api:project-list")
+            + f"?context=space&space={owner_space.slug}"
+        )
+        response = self.client.post(
+            url,
+            {"title": "Projet caché", "owning_space_id": str(other_space.pk)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Project.objects.exists())
+
 
     def test_personal_creation_rejects_hidden_space_override(self):
         for route in ["objectives_api:project-list", "objectives_api:dossier-list"]:
