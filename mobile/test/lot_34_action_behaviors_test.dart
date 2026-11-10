@@ -35,7 +35,10 @@ void main() {
       find.byType(MakoloActionButton),
     );
     expect(disabled.phase, MakoloActionPhase.unavailable);
-    await tester.tap(find.text('Voir la situation en direct'), warnIfMissed: false);
+    await tester.tap(
+      find.text('Voir la situation en direct'),
+      warnIfMissed: false,
+    );
     expect(calls, 0);
 
     await render(true);
@@ -96,7 +99,9 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: NowActionRefreshScope(
-            onRefresh: () async { refreshed++; },
+            onRefresh: () async {
+              refreshed++;
+            },
             child: NowActionGroup(situation: situation, api: api),
           ),
         ),
