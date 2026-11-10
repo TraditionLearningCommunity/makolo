@@ -401,3 +401,56 @@
   font-weight: 700;
 }
 .mk-organizer__form-cancel:hover { color: var(--o-primary) !important; }
+
+
+/* Objectives organizer, shared Profile/Space presentation:
+   icon-only views/filters with native selects retained for accessibility. */
+.mk-organizer__heading {padding-bottom:12px}
+.mk-organizer__heading h1 {margin-bottom:0}
+.mk-organizer__create {gap:8px;margin-bottom:14px}
+.mk-organizer__create .mk-action-button {min-height:46px;gap:7px}
+.mk-organizer__tools {padding:12px 0 14px}
+.mk-organizer__filters {align-items:center;gap:7px;margin-top:11px}
+.mk-organizer__filters .mk-organizer__icon-filter {
+  position:relative;display:inline-flex;align-items:center;
+  justify-content:center;width:44px;height:44px;min-width:44px;
+  border:1px solid var(--o-line);border-radius:11px;
+  background:var(--o-surface);color:var(--o-muted);
+  cursor:pointer;margin:0;
+}
+.mk-organizer__filters .mk-organizer__icon-filter svg {
+  width:20px;height:20px;pointer-events:none;
+}
+.mk-organizer__filters .mk-organizer__icon-filter select {
+  position:absolute;inset:0;width:100%;height:100%;max-width:none;
+  margin:0;opacity:0;cursor:pointer;
+}
+.mk-organizer__filters .mk-organizer__icon-filter:focus-within {
+  outline:3px solid var(--o-primary);outline-offset:2px;
+}
+.mk-organizer__filters .mk-organizer__icon-filter.is-active {
+  background:#ede8ff;border-color:#b9abff;color:var(--o-primary);
+}
+.mk-organizer__filters :is(.mk-organizer__order,.mk-organizer__clear) {
+  width:44px;min-width:44px;height:44px;min-height:44px;padding:8px;
+}
+.mk-organizer__views {display:inline-flex;width:auto;gap:3px;margin-top:12px}
+.mk-organizer__views > button {
+  display:inline-flex;justify-content:center;align-items:center;
+  flex:0 0 48px;min-width:48px;min-height:44px;padding:8px;
+}
+.mk-organizer__views svg {width:20px;height:20px}
+.mk-organizer__body {padding-top:13px}
+.mk-organizer__summary {margin-bottom:9px}
+.mk-organizer__empty {
+  display:block;padding:15px 2px;background:transparent;
+  border:0;text-align:start;font-size:14px;min-height:0;
+}
+@media(max-width:470px){
+  .mk-organizer__create {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mk-organizer__create .mk-action-button {font-size:13px}
+  .mk-organizer__filters .mk-organizer__icon-filter {width:44px;height:44px}
+  .mk-organizer__filters .mk-organizer__icon-filter select {width:100%;max-width:none}
+  .mk-organizer__views {display:inline-flex;width:auto}
+  .mk-organizer__views > button {flex:0 0 48px}
+}
