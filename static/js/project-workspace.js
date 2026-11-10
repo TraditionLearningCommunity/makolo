@@ -89,9 +89,7 @@
   }
   function empty(message) {
     const container = el('div', 'mk-project__empty');
-    add(container, icon('folder-open'));
-    add(container, el('strong', '', message));
-    add(container, el('p', '', 'Le Projet peut exister sans dossier, puis évoluer à votre rythme.'));
+    add(container, el('span', '', message));
     return container;
   }
   function metric(number, label) {
@@ -214,14 +212,19 @@
     return node;
   }
   function renderOverview(rows) {
-    add(area, el('h2', '', 'Vue d’ensemble'));
-    add(area, el('p', 'mk-project__hint', 'Les compteurs concernent uniquement les Dossiers visibles acquis.'));
-    const stats = el('div', 'mk-project__numbers');
-    add(stats, metric(rows.length, state.page.has_more ? 'Dossiers acquis (partiel)' : 'Dossiers visibles'));
-    add(stats, metric(rows.filter((x) => x.state === 'active').length, 'En cours · acquis'));
-    add(stats, metric(rows.filter((x) => x.state === 'draft').length, 'En préparation · acquis'));
-    add(stats, metric(rows.filter((x) => x.state === 'completed').length, 'Terminés · acquis'));
-    add(area, stats);
+    if (state.page.has_more)
+      add(area, el('p', 'mk-project__hint', 'Dossiers chargés uniquement.'));
+    if (rows.length) {
+      const stats = el('div', 'mk-project__numbers');
+      const active = rows.filter((x) => x.state === 'active').length;
+      const draft = rows.filter((x) => x.state === 'draft').length;
+      const completed = rows.filter((x) => x.state === 'completed').length;
+      add(stats, metric(rows.length, 'Dossiers'));
+      if (active) add(stats, metric(active, 'En cours'));
+      if (draft) add(stats, metric(draft, 'En préparation'));
+      if (completed) add(stats, metric(completed, 'Terminés'));
+      add(area, stats);
+    }
     const today = localDay(new Date());
     const deadlines = rows.filter((row) => parse(row.deadline) &&
       parse(row.deadline) >= today)
@@ -242,14 +245,16 @@
         add(line, icon('circle-alert'));
         const text = el('div', 'mk-project__row-body');
         add(text, dossierLink(row));
-        add(text, el('small', '', 'Une action est requise selon les faits visibles.'));
+
         add(line, text); add(area, line);
       }
     }
-    add(area, el('h3', 'mk-project__subtitle', 'Dossiers du Projet'));
+    if (rows.length)
+      add(area, el('h3', 'mk-project__subtitle', 'Dossiers'));
     const cards = el('div', 'mk-project__cards');
     for (const row of rows.slice(0, 6)) add(cards, card(row));
-    if (!rows.length) add(cards, empty('Aucun Dossier visible dans ce Projet'));
+    if (!rows.length) add(cards, empty('Aucun Dossier visible.'));
+
     add(area, cards);
     if (rows.length > 6) {
       const btn = el('button', 'mk-action-button', 'Voir tous les dossiers acquis');
