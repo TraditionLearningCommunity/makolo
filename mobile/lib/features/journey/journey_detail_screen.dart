@@ -210,8 +210,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         if (_isCurrent(revision, id, repository)) {
           final status = current['status'];
           setState(() {
-            _invitationPhase =
-                status == 'confirmed' || status == 'cancelled'
+            _invitationPhase = status == 'confirmed' || status == 'cancelled'
                 ? MakoloActionPhase.confirmed
                 : MakoloActionPhase.failed;
             _invitationNotice = status == 'confirmed'
@@ -225,8 +224,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         if (_isCurrent(revision, id, repository)) {
           setState(() {
             _invitationPhase = MakoloActionPhase.failed;
-            _invitationNotice =
-                'Aucune confirmation pour le moment. Vérifiez avant de réessayer.';
+            _invitationNotice = 'Aucune confirmation pour le moment. Vérifiez avant de réessayer.';
           });
         }
       }
