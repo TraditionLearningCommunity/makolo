@@ -220,4 +220,46 @@ void main() {
     expect(find.text('Dossier du Space'), findsNothing);
     expect(find.text('Document'), findsWidgets);
   });
+  testWidgets('typing retains identifiable previous results until the new search', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'search-user');
+    await store.putProjection(
+      kind: 'personal.history',
+      resourceKey: 'offset:0:limit:24',
+      schemaVersion: 1,
+      payload: {
+        'items': [
+          {
+            'source': {'kind': 'journey', 'id': 'journey-prior'},
+            'title': 'Atelier déjà connu',
+            'outcome': {'label': 'Démarche terminée'},
+          },
+        ],
+        'page': {'offset': 0, 'limit': 24, 'has_more': false},
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransverseRetrievalScreen(
+          runtime: _runtime(store),
+          initialQuery: 'Atelier',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Atelier déjà connu'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Autre recherche');
+    await tester.pump();
+    expect(find.text('Atelier déjà connu'), findsOneWidget);
+    expect(find.text('Résultats précédents'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('Atelier déjà connu'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
 }
