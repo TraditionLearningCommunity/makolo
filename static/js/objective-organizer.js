@@ -136,16 +136,14 @@
     q: fold($('[data-search]').value),
     kind: $('[data-filter-kind]').value,
     status: $('[data-filter-status]').value,
-    relation: $('[data-filter-relation]').value,
+    placement: $('[data-filter-placement]').value,
     period: $('[data-filter-period]').value,
     dateField: $('[data-filter-date-field]').value,
     sort: $('[data-sort]').value,
   });
   const matches = (row, options) => {
     if (options.kind !== 'all' && row.kind !== options.kind) return false;
-    if (options.relation === 'independent' && !independent(row)) return false;
-    if (options.relation === 'mine' && row.relation !== 'mine') return false;
-    if (options.relation === 'space' && row.relation !== 'space') return false;
+    if (options.placement === 'independent' && !independent(row)) return false;
     if (options.status !== 'all') {
       if (row.kind === 'journey' && options.status === 'active') {
         if (['fulfilled', 'rejected', 'cancelled', 'expired'].includes(row.state)) return false;
@@ -302,28 +300,41 @@
     ), options).filter((row) => matchTree(row, rows, options));
     const showFlat = state.mode === 'list' ||
       (state.mode === 'cards' && (options.kind !== 'all' ||
-        options.relation === 'independent'));
+        options.placement === 'independent'));
     const visible = showFlat ? filtered : roots;
 
     for (const button of root.querySelectorAll('[data-view]')) {
       const active = button.dataset.view === state.mode;
       button.setAttribute('aria-pressed', String(active));
     }
+    // The selected filter is indicated by the icon treatment; values are
+    // always available through the native accessible select menu.
+    for (const [selector, defaultValue] of [
+      ['[data-filter-kind]', 'all'],
+      ['[data-filter-status]', 'all'],
+      ['[data-filter-placement]', 'all'],
+      ['[data-filter-date-field]', 'created_at'],
+      ['[data-filter-period]', 'all'],
+      ['[data-sort]', 'title'],
+    ]) {
+      const control = $(selector);
+      control?.closest('.mk-organizer__icon-filter')?.classList.toggle(
+        'is-active', control.value !== defaultValue,
+      );
+    }
     results.className = 'mk-organizer__results mk-organizer__results--' + state.mode;
     results.replaceChildren();
     renderSuggestions(rows, options);
-    summary.textContent = filtered.length + ' résultat(s) dans les données acquises' +
-      (state.hasMore ? ' · collection partielle' : '');
+    summary.textContent = filtered.length
+      ? filtered.length + ' résultat' + (filtered.length > 1 ? 's' : '') +
+          (state.hasMore ? ' · affichage partiel' : '')
+      : state.hasMore ? 'Chargement partiel' : '';
 
     if (!visible.length) {
-      const empty = element('div', 'mk-organizer__empty');
-      empty.appendChild(icon('folder-open'));
-      empty.appendChild(element('h2', '', rows.length
-        ? 'Aucun résultat pour ces critères.'
-        : 'Aucun élément accessible pour le moment.'));
-      empty.appendChild(element('p', '', rows.length
-        ? 'Essayez une autre recherche ou effacez les filtres.'
-        : 'Créez un projet ou un dossier pour commencer.'));
+      const empty = element('p', 'mk-organizer__empty');
+      empty.textContent = rows.length
+        ? 'Aucun résultat.'
+        : state.hasMore ? 'Aucun élément chargé.' : 'Aucune démarche.';
       results.appendChild(empty);
     } else if (state.mode === 'cards') {
       for (const row of visible) results.appendChild(card(row, rows, options));
@@ -341,7 +352,7 @@
   }
 
   for (const field of root.querySelectorAll('[data-search], [data-filter-kind], ' +
-      '[data-filter-status], [data-filter-relation], [data-filter-date-field], ' +
+      '[data-filter-status], [data-filter-placement], [data-filter-date-field], ' +
       '[data-filter-period], [data-sort]')) {
     field.addEventListener(field.matches('input') ? 'input' : 'change', render);
   }
@@ -362,7 +373,7 @@
     $('[data-search]').value = '';
     $('[data-filter-kind]').value = 'all';
     $('[data-filter-status]').value = 'all';
-    $('[data-filter-relation]').value = 'all';
+    $('[data-filter-placement]').value = 'all';
     $('[data-filter-date-field]').value = 'created_at';
     $('[data-filter-period]').value = 'all';
     $('[data-sort]').value = 'title';
