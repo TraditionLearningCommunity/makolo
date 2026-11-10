@@ -6,6 +6,8 @@ import '../../design/action_controls.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../data/local/profile_store.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -20,11 +22,15 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenItem,
     required this.onCreate,
+    this.spaceSlug,
+    this.actorContext,
   });
 
   final ObjectiveRepository repository;
   final void Function(String kind, String id) onOpenItem;
   final ValueChanged<String> onCreate;
+  final String? spaceSlug;
+  final ActorContextController? actorContext;
 
   @override
   State<ObjectiveOrganizerScreen> createState() =>
@@ -49,11 +55,51 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   bool _loadingMore = false;
   bool _failed = false;
   int? _requestedOffset;
+  bool _canCreateSpace = false;
+  int _scopeRevision = 0;
   final Set<String> _expanded = {};
+
+  bool get _actorValid {
+    final slug = widget.spaceSlug;
+    if (slug == null) return true;
+    final actor = widget.actorContext?.value;
+    return actor is SpaceActorContext && actor.space.slug == slug;
+  }
+
+  String get _viewStoreKey =>
+      'organizer.view.${widget.repository.profileId}'
+      '${widget.spaceSlug == null ? '' : ':space:${widget.spaceSlug}'}';
+
+  void _actorChanged() {
+    if (!mounted) return;
+    setState(() {
+      _scopeRevision++;
+      _refreshing = false;
+      _loadingMore = false;
+      _failed = false;
+      _requestedOffset = null;
+      _canCreateSpace = false;
+    });
+    if (_actorValid) unawaited(_acquire());
+  }
+
+  void _readCreateCapability(StoredProjection? projection) {
+    final actor = widget.actorContext?.value;
+    final spaces = projection?.payload['manageable_spaces'];
+    final allowed = widget.spaceSlug == null ||
+        (actor is SpaceActorContext &&
+            spaces is List &&
+            spaces.any((row) =>
+                row is Map && row['id']?.toString() == actor.space.id));
+    if (mounted && _canCreateSpace != allowed) {
+      setState(() => _canCreateSpace = allowed);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    widget.actorContext?.addListener(_actorChanged);
     _bind();
     _search.addListener(_changed);
     unawaited(_restore());
@@ -63,20 +109,32 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   @override
   void didUpdateWidget(covariant ObjectiveOrganizerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
+    if (oldWidget.actorContext != widget.actorContext) {
+      oldWidget.actorContext?.removeListener(_actorChanged);
+      widget.actorContext?.addListener(_actorChanged);
+    }
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.spaceSlug != widget.spaceSlug ||
+        oldWidget.actorContext != widget.actorContext) {
+      _scopeRevision++;
       _bind();
       _expanded.clear();
       _failed = false;
+      _refreshing = false;
+      _loadingMore = false;
       _requestedOffset = null;
+      _canCreateSpace = false;
       _mode = OrganizerMode.cards;
       unawaited(_restore());
-      unawaited(_acquire());
+      if (_actorValid) unawaited(_acquire());
     }
   }
 
   void _bind() {
     _pages = widget.repository.watchOrganizer();
-    _source = widget.repository.watchOrganizerSource();
+    _source = widget.repository.watchOrganizerSource(
+      spaceSlug: widget.spaceSlug,
+    );
   }
 
   void _changed() {
@@ -94,16 +152,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   @override
   void dispose() {
+    widget.actorContext?.removeListener(_actorChanged);
     _search.removeListener(_changed);
     _search.dispose();
     super.dispose();
   }
 
   Future<void> _restore() async {
-    final id = widget.repository.profileId;
+    final key = _viewStoreKey;
     try {
-      final value = await _storage.read(key: 'organizer.view.$id');
-      if (mounted && id == widget.repository.profileId) {
+      final value = await _storage.read(key: key);
+      if (mounted && key == _viewStoreKey) {
         setState(
           () => _mode = OrganizerMode.values.firstWhere(
             (item) => item.name == value,
@@ -119,7 +178,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   Future<void> _remember(OrganizerMode value) async {
     try {
       await _storage.write(
-        key: 'organizer.view.${widget.repository.profileId}',
+        key: _viewStoreKey,
         value: value.name,
       );
     } on Object {
@@ -133,11 +192,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   Future<void> _acquire() async {
+    if (!_actorValid) return;
     final repository = widget.repository;
+    final slug = widget.spaceSlug;
+    final revision = _scopeRevision;
     try {
-      final local = await repository.readOrganizerPage(0);
-      final source = await repository.readOrganizerSource();
-      if (!mounted || repository != widget.repository) return;
+      final local = await repository.readOrganizerPage(0, spaceSlug: slug);
+      final source = await repository.readOrganizerSource(spaceSlug: slug);
+      if (!mounted || repository != widget.repository ||
+          revision != _scopeRevision || !_actorValid) return;
+      _readCreateCapability(local);
       if (local == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 local,
@@ -148,27 +212,30 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         unawaited(_refresh());
       }
     } on Object {
-      if (mounted && repository == widget.repository) {
+      if (mounted && revision == _scopeRevision && _actorValid) {
         setState(() => _failed = true);
       }
     }
   }
 
   Future<void> _refresh() async {
-    if (_refreshing) return;
+    if (_refreshing || !_actorValid) return;
     final repository = widget.repository;
+    final slug = widget.spaceSlug;
+    final revision = _scopeRevision;
     setState(() {
       _refreshing = true;
       _failed = false;
       _requestedOffset = null;
     });
     try {
-      await repository.refreshOrganizerPage(0);
-      // The sync engine can retain the local snapshot and record a scoped
-      // failure without throwing. Read its durable status, not just the Future.
-      final local = await repository.readOrganizerPage(0);
-      final owner = await repository.readOrganizerSource();
-      if (mounted && repository == widget.repository) {
+      await repository.refreshOrganizerPage(0, spaceSlug: slug);
+      // Only the scope's owner source can confirm this acquisition.
+      final local = await repository.readOrganizerPage(0, spaceSlug: slug);
+      final owner = await repository.readOrganizerSource(spaceSlug: slug);
+      if (mounted && repository == widget.repository &&
+          revision == _scopeRevision && _actorValid) {
+        _readCreateCapability(local);
         setState(() {
           _failed =
               owner.lastErrorCode != null ||
@@ -176,49 +243,53 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         });
       }
     } on Object {
-      if (mounted && repository == widget.repository) {
+      if (mounted && repository == widget.repository &&
+          revision == _scopeRevision && _actorValid) {
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && repository == widget.repository) {
+      if (mounted && repository == widget.repository &&
+          revision == _scopeRevision) {
         setState(() => _refreshing = false);
       }
     }
   }
 
   Future<void> _more(OrganizerPage page) async {
-    if (_loadingMore ||
-        _refreshing ||
-        _failed ||
-        !page.hasMore ||
-        _requestedOffset == page.nextOffset) {
+    if (_loadingMore || _refreshing || _failed || !_actorValid ||
+        !page.hasMore || _requestedOffset == page.nextOffset) {
       return;
     }
     final repository = widget.repository;
+    final slug = widget.spaceSlug;
+    final revision = _scopeRevision;
     _requestedOffset = page.nextOffset;
     setState(() => _loadingMore = true);
     try {
-      await repository.refreshOrganizerPage(page.nextOffset);
-      final received = await repository.readOrganizerPage(page.nextOffset);
-      final owner = await repository.readOrganizerSourceForOffset(
-        page.nextOffset,
+      await repository.refreshOrganizerPage(page.nextOffset, spaceSlug: slug);
+      final received = await repository.readOrganizerPage(
+        page.nextOffset, spaceSlug: slug,
       );
-      if (received == null ||
-          owner.invalidated ||
-          owner.lastErrorCode != null ||
-          owner.lastSuccessAt == null) {
-        _requestedOffset = null;
-        if (mounted && repository == widget.repository) {
+      final owner = await repository.readOrganizerSourceForOffset(
+        page.nextOffset, spaceSlug: slug,
+      );
+      if (received == null || owner.invalidated ||
+          owner.lastErrorCode != null || owner.lastSuccessAt == null) {
+        if (mounted && repository == widget.repository &&
+            revision == _scopeRevision) {
+          _requestedOffset = null;
           setState(() => _failed = true);
         }
       }
     } on Object {
-      _requestedOffset = null;
-      if (mounted && repository == widget.repository) {
+      if (mounted && repository == widget.repository &&
+          revision == _scopeRevision) {
+        _requestedOffset = null;
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && repository == widget.repository) {
+      if (mounted && repository == widget.repository &&
+          revision == _scopeRevision) {
         setState(() => _loadingMore = false);
       }
     }
@@ -623,6 +694,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   // than hiding either creation command or any view mode.
   Widget _persistentActions() {
     final scheme = Theme.of(context).colorScheme;
+    final canCreate = widget.spaceSlug == null || _canCreateSpace;
     final create = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -647,13 +719,20 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: [create, const SizedBox(width: 12), modes],
+                  children: [
+                    if (canCreate) create,
+                    if (canCreate) const SizedBox(width: 12),
+                    modes,
+                  ],
                 ),
               );
             }
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [create, modes],
+              children: [
+                if (canCreate) create,
+                modes,
+              ],
             );
           },
         ),
@@ -662,7 +741,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => !_actorValid
+      ? const Scaffold(
+          body: Center(
+            child: Text('Cet Espace n’est plus le contexte actif.'),
+          ),
+        )
+      : Scaffold(
     appBar: AppBar(
       titleSpacing: 4,
       leadingWidth: 48,
@@ -679,7 +764,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               ),
             )
           : Text(
-              'Mes démarches',
+              widget.spaceSlug == null
+                  ? 'Mes démarches'
+                  : 'Projets et dossiers',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleMedium
@@ -738,6 +825,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       ),
     ),
     body: StreamBuilder<OwnerSourceState>(
+      key: ValueKey<String>('organizer-owner:${widget.spaceSlug ?? 'personal'}'),
       stream: _source,
       initialData: OwnerSourceState.unknown,
       builder: (context, ownerSnapshot) {
@@ -755,11 +843,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                 SyncVisualState.offline ||
             networkFailure;
         return StreamBuilder<List<StoredProjection>>(
+          key: ValueKey<String>('organizer-pages:${widget.spaceSlug ?? 'personal'}'),
           stream: _pages,
           builder: (context, projectionSnapshot) {
             final page = OrganizerPage.read(
               projectionSnapshot.data ?? const [],
               widget.repository.profileId,
+              spaceSlug: widget.spaceSlug,
             );
             final entries = page.entries;
             final hierarchy = OrganizerHierarchy(entries);
@@ -807,7 +897,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
               child: RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView(
-                  key: const PageStorageKey<String>('organizer-scroll'),
+                  key: PageStorageKey<String>(
+                    'organizer-scroll:${widget.spaceSlug ?? 'personal'}',
+                  ),
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     _mode == OrganizerMode.explorer ? 4 : 16,
