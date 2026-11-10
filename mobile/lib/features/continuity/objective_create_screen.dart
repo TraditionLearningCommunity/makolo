@@ -35,8 +35,6 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   final _title = TextEditingController();
   final _description = TextEditingController();
   DateTime? _start, _end, _deadline;
-  String? _spaceId;
-  List<(String, String)> _spaces = const [];
   bool _submitting = false;
   String? _error;
 
@@ -55,26 +53,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   @override
   void initState() {
     super.initState();
-    _spaceId = widget.spaceActor?.id;
     widget.actorContext?.addListener(_onActorChanged);
-    _loadSpaces();
-  }
-
-  Future<void> _loadSpaces() async {
-    final row = await widget.repository.readOrganizerPage(
-      0,
-      spaceSlug: widget.spaceActor?.slug,
-    );
-    if (!mounted || !_actorValid) return;
-    final items = row?.payload['manageable_spaces'];
-    if (items is! List) return;
-    setState(
-      () => _spaces = [
-        for (final value in items)
-          if (value is Map && value['id'] is String && value['name'] is String)
-            (value['id'] as String, value['name'] as String),
-      ],
-    );
   }
 
   @override
@@ -184,8 +163,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           'description': _description.text.trim(),
           if (widget.spaceActor != null)
             'owning_space_id': widget.spaceActor!.id
-          else if (_spaceId != null)
-            'owning_space_id': _spaceId,
+
           if (_isProject && _start != null) 'starts_on': _iso(_start),
           if (_isProject && _end != null) 'ends_on': _iso(_end),
           if (!_isProject && _deadline != null) 'deadline': _iso(_deadline),
@@ -241,29 +219,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
             child: Form(
               key: _form,
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
                 children: [
-                  Icon(
-                    project
-                        ? Icons.folder_special_outlined
-                        : Icons.folder_outlined,
-                    size: 40,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    project
-                        ? 'Définir un horizon'
-                        : 'Définir un objectif concret',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    project ? 'Un projet rassemble des dossiers sur la durée.' : 'Un dossier peut exister seul ou être rattaché à un projet ensuite.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
                   TextFormField(
                     controller: _title,
                     autofocus: true,
@@ -292,44 +249,6 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    initialValue: _spaceId,
-                    decoration: const InputDecoration(
-                      labelText: 'Contexte porteur',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      if (widget.spaceActor != null)
-                        DropdownMenuItem<String>(
-                          value: widget.spaceActor!.id,
-                          child: Text(
-                            _spaces
-                                    .where(
-                                      (space) =>
-                                          space.$1 == widget.spaceActor!.id,
-                                    )
-                                    .map((space) => space.$2)
-                                    .firstOrNull ??
-                                widget.spaceActor!.slug,
-                          ),
-                        )
-                      else ...[
-                        const DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('Personnel — Moi'),
-                        ),
-                        for (final space in _spaces)
-                          DropdownMenuItem<String>(
-                            value: space.$1,
-                            child: Text(space.$2),
-                          ),
-                      ],
-                    ],
-                    onChanged: _submitting || widget.spaceActor != null
-                        ? null
-                        : (value) => setState(() => _spaceId = value),
-                  ),
-                  const SizedBox(height: 18),
                   if (project) ...[
                     _dateField('start', 'Début de l’horizon', _start),
                     _dateField('end', 'Fin de l’horizon', _end),
@@ -352,12 +271,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     icon: Icons.check_rounded,
                     appearance: MakoloActionAppearance.primary,
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'La création est effective uniquement après validation '
-                    'par Makolo. Aucune donnée métier n’est inventée hors ligne.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+
                 ],
               ),
             ),
