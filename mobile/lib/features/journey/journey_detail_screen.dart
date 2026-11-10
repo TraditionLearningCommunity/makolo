@@ -1298,13 +1298,14 @@ bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) {
     locality: facts.placeLocality,
     address: facts.placeAddress,
   );
-  final endIsDifferent = facts.endDate != null &&
+  final endIsDifferent =
+      facts.endDate != null &&
       (facts.endDate != facts.startDate || facts.endTime != facts.startTime);
-  final hasEndTime = facts.endTime != null &&
-      facts.endTime != facts.startTime;
+  final hasEndTime = facts.endTime != null && facts.endTime != facts.startTime;
   return location != null ||
       (facts.accessInstructions?.trim().isNotEmpty ?? false) ||
-      endIsDifferent || hasEndTime;
+      endIsDifferent ||
+      hasEndTime;
 }
 
 /// The hero already owns the main date, hour and location; show only genuinely
@@ -1323,10 +1324,11 @@ class _JourneyPracticalCard extends StatelessWidget {
     );
     final endDate = JourneyDayPresentation.civilDate(facts.endDate);
     final endTime = JourneyDayPresentation.clock(facts.endTime);
-    final showEnd = facts.endDate != null &&
-        (facts.endDate != facts.startDate ||
-         facts.endTime != facts.startTime);
-    final showTimeOnly = endTime != null &&
+    final showEnd =
+        facts.endDate != null &&
+        (facts.endDate != facts.startDate || facts.endTime != facts.startTime);
+    final showTimeOnly =
+        endTime != null &&
         endTime != JourneyDayPresentation.clock(facts.startTime);
     final endLabel = [
       if (showEnd && endDate != null)
@@ -1340,24 +1342,30 @@ class _JourneyPracticalCard extends StatelessWidget {
           if (additionalPlace != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.directions_outlined,
-                  color: Color(0xFF5232DB)),
+              leading: const Icon(
+                Icons.directions_outlined,
+                color: Color(0xFF5232DB),
+              ),
               title: const Text('Adresse'),
               subtitle: Text(additionalPlace),
             ),
           if (endLabel.isNotEmpty)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.event_available_outlined,
-                  color: Color(0xFF5232DB)),
+              leading: const Icon(
+                Icons.event_available_outlined,
+                color: Color(0xFF5232DB),
+              ),
               title: const Text('Fin prévue'),
               subtitle: Text(endLabel),
             ),
           if (facts.accessInstructions?.trim().isNotEmpty == true)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.info_outline_rounded,
-                  color: Color(0xFF5232DB)),
+              leading: const Icon(
+                Icons.info_outline_rounded,
+                color: Color(0xFF5232DB),
+              ),
               title: const Text('Sur place'),
               subtitle: Text(facts.accessInstructions!),
             ),

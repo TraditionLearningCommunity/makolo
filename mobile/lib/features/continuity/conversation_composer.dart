@@ -163,8 +163,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
     _draftTimer = Timer(const Duration(milliseconds: 350), () {
       _persistDraft(_text.text);
     });
-    if (mounted &&
-        (_error != null || _queuedLocally || _sentByOwner)) {
+    if (mounted && (_error != null || _queuedLocally || _sentByOwner)) {
       setState(() {
         _error = null;
         _queuedLocally = false;
