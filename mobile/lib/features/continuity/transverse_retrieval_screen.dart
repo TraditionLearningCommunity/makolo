@@ -585,7 +585,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       if (!mounted || !_actorValid || version != _version) return;
       setState(() {
         _remote = _deduplicate(more ? [..._remote, ...items] : items);
-        _ownerResultsKnown = true;
+        // Partial owner coverage with no rows cannot erase a useful known
+        // local result. A complete empty response can show a true empty state.
+        _ownerResultsKnown = unavailable.isEmpty || _remote.isNotEmpty;
         // Full owner refresh supersedes local snippets. Partial owner
         // failures leave device data intact but do not reassert its authority.
         // It can be retrieved again only under the active actor's local scope.
