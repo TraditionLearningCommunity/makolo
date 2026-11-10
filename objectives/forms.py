@@ -114,9 +114,14 @@ class ProjectChildDossierForm(forms.Form):
 class ProjectDossierLinkForm(forms.Form):
     dossier = forms.ModelChoiceField(label="Dossier", queryset=User.objects.none())
 
-    def __init__(self, *args, actor, **kwargs):
+    def __init__(self, *args, actor, actor_context=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["dossier"].queryset = manageable_dossiers_for_profile(actor).exclude(project_links__is_active=True).order_by("title")
+        dossiers = manageable_dossiers_for_profile(actor)
+        if actor_context is not None:
+            dossiers = actor_context.filter(dossiers)
+        self.fields["dossier"].queryset = dossiers.exclude(
+            project_links__is_active=True,
+        ).order_by("title")
         self.fields["dossier"].label_from_instance = lambda dossier: dossier.title
 
 
@@ -143,9 +148,13 @@ class DossierProjectForm(forms.Form):
         help_text="Laissez vide pour retirer le Dossier de son Projet.",
     )
 
-    def __init__(self, *args, actor, current_project=None, **kwargs):
+    def __init__(self, *args, actor, current_project=None,
+                 actor_context=None, **kwargs):
         super().__init__(*args, **kwargs)
-        eligible = projects_for_profile(actor).filter(
+        eligible = projects_for_profile(actor)
+        if actor_context is not None:
+            eligible = actor_context.filter(eligible)
+        eligible = eligible.filter(
             lifecycle__in=PROJECT_LINKABLE_LIFECYCLES,
         ).select_related("owning_space")
         ids = [row.pk for row in eligible if can_manage_project(actor, row)]
