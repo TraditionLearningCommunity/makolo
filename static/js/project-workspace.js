@@ -278,8 +278,6 @@
     return box;
   }
   function renderDossiers(rows) {
-    add(area, el('h2', '', 'Dossiers du Projet'));
-    add(area, el('p', 'mk-project__hint', 'Recherchez et triez les dossiers déjà acquis, sans requête réseau.'));
     const filter = el('div', 'mk-project__filters');
     const inputBox = el('label', '', 'Recherche locale');
     const search = el('input');
@@ -309,8 +307,11 @@
     function renderRows() {
       list.replaceChildren();
       const matching = filtered();
-      add(list, el('p', 'mk-project__hint', matching.length + ' résultat(s) acquis'));
-      if (!matching.length) { add(list, empty('Aucun résultat pour ces critères')); return; }
+      if (matching.length && (state.q || state.status !== 'all' ||
+          state.readiness !== 'all'))
+        add(list, el('p', 'mk-project__hint', matching.length + ' résultat' +
+          (matching.length > 1 ? 's' : '')));
+      if (!matching.length) { add(list, empty('Aucun résultat.')); return; }
       for (const row of matching) {
         const line = el('div', 'mk-project__row');
         add(line, icon('folder'));
