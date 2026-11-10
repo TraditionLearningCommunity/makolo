@@ -161,9 +161,7 @@ void main() {
       actor: 'other',
       spaceSlug: 'space-a',
     );
-    final scoped = OrganizerPage.read(
-      [other], 'current', spaceSlug: 'space-a',
-    );
+    final scoped = OrganizerPage.read([other], 'current', spaceSlug: 'space-a');
     expect(scoped.hasFirst, isFalse);
     expect(scoped.entries, isEmpty);
   });

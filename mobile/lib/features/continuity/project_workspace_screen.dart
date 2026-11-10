@@ -281,9 +281,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           widget.id,
           spaceSlug: spaceSlug,
         );
-        await widget.repository.refreshOrganizerPage(
-          0, spaceSlug: spaceSlug,
-        );
+        await widget.repository.refreshOrganizerPage(0, spaceSlug: spaceSlug);
         if (spaceSlug != null) {
           try {
             await widget.repository.refreshOrganizerPage(0);

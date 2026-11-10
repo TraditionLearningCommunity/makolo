@@ -316,9 +316,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         // Refresh the active surface first, then the transcontextual Moi
         // index opportunistically. Failure of the second read never undoes
         // a server-confirmed Dossier mutation.
-        await widget.repository.refreshOrganizerPage(
-          0, spaceSlug: spaceSlug,
-        );
+        await widget.repository.refreshOrganizerPage(0, spaceSlug: spaceSlug);
         if (spaceSlug != null) {
           try {
             await widget.repository.refreshOrganizerPage(0);
