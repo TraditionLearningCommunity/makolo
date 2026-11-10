@@ -21,33 +21,45 @@ def _profile_label(profile): return profile.get_full_name().strip() or profile.u
 
 class DossierCreateForm(forms.Form):
     title = forms.CharField(label="Objectif", max_length=220)
-    description = forms.CharField(label="Contexte", required=False, widget=forms.Textarea(attrs={"rows": 4}))
-    owning_space = forms.ModelChoiceField(label="Espace porteur", queryset=Organization.objects.none(), required=False, help_text="Laissez vide pour un Dossier personnel.")
-    deadline = forms.DateField(label="Échéance", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    deadline = forms.DateField(
+        label="Échéance", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
-    def __init__(self, *args, actor, **kwargs):
-        super().__init__(*args, **kwargs); allowed = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Organization.objects.order_by("name")
-        if allowed is not None: queryset = queryset.filter(pk__in=allowed)
-        self.fields["owning_space"].queryset = queryset
+    def __init__(self, *args, actor=None, **kwargs):
+        # The actor is retained for call-site compatibility. Ownership is
+        # resolved by the web route, never by form POST fields.
+        super().__init__(*args, **kwargs)
 
 
 class ProjectCreateForm(forms.Form):
     title = forms.CharField(label="Titre", max_length=220)
-    description = forms.CharField(label="Contexte", required=False, widget=forms.Textarea(attrs={"rows": 4}))
-    owning_space = forms.ModelChoiceField(label="Espace porteur", queryset=Organization.objects.none(), required=False, help_text="Laissez vide pour un Projet personnel.")
-    starts_on = forms.DateField(label="Début", required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    ends_on = forms.DateField(label="Fin", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    description = forms.CharField(
+        label="Description", required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    starts_on = forms.DateField(
+        label="Début", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    ends_on = forms.DateField(
+        label="Fin", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
 
-    def __init__(self, *args, actor, **kwargs):
-        super().__init__(*args, **kwargs); allowed = space_ids_with_permission(actor, PermissionCode.SPACE_MANAGE); queryset = Organization.objects.order_by("name")
-        if allowed is not None: queryset = queryset.filter(pk__in=allowed)
-        self.fields["owning_space"].queryset = queryset
+    def __init__(self, *args, actor=None, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def clean(self):
-        cleaned = super().clean(); starts_on = cleaned.get("starts_on"); ends_on = cleaned.get("ends_on")
-        if starts_on and ends_on and starts_on > ends_on: self.add_error("ends_on", "La fin du Projet ne peut pas précéder son début.")
+        cleaned = super().clean()
+        start, end = cleaned.get("starts_on"), cleaned.get("ends_on")
+        if start and end and start > end:
+            self.add_error("ends_on", "La fin ne peut pas précéder le début.")
         return cleaned
-
 
 
 class ProjectAuthorityGrantForm(forms.Form):
