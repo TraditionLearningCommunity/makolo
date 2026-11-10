@@ -129,28 +129,38 @@ def conversation_attention_sections(profile, conversation, *, at=None, limit=80)
         "conversation", "visibility_audience", "response_audience",
         "expected_action_audience", "resolution_audience", "published_by",
     )
-    # Old open Points still carry real actions irrespective of publication age.
-    active = list(base.filter(lifecycle__in={
-        ConversationPointLifecycle.OPEN, ConversationPointLifecycle.RESPONSE_CLOSED,
-    }).order_by("deadline_at", "pk"))
-    recent_results = list(base.filter(
+    # Old open Points remain eligible regardless of publication age. Stream
+    # them rather than materializing an unbounded full history in memory.
+    active = base.filter(lifecycle__in={
+        ConversationPointLifecycle.OPEN,
+        ConversationPointLifecycle.RESPONSE_CLOSED,
+    }).order_by("deadline_at", "pk")
+    recent_results = base.filter(
         lifecycle=ConversationPointLifecycle.RESOLVED,
         resolved_at__gte=info_from,
-    ).order_by("-resolved_at", "-pk")[:max(limit * 2, 100)])
-    older_revisit = list(base.filter(
+    ).order_by("-resolved_at", "-pk")[:max(limit * 2, 100)]
+    older_revisit = base.filter(
         user_states__profile=profile,
         user_states__revisit_at__isnull=False,
-    ).distinct().order_by("-user_states__revisit_at")[:max(limit * 2, 100)])
+    ).distinct().order_by("-user_states__revisit_at")[:max(limit * 2, 100)]
     seen = set()
-    points = []
-    for point in (*active, *recent_results, *older_revisit):
-        if point.pk not in seen:
-            seen.add(point.pk)
-            points.append(point)
+
+    def current_candidates():
+        for source in (
+            active.iterator(chunk_size=100),
+            recent_results,
+            older_revisit,
+        ):
+            for point in source:
+                if point.pk in seen:
+                    continue
+                seen.add(point.pk)
+                yield point
+
     sections = {"for_me": [], "to_resolve": [], "to_know": []}
     visibility_cache, audience_cache, history_cache = {}, {}, {}
     total_actions = 0
-    for point in points:
+    for point in current_candidates():
         if not point_visible_to(
             profile, point, at=at, visibility_cache=visibility_cache,
             audience_cache=audience_cache, history_cache=history_cache,
