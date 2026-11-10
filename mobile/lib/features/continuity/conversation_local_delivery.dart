@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:drift/drift.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../platform/files/native_directories.dart';
 
 import '../../auth/token_store.dart';
 import '../../data/local/makolo_database.dart';
@@ -146,7 +146,7 @@ class ConversationLocalDelivery {
     }
     final folder = mediaDirectory == null
         ? Directory(
-            '${(await getApplicationSupportDirectory()).path}/profiles/'
+            '${(await NativeDirectories.support()).path}/profiles/'
             '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing',
           )
         : await mediaDirectory!();
@@ -234,7 +234,7 @@ class ConversationLocalDelivery {
       }
       final folder = mediaDirectory == null
           ? Directory(
-              '${(await getApplicationSupportDirectory()).path}/profiles/'
+              '${(await NativeDirectories.support()).path}/profiles/'
               '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing',
             )
           : await mediaDirectory!();
