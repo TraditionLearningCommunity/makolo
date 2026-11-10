@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/api_error.dart';
@@ -186,10 +187,15 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
-          IconButton(
+          MakoloIconActionButton(
             tooltip: 'Actualiser',
+            icon: Icons.refresh_rounded,
             onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh_rounded),
+            phase: _loading
+                ? MakoloActionPhase.processing
+                : _error != null
+                ? MakoloActionPhase.failed
+                : MakoloActionPhase.available,
           ),
         ],
       ),
