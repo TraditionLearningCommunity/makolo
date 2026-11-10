@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'makolo_theme.dart';
+
 /// Shared visual action grammar for all primary, secondary and depth surfaces.
 ///
 /// Domain owners select the action and callback. This widget owns only
@@ -103,6 +105,57 @@ class MakoloIconActionButton extends StatelessWidget {
   );
 }
 
+/// Visual phases of an action, never a replacement for owner-owned state.
+/// A tap may start processing; only the service response confirms completion.
+enum MakoloActionPhase { available, processing, confirmed, failed, unavailable }
+
+/// Short causal feedback. The caller chooses the phase from the real result;
+/// this widget never starts an operation or asserts that it succeeded.
+class MakoloActionFeedback extends StatelessWidget {
+  const MakoloActionFeedback({
+    super.key,
+    required this.phase,
+    required this.child,
+    this.size = 20,
+  });
+
+  final MakoloActionPhase phase;
+  final Widget child;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final content = switch (phase) {
+      MakoloActionPhase.processing => SizedBox(
+          key: const ValueKey('action-processing'),
+          width: size,
+          height: size,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: scheme.primary,
+          ),
+        ),
+      MakoloActionPhase.failed => Icon(
+          Icons.error_outline_rounded,
+          key: const ValueKey('action-failed'),
+          size: size,
+          color: scheme.error,
+        ),
+      _ => KeyedSubtree(
+          key: const ValueKey('action-content'),
+          child: child,
+        ),
+    };
+    return AnimatedSwitcher(
+      duration: MakoloMotion.effective(context, MakoloMotion.short),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: content,
+    );
+  }
+}
+
 /// Consistent empty pill around one existing N1 action.
 /// An affirmed Save can be lightly tinted; opening and sharing stay unfilled.
 class MakoloRoundedActionSlot extends StatelessWidget {
@@ -110,24 +163,35 @@ class MakoloRoundedActionSlot extends StatelessWidget {
     super.key,
     required this.child,
     this.active = false,
+    this.phase = MakoloActionPhase.available,
   });
 
   final Widget child;
   final bool active;
+  final MakoloActionPhase phase;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
+    final pending = phase == MakoloActionPhase.processing;
+    final failed = phase == MakoloActionPhase.failed;
+    final disabled = phase == MakoloActionPhase.unavailable;
+    final accent = failed ? scheme.error : scheme.primary;
+    return AnimatedContainer(
+      duration: MakoloMotion.effective(context, MakoloMotion.short),
       height: 48,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: active
+        color: failed
+            ? scheme.error.withValues(alpha: 0.06)
+            : (active || phase == MakoloActionPhase.confirmed)
             ? scheme.primary.withValues(alpha: 0.08)
             : Colors.transparent,
         border: Border.all(
-          color: active
-              ? scheme.primary.withValues(alpha: 0.48)
+          color: disabled
+              ? scheme.outlineVariant.withValues(alpha: 0.55)
+              : (active || pending || failed || phase == MakoloActionPhase.confirmed)
+              ? accent.withValues(alpha: 0.5)
               : scheme.outlineVariant,
         ),
         borderRadius: BorderRadius.circular(999),
