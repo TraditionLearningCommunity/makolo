@@ -9,6 +9,7 @@ import '../../app/sync_lifecycle.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -826,6 +827,7 @@ class _OngoingN1Actions extends StatefulWidget {
 
 class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
   bool _busy = false;
+  bool _saveFailed = false;
   bool? _confirmedSaved;
 
   @override
@@ -835,6 +837,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
             widget.item.possibility?.savedState ||
         oldWidget.item.possibility?.id != widget.item.possibility?.id) {
       _confirmedSaved = null;
+      _saveFailed = false;
     }
   }
 
@@ -843,17 +846,21 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
     if (_busy || action == null || !action.canSave || widget.onSave == null) {
       return;
     }
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _saveFailed = false;
+    });
     try {
       final saved = !(_confirmedSaved ?? (action.savedState == 'saved'));
       await widget.onSave!(action, saved);
       if (mounted) setState(() => _confirmedSaved = saved);
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Enregistrement non confirmé. Réessayez.'),
-          ),
+        setState(() => _saveFailed = true);
+        showMakoloNotice(
+          context,
+          'Enregistrement non confirmé. Réessayez.',
+          kind: MakoloNoticeKind.error,
         );
       }
     } finally {
@@ -881,6 +888,13 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
         : null;
     final saved = _confirmedSaved ?? (possibility?.savedState == 'saved');
     final canSave = possibility?.canSave == true && widget.onSave != null;
+    final savePhase = _busy
+        ? MakoloActionPhase.processing
+        : _saveFailed
+        ? MakoloActionPhase.failed
+        : saved
+        ? MakoloActionPhase.confirmed
+        : MakoloActionPhase.available;
 
     // A calm continuity needs no empty toolbar when no operation exists.
     if (!canSave && !canShare && route == null) {
@@ -904,20 +918,24 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
                 Expanded(
                   child: MakoloRoundedActionSlot(
                     active: saved,
+                    phase: savePhase,
                     child: IconButton(
                       key: const Key('ongoing-n1-save'),
                       onPressed: _busy ? null : _save,
-                      tooltip: saved ? 'Enregistré' : 'Enregistrer',
-                      icon: _busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : DiscoveryOrbitIcon(
-                              saved: saved,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                      tooltip: _busy
+                          ? 'Enregistrement…'
+                          : _saveFailed
+                          ? 'Échec de l’enregistrement. Réessayer'
+                          : saved
+                          ? 'Enregistré'
+                          : 'Enregistrer',
+                      icon: MakoloActionFeedback(
+                        phase: savePhase,
+                        child: DiscoveryOrbitIcon(
+                          saved: saved,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
                     ),
                   ),
                 ),
