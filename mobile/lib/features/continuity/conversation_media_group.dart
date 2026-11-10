@@ -25,27 +25,54 @@ class ConversationMediaGroup extends StatefulWidget {
 
 class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
   bool _opening = false;
+  BuildContext? _sheetContext;
+
+  String _identities(List<Map<String, dynamic>> attachments) =>
+      attachments.map((item) => item['id']?.toString() ?? '').join('|');
+
+  @override
+  void didUpdateWidget(covariant ConversationMediaGroup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.repository, widget.repository) ||
+        _identities(oldWidget.attachments) != _identities(widget.attachments)) {
+      // The private viewer must not outlive its original conversation context.
+      final sheet = _sheetContext;
+      if (sheet != null &&
+          sheet.mounted &&
+          ModalRoute.of(sheet)?.isCurrent == true) {
+        Navigator.of(sheet).pop();
+      }
+    }
+  }
 
   Future<void> _open(BuildContext context, int index) async {
-    if (_opening) return;
+    if (_opening || index < 0 || index >= widget.attachments.length) return;
     _opening = true;
+    final gallery = widget.attachments
+        .map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+    final repository = widget.repository;
+    final download = widget.download;
     try {
       await showModalBottomSheet<void>(
         context: context,
         useSafeArea: true,
         isScrollControlled: true,
-        builder: (_) => FractionallySizedBox(
-          heightFactor: .92,
-          child: ConversationAttachmentViewer(
-            repository: widget.repository,
-            download: widget.download,
-            attachment: widget.attachments[index],
-            gallery: widget.attachments,
-            initialIndex: index,
-          ),
-        ),
+        builder: (sheetContext) {
+          _sheetContext = sheetContext;
+          return FractionallySizedBox(
+            heightFactor: .92,
+            child: ConversationAttachmentViewer(
+              repository: repository,
+              download: download,
+              attachment: gallery[index],
+              gallery: gallery,
+              initialIndex: index,
+            ),
+          );
+        },
       );
     } finally {
+      _sheetContext = null;
       _opening = false;
     }
   }
