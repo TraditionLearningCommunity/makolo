@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import '../../design/action_controls.dart';
 
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../platform/files/native_directories.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -196,7 +196,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
       '${_document?['title'] ?? 'Document'}-v${version['number']}',
       ext,
     );
-    final temporary = await getTemporaryDirectory();
+    final temporary = await NativeDirectories.temporary();
     final folder = await Directory(
       '${temporary.path}/makolo-export-${DateTime.now().microsecondsSinceEpoch}',
     ).create();
@@ -240,7 +240,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
     final spaceId = _actor!.space.id;
     final versionId = version['id']?.toString();
     if (api == null || versionId == null) return;
-    final directory = await getTemporaryDirectory();
+    final directory = await NativeDirectories.temporary();
     final folder = await Directory(
       '${directory.path}/makolo-preview-${DateTime.now().microsecondsSinceEpoch}',
     ).create();
