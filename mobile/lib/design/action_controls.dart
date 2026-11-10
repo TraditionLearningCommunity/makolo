@@ -40,10 +40,7 @@ class MakoloActionButton extends StatelessWidget {
     };
     final iconWidget = visibleIcon == null
         ? null
-        : MakoloActionFeedback(
-            phase: effectivePhase,
-            child: Icon(visibleIcon),
-          );
+        : MakoloActionFeedback(phase: effectivePhase, child: Icon(visibleIcon));
     final labelWidget = Text(label);
     return switch (appearance) {
       MakoloActionAppearance.primary =>
@@ -118,11 +115,9 @@ class MakoloIconActionButton extends StatelessWidget {
       MakoloActionPhase.failed => '$tooltip · échec, réessayer',
       _ => tooltip,
     },
-    icon: MakoloActionFeedback(
-      phase: phase,
-      child: Icon(icon),
-    ),
-    onPressed: phase == MakoloActionPhase.processing ||
+    icon: MakoloActionFeedback(phase: phase, child: Icon(icon)),
+    onPressed:
+        phase == MakoloActionPhase.processing ||
             phase == MakoloActionPhase.unavailable
         ? null
         : onPressed,

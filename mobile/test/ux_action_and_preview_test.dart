@@ -177,31 +177,31 @@ void main() {
     expect(calls, 0);
   });
 
-  testWidgets('follow icon distinguishes Wi-Fi off, on, and recoverable error', (
-    tester,
-  ) async {
-    Future<void> render({required bool followed, bool failed = false}) =>
-        tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: MakoloFollowIconButton(
-                followed: followed,
-                failed: failed,
-                onPressed: () {},
+  testWidgets(
+    'follow icon distinguishes Wi-Fi off, on, and recoverable error',
+    (tester) async {
+      Future<void> render({required bool followed, bool failed = false}) =>
+          tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: MakoloFollowIconButton(
+                  followed: followed,
+                  failed: failed,
+                  onPressed: () {},
+                ),
               ),
             ),
-          ),
-        );
+          );
 
-    await render(followed: false);
-    expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
+      await render(followed: false);
+      expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
 
-    await render(followed: true);
-    expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+      await render(followed: true);
+      expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
 
-    await render(followed: true, failed: true);
-    expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
-    expect(find.byTooltip('Suivi non confirmé. Réessayer'), findsOneWidget);
-  });
-
+      await render(followed: true, failed: true);
+      expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+      expect(find.byTooltip('Suivi non confirmé. Réessayer'), findsOneWidget);
+    },
+  );
 }
