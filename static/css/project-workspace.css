@@ -121,3 +121,20 @@
   .mk-project__view-switch button {min-width:0}
   .mk-project__people-heading {align-items:center}
 }
+
+
+/* Compact, icon-first controls: identical for Profile and Space. */
+.mk-project__view-switch {margin-bottom:13px;gap:2px}
+.mk-project__view-switch button {min-width:46px;min-height:44px;padding:9px 12px}
+.mk-project__view-switch svg {width:20px;height:20px}
+.mk-project__numbers {gap:7px;margin:8px 0 12px}
+.mk-project__number {min-width:100px;padding:9px 11px}
+.mk-project__number strong {font-size:23px}
+.mk-project__number span {margin-top:3px}
+.mk-project__empty {padding:13px 8px;text-align:start;border:0;background:transparent}
+.mk-project__hero {padding-bottom:12px}
+.mk-project__path {margin-bottom:12px}
+.mk-project__commands {margin:5px 0 12px}
+.mk-project__subtitle {margin:15px 0 8px}
+.mk-project__card {padding:11px}
+.mk-project__card-meta span {padding:4px 7px}
