@@ -1197,11 +1197,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 onTap: expandable
                     ? () => setState(() => _expanded = !_expanded)
                     : null,
-                child: Text(
-                  description,
-                  key: const Key('discover-description-text'),
-                  maxLines: collapsed ? 3 : null,
-                  overflow: collapsed ? TextOverflow.ellipsis : null,
+                child: AnimatedSize(
+                  duration: MakoloMotion.effective(
+                    context,
+                    MakoloMotion.short,
+                  ),
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    description,
+                    key: const Key('discover-description-text'),
+                    maxLines: collapsed ? 3 : null,
+                    overflow: collapsed ? TextOverflow.ellipsis : null,
+                  ),
                 ),
               ),
             ),
@@ -1248,67 +1255,78 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         children: [
           Text('Documents et ressources', style: theme.textTheme.titleSmall),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final resource in visible)
-            Padding(
-              padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-              child: InkWell(
-                onTap: _canOpenResource(resource)
-                    ? () => _openResource(resource)
-                    : null,
-                borderRadius: BorderRadius.circular(MakoloRadii.small),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: MakoloSpacing.xs,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _resourceIcon(resource),
-                          size: 20,
-                          color: theme.colorScheme.onSurfaceVariant,
+          AnimatedSize(
+            duration: MakoloMotion.effective(
+              context,
+              MakoloMotion.short,
+            ),
+            alignment: Alignment.topCenter,
+            child: Column(
+              children: [
+              for (final resource in visible)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                  child: InkWell(
+                    onTap: _canOpenResource(resource)
+                        ? () => _openResource(resource)
+                        : null,
+                    borderRadius: BorderRadius.circular(MakoloRadii.small),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.xs,
                         ),
-                        const SizedBox(width: MakoloSpacing.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                resource['label'] ?? '',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.brightness == Brightness.dark
-                                      ? const Color(0xFFB6A5FF)
-                                      : theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (resource['text']?.isNotEmpty ?? false)
-                                Text(
-                                  resource['text']!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _resourceIcon(resource),
+                              size: 20,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: MakoloSpacing.sm),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    resource['label'] ?? '',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.brightness == Brightness.dark
+                                          ? const Color(0xFFB6A5FF)
+                                          : theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
+                                  if (resource['text']?.isNotEmpty ?? false)
+                                    Text(
+                                      resource['text']!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (_canOpenResource(resource)) ...[
+                              const SizedBox(width: MakoloSpacing.xs),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 18,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                        if (_canOpenResource(resource)) ...[
-                          const SizedBox(width: MakoloSpacing.xs),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
+          ),
           if (!widget.detailMode && resources.length > 2)
             TextButton(
               key: const Key('discover-resources-expand'),
