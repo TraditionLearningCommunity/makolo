@@ -1057,20 +1057,20 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                         ),
                                       ),
                                     if (flat.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Text(
-                                        organizerCountLabel(
-                                          flat,
-                                          filtered: _hasSelectionFilters,
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
                                         ),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelMedium,
+                                        child: Text(
+                                          organizerCountLabel(
+                                            flat,
+                                            filtered: _hasSelectionFilters,
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium,
+                                        ),
                                       ),
-                                    ),
                                     if (shown.isEmpty)
                                       _empty(entries.isEmpty)
                                     else if (_mode == OrganizerMode.cards)
