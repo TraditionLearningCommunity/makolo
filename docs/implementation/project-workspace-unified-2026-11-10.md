@@ -41,3 +41,45 @@ Il n'existe qu'un seul modèle `Project`, une seule projection `project_workspac
 Le changement a été poussé sans attendre la CI à la demande. Les tests Django ciblés ont été **ajoutés**, mais pas exécutés depuis cette session ; aucun test Flutter/Android ni smoke test Web n'est attesté. Avant fusion, vérifier les migrations, les tests de sécurité, le formatage/analyse Flutter et les parcours réels sur émulateur.
 
 La branche #522 reste ouverte : aucun merge n'est autorisé tant que les contrôles requis sont rouges.
+
+
+## Passe UX commune Projet / Dossier — 2026-11-10
+
+Le porteur Profil ou Espace est résolu par le point d'entrée et validé
+par les services canoniques. Aucune bannière « consultation depuis le Profil »,
+aucun choix de « contexte porteur » et aucun champ d'ownership issu du client
+ne doivent occuper les formulaires ordinaires.
+
+- Flutter : `ObjectiveWorkspaceViewSwitcher` partage la même grammaire de
+  sélecteur à icônes pour les 3 vues Projet et les 4 vues Dossier. Les menus
+  de filtres et tris restent nommés pour l'accessibilité.
+- Web : vues à icônes munies des noms accessibles, en-têtes sans mention de
+  contexte ni d'identité porteur répétée.
+- Projet : seuls les compteurs non nuls et les faits réellement acquis sont
+  présentés. Pas de section « mandats vides » ni de calendrier d'horizon
+  artificiel lorsque les dates manquent.
+- Dossier : aucune carte d'état `Prêt` sans fait évaluable. La projection
+  `resolve_dossier_readiness()` retourne l'absence d'état lorsque la
+  collection canonique n'a aucune Journey ni dépendance évaluable, ou
+  lorsqu'une lecture ne peut étayer une affirmation `ready`.
+  Les autres états (blocage, attente, intervention) restent explicites
+  lorsque leurs faits le justifient.
+- Les compteurs nuls et les explications permanentes ont été retirés des
+  synthèses. Les états vides restent concis et ne suggèrent pas un
+  accomplissement ni une action qui n'existe pas.
+- Les cartes de l'organisateur sont plus compactes et les titres des
+  Dossiers liés ne sont plus tronqués systématiquement.
+- Les créations API et Web ignorent un choix d'acteur client :
+  le point d'entrée personnel crée pour le Profil, la route Espace crée
+  pour cet Espace après vérification des droits. L'entrée depuis une
+  Activity publiée crée un Dossier personnel.
+- Le changement d'acteur en cours de création invalide le formulaire
+  Flutter et évite une création silencieuse dans le mauvais contexte.
+
+Tests ajoutés : `objectives/test_empty_objective_presentation.py` et
+`mobile/test/objective_workspace_view_switcher_test.dart`.
+
+**Validations encore à exécuter :** tests Django ciblés, migration check,
+analyse Flutter, widget tests, navigation mobile, parité Profil/Espace et
+smoke tests de création, de partage et de révocation. Les modifications
+sont poussées dans #522 sans attendre la CI, sans merge.
