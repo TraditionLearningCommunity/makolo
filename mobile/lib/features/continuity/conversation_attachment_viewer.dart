@@ -75,59 +75,75 @@ class _ConversationAttachmentViewerState
       _error = 'Lecteur privé indisponible.';
       return;
     }
-    _future =
-        downloader(
-          attachmentId: current['id']?.toString() ?? '',
-          filename: current['name']?.toString() ?? 'fichier',
-        ).then((file) async {
-          if (!mounted || generation != _generation) {
-            await file.delete().catchError((Object _) => file);
-            throw StateError('Média abandonné.');
+    _future = downloader(
+      attachmentId: current['id']?.toString() ?? '',
+      filename: current['name']?.toString() ?? 'fichier',
+    ).then((file) async {
+      AudioPlayer? pendingAudio;
+      VideoPlayerController? pendingVideo;
+      String? mediaError;
+      var adopted = false;
+      try {
+        if (!mounted || generation != _generation) {
+          throw StateError('Média abandonné.');
+        }
+        final kind = current['kind']?.toString();
+        if (kind == 'audio' || kind == 'voice') {
+          pendingAudio = AudioPlayer();
+          try {
+            await pendingAudio.setFilePath(file.path);
+          } on Object {
+            await pendingAudio.dispose();
+            pendingAudio = null;
+            mediaError = 'Lecture audio indisponible.';
           }
-          _file = file;
-          final kind = current['kind']?.toString();
-          if (kind == 'audio' || kind == 'voice') {
-            final player = AudioPlayer();
-            try {
-              await player.setFilePath(file.path);
-              if (mounted && generation == _generation) {
-                _audio = player;
-                if (playAudio) unawaited(player.play());
-              } else {
-                await player.dispose();
-              }
-            } on Object {
-              await player.dispose();
-              _error = 'Lecture audio indisponible.';
-            }
-          } else if (kind == 'video') {
-            final player = await const PrivateVideoControllerFactory().open(
+        } else if (kind == 'video') {
+          try {
+            pendingVideo = await const PrivateVideoControllerFactory().open(
               file.path,
             );
-            try {
-              await player.initialize();
-              if (mounted && generation == _generation) {
-                _video = player;
-              } else {
-                await player.dispose();
-              }
-            } on Object {
-              await player.dispose();
-              _error = 'Lecture vidéo indisponible.';
-            }
+            await pendingVideo.initialize();
+          } on Object {
+            await pendingVideo?.dispose();
+            pendingVideo = null;
+            mediaError = 'Lecture vidéo indisponible.';
           }
-          if (!mounted || generation != _generation) {
-            throw StateError('Média abandonné.');
-          }
-          setState(() {});
-          return file;
-        });
+        }
+        // Changing media or closing a sheet while the decoder initialized
+        // invalidates both players and the private temporary file.
+        if (!mounted || generation != _generation) {
+          throw StateError('Média abandonné.');
+        }
+        _file = file;
+        _audio = pendingAudio;
+        _video = pendingVideo;
+        _error = mediaError;
+        adopted = true;
+        if (playAudio && pendingAudio != null) {
+          unawaited(pendingAudio.play());
+        }
+        setState(() {});
+        return file;
+      } finally {
+        if (!adopted) {
+          await pendingAudio?.dispose();
+          await pendingVideo?.dispose();
+          await file.delete().catchError((Object _) => file);
+        }
+      }
+    });
   }
 
-  void _retry() => setState(() {
-    _error = null;
-    _download();
-  });
+  Future<void> _retry() async {
+    ++_generation;
+    await _release();
+    if (!mounted) return;
+    setState(() {
+      _error = null;
+      _future = null;
+      _download();
+    });
+  }
 
   Future<void> _release() async {
     final audio = _audio;
