@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
 
+import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
@@ -55,6 +57,7 @@ class ProjectWorkspaceScreen extends StatefulWidget {
     this.api,
     this.conversations,
     this.onOpenConversation,
+    this.actorContext,
   });
   final String id;
   final ObjectiveRepository repository;
@@ -62,6 +65,7 @@ class ProjectWorkspaceScreen extends StatefulWidget {
   final MakoloApiClient? api;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
+  final ActorContextController? actorContext;
 
   @override
   State<ProjectWorkspaceScreen> createState() => _ProjectWorkspaceScreenState();
@@ -76,7 +80,36 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   _ProjectTime _time = _ProjectTime.all;
   String _stateFilter = 'all';
   String _readinessFilter = 'all';
+  String? _spaceSlug;
+  int _contextRevision = 0;
   final _search = TextEditingController();
+
+  String? get _selectedSpaceSlug {
+    final actor = widget.actorContext?.value;
+    return actor is SpaceActorContext ? actor.space.slug : null;
+  }
+
+  void _actorChanged() {
+    final next = _selectedSpaceSlug;
+    if (!mounted || next == _spaceSlug) return;
+    _search.clear();
+    setState(() {
+      _contextRevision++;
+      _spaceSlug = next;
+      _mode = _ProjectMode.summary;
+      _stateFilter = 'all';
+      _readinessFilter = 'all';
+      _time = _ProjectTime.all;
+      _lastOffset = null;
+      _ignoreOlderPages = true;
+      _loadingMore = false;
+      _refreshing = false;
+      _busy = false;
+      _failed = false;
+      _bind();
+    });
+    unawaited(_refresh());
+  }
   bool _refreshing = false,
       _busy = false,
       _loadingMore = false,
@@ -87,31 +120,50 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   @override
   void initState() {
     super.initState();
+    _spaceSlug = _selectedSpaceSlug;
+    widget.actorContext?.addListener(_actorChanged);
     _bind();
     _search.addListener(_changed);
     unawaited(_acquire());
   }
 
   void _bind() {
-    _detail = widget.repository.watch(ObjectiveDepth.project, widget.id);
-    _source = widget.repository.watchSource(ObjectiveDepth.project, widget.id);
+    _detail = widget.repository.watch(
+      ObjectiveDepth.project, widget.id, spaceSlug: _spaceSlug,
+    );
+    _source = widget.repository.watchSource(
+      ObjectiveDepth.project, widget.id, spaceSlug: _spaceSlug,
+    );
     _pages = widget.repository.watchProjectDossiers();
   }
 
   @override
   void didUpdateWidget(covariant ProjectWorkspaceScreen previous) {
     super.didUpdateWidget(previous);
-    if (previous.id != widget.id || previous.repository != widget.repository) {
+    if (previous.actorContext != widget.actorContext) {
+      previous.actorContext?.removeListener(_actorChanged);
+      widget.actorContext?.addListener(_actorChanged);
+    }
+    final selected = _selectedSpaceSlug;
+    if (previous.id != widget.id ||
+        previous.repository != widget.repository ||
+        selected != _spaceSlug) {
+      _contextRevision++;
+      _spaceSlug = selected;
       _bind();
       _mode = _ProjectMode.summary;
       _lastOffset = null;
-      _ignoreOlderPages = false;
+      _ignoreOlderPages = true;
+      _refreshing = false;
+      _loadingMore = false;
+      _busy = false;
       unawaited(_acquire());
     }
   }
 
   @override
   void dispose() {
+    widget.actorContext?.removeListener(_actorChanged);
     _search.removeListener(_changed);
     _search.dispose();
     super.dispose();
@@ -132,10 +184,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   Future<void> _acquire() async {
     final repo = widget.repository;
     final id = widget.id;
+    final spaceSlug = _spaceSlug;
+    final revision = _contextRevision;
     try {
-      final snapshot = await repo.read(ObjectiveDepth.project, id);
-      final source = await repo.readSource(ObjectiveDepth.project, id);
-      if (!mounted || repo != widget.repository || id != widget.id) return;
+      final snapshot = await repo.read(
+        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+      );
+      final source = await repo.readSource(
+        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+      );
+      if (!mounted || repo != widget.repository || id != widget.id ||
+          revision != _contextRevision) return;
       if (snapshot == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 snapshot,
@@ -146,7 +205,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         unawaited(_refresh());
       }
     } on Object {
-      if (mounted) setState(() => _failed = true);
+      if (mounted && revision == _contextRevision) {
+        setState(() => _failed = true);
+      }
     }
   }
 
@@ -154,16 +215,24 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     if (_refreshing) return;
     final id = widget.id;
     final repo = widget.repository;
+    final spaceSlug = _spaceSlug;
+    final revision = _contextRevision;
     setState(() {
       _refreshing = true;
       _failed = false;
     });
     try {
-      await repo.refresh(ObjectiveDepth.project, id);
+      await repo.refresh(
+        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+      );
     } on Object {
-      if (mounted && id == widget.id) setState(() => _failed = true);
+      if (mounted && id == widget.id && revision == _contextRevision) {
+        setState(() => _failed = true);
+      }
     } finally {
-      if (mounted && id == widget.id) setState(() => _refreshing = false);
+      if (mounted && id == widget.id && revision == _contextRevision) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
@@ -179,17 +248,24 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     bool patch = false,
   }) async {
     if (!_enabled) return false;
+    final revision = _contextRevision;
+    final spaceSlug = _spaceSlug;
+    final destination = '$endpoint${ObjectiveRepository.contextQuery(spaceSlug)}';
     setState(() => _busy = true);
     try {
+      if (revision != _contextRevision) return false;
       if (patch) {
-        await widget.api!.patch(endpoint, body: body);
+        await widget.api!.patch(destination, body: body);
       } else {
-        await widget.api!.post(endpoint, body: body);
+        await widget.api!.post(destination, body: body);
       }
+      if (revision != _contextRevision) return false;
       _ignoreOlderPages = true;
       _lastOffset = null;
       try {
-        await widget.repository.refresh(ObjectiveDepth.project, widget.id);
+        await widget.repository.refresh(
+          ObjectiveDepth.project, widget.id, spaceSlug: spaceSlug,
+        );
         await widget.repository.refreshOrganizerPage(0);
       } on Object {
         _notice(
@@ -200,12 +276,16 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       _notice('Modification enregistrée.');
       return true;
     } on Object {
-      _notice(
-        'Action non confirmée. Vérifiez les permissions et la connexion.',
-      );
+      if (mounted && revision == _contextRevision) {
+        _notice(
+          'Action non confirmée. Vérifiez les permissions et la connexion.',
+        );
+      }
       return false;
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && revision == _contextRevision) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -588,19 +668,27 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
 
   Future<void> _more(int offset) async {
     if (_loadingMore || _lastOffset == offset) return;
+    final revision = _contextRevision;
+    final spaceSlug = _spaceSlug;
     _lastOffset = offset;
     setState(() => _loadingMore = true);
     try {
-      await widget.repository.refreshProjectDossiers(widget.id, offset);
-      if (mounted) setState(() => _ignoreOlderPages = false);
+      await widget.repository.refreshProjectDossiers(
+        widget.id, offset, spaceSlug: spaceSlug,
+      );
+      if (mounted && revision == _contextRevision) {
+        setState(() => _ignoreOlderPages = false);
+      }
     } on Object {
-      _lastOffset = null;
-      if (mounted) {
+      if (mounted && revision == _contextRevision) {
+        _lastOffset = null;
         setState(() => _failed = true);
         _notice('Suite indisponible. Actualisez pour réessayer.');
       }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && revision == _contextRevision) {
+        setState(() => _loadingMore = false);
+      }
     }
   }
 
@@ -627,7 +715,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     !item.receivedAt.isBefore(projectReceivedAt) &&
                     item.payload['project_id']?.toString() == widget.id &&
                     _map(item.payload['actor'])['id']?.toString() ==
-                        widget.repository.profileId,
+                        widget.repository.profileId &&
+                    (_spaceSlug == null
+                        ? _map(item.payload['actor_context'])['kind'] != 'space'
+                        : _map(item.payload['actor_context'])['kind'] == 'space' &&
+                            _map(_map(item.payload['actor_context'])['space'])['slug'] ==
+                                _spaceSlug),
               )
               .toList()
             ..sort(
@@ -1689,11 +1782,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       ],
     ),
     body: StreamBuilder<OwnerSourceState>(
+      key: ValueKey<String>(
+        'project-owner:${widget.id}:${_spaceSlug ?? 'personal'}',
+      ),
       stream: _source,
       initialData: OwnerSourceState.unknown,
       builder: (context, sourceSnapshot) {
         final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
         return StreamBuilder<StoredProjection?>(
+          key: ValueKey<String>(
+            'project-detail:${widget.id}:${_spaceSlug ?? 'personal'}',
+          ),
           stream: _detail,
           builder: (context, detailSnapshot) {
             if (source.invalidated) {
@@ -1742,8 +1841,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: ListView(
-                      key: const PageStorageKey<String>(
-                        'project-workspace-scroll',
+                      key: PageStorageKey<String>(
+                        'project-workspace-scroll:${_spaceSlug ?? 'personal'}',
                       ),
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),

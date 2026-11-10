@@ -12,6 +12,22 @@ void main() {
       ObjectiveRepository.detailResourceKey('dossier-1', spaceSlug: 'space-b'),
       isNot('dossier-1:space:space-a'),
     );
+    expect(
+      ObjectiveRepository.projectDossierStorageKey('project-1', 0),
+      'project-1:0:50',
+    );
+    expect(
+      ObjectiveRepository.projectDossierStorageKey(
+        'project-1', 0, spaceSlug: 'space-a',
+      ),
+      'project-1:space:space-a:0:50',
+    );
+    expect(
+      ObjectiveRepository.projectDossierStorageKey(
+        'project-1', 0, spaceSlug: 'space-b',
+      ),
+      isNot('project-1:space:space-a:0:50'),
+    );
     expect(ObjectiveRepository.contextQuery(null), isEmpty);
     expect(
       ObjectiveRepository.contextQuery('space-a'),

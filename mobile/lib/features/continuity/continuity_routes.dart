@@ -229,10 +229,13 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       return ProjectWorkspaceScreen(
         id: state.pathParameters['id']!,
         repository: repository,
+        actorContext: runtime.actorContext,
         api: runtime.api,
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
-        onOpenDossier: (id) => context.push('/dossiers/$id'),
+        onOpenDossier: (id) => context.push(
+          '/dossiers/$id?from_project=${state.pathParameters['id']}',
+        ),
       );
     },
   ),
