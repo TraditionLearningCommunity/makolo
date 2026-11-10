@@ -103,11 +103,8 @@ def dossier_create(request):
     context = _web_context(request)
     fixed_space = _web_creation_space(request, context)
     form = DossierCreateForm(request.POST or None, actor=request.user)
-    if fixed_space is not None:
-        form.fields["owning_space"].initial = fixed_space.pk
-        form.fields["owning_space"].disabled = True
     if request.method == "POST" and form.is_valid():
-        space = form.cleaned_data["owning_space"]
+        space = fixed_space
         dossier = create_dossier(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, deadline=form.cleaned_data["deadline"])
         return _web_redirect(request, "objectives:dossier-detail", dossier_id=dossier.pk)
     return render(request, "objectives/dossier_form.html", {
@@ -130,11 +127,8 @@ def project_create(request):
     context = _web_context(request)
     fixed_space = _web_creation_space(request, context)
     form = ProjectCreateForm(request.POST or None, actor=request.user)
-    if fixed_space is not None:
-        form.fields["owning_space"].initial = fixed_space.pk
-        form.fields["owning_space"].disabled = True
     if request.method == "POST" and form.is_valid():
-        space = form.cleaned_data["owning_space"]
+        space = fixed_space
         project = create_project(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, starts_on=form.cleaned_data["starts_on"], ends_on=form.cleaned_data["ends_on"])
         return _web_redirect(request, "objectives:project-detail", project_id=project.pk)
     return render(request, "objectives/project_form.html", {
