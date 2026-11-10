@@ -19,15 +19,21 @@ void main() {
   ) async {
     final directory = await Directory.systemTemp.createTemp('makolo-lot7-');
     addTearDown(() => directory.delete(recursive: true));
-    final firstFile = await File('${directory.path}/first.bin').writeAsBytes([1, 2]);
-    final nextFile = await File('${directory.path}/next.bin').writeAsBytes([3, 4]);
+    final firstFile = await File('${directory.path}/first.bin')
+        .writeAsBytes([1, 2]);
+    final nextFile = await File('${directory.path}/next.bin')
+        .writeAsBytes([3, 4]);
     final first = Completer<File>();
     final next = Completer<File>();
 
     await tester.pumpWidget(
       MaterialApp(
         home: ConversationAttachmentViewer(
-          attachment: const {'id': 'first', 'name': 'first.bin', 'kind': 'file'},
+          attachment: const {
+            'id': 'first',
+            'name': 'first.bin',
+            'kind': 'file',
+          },
           gallery: const [
             {'id': 'first', 'name': 'first.bin', 'kind': 'file'},
             {'id': 'next', 'name': 'next.bin', 'kind': 'file'},
@@ -56,9 +62,12 @@ void main() {
   testWidgets('Lot 7: closing the private document reader deletes its file', (
     tester,
   ) async {
-    final directory = await Directory.systemTemp.createTemp('makolo-lot7-reader-');
+    final directory = await Directory.systemTemp.createTemp(
+      'makolo-lot7-reader-',
+    );
     addTearDown(() => directory.delete(recursive: true));
-    final file = await File('${directory.path}/private.bin').writeAsBytes([5, 6]);
+    final file = await File('${directory.path}/private.bin')
+        .writeAsBytes([5, 6]);
 
     await tester.pumpWidget(
       MaterialApp(

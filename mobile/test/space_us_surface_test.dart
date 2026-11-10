@@ -626,44 +626,50 @@ void main() {
     expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
     expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
   });
-  testWidgets('Nous switching respects reduced motion on small text-scaled view', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(280, 860);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: MediaQuery(
-          data: const MediaQueryData(
-            disableAnimations: true,
-            textScaler: TextScaler.linear(1.6),
-          ),
-          child: Scaffold(
-            body: SpaceUsSurface(
-              payload: _projection(),
-              fallbackSpaceName: 'Espace',
-              onOpen: (_) {},
+  testWidgets(
+    'Nous switching respects reduced motion on small text-scaled view',
+    (tester) async {
+      tester.view.physicalSize = const Size(280, 860);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              disableAnimations: true,
+              textScaler: TextScaler.linear(1.6),
+            ),
+            child: Scaffold(
+              body: SpaceUsSurface(
+                payload: _projection(),
+                fallbackSpaceName: 'Espace',
+                onOpen: (_) {},
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    final switcher = tester.widget<AnimatedSwitcher>(
-      find.byKey(const ValueKey<String>('space-us-switcher-atelier')),
-    );
-    expect(switcher.duration, Duration.zero);
-    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
-    if (find.byIcon(Icons.grid_view_rounded).evaluate().isNotEmpty) {
-      await tester.tap(find.byIcon(Icons.grid_view_rounded).first);
-    }
-    await tester.pump();
-    expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await tester.pump();
+      final switcher = tester.widget<AnimatedSwitcher>(
+        find.byKey(const ValueKey<String>('space-us-switcher-atelier')),
+      );
+      expect(switcher.duration, Duration.zero);
+      await tester.ensureVisible(
+        find.byKey(const Key('space-us-layout-toggle')),
+      );
+      if (find.byIcon(Icons.grid_view_rounded).evaluate().isNotEmpty) {
+        await tester.tap(find.byIcon(Icons.grid_view_rounded).first);
+      }
+      await tester.pump();
+      expect(
+        find.byKey(const Key('space-us-territories-grid')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('old Space team is not shown even during outgoing animation', (
     tester,
@@ -696,5 +702,4 @@ void main() {
     expect(find.text('Nouveau collectif'), findsOneWidget);
     expect(find.text('Amina'), findsNothing);
   });
-
 }
