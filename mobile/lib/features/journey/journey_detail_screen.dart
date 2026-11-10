@@ -1094,8 +1094,10 @@ class _JourneyPath extends StatelessWidget {
           if (previous.isNotEmpty && current.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: const Icon(Icons.check_circle_outline_rounded,
-                  color: Color(0xFF5232DB)),
+              leading: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF5232DB),
+              ),
               title: Text(
                 '${previous.length} étape${previous.length > 1 ? 's' : ''} passée${previous.length > 1 ? 's' : ''}',
               ),
@@ -1152,10 +1154,13 @@ class _JourneyStepRow extends StatelessWidget {
       title: Text(step.title),
       subtitle: label == null && dependencies.isEmpty
           ? null
-          : Text([
-              if (label != null) label,
-              if (dependencies.isNotEmpty) 'Après : ${dependencies.join(', ')}',
-            ].join(' · ')),
+          : Text(
+              [
+                if (label != null) label,
+                if (dependencies.isNotEmpty)
+                  'Après : ${dependencies.join(', ')}',
+              ].join(' · '),
+            ),
     );
   }
 }

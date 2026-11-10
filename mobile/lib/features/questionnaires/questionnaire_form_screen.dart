@@ -193,8 +193,10 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
       }
     } on Object {
       if (mounted && !_submittedLocally) {
-        setState(() => _serverErrors['_form'] =
-            'Soumission non conservée. Vérifiez les réponses et réessayez.');
+        setState(
+          () => _serverErrors['_form'] =
+              'Soumission non conservée. Vérifiez les réponses et réessayez.',
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -461,18 +463,18 @@ class _FormContent extends StatelessWidget {
             label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
                 ? 'Soumis'
                 : commit == MakoloCommitCue.pending ||
-                    commit == MakoloCommitCue.awaitingConfirmation
+                      commit == MakoloCommitCue.awaitingConfirmation
                 ? 'En attente'
                 : 'Soumettre',
             appearance: MakoloActionAppearance.primary,
             phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
                 ? MakoloActionPhase.confirmed
                 : commit == MakoloCommitCue.pending ||
-                    commit == MakoloCommitCue.awaitingConfirmation
+                      commit == MakoloCommitCue.awaitingConfirmation
                 ? MakoloActionPhase.unavailable
                 : commit == MakoloCommitCue.failed ||
-                    commit == MakoloCommitCue.conflict ||
-                    errors['_form'] != null
+                      commit == MakoloCommitCue.conflict ||
+                      errors['_form'] != null
                 ? MakoloActionPhase.failed
                 : canSubmit
                 ? MakoloActionPhase.available
