@@ -1,4 +1,5 @@
 import '../../platform/media/native_media_picker.dart';
+
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
@@ -227,9 +228,12 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       String? name;
       String kind = widget.mode == 'document' ? 'file' : 'image';
       if (widget.mode == 'document') {
-        final selected = await NativeMediaPicker.pickDocument(
-                    const ['pdf', 'txt', 'doc', 'docx'],
-        );
+        final selected = await NativeMediaPicker.pickDocument(const [
+          'pdf',
+          'txt',
+          'doc',
+          'docx',
+        ]);
         if (selected != null) {
           path = selected.path;
           name = selected.name;

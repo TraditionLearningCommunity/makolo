@@ -1,11 +1,11 @@
 import '../../platform/media/native_media_picker.dart';
+
 import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
-
 
 import 'conversation_repository.dart';
 
@@ -204,9 +204,12 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
         name = image?.name;
         kind = 'image';
       } else {
-        final file = await NativeMediaPicker.pickDocument(
-                    const ['pdf', 'txt', 'doc', 'docx'],
-        );
+        final file = await NativeMediaPicker.pickDocument(const [
+          'pdf',
+          'txt',
+          'doc',
+          'docx',
+        ]);
         path = file?.path;
         name = file?.name;
         kind = 'file';

@@ -1,4 +1,5 @@
 import '../../platform/media/native_media_picker.dart';
+
 import 'dart:async';
 import 'dart:math';
 
@@ -792,7 +793,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         kind = 'image';
       } else {
         final picked = await NativeMediaPicker.pickDocument(
-                    mode == 'voice'
+          mode == 'voice'
               ? const ['m4a', 'mp3', 'wav', 'ogg', 'webm']
               : mode == 'video'
               ? const ['mp4', 'webm']
