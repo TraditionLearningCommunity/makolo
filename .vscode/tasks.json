@@ -44,7 +44,7 @@
       "args": [
         "/d",
         "/c",
-        "${workspaceFolder}\\scripts\\dev\\prepare_android_emulator.bat"
+        "call \"${workspaceFolder}\\scripts\\dev\\prepare_android_emulator.bat\""
       ],
       "problemMatcher": [],
       "presentation": {
