@@ -313,7 +313,19 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           widget.id,
           spaceSlug: spaceSlug,
         );
-        await widget.repository.refreshOrganizerPage(0);
+        // Refresh the active surface first, then the transcontextual Moi
+        // index opportunistically. Failure of the second read never undoes
+        // a server-confirmed Dossier mutation.
+        await widget.repository.refreshOrganizerPage(
+          0, spaceSlug: spaceSlug,
+        );
+        if (spaceSlug != null) {
+          try {
+            await widget.repository.refreshOrganizerPage(0);
+          } on Object {
+            // The selected Space has already been reprojected.
+          }
+        }
         if (revision != _contextRevision) return true;
         final refreshed = await widget.repository.read(
           ObjectiveDepth.dossier,

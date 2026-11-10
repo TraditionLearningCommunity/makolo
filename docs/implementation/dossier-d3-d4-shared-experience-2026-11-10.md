@@ -66,6 +66,23 @@ reste le principal ; l'Espace choisi n'est qu'une portée de consultation.
 - Les mutations de rattachement refusent de gérer le Projet source depuis
   un contexte Espace étranger, sans transférer l'autorité au client.
 
+## Entrée Espace et continuité de l'organisateur
+
+- Depuis Space Work, le bouton « Projets et dossiers » ouvre la route
+  /space/:slug/objectives pour un Space autorisé et non limité aux activités.
+- Cette route réutilise ObjectiveOrganizerScreen avec ses vues Cartes,
+  Liste et Explorateur, et non une implémentation parallèle.
+- Les pages de l'Organizer et ses sources synchronisées ont une clé
+  différente par Espace. OrganizerPage.read filtre également l'actor_context
+  de la projection avant toute construction de hiérarchie.
+- La création réutilise ObjectiveCreateScreen ; depuis l'Espace, le porteur
+  est verrouillé sur cet Espace et revérifié par l'API.
+- Une mutation Dossier, Projet ou création actualise d'abord l'index
+  de l'Espace actif, puis tente l'index transversal Moi sans faire échouer
+  la mutation déjà confirmée.
+- Au changement d'Espace, l'organisateur réinterroge le propriétaire ;
+  les anciennes pages ne constituent jamais une nouvelle preuve d'autorité.
+
 ## Tests ajoutés ou étendus
 
 - objectives/test_dossier_actor_context.py : cas de Projet A relié à Dossier B,
@@ -76,6 +93,8 @@ reste le principal ; l'Espace choisi n'est qu'une portée de consultation.
   l'acteur présenté, Profil vs Espace.
 - mobile/test/objective_filter_reset_test.dart : bouton de réinitialisation
   caché quand inactif et callback lorsque sollicité.
+- mobile/test/objective_organizer_data_test.dart : séparation entre fenêtres
+  Profil, Espace A, Espace B et rejet d'un autre Profil pour une même portée.
 
 Les tests existants de Project, Dossier, Journey, permissions et sélecteurs
 restent intacts. Les suites et l'émulateur ne sont pas déclarés verts par ce

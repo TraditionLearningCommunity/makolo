@@ -201,6 +201,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           0,
           spaceSlug: widget.spaceActor?.slug,
         );
+        if (widget.spaceActor != null) {
+          try {
+            await widget.repository.refreshOrganizerPage(0);
+          } on Object {
+            // Refreshing Moi is secondary to the confirmed Space creation.
+          }
+        }
       } on Object {
         // The new detail still opens; the organizer can retry its refresh.
       }

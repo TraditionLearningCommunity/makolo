@@ -80,7 +80,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _requestedOffset = null;
       _canCreateSpace = false;
     });
-    if (_actorValid) unawaited(_acquire());
+    if (_actorValid) {
+      // Revalidate the current Space at the owner. A cached page is not
+      // evidence that permissions survived an actor switch.
+      unawaited(_refresh());
+    }
   }
 
   void _readCreateCapability(StoredProjection? projection) {

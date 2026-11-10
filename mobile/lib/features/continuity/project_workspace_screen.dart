@@ -281,7 +281,16 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           widget.id,
           spaceSlug: spaceSlug,
         );
-        await widget.repository.refreshOrganizerPage(0);
+        await widget.repository.refreshOrganizerPage(
+          0, spaceSlug: spaceSlug,
+        );
+        if (spaceSlug != null) {
+          try {
+            await widget.repository.refreshOrganizerPage(0);
+          } on Object {
+            // The server-confirmed Project is fresh in its selected Space.
+          }
+        }
         if (revision != _contextRevision) return true;
       } on Object {
         if (mounted && revision == _contextRevision) {

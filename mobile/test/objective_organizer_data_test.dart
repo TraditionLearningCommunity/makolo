@@ -8,12 +8,19 @@ StoredProjection page({
   required List<Map<String, dynamic>> entries,
   bool hasMore = false,
   String actor = 'current',
+  String? spaceSlug,
 }) => StoredProjection(
   kind: 'objective.organizer.collection',
   schemaVersion: 1,
   receivedAt: received,
   payload: {
     'actor': {'type': 'profile', 'id': actor},
+    'actor_context': spaceSlug == null
+        ? {'kind': 'personal'}
+        : {
+            'kind': 'space',
+            'space': {'slug': spaceSlug},
+          },
     'items': entries,
     'page': {
       'offset': offset,
@@ -107,6 +114,58 @@ void main() {
     final state = OrganizerPage.read([second, first], 'current');
     expect(state.entries.map((e) => e.id).toList(), ['p', 'd']);
     expect(state.hasMore, isFalse);
+  });
+
+  test('Space organizer windows cannot mix the Profile or other Spaces', () {
+    final personal = page(
+      received: t0,
+      offset: 0,
+      entries: [item('dossier', 'personal')],
+    );
+    final firstA = page(
+      received: t0,
+      offset: 0,
+      hasMore: true,
+      spaceSlug: 'space-a',
+      entries: [item('project', 'a')],
+    );
+    final secondA = page(
+      received: t1,
+      offset: 50,
+      spaceSlug: 'space-a',
+      entries: [item('dossier', 'a-dossier', parent: 'a')],
+    );
+    final firstB = page(
+      received: t1,
+      offset: 0,
+      spaceSlug: 'space-b',
+      entries: [item('project', 'b')],
+    );
+    final all = [firstB, secondA, personal, firstA];
+    final mine = OrganizerPage.read(all, 'current');
+    final a = OrganizerPage.read(all, 'current', spaceSlug: 'space-a');
+    final b = OrganizerPage.read(all, 'current', spaceSlug: 'space-b');
+    expect(mine.entries.map((e) => e.id), ['personal']);
+    expect(a.entries.map((e) => e.id), ['a', 'a-dossier']);
+    expect(a.entries.last.projectId, 'a');
+    expect(b.entries.map((e) => e.id), ['b']);
+    expect(a.hasFirst, isTrue);
+    expect(b.hasMore, isFalse);
+  });
+
+  test('Another Profile cannot enter an authorized Space window', () {
+    final other = page(
+      received: t0,
+      offset: 0,
+      entries: [item('dossier', 'secret')],
+      actor: 'other',
+      spaceSlug: 'space-a',
+    );
+    final scoped = OrganizerPage.read(
+      [other], 'current', spaceSlug: 'space-a',
+    );
+    expect(scoped.hasFirst, isFalse);
+    expect(scoped.entries, isEmpty);
   });
 
   test('another Profile cannot enter this organizer collection', () {
