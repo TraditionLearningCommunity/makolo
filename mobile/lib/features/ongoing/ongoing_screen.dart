@@ -559,7 +559,16 @@ class _OngoingFieldState extends State<_OngoingField> {
                       label: Text(expanded ? 'Voir moins' : 'Voir plus'),
                     ),
                   ),
-                  if (expanded) _OngoingN1Details(item: item),
+                  AnimatedSize(
+                    duration: MakoloMotion.effective(
+                      context,
+                      MakoloMotion.short,
+                    ),
+                    alignment: Alignment.topCenter,
+                    child: expanded
+                        ? _OngoingN1Details(item: item)
+                        : const SizedBox.shrink(),
+                  ),
                 ],
                 _OngoingN1Actions(
                   key: ValueKey<String>('ongoing-actions-${item.id}'),
@@ -1284,6 +1293,25 @@ class _OngoingRow extends StatelessWidget {
     return candidate;
   }
 
+  void _showContextPreview(BuildContext context) {
+    showMakoloQuickPreview(
+      context,
+      title: item.title,
+      eyebrow: _ongoingBadgeLabel(item),
+      summary: item.synthesis,
+      icon: _ongoingBadgeIcon(item) ?? Icons.route_outlined,
+      facts: [
+        if (item.mySide.isNotEmpty) 'De votre côté : ${item.mySide.first}',
+        if (item.elsewhere.isNotEmpty) 'Ailleurs : ${item.elsewhere.first}',
+        if (item.makolo.isNotEmpty) 'Makolo : ${item.makolo.first}',
+        if (item.systemOrTime.isNotEmpty)
+          'Système ou temps : ${item.systemOrTime.first}',
+      ],
+      actionLabel: 'Ouvrir',
+      onOpen: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.makoloSurfaces;
@@ -1319,6 +1347,8 @@ class _OngoingRow extends StatelessWidget {
       child: InkWell(
         key: const Key('ongoing-n1-open-unit'),
         onTap: onTap,
+        onLongPress: () => _showContextPreview(context),
+        onSecondaryTap: () => _showContextPreview(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
