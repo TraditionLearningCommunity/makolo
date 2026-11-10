@@ -48,6 +48,11 @@ class _ProfileAvatarImageState extends State<ProfileAvatarImage> {
     if (oldWidget.profileId != widget.profileId ||
         oldWidget.url != widget.url ||
         oldWidget.revision != widget.revision) {
+      // Never paint an old Profile's portrait while the new Profile's
+      // private local image is still being restored.
+      if (oldWidget.profileId != widget.profileId) {
+        _bytes = null;
+      }
       unawaited(_restore(forceRefresh: oldWidget.url != widget.url));
     }
   }
