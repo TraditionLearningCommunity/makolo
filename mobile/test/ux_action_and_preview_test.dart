@@ -146,4 +146,62 @@ void main() {
     expect(opened, 1);
     expect(find.text('Porteur public'), findsNothing);
   });
+  testWidgets('processing and unavailable actions refuse repeated taps', (
+    tester,
+  ) async {
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              MakoloIconActionButton(
+                tooltip: 'Ouvrir',
+                icon: Icons.arrow_forward_rounded,
+                phase: MakoloActionPhase.processing,
+                onPressed: () => calls++,
+              ),
+              MakoloActionButton(
+                label: 'Valider',
+                onPressed: () => calls++,
+                phase: MakoloActionPhase.unavailable,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.tap(find.byType(IconButton), warnIfMissed: false);
+    await tester.tap(find.text('Valider'), warnIfMissed: false);
+    expect(calls, 0);
+  });
+
+  testWidgets('follow icon distinguishes Wi-Fi off, on, and recoverable error', (
+    tester,
+  ) async {
+    Future<void> render({required bool followed, bool failed = false}) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: MakoloFollowIconButton(
+                followed: followed,
+                failed: failed,
+                onPressed: () {},
+              ),
+            ),
+          ),
+        );
+
+    await render(followed: false);
+    expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
+
+    await render(followed: true);
+    expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+
+    await render(followed: true, failed: true);
+    expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+    expect(find.byTooltip('Suivi non confirmé. Réessayer'), findsOneWidget);
+  });
+
 }
