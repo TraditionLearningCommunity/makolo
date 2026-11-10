@@ -1,5 +1,5 @@
 """D5 acceptance: a canonical Dossier across Projects and actor lenses."""
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -269,11 +269,13 @@ class D5CrossContextClosureTests(TestCase):
         web_url = reverse(
             "objectives:dossier-detail", args=[self.dossier_a.pk],
         )
-        self.assertEqual(self.client.get(web_url).status_code, 200)
+        web = Client()
+        web.force_login(self.member)
+        self.assertEqual(web.get(web_url).status_code, 200)
         revoke_dossier_authority(
             actor=self.owner, dossier=self.dossier_a, mandate=self.mandate_a,
         )
-        self.assertEqual(self.client.get(web_url).status_code, 404)
+        self.assertEqual(web.get(web_url).status_code, 404)
         self.assertEqual(
             self.client.get(
                 self.dossier_url(self.dossier_a) + self.scope(self.space_a),
