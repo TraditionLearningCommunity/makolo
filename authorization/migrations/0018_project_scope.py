@@ -60,6 +60,53 @@ def seed_project_authority(apps, schema_editor):
             )
 
 
+def reverse_project_authority(apps, schema_editor):
+    """Undo only this migration's seed, never erase real Project history.
+
+    Downgrading the schema with remaining Project Mandates would erase their
+    target and make their scope invalid under the former check constraint.
+    """
+    from django.db.migrations.exceptions import IrreversibleError
+
+    Permission = apps.get_model("authorization", "Permission")
+    Role = apps.get_model("authorization", "Role")
+    RolePermission = apps.get_model("authorization", "RolePermission")
+    Mandate = apps.get_model("authorization", "Mandate")
+
+    if Mandate.objects.filter(scope_type="project").exists():
+        raise IrreversibleError(
+            "Project Mandates exist. Preserve or explicitly migrate their "
+            "history before reversing authorization.0018_project_scope."
+        )
+
+    role_ids = [
+        uuid.uuid5(NAMESPACE, "role:" + code) for code in ROLE_BUNDLES
+    ]
+    permission_ids = [
+        uuid.uuid5(NAMESPACE, "permission:" + code)
+        for code, _ in PERMISSIONS
+    ]
+    if Role.objects.filter(scope_type="project").exclude(
+        pk__in=role_ids,
+    ).exists() or Permission.objects.filter(scope_type="project").exclude(
+        pk__in=permission_ids,
+    ).exists():
+        raise IrreversibleError(
+            "Untracked Project roles or permissions require an explicit "
+            "data migration before downgrade."
+        )
+    if RolePermission.objects.filter(
+        permission_id__in=permission_ids,
+    ).exclude(role_id__in=role_ids).exists():
+        raise IrreversibleError(
+            "Project permissions are still linked to other roles."
+        )
+
+    RolePermission.objects.filter(role_id__in=role_ids).delete()
+    Role.objects.filter(pk__in=role_ids).delete()
+    Permission.objects.filter(pk__in=permission_ids).delete()
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("authorization", "0017_conversation_permissions"),
@@ -123,5 +170,5 @@ class Migration(migrations.Migration):
             model_name="mandate",
             index=models.Index(fields=["project", "status"], name="auth_mand_proj_status_idx"),
         ),
-        migrations.RunPython(seed_project_authority, migrations.RunPython.noop),
+        migrations.RunPython(seed_project_authority, reverse_project_authority),
     ]
