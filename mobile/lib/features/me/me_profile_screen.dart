@@ -323,6 +323,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   void _rememberEdits() {
     _editRevision++;
     _edited = true;
+    if (mounted && !_saving && _confirmation != null) {
+      setState(() => _confirmation = null);
+    }
     if (widget.drafts == null || !_loaded) return;
     // Only the newest editor snapshot is awaiting persistence. Per-keystroke
     // chains accumulate stale writes and delay the final draft at shutdown.
@@ -1123,10 +1126,18 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ),
                 const SizedBox(height: 20),
                 MakoloActionButton(
+                  key: const Key('me-profile-save-action'),
                   label: _saving ? 'Enregistrement…' : 'Enregistrer',
+                  icon: Icons.check_rounded,
                   onPressed: _saving ? null : _save,
-                  busy: _saving,
                   appearance: MakoloActionAppearance.primary,
+                  phase: _saving
+                      ? MakoloActionPhase.processing
+                      : _error != null
+                      ? MakoloActionPhase.failed
+                      : _confirmation != null && !_edited
+                      ? MakoloActionPhase.confirmed
+                      : MakoloActionPhase.available,
                 ),
               ],
             ),
