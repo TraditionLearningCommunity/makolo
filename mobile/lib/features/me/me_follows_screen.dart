@@ -152,7 +152,9 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Mes suivis')),
       body: StreamBuilder<OwnerSourceState>(
-        key: ValueKey<String>('me-follows-scope-${widget.personal.store.profileId}'),
+        key: ValueKey<String>(
+          'me-follows-scope-${widget.personal.store.profileId}',
+        ),
         stream: _sources,
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {

@@ -164,7 +164,9 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
               child: Text('Ces collectifs ne sont plus accessibles.'),
             )
           : StreamBuilder<StoredProjection?>(
-              key: ValueKey<String>('me-collectives-scope-${widget.personal.store.profileId}'),
+              key: ValueKey<String>(
+                'me-collectives-scope-${widget.personal.store.profileId}',
+              ),
               stream: _snapshots,
               builder: (context, snapshot) {
                 final projection = snapshot.data;
