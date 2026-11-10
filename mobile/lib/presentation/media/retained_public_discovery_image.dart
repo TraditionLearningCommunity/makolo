@@ -128,6 +128,7 @@ class _RetainedPublicDiscoveryImageState
   Widget build(BuildContext context) {
     final bytes = _bytes;
     return AnimatedSwitcher(
+      key: ValueKey<String>('published-image-${widget.url}'),
       duration: MakoloMotion.effective(context, MakoloMotion.short),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
