@@ -583,57 +583,47 @@ class _JourneyContent extends StatelessWidget {
             ],
             if (presentation.resourcesLink != null &&
                 (!resourcesKnown || resourcesPreview.isNotEmpty)) ...[
-              const SizedBox(height: MakoloSpacing.lg),
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Documents et instructions',
+                title: 'Pour me préparer',
                 child: MakoloCard(
-                  semanticLabel: 'Voir les documents et instructions',
-                  onTap: () => onOpenResources(presentation.resourcesLink!),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       for (final resource in resourcesPreview.take(3))
                         ListTile(
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
                           contentPadding: EdgeInsets.zero,
-                          leading: Icon(switch (resource.kind) {
-                            'file' => Icons.insert_drive_file_outlined,
-                            'url' => Icons.link_rounded,
-                            'text' => Icons.notes_rounded,
-                            _ => Icons.description_outlined,
-                          }, color: const Color(0xFF5232DB)),
+                          leading: Icon(
+                            _resourceIcon(resource),
+                            color: const Color(0xFF5232DB),
+                          ),
                           title: Text(resource.title),
                           subtitle: resource.description == null
                               ? null
                               : Text(
                                   resource.description!,
-                                  maxLines: 2,
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
                         ),
-                      if (resourcesPreview.isEmpty)
-                        const MakoloStatusMetadataAction(
-                          title: 'Documents et instructions',
-                          action: Icon(Icons.chevron_right_rounded),
-                        ),
-                      if (resourcesPreview.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Text(
-                                resourcesPreview.length > 3
-                                    ? 'Voir les ${resourcesPreview.length} ressources'
-                                    : 'Voir les ressources',
-                                style: const TextStyle(
-                                  color: Color(0xFF5232DB),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right_rounded),
-                            ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              onOpenResources(presentation.resourcesLink!),
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          iconAlignment: IconAlignment.end,
+                          label: Text(
+                            !resourcesKnown
+                                ? 'Voir les documents'
+                                : resourcesPreview.length > 3
+                                ? 'Voir les ${resourcesPreview.length} ressources'
+                                : 'Voir toutes les ressources',
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -1310,6 +1300,19 @@ bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) {
 
 /// The hero already owns the main date, hour and location; show only genuinely
 /// additional practical information here.
+IconData _resourceIcon(JourneyResourcePreview resource) {
+  final mime = resource.mimeType?.toLowerCase() ?? '';
+  if (mime.startsWith('image/')) return Icons.image_outlined;
+  if (mime.startsWith('video/')) return Icons.videocam_outlined;
+  if (mime == 'application/pdf') return Icons.picture_as_pdf_outlined;
+  return switch (resource.kind) {
+    'url' => Icons.link_rounded,
+    'text' => Icons.notes_rounded,
+    'file' => Icons.description_outlined,
+    _ => Icons.folder_open_outlined,
+  };
+}
+
 class _JourneyPracticalCard extends StatelessWidget {
   const _JourneyPracticalCard({required this.facts});
 
