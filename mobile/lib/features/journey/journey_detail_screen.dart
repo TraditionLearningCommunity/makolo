@@ -913,12 +913,13 @@ class _JourneyIdentity extends StatelessWidget {
     );
     final facts = presentation.practical;
     final civil = JourneyDayPresentation.civilDate(facts?.startDate);
-    final date = civil ??
-        (facts?.startAt == null ? null : facts!.startAt!.toLocal());
+    final date =
+        civil ?? (facts?.startAt == null ? null : facts!.startAt!.toLocal());
     final dateLabel = date == null
         ? null
         : MaterialLocalizations.of(context).formatMediumDate(date);
-    final timeLabel = JourneyDayPresentation.clock(facts?.startTime) ??
+    final timeLabel =
+        JourneyDayPresentation.clock(facts?.startTime) ??
         (facts?.startAt == null
             ? null
             : JourneyDayPresentation.clock(
@@ -1014,13 +1015,12 @@ class _JourneyIdentity extends StatelessWidget {
                 ],
               ),
             ],
-            if (dateLabel != null || timeLabel != null ||
-                placeLabel != null || civil != null) ...[
+            if (dateLabel != null ||
+                timeLabel != null ||
+                placeLabel != null ||
+                civil != null) ...[
               const SizedBox(height: MakoloSpacing.lg),
-              Container(
-                height: 1,
-                color: const Color(0xFF6F60A4),
-              ),
+              Container(height: 1, color: const Color(0xFF6F60A4)),
               const SizedBox(height: MakoloSpacing.md),
               Wrap(
                 spacing: MakoloSpacing.md,
@@ -1069,11 +1069,7 @@ class _JourneyHeroFact extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(
-        icon,
-        color: const Color(0xFFDBD2FF),
-        size: smallIcon ? 9 : 18,
-      ),
+      Icon(icon, color: const Color(0xFFDBD2FF), size: smallIcon ? 9 : 18),
       const SizedBox(width: MakoloSpacing.xs),
       Flexible(
         child: Text(

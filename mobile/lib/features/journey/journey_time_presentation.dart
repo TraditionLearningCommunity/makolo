@@ -53,10 +53,7 @@ class JourneyDayPresentation {
     return '${hour.toString().padLeft(2, '0')}h${minute.toString().padLeft(2, '0')}';
   }
 
-  static String? place({
-    String? name,
-    String? locality,
-  }) {
+  static String? place({String? name, String? locality}) {
     final primary = name?.trim();
     if (primary != null && primary.isNotEmpty) return primary;
     final fallback = locality?.trim();
@@ -115,11 +112,14 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
   void _schedule() {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    _midnight = Timer(tomorrow.difference(now) + const Duration(seconds: 1), () {
-      if (!mounted) return;
-      setState(() {});
-      _schedule();
-    });
+    _midnight = Timer(
+      tomorrow.difference(now) + const Duration(seconds: 1),
+      () {
+        if (!mounted) return;
+        setState(() {});
+        _schedule();
+      },
+    );
   }
 
   @override
