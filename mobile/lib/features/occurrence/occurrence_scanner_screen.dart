@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../network/api_error.dart';
@@ -35,6 +37,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
   bool _checking = false;
   bool _camera = false;
   bool _confirming = false;
+  bool _needsReview = false;
   bool _denied = false;
   int _epoch = 0;
   int _attempt = 0;
@@ -111,6 +114,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       _checking = false;
       _busy = false;
       _confirming = false;
+      _needsReview = false;
       _denied = false;
     });
     if (_actorValid) unawaited(_load());
@@ -156,7 +160,10 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
         throw const FormatException('Contexte Scanner incohérent');
       }
       if (!mounted || epoch != _epoch || !_actorValid) return;
-      setState(() => _context = data);
+      setState(() {
+        _context = data;
+        _needsReview = false;
+      });
     } on Object catch (error) {
       if (!mounted || epoch != _epoch) return;
       setState(() {
@@ -177,6 +184,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
         _busy ||
         _confirming ||
         _checking ||
+        _needsReview ||
         !_actorValid ||
         _context == null) {
       return;
@@ -214,9 +222,10 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
 
   Future<void> _submit(String token) async {
     final currentEpoch = _epoch;
-    if (_busy || _checking || _context == null || !_actorValid) return;
+    if (_busy || _checking || _needsReview || _context == null || !_actorValid) return;
     setState(() {
       _busy = true;
+      _needsReview = false;
       _result = null;
     });
     try {
@@ -251,6 +260,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     } on Object catch (error) {
       if (!mounted || _epoch != currentEpoch) return;
       setState(() {
+        _needsReview = true;
         _result = {
           'accepted': false,
           'message':
@@ -335,14 +345,20 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                     ),
                   ),
                 const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _busy || _checking || _confirming
+                MakoloActionButton(
+                  onPressed: _busy || _checking || _confirming || _needsReview
                       ? null
                       : () => setState(() => _camera = !_camera),
-                  icon: Icon(
-                    _camera ? Icons.close : Icons.qr_code_scanner_rounded,
-                  ),
-                  label: Text(_camera ? 'Fermer la caméra' : 'Scanner un QR'),
+                  icon: _camera ? Icons.close : Icons.qr_code_scanner_rounded,
+                  label: _camera ? 'Fermer la caméra' : 'Scanner un QR',
+                  appearance: MakoloActionAppearance.primary,
+                  phase: _busy || _confirming
+                      ? MakoloActionPhase.processing
+                      : _needsReview
+                      ? MakoloActionPhase.failed
+                      : _checking
+                      ? MakoloActionPhase.unavailable
+                      : MakoloActionPhase.available,
                 ),
                 if (_camera) ...[
                   const SizedBox(height: 12),
@@ -350,7 +366,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                     height: 280,
                     child: MakoloCodeScanner(
                       onCode: (code) {
-                        if (_camera && !_busy) {
+                        if (_camera && !_busy && !_needsReview) {
                           unawaited(_offerToken(code.value));
                         }
                       },
@@ -372,12 +388,32 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                   obscureText: true,
                 ),
                 const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: _busy || _checking
+                MakoloActionButton(
+                  onPressed: _busy || _checking || _confirming || _needsReview
                       ? null
                       : () => _offerToken(_code.text),
-                  child: const Text('Vérifier ce code'),
+                  label: 'Vérifier ce code',
+                  icon: Icons.verified_outlined,
+                  phase: _busy || _confirming
+                      ? MakoloActionPhase.processing
+                      : _needsReview
+                      ? MakoloActionPhase.failed
+                      : _checking
+                      ? MakoloActionPhase.unavailable
+                      : MakoloActionPhase.available,
                 ),
+                if (_needsReview) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Résultat non confirmé. Consultez les contrôles existants '
+                    'et revérifiez l’autorisation avant un nouveau scan.',
+                  ),
+                  MakoloActionButton(
+                    label: 'Revérifier le contexte',
+                    icon: Icons.refresh_rounded,
+                    onPressed: _checking || _busy ? null : _load,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 const Text(
                   'Le code n’est pas conservé sur cet écran. '
