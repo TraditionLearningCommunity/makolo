@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../design/makolo_theme.dart';
+
 import '../possibilities/discovery_offline_store.dart';
 
 /// Public, first-party Discovery recognition image, retained beyond OS cache.
@@ -125,12 +127,22 @@ class _RetainedPublicDiscoveryImageState
   @override
   Widget build(BuildContext context) {
     final bytes = _bytes;
-    if (bytes == null) return widget.placeholder;
-    return Image.memory(
-      bytes,
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      errorBuilder: (_, _, _) => widget.placeholder,
+    return AnimatedSwitcher(
+      duration: MakoloMotion.effective(context, MakoloMotion.short),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      child: bytes == null
+          ? KeyedSubtree(
+              key: ValueKey<String>('image-placeholder-${widget.url}'),
+              child: widget.placeholder,
+            )
+          : Image.memory(
+              bytes,
+              key: ValueKey<String>('image-ready-${widget.url}'),
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => widget.placeholder,
+            ),
     );
   }
 }
