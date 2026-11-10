@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../app/runtime/app_runtime.dart';
 import '../../network/api_error.dart';
 import '../journey/journey_repository.dart';
@@ -285,12 +287,18 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
                 _payment?['status'] != 'succeeded') ...[
               const SizedBox(height: 20),
               if (_sandboxAvailable)
-                FilledButton.icon(
+                MakoloActionButton(
                   onPressed: _paying || _loading ? null : _pay,
-                  icon: const Icon(Icons.credit_card_rounded),
-                  label: Text(
-                    _paying ? 'Paiement en cours…' : 'Payer en sandbox',
-                  ),
+                  icon: Icons.credit_card_rounded,
+                  label: _paying ? 'Paiement en cours…' : 'Payer en sandbox',
+                  appearance: MakoloActionAppearance.primary,
+                  phase: _paying
+                      ? MakoloActionPhase.processing
+                      : _error != null
+                      ? MakoloActionPhase.failed
+                      : _loading
+                      ? MakoloActionPhase.unavailable
+                      : MakoloActionPhase.available,
                 )
               else
                 const Text('Aucun moyen de paiement disponible.'),
