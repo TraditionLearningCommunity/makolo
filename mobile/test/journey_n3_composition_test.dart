@@ -10,6 +10,10 @@ void main() {
   testWidgets(
     'N3 composes goal, date, hour, city and day without repeated cards',
     (tester) async {
+      tester.view.physicalSize = const Size(340, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final database = MakoloDatabase.memory();
       addTearDown(database.close);
       final store = ProfileStore(database, 'profile-ui');
