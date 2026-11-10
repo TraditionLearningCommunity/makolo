@@ -64,18 +64,11 @@ void main() {
     ));
 
     expect(find.byType(IconButton), findsNWidgets(4));
-    final positions = [
-      for (final widget in tester.widgetList<IconButton>(
-        find.byType(IconButton),
-      ))
-        widget,
+    final icons = find.byType(IconButton);
+    final tops = [
+      for (var index = 0; index < 4; index++)
+        tester.getTopLeft(icons.at(index)).dy,
     ];
-    expect(positions.length, 4);
-    final y = [
-      for (final element in find.byType(IconButton).evaluate())
-        tester.getTopLeft(find.byElementPredicate((candidate) =>
-            candidate == element)).dy,
-    ];
-    expect(y.toSet().length, 1);
+    expect(tops.toSet().length, 1);
   });
 }
