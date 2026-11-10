@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../design/action_controls.dart';
+
 import 'conversation_repository.dart';
 import 'conversation_form_sheet.dart';
 import 'conversation_media_sheet.dart';
@@ -91,6 +93,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
   Future<void> _draftWrites = Future<void>.value();
   bool _editingProgrammatically = false;
   bool _sending = false;
+  bool _queuedLocally = false;
+  bool _sentByOwner = false;
   String? _reference;
   String? _error;
   String? _audienceId;
@@ -159,7 +163,14 @@ class _ConversationComposerState extends State<ConversationComposer> {
     _draftTimer = Timer(const Duration(milliseconds: 350), () {
       _persistDraft(_text.text);
     });
-    if (_error != null && mounted) setState(() => _error = null);
+    if (mounted &&
+        (_error != null || _queuedLocally || _sentByOwner)) {
+      setState(() {
+        _error = null;
+        _queuedLocally = false;
+        _sentByOwner = false;
+      });
+    }
   }
 
   @override
@@ -174,6 +185,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
       _reference = null;
       _drafts.clear();
       _error = null;
+      _queuedLocally = false;
+      _sentByOwner = false;
       _selectedType = 'information';
       _audienceId = widget.capabilities['default_audience_id']?.toString();
       _exchangeTargetId = widget.capabilities['default_exchange_point_id']
@@ -219,6 +232,8 @@ class _ConversationComposerState extends State<ConversationComposer> {
     setState(() {
       _sending = true;
       _error = null;
+      _queuedLocally = false;
+      _sentByOwner = false;
     });
     try {
       final delivery = widget.repository.delivery;
@@ -237,6 +252,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
         );
         // The Outbox is durable; network confirmation will arrive separately.
         if (!mounted) return;
+        setState(() => _queuedLocally = true);
         _editingProgrammatically = true;
         _text.clear();
         _editingProgrammatically = false;
@@ -265,6 +281,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
         _text.clear();
         _editingProgrammatically = false;
         widget.onPublished(sent);
+        if (mounted) setState(() => _sentByOwner = true);
       }
       _reference = null;
       _focus.unfocus();
@@ -541,15 +558,22 @@ class _ConversationComposerState extends State<ConversationComposer> {
                   const SizedBox(width: 6),
                   IconButton.filled(
                     key: const Key('conversation-compose-send'),
-                    onPressed: _sending ? null : _sendText,
-                    tooltip: 'Envoyer',
-                    icon: _sending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.arrow_upward_rounded),
+                    onPressed: _sending || _text.text.trim().isEmpty
+                        ? null
+                        : _sendText,
+                    tooltip: _sending
+                        ? 'Envoi en cours'
+                        : _error != null
+                        ? 'Envoi non conservé. Réessayer'
+                        : 'Envoyer',
+                    icon: MakoloActionFeedback(
+                      phase: _sending
+                          ? MakoloActionPhase.processing
+                          : _error != null
+                          ? MakoloActionPhase.failed
+                          : MakoloActionPhase.available,
+                      child: const Icon(Icons.arrow_upward_rounded),
+                    ),
                   ),
                 ],
               ),
@@ -608,6 +632,26 @@ class _ConversationComposerState extends State<ConversationComposer> {
                   ),
               ],
             ),
+            if (_queuedLocally || _sentByOwner)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _queuedLocally
+                          ? Icons.schedule_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _queuedLocally ? 'Conservé pour envoi' : 'Envoi confirmé',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
+              ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -1396,10 +1440,17 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(
+              child: MakoloActionButton(
                 key: const Key('conversation-compose-publish'),
+                label: _sending ? 'Envoi…' : 'Envoyer',
                 onPressed: _sending ? null : _publish,
-                child: Text(_sending ? 'Envoi…' : 'Envoyer'),
+                appearance: MakoloActionAppearance.primary,
+                icon: Icons.send_rounded,
+                phase: _sending
+                    ? MakoloActionPhase.processing
+                    : _error != null
+                    ? MakoloActionPhase.failed
+                    : MakoloActionPhase.available,
               ),
             ),
           ],
