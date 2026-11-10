@@ -9,14 +9,11 @@
     <a href="{% url 'objectives:organizer' %}{{ scope_query }}">Mes démarches</a><span>/</span>
     <span aria-current="page">Projet</span>
   </nav>
-  {% if workspace.actor_context.kind == "space" %}
-  <p role="note">Espace actif : {{ workspace.owner.label }} · actions selon vos autorisations.</p>
-  {% endif %}
   <header class="mk-project__hero">
     <div class="mk-project__identity">
       <span class="mk-project__symbol" aria-hidden="true"><i data-lucide="folder-kanban"></i></span>
       <div>
-        <p class="mk-project__eyebrow">Projet · {{ workspace.owner.label }}{% if workspace.owner.holder %} · {{ workspace.owner.holder }}{% endif %}</p>
+        <p class="mk-project__eyebrow">Projet</p>
         <h1>{{ project.title }}</h1>
         {% if project.description %}<p class="mk-project__desc">{{ project.description }}</p>{% endif %}
         <div class="mk-project__facts">
@@ -30,6 +27,12 @@
       <a class="mk-project__quiet mk-action-button" data-variant="ghost" href="{% url 'conversations:by-context' 'project' project.pk %}">
         <i data-lucide="messages-square" aria-hidden="true"></i> Échanges
       </a>
+      {% if access_form %}
+      <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost"
+              data-dialog-open="project-authority" aria-label="Gérer les accès" title="Gérer les accès">
+        <i data-lucide="user-plus" aria-hidden="true"></i>
+      </button>
+      {% endif %}
       {% if can_manage %}
       <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost" data-dialog-open="project-edit">
         <i data-lucide="pencil" aria-hidden="true"></i> Modifier
@@ -56,14 +59,14 @@
   </div>
   {% endif %}
   <div class="mk-project__view-switch mk-interaction-tabs" role="group" aria-label="Vues Projet">
-    <button type="button" data-project-view="overview" aria-pressed="true">
-      <i data-lucide="layout-dashboard"></i> Synthèse
+    <button type="button" data-project-view="overview" aria-pressed="true" aria-label="Synthèse" title="Synthèse">
+      <i data-lucide="layout-dashboard" aria-hidden="true"></i>
     </button>
-    <button type="button" data-project-view="dossiers" aria-pressed="false">
-      <i data-lucide="folders"></i> Dossiers
+    <button type="button" data-project-view="dossiers" aria-pressed="false" aria-label="Dossiers" title="Dossiers">
+      <i data-lucide="folders" aria-hidden="true"></i>
     </button>
-    <button type="button" data-project-view="calendar" aria-pressed="false">
-      <i data-lucide="calendar-days"></i> Calendrier
+    <button type="button" data-project-view="calendar" aria-pressed="false" aria-label="Calendrier" title="Calendrier">
+      <i data-lucide="calendar-days" aria-hidden="true"></i>
     </button>
   </div>
   <section class="mk-project__presentation">
@@ -82,12 +85,11 @@
     </div>
   </section>
 
-  {% if workspace.collaboration.members or workspace.collaboration.contributors or access_form %}
+  {% if workspace.collaboration.members or workspace.collaboration.contributors %}
   <section class="mk-project__people" aria-label="Personnes et responsabilités du Projet">
     <div class="mk-project__people-heading">
       <div>
         <h2>Personnes et responsabilités</h2>
-        <p class="mk-project__hint">Les accès au Projet et les interventions dans les Dossiers sont indépendants.</p>
       </div>
       {% if access_form %}
       <button class="mk-action-button" data-variant="secondary" type="button"
@@ -117,7 +119,7 @@
         {% endif %}
       </div>
     {% empty %}
-      {% if access_form %}<p class="mk-project__hint">Aucun mandat Projet actif à afficher.</p>{% endif %}
+
     {% endfor %}
     {% for contributor in workspace.collaboration.contributors %}
       <div class="mk-project__person">
@@ -128,7 +130,7 @@
       </div>
     {% endfor %}
     {% if workspace.collaboration.contributors_partial %}
-      <p class="mk-project__hint">La liste des interventions est partielle : seuls les Dossiers acquis ont été examinés.</p>
+      <p class="mk-project__hint">Interventions visibles uniquement.</p>
     {% endif %}
   </section>
   {% endif %}
@@ -162,7 +164,7 @@
         <form method="post" action="{% url 'objectives:project-create-child' project.pk %}{{ scope_query }}">
           {% csrf_token %}
           <header><h2>Créer un dossier dans ce Projet</h2>
-            <p>Le Dossier partage le contexte porteur du Projet et reste autonome.</p></header>
+            <p>Le Dossier reste indépendant du Projet.</p></header>
           {% for field in child_form %}
             <div class="mk-project__field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>
               {{ field }}</div>
