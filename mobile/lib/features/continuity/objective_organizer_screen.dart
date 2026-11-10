@@ -1304,7 +1304,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         'Liée à ${item.dossierIds.toSet().length} dossiers'
       else if (parent != null)
         'Dans : ${parent.title}',
-      if (item.kind == 'journey' && item.dossierIds.isNotEmpty && parent == null)
+      if (item.kind == 'journey' &&
+          item.dossierIds.isNotEmpty &&
+          parent == null)
         'Dossier non affiché',
       if (item.kind == 'dossier' && item.projectId != null && parent == null)
         'Projet non affiché',
@@ -1338,18 +1340,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         item.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${item.kindLabel} · ${details.join(' · ')}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ],
                   ),

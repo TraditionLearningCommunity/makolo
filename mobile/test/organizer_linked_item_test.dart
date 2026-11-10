@@ -26,7 +26,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('long linked item remains readable on a narrow phone', (tester) async {
+  testWidgets('long linked item remains readable on a narrow phone', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
