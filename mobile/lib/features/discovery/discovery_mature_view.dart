@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
@@ -255,6 +256,9 @@ class DiscoveryFieldView extends StatelessWidget {
   Widget build(BuildContext context) {
     return MakoloSurfaceStateView(
       state: selection.surface,
+      initialLoading: const MakoloCardSkeleton(
+        kind: MakoloCardSkeletonKind.discover,
+      ),
       blockingErrorMessage: 'Ce contenu n’est pas disponible.',
       // The connectivity cue is already shown by the shell. Keep usable
       // cached possibilities visible without a second verbose error notice.
