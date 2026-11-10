@@ -626,4 +626,75 @@ void main() {
     expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
     expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
   });
+  testWidgets('Nous switching respects reduced motion on small text-scaled view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(280, 860);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            disableAnimations: true,
+            textScaler: TextScaler.linear(1.6),
+          ),
+          child: Scaffold(
+            body: SpaceUsSurface(
+              payload: _projection(),
+              fallbackSpaceName: 'Espace',
+              onOpen: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final switcher = tester.widget<AnimatedSwitcher>(
+      find.byKey(const ValueKey<String>('space-us-switcher-atelier')),
+    );
+    expect(switcher.duration, Duration.zero);
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    if (find.byIcon(Icons.grid_view_rounded).evaluate().isNotEmpty) {
+      await tester.tap(find.byIcon(Icons.grid_view_rounded).first);
+    }
+    await tester.pump();
+    expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('old Space team is not shown even during outgoing animation', (
+    tester,
+  ) async {
+    Widget screen(Map<String, dynamic> projection) => MaterialApp(
+      theme: buildMakoloTheme(),
+      home: Scaffold(
+        body: SpaceUsSurface(
+          payload: projection,
+          fallbackSpaceName: 'Espace',
+          onOpen: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpWidget(screen(_projection()));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
+    if (find.byIcon(Icons.grid_view_rounded).evaluate().isNotEmpty) {
+      await tester.tap(find.byIcon(Icons.grid_view_rounded).first);
+      await tester.pumpAndSettle();
+    }
+
+    final next = _projection();
+    (next['identity'] as Map<String, dynamic>)['slug'] = 'different-space';
+    (next['identity'] as Map<String, dynamic>)['name'] = 'Nouveau collectif';
+    (next['team'] as Map<String, dynamic>)['visibility'] = 'restricted';
+    (next['handoffs'] as Map<String, dynamic>).clear();
+    await tester.pumpWidget(screen(next));
+    await tester.pump();
+    expect(find.text('Nouveau collectif'), findsOneWidget);
+    expect(find.text('Amina'), findsNothing);
+  });
+
 }
