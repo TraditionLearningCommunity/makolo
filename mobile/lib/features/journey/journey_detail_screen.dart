@@ -22,6 +22,7 @@ import '../continuity/conversation_repository.dart';
 import '../preparation/preparation_repository.dart';
 import 'journey_repository.dart';
 import 'journey_selector.dart';
+import 'journey_time_presentation.dart';
 
 class JourneyDetailScreen extends StatefulWidget {
   const JourneyDetailScreen({
@@ -888,7 +889,7 @@ class _JourneyOutcomeCard extends StatelessWidget {
   }
 }
 
-/// Only the owner projection stored in ProfileStore feeds this header.
+/// The top of N3 reads as a human objective, not a collection of owners.
 class _JourneyIdentity extends StatelessWidget {
   const _JourneyIdentity({required this.presentation});
 
@@ -897,7 +898,7 @@ class _JourneyIdentity extends StatelessWidget {
   IconData get _symbol => switch (presentation.workflowKind) {
     'purchase' => Icons.shopping_bag_outlined,
     'reservation' => Icons.event_available_outlined,
-    'registration' => Icons.how_to_reg_outlined,
+    'registration' => Icons.badge_outlined,
     'invitation' => Icons.mark_email_read_outlined,
     'service' => Icons.handyman_outlined,
     'fulfillment' => Icons.task_alt_outlined,
@@ -910,109 +911,181 @@ class _JourneyIdentity extends StatelessWidget {
     final state = MakoloHumanization.presentationLabel(
       presentation.journeyState,
     );
+    final facts = presentation.practical;
+    final civil = JourneyDayPresentation.civilDate(facts?.startDate);
+    final date = civil ??
+        (facts?.startAt == null ? null : facts!.startAt!.toLocal());
+    final dateLabel = date == null
+        ? null
+        : MaterialLocalizations.of(context).formatMediumDate(date);
+    final timeLabel = JourneyDayPresentation.clock(facts?.startTime) ??
+        (facts?.startAt == null
+            ? null
+            : JourneyDayPresentation.clock(
+                '${facts!.startAt!.toLocal().hour.toString().padLeft(2, '0')}'
+                ':${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
+              ));
+    final placeLabel = JourneyDayPresentation.place(
+      name: facts?.placeName,
+      locality: facts?.placeLocality,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         MakoloSpacing.inner,
-        MakoloSpacing.lg,
+        MakoloSpacing.md,
         MakoloSpacing.inner,
         0,
       ),
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          width: double.infinity,
+      child: Container(
+        key: const Key('journey-identity'),
+        width: double.infinity,
+        decoration: BoxDecoration(
           color: const Color(0xFF2B176E),
-          padding: const EdgeInsets.all(MakoloSpacing.inner),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(MakoloSpacing.md),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5232DB),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(_symbol, color: Colors.white, size: 27),
+                ),
+                const SizedBox(width: MakoloSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'MON OBJECTIF',
+                        style: TextStyle(
+                          color: Color(0xFFD5CCFF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                      const SizedBox(height: MakoloSpacing.xs),
+                      Text(
+                        presentation.title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (presentation.summary != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                presentation.summary!,
+                style: const TextStyle(color: Color(0xFFE6DEFF)),
+              ),
+            ],
+            if (state != null || presentation.kindLabel != 'Démarche') ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Wrap(
+                spacing: MakoloSpacing.md,
+                runSpacing: MakoloSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(MakoloSpacing.md),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5232DB),
-                      borderRadius: BorderRadius.circular(14),
+                  if (state != null)
+                    _JourneyHeroFact(
+                      icon: Icons.circle,
+                      label: state,
+                      smallIcon: true,
                     ),
-                    child: Icon(_symbol, color: Colors.white, size: 28),
-                  ),
-                  const SizedBox(width: MakoloSpacing.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'MON OBJECTIF',
-                          style: TextStyle(
-                            color: Color(0xFFD5CCFF),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: MakoloSpacing.sm),
-                        Text(
-                          presentation.title,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
-                        ),
-                      ],
+                  if (presentation.kindLabel != 'Démarche')
+                    Text(
+                      presentation.kindLabel,
+                      style: const TextStyle(color: Color(0xFFD5CCFF)),
                     ),
-                  ),
                 ],
               ),
-              if (presentation.summary != null) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                Text(
-                  presentation.summary!,
-                  style: const TextStyle(color: Color(0xFFE6DEFF)),
-                ),
-              ],
-              if (state != null || presentation.kindLabel != 'Démarche') ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                Wrap(
-                  spacing: MakoloSpacing.md,
-                  runSpacing: MakoloSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (state != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.circle,
-                            color: Color(0xFFFFB29E),
-                            size: 9,
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          Text(
-                            state,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    if (presentation.kindLabel != 'Démarche')
-                      Text(
-                        presentation.kindLabel,
-                        style: const TextStyle(color: Color(0xFFD5CCFF)),
-                      ),
-                  ],
-                ),
-              ],
             ],
-          ),
+            if (dateLabel != null || timeLabel != null ||
+                placeLabel != null || civil != null) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              Container(
+                height: 1,
+                color: const Color(0xFF6F60A4),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              Wrap(
+                spacing: MakoloSpacing.md,
+                runSpacing: MakoloSpacing.md,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (dateLabel != null)
+                    _JourneyHeroFact(
+                      icon: Icons.calendar_today_outlined,
+                      label: dateLabel,
+                    ),
+                  if (timeLabel != null)
+                    _JourneyHeroFact(
+                      icon: Icons.schedule_outlined,
+                      label: timeLabel,
+                    ),
+                  if (placeLabel != null)
+                    _JourneyHeroFact(
+                      icon: Icons.place_outlined,
+                      label: placeLabel,
+                    ),
+                  if (civil != null)
+                    JourneyDayBadge(occurrenceDate: facts!.startDate!),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
+}
+
+class _JourneyHeroFact extends StatelessWidget {
+  const _JourneyHeroFact({
+    required this.icon,
+    required this.label,
+    this.smallIcon = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool smallIcon;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(
+        icon,
+        color: const Color(0xFFDBD2FF),
+        size: smallIcon ? 9 : 18,
+      ),
+      const SizedBox(width: MakoloSpacing.xs),
+      Flexible(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// JourneySteps are shown as facts, not a locally computed percentage/timeline.
