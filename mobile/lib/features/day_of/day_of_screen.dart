@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../occurrence/occurrence_continuity.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
@@ -287,12 +288,16 @@ class DayOfLiveAction extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FilledButton.icon(
+          MakoloActionButton(
             onPressed: remoteActionsAvailable
                 ? () => onOpenLive(livePath)
                 : null,
-            icon: const Icon(Icons.play_circle_outline_rounded),
-            label: const Text('Voir la situation en direct'),
+            icon: Icons.play_circle_outline_rounded,
+            label: 'Voir la situation en direct',
+            appearance: MakoloActionAppearance.primary,
+            phase: remoteActionsAvailable
+                ? MakoloActionPhase.available
+                : MakoloActionPhase.unavailable,
           ),
           if (!remoteActionsAvailable) ...[
             const SizedBox(height: MakoloSpacing.xs),
