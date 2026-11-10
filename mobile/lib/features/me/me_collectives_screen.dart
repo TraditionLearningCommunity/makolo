@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/makolo_patterns.dart';
 
 import '../../data/local/profile_store.dart';
@@ -171,6 +172,9 @@ class _MeCollectivesScreenState extends State<MeCollectivesScreen> {
               builder: (context, snapshot) {
                 final projection = snapshot.data;
                 if (projection == null) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const MakoloSkeleton(lines: 3);
+                  }
                   return const Center(
                     child: Text('Mes collectifs sont indisponibles.'),
                   );
