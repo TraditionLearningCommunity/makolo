@@ -226,7 +226,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
   }
 
   Future<void> _publish() async {
-    if (_sending) return;
+    if (_sending || _submitted) return;
     final title = _title.text.trim();
     if (title.isEmpty) {
       setState(() => _error = 'Précisez l’objet du formulaire.');
@@ -564,10 +564,21 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
                 alignment: Alignment.centerRight,
                 child: MakoloActionButton(
                   key: const Key('conversation-form-publish'),
-                  label: _sending ? 'Envoi…' : 'Envoyer',
-                  onPressed: _sending ? null : _publish,
+                  label: _sending
+                      ? 'Envoi…'
+                      : _submitted
+                      ? 'Conservé'
+                      : 'Envoyer',
+                  onPressed: _sending || _submitted ? null : _publish,
                   appearance: MakoloActionAppearance.primary,
-                  busy: _sending,
+                  icon: Icons.send_rounded,
+                  phase: _sending
+                      ? MakoloActionPhase.processing
+                      : _submitted
+                      ? MakoloActionPhase.confirmed
+                      : _error != null
+                      ? MakoloActionPhase.failed
+                      : MakoloActionPhase.available,
                 ),
               ),
             ],
