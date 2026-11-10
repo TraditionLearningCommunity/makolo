@@ -137,13 +137,25 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     final id = widget.journeyId;
     final repository = widget.repository;
     setState(() => _refreshing = true);
+    var ownerReadSucceeded = false;
     try {
       await repository.refreshDetail(id);
+      ownerReadSucceeded = true;
     } on Object {
       // Local content stays available independently of a transport result.
     } finally {
       if (_isCurrent(revision, id, repository)) {
-        setState(() => _refreshing = false);
+        setState(() {
+          _refreshing = false;
+          if (ownerReadSucceeded &&
+              !_respondingInvitation &&
+              _invitationPhase == MakoloActionPhase.unavailable) {
+            // Only a new owner read can unlock a changed-capability decision.
+            _invitationPhase = MakoloActionPhase.available;
+            _invitationDecision = null;
+            _invitationNotice = null;
+          }
+        });
       }
     }
   }
