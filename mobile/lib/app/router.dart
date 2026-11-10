@@ -13,6 +13,7 @@ import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/continuity/continuity_routes.dart';
+import '../features/continuity/objective_organizer_screen.dart';
 import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
@@ -725,6 +726,39 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             spaceActor: actor,
             initialQuery: state.uri.queryParameters['q'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/objectives',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          final repository = runtime.objectives;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug'] ||
+              repository == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Projets et dossiers',
+              message: 'Choisissez l’Espace autorisé pour consulter ses dossiers.',
+            );
+          }
+          return ObjectiveOrganizerScreen(
+            repository: repository,
+            spaceSlug: actor.space.slug,
+            actorContext: runtime.actorContext,
+            onOpenItem: (kind, id) {
+              if (kind == 'project') {
+                context.push('/projects/$id');
+              } else if (kind == 'dossier') {
+                context.push('/dossiers/$id');
+              } else if (kind == 'journey') {
+                context.push('/journeys/$id');
+              }
+            },
+            onCreate: (kind) => context.push(
+              '/me/demarches/new?kind=$kind'
+              '&space=${Uri.encodeQueryComponent(actor.space.slug)}',
+            ),
           );
         },
       ),

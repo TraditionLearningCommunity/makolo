@@ -121,6 +121,15 @@ class SpaceWorkSurface extends StatelessWidget {
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
+            if (spaceSlug != null && !limitedToActivities)
+              MakoloActionButton(
+                appearance: MakoloActionAppearance.secondary,
+                icon: Icons.folder_copy_outlined,
+                label: 'Projets et dossiers',
+                onPressed: () => context.push(
+                  '/space/${Uri.encodeComponent(spaceSlug)}/objectives',
+                ),
+              ),
             MakoloActionButton(
               appearance: MakoloActionAppearance.secondary,
               icon: Icons.search,

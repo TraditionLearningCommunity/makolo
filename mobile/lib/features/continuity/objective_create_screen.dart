@@ -214,6 +214,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_actorValid) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Cet Espace n’est plus le contexte actif.'),
+        ),
+      );
+    }
     final project = _isProject;
     final title = project ? 'Créer un projet' : 'Créer un dossier';
     return Scaffold(
