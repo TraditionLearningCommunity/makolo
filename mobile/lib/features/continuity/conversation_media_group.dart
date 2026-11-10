@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'conversation_attachment_viewer.dart';
@@ -37,10 +39,12 @@ class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
         _identities(oldWidget.attachments) != _identities(widget.attachments)) {
       // The private viewer must not outlive its original conversation context.
       final sheet = _sheetContext;
-      if (sheet != null &&
-          sheet.mounted &&
-          ModalRoute.of(sheet)?.isCurrent == true) {
-        Navigator.of(sheet).pop();
+      if (sheet != null && sheet.mounted) {
+        scheduleMicrotask(() {
+          if (sheet.mounted && ModalRoute.of(sheet)?.isCurrent == true) {
+            Navigator.of(sheet).pop();
+          }
+        });
       }
     }
   }
