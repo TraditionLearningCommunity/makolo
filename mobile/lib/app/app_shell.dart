@@ -302,9 +302,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
                     size: 36,
                   )
                 : null,
-            avatarContextLabel: actor is SpaceActorContext
-                ? 'Contexte Espace : ${actor.space.slug}'
-                : 'Contexte personnel',
             avatarUrl: actor is PersonalActorContext && validAvatar
                 ? resolvedAvatar.toString()
                 : null,

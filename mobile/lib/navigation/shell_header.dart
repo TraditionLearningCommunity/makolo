@@ -29,7 +29,6 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.avatarApi,
     this.avatarRevision,
     this.avatarVisual,
-    this.avatarContextLabel,
     this.profileUsername,
   });
 
@@ -49,7 +48,6 @@ class MakoloPrimaryHeader extends StatelessWidget
   final MakoloApiClient? avatarApi;
   final Object? avatarRevision;
   final Widget? avatarVisual;
-  final String? avatarContextLabel;
   final String? profileUsername;
 
   Widget _avatarFallback(BuildContext context) => Center(
@@ -135,6 +133,15 @@ class MakoloPrimaryHeader extends StatelessWidget
           onPressed: onConversations,
           attention: hasConversationAttention,
         ),
+      if (onNotifications != null)
+        _HeaderAction(
+          tooltip: hasUnreadNotifications
+              ? 'Notifications — nouveaux signaux disponibles'
+              : 'Notifications',
+          icon: Icons.notifications_none_outlined,
+          onPressed: onNotifications,
+          attention: hasUnreadNotifications,
+        ),
     ],
     MakoloHeaderKind.mark || MakoloHeaderKind.work => const [],
   };
@@ -209,7 +216,7 @@ class MakoloPrimaryHeader extends StatelessWidget
         ..._contextActions(),
         Semantics(
           button: true,
-          label: avatarContextLabel ?? 'Avatar',
+          label: 'Avatar',
           child: IconButton(
             tooltip: 'Avatar',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
