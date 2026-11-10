@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+
+import '../../design/behavior_primitives.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:video_player/video_player.dart';
@@ -444,7 +446,13 @@ class _ConversationAttachmentViewerState
               );
             }
             if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return MakoloMediaSkeleton(
+                icon: kind == 'image'
+                    ? Icons.image_outlined
+                    : kind == 'video'
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.description_outlined,
+              );
             }
             if (kind != 'image' &&
                 kind != 'video' &&
