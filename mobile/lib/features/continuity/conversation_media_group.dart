@@ -49,7 +49,8 @@ class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
     if (_opening || index < 0 || index >= widget.attachments.length) return;
     _opening = true;
     final gallery = widget.attachments
-        .map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
     final repository = widget.repository;
     final download = widget.download;
     try {
