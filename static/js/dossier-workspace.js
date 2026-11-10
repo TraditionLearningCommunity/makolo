@@ -291,7 +291,7 @@
     return wrapper;
   }
   function renderList() {
-    heading('Toutes les démarches', 'La recherche et le tri opèrent localement sur les démarches visibles acquises.');
+
     const controls = el('div', 'mk-dossier__filters');
     const searchLabel = el('label', '', 'Rechercher');
     const input = el('input'); input.type = 'search';
@@ -315,11 +315,12 @@
     function redraw() {
       list.replaceChildren();
       const results = filteredRows();
-      append(list, el('p', 'mk-dossier__hint',
-        results.length + ' démarche(s) visibles correspondent aux critères.'));
+      if (results.length && (state.query || state.filter !== 'all'))
+        append(list, el('p', 'mk-dossier__hint',
+          results.length + ' résultat' + (results.length > 1 ? 's' : '')));
       if (!results.length) {
         append(list, el('div', 'mk-dossier__empty',
-          'Aucune démarche correspondant à ces critères.'));
+          'Aucun résultat.'));
       }
       for (const row of results) append(list, journeyRow(row));
       renderIcons();
