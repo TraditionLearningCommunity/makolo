@@ -1404,7 +1404,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final saved = _confirmedSaved ?? (item.savedState == 'saved');
     final canToggle =
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
-    final saveAvailable = widget.allowOwnerActions &&
+    final saveAvailable =
+        widget.allowOwnerActions &&
         ((widget.onSave != null && canToggle) ||
             (widget.allowSavePrompt && widget.onSignIn != null));
     final savePhase = _saving
