@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../platform/preferences/secure_string_preferences.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
@@ -38,7 +38,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
 }
 
 class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = SecureStringPreferences();
   final _search = TextEditingController();
   bool _searchOpen = false;
   late Stream<List<StoredProjection>> _pages;
