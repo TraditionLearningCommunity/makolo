@@ -54,7 +54,7 @@
       "cwd": "${workspaceFolder}/mobile",
       "flutterMode": "debug",
       "deviceId": "emulator-5554",
-      "preLaunchTask": "Makolo — ADB Reverse Emulator",
+      "preLaunchTask": "Makolo — Préparer émulateur local",
       "args": [
         "--flavor",
         "dev",
@@ -74,7 +74,8 @@
         "--flavor",
         "dev",
         "--dart-define-from-file=config/dev.json"
-      ]
+      ],
+      "preLaunchTask": "Makolo — Préparer émulateur PythonAnywhere"
     }
   ]
 }
