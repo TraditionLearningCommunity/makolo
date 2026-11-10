@@ -49,7 +49,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   OrganizerSort _dateField = OrganizerSort.deadline;
   String _kind = 'all';
   String _status = 'all';
-  String _relation = 'all';
   String _period = 'all';
   bool _descending = false;
   bool _refreshing = false;
@@ -333,9 +332,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   bool _matches(OrganizerEntry entry) {
     if (_kind != 'all' && entry.kind != _kind) return false;
-    if (_relation == 'independent' && !entry.isIndependent) return false;
-    if (_relation == 'mine' && entry.relation != 'mine') return false;
-    if (_relation == 'space' && entry.relation != 'space') return false;
     final terminalJourney = {'fulfilled', 'rejected', 'cancelled', 'expired'};
     if (_status == 'active' && entry.kind == 'journey') {
       if (terminalJourney.contains(entry.state)) return false;
@@ -443,7 +439,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _search.text.isNotEmpty ||
       _kind != 'all' ||
       _status != 'all' ||
-      _relation != 'all' ||
       _period != 'all';
 
   bool get _hasAnyFilters => _hasSelectionFilters || _hasExtraFilters;
@@ -453,7 +448,6 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     setState(() {
       _kind = 'all';
       _status = 'all';
-      _relation = 'all';
       _period = 'all';
       _sort = OrganizerSort.name;
       _dateField = OrganizerSort.deadline;
