@@ -165,39 +165,49 @@ class ObjectiveRepository {
   static const projectDossierLimit = 50;
 
   static String projectDossierStorageKey(
-    String projectId, int offset, {String? spaceSlug}
-  ) => spaceSlug == null
+    String projectId,
+    int offset, {
+    String? spaceSlug,
+  }) => spaceSlug == null
       ? '$projectId:$offset:$projectDossierLimit'
       : '$projectId:space:$spaceSlug:$offset:$projectDossierLimit';
 
   String projectDossierResourceKey(
-    String projectId, int offset, {String? spaceSlug}
-  ) => projectDossierStorageKey(projectId, offset, spaceSlug: spaceSlug);
+    String projectId,
+    int offset, {
+    String? spaceSlug,
+  }) => projectDossierStorageKey(projectId, offset, spaceSlug: spaceSlug);
 
   SyncSourceDefinition projectDossierSource(
-    String projectId, int offset, {String? spaceSlug}
-  ) =>
-      SyncSourceDefinition.projectionEnvelope(
-        sourceKey: 'project:dossiers:${projectDossierStorageKey(projectId, offset, spaceSlug: spaceSlug)}',
-        owner: 'Objectives',
-        path:
-            'api/v1/objectives/projects/$projectId/dossiers/'
-            '?limit=$projectDossierLimit&offset=$offset'
-            '${spaceSlug == null ? '' : '&context=space&space=${Uri.encodeQueryComponent(spaceSlug)}'}',
-        projectionKind: projectDossierProjectionKind,
-        resourceKey: projectDossierResourceKey(
-          projectId, offset, spaceSlug: spaceSlug,
-        ),
-        category: SyncSourceCategory.collection,
-        freshnessPolicy: freshnessPolicy,
-      );
+    String projectId,
+    int offset, {
+    String? spaceSlug,
+  }) => SyncSourceDefinition.projectionEnvelope(
+    sourceKey:
+        'project:dossiers:${projectDossierStorageKey(projectId, offset, spaceSlug: spaceSlug)}',
+    owner: 'Objectives',
+    path:
+        'api/v1/objectives/projects/$projectId/dossiers/'
+        '?limit=$projectDossierLimit&offset=$offset'
+        '${spaceSlug == null ? '' : '&context=space&space=${Uri.encodeQueryComponent(spaceSlug)}'}',
+    projectionKind: projectDossierProjectionKind,
+    resourceKey: projectDossierResourceKey(
+      projectId,
+      offset,
+      spaceSlug: spaceSlug,
+    ),
+    category: SyncSourceCategory.collection,
+    freshnessPolicy: freshnessPolicy,
+  );
 
   Stream<List<StoredProjection>> watchProjectDossiers() =>
       store.watchProjections(projectDossierProjectionKind);
 
   Future<void> refreshProjectDossiers(
-    String projectId, int offset, {String? spaceSlug}
-  ) async {
+    String projectId,
+    int offset, {
+    String? spaceSlug,
+  }) async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Objectives synchronization unavailable.');

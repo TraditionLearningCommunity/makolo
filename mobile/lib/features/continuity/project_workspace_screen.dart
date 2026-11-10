@@ -110,6 +110,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     });
     unawaited(_refresh());
   }
+
   bool _refreshing = false,
       _busy = false,
       _loadingMore = false,
@@ -129,10 +130,14 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
 
   void _bind() {
     _detail = widget.repository.watch(
-      ObjectiveDepth.project, widget.id, spaceSlug: _spaceSlug,
+      ObjectiveDepth.project,
+      widget.id,
+      spaceSlug: _spaceSlug,
     );
     _source = widget.repository.watchSource(
-      ObjectiveDepth.project, widget.id, spaceSlug: _spaceSlug,
+      ObjectiveDepth.project,
+      widget.id,
+      spaceSlug: _spaceSlug,
     );
     _pages = widget.repository.watchProjectDossiers();
   }
@@ -188,13 +193,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final revision = _contextRevision;
     try {
       final snapshot = await repo.read(
-        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.project,
+        id,
+        spaceSlug: spaceSlug,
       );
       final source = await repo.readSource(
-        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
+        ObjectiveDepth.project,
+        id,
+        spaceSlug: spaceSlug,
       );
-      if (!mounted || repo != widget.repository || id != widget.id ||
-          revision != _contextRevision) return;
+      if (!mounted ||
+          repo != widget.repository ||
+          id != widget.id ||
+          revision != _contextRevision)
+        return;
       if (snapshot == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 snapshot,
@@ -222,9 +234,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       _failed = false;
     });
     try {
-      await repo.refresh(
-        ObjectiveDepth.project, id, spaceSlug: spaceSlug,
-      );
+      await repo.refresh(ObjectiveDepth.project, id, spaceSlug: spaceSlug);
     } on Object {
       if (mounted && id == widget.id && revision == _contextRevision) {
         setState(() => _failed = true);
@@ -250,7 +260,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     if (!_enabled) return false;
     final revision = _contextRevision;
     final spaceSlug = _spaceSlug;
-    final destination = '$endpoint${ObjectiveRepository.contextQuery(spaceSlug)}';
+    final destination =
+        '$endpoint${ObjectiveRepository.contextQuery(spaceSlug)}';
     setState(() => _busy = true);
     try {
       if (revision != _contextRevision) return false;
@@ -264,7 +275,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       _lastOffset = null;
       try {
         await widget.repository.refresh(
-          ObjectiveDepth.project, widget.id, spaceSlug: spaceSlug,
+          ObjectiveDepth.project,
+          widget.id,
+          spaceSlug: spaceSlug,
         );
         await widget.repository.refreshOrganizerPage(0);
       } on Object {
@@ -674,7 +687,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     setState(() => _loadingMore = true);
     try {
       await widget.repository.refreshProjectDossiers(
-        widget.id, offset, spaceSlug: spaceSlug,
+        widget.id,
+        offset,
+        spaceSlug: spaceSlug,
       );
       if (mounted && revision == _contextRevision) {
         setState(() => _ignoreOlderPages = false);
@@ -718,9 +733,14 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         widget.repository.profileId &&
                     (_spaceSlug == null
                         ? _map(item.payload['actor_context'])['kind'] != 'space'
-                        : _map(item.payload['actor_context'])['kind'] == 'space' &&
-                            _map(_map(item.payload['actor_context'])['space'])['slug'] ==
-                                _spaceSlug),
+                        : _map(item.payload['actor_context'])['kind'] ==
+                                  'space' &&
+                              _map(
+                                    _map(
+                                      item.payload['actor_context'],
+                                    )['space'],
+                                  )['slug'] ==
+                                  _spaceSlug),
               )
               .toList()
             ..sort(
