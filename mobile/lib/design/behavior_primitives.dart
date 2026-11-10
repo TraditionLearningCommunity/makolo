@@ -57,11 +57,7 @@ class MakoloSkeleton extends StatelessWidget {
 enum MakoloCardSkeletonKind { discover, ongoing }
 
 class MakoloCardSkeleton extends StatelessWidget {
-  const MakoloCardSkeleton({
-    super.key,
-    required this.kind,
-    this.count = 2,
-  });
+  const MakoloCardSkeleton({super.key, required this.kind, this.count = 2});
 
   final MakoloCardSkeletonKind kind;
   final int count;
@@ -133,8 +129,7 @@ class MakoloCardSkeleton extends StatelessWidget {
                 child: Row(
                   children: [
                     for (var action = 0; action < 3; action++) ...[
-                      if (action > 0)
-                        const SizedBox(width: MakoloSpacing.sm),
+                      if (action > 0) const SizedBox(width: MakoloSpacing.sm),
                       Expanded(
                         child: Container(
                           height: 48,

@@ -128,24 +128,18 @@ class MakoloActionFeedback extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final content = switch (phase) {
       MakoloActionPhase.processing => SizedBox(
-          key: const ValueKey('action-processing'),
-          width: size,
-          height: size,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: scheme.primary,
-          ),
-        ),
+        key: const ValueKey('action-processing'),
+        width: size,
+        height: size,
+        child: CircularProgressIndicator(strokeWidth: 2, color: scheme.primary),
+      ),
       MakoloActionPhase.failed => Icon(
-          Icons.error_outline_rounded,
-          key: const ValueKey('action-failed'),
-          size: size,
-          color: scheme.error,
-        ),
-      _ => KeyedSubtree(
-          key: const ValueKey('action-content'),
-          child: child,
-        ),
+        Icons.error_outline_rounded,
+        key: const ValueKey('action-failed'),
+        size: size,
+        color: scheme.error,
+      ),
+      _ => KeyedSubtree(key: const ValueKey('action-content'), child: child),
     };
     return AnimatedSwitcher(
       duration: MakoloMotion.effective(context, MakoloMotion.short),
@@ -190,7 +184,10 @@ class MakoloRoundedActionSlot extends StatelessWidget {
         border: Border.all(
           color: disabled
               ? scheme.outlineVariant.withValues(alpha: 0.55)
-              : (active || pending || failed || phase == MakoloActionPhase.confirmed)
+              : (active ||
+                    pending ||
+                    failed ||
+                    phase == MakoloActionPhase.confirmed)
               ? accent.withValues(alpha: 0.5)
               : scheme.outlineVariant,
         ),
