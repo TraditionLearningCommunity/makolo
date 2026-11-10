@@ -1491,7 +1491,7 @@ class _FormCard extends StatelessWidget {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(
-          form.canComplete ? Icons.edit_document : Icons.description_outlined,
+          form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
           color: const Color(0xFF5232DB),
         ),
         title: Text(form.title),
