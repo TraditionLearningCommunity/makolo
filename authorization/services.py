@@ -82,6 +82,10 @@ def effective_permission_codes(profile, *, space=None, group=None, activity=None
     mandates = _mandates_with_permissions(
         profile, space=space, group=group, activity=activity, dossier=dossier, project=project, at=at
     )
+    if project is None:
+        # Project Mandates are local to one Project. A context-free permission
+        # query must not promote one such grant into global authority.
+        mandates = mandates.exclude(scope_type=AuthorityScope.PROJECT)
     if not include_platform:
         # Platform authority does not implicitly convey owner-scoped authority.
         mandates = mandates.exclude(scope_type=AuthorityScope.PLATFORM)
@@ -119,7 +123,11 @@ def can_many(profile, permission_codes, space=None, *, group=None, activity=None
     if activity is not None or dossier is not None or project is not None:
         return {code: can(profile, code, space, group=group, activity=activity, dossier=dossier, project=project, at=at) for code in requested}
     effective = effective_permission_codes(profile, space=space, group=group, at=at)
-    return {code: code in effective for code in requested}
+    return {
+        code: can(profile, code, space, group=group, at=at)
+        if code in PROJECT_PERMISSION_CODES else code in effective
+        for code in requested
+    }
 
 
 def has_platform_authority(profile, *, at=None) -> bool:
