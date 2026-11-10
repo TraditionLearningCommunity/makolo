@@ -51,13 +51,16 @@ void main() {
     const router = NotificationRouter();
     const conversationId = '11111111-1111-4111-8111-111111111111';
     for (final rawPoint in ['../other', 'some-name', '0000?tab=all', '']) {
-      expect(router.resolveNavigation({
-        'schema_version': 1,
-        'target': 'conversation',
-        'conversation_id': conversationId,
-        'point_id': rawPoint,
-        'resource': {'kind': 'conversation', 'id': conversationId},
-      }), '/conversations/$conversationId');
+      expect(
+        router.resolveNavigation({
+          'schema_version': 1,
+          'target': 'conversation',
+          'conversation_id': conversationId,
+          'point_id': rawPoint,
+          'resource': {'kind': 'conversation', 'id': conversationId},
+        }),
+        '/conversations/$conversationId',
+      );
     }
   });
 

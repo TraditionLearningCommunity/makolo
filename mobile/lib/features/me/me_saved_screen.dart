@@ -147,7 +147,8 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   Future<void> _retainKnownCollection() async {
     final personal = widget.personal;
-    final items = _rows.map((row) => Map<String, dynamic>.from(row))
+    final items = _rows
+        .map((row) => Map<String, dynamic>.from(row))
         .toList(growable: false);
     await personal.store.putProjection(
       kind: _savedProjectionKind,
