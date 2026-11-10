@@ -86,11 +86,13 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   void _readCreateCapability(StoredProjection? projection) {
     final actor = widget.actorContext?.value;
     final spaces = projection?.payload['manageable_spaces'];
-    final allowed = widget.spaceSlug == null ||
+    final allowed =
+        widget.spaceSlug == null ||
         (actor is SpaceActorContext &&
             spaces is List &&
-            spaces.any((row) =>
-                row is Map && row['id']?.toString() == actor.space.id));
+            spaces.any(
+              (row) => row is Map && row['id']?.toString() == actor.space.id,
+            ));
     if (mounted && _canCreateSpace != allowed) {
       setState(() => _canCreateSpace = allowed);
     }
@@ -177,10 +179,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   Future<void> _remember(OrganizerMode value) async {
     try {
-      await _storage.write(
-        key: _viewStoreKey,
-        value: value.name,
-      );
+      await _storage.write(key: _viewStoreKey, value: value.name);
     } on Object {
       // The selected view stays usable for the current session.
     }
@@ -199,8 +198,11 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     try {
       final local = await repository.readOrganizerPage(0, spaceSlug: slug);
       final source = await repository.readOrganizerSource(spaceSlug: slug);
-      if (!mounted || repository != widget.repository ||
-          revision != _scopeRevision || !_actorValid) return;
+      if (!mounted ||
+          repository != widget.repository ||
+          revision != _scopeRevision ||
+          !_actorValid)
+        return;
       _readCreateCapability(local);
       if (local == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
@@ -233,8 +235,10 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       // Only the scope's owner source can confirm this acquisition.
       final local = await repository.readOrganizerPage(0, spaceSlug: slug);
       final owner = await repository.readOrganizerSource(spaceSlug: slug);
-      if (mounted && repository == widget.repository &&
-          revision == _scopeRevision && _actorValid) {
+      if (mounted &&
+          repository == widget.repository &&
+          revision == _scopeRevision &&
+          _actorValid) {
         _readCreateCapability(local);
         setState(() {
           _failed =
@@ -243,12 +247,15 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
         });
       }
     } on Object {
-      if (mounted && repository == widget.repository &&
-          revision == _scopeRevision && _actorValid) {
+      if (mounted &&
+          repository == widget.repository &&
+          revision == _scopeRevision &&
+          _actorValid) {
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && repository == widget.repository &&
+      if (mounted &&
+          repository == widget.repository &&
           revision == _scopeRevision) {
         setState(() => _refreshing = false);
       }
@@ -256,8 +263,12 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   }
 
   Future<void> _more(OrganizerPage page) async {
-    if (_loadingMore || _refreshing || _failed || !_actorValid ||
-        !page.hasMore || _requestedOffset == page.nextOffset) {
+    if (_loadingMore ||
+        _refreshing ||
+        _failed ||
+        !_actorValid ||
+        !page.hasMore ||
+        _requestedOffset == page.nextOffset) {
       return;
     }
     final repository = widget.repository;
@@ -268,27 +279,34 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     try {
       await repository.refreshOrganizerPage(page.nextOffset, spaceSlug: slug);
       final received = await repository.readOrganizerPage(
-        page.nextOffset, spaceSlug: slug,
+        page.nextOffset,
+        spaceSlug: slug,
       );
       final owner = await repository.readOrganizerSourceForOffset(
-        page.nextOffset, spaceSlug: slug,
+        page.nextOffset,
+        spaceSlug: slug,
       );
-      if (received == null || owner.invalidated ||
-          owner.lastErrorCode != null || owner.lastSuccessAt == null) {
-        if (mounted && repository == widget.repository &&
+      if (received == null ||
+          owner.invalidated ||
+          owner.lastErrorCode != null ||
+          owner.lastSuccessAt == null) {
+        if (mounted &&
+            repository == widget.repository &&
             revision == _scopeRevision) {
           _requestedOffset = null;
           setState(() => _failed = true);
         }
       }
     } on Object {
-      if (mounted && repository == widget.repository &&
+      if (mounted &&
+          repository == widget.repository &&
           revision == _scopeRevision) {
         _requestedOffset = null;
         setState(() => _failed = true);
       }
     } finally {
-      if (mounted && repository == widget.repository &&
+      if (mounted &&
+          repository == widget.repository &&
           revision == _scopeRevision) {
         setState(() => _loadingMore = false);
       }
@@ -729,10 +747,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
             }
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (canCreate) create,
-                modes,
-              ],
+              children: [if (canCreate) create, modes],
             );
           },
         ),
@@ -743,371 +758,405 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   @override
   Widget build(BuildContext context) => !_actorValid
       ? const Scaffold(
-          body: Center(
-            child: Text('Cet Espace n’est plus le contexte actif.'),
-          ),
+          body: Center(child: Text('Cet Espace n’est plus le contexte actif.')),
         )
       : Scaffold(
-    appBar: AppBar(
-      titleSpacing: 4,
-      leadingWidth: 48,
-      title: _searchOpen
-          ? TextField(
-              key: const Key('organizer-search'),
-              autofocus: true,
-              controller: _search,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'Rechercher…',
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            )
-          : Text(
-              widget.spaceSlug == null
-                  ? 'Mes démarches'
-                  : 'Projets et dossiers',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-      actions: _searchOpen
-          ? [
-              if (_search.text.isNotEmpty)
-                MakoloIconActionButton(
-                  tooltip: 'Effacer la recherche',
-                  onPressed: _search.clear,
-                  icon: Icons.backspace_outlined,
-                ),
-              MakoloIconActionButton(
-                tooltip: 'Fermer la recherche',
-                onPressed: _stopSearch,
-                icon: Icons.close_rounded,
-              ),
-            ]
-          : [
-              MakoloIconActionButton(
-                tooltip: _search.text.trim().isNotEmpty
-                    ? 'Recherche active'
-                    : 'Rechercher',
-                onPressed: _startSearch,
-                icon: Icons.search_rounded,
-                color: _search.text.trim().isNotEmpty
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-              MakoloIconActionButton(
-                tooltip:
-                    _kind != 'all' || _status != 'all' || _relation != 'all'
-                    ? 'Filtres actifs'
-                    : 'Filtrer',
-                onPressed: _showContentFilters,
-                icon: Icons.tune_rounded,
-                color: _kind != 'all' || _status != 'all' || _relation != 'all'
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-              MakoloIconActionButton(
-                tooltip: _hasExtraFilters
-                    ? 'Dates et tri actifs'
-                    : 'Dates et tri',
-                onPressed: _advancedFilters,
-                icon: Icons.sort_rounded,
-                color: _hasExtraFilters
-                    ? Theme.of(context).colorScheme.primary
-                    : null,
-              ),
-            ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: _persistentActions(),
-      ),
-    ),
-    body: StreamBuilder<OwnerSourceState>(
-      key: ValueKey<String>('organizer-owner:${widget.spaceSlug ?? 'personal'}'),
-      stream: _source,
-      initialData: OwnerSourceState.unknown,
-      builder: (context, ownerSnapshot) {
-        final source = ownerSnapshot.data ?? OwnerSourceState.unknown;
-        // An unavailable Objectives route or projection error is not proof
-        // that this device is offline: other Makolo surfaces may still work.
-        final networkFailure = const {
-          'timeout',
-          'makolo_unreachable',
-          'secure_connection_failed',
-          'transport_error',
-        }.contains(source.lastErrorCode);
-        final offline =
-            SyncStatusScope.maybeOf(context)?.state ==
-                SyncVisualState.offline ||
-            networkFailure;
-        return StreamBuilder<List<StoredProjection>>(
-          key: ValueKey<String>('organizer-pages:${widget.spaceSlug ?? 'personal'}'),
-          stream: _pages,
-          builder: (context, projectionSnapshot) {
-            final page = OrganizerPage.read(
-              projectionSnapshot.data ?? const [],
-              widget.repository.profileId,
-              spaceSlug: widget.spaceSlug,
-            );
-            final entries = page.entries;
-            final hierarchy = OrganizerHierarchy(entries);
-            final byKey = hierarchy.byKey;
-            List<OrganizerEntry> children(OrganizerEntry parent) =>
-                _ordered(hierarchy.childrenOf(parent));
-
-            // Include ancestors of matching descendants. With search or type
-            // filters the tree opens the matching path; partial parents are
-            // shown as ungrouped, not falsely labelled independent.
-            final visibleCache = <String, bool>{};
-            late bool Function(OrganizerEntry) visible;
-            visible = (item) => visibleCache.putIfAbsent(
-              item.key,
-              () => _matches(item) || children(item).any(visible),
-            );
-
-            final roots = _ordered(hierarchy.roots).where(visible).toList();
-
-            final flat = _ordered(entries.where(_matches));
-            final showFlat =
-                _mode == OrganizerMode.list ||
-                (_mode == OrganizerMode.cards &&
-                    (_kind != 'all' || _relation == 'independent'));
-            final shown = showFlat ? flat : roots;
-
-            return NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification.metrics.axis != Axis.vertical ||
-                    notification.metrics.extentAfter > 450 ||
-                    !page.hasFirst ||
-                    !page.hasMore ||
-                    offline ||
-                    source.invalidated ||
-                    _failed ||
-                    _loadingMore ||
-                    _refreshing) {
-                  return false;
-                }
-                // Keep pagination owner-backed and contiguous. A scroll near
-                // the end is the trigger; no page-number or next-page button.
-                unawaited(_more(page));
-                return false;
-              },
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView(
-                  key: PageStorageKey<String>(
-                    'organizer-scroll:${widget.spaceSlug ?? 'personal'}',
+          appBar: AppBar(
+            titleSpacing: 4,
+            leadingWidth: 48,
+            title: _searchOpen
+                ? TextField(
+                    key: const Key('organizer-search'),
+                    autofocus: true,
+                    controller: _search,
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      hintText: 'Rechercher…',
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                  )
+                : Text(
+                    widget.spaceSlug == null
+                        ? 'Mes démarches'
+                        : 'Projets et dossiers',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(
-                    _mode == OrganizerMode.explorer ? 4 : 16,
-                    10,
-                    _mode == OrganizerMode.explorer ? 4 : 16,
-                    44,
-                  ),
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 960),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (source.invalidated)
-                              Column(
-                                children: [
-                                  ListTile(
-                                    leading: Icon(
-                                      source.lastErrorCode ==
-                                              'permission_denied'
-                                          ? Icons.lock_outline
-                                          : Icons.sync_problem_outlined,
-                                    ),
-                                    title: Text(
-                                      source.lastErrorCode ==
-                                              'permission_denied'
-                                          ? 'Vous n’avez pas accès à cet espace.'
-                                          : source.lastErrorCode == 'not_found'
-                                          ? 'Cet espace de démarches est momentanément introuvable.'
-                                          : 'Retrouvons vos démarches.',
-                                    ),
-                                    subtitle: Text(
-                                      source.lastErrorCode ==
-                                              'permission_denied'
-                                          ? 'Vérifiez le compte utilisé.'
-                                          : 'Vos autres rubriques restent disponibles.',
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: _refreshing ? null : _refresh,
-                                    icon: const Icon(Icons.refresh_rounded),
-                                    label: const Text('Réessayer'),
-                                  ),
-                                ],
-                              )
-                            else if (!page.hasFirst) ...[
-                              if (_refreshing)
-                                const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(30),
-                                    child: Column(
-                                      children: [
-                                        CircularProgressIndicator.adaptive(),
-                                        SizedBox(height: 14),
-                                        Text('Nous préparons vos démarches…'),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              else
-                                Padding(
-                                  padding: const EdgeInsets.all(20),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        source.lastErrorCode ==
-                                                    'endpoint_unavailable' ||
-                                                source.lastErrorCode ==
-                                                    'not_found'
-                                            ? 'Vos démarches ne sont pas encore disponibles ici.'
-                                            : _failed
-                                            ? 'Impossible d’afficher vos démarches pour le moment.'
-                                            : 'Retrouvez vos projets, dossiers et démarches ici.',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        offline
-                                            ? 'Réessayez lorsque la connexion revient.'
-                                            : source.lastErrorCode ==
-                                                      'endpoint_unavailable' ||
-                                                  source.lastErrorCode ==
-                                                      'not_found'
-                                            ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
-                                            : 'Touchez Réessayer pour les retrouver.',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      MakoloActionButton(
-                                        label: 'Réessayer',
-                                        onPressed: _refreshing
-                                            ? null
-                                            : _refresh,
-                                        icon: Icons.refresh_rounded,
-                                        appearance:
-                                            MakoloActionAppearance.quiet,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ] else ...[
-                              if (offline)
-                                const ListTile(
-                                  dense: true,
-                                  leading: Icon(Icons.offline_bolt_outlined),
-                                  title: Text('Vos démarches sont disponibles'),
-                                  subtitle: Text(
-                                    'Les nouveautés apparaîtront à la prochaine connexion.',
-                                  ),
-                                ),
-                              if (_search.text.trim().isNotEmpty &&
-                                  flat.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 8,
-                                    bottom: 12,
-                                  ),
-                                  child: Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: [
-                                      for (final item in flat.take(5))
-                                        ActionChip(
-                                          avatar: Icon(item.icon, size: 17),
-                                          label: Text(item.title),
-                                          onPressed: () => widget.onOpenItem(
-                                            item.kind,
-                                            item.id,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: Text(
-                                  organizerCountLabel(
-                                    flat,
-                                    filtered: _hasSelectionFilters,
-                                    partial: page.hasMore,
-                                  ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelMedium,
-                                ),
-                              ),
-                              if (shown.isEmpty)
-                                _empty(entries.isEmpty)
-                              else if (_mode == OrganizerMode.cards)
-                                LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final itemWidth =
-                                        constraints.maxWidth >= 700
-                                        ? (constraints.maxWidth - 12) / 2
-                                        : constraints.maxWidth;
-                                    return Wrap(
-                                      spacing: 12,
-                                      runSpacing: 12,
-                                      children: [
-                                        for (final item in shown)
-                                          SizedBox(
-                                            width: itemWidth,
-                                            child: _card(
-                                              item,
-                                              children(item),
-                                              hierarchy,
-                                            ),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                )
-                              else if (_mode == OrganizerMode.list || showFlat)
-                                for (final item in flat) _row(item, byKey)
-                              else
-                                for (final item in roots)
-                                  _tree(item, children, visible, hierarchy, 0),
-                              if (page.hasMore && !offline && !_failed)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 18),
-                                  child: Center(
-                                    child: CircularProgressIndicator.adaptive(),
-                                  ),
-                                ),
-                              if (_failed)
-                                TextButton.icon(
-                                  onPressed: _refresh,
-                                  icon: const Icon(Icons.refresh_rounded),
-                                  label: const Text(
-                                    'Impossible de mettre à jour · Réessayer',
-                                  ),
-                                ),
-                            ],
-                          ],
-                        ),
+            actions: _searchOpen
+                ? [
+                    if (_search.text.isNotEmpty)
+                      MakoloIconActionButton(
+                        tooltip: 'Effacer la recherche',
+                        onPressed: _search.clear,
+                        icon: Icons.backspace_outlined,
                       ),
+                    MakoloIconActionButton(
+                      tooltip: 'Fermer la recherche',
+                      onPressed: _stopSearch,
+                      icon: Icons.close_rounded,
+                    ),
+                  ]
+                : [
+                    MakoloIconActionButton(
+                      tooltip: _search.text.trim().isNotEmpty
+                          ? 'Recherche active'
+                          : 'Rechercher',
+                      onPressed: _startSearch,
+                      icon: Icons.search_rounded,
+                      color: _search.text.trim().isNotEmpty
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    MakoloIconActionButton(
+                      tooltip:
+                          _kind != 'all' ||
+                              _status != 'all' ||
+                              _relation != 'all'
+                          ? 'Filtres actifs'
+                          : 'Filtrer',
+                      onPressed: _showContentFilters,
+                      icon: Icons.tune_rounded,
+                      color:
+                          _kind != 'all' ||
+                              _status != 'all' ||
+                              _relation != 'all'
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    MakoloIconActionButton(
+                      tooltip: _hasExtraFilters
+                          ? 'Dates et tri actifs'
+                          : 'Dates et tri',
+                      onPressed: _advancedFilters,
+                      icon: Icons.sort_rounded,
+                      color: _hasExtraFilters
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                     ),
                   ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: _persistentActions(),
+            ),
+          ),
+          body: StreamBuilder<OwnerSourceState>(
+            key: ValueKey<String>(
+              'organizer-owner:${widget.spaceSlug ?? 'personal'}',
+            ),
+            stream: _source,
+            initialData: OwnerSourceState.unknown,
+            builder: (context, ownerSnapshot) {
+              final source = ownerSnapshot.data ?? OwnerSourceState.unknown;
+              // An unavailable Objectives route or projection error is not proof
+              // that this device is offline: other Makolo surfaces may still work.
+              final networkFailure = const {
+                'timeout',
+                'makolo_unreachable',
+                'secure_connection_failed',
+                'transport_error',
+              }.contains(source.lastErrorCode);
+              final offline =
+                  SyncStatusScope.maybeOf(context)?.state ==
+                      SyncVisualState.offline ||
+                  networkFailure;
+              return StreamBuilder<List<StoredProjection>>(
+                key: ValueKey<String>(
+                  'organizer-pages:${widget.spaceSlug ?? 'personal'}',
                 ),
-              ),
-            );
-          },
+                stream: _pages,
+                builder: (context, projectionSnapshot) {
+                  final page = OrganizerPage.read(
+                    projectionSnapshot.data ?? const [],
+                    widget.repository.profileId,
+                    spaceSlug: widget.spaceSlug,
+                  );
+                  final entries = page.entries;
+                  final hierarchy = OrganizerHierarchy(entries);
+                  final byKey = hierarchy.byKey;
+                  List<OrganizerEntry> children(OrganizerEntry parent) =>
+                      _ordered(hierarchy.childrenOf(parent));
+
+                  // Include ancestors of matching descendants. With search or type
+                  // filters the tree opens the matching path; partial parents are
+                  // shown as ungrouped, not falsely labelled independent.
+                  final visibleCache = <String, bool>{};
+                  late bool Function(OrganizerEntry) visible;
+                  visible = (item) => visibleCache.putIfAbsent(
+                    item.key,
+                    () => _matches(item) || children(item).any(visible),
+                  );
+
+                  final roots = _ordered(hierarchy.roots)
+                      .where(visible)
+                      .toList();
+
+                  final flat = _ordered(entries.where(_matches));
+                  final showFlat =
+                      _mode == OrganizerMode.list ||
+                      (_mode == OrganizerMode.cards &&
+                          (_kind != 'all' || _relation == 'independent'));
+                  final shown = showFlat ? flat : roots;
+
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.metrics.axis != Axis.vertical ||
+                          notification.metrics.extentAfter > 450 ||
+                          !page.hasFirst ||
+                          !page.hasMore ||
+                          offline ||
+                          source.invalidated ||
+                          _failed ||
+                          _loadingMore ||
+                          _refreshing) {
+                        return false;
+                      }
+                      // Keep pagination owner-backed and contiguous. A scroll near
+                      // the end is the trigger; no page-number or next-page button.
+                      unawaited(_more(page));
+                      return false;
+                    },
+                    child: RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: ListView(
+                        key: PageStorageKey<String>(
+                          'organizer-scroll:${widget.spaceSlug ?? 'personal'}',
+                        ),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.fromLTRB(
+                          _mode == OrganizerMode.explorer ? 4 : 16,
+                          10,
+                          _mode == OrganizerMode.explorer ? 4 : 16,
+                          44,
+                        ),
+                        children: [
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 960),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (source.invalidated)
+                                    Column(
+                                      children: [
+                                        ListTile(
+                                          leading: Icon(
+                                            source.lastErrorCode ==
+                                                    'permission_denied'
+                                                ? Icons.lock_outline
+                                                : Icons.sync_problem_outlined,
+                                          ),
+                                          title: Text(
+                                            source.lastErrorCode ==
+                                                    'permission_denied'
+                                                ? 'Vous n’avez pas accès à cet espace.'
+                                                : source.lastErrorCode ==
+                                                      'not_found'
+                                                ? 'Cet espace de démarches est momentanément introuvable.'
+                                                : 'Retrouvons vos démarches.',
+                                          ),
+                                          subtitle: Text(
+                                            source.lastErrorCode ==
+                                                    'permission_denied'
+                                                ? 'Vérifiez le compte utilisé.'
+                                                : 'Vos autres rubriques restent disponibles.',
+                                          ),
+                                        ),
+                                        TextButton.icon(
+                                          onPressed: _refreshing
+                                              ? null
+                                              : _refresh,
+                                          icon: const Icon(
+                                            Icons.refresh_rounded,
+                                          ),
+                                          label: const Text('Réessayer'),
+                                        ),
+                                      ],
+                                    )
+                                  else if (!page.hasFirst) ...[
+                                    if (_refreshing)
+                                      const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(30),
+                                          child: Column(
+                                            children: [
+                                              CircularProgressIndicator.adaptive(),
+                                              SizedBox(height: 14),
+                                              Text(
+                                                'Nous préparons vos démarches…',
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Padding(
+                                        padding: const EdgeInsets.all(20),
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              source.lastErrorCode ==
+                                                          'endpoint_unavailable' ||
+                                                      source.lastErrorCode ==
+                                                          'not_found'
+                                                  ? 'Vos démarches ne sont pas encore disponibles ici.'
+                                                  : _failed
+                                                  ? 'Impossible d’afficher vos démarches pour le moment.'
+                                                  : 'Retrouvez vos projets, dossiers et démarches ici.',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              offline
+                                                  ? 'Réessayez lorsque la connexion revient.'
+                                                  : source.lastErrorCode ==
+                                                            'endpoint_unavailable' ||
+                                                        source.lastErrorCode ==
+                                                            'not_found'
+                                                  ? 'Les autres rubriques restent disponibles. Réessayez plus tard.'
+                                                  : 'Touchez Réessayer pour les retrouver.',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            MakoloActionButton(
+                                              label: 'Réessayer',
+                                              onPressed: _refreshing
+                                                  ? null
+                                                  : _refresh,
+                                              icon: Icons.refresh_rounded,
+                                              appearance:
+                                                  MakoloActionAppearance.quiet,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                  ] else ...[
+                                    if (offline)
+                                      const ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          Icons.offline_bolt_outlined,
+                                        ),
+                                        title: Text(
+                                          'Vos démarches sont disponibles',
+                                        ),
+                                        subtitle: Text(
+                                          'Les nouveautés apparaîtront à la prochaine connexion.',
+                                        ),
+                                      ),
+                                    if (_search.text.trim().isNotEmpty &&
+                                        flat.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 8,
+                                          bottom: 12,
+                                        ),
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: [
+                                            for (final item in flat.take(5))
+                                              ActionChip(
+                                                avatar: Icon(
+                                                  item.icon,
+                                                  size: 17,
+                                                ),
+                                                label: Text(item.title),
+                                                onPressed: () =>
+                                                    widget.onOpenItem(
+                                                      item.kind,
+                                                      item.id,
+                                                    ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Text(
+                                        organizerCountLabel(
+                                          flat,
+                                          filtered: _hasSelectionFilters,
+                                          partial: page.hasMore,
+                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelMedium,
+                                      ),
+                                    ),
+                                    if (shown.isEmpty)
+                                      _empty(entries.isEmpty)
+                                    else if (_mode == OrganizerMode.cards)
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          final itemWidth =
+                                              constraints.maxWidth >= 700
+                                              ? (constraints.maxWidth - 12) / 2
+                                              : constraints.maxWidth;
+                                          return Wrap(
+                                            spacing: 12,
+                                            runSpacing: 12,
+                                            children: [
+                                              for (final item in shown)
+                                                SizedBox(
+                                                  width: itemWidth,
+                                                  child: _card(
+                                                    item,
+                                                    children(item),
+                                                    hierarchy,
+                                                  ),
+                                                ),
+                                            ],
+                                          );
+                                        },
+                                      )
+                                    else if (_mode == OrganizerMode.list ||
+                                        showFlat)
+                                      for (final item in flat) _row(item, byKey)
+                                    else
+                                      for (final item in roots)
+                                        _tree(
+                                          item,
+                                          children,
+                                          visible,
+                                          hierarchy,
+                                          0,
+                                        ),
+                                    if (page.hasMore && !offline && !_failed)
+                                      const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 18,
+                                        ),
+                                        child: Center(
+                                          child:
+                                              CircularProgressIndicator.adaptive(),
+                                        ),
+                                      ),
+                                    if (_failed)
+                                      TextButton.icon(
+                                        onPressed: _refresh,
+                                        icon: const Icon(Icons.refresh_rounded),
+                                        label: const Text(
+                                          'Impossible de mettre à jour · Réessayer',
+                                        ),
+                                      ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         );
-      },
-    ),
-  );
 
   Widget _empty(bool noData) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 38),
