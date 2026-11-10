@@ -7,6 +7,13 @@
   let payload;
   try { payload = JSON.parse(json.textContent); } catch (_) { return; }
   if (!payload.identity || payload.identity.id !== root.dataset.projectId) return;
+  const lens = payload.actor_context || {kind: 'personal'};
+  const spaceSlug = lens.kind === 'space' ? lens.space?.slug : null;
+  if (lens.kind === 'space' && typeof spaceSlug !== 'string') return;
+  const scopeParam = spaceSlug ? '&context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
+  const scopeSuffix = spaceSlug ? '?context=space&space=' +
+    encodeURIComponent(spaceSlug) : '';
 
   const $ = (selector) => root.querySelector(selector);
   const area = $('[data-project-content]');
@@ -95,13 +102,15 @@
   }
   function dossierLink(row) {
     const link = el('a', '', title(row));
-    link.href = safeHref(row.web_url);
+    link.href = safeHref(row.web_url) === '#' ? '#' :
+      safeHref(row.web_url) + scopeSuffix;
     return link;
   }
   function postForm(action, fields) {
     const form = el('form');
     form.method = 'post';
-    form.action = safeHref(action);
+    form.action = safeHref(action) === '#' ? '#' :
+      safeHref(action) + scopeSuffix;
     const csrfField = el('input');
     csrfField.type = 'hidden'; csrfField.name = 'csrfmiddlewaretoken'; csrfField.value = csrf;
     add(form, csrfField);
@@ -424,13 +433,16 @@
       const offset = state.page.next_offset;
       const url = '/api/v1/objectives/projects/' +
         encodeURIComponent(root.dataset.projectId) + '/dossiers/' +
-        '?limit=50&offset=' + encodeURIComponent(offset);
+        '?limit=50&offset=' + encodeURIComponent(offset) + scopeParam;
       const response = await fetch(url, {credentials: 'same-origin',
         headers: {Accept: 'application/json'}});
       if (!response.ok) throw new Error('Project Dossier continuation unavailable');
       const envelope = await response.json();
       const page = envelope.data;
+      const pageLens = page?.actor_context || {kind: 'personal'};
       if (!page || page.project_id !== root.dataset.projectId ||
+          pageLens.kind !== lens.kind ||
+          (spaceSlug && pageLens.space?.slug !== spaceSlug) ||
           page.page?.offset !== offset || !Array.isArray(page.items)) {
         throw new Error('Project owner projection mismatch');
       }
