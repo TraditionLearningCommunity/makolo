@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/behavior_primitives.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
 
 import '../../design/action_controls.dart';
 
@@ -48,7 +49,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   bool _invalidPeriod = false;
   bool _editingSearch = false;
   bool _ownerResultsKnown = false;
-  Timer? _searchDebounce;
+  late final ProgressiveSearchCoordinator _searchCoordinator;
   int _offset = 0;
   bool _more = false;
   int _version = 0;
@@ -70,6 +71,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   void initState() {
     super.initState();
     _query = TextEditingController(text: widget.initialQuery);
+    _searchCoordinator = ProgressiveSearchCoordinator(
+      onSearch: (_) => _submit(),
+    );
     widget.runtime.actorContext?.addListener(_onActorChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_submit());
@@ -89,7 +93,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         oldWidget.initialQuery != widget.initialQuery ||
         oldWidget.runtime.session?.profileId !=
             widget.runtime.session?.profileId) {
-      _searchDebounce?.cancel();
+      _searchCoordinator.invalidate();
       _version++;
       _editingSearch = false;
       _ownerResultsKnown = false;
@@ -113,7 +117,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   void _onActorChanged() {
-    _searchDebounce?.cancel();
+    _searchCoordinator.invalidate();
     _version++;
     if (!mounted) return;
     final valid = _actorValid;
@@ -138,7 +142,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
+    _searchCoordinator.dispose();
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     _query.dispose();
     super.dispose();
@@ -463,7 +467,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   Future<void> _submit({bool more = false}) async {
-    _searchDebounce?.cancel();
+    _searchCoordinator.invalidate();
     if (!_actorValid) return;
     if (_editingSearch && mounted) {
       setState(() => _editingSearch = false);
@@ -739,21 +743,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         onChanged: (_) {
                           // Keep the last results identifiable until the new
                           // query can present a local or owner-backed answer.
-                          _searchDebounce?.cancel();
+                          _searchCoordinator.invalidate();
                           _version++;
                           setState(() {
                             _editingSearch = true;
                             _failed = false;
                             _selected = null;
                           });
-                          _searchDebounce = Timer(
-                            const Duration(milliseconds: 350),
-                            () {
-                              if (mounted && _actorValid) {
-                                unawaited(_submit());
-                              }
-                            },
-                          );
+                          _searchCoordinator.changed();
                         },
                         decoration: InputDecoration(
                           labelText: widget.history
@@ -937,7 +934,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 : null,
                           ),
                       ],
-                      if (_more)
+                      if (_more && !_editingSearch)
                         MakoloActionButton(
                           label: 'Afficher la suite',
                           onPressed: _loading
