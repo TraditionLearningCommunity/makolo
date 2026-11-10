@@ -1,4 +1,7 @@
 from datetime import timedelta
+from types import SimpleNamespace
+from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -10,7 +13,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
-from notifications.models import Notification
+from notifications.models import DeliveryChannel, DeliveryStatus, Notification
 from organizations.models import Organization
 
 from .audience_models import ConversationAudienceRuleKind, ConversationAudienceRuleOperation
@@ -84,21 +87,31 @@ class ConversationJ7ContractsTests(TestCase):
         self.assertNotIn(point.title, serialized)
         self.assertNotIn(point.body, serialized)
 
-    def test_action_notification_is_created_after_commit_and_mute_is_respected(self):
-        with self.captureOnCommitCallbacks(execute=True):
-            point = self._question(client_reference="j7-notify-1")
-        self.assertTrue(
-            Notification.objects.filter(
-                recipient=self.member,
-                metadata__conversation_id=str(self.conversation.pk),
-            ).exists()
-        )
-
-        Notification.objects.filter(recipient=self.member).delete()
-        update_personal_conversation_state(actor=self.member, conversation=self.conversation, mute=True)
-        with self.captureOnCommitCallbacks(execute=True):
-            self._question(client_reference="j7-notify-muted")
-        self.assertFalse(Notification.objects.filter(recipient=self.member).exists())
+    def test_action_notification_remains_in_app_but_mute_silences_external_push(self):
+        fake_endpoint = SimpleNamespace(pk=uuid4())
+        with patch("notifications.services.active_push_endpoints_for", return_value=[fake_endpoint]):
+            with self.captureOnCommitCallbacks(execute=True):
+                self._question(client_reference="j7-notify-1")
+            original = Notification.objects.get(
+                recipient=self.member, template_key="conversation.point.action_required",
+            )
+            self.assertEqual(
+                original.deliveries.filter(
+                    channel=DeliveryChannel.PUSH, status=DeliveryStatus.QUEUED,
+                ).count(), 1,
+            )
+            Notification.objects.filter(recipient=self.member).delete()
+            update_personal_conversation_state(
+                actor=self.member, conversation=self.conversation, mute=True,
+            )
+            with self.captureOnCommitCallbacks(execute=True):
+                self._question(client_reference="j7-notify-muted")
+            muted = Notification.objects.get(
+                recipient=self.member, template_key="conversation.point.action_required",
+            )
+            self.assertEqual(muted.metadata["conversation_id"], str(self.conversation.pk))
+            self.assertFalse(muted.deliveries.filter(channel=DeliveryChannel.PUSH).exists())
+            self.assertIsNone(muted.read_at)
 
     def test_api_hides_conversation_from_outsider(self):
         self.client.force_login(self.outsider)
@@ -219,8 +232,18 @@ class ConversationJ7ContractsTests(TestCase):
         page = self.client.get(reverse("conversations:detail", kwargs={"pk": self.conversation.pk}))
         for pk in (information.pk, elsewhere.pk, expected.pk):
             self.assertContains(page, f'id="point-{pk}"', count=1)
-        self.assertContains(page, "En cours ailleurs")
-        self.assertContains(page, "À vous")
+        # Lot 4: current/elsewhere are projections, not competing sorts of
+        # the rendered timeline. Every Point remains in published order.
+        html = page.content.decode()
+        self.assertIn("Fil chronologique", html)
+        self.assertLess(
+            html.index(f'id="point-{information.pk}"'),
+            html.index(f'id="point-{elsewhere.pk}"'),
+        )
+        self.assertLess(
+            html.index(f'id="point-{elsewhere.pk}"'),
+            html.index(f'id="point-{expected.pk}"'),
+        )
 
     def test_c2_search_focus_never_reveals_point_outside_audience(self):
         restricted = create_audience_set(
@@ -333,7 +356,7 @@ class ConversationJ7ContractsTests(TestCase):
             [],
         )
 
-    def test_future_question_counts_as_upcoming_without_early_response(self):
+    def test_future_question_is_knowledge_not_an_action_due_now(self):
         from .attention import point_attention_reason
 
         future_point = create_point(
@@ -347,29 +370,37 @@ class ConversationJ7ContractsTests(TestCase):
             expected_action_audience=self.audience,
             opens_at=timezone.now() + timedelta(days=1),
         )
-        self.assertEqual(point_attention_reason(self.member, future_point), "upcoming")
+        self.assertIsNone(point_attention_reason(self.member, future_point))
         self.client.force_login(self.member)
         presence = self.client.get(reverse("conversations-api:attention-presence"))
         self.assertEqual(presence.status_code, 200)
-        self.assertEqual(presence.json(), {"has_attention": True})
+        self.assertEqual(presence.json(), {"has_attention": False})
         listing = self.client.get(reverse("conversations-api:list"))
         self.assertEqual(listing.status_code, 200)
         row = next(
             item for item in listing.json()["results"]
             if item["id"] == str(self.conversation.pk)
         )
-        self.assertEqual(row["attention_count"], 1)
+        self.assertEqual(row["attention_count"], 0)
+        self.assertTrue(row["all_clear"])
         detail = self.client.get(
             reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
         )
         self.assertEqual(detail.status_code, 200)
+        attention = detail.json()["attention"]
+        self.assertEqual(attention["action_count"], 0)
         upcoming = next(
-            item for item in detail.json()["points"]
+            item for item in attention["to_know"]
             if item["id"] == str(future_point.pk)
         )
-        self.assertEqual(upcoming["attention_reason"], "upcoming")
-        self.assertEqual(upcoming["section"], "a_savoir")
-        self.assertFalse(upcoming["can_respond"])
+        self.assertEqual(upcoming["reason"], "upcoming")
+        self.assertFalse(upcoming["actionable"])
+        own_attention = self.client.get(
+            reverse("conversations-api:attention", kwargs={"pk": self.conversation.pk})
+        )
+        self.assertEqual(own_attention.status_code, 200)
+        self.assertEqual(own_attention["Cache-Control"], "private, no-store")
+        self.assertEqual(own_attention.json()["action_count"], 0)
 
     def test_attention_presence_tracks_real_point_attention_not_unread_activity(self):
         point = self._question(client_reference="j7-presence-question")
