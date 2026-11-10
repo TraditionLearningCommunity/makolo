@@ -348,7 +348,16 @@ class Lot7CollectiveConsentTests(TestCase):
             group=self.group, profile=self.member,
         )
         self.assertTrue(can_view_conversation(self.member, self.conversation))
-        self.assertTrue(point_visible_to(self.member, new_point))
+        # FROM_JOIN is personal: accepting a Group does not backdate
+        # a newly admitted member to the Group's original invitation.
+        self.assertFalse(point_visible_to(self.member, old_point))
+        self.assertFalse(point_visible_to(self.member, new_point))
+        member_point = create_point(
+            actor=self.manager, conversation=self.conversation,
+            kind=ConversationPointKind.INFORMATION,
+            title="Après entrée réelle du membre",
+        )
+        self.assertTrue(point_visible_to(self.member, member_point))
         membership.status = "left"
         membership.save(update_fields=["status", "updated_at"])
         self.assertFalse(can_view_conversation(self.member, self.conversation))
