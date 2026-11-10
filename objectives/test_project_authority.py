@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, Role
-from authorization.services import can, grant_dossier_role, grant_project_role
+from authorization.services import can, can_many, effective_permission_codes, grant_dossier_role, grant_project_role
 from objectives.services import (
     assign_dossier, create_dossier, create_project, link_dossier_to_project,
 )
@@ -54,9 +54,22 @@ class ProjectAuthorityIntegrationTests(TestCase):
         self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
         self.client.force_authenticate(user=self.viewer)
         self.assertFalse(can(self.viewer, PermissionCode.PROJECT_VIEW))
+        self.assertNotIn(
+            PermissionCode.PROJECT_VIEW,
+            effective_permission_codes(self.viewer),
+        )
+        self.assertFalse(
+            can_many(self.viewer, [PermissionCode.PROJECT_VIEW])[
+                PermissionCode.PROJECT_VIEW
+            ],
+        )
         self.assertTrue(can(
             self.viewer, PermissionCode.PROJECT_VIEW, project=self.project,
         ))
+        self.assertTrue(
+            can_many(self.viewer, [PermissionCode.PROJECT_VIEW],
+                     project=self.project)[PermissionCode.PROJECT_VIEW],
+        )
         self.assertFalse(can(
             self.viewer, PermissionCode.PROJECT_VIEW, project=self.other,
         ))
