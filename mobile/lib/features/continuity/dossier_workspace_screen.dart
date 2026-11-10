@@ -1245,7 +1245,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     itemBuilder: (_) => [
       for (final option in options.entries)
         CheckedPopupMenuItem<String>(
-          value: option.key, checked: option.key == selected,
+          value: option.key,
+          checked: option.key == selected,
           child: Text(option.value),
         ),
     ],

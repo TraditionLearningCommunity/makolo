@@ -1421,8 +1421,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     initialValue: selected,
     onSelected: onSelected,
     icon: Icon(
-      title == 'Tri' ? Icons.sort_rounded
-          : title == 'État' ? Icons.filter_alt_outlined
+      title == 'Tri'
+          ? Icons.sort_rounded
+          : title == 'État'
+          ? Icons.filter_alt_outlined
           : Icons.rule_outlined,
       color: selected == 'all' || (title == 'Tri' && selected == 'deadline')
           ? Theme.of(context).colorScheme.onSurfaceVariant
@@ -1431,7 +1433,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     itemBuilder: (_) => [
       for (final item in choices.entries)
         CheckedPopupMenuItem(
-          value: item.key, checked: selected == item.key,
+          value: item.key,
+          checked: selected == item.key,
           child: Text(item.value),
         ),
     ],
@@ -1516,7 +1519,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         const SizedBox(height: 13),
         if (filtered.isNotEmpty &&
             (_search.text.trim().isNotEmpty ||
-                _stateFilter != 'all' || _readinessFilter != 'all'))
+                _stateFilter != 'all' ||
+                _readinessFilter != 'all'))
           Text(
             '${filtered.length} résultat${filtered.length > 1 ? 's' : ''}',
             style: Theme.of(context).textTheme.bodySmall,
@@ -1570,32 +1574,34 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (start != null || end != null)
-        Card(
-          elevation: 0,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Horizon du Projet',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                Text([
-                  if (start != null) 'Début : ${_humanDate(start)}',
-                  if (end != null) 'Fin : ${_humanDate(end)}',
-                ].join(' · ')),
-                if (start != null && end != null && end.isAfter(start))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 15),
-                    child: _track(start, end, rows),
+          Card(
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Horizon du Projet',
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    [
+                      if (start != null) 'Début : ${_humanDate(start)}',
+                      if (end != null) 'Fin : ${_humanDate(end)}',
+                    ].join(' · '),
+                  ),
+                  if (start != null && end != null && end.isAfter(start))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 15),
+                      child: _track(start, end, rows),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
         Row(
           children: [
             PopupMenuButton<_ProjectTime>(
@@ -1617,7 +1623,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   (_ProjectTime.active, 'Dossiers actifs'),
                 ])
                   CheckedPopupMenuItem<_ProjectTime>(
-                    value: mode, checked: _time == mode,
+                    value: mode,
+                    checked: _time == mode,
                     child: Text(label),
                   ),
               ],
