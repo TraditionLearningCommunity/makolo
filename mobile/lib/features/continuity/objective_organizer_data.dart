@@ -244,9 +244,20 @@ class OrganizerPage {
 
   factory OrganizerPage.read(
     List<StoredProjection> projections,
-    String profileId,
-  ) {
-    final pages = projections.toList()
+    String profileId, {
+    String? spaceSlug,
+  }) {
+    // The Profile owns the database, not the presentation scope.
+    // Do not merge personal and Space windows into one apparent hierarchy.
+    final pages = projections.where((snapshot) {
+      final lens = snapshot.payload['actor_context'];
+      if (spaceSlug == null) {
+        return lens is! Map || lens['kind'] != 'space';
+      }
+      if (lens is! Map || lens['kind'] != 'space') return false;
+      final space = lens['space'];
+      return space is Map && space['slug'] == spaceSlug;
+    }).toList()
       ..sort((a, b) => _offset(a).compareTo(_offset(b)));
     final result = <OrganizerEntry>[];
     final seen = <String>{};

@@ -108,19 +108,26 @@ class ObjectiveRepository {
   static const organizerLimit = 50;
   static const organizerProjectionKind = 'objective.organizer.collection';
 
-  String organizerResourceKey(int offset) =>
-      'offset:$offset:limit:$organizerLimit';
-  String organizerSourceKey(int offset) =>
-      '$organizerProjectionKind:$offset:$organizerLimit';
+  static String organizerStorageKey(int offset, {String? spaceSlug}) =>
+      spaceSlug == null
+          ? 'offset:$offset:limit:$organizerLimit'
+          : 'space:$spaceSlug:offset:$offset:limit:$organizerLimit';
 
-  SyncSourceDefinition organizerSourceFor(int offset) =>
+  String organizerResourceKey(int offset, {String? spaceSlug}) =>
+      organizerStorageKey(offset, spaceSlug: spaceSlug);
+
+  String organizerSourceKey(int offset, {String? spaceSlug}) =>
+      '$organizerProjectionKind:${organizerStorageKey(offset, spaceSlug: spaceSlug)}';
+
+  SyncSourceDefinition organizerSourceFor(int offset, {String? spaceSlug}) =>
       SyncSourceDefinition.projectionEnvelope(
-        sourceKey: organizerSourceKey(offset),
+        sourceKey: organizerSourceKey(offset, spaceSlug: spaceSlug),
         owner: 'Objectives',
         path:
-            'api/v1/objectives/organizer/?limit=$organizerLimit&offset=$offset',
+            'api/v1/objectives/organizer/?limit=$organizerLimit&offset=$offset'
+            '${spaceSlug == null ? '' : '&context=space&space=${Uri.encodeQueryComponent(spaceSlug)}'}',
         projectionKind: organizerProjectionKind,
-        resourceKey: organizerResourceKey(offset),
+        resourceKey: organizerResourceKey(offset, spaceSlug: spaceSlug),
         category: SyncSourceCategory.collection,
         freshnessPolicy: freshnessPolicy,
       );
@@ -128,36 +135,40 @@ class ObjectiveRepository {
   Stream<List<StoredProjection>> watchOrganizer() =>
       store.watchProjections(organizerProjectionKind);
 
-  Future<StoredProjection?> readOrganizerPage(int offset) =>
-      store.readProjection(
-        organizerProjectionKind,
-        resourceKey: organizerResourceKey(offset),
-      );
-
-  Stream<OwnerSourceState> watchOrganizerSource() => watchOwnerSourceState(
-    database: database,
-    profileId: profileId,
-    sourceKey: organizerSourceKey(0),
+  Future<StoredProjection?> readOrganizerPage(
+    int offset, {String? spaceSlug}
+  ) => store.readProjection(
+    organizerProjectionKind,
+    resourceKey: organizerResourceKey(offset, spaceSlug: spaceSlug),
   );
 
-  Future<OwnerSourceState> readOrganizerSource() =>
-      readOrganizerSourceForOffset(0);
-
-  /// Every continuation has its own durable owner status; the first page
-  /// cannot attest that a later page was successfully acquired.
-  Future<OwnerSourceState> readOrganizerSourceForOffset(int offset) =>
-      readOwnerSourceState(
+  Stream<OwnerSourceState> watchOrganizerSource({String? spaceSlug}) =>
+      watchOwnerSourceState(
         database: database,
         profileId: profileId,
-        sourceKey: organizerSourceKey(offset),
+        sourceKey: organizerSourceKey(0, spaceSlug: spaceSlug),
       );
 
-  Future<void> refreshOrganizerPage(int offset) async {
+  Future<OwnerSourceState> readOrganizerSource({String? spaceSlug}) =>
+      readOrganizerSourceForOffset(0, spaceSlug: spaceSlug);
+
+  /// A continuation has its own owner status and the selected Space lens.
+  Future<OwnerSourceState> readOrganizerSourceForOffset(
+    int offset, {String? spaceSlug}
+  ) => readOwnerSourceState(
+    database: database,
+    profileId: profileId,
+    sourceKey: organizerSourceKey(offset, spaceSlug: spaceSlug),
+  );
+
+  Future<void> refreshOrganizerPage(int offset, {String? spaceSlug}) async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Remote Objectives owner is not configured.');
     }
-    await engine.refreshSource(organizerSourceFor(offset));
+    await engine.refreshSource(
+      organizerSourceFor(offset, spaceSlug: spaceSlug),
+    );
   }
 
   static const projectDossierProjectionKind =

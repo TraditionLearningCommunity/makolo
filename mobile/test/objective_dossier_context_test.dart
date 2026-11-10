@@ -32,6 +32,15 @@ void main() {
       ),
       isNot('project-1:space:space-a:0:50'),
     );
+    expect(ObjectiveRepository.organizerStorageKey(0), 'offset:0:limit:50');
+    expect(
+      ObjectiveRepository.organizerStorageKey(0, spaceSlug: 'space-a'),
+      'space:space-a:offset:0:limit:50',
+    );
+    expect(
+      ObjectiveRepository.organizerStorageKey(0, spaceSlug: 'space-b'),
+      isNot('space:space-a:offset:0:limit:50'),
+    );
     expect(ObjectiveRepository.contextQuery(null), isEmpty);
     expect(
       ObjectiveRepository.contextQuery('space-a'),
