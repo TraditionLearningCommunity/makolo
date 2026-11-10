@@ -194,8 +194,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           count: _nonNegativeCount(team?['active_members']),
           people: [
             for (final item in teamRows)
-              if (_value(_map(item['profile'])?['name']) case final name?)
-                name,
+              if (_value(_map(item['profile'])?['name']) case final name?) name,
           ],
           previews: [
             if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
@@ -240,8 +239,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           target: route('ownership'),
           people: [
             for (final item in ownershipRows)
-              if (_value(_map(item['profile'])?['name']) case final name?)
-                name,
+              if (_value(_map(item['profile'])?['name']) case final name?) name,
           ],
           previews: [
             for (final item in ownershipRows.take(3))

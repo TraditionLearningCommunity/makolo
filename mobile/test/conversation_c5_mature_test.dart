@@ -432,7 +432,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Privé personnel'), findsNothing);
-    expect(find.text('Conversations de cet Espace indisponibles.'), findsOneWidget);
+    expect(
+      find.text('Conversations de cet Espace indisponibles.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

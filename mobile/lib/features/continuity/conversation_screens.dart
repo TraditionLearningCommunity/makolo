@@ -39,6 +39,7 @@ class ConversationListScreen extends StatefulWidget {
   final ConversationRepository repository;
   final void Function(String id) onOpen;
   final void Function(String id, String pointId)? onOpenPoint;
+
   /// Strict owner-scoped mode. A Space never becomes a chat participant.
   final String? spaceId;
 
@@ -69,10 +70,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   void _loadSpaceRows() {
     final id = widget.spaceId;
     if (id == null) return;
-    _spaceRows = widget.repository.contextDecision(
-      kind: 'space',
-      id: id,
-    );
+    _spaceRows = widget.repository.contextDecision(kind: 'space', id: id);
   }
 
   void _refreshSpaceRows() => setState(_loadSpaceRows);
@@ -94,8 +92,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       }
     } on Object {
       if (mounted && id == widget.spaceId) {
-        setState(() => _spaceEnsureError =
-            'Impossible d’ouvrir cet échange avec les droits actuels.');
+        setState(
+          () => _spaceEnsureError =
+              'Impossible d’ouvrir cet échange avec les droits actuels.',
+        );
       }
     } finally {
       if (mounted) setState(() => _spaceEnsureBusy = false);
@@ -215,15 +215,18 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
             onRetry: _refreshSpaceRows,
           );
         }
-        if (!snapshot.hasData) return const MakoloLoadingState(
-          label: 'Chargement des conversations de cet Espace…',
-        );
+        if (!snapshot.hasData)
+          return const MakoloLoadingState(
+            label: 'Chargement des conversations de cet Espace…',
+          );
         final response = snapshot.data!;
         final raw = response['results'];
         final rows = (raw is List ? raw : const <Object>[])
             .whereType<Map>()
-            .map((item) => item.map((key, value) =>
-                MapEntry(key.toString(), value)))
+            .map(
+              (item) =>
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+            )
             .map(_ConversationSummary.fromMap)
             .where((item) => item.id.isNotEmpty)
             .toList(growable: false);
@@ -231,11 +234,14 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         final term = _spaceSearch.trim().toLowerCase();
         final visible = term.isEmpty
             ? rows
-            : rows.where((item) =>
-                item.title.toLowerCase().contains(term) ||
-                (item.purpose ?? '').toLowerCase().contains(term) ||
-                (item.contextLabel ?? '').toLowerCase().contains(term)
-              ).toList(growable: false);
+            : rows
+                  .where(
+                    (item) =>
+                        item.title.toLowerCase().contains(term) ||
+                        (item.purpose ?? '').toLowerCase().contains(term) ||
+                        (item.contextLabel ?? '').toLowerCase().contains(term),
+                  )
+                  .toList(growable: false);
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 860),
@@ -294,11 +300,13 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 if (rows.isEmpty && canEnsure && term.isEmpty) ...[
                   const SizedBox(height: MakoloSpacing.md),
                   FilledButton.icon(
-                    onPressed: _spaceEnsureBusy ? null : _ensureSpaceConversation,
+                    onPressed: _spaceEnsureBusy
+                        ? null
+                        : _ensureSpaceConversation,
                     icon: const Icon(Icons.forum_outlined),
-                    label: Text(_spaceEnsureBusy
-                        ? 'Ouverture…'
-                        : 'Commencer un échange'),
+                    label: Text(
+                      _spaceEnsureBusy ? 'Ouverture…' : 'Commencer un échange',
+                    ),
                   ),
                   if (_spaceEnsureError != null)
                     Text(

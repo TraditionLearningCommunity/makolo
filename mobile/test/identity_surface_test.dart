@@ -60,7 +60,9 @@ void main() {
     expect(summaries.last.data, summary);
   });
 
-  testWidgets('avatar stack uses only supplied, authorized people', (tester) async {
+  testWidgets('avatar stack uses only supplied, authorized people', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(

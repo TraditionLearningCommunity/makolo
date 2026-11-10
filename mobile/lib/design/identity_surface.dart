@@ -275,16 +275,21 @@ class MakoloPeopleAvatarStack extends StatelessWidget {
   final int maxVisible;
 
   static String initials(String name) {
-    final words = name.trim().split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty).toList(growable: false);
+    final words = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
     if (words.isEmpty) return '?';
     return words.take(2).map((word) => word[0].toUpperCase()).join();
   }
 
   @override
   Widget build(BuildContext context) {
-    final people = names.where((name) => name.trim().isNotEmpty)
-        .take(maxVisible).toList(growable: false);
+    final people = names
+        .where((name) => name.trim().isNotEmpty)
+        .take(maxVisible)
+        .toList(growable: false);
     if (people.isEmpty) return const SizedBox.shrink();
     final visible = people.length;
     final extra = totalCount != null && totalCount! > visible
@@ -298,7 +303,8 @@ class MakoloPeopleAvatarStack extends StatelessWidget {
     ];
     return Semantics(
       container: true,
-      label: 'Personnes visibles : ${people.join(', ')}'
+      label:
+          'Personnes visibles : ${people.join(', ')}'
           '${extra > 0 ? ' et $extra autres' : ''}',
       child: ExcludeSemantics(
         child: SizedBox(
@@ -336,8 +342,9 @@ class MakoloPeopleAvatarStack extends StatelessWidget {
                   left: stride * visible,
                   child: CircleAvatar(
                     radius: size / 2,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHigh,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHigh,
                     child: Text(
                       '+$extra',
                       style: TextStyle(

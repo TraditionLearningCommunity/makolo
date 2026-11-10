@@ -39,7 +39,9 @@ void main() {
   });
 
   for (final kind in [MakoloHeaderKind.me, MakoloHeaderKind.us]) {
-    testWidgets('Conversations icon is shared by Now and $kind', (tester) async {
+    testWidgets('Conversations icon is shared by Now and $kind', (
+      tester,
+    ) async {
       var opens = 0;
       await tester.pumpWidget(
         MaterialApp(

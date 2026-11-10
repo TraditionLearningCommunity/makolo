@@ -23,6 +23,7 @@ class ConversationPointShell extends StatelessWidget {
   final bool isMine;
   final String? authorLabel;
   final bool representedSpace;
+
   /// Canonical Space context label; it is not an author's name or a role.
   final String? representedSpaceLabel;
   final DateTime? publishedAt;

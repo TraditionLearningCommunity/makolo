@@ -335,9 +335,15 @@ void main() {
   ) async {
     final projection = _projection();
     (projection['team'] as Map<String, dynamic>)['items'] = [
-      {'profile': {'id': 'a', 'name': 'Amina Mbala'}},
-      {'profile': {'id': 'b', 'name': 'Patrick Kasa'}},
-      {'profile': {'id': 'c', 'name': 'Chantal Lunda'}},
+      {
+        'profile': {'id': 'a', 'name': 'Amina Mbala'},
+      },
+      {
+        'profile': {'id': 'b', 'name': 'Patrick Kasa'},
+      },
+      {
+        'profile': {'id': 'c', 'name': 'Chantal Lunda'},
+      },
     ];
     (projection['team'] as Map<String, dynamic>)['active_members'] = 5;
     await tester.pumpWidget(

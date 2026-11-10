@@ -455,7 +455,8 @@ class _MeHubListEntry extends StatelessWidget {
     title: entry.title,
     subtitle: entry.subtitle,
     count: entry.count,
-    symbol: entry.kind == 'follows_collection' &&
+    symbol:
+        entry.kind == 'follows_collection' &&
             entry.previews.any((item) => item.destination.kind == 'profile')
         ? MakoloPeopleAvatarStack(
             names: [
@@ -517,7 +518,8 @@ class _MeHubGridEntry extends StatelessWidget {
     title: entry.title,
     subtitle: entry.subtitle,
     countDescription: _countDescription,
-    symbol: entry.kind == 'follows_collection' &&
+    symbol:
+        entry.kind == 'follows_collection' &&
             entry.previews.any((item) => item.destination.kind == 'profile')
         ? MakoloPeopleAvatarStack(
             names: [
