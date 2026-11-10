@@ -41,6 +41,29 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   bool _hasMore = true, _loading = false, _failed = false;
   bool _hasKnownCollection = false;
   String? _removing;
+  String? _removeFailedFor;
+  int _generation = 0;
+
+  bool _stillSame(int version, PersonalRepository personal) =>
+      mounted && version == _generation && identical(widget.personal, personal);
+
+  @override
+  void didUpdateWidget(covariant MeSavedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.personal, widget.personal) ||
+        !identical(oldWidget.api, widget.api)) {
+      _generation++;
+      _rows.clear();
+      _offset = 0;
+      _hasMore = true;
+      _loading = false;
+      _failed = false;
+      _hasKnownCollection = false;
+      _removing = null;
+      _removeFailedFor = null;
+      unawaited(_bootstrap());
+    }
+  }
 
   @override
   void initState() {
@@ -50,18 +73,20 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   }
 
   Future<void> _bootstrap() async {
+    final version = _generation;
+    final personal = widget.personal;
     try {
-      final saved = await widget.personal.store.readProjection(
+      final saved = await personal.store.readProjection(
         _savedProjectionKind,
         resourceKey: _savedResourceKey,
       );
       final payload = saved?.payload;
       final actor = payload?['actor'];
       final items = payload?['items'];
-      if (mounted &&
+      if (_stillSame(version, personal) &&
           actor is Map &&
           actor['type'] == 'profile' &&
-          actor['id']?.toString() == widget.personal.store.profileId &&
+          actor['id']?.toString() == personal.store.profileId &&
           items is List &&
           payload?['next_offset'] is int &&
           payload?['has_more'] is bool) {
@@ -80,13 +105,13 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
           _hasMore = payload['has_more'] as bool;
           _hasKnownCollection = true;
         });
-      } else {
+      } else if (_stillSame(version, personal)) {
         await _restoreRootPreview();
       }
     } on Object {
       // Missing owner collection does not become an authoritative empty list.
     }
-    if (mounted) await _next(reset: true);
+    if (_stillSame(version, personal)) await _next(reset: true);
   }
 
   Future<void> _restoreRootPreview() async {
@@ -140,6 +165,8 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   Future<void> _next({bool reset = false}) async {
     if (_loading || (!reset && !_hasMore) || (!reset && _failed)) return;
+    final version = _generation;
+    final personal = widget.personal;
     setState(() {
       _loading = true;
       _failed = false;
@@ -155,6 +182,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         },
       );
       final response = await widget.api.get(uri.toString());
+      if (!_stillSame(version, personal)) return;
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
         expectedProjection: 'personal.me.preview',
@@ -163,7 +191,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       final actor = data['actor'];
       if (actor is! Map ||
           actor['type'] != 'profile' ||
-          actor['id']?.toString() != widget.personal.store.profileId ||
+          actor['id']?.toString() != personal.store.profileId ||
           data['family'] != 'bookmarks' ||
           data['offset'] != offset ||
           part is! Map ||
@@ -174,7 +202,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
           (part['has_more'] == true && (part['items'] as List).isEmpty)) {
         throw const FormatException('Invalid saved collection');
       }
-      if (!mounted) return;
+      if (!_stillSame(version, personal)) return;
       final known = <String>{
         for (final row in reset ? <Map<String, dynamic>>[] : _rows)
           if (row['id'] != null) row['id'].toString(),
@@ -200,10 +228,10 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         // Valid server data is still displayed; persistence can reconcile later.
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _checkEnd();
+        if (_stillSame(version, personal)) _checkEnd();
       });
     } on Object {
-      if (mounted) {
+      if (_stillSame(version, personal)) {
         setState(() {
           _loading = false;
           _failed = true;
@@ -214,12 +242,17 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   Future<void> _remove(String activityId) async {
     if (_removing != null) return;
-    setState(() => _removing = activityId);
+    final version = _generation;
+    final personal = widget.personal;
+    setState(() {
+      _removing = activityId;
+      _removeFailedFor = null;
+    });
     try {
       await widget.api.delete(
         'api/v1/discovery/items/activity/${Uri.encodeComponent(activityId)}/saved/',
       );
-      if (!mounted) return;
+      if (!_stillSame(version, personal)) return;
       // The server confirmed removal. Preserve other known rows if refresh
       // fails; do not replace the entire offline collection with an error.
       setState(() {
@@ -232,7 +265,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         _hasMore = true;
         _failed = false;
         _removing = null;
+        _removeFailedFor = null;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Retiré des enregistrements.')),
+      );
       try {
         await _retainKnownCollection();
       } on Object {
@@ -278,10 +315,13 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         }
       }
     } on Object {
-      if (mounted) {
-        setState(() => _removing = null);
+      if (_stillSame(version, personal)) {
+        setState(() {
+          _removing = null;
+          _removeFailedFor = activityId;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de retirer cet élément.')),
+          const SnackBar(content: Text('Retrait non confirmé. Réessayer.')),
         );
       }
     }
@@ -308,6 +348,9 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
     body: RefreshIndicator(
       onRefresh: () => _next(reset: true),
       child: ListView(
+        key: PageStorageKey<String>(
+          'me-saved-${widget.personal.store.profileId}',
+        ),
         controller: _scroll,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
         children: [
@@ -324,15 +367,24 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                   (row['activity'] as Map)['title']?.toString() ?? '',
                 ),
                 trailing: IconButton(
-                  tooltip: 'Retirer des enregistrements',
-                  onPressed:
-                      _removing == (row['activity'] as Map)['id'].toString()
+                  tooltip: _removing == (row['activity'] as Map)['id'].toString()
+                      ? 'Retrait en cours'
+                      : _removeFailedFor == (row['activity'] as Map)['id'].toString()
+                      ? 'Retrait non confirmé. Réessayer'
+                      : 'Retirer des enregistrements',
+                  onPressed: _removing != null
                       ? null
-                      : () =>
-                            _remove((row['activity'] as Map)['id'].toString()),
-                  icon: DiscoveryOrbitIcon(
-                    saved: false,
-                    color: Theme.of(context).colorScheme.primary,
+                      : () => _remove((row['activity'] as Map)['id'].toString()),
+                  icon: MakoloActionFeedback(
+                    phase: _removing == (row['activity'] as Map)['id'].toString()
+                        ? MakoloActionPhase.processing
+                        : _removeFailedFor == (row['activity'] as Map)['id'].toString()
+                        ? MakoloActionPhase.failed
+                        : MakoloActionPhase.available,
+                    child: DiscoveryOrbitIcon(
+                      saved: true,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
                 onTap: () =>
