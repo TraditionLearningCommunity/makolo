@@ -159,12 +159,8 @@
     append(stage, el('h2', '', text));
     if (hint) append(stage, el('p', 'mk-dossier__hint', hint));
   }
-  function empty(title, detail) {
-    const card = el('div', 'mk-dossier__empty');
-    append(card, icon('folder-open'));
-    append(card, el('strong', '', title));
-    append(card, el('p', '', detail));
-    append(stage, card);
+  function empty(title) {
+    append(stage, el('p', 'mk-dossier__hint', title));
   }
   function meter(value, label) {
     const node = el('div', 'mk-dossier__metric');
@@ -202,41 +198,42 @@
       append(panel, row);
     }
     append(stage, panel);
-    append(stage, el('p', 'mk-dossier__hint',
-      'Une responsabilité n’accorde pas automatiquement une permission ; un mandat Dossier ne donne pas d’autorité sur les Journeys.'));
   }
   function overview() {
-    heading('Vue d’ensemble', 'Une lecture opérationnelle du résultat attendu, sans pourcentage arbitraire.');
     const readiness = data.readiness || {};
-    const focus = el('div', 'mk-dossier__focus');
-    append(focus, icon(readiness.state === 'blocked' ? 'circle-alert' : 'activity'));
-    const copy = el('div');
-    append(copy, el('strong', '', readiness.label || 'Situation à confirmer'));
-    if (readiness.next_action?.label) {
-      append(copy, el('p', '', 'Prochaine intervention : ' + readiness.next_action.label));
-      const row = byId.get(readiness.next_action.journey_id);
-      if (row) append(copy, link(row, 'Ouvrir cette démarche'));
-    } else {
-      append(copy, el('p', '', readiness.partial
-        ? 'La situation collective est partielle selon vos autorisations.'
-        : 'Aucune prochaine intervention personnelle explicitement signalée.'));
+    if (readiness.state && (rows.length || readiness.state !== 'ready')) {
+      const focus = el('div', 'mk-dossier__focus');
+      append(focus, icon(readiness.state === 'blocked' ? 'circle-alert' : 'activity'));
+      const copy = el('div');
+      append(copy, el('strong', '', readiness.label || 'Situation en cours'));
+      if (readiness.next_action?.label) {
+        append(copy, el('p', '', readiness.next_action.label));
+        const row = byId.get(readiness.next_action.journey_id);
+        if (row) append(copy, link(row, 'Ouvrir'));
+      } else if (readiness.partial) {
+        append(copy, el('p', 'mk-dossier__hint', 'Informations visibles partielles.'));
+      }
+      if (readiness.hidden_signal)
+        append(copy, el('p', 'mk-dossier__hint', readiness.hidden_signal));
+      append(focus, copy); append(stage, focus);
     }
-    if (readiness.hidden_signal) {
-      append(copy, el('p', 'mk-dossier__hint', readiness.hidden_signal));
+    const done = rows.filter((r) => r.state === 'fulfilled').length;
+    const actions = rows.filter((r) => r.readiness_state === 'action_required').length;
+    const prerequisites = dependencies.filter((d) => d.state === 'active').length;
+    if (rows.length || prerequisites) {
+      const stats = el('div', 'mk-dossier__metrics');
+      if (rows.length) append(stats, meter(rows.length, 'Démarches'));
+      if (done) append(stats, meter(done, 'Réalisées'));
+      if (actions) append(stats, meter(actions, 'Action requise'));
+      if (prerequisites) append(stats, meter(prerequisites, 'Prérequis'));
+      append(stage, stats);
     }
-    append(focus, copy); append(stage, focus);
-    const stats = el('div', 'mk-dossier__metrics');
-    append(stats, meter(rows.length, 'Démarches visibles'));
-    append(stats, meter(rows.filter((r) => r.state === 'fulfilled').length, 'Réalisées'));
-    append(stats, meter(rows.filter((r) => r.readiness_state === 'action_required').length, 'Action requise'));
-    append(stats, meter(dependencies.filter((d) => d.state === 'active').length, 'Prérequis visibles actifs'));
-    append(stage, stats);
-    append(stage, el('h3', 'mk-dossier__subhead', 'Démarches du Dossier'));
     if (!rows.length) {
-      empty('Aucune démarche visible liée',
-        'Vous pouvez relier une Journey existante si le Dossier vous en donne l’autorité.');
+      empty('Aucune démarche visible.');
     } else {
-      for (const row of rows.slice(0, 7)) append(stage, journeyRow(row, {compact: true}));
+      append(stage, el('h3', 'mk-dossier__subhead', 'Démarches'));
+      for (const row of rows.slice(0, 7))
+        append(stage, journeyRow(row, {compact: true}));
       if (rows.length > 7) {
         append(stage, btn('Voir toutes les démarches', 'list', () => {
           state.view = 'list'; render();
