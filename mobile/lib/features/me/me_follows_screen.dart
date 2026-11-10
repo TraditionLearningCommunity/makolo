@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/makolo_patterns.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../navigation/destination.dart';
@@ -208,13 +209,29 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     ),
                     for (final item in spaces)
                       ListTile(
-                        title: Text(item.title),
+                        leading: const CircleAvatar(child: Icon(Icons.apartment_rounded)),
+                        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: item.subtitle == null ? null : Text(
+                          item.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        ),
                         trailing: item.canOpen
                             ? const Icon(Icons.chevron_right_rounded)
                             : null,
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
+                        onLongPress: () => showMakoloQuickPreview(
+                          context,
+                          title: item.title,
+                          eyebrow: 'Espace suivi',
+                          summary: item.subtitle,
+                          icon: Icons.apartment_rounded,
+                          facts: item.metadata,
+                          onOpen: item.canOpen
+                              ? () => widget.onOpenDestination(item.destination)
+                              : null,
+                          actionLabel: 'Ouvrir',
+                        ),
                       ),
                   ],
                   if (people.isNotEmpty) ...[
@@ -225,13 +242,29 @@ class _MeFollowsScreenState extends State<MeFollowsScreen> {
                     ),
                     for (final item in people)
                       ListTile(
-                        title: Text(item.title),
+                        leading: const CircleAvatar(child: Icon(Icons.person_outline_rounded)),
+                        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: item.subtitle == null ? null : Text(
+                          item.subtitle!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        ),
                         trailing: item.canOpen
                             ? const Icon(Icons.chevron_right_rounded)
                             : null,
                         onTap: item.canOpen
                             ? () => widget.onOpenDestination(item.destination)
                             : null,
+                        onLongPress: () => showMakoloQuickPreview(
+                          context,
+                          title: item.title,
+                          eyebrow: 'Profil suivi',
+                          summary: item.subtitle,
+                          icon: Icons.person_outline_rounded,
+                          facts: item.metadata,
+                          onOpen: item.canOpen
+                              ? () => widget.onOpenDestination(item.destination)
+                              : null,
+                          actionLabel: 'Ouvrir',
+                        ),
                       ),
                   ],
                   if (spaces.isEmpty && people.isEmpty)
