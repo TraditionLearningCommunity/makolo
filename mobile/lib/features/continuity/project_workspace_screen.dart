@@ -1420,14 +1420,21 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     tooltip: title,
     initialValue: selected,
     onSelected: onSelected,
+    icon: Icon(
+      title == 'Tri' ? Icons.sort_rounded
+          : title == 'État' ? Icons.filter_alt_outlined
+          : Icons.rule_outlined,
+      color: selected == 'all' || (title == 'Tri' && selected == 'deadline')
+          ? Theme.of(context).colorScheme.onSurfaceVariant
+          : Theme.of(context).colorScheme.primary,
+    ),
     itemBuilder: (_) => [
       for (final item in choices.entries)
-        PopupMenuItem(value: item.key, child: Text(item.value)),
+        CheckedPopupMenuItem(
+          value: item.key, checked: selected == item.key,
+          child: Text(item.value),
+        ),
     ],
-    child: Chip(
-      label: Text(choices[selected] ?? title),
-      avatar: const Icon(Icons.keyboard_arrow_down_rounded, size: 15),
-    ),
   );
 
   Widget _dossierList(
@@ -1438,12 +1445,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Dossiers',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 9),
         TextField(
           controller: _search,
           decoration: InputDecoration(
@@ -1513,12 +1514,13 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           ],
         ),
         const SizedBox(height: 13),
-        Text(
-          '${filtered.length} '
-          '${_search.text.trim().isNotEmpty || _stateFilter != 'all' || _readinessFilter != 'all' ? (filtered.length == 1 ? 'résultat' : 'résultats') : (filtered.length == 1 ? 'dossier' : 'dossiers')} '
-          '${filtered.length == 1 ? 'chargé' : 'chargés'}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (filtered.isNotEmpty &&
+            (_search.text.trim().isNotEmpty ||
+                _stateFilter != 'all' || _readinessFilter != 'all'))
+          Text(
+            '${filtered.length} résultat${filtered.length > 1 ? 's' : ''}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         const SizedBox(height: 10),
         if (filtered.isEmpty)
           _empty(
