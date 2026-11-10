@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../design/behavior_primitives.dart';
@@ -100,8 +98,6 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       _loading = false;
       _local = [];
       _remote = [];
-      _editingSearch = false;
-      _ownerResultsKnown = false;
       _unavailableSources = [];
       _limitedSources = [];
       _more = false;
@@ -125,6 +121,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     setState(() {
       _local = [];
       _remote = [];
+      _editingSearch = false;
+      _ownerResultsKnown = false;
       _unavailableSources = [];
       _limitedSources = [];
       _revoked = !valid;
@@ -743,7 +741,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                       'retrieval-${widget.runtime.session?.profileId ?? "personal"}'
                       '-${widget.spaceActor?.space.id ?? "profile"}'
                       '-${widget.spaceActor?.perspective.id ?? "all"}'
-                      '-${widget.history}-${_query.text.trim()}',
+                      '-${widget.history}',
                     ),
                     padding: const EdgeInsets.all(20),
                     children: [
@@ -754,7 +752,6 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         onChanged: (_) {
                           // Keep the last results identifiable until the new
                           // query can present a local or owner-backed answer.
-                          _searchCoordinator.invalidate();
                           _version++;
                           setState(() {
                             _editingSearch = true;
