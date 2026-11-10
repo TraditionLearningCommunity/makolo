@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
+import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
@@ -765,6 +766,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final avatar = representation is Map
         ? _publicImage(representation['avatar_url']?.toString())
         : null;
+    final contextFacts = owner?['context'];
+    final city = contextFacts is Map ? contextFacts['city'] : null;
+    final country = contextFacts is Map ? contextFacts['country'] : null;
+    final location = [
+      if (city is String && city.trim().isNotEmpty) city.trim(),
+      if (country is String && country.trim().isNotEmpty) country.trim(),
+    ].join(' · ');
+    final ownerKind = owner?['identity'] is Map
+        ? (owner!['identity'] as Map)['kind']
+        : null;
     final nativePath = ownerLinks is Map ? ownerLinks['native'] : null;
     final followTarget = _followTarget;
     final followKey = followTarget == null
@@ -789,6 +800,24 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           Expanded(
             child: InkWell(
               onTap: navigable ? () => context.push(nativePath) : null,
+              onLongPress: navigable
+                  ? () => showMakoloQuickPreview(
+                      context,
+                      title: name,
+                      eyebrow: ownerKind == 'space' ? 'Espace' : 'Profil',
+                      avatar: avatar == null ? null : NetworkImage(avatar),
+                      icon: ownerKind == 'space'
+                          ? Icons.business_outlined
+                          : Icons.person_outline_rounded,
+                      facts: [if (location.isNotEmpty) location],
+                      actionLabel: ownerKind == 'space'
+                          ? 'Ouvrir l’Espace'
+                          : 'Ouvrir le Profil',
+                      onOpen: () {
+                        if (context.mounted) context.push(nativePath);
+                      },
+                    )
+                  : null,
               child: Row(
                 children: [
                   CircleAvatar(
@@ -808,10 +837,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
                   ),
                   if (navigable)
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 17,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    Tooltip(
+                      message: 'Appui long : aperçu du porteur',
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        size: 17,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                 ],
               ),
