@@ -22,6 +22,7 @@
   {% if space_context %}
   <p role="note">Consultation de cet Espace : les autorisations sont confirmées par Makolo.</p>
   {% endif %}
+  {% if not space_context or organizer_data.manageable_spaces %}
   <div class="mk-organizer__create" aria-label="Créer">
     <a class="mk-organizer__primary mk-action-button" data-variant="primary" href="{% url 'objectives:dossier-create' %}{{ scope_query }}">
       <i data-lucide="folder-plus" aria-hidden="true"></i>
@@ -32,6 +33,7 @@
       Créer un projet
     </a>
   </div>
+  {% endif %}
   <section class="mk-organizer__tools" aria-label="Recherche, filtres et présentation">
     <label class="mk-organizer__search">
       <i data-lucide="search" aria-hidden="true"></i>
