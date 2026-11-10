@@ -72,6 +72,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 
   bool _refreshing = false;
   bool _respondingInvitation = false;
+  String? _invitationDecision;
+  MakoloActionPhase _invitationPhase = MakoloActionPhase.available;
   String? _invitationNotice;
   bool _requestedInitialRefresh = false;
   int _identityRevision = 0;
@@ -97,6 +99,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       _identityRevision++;
       _refreshing = false;
       _respondingInvitation = false;
+      _invitationDecision = null;
+      _invitationPhase = MakoloActionPhase.available;
       _invitationNotice = null;
       _requestedInitialRefresh = false;
       unawaited(_acquireOrRefresh());
@@ -152,6 +156,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
     final repository = widget.repository;
     setState(() {
       _respondingInvitation = true;
+      _invitationDecision = decision;
+      _invitationPhase = MakoloActionPhase.processing;
       _invitationNotice = null;
     });
     try {
@@ -165,10 +171,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
           !actions.contains(decision)) {
         await _refresh();
         if (_isCurrent(revision, id, repository)) {
-          setState(
-            () => _invitationNotice =
-                'Cette invitation a changé. Consultez son état actuel.',
-          );
+          setState(() {
+            _invitationPhase = MakoloActionPhase.unavailable;
+            _invitationNotice =
+                'Cette invitation a changé. Consultez son état actuel.';
+          });
         }
         return;
       }
@@ -184,11 +191,12 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       }
       await _refresh();
       if (_isCurrent(revision, id, repository)) {
-        setState(
-          () => _invitationNotice = decision == 'accept'
+        setState(() {
+          _invitationPhase = MakoloActionPhase.confirmed;
+          _invitationNotice = decision == 'accept'
               ? 'Invitation acceptée.'
-              : 'Invitation refusée.',
-        );
+              : 'Invitation refusée.';
+        });
       }
     } on Object {
       // A lost acknowledgement cannot be treated as failure or success.
@@ -201,20 +209,25 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         await _refresh();
         if (_isCurrent(revision, id, repository)) {
           final status = current['status'];
-          setState(
-            () => _invitationNotice = status == 'confirmed'
+          setState(() {
+            _invitationPhase =
+                status == 'confirmed' || status == 'cancelled'
+                ? MakoloActionPhase.confirmed
+                : MakoloActionPhase.failed;
+            _invitationNotice = status == 'confirmed'
                 ? 'Invitation acceptée.'
                 : status == 'cancelled'
                 ? 'Invitation refusée.'
-                : 'Vérifiez votre invitation avant de réessayer.',
-          );
+                : 'Vérifiez votre invitation avant de réessayer.';
+          });
         }
       } on Object {
         if (_isCurrent(revision, id, repository)) {
-          setState(
-            () => _invitationNotice =
-                'Aucune confirmation pour le moment. Vous pouvez réessayer.',
-          );
+          setState(() {
+            _invitationPhase = MakoloActionPhase.failed;
+            _invitationNotice =
+                'Aucune confirmation pour le moment. Vérifiez avant de réessayer.';
+          });
         }
       }
     } finally {
@@ -312,6 +325,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       onOpenCommerceOrder: widget.onOpenCommerceOrder,
                       invitationEnabled:
                           widget.api != null && !_respondingInvitation,
+                      invitationDecision: _invitationDecision,
+                      invitationPhase: _invitationPhase,
                       invitationNotice: _invitationNotice,
                       onInvitationDecision: _respondToInvitation,
                       onOpenForm: widget.onOpenForm,
@@ -352,6 +367,8 @@ class _JourneyContent extends StatelessWidget {
     this.onOpenPaymentObligation,
     this.onOpenCommerceOrder,
     required this.invitationEnabled,
+    required this.invitationDecision,
+    required this.invitationPhase,
     required this.invitationNotice,
     required this.onInvitationDecision,
     required this.onOpenForm,
@@ -372,6 +389,8 @@ class _JourneyContent extends StatelessWidget {
   final ValueChanged<String>? onOpenPaymentObligation;
   final ValueChanged<String>? onOpenCommerceOrder;
   final bool invitationEnabled;
+  final String? invitationDecision;
+  final MakoloActionPhase invitationPhase;
   final String? invitationNotice;
   final void Function(String decision) onInvitationDecision;
   final void Function(JourneyFormSummary form) onOpenForm;
@@ -427,17 +446,29 @@ class _JourneyContent extends StatelessWidget {
                           children: [
                             MakoloActionButton(
                               label: 'Accepter',
+                              icon: Icons.check_rounded,
                               onPressed: invitationEnabled
                                   ? () => onInvitationDecision('accept')
                                   : null,
                               appearance: MakoloActionAppearance.primary,
+                              phase: invitationDecision == 'accept'
+                                  ? invitationPhase
+                                  : invitationEnabled
+                                  ? MakoloActionPhase.available
+                                  : MakoloActionPhase.unavailable,
                             ),
                             MakoloActionButton(
                               label: 'Refuser',
+                              icon: Icons.close_rounded,
                               onPressed: invitationEnabled
                                   ? () => onInvitationDecision('decline')
                                   : null,
                               appearance: MakoloActionAppearance.secondary,
+                              phase: invitationDecision == 'decline'
+                                  ? invitationPhase
+                                  : invitationEnabled
+                                  ? MakoloActionPhase.available
+                                  : MakoloActionPhase.unavailable,
                             ),
                           ],
                         ),
