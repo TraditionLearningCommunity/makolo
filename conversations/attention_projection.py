@@ -12,8 +12,13 @@ from django.urls import reverse
 from .attention import ACTION_REASONS, point_attention_reason
 from .audience_services import profile_in_audience
 from .core_models import ConversationLifecycle
-from .point_models import ConversationPoint, ConversationPointKind, ConversationPointLifecycle
-from .point_services import point_visible_to, point_resolution_visible_to
+from .point_models import (
+    ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
+    ConversationPointResponseMode, ConversationPointResponseStatus,
+)
+from .point_services import (
+    point_visible_to, point_resolution_visible_to, point_response_allowed,
+)
 from .services import can_view_conversation
 
 REASON_LABELS = {
@@ -37,6 +42,34 @@ def _safe_preview(point, profile, reason):
     return (point.title or point.body or point.get_kind_display() or "Point")[:160]
 
 
+def _upcoming_action_is_real(profile, point, *, at):
+    """Future window is knowledge only if the targeted Profile can act then."""
+    if not point.expected_action_audience_id or not profile_in_audience(
+        profile, point.expected_action_audience, at=at,
+    ):
+        return False
+    if point.requires_acknowledgement and not point.user_states.filter(
+        profile=profile, acknowledged_at__isnull=False,
+    ).exists():
+        return True
+    if point.kind == ConversationPointKind.FORM_REQUEST:
+        from .form_services import (
+            form_request_completed_for_profile, form_request_for_profile,
+        )
+        return (
+            form_request_for_profile(point, profile) is not None
+            and not form_request_completed_for_profile(point, profile)
+        )
+    if point.response_mode != ConversationPointResponseMode.NONE and point_response_allowed(
+        profile, point, at=at,
+    ):
+        return not point.responses.filter(
+            actor=profile, represented_space__isnull=True,
+            status=ConversationPointResponseStatus.ACTIVE,
+        ).exists()
+    return False
+
+
 def _info_reason(profile, point, *, at, last_opened):
     if point.lifecycle == ConversationPointLifecycle.RESOLVED:
         if point.resolved_at and (last_opened is None or point.resolved_at > last_opened):
@@ -52,8 +85,7 @@ def _info_reason(profile, point, *, at, last_opened):
         point.lifecycle == ConversationPointLifecycle.OPEN
         and point.opens_at
         and at < point.opens_at <= at + timedelta(days=7)
-        and point.expected_action_audience_id
-        and profile_in_audience(profile, point.expected_action_audience, at=at)
+        and _upcoming_action_is_real(profile, point, at=at)
     ):
         return "upcoming"
     return None
