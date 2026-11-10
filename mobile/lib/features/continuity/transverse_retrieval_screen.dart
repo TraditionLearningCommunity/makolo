@@ -509,7 +509,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         _selected = null;
       });
     }
-    if (query.isEmpty && !widget.history) return;
+    if (query.isEmpty && !widget.history) {
+      if (mounted && version == _version) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
     final api = widget.runtime.api;
     if (api == null) {
       if (mounted) setState(() => _failed = true);
