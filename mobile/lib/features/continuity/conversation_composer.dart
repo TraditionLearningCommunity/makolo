@@ -537,6 +537,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
                       key: const Key('conversation-compose-text'),
                       controller: _text,
                       focusNode: _focus,
+                      readOnly: _sending,
                       minLines: 1,
                       maxLines: 4,
                       maxLength: 5000,
@@ -1037,6 +1038,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
               TextField(
                 key: const Key('conversation-compose-title'),
                 controller: _title,
+                readOnly: _sending,
                 autofocus: true,
                 maxLength: 220,
                 decoration: InputDecoration(
@@ -1059,6 +1061,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
               TextField(
                 key: const Key('conversation-compose-body'),
                 controller: _body,
+                readOnly: _sending,
                 autofocus: kind == 'information',
                 minLines: 2,
                 maxLines: 5,
