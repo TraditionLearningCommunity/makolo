@@ -714,7 +714,11 @@ class _JourneyContent extends StatelessWidget {
                 child: MakoloCard(
                   child: Column(
                     children: [
-                      for (var index = 0; index < presentation.payments.length; index++) ...[
+                      for (
+                        var index = 0;
+                        index < presentation.payments.length;
+                        index++
+                      ) ...[
                         if (index > 0) const Divider(height: MakoloSpacing.sm),
                         _JourneyPaymentCard(
                           payment: presentation.payments[index],
@@ -1442,24 +1446,24 @@ class _JourneyPaymentCard extends StatelessWidget {
       open = () => onOpenCommerceOrder!(payment.orderId!);
     }
     return ListTile(
-        onTap: open,
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        leading: const Icon(
-          Icons.account_balance_wallet_outlined,
-          color: Color(0xFF5232DB),
-        ),
-        title: Text('${payment.amount} ${payment.currency}'),
-        subtitle: label == null && payment.reason == null
-            ? null
-            : Text(
-                [
-                  if (label != null) label,
-                  if (payment.reason != null && payment.reason!.isNotEmpty)
-                    payment.reason!,
-                ].join(' · '),
-              ),
-        trailing: open == null ? null : const Icon(Icons.chevron_right_rounded),
+      onTap: open,
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(
+        Icons.account_balance_wallet_outlined,
+        color: Color(0xFF5232DB),
+      ),
+      title: Text('${payment.amount} ${payment.currency}'),
+      subtitle: label == null && payment.reason == null
+          ? null
+          : Text(
+              [
+                if (label != null) label,
+                if (payment.reason != null && payment.reason!.isNotEmpty)
+                  payment.reason!,
+              ].join(' · '),
+            ),
+      trailing: open == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }
