@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -167,7 +168,10 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
     }
     _autosave?.cancel();
     final answers = Map<String, dynamic>.from(_answers);
-    setState(() => _submitting = true);
+    setState(() {
+      _submitting = true;
+      _serverErrors.remove('_form');
+    });
     try {
       await _persistDraft();
       final created = await widget.submitCoordinator.enqueue(
@@ -176,9 +180,21 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
         answers: answers,
         links: widget.links,
       );
+      // An existing active Outbox operation is also an accepted intention.
+      // Never create a second submission while reconciliation is pending.
+      if (mounted) setState(() => _submittedLocally = true);
       if (created) {
-        _submittedLocally = true;
-        await widget.outboxProcessor?.run();
+        try {
+          await widget.outboxProcessor?.run();
+        } on Object {
+          // Durable queue is not undone by a failed dispatch attempt.
+          // The Outbox status continues to own retry and confirmation.
+        }
+      }
+    } on Object {
+      if (mounted && !_submittedLocally) {
+        setState(() => _serverErrors['_form'] =
+            'Soumission non conservée. Vérifiez les réponses et réessayez.');
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -284,6 +300,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                           widget.links.canSubmit &&
                           !detail.isSubmitted &&
                           !_submitting &&
+                          !_submittedLocally &&
                           !_operationActive(operation),
                       onChanged: _changed,
                       onSubmit: () => _submit(detail!),
@@ -305,6 +322,7 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
 
   MakoloCommitCue _commitCue(OutboxResourceOperation? operation) {
     if (operation == null) {
+      if (_submittedLocally) return MakoloCommitCue.pending;
       return _initializedAnswers
           ? MakoloCommitCue.savedOnDevice
           : MakoloCommitCue.none;
@@ -437,10 +455,28 @@ class _FormContent extends StatelessWidget {
               ),
             const SizedBox(height: MakoloSpacing.inner),
           ],
-          FilledButton.icon(
+          MakoloActionButton(
             onPressed: canSubmit ? onSubmit : null,
-            icon: const Icon(Icons.check_rounded),
-            label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
+            icon: Icons.check_rounded,
+            label: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+                ? 'Soumis'
+                : commit == MakoloCommitCue.pending ||
+                    commit == MakoloCommitCue.awaitingConfirmation
+                ? 'En attente'
+                : 'Soumettre',
+            appearance: MakoloActionAppearance.primary,
+            phase: detail.isSubmitted || commit == MakoloCommitCue.confirmed
+                ? MakoloActionPhase.confirmed
+                : commit == MakoloCommitCue.pending ||
+                    commit == MakoloCommitCue.awaitingConfirmation
+                ? MakoloActionPhase.unavailable
+                : commit == MakoloCommitCue.failed ||
+                    commit == MakoloCommitCue.conflict ||
+                    errors['_form'] != null
+                ? MakoloActionPhase.failed
+                : canSubmit
+                ? MakoloActionPhase.available
+                : MakoloActionPhase.unavailable,
           ),
           if (!canSubmit &&
               !detail.isSubmitted &&
