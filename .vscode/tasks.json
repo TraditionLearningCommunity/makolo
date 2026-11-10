@@ -38,22 +38,6 @@
       }
     },
     {
-      "label": "Makolo — Démarrer émulateur Android",
-      "type": "process",
-      "command": "cmd.exe",
-      "args": [
-        "/d",
-        "/c",
-        "call \"${workspaceFolder}\\scripts\\dev\\prepare_android_emulator.bat\""
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared",
-        "clear": false
-      }
-    },
-    {
       "label": "Makolo — Activer clavier émulateur",
       "type": "process",
       "command": "adb",
@@ -78,7 +62,6 @@
       "label": "Makolo — Préparer émulateur local",
       "dependsOrder": "sequence",
       "dependsOn": [
-        "Makolo — Démarrer émulateur Android",
         "Makolo — Activer clavier émulateur",
         "Makolo — ADB Reverse Emulator"
       ],
@@ -88,7 +71,6 @@
       "label": "Makolo — Préparer émulateur PythonAnywhere",
       "dependsOrder": "sequence",
       "dependsOn": [
-        "Makolo — Démarrer émulateur Android",
         "Makolo — Activer clavier émulateur"
       ],
       "problemMatcher": []
