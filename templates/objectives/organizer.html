@@ -10,18 +10,8 @@
     <span aria-current="page">Mes démarches</span>
   </nav>
   <header class="mk-organizer__heading">
-    <div>
-      <p class="mk-organizer__eyebrow">{% if space_context %}Mon Espace actif{% else %}Mon espace d’organisation{% endif %}</p>
-      <h1>{% if space_context %}Projets et dossiers{% else %}Mes démarches{% endif %}</h1>
-      <p class="mk-organizer__intro">Projets, dossiers et démarches, à votre rythme.</p>
-    </div>
-    <div class="mk-organizer__heading-mark" aria-hidden="true">
-      <i data-lucide="folders"></i>
-    </div>
+    <div><h1>Mes démarches</h1></div>
   </header>
-  {% if space_context %}
-  <p role="note">Consultation de cet Espace : les autorisations sont confirmées par Makolo.</p>
-  {% endif %}
   {% if not space_context or organizer_data.manageable_spaces %}
   <div class="mk-organizer__create" aria-label="Créer">
     <a class="mk-organizer__primary mk-action-button" data-variant="primary" href="{% url 'objectives:dossier-create' %}{{ scope_query }}">
@@ -42,17 +32,19 @@
              autocomplete="off">
     </label>
     <div data-suggestions class="mk-organizer__suggestions" role="group" aria-label="Suggestions locales" hidden></div>
-    <div class="mk-organizer__filters">
-      <label>Type
-        <select data-filter-kind>
+    <div class="mk-organizer__filters" aria-label="Filtres et tri">
+      <label class="mk-organizer__icon-filter" title="Type">
+        <i data-lucide="shapes" aria-hidden="true"></i>
+        <select data-filter-kind aria-label="Filtrer par type">
           <option value="all">Tous les types</option>
           <option value="project">Projets</option>
           <option value="dossier">Dossiers</option>
           <option value="journey">Démarches</option>
         </select>
       </label>
-      <label>État
-        <select data-filter-status>
+      <label class="mk-organizer__icon-filter" title="État">
+        <i data-lucide="filter" aria-hidden="true"></i>
+        <select data-filter-status aria-label="Filtrer par état">
           <option value="all">Tous les états</option>
           <option value="draft">En préparation</option>
           <option value="active">En cours</option>
@@ -61,33 +53,35 @@
           <option value="archived">Archivés</option>
         </select>
       </label>
-      <label>Contexte
-        <select data-filter-relation>
-          <option value="all">Tous les contextes</option>
-          <option value="mine">Personnel</option>
-          <option value="space">Espace</option>
+      <label class="mk-organizer__icon-filter" title="Rattachement">
+        <i data-lucide="folder-tree" aria-hidden="true"></i>
+        <select data-filter-placement aria-label="Filtrer par rattachement">
+          <option value="all">Tous</option>
           <option value="independent">Indépendants</option>
         </select>
       </label>
-      <label>Champ de date
-        <select data-filter-date-field>
+      <label class="mk-organizer__icon-filter" title="Champ de date">
+        <i data-lucide="calendar-range" aria-hidden="true"></i>
+        <select data-filter-date-field aria-label="Choisir le champ de date">
           <option value="created_at">Création</option>
           <option value="updated_at">Modification</option>
           <option value="deadline">Échéance</option>
           <option value="starts_on">Début</option>
-          <option value="fulfilled_at">Réalisation (si connue)</option>
+          <option value="fulfilled_at">Réalisation</option>
         </select>
       </label>
-      <label>Période
-        <select data-filter-period>
+      <label class="mk-organizer__icon-filter" title="Période">
+        <i data-lucide="calendar-clock" aria-hidden="true"></i>
+        <select data-filter-period aria-label="Filtrer par période">
           <option value="all">Toutes les dates</option>
           <option value="7">7 prochains jours</option>
           <option value="30">30 prochains jours</option>
           <option value="90">90 prochains jours</option>
         </select>
       </label>
-      <label>Trier
-        <select data-sort>
+      <label class="mk-organizer__icon-filter" title="Trier">
+        <i data-lucide="list-filter" aria-hidden="true"></i>
+        <select data-sort aria-label="Trier les résultats">
           <option value="title">Nom A–Z</option>
           <option value="created_at">Création</option>
           <option value="updated_at">Modification</option>
@@ -99,12 +93,15 @@
               aria-label="Inverser le tri" title="Inverser le tri">
         <i data-lucide="arrow-up" aria-hidden="true"></i>
       </button>
-      <button type="button" class="mk-organizer__clear mk-action-button" data-variant="link" data-reset>Effacer les filtres</button>
+      <button type="button" class="mk-organizer__clear mk-action-button" data-variant="secondary" data-size="icon" data-reset
+              aria-label="Effacer les filtres" title="Effacer les filtres">
+        <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+      </button>
     </div>
     <div class="mk-organizer__views mk-interaction-tabs" role="group" aria-label="Vue des démarches">
-      <button type="button" data-view="cards" aria-pressed="true"><i data-lucide="layout-grid"></i> Cartes</button>
-      <button type="button" data-view="list" aria-pressed="false"><i data-lucide="list"></i> Liste</button>
-      <button type="button" data-view="explorer" aria-pressed="false"><i data-lucide="folder-tree"></i> Explorateur</button>
+      <button type="button" data-view="cards" aria-pressed="true" title="Cartes" aria-label="Cartes"><i data-lucide="layout-grid" aria-hidden="true"></i></button>
+      <button type="button" data-view="list" aria-pressed="false" title="Liste" aria-label="Liste"><i data-lucide="list" aria-hidden="true"></i></button>
+      <button type="button" data-view="explorer" aria-pressed="false" title="Explorateur" aria-label="Explorateur"><i data-lucide="folder-tree" aria-hidden="true"></i></button>
     </div>
   </section>
   <section class="mk-organizer__body" aria-label="Éléments organisés">
