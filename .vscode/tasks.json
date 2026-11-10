@@ -40,11 +40,11 @@
     {
       "label": "Makolo — Démarrer émulateur Android",
       "type": "process",
-      "command": "powershell.exe",
+      "command": "cmd.exe",
       "args": [
-        "-NoProfile",
-        "-Command",
-        "$ErrorActionPreference = 'Stop'\n$id = 'emulator-5554'\n$devices = @(adb devices)\n$found = @($devices | Where-Object { $_ -match ('^' + [regex]::Escape($id) + '\\s+') }).Count -gt 0\nif (-not $found) {\n  flutter emulators --launch Makolo_API_35\n  if ($LASTEXITCODE -ne 0) { throw 'Impossible de lancer l emulateur Makolo_API_35.' }\n}\n$ready = $false\nfor ($i = 0; $i -lt 120; $i++) {\n  $state = (adb -s $id get-state 2>$null | Out-String).Trim()\n  if ($LASTEXITCODE -eq 0 -and $state -eq 'device') {\n    $boot = (adb -s $id shell getprop sys.boot_completed 2>$null | Out-String).Trim()\n    if ($LASTEXITCODE -eq 0 -and $boot -eq '1') { $ready = $true; break }\n  }\n  Start-Sleep -Seconds 2\n}\nif (-not $ready) { throw 'Emulateur non pret. Verifiez Android Device Manager et adb devices.' }\nWrite-Host 'Makolo : emulateur Android pret'"
+        "/d",
+        "/c",
+        "${workspaceFolder}\\scripts\\dev\\prepare_android_emulator.bat"
       ],
       "problemMatcher": [],
       "presentation": {
