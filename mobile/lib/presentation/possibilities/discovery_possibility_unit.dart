@@ -240,14 +240,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   @override
   void didUpdateWidget(covariant DiscoveryPossibilityUnit oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.item.candidateKey != widget.item.candidateKey ||
+    if (oldWidget.profileId != widget.profileId ||
+        oldWidget.shareApi != widget.shareApi ||
+        oldWidget.item.candidateKey != widget.item.candidateKey ||
         (_confirmedSaved != null &&
             widget.item.savedState ==
                 (_confirmedSaved! ? 'saved' : 'not_saved'))) {
       _confirmedSaved = null;
       _saveFailed = false;
     }
-    if (oldWidget.item.candidateKey != widget.item.candidateKey ||
+    if (oldWidget.profileId != widget.profileId ||
+        oldWidget.shareApi != widget.shareApi ||
+        oldWidget.item.candidateKey != widget.item.candidateKey ||
         oldWidget.item.ownerFacts?['identity'].toString() !=
             widget.item.ownerFacts?['identity'].toString()) {
       _confirmedFollowed = null;
