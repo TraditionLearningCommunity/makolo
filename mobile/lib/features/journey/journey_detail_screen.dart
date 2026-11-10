@@ -684,10 +684,10 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-            if (presentation.practical?.hasContent == true) ...[
-              const SizedBox(height: MakoloSpacing.lg),
+            if (_hasAdditionalPracticalFacts(presentation.practical)) ...[
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'À retenir',
+                title: 'À savoir',
                 child: _JourneyPracticalCard(facts: presentation.practical!),
               ),
             ],
@@ -1291,6 +1291,24 @@ class _ReadinessGroups extends StatelessWidget {
   }
 }
 
+bool _hasAdditionalPracticalFacts(JourneyPracticalFacts? facts) {
+  if (facts == null) return false;
+  final location = JourneyDayPresentation.additionalPlace(
+    name: facts.placeName,
+    locality: facts.placeLocality,
+    address: facts.placeAddress,
+  );
+  final endIsDifferent = facts.endDate != null &&
+      (facts.endDate != facts.startDate || facts.endTime != facts.startTime);
+  final hasEndTime = facts.endTime != null &&
+      facts.endTime != facts.startTime;
+  return location != null ||
+      (facts.accessInstructions?.trim().isNotEmpty ?? false) ||
+      endIsDifferent || hasEndTime;
+}
+
+/// The hero already owns the main date, hour and location; show only genuinely
+/// additional practical information here.
 class _JourneyPracticalCard extends StatelessWidget {
   const _JourneyPracticalCard({required this.facts});
 
@@ -1298,62 +1316,50 @@ class _JourneyPracticalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localization = MaterialLocalizations.of(context);
-    final ownerDate = facts.startDate == null
-        ? null
-        : DateTime.tryParse(facts.startDate!);
-    final date = ownerDate != null
-        ? localization.formatCompactDate(ownerDate)
-        : facts.startAt != null
-        ? localization.formatCompactDate(facts.startAt!.toLocal())
-        : null;
-    final time = facts.startTime != null && facts.startTime!.length >= 5
-        ? facts.startTime!.substring(0, 5)
-        : facts.startAt != null
-        ? localization.formatTimeOfDay(
-            TimeOfDay.fromDateTime(facts.startAt!.toLocal()),
-          )
-        : null;
+    final additionalPlace = JourneyDayPresentation.additionalPlace(
+      name: facts.placeName,
+      locality: facts.placeLocality,
+      address: facts.placeAddress,
+    );
+    final endDate = JourneyDayPresentation.civilDate(facts.endDate);
+    final endTime = JourneyDayPresentation.clock(facts.endTime);
+    final showEnd = facts.endDate != null &&
+        (facts.endDate != facts.startDate ||
+         facts.endTime != facts.startTime);
+    final showTimeOnly = endTime != null &&
+        endTime != JourneyDayPresentation.clock(facts.startTime);
+    final endLabel = [
+      if (showEnd && endDate != null)
+        MaterialLocalizations.of(context).formatMediumDate(endDate),
+      if (showTimeOnly) endTime,
+    ].join(' · ');
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (date != null || time != null)
+          if (additionalPlace != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.calendar_month_outlined),
-              title: const Text('Début prévu'),
-              subtitle: Text(
-                [
-                  ?date,
-                  ?time,
-                  if (ownerDate != null && facts.timezone != null)
-                    facts.timezone!,
-                ].join(' · '),
-              ),
+              leading: const Icon(Icons.directions_outlined,
+                  color: Color(0xFF5232DB)),
+              title: const Text('Adresse'),
+              subtitle: Text(additionalPlace),
             ),
-          if (facts.placeName != null || facts.placeAddress != null)
+          if (endLabel.isNotEmpty)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.place_outlined),
-              title: Text(facts.placeName ?? 'Lieu'),
-              subtitle:
-                  [facts.placeAddress, facts.placeLocality]
-                      .whereType<String>()
-                      .where((value) => value.isNotEmpty)
-                      .isEmpty
-                  ? null
-                  : Text(
-                      [facts.placeAddress, facts.placeLocality]
-                          .whereType<String>()
-                          .where((value) => value.isNotEmpty)
-                          .join(', '),
-                    ),
+              leading: const Icon(Icons.event_available_outlined,
+                  color: Color(0xFF5232DB)),
+              title: const Text('Fin prévue'),
+              subtitle: Text(endLabel),
             ),
-          if (facts.accessInstructions != null)
-            Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-              child: Text(facts.accessInstructions!),
+          if (facts.accessInstructions?.trim().isNotEmpty == true)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.info_outline_rounded,
+                  color: Color(0xFF5232DB)),
+              title: const Text('Sur place'),
+              subtitle: Text(facts.accessInstructions!),
             ),
         ],
       ),
