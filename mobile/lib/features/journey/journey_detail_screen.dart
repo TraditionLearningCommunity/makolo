@@ -322,7 +322,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                       onOpenPaymentObligation: widget.onOpenPaymentObligation,
                       onOpenCommerceOrder: widget.onOpenCommerceOrder,
                       invitationEnabled:
-                          widget.api != null && !_respondingInvitation,
+                          widget.api != null &&
+                          !_respondingInvitation &&
+                          _invitationPhase != MakoloActionPhase.confirmed &&
+                          _invitationPhase != MakoloActionPhase.unavailable,
                       invitationDecision: _invitationDecision,
                       invitationPhase: _invitationPhase,
                       invitationNotice: _invitationNotice,
