@@ -211,6 +211,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _allResources = false;
   bool? _confirmedSaved;
   bool _followingBusy = false;
+  bool _followFailed = false;
   bool? _confirmedFollowed;
 
   @override
@@ -228,6 +229,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             widget.item.ownerFacts?['identity'].toString()) {
       _confirmedFollowed = null;
       _followingBusy = false;
+      _followFailed = false;
     }
     if (_confirmedFollowed != null &&
         widget.item.ownerFacts?['follow'] is Map &&
@@ -318,7 +320,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         (target['followed'] == true);
     final endpoint =
         'api/v1/organizations/follows/targets/${target['kind']}/${target['id']}/';
-    setState(() => _followingBusy = true);
+    setState(() {
+      _followingBusy = true;
+      _followFailed = false;
+    });
     try {
       final response = currentlyFollowed
           ? await api.delete(endpoint)
@@ -336,8 +341,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Le suivi n’a pas pu être confirmé.')),
+        setState(() => _followFailed = true);
+        showMakoloNotice(
+          context,
+          'Le suivi n’a pas pu être confirmé.',
+          kind: MakoloNoticeKind.error,
         );
       }
     } finally {
@@ -854,6 +862,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             key: const Key('discover-owner-follow'),
             followed: followed,
             busy: _followingBusy,
+            failed: _followFailed,
             onPressed: _toggleFollow,
           ),
         if (item.wire['date'] is Map &&
@@ -1395,13 +1404,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final saved = _confirmedSaved ?? (item.savedState == 'saved');
     final canToggle =
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
+    final saveAvailable = widget.allowOwnerActions &&
+        ((widget.onSave != null && canToggle) ||
+            (widget.allowSavePrompt && widget.onSignIn != null));
     final savePhase = _saving
         ? MakoloActionPhase.processing
         : _saveFailed
         ? MakoloActionPhase.failed
         : saved
         ? MakoloActionPhase.confirmed
-        : MakoloActionPhase.available;
+        : saveAvailable
+        ? MakoloActionPhase.available
+        : MakoloActionPhase.unavailable;
 
     final resources = _resourceEntries;
     final actionBar = <Widget>[
