@@ -61,11 +61,7 @@ class JourneyDayPresentation {
     DateTime now, {
     String? timezoneName,
   }) {
-    final offset = dayOffset(
-      occurrenceDate,
-      now,
-      timezoneName: timezoneName,
-    );
+    final offset = dayOffset(occurrenceDate, now, timezoneName: timezoneName);
     if (offset == null) return null;
     if (offset == 0) return 'Jour J';
     return offset < 0 ? 'Jour −${-offset}' : 'Jour J +$offset';

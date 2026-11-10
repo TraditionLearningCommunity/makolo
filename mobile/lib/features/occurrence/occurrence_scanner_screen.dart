@@ -222,7 +222,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
 
   Future<void> _submit(String token) async {
     final currentEpoch = _epoch;
-    if (_busy || _checking || _needsReview || _context == null || !_actorValid) return;
+    if (_busy || _checking || _needsReview || _context == null || !_actorValid)
+      return;
     setState(() {
       _busy = true;
       _needsReview = false;

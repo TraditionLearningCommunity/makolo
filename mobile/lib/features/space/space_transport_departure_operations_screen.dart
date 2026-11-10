@@ -327,7 +327,8 @@ class _SpaceTransportDepartureOperationsScreenState
                               '${row['physical_capacity']} places physiques',
                             ),
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: _posting || _confirming || _requiresVerification
+                            onTap:
+                                _posting || _confirming || _requiresVerification
                                 ? null
                                 : () => _command(
                                     'assign_vehicle',
@@ -395,7 +396,8 @@ class _SpaceTransportDepartureOperationsScreenState
                             : _confirming
                             ? MakoloActionPhase.unavailable
                             : MakoloActionPhase.available,
-                        onPressed: _posting || _confirming || _requiresVerification
+                        onPressed:
+                            _posting || _confirming || _requiresVerification
                             ? null
                             : () => _command('reschedule'),
                       ),
@@ -413,7 +415,8 @@ class _SpaceTransportDepartureOperationsScreenState
                             : _confirming
                             ? MakoloActionPhase.unavailable
                             : MakoloActionPhase.available,
-                        onPressed: _posting || _confirming || _requiresVerification
+                        onPressed:
+                            _posting || _confirming || _requiresVerification
                             ? null
                             : () => _command('cancel'),
                       ),
