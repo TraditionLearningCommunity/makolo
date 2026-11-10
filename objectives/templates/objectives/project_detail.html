@@ -6,9 +6,12 @@
 <main class="mk-project" data-project-workspace data-project-id="{{ project.pk }}">
   <nav class="mk-project__path" aria-label="Fil d’Ariane">
     <a href="{% url 'core:participant-me' %}">Moi</a><span>/</span>
-    <a href="{% url 'objectives:organizer' %}">Mes démarches</a><span>/</span>
+    <a href="{% url 'objectives:organizer' %}{{ scope_query }}">Mes démarches</a><span>/</span>
     <span aria-current="page">Projet</span>
   </nav>
+  {% if workspace.actor_context.kind == "space" %}
+  <p role="note">Espace actif : {{ workspace.owner.label }} · actions selon vos autorisations.</p>
+  {% endif %}
   <header class="mk-project__hero">
     <div class="mk-project__identity">
       <span class="mk-project__symbol" aria-hidden="true"><i data-lucide="folder-kanban"></i></span>
@@ -67,7 +70,7 @@
     <div data-project-content aria-live="polite">
       <h2>Dossiers visibles</h2>
       {% for row in dossier_rows %}
-        <a href="{% url 'objectives:dossier-detail' row.id %}">{{ row.title }}</a>
+        <a href="{% url 'objectives:dossier-detail' row.id %}{{ scope_query }}">{{ row.title }}</a>
       {% empty %}
         <p>Aucun dossier visible dans ce Projet.</p>
       {% endfor %}
@@ -102,7 +105,7 @@
         {% if access_form and "revoke" in member.capabilities %}
         <details>
           <summary>Retirer l’accès</summary>
-          <form method="post" action="{% url 'objectives:project-authority' project.pk %}">
+          <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
             {% csrf_token %}
             <input type="hidden" name="action" value="revoke">
             <input type="hidden" name="mandate_id" value="{{ member.id }}">
@@ -132,7 +135,7 @@
 
   {% if access_form %}
   <dialog id="project-authority" class="mk-project__dialog">
-    <form method="post" action="{% url 'objectives:project-authority' project.pk %}">
+    <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
       {% csrf_token %}
       <input type="hidden" name="action" value="grant">
       <header>
@@ -156,7 +159,7 @@
   {% if can_manage %}
     {% if child_form %}
       <dialog id="project-create" class="mk-project__dialog">
-        <form method="post" action="{% url 'objectives:project-create-child' project.pk %}">
+        <form method="post" action="{% url 'objectives:project-create-child' project.pk %}{{ scope_query }}">
           {% csrf_token %}
           <header><h2>Créer un dossier dans ce Projet</h2>
             <p>Le Dossier partage le contexte porteur du Projet et reste autonome.</p></header>
@@ -173,7 +176,7 @@
     {% endif %}
     {% if link_form %}
       <dialog id="project-link" class="mk-project__dialog">
-        <form method="post" action="{% url 'objectives:project-link-dossier' project.pk %}">
+        <form method="post" action="{% url 'objectives:project-link-dossier' project.pk %}{{ scope_query }}">
           {% csrf_token %}
           <header><h2>Rattacher un dossier existant</h2>
             <p>Seuls les Dossiers indépendants autorisés peuvent être liés.</p></header>
@@ -190,7 +193,7 @@
     {% endif %}
     {% if edit_form %}
       <dialog id="project-edit" class="mk-project__dialog">
-        <form method="post" action="{% url 'objectives:project-edit' project.pk %}">
+        <form method="post" action="{% url 'objectives:project-edit' project.pk %}{{ scope_query }}">
           {% csrf_token %}
           <header><h2>Modifier le Projet</h2>
             <p>Un horizon ne constitue pas une promesse d’achèvement.</p></header>
@@ -207,7 +210,7 @@
     {% endif %}
     {% if lifecycle_form %}
       <dialog id="project-lifecycle" class="mk-project__dialog">
-        <form method="post" action="{% url 'objectives:project-lifecycle' project.pk %}">
+        <form method="post" action="{% url 'objectives:project-lifecycle' project.pk %}{{ scope_query }}">
           {% csrf_token %}
           <header><h2>Changer l’état du Projet</h2>
             <p>Cette action ne change pas l’état des Dossiers rattachés.</p></header>

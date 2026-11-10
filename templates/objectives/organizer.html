@@ -11,20 +11,23 @@
   </nav>
   <header class="mk-organizer__heading">
     <div>
-      <p class="mk-organizer__eyebrow">Mon espace d’organisation</p>
-      <h1>Mes démarches</h1>
+      <p class="mk-organizer__eyebrow">{% if space_context %}Mon Espace actif{% else %}Mon espace d’organisation{% endif %}</p>
+      <h1>{% if space_context %}Projets et dossiers{% else %}Mes démarches{% endif %}</h1>
       <p class="mk-organizer__intro">Projets, dossiers et démarches, à votre rythme.</p>
     </div>
     <div class="mk-organizer__heading-mark" aria-hidden="true">
       <i data-lucide="folders"></i>
     </div>
   </header>
+  {% if space_context %}
+  <p role="note">Consultation de cet Espace : les autorisations sont confirmées par Makolo.</p>
+  {% endif %}
   <div class="mk-organizer__create" aria-label="Créer">
-    <a class="mk-organizer__primary mk-action-button" data-variant="primary" href="{% url 'objectives:dossier-create' %}">
+    <a class="mk-organizer__primary mk-action-button" data-variant="primary" href="{% url 'objectives:dossier-create' %}{{ scope_query }}">
       <i data-lucide="folder-plus" aria-hidden="true"></i>
       Créer un dossier
     </a>
-    <a class="mk-organizer__secondary mk-action-button" data-variant="secondary" href="{% url 'objectives:project-create' %}">
+    <a class="mk-organizer__secondary mk-action-button" data-variant="secondary" href="{% url 'objectives:project-create' %}{{ scope_query }}">
       <i data-lucide="folder-kanban" aria-hidden="true"></i>
       Créer un projet
     </a>
@@ -116,8 +119,8 @@
   </section>
   <noscript>
     <p>Activez JavaScript pour utiliser les trois vues et les filtres locaux.</p>
-    <a href="{% url 'objectives:project-list' %}">Voir mes projets</a>
-    <a href="{% url 'objectives:dossier-list' %}">Voir mes dossiers</a>
+    <a href="{% url 'objectives:project-list' %}{{ scope_query }}">Voir mes projets</a>
+    <a href="{% url 'objectives:dossier-list' %}{{ scope_query }}">Voir mes dossiers</a>
   </noscript>
 </main>
 {{ organizer_data|json_script:"mk-organizer-data" }}
