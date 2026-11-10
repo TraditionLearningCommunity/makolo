@@ -111,6 +111,11 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Passeport Makolo'), findsNothing);
       expect(find.text('Notre Passeport'), findsOneWidget);
+      expect(find.text('Nous'), findsNothing);
+      expect(find.text('Nos démarches'), findsOneWidget);
+      expect(find.text('Abonnement de cet Espace'), findsNothing);
+      expect(find.text('Gérer les connexions de cet Espace'), findsNothing);
+
       expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
       expect(
         find.byKey(const Key('space-us-territories-list')),
@@ -121,6 +126,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Notre Passeport'));
       expect(routes, ['/space/atelier/us/passport']);
+      await tester.ensureVisible(find.text('Nos démarches'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nos démarches'));
+      expect(routes.last, '/space/atelier/objectives');
+
       await tester.ensureVisible(
         find.byKey(const Key('space-us-entry-relationships')),
       );
@@ -301,6 +311,7 @@ void main() {
     expect(find.text('Nos relations'), findsNothing);
     expect(find.text('Modifier les informations collectives'), findsNothing);
     expect(find.text('Notre Passeport'), findsNothing);
+    expect(find.text('Nos démarches'), findsNothing);
     expect(find.text('Nos ressources'), findsNothing);
     expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
@@ -329,6 +340,34 @@ void main() {
       expect(find.text('Cet Espace est archivé.'), findsOneWidget);
     },
   );
+
+  testWidgets('Nous keeps secondary administration routes out of the hub', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['handoffs'] as Map<String, dynamic>).addAll({
+      'subscription': '/space/atelier/subscription',
+      'connections': '/space/atelier/connections',
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nos démarches'), findsOneWidget);
+    expect(find.text('Informations et gestion'), findsOneWidget);
+    expect(find.text('Abonnement de cet Espace'), findsNothing);
+    expect(find.text('Gérer les connexions de cet Espace'), findsNothing);
+    expect(find.text('Les fonctions institutionnelles autorisées.'), findsNothing);
+  });
 
   testWidgets('authorized Space team shows people rather than generic symbol', (
     tester,

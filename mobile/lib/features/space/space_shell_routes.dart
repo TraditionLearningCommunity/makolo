@@ -233,7 +233,8 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     projection,
                     now: DateTime.now(),
                   );
-            if (freshness == FreshnessState.expired) {
+            if (freshness == FreshnessState.expired &&
+                widget.surface != SpaceShellSurface.us) {
               return MakoloErrorState(
                 message: 'Ces informations ne sont plus à jour.',
                 onRetry: _refresh,
@@ -242,11 +243,15 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                MakoloFreshnessNotice(
-                  freshness: const ProjectionSurfaceAdapter().freshnessCue(
-                    freshness,
+                // Nous presents the retained owner snapshot without an extra
+                // refresh banner. The shell already carries the transport cue.
+                // Revoked access remains enforced by source.invalidated above.
+                if (widget.surface != SpaceShellSurface.us)
+                  MakoloFreshnessNotice(
+                    freshness: const ProjectionSurfaceAdapter().freshnessCue(
+                      freshness,
+                    ),
                   ),
-                ),
                 if (status.data?.lastErrorCode != null && projection == null)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),

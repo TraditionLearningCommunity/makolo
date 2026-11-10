@@ -156,19 +156,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         : const <Map<String, dynamic>>[];
 
     final settingsTarget = limited ? null : route('settings');
-    final connectionsTarget =
-        !limited &&
-            slug != null &&
-            _value(handoffs?['connections']) == '/space/$slug/connections'
-        ? '/space/$slug/connections'
-        : null;
     final pilotTarget = limited ? null : route('pilot');
-    final subscriptionTarget =
-        !limited &&
-            slug != null &&
-            _value(handoffs?['subscription']) == '/space/$slug/subscription'
-        ? '/space/$slug/subscription'
-        : null;
     final trustTarget = limited ? null : route('trust');
 
     // Each entry is composed only from already-authorized Space projections.
@@ -290,14 +278,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Nous',
-                      style: text.labelLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: MakoloSpacing.sm),
                     Container(
                       key: const Key('space-us-identity-card'),
                       width: double.infinity,
@@ -346,10 +326,20 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                       ),
                     ],
                     if (passportTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.lg),
+                      const SizedBox(height: 12),
                       _passportCard(context, passportTarget, open),
                     ],
-                    const SizedBox(height: MakoloSpacing.inner),
+                    if (!limited && slug != null) ...[
+                      const SizedBox(height: 12),
+                      MakoloPrimaryShortcut(
+                        tapKey: const Key('space-us-shortcut-organizer'),
+                        title: 'Nos démarches',
+                        subtitle: 'Projets, dossiers et démarches',
+                        icon: Icons.folder_copy_outlined,
+                        onOpen: () => open('/space/$slug/objectives'),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
                     Row(
                       children: [
                         Expanded(
@@ -464,35 +454,15 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               },
                             ),
                     ),
-                    if (subscriptionTarget != null ||
-                        connectionsTarget != null ||
-                        settingsTarget != null ||
+                    if (settingsTarget != null ||
                         pilotTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
+                      const SizedBox(height: MakoloSpacing.inner),
                       _sectionTitle(
                         context,
                         'Informations et gestion',
-                        'Les fonctions institutionnelles autorisées.',
+                        '',
                       ),
                     ],
-                    if (subscriptionTarget != null)
-                      _managementAction(
-                        context,
-                        'Abonnement de cet Espace',
-                        'Formule et services de cet Espace',
-                        Icons.workspace_premium_outlined,
-                        subscriptionTarget,
-                        open,
-                      ),
-                    if (connectionsTarget != null)
-                      _managementAction(
-                        context,
-                        'Gérer les connexions de cet Espace',
-                        'Services connectés au collectif',
-                        Icons.hub_outlined,
-                        connectionsTarget,
-                        open,
-                      ),
                     if (settingsTarget != null)
                       _managementAction(
                         context,
