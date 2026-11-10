@@ -65,17 +65,16 @@ if [ "${VERIFY_MOBILE:-1}" = "1" ]; then
       lib/notifications/notification_router.dart \
       test/notification_router_test.dart \
       test/conversation_lot7_media_cleanup_test.dart
-    flutter analyze \
-      lib/features/continuity \
-      lib/notifications \
-      test/notification_router_test.dart \
-      test/conversation_lot7_media_cleanup_test.dart
-    flutter test \
+    flutter analyze
+    for suite in \
       test/notification_router_test.dart \
       test/conversation_lot7_media_cleanup_test.dart \
       test/conversation_mature_repository_test.dart \
       test/conversation_c5_mature_test.dart \
       test/conversation_details_screen_test.dart
+    do
+      flutter test "$suite"
+    done
   )
 else
   echo "Mobile checks explicitly skipped (VERIFY_MOBILE=0)."
