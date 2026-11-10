@@ -279,8 +279,9 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       } on Object {
         // The owner confirmed removal. The next sync remains authoritative.
       }
+      if (!_stillSame(version, personal)) return;
       try {
-        await widget.personal.reflectMeBookmarkRemoved(activityId: activityId);
+        await personal.reflectMeBookmarkRemoved(activityId: activityId);
       } on Object {
         // The owner already confirmed removal; never report it as failed
         // because the read-model reflection could not be written.
@@ -305,10 +306,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
             root.jsonObject(),
             expectedProjection: 'personal.me',
           );
-          if (envelope.data['actor'] is Map &&
+          if (_stillSame(version, personal) &&
+              envelope.data['actor'] is Map &&
               (envelope.data['actor'] as Map)['id']?.toString() ==
-                  widget.personal.store.profileId) {
-            await widget.personal.store.putProjection(
+                  personal.store.profileId) {
+            await personal.store.putProjection(
               kind: 'personal.me',
               schemaVersion: envelope.schemaVersion,
               payload: envelope.data,
