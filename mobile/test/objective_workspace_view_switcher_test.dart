@@ -3,29 +3,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/continuity/objective_workspace_view_switcher.dart';
 
 void main() {
-  testWidgets('one accessible icon view control preserves selected mode',
-      (tester) async {
+  testWidgets('one accessible icon view control preserves selected mode', (
+    tester,
+  ) async {
     var selected = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: StatefulBuilder(
-            builder: (context, update) =>
-                ObjectiveWorkspaceViewSwitcher<int>(
-                  selected: selected,
-                  options: const [
-                    ObjectiveViewOption(
-                      0, Icons.dashboard_outlined, 'Synthèse',
-                    ),
-                    ObjectiveViewOption(
-                      1, Icons.folder_outlined, 'Dossiers',
-                    ),
-                    ObjectiveViewOption(
-                      2, Icons.calendar_today_outlined, 'Calendrier',
-                    ),
-                  ],
-                  onSelected: (next) => update(() => selected = next),
+            builder: (context, update) => ObjectiveWorkspaceViewSwitcher<int>(
+              selected: selected,
+              options: const [
+                ObjectiveViewOption(0, Icons.dashboard_outlined, 'Synthèse'),
+                ObjectiveViewOption(1, Icons.folder_outlined, 'Dossiers'),
+                ObjectiveViewOption(
+                  2,
+                  Icons.calendar_today_outlined,
+                  'Calendrier',
                 ),
+              ],
+              onSelected: (next) => update(() => selected = next),
+            ),
           ),
         ),
       ),
@@ -41,27 +39,38 @@ void main() {
     expect(selected, 1);
   });
 
-  testWidgets('four-view Dossier control fits one row at phone width',
-      (tester) async {
+  testWidgets('four-view Dossier control fits one row at phone width', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: ObjectiveWorkspaceViewSwitcher<int>(
-          selected: 0,
-          options: const [
-            ObjectiveViewOption(0, Icons.dashboard_outlined, 'Synthèse'),
-            ObjectiveViewOption(1, Icons.list_rounded, 'Liste'),
-            ObjectiveViewOption(2, Icons.calendar_month_outlined, 'Chronologie'),
-            ObjectiveViewOption(3, Icons.account_tree_outlined, 'Dépendances'),
-          ],
-          onSelected: (_) {},
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ObjectiveWorkspaceViewSwitcher<int>(
+            selected: 0,
+            options: const [
+              ObjectiveViewOption(0, Icons.dashboard_outlined, 'Synthèse'),
+              ObjectiveViewOption(1, Icons.list_rounded, 'Liste'),
+              ObjectiveViewOption(
+                2,
+                Icons.calendar_month_outlined,
+                'Chronologie',
+              ),
+              ObjectiveViewOption(
+                3,
+                Icons.account_tree_outlined,
+                'Dépendances',
+              ),
+            ],
+            onSelected: (_) {},
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.byType(IconButton), findsNWidgets(4));
     final icons = find.byType(IconButton);
