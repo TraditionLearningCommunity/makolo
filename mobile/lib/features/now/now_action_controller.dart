@@ -353,7 +353,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
             _error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
-          if (_needsVerification)
+          if (_needsVerification &&
+              (NowActionRefreshScope.maybeOf(context) != null ||
+                  widget.onOpenOwner != null))
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: MakoloActionButton(
