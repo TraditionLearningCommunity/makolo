@@ -14,7 +14,7 @@ import '../../sync/sync_status.dart';
 import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
-import 'objective_context_banner.dart';
+import 'objective_workspace_view_switcher.dart';
 import 'objective_filter_reset.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
@@ -1076,7 +1076,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
 
   Widget _header(Map<String, dynamic> project) {
     final horizon = _map(project['horizon']);
-    final owner = _map(project['owner']);
     final start = _dateFrom(horizon['starts_on']);
     final end = _dateFrom(horizon['ends_on']);
     final theme = Theme.of(context);
@@ -1104,17 +1103,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    [
-                      _text(owner['label']),
-                      if (_text(owner['holder']).isNotEmpty)
-                        _text(owner['holder']),
-                    ].join(' · '),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
                   Text(
                     _text(horizon['title']),
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -1160,88 +1148,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     );
   }
 
-  Widget _tabs() => LayoutBuilder(
-    builder: (context, constraints) {
-      if (constraints.maxWidth >= 480) {
-        return SegmentedButton<_ProjectMode>(
-          showSelectedIcon: false,
-          selected: {_mode},
-          segments: const [
-            ButtonSegment(
-              value: _ProjectMode.summary,
-              icon: Icon(Icons.dashboard_outlined),
-              label: Text('Synthèse'),
-            ),
-            ButtonSegment(
-              value: _ProjectMode.dossiers,
-              icon: Icon(Icons.folder_copy_outlined),
-              label: Text('Dossiers'),
-            ),
-            ButtonSegment(
-              value: _ProjectMode.calendar,
-              icon: Icon(Icons.calendar_month_outlined),
-              label: Text('Calendrier'),
-            ),
-          ],
-          onSelectionChanged: (value) => setState(() => _mode = value.first),
-        );
-      }
-      final scheme = Theme.of(context).colorScheme;
-      const items = [
-        (_ProjectMode.summary, 'Synthèse', Icons.dashboard_outlined),
-        (_ProjectMode.dossiers, 'Dossiers', Icons.folder_copy_outlined),
-        (_ProjectMode.calendar, 'Calendrier', Icons.calendar_month_outlined),
-      ];
-      return Row(
-        children: [
-          for (final (mode, label, icon) in items)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Semantics(
-                  selected: _mode == mode,
-                  button: true,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => setState(() => _mode = mode),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 44),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        color: _mode == mode
-                            ? scheme.primaryContainer
-                            : scheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: scheme.outlineVariant),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            icon,
-                            size: 16,
-                            color: _mode == mode
-                                ? scheme.onPrimaryContainer
-                                : scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              label,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      );
-    },
+  Widget _tabs() => ObjectiveWorkspaceViewSwitcher<_ProjectMode>(
+    selected: _mode,
+    options: const [
+      ObjectiveViewOption(
+        _ProjectMode.summary, Icons.dashboard_outlined, 'Synthèse',
+      ),
+      ObjectiveViewOption(
+        _ProjectMode.dossiers, Icons.folder_copy_outlined, 'Dossiers',
+      ),
+      ObjectiveViewOption(
+        _ProjectMode.calendar, Icons.calendar_month_outlined, 'Calendrier',
+      ),
+    ],
+    onSelected: (mode) => setState(() => _mode = mode),
   );
 
   Widget _dossierCard(Map<String, dynamic> row, Map<String, dynamic> project) {
@@ -1321,22 +1241,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
 
   Widget _empty(String message) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 34),
-    child: Column(
-      children: [
-        Icon(
-          Icons.folder_open_outlined,
-          size: 37,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          message,
-          style: Theme.of(context).textTheme.titleMedium,
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
+    padding: const EdgeInsets.symmetric(vertical: 14),
+    child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
   );
 
   Widget _summary(
@@ -1360,28 +1266,26 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Vue d’ensemble',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          'Les chiffres portent uniquement sur les dossiers visibles acquis.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 13),
+        if (partial)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Dossiers chargés uniquement.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        if (rows.isNotEmpty)
         Wrap(
           spacing: 9,
           runSpacing: 9,
           children: [
-            _metric(
+            if (rows.isNotEmpty) _metric(
               rows.length,
               partial ? 'Dossiers acquis (partiel)' : 'Dossiers visibles',
             ),
-            _metric(active, 'En cours'),
-            _metric(draft, 'En préparation'),
-            _metric(done, 'Terminés'),
+            if (active > 0) _metric(active, 'En cours'),
+            if (draft > 0) _metric(draft, 'En préparation'),
+            if (done > 0) _metric(done, 'Terminés'),
           ],
         ),
         if (next.isNotEmpty)
@@ -1411,13 +1315,13 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               onTap: () => widget.onOpenDossier(_text(row['id'])),
             ),
         ],
-        const SizedBox(height: 18),
-        Text(
+        if (rows.isNotEmpty) const SizedBox(height: 14),
+        if (rows.isNotEmpty) Text(
           'Dossiers du Projet',
           style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 11),
+        if (rows.isNotEmpty) const SizedBox(height: 9),
         if (rows.isEmpty)
           _empty('Aucun dossier visible pour le moment.')
         else
@@ -1428,7 +1332,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
             appearance: MakoloActionAppearance.quiet,
           ),
-        const SizedBox(height: 12),
+        if (rows.isNotEmpty) const SizedBox(height: 10),
         _peopleSection(project),
       ],
     );
@@ -1438,50 +1342,26 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final collaboration = _map(project['collaboration']);
     final members = _list(collaboration['members']);
     final contributors = _list(collaboration['contributors']);
-    final canManage = _has(project, 'project.authority.manage');
-    if (members.isEmpty && contributors.isEmpty && !canManage) {
+    // Empty collaboration does not warrant a permanent card or a zero count.
+    // Access management remains available through the Project action menu.
+    if (members.isEmpty && contributors.isEmpty) {
       return const SizedBox.shrink();
     }
     final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Personnes et responsabilités',
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            if (canManage)
-              MakoloActionButton(
-                label: 'Gérer les accès',
-                appearance: MakoloActionAppearance.quiet,
-                onPressed: _enabled ? () => _projectAccess(project) : null,
-              ),
-          ],
-        ),
-        const SizedBox(height: 5),
         Text(
-          'Accès au Projet et interventions dans les Dossiers '
-          'sont deux responsabilités distinctes.',
-          style: textTheme.bodySmall,
+          'Personnes et responsabilités',
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
-        if (members.isEmpty && canManage)
-          const ListTile(
-            dense: true,
-            title: Text('Aucun mandat Projet actif à afficher.'),
-          ),
         for (final member in members)
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.admin_panel_settings_outlined),
+            leading: const Icon(Icons.shield_outlined),
             title: Text(_text(member['label'])),
-            subtitle: Text('Accès Projet · ${_text(member['role'])}'),
+            subtitle: Text(_text(member['role'])),
           ),
         for (final contributor in contributors)
           ListTile(
@@ -1489,24 +1369,18 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.person_outline),
             title: Text(_text(contributor['label'])),
-            subtitle: Text(
-              'Coordination de Dossier · '
-              '${contributor['dossier_ids'] is List ? (contributor['dossier_ids'] as List).length : 0} Dossiers visibles',
-            ),
+            subtitle: const Text('Responsabilité de Dossier'),
           ),
         if (collaboration['contributors_partial'] == true)
-          Text(
-            'Les interventions présentées concernent les Dossiers acquis '
-            'sur cette page. Elles ne représentent pas un total.',
-            style: textTheme.bodySmall,
-          ),
+          Text('Interventions visibles uniquement.',
+              style: textTheme.bodySmall),
       ],
     );
   }
 
   Widget _metric(int count, String title) => Container(
-    constraints: const BoxConstraints(minWidth: 112),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+    constraints: const BoxConstraints(minWidth: 96),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
     decoration: BoxDecoration(
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       borderRadius: BorderRadius.circular(14),
@@ -1921,8 +1795,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                ObjectiveContextBanner(payload: project),
-                                const SizedBox(height: 12),
                                 _header(project),
                                 if (_offline)
                                   const Padding(
