@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:path_provider/path_provider.dart';
+import '../../platform/files/native_directories.dart';
 
 import 'conversation_local_delivery.dart';
 
@@ -730,7 +730,7 @@ class ConversationRepository {
     final safeExtension = RegExp(r'^\.[A-Za-z0-9]{1,9}$').hasMatch(extension)
         ? extension
         : '.bin';
-    final temp = await getTemporaryDirectory();
+    final temp = await NativeDirectories.temporary();
     final safeProfile = profileId.replaceAll(RegExp('[^A-Za-z0-9_-]'), '_');
     final folder = Directory('${temp.path}/conversation-$safeProfile');
     await folder.create(recursive: true);
