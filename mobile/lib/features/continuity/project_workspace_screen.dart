@@ -209,7 +209,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           id != widget.id ||
           revision != _contextRevision)
         return;
-      if (snapshot == null ||
+      // Recheck scoped Project authority on entry even with a fresh cache.
+      if (spaceSlug != null ||
+          snapshot == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 snapshot,
                 now: DateTime.now().toUtc(),

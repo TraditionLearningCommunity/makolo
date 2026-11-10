@@ -208,7 +208,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           !_actorValid)
         return;
       _readCreateCapability(local);
-      if (local == null ||
+      // Permissions may have changed since the last Space acquisition.
+      if (slug != null ||
+          local == null ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 local,
                 now: DateTime.now().toUtc(),

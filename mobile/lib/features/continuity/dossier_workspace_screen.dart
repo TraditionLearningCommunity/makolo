@@ -231,7 +231,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           widget.repository != repo ||
           revision != _contextRevision)
         return;
-      if (cached == null ||
+      // A cached Space lens is not proof that its Mandates still exist.
+      // Always ask the owner when entering this Space depth.
+      if (spaceSlug != null ||
+          cached == null ||
           cached.payload['visible_journeys_complete'] != true ||
           ObjectiveRepository.freshnessPolicy.evaluate(
                 cached,
