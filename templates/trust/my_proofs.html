@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Mes preuves | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-4xl space-y-4">
@@ -26,12 +27,12 @@
 
       <div class="grid gap-2 sm:grid-cols-2">
         <label class="sr-only" for="proof-type">Type</label>
-        <select id="proof-type" name="type" class="mk-interaction-field" onchange="this.form.submit()">
+        <select id="proof-type" name="type" class="mk-interaction-field" data-submit-on-change>
           <option value="">Tous les types</option>
           {% for value, label in type_options %}<option value="{{ value }}" {% if active_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
         <label class="sr-only" for="proof-sort">Trier</label>
-        <select id="proof-sort" name="sort" class="mk-interaction-field" onchange="this.form.submit()">
+        <select id="proof-sort" name="sort" class="mk-interaction-field" data-submit-on-change>
           <option value="recent" {% if active_sort == 'recent' %}selected{% endif %}>Plus récentes</option>
           <option value="oldest" {% if active_sort == 'oldest' %}selected{% endif %}>Plus anciennes</option>
           <option value="title" {% if active_sort == 'title' %}selected{% endif %}>Type A–Z</option>
@@ -68,4 +69,5 @@
   </nav>
   {% endif %}
 </div>
+<script src="{% static 'js/auto_submit_filters.js' %}" defer></script>
 {% endblock %}
