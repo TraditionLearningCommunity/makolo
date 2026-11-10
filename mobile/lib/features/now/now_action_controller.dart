@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/action_controls.dart';
+
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import 'now_proposal_decision.dart';
@@ -124,6 +126,9 @@ class NowActionGroup extends StatefulWidget {
 
 class _NowActionGroupState extends State<NowActionGroup> {
   bool _sending = false;
+  bool _confirming = false;
+  bool _verifying = false;
+  bool _needsVerification = false;
   bool _confirmedByOwner = false;
   String? _error;
 
@@ -133,15 +138,23 @@ class _NowActionGroupState extends State<NowActionGroup> {
     if (oldWidget.situation.identity != widget.situation.identity) {
       _error = null;
       _confirmedByOwner = false;
+      _needsVerification = false;
+      _verifying = false;
+      _confirming = false;
     }
   }
 
   Future<void> _execute(NowBusinessActionPresentation action) async {
     final api = widget.api;
-    if (api == null || _sending || _confirmedByOwner) return;
+    if (api == null ||
+        _sending ||
+        _confirming ||
+        _needsVerification ||
+        _confirmedByOwner) return;
     final path = NowOwnerAction.authorizedPath(widget.situation, action);
     if (path == null) return;
 
+    setState(() => _confirming = true);
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -162,7 +175,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
         ],
       ),
     );
-    if (approved != true || !mounted) return;
+    if (!mounted) return;
+    setState(() => _confirming = false);
+    if (approved != true) return;
 
     setState(() {
       _sending = true;
@@ -188,12 +203,39 @@ class _NowActionGroupState extends State<NowActionGroup> {
     } on Object {
       if (!mounted) return;
       setState(() {
+        _needsVerification = true;
         _error =
-            'Cette décision n’a pas été confirmée. '
-            'Vérifiez son état dans la démarche avant de réessayer.';
+            'Décision non confirmée. Vérifiez son état avant toute nouvelle action.';
       });
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _verifyBeforeRetry() async {
+    if (_verifying || _sending || !_needsVerification) return;
+    final refresh = NowActionRefreshScope.maybeOf(context);
+    if (refresh == null) {
+      widget.onOpenOwner?.call();
+      return;
+    }
+    setState(() => _verifying = true);
+    try {
+      // Read the new owner-backed situation before allowing another decision.
+      await refresh();
+      if (mounted) {
+        setState(() {
+          _needsVerification = false;
+          _error = null;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Vérification indisponible. Consultez la situation avant de réessayer.');
+      }
+    } finally {
+      if (mounted) setState(() => _verifying = false);
     }
   }
 
@@ -239,7 +281,12 @@ class _NowActionGroupState extends State<NowActionGroup> {
                 );
               }
               final active =
-                  !_sending && !_confirmedByOwner && (direct || canHandoff);
+                  !_sending &&
+                  !_confirming &&
+                  !_verifying &&
+                  !_needsVerification &&
+                  !_confirmedByOwner &&
+                  (direct || canHandoff);
               if (!direct && !canHandoff) {
                 return Text(
                   nowDisplayActionLabel(
@@ -264,22 +311,27 @@ class _NowActionGroupState extends State<NowActionGroup> {
                       action.label,
                       widget.situation.humanContext,
                     );
-              if (index == 0) {
-                return widget.compact
-                    ? TextButton.icon(
-                        onPressed: callback,
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                        label: Text(label),
-                      )
-                    : FilledButton.icon(
-                        onPressed: callback,
-                        icon: const Icon(Icons.arrow_forward_rounded),
-                        label: Text(label),
-                      );
-              }
-              return widget.compact
-                  ? TextButton(onPressed: callback, child: Text(label))
-                  : OutlinedButton(onPressed: callback, child: Text(label));
+              final phase = _confirmedByOwner
+                  ? MakoloActionPhase.confirmed
+                  : _sending
+                  ? MakoloActionPhase.processing
+                  : _needsVerification
+                  ? MakoloActionPhase.failed
+                  : !active
+                  ? MakoloActionPhase.unavailable
+                  : MakoloActionPhase.available;
+              return MakoloActionButton(
+                key: ValueKey('now-business-action-${widget.situation.identity}-$index'),
+                label: label,
+                onPressed: callback,
+                icon: index == 0 ? Icons.arrow_forward_rounded : null,
+                appearance: widget.compact
+                    ? MakoloActionAppearance.quiet
+                    : index == 0
+                    ? MakoloActionAppearance.primary
+                    : MakoloActionAppearance.secondary,
+                phase: phase,
+              );
             },
           ),
         ],
@@ -298,6 +350,19 @@ class _NowActionGroupState extends State<NowActionGroup> {
             _error!,
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
+          if (_needsVerification)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: MakoloActionButton(
+                label: _verifying ? 'Vérification…' : 'Vérifier la situation',
+                icon: Icons.refresh_rounded,
+                onPressed: _verifying ? null : _verifyBeforeRetry,
+                appearance: MakoloActionAppearance.secondary,
+                phase: _verifying
+                    ? MakoloActionPhase.processing
+                    : MakoloActionPhase.available,
+              ),
+            ),
         ],
       ],
     );
