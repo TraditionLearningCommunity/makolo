@@ -49,6 +49,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   OrganizerSort _dateField = OrganizerSort.deadline;
   String _kind = 'all';
   String _status = 'all';
+  String _placement = 'all';
   String _period = 'all';
   bool _descending = false;
   bool _refreshing = false;
@@ -332,6 +333,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
 
   bool _matches(OrganizerEntry entry) {
     if (_kind != 'all' && entry.kind != _kind) return false;
+    if (_placement == 'independent' && !entry.isIndependent) return false;
     final terminalJourney = {'fulfilled', 'rejected', 'cancelled', 'expired'};
     if (_status == 'active' && entry.kind == 'journey') {
       if (terminalJourney.contains(entry.state)) return false;
@@ -439,6 +441,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _search.text.isNotEmpty ||
       _kind != 'all' ||
       _status != 'all' ||
+      _placement != 'all' ||
       _period != 'all';
 
   bool get _hasAnyFilters => _hasSelectionFilters || _hasExtraFilters;
@@ -448,6 +451,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     setState(() {
       _kind = 'all';
       _status = 'all';
+      _placement = 'all';
       _period = 'all';
       _sort = OrganizerSort.name;
       _dateField = OrganizerSort.deadline;
@@ -505,6 +509,16 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         },
                         (v) => change(() => _status = v),
                         icon: Icons.tune_rounded,
+                      ),
+                      _dropdown(
+                        'Rattachement',
+                        _placement,
+                        const {
+                          'all': 'Tous',
+                          'independent': 'Indépendants',
+                        },
+                        (v) => change(() => _placement = v),
+                        icon: Icons.folder_open_outlined,
                       ),
                     ],
                   ),
@@ -881,7 +895,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                   final flat = _ordered(entries.where(_matches));
                   final showFlat =
                       _mode == OrganizerMode.list ||
-                      (_mode == OrganizerMode.cards && (_kind != 'all'));
+                      (_mode == OrganizerMode.cards && (_kind != 'all' || _placement == 'independent'));
                   final shown = showFlat ? flat : roots;
 
                   return NotificationListener<ScrollNotification>(
