@@ -16,6 +16,7 @@ class MakoloActionButton extends StatelessWidget {
     this.icon,
     this.appearance = MakoloActionAppearance.secondary,
     this.busy = false,
+    this.phase = MakoloActionPhase.available,
   });
 
   final String label;
@@ -23,41 +24,54 @@ class MakoloActionButton extends StatelessWidget {
   final IconData? icon;
   final MakoloActionAppearance appearance;
   final bool busy;
+  final MakoloActionPhase phase;
 
   @override
   Widget build(BuildContext context) {
-    final handler = busy ? null : onPressed;
-    final visibleIcon = busy && icon != null
-        ? Icons.hourglass_top_rounded
-        : icon;
+    final effectivePhase = busy ? MakoloActionPhase.processing : phase;
+    final waiting = effectivePhase == MakoloActionPhase.processing;
+    final unavailable = effectivePhase == MakoloActionPhase.unavailable;
+    final handler = waiting || unavailable ? null : onPressed;
+    final visibleIcon = switch (effectivePhase) {
+      MakoloActionPhase.processing => Icons.hourglass_top_rounded,
+      MakoloActionPhase.failed => Icons.error_outline_rounded,
+      MakoloActionPhase.confirmed => Icons.check_circle_outline_rounded,
+      _ => icon,
+    };
+    final iconWidget = visibleIcon == null
+        ? null
+        : MakoloActionFeedback(
+            phase: effectivePhase,
+            child: Icon(visibleIcon),
+          );
     final labelWidget = Text(label);
     return switch (appearance) {
       MakoloActionAppearance.primary =>
-        visibleIcon == null
+        iconWidget == null
             ? FilledButton(onPressed: handler, child: labelWidget)
             : FilledButton.icon(
                 onPressed: handler,
-                icon: Icon(visibleIcon),
+                icon: iconWidget,
                 label: labelWidget,
               ),
       MakoloActionAppearance.secondary =>
-        visibleIcon == null
+        iconWidget == null
             ? OutlinedButton(onPressed: handler, child: labelWidget)
             : OutlinedButton.icon(
                 onPressed: handler,
-                icon: Icon(visibleIcon),
+                icon: iconWidget,
                 label: labelWidget,
               ),
       MakoloActionAppearance.quiet =>
-        visibleIcon == null
+        iconWidget == null
             ? TextButton(onPressed: handler, child: labelWidget)
             : TextButton.icon(
                 onPressed: handler,
-                icon: Icon(visibleIcon),
+                icon: iconWidget,
                 label: labelWidget,
               ),
       MakoloActionAppearance.danger =>
-        visibleIcon == null
+        iconWidget == null
             ? OutlinedButton(
                 onPressed: handler,
                 style: OutlinedButton.styleFrom(
@@ -72,7 +86,7 @@ class MakoloActionButton extends StatelessWidget {
                   foregroundColor: Theme.of(context).colorScheme.error,
                   side: BorderSide(color: Theme.of(context).colorScheme.error),
                 ),
-                icon: Icon(visibleIcon),
+                icon: iconWidget,
                 label: labelWidget,
               ),
     };
@@ -88,28 +102,32 @@ class MakoloIconActionButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.color,
+    this.phase = MakoloActionPhase.available,
   });
 
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
   final Color? color;
+  final MakoloActionPhase phase;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
-    icon: Icon(icon),
-    onPressed: onPressed,
-    color: color,
-    style: IconButton.styleFrom(
-      minimumSize: const Size(48, 48),
-      side: failed
-          ? BorderSide(color: Theme.of(context).colorScheme.error)
-          : null,
-      backgroundColor: failed
-          ? Theme.of(context).colorScheme.error.withValues(alpha: 0.05)
-          : Colors.transparent,
+    tooltip: switch (phase) {
+      MakoloActionPhase.processing => '$tooltip · en cours',
+      MakoloActionPhase.failed => '$tooltip · échec, réessayer',
+      _ => tooltip,
+    },
+    icon: MakoloActionFeedback(
+      phase: phase,
+      child: Icon(icon),
     ),
+    onPressed: phase == MakoloActionPhase.processing ||
+            phase == MakoloActionPhase.unavailable
+        ? null
+        : onPressed,
+    color: color,
+    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
   );
 }
 
@@ -242,6 +260,14 @@ class MakoloFollowIconButton extends StatelessWidget {
     color: followed
         ? Theme.of(context).colorScheme.primary
         : Theme.of(context).colorScheme.onSurfaceVariant,
-    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+    style: IconButton.styleFrom(
+      minimumSize: const Size(48, 48),
+      side: failed
+          ? BorderSide(color: Theme.of(context).colorScheme.error)
+          : null,
+      backgroundColor: failed
+          ? Theme.of(context).colorScheme.error.withValues(alpha: 0.05)
+          : Colors.transparent,
+    ),
   );
 }
