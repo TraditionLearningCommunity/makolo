@@ -6,7 +6,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../platform/files/native_directories.dart';
 import 'package:record/record.dart';
 
 import 'conversation_repository.dart';
@@ -130,7 +130,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
         }
         return;
       }
-      final temp = await getTemporaryDirectory();
+      final temp = await NativeDirectories.temporary();
       final path =
           '${temp.path}/makolo-c4-${DateTime.now().microsecondsSinceEpoch}.m4a';
       await _recorder.start(
