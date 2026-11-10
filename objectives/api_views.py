@@ -229,7 +229,13 @@ def _create_objective(request, kind):
                 "owning_space_id": "Le contexte Espace ne correspond pas.",
             })
     else:
-        space = get_object_or_404(Organization, pk=space_id) if space_id else None
+        # Creation from the personal entry point is always personal.
+        # A client-supplied hidden field must not override the actor lens.
+        if space_id is not None:
+            raise serializers.ValidationError({
+                "owning_space_id": "Le porteur est déduit du point d’entrée.",
+            })
+        space = None
     common = {
         "actor": request.user,
         "owner_profile": None if space else request.user,
