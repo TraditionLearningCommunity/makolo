@@ -15,6 +15,7 @@ import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
 import 'objective_context_banner.dart';
+import 'objective_filter_reset.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
 
@@ -1588,6 +1589,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     _sort = _ProjectSort.values.firstWhere((s) => s.name == v),
               ),
             ),
+            ObjectiveFilterReset(
+              active: _search.text.trim().isNotEmpty ||
+                  _stateFilter != 'all' ||
+                  _readinessFilter != 'all' ||
+                  _sort != _ProjectSort.deadline,
+              onClear: () {
+                _search.clear();
+                setState(() {
+                  _stateFilter = 'all';
+                  _readinessFilter = 'all';
+                  _sort = _ProjectSort.deadline;
+                });
+              },
+            ),
           ],
         ),
         const SizedBox(height: 13),
@@ -1599,7 +1614,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
         const SizedBox(height: 10),
         if (filtered.isEmpty)
-          _empty('Aucun résultat pour ces critères.')
+          _empty(
+            rows.isEmpty
+                ? 'Aucun Dossier visible parmi les éléments chargés.'
+                : 'Aucun Dossier chargé ne correspond à ces critères.',
+          )
         else
           for (final row in filtered) _dossierCard(row, project),
       ],

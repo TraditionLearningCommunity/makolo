@@ -16,6 +16,7 @@ import 'conversation_context_screen.dart';
 import 'conversation_repository.dart';
 import 'objective_repository.dart';
 import 'objective_context_banner.dart';
+import 'objective_filter_reset.dart';
 
 enum _DossierMode { overview, list, timeline, dependencies }
 
@@ -1343,6 +1344,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                     _sort = _ListSort.values.firstWhere((row) => row.name == v),
               ),
             ),
+            ObjectiveFilterReset(
+              active: _search.text.trim().isNotEmpty ||
+                  _filter != 'all' || _sort != _ListSort.recent,
+              onClear: () {
+                _search.clear();
+                setState(() {
+                  _filter = 'all';
+                  _sort = _ListSort.recent;
+                });
+              },
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -1357,7 +1369,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         ),
         const SizedBox(height: 12),
         if (items.isEmpty)
-          _empty('Aucune démarche pour ces critères.')
+          _empty(
+            all.isEmpty
+                ? 'Aucune démarche visible liée à ce Dossier.'
+                : 'Aucune démarche chargée ne correspond à ces critères.',
+          )
         else
           for (final row in items) _journeyTile(row),
       ],
