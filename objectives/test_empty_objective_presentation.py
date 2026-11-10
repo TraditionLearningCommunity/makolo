@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from objectives.models import Dossier, Project
+from objectives.forms import DossierCreateForm, ProjectCreateForm
 from objectives.readiness import resolve_dossier_readiness
 from objectives.services import create_dossier, create_project, link_dossier_to_project
 
@@ -68,6 +69,14 @@ class EmptyObjectivePresentationTests(TestCase):
         project = Project.objects.get(pk=response.data["id"])
         self.assertEqual(project.owner_profile_id, self.owner.pk)
         self.assertIsNone(project.owning_space_id)
+
+    def test_web_forms_have_no_client_selectable_owner(self):
+        self.assertNotIn(
+            "owning_space", DossierCreateForm(actor=self.owner).fields,
+        )
+        self.assertNotIn(
+            "owning_space", ProjectCreateForm(actor=self.owner).fields,
+        )
 
     def test_personal_creation_rejects_hidden_space_override(self):
         for route in ["objectives_api:project-list", "objectives_api:dossier-list"]:
