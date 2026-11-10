@@ -168,6 +168,44 @@ def ordered_participants(users, *, seed, reference, limit):
     return people[:limit]
 
 
+def select_contexts(pools, *, count, seed, kinds):
+    """Select across actor profiles and kinds before applying the count limit."""
+    rng = random.Random(seed)
+    by_actor = {}
+    keys = set()
+    for bucket, values in pools.items():
+        kind = "occurrence" if bucket in ("past", "live", "future") else bucket
+        if kind not in kinds:
+            continue
+        entries = list(values)
+        rng.shuffle(entries)
+        for item in entries:
+            key = (item[0], str(item[2].pk), item[5])
+            if key in keys:
+                continue
+            keys.add(key)
+            by_actor.setdefault(item[3].pk, []).append(item)
+    # Collective contexts are visible to genuine memberships; prefer these
+    # but keep mixed phases and kinds within the same principal.
+    for entries in by_actor.values():
+        entries.sort(key=lambda item: item[0] not in ("space", "group"))
+    actors = sorted(by_actor, key=str)
+    rng.shuffle(actors)
+    selected = []
+    while actors and len(selected) < count:
+        remaining = []
+        for actor_id in actors:
+            choices = by_actor[actor_id]
+            if choices:
+                selected.append(choices.pop(0))
+            if choices:
+                remaining.append(actor_id)
+            if len(selected) >= count:
+                break
+        actors = remaining
+    return selected
+
+
 def collect_candidates(people, now, limit):
     from django.db.models import Q
     from authorization.constants import PermissionCode
@@ -344,37 +382,13 @@ def main(argv=None):
     now = timezone.now()
     # Over-sample and interleave kinds so 500 is not 500 copies of one Event.
     pools = collect_candidates(people, now, max(args.count * 3, 100))
-    rng = random.Random(args.seed)
-    for values in pools.values():
-        rng.shuffle(values)
-    buckets = ("live", "future", "past", "journey", "space", "activity",
-               "group", "dossier", "project", "proposal")
-    selected = []
-    seen = set()
-    while len(selected) < args.count:
-        made_progress = False
-        for bucket in buckets:
-            selected_kind = "occurrence" if bucket in ("past", "live", "future") else bucket
-            if selected_kind not in selected_kinds:
-                continue
-            candidates = pools.get(bucket, [])
-            while candidates:
-                item = candidates.pop()
-                key = (item[0], str(item[2].pk), item[5])
-                if key not in seen:
-                    seen.add(key)
-                    selected.append(item)
-                    made_progress = True
-                    break
-            if len(selected) >= args.count:
-                break
-        if not made_progress:
-            break
-    selected = fair_context_order(selected, args.seed)
+    selected = select_contexts(
+        pools, count=args.count, seed=args.seed, kinds=selected_kinds,
+    )
     counts = Counter()
     counts["profiles"] = len(people)
     counts["principal_profiles_explicit"] = len(principals)
-    counts["eligible_contexts"] = sum(len(x) for x in pools.values()) + len(selected)
+    counts["eligible_contexts"] = sum(len(x) for x in pools.values())
     counts["selected_contexts"] = len(selected)
     from conversations.models import ConversationContext
     for kind, field, target, actor, label, phase in selected:
