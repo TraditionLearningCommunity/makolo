@@ -207,6 +207,10 @@ class DossierActionsAPIView(APIView):
                 if not can_manage_dossier(actor, dossier):
                     raise PermissionDenied("Autorité requise.")
                 current = active_project_for_dossier(dossier)
+                if current is not None and not context.filter(
+                    projects_for_profile(actor).filter(pk=current.pk)
+                ).exists():
+                    raise PermissionDenied("Projet source hors du contexte actif.")
                 if current is not None and not can_manage_project(actor, current):
                     raise PermissionDenied("Autorité sur le Projet source requise.")
                 target_id = values["project_id"]

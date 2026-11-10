@@ -50,9 +50,23 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
     manage = can_manage_dossier(viewer, dossier)
     authority = can_manage_dossier_authority(viewer, dossier)
     visible_project = visible_project_for_dossier(viewer, dossier)
-    # The actor must manage BOTH the current Project and the Dossier to move.
+    if actor_context is not None and visible_project is not None:
+        if not actor_context.filter(
+            projects_for_profile(viewer).filter(pk=visible_project.pk)
+        ).exists():
+            # Do not disclose a foreign-context parent through the Dossier.
+            visible_project = None
+    # Management of a cross-context source Project is only available from
+    # the cross-context personal lens, not from an unrelated Space lens.
     current_project = active_project_for_dossier(dossier) if manage else None
-    project_manage = manage and (
+    parent_in_scope = (
+        current_project is None
+        or actor_context is None
+        or actor_context.filter(
+            projects_for_profile(viewer).filter(pk=current_project.pk)
+        ).exists()
+    )
+    project_manage = manage and parent_in_scope and (
         current_project is None or can_manage_project(viewer, current_project)
     )
 

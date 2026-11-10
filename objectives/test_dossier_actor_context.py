@@ -165,6 +165,54 @@ class DossierActorContextTests(TestCase):
         self.assertNotIn(("dossier", str(self.other_dossier.pk)), listed)
         self.assertNotIn(("dossier", str(self.personal.pk)), listed)
 
+    def test_project_and_dossier_compose_only_in_scope_relations(self):
+        from objectives.services import link_dossier_to_project
+        from objectives.models import Dossier
+        # A canonical relation may cross owner contexts. The Space A lens
+        # must not display a Space B Dossier or offer cross-Space targets.
+        link_dossier_to_project(
+            actor=self.viewer, project=self.project_a, dossier=self.other_dossier,
+        )
+        project_url = reverse("objectives_api:project-detail", args=[self.project_a.pk])
+        personal = self.client.get(project_url)
+        in_a = self.client.get(project_url, self.scope(self.a))
+        self.assertEqual(personal.status_code, 200, personal.data)
+        self.assertEqual(in_a.status_code, 200, in_a.data)
+        self.assertIn(
+            str(self.other_dossier.pk),
+            [r["id"] for r in personal.data["data"]["visible_dossiers"]],
+        )
+        rows = in_a.data["data"]["visible_dossiers"]
+        self.assertNotIn(str(self.other_dossier.pk), [r["id"] for r in rows])
+        self.assertNotIn(
+            str(self.project_b.pk),
+            [r["id"] for r in in_a.data["data"]["move_targets"]],
+        )
+        page = self.client.get(
+            reverse("objectives_api:project-dossiers", args=[self.project_a.pk]),
+            self.scope(self.a),
+        )
+        self.assertEqual(page.status_code, 200, page.data)
+        self.assertNotIn(
+            str(self.other_dossier.pk),
+            [r["id"] for r in page.data["data"]["items"]],
+        )
+        in_b = self.client.get(self.detail(self.other_dossier), self.scope(self.b))
+        self.assertEqual(in_b.status_code, 200, in_b.data)
+        self.assertIsNone(in_b.data["data"]["parent_project"])
+        self.assertNotIn(
+            "dossier.project.manage", in_b.data["data"]["capabilities"],
+        )
+        mutation = self.client.post(
+            self.actions(self.other_dossier) + "?context=space&space=" + self.b.slug,
+            {"action": "project_set", "project_id": None},
+            format="json",
+        )
+        self.assertEqual(mutation.status_code, 403)
+        self.assertTrue(
+            Dossier.objects.filter(pk=self.other_dossier.pk, owning_space=self.b).exists()
+        )
+
     def test_rejects_invalid_or_impostor_context_and_denies_outsider(self):
         for query in (
             {"space": self.a.slug},
