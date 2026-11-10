@@ -43,31 +43,32 @@ void main() {
     }
   }
 
-  testWidgets('published media respects motion settings without fetching an untrusted URL', (
-    tester,
-  ) async {
-    const url = 'https://other.example/image.jpg';
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(280, 500),
-      reduceMotion: true,
-      child: SizedBox(
-        width: 180,
-        height: 120,
-        child: RetainedPublicDiscoveryImage(
-          url: _RejectedUrl.value,
-          trustedOrigin: _TrustedUrl.value,
-          placeholder: const Icon(Icons.image_not_supported_outlined),
+  testWidgets(
+    'published media respects motion settings without fetching an untrusted URL',
+    (tester) async {
+      const url = 'https://other.example/image.jpg';
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(280, 500),
+        reduceMotion: true,
+        child: SizedBox(
+          width: 180,
+          height: 120,
+          child: RetainedPublicDiscoveryImage(
+            url: _RejectedUrl.value,
+            trustedOrigin: _TrustedUrl.value,
+            placeholder: const Icon(Icons.image_not_supported_outlined),
+          ),
         ),
-      ),
-    );
-    expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
-    final transition = tester.widget<AnimatedSwitcher>(
-      find.byKey(const ValueKey<String>('published-image-$url')),
-    );
-    expect(transition.duration, Duration.zero);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      expect(find.byIcon(Icons.image_not_supported_outlined), findsOneWidget);
+      final transition = tester.widget<AnimatedSwitcher>(
+        find.byKey(const ValueKey<String>('published-image-$url')),
+      );
+      expect(transition.duration, Duration.zero);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 abstract final class _RejectedUrl {

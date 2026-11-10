@@ -75,63 +75,64 @@ class _ConversationAttachmentViewerState
       _error = 'Lecteur privé indisponible.';
       return;
     }
-    _future = downloader(
-      attachmentId: current['id']?.toString() ?? '',
-      filename: current['name']?.toString() ?? 'fichier',
-    ).then((file) async {
-      AudioPlayer? pendingAudio;
-      VideoPlayerController? pendingVideo;
-      String? mediaError;
-      var adopted = false;
-      try {
-        if (!mounted || generation != _generation) {
-          throw StateError('Média abandonné.');
-        }
-        final kind = current['kind']?.toString();
-        if (kind == 'audio' || kind == 'voice') {
-          pendingAudio = AudioPlayer();
+    _future =
+        downloader(
+          attachmentId: current['id']?.toString() ?? '',
+          filename: current['name']?.toString() ?? 'fichier',
+        ).then((file) async {
+          AudioPlayer? pendingAudio;
+          VideoPlayerController? pendingVideo;
+          String? mediaError;
+          var adopted = false;
           try {
-            await pendingAudio.setFilePath(file.path);
-          } on Object {
-            await pendingAudio.dispose();
-            pendingAudio = null;
-            mediaError = 'Lecture audio indisponible.';
+            if (!mounted || generation != _generation) {
+              throw StateError('Média abandonné.');
+            }
+            final kind = current['kind']?.toString();
+            if (kind == 'audio' || kind == 'voice') {
+              pendingAudio = AudioPlayer();
+              try {
+                await pendingAudio.setFilePath(file.path);
+              } on Object {
+                await pendingAudio.dispose();
+                pendingAudio = null;
+                mediaError = 'Lecture audio indisponible.';
+              }
+            } else if (kind == 'video') {
+              try {
+                pendingVideo = await const PrivateVideoControllerFactory().open(
+                  file.path,
+                );
+                await pendingVideo.initialize();
+              } on Object {
+                await pendingVideo?.dispose();
+                pendingVideo = null;
+                mediaError = 'Lecture vidéo indisponible.';
+              }
+            }
+            // Changing media or closing a sheet while the decoder initialized
+            // invalidates both players and the private temporary file.
+            if (!mounted || generation != _generation) {
+              throw StateError('Média abandonné.');
+            }
+            _file = file;
+            _audio = pendingAudio;
+            _video = pendingVideo;
+            _error = mediaError;
+            adopted = true;
+            if (playAudio && pendingAudio != null) {
+              unawaited(pendingAudio.play());
+            }
+            setState(() {});
+            return file;
+          } finally {
+            if (!adopted) {
+              await pendingAudio?.dispose();
+              await pendingVideo?.dispose();
+              await file.delete().catchError((Object _) => file);
+            }
           }
-        } else if (kind == 'video') {
-          try {
-            pendingVideo = await const PrivateVideoControllerFactory().open(
-              file.path,
-            );
-            await pendingVideo.initialize();
-          } on Object {
-            await pendingVideo?.dispose();
-            pendingVideo = null;
-            mediaError = 'Lecture vidéo indisponible.';
-          }
-        }
-        // Changing media or closing a sheet while the decoder initialized
-        // invalidates both players and the private temporary file.
-        if (!mounted || generation != _generation) {
-          throw StateError('Média abandonné.');
-        }
-        _file = file;
-        _audio = pendingAudio;
-        _video = pendingVideo;
-        _error = mediaError;
-        adopted = true;
-        if (playAudio && pendingAudio != null) {
-          unawaited(pendingAudio.play());
-        }
-        setState(() {});
-        return file;
-      } finally {
-        if (!adopted) {
-          await pendingAudio?.dispose();
-          await pendingVideo?.dispose();
-          await file.delete().catchError((Object _) => file);
-        }
-      }
-    });
+        });
   }
 
   Future<void> _retry() async {
