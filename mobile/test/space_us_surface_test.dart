@@ -330,6 +330,38 @@ void main() {
     },
   );
 
+  testWidgets('authorized Space team shows people rather than generic symbol', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['team'] as Map<String, dynamic>)['items'] = [
+      {'profile': {'id': 'a', 'name': 'Amina Mbala'}},
+      {'profile': {'id': 'b', 'name': 'Patrick Kasa'}},
+      {'profile': {'id': 'c', 'name': 'Chantal Lunda'}},
+    ];
+    (projection['team'] as Map<String, dynamic>)['active_members'] = 5;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('space-us-entry-team')));
+    await tester.pumpAndSettle();
+    expect(find.text('AM'), findsOneWidget);
+    expect(find.text('PK'), findsOneWidget);
+    expect(find.text('CL'), findsOneWidget);
+    expect(find.text('+2'), findsOneWidget);
+    expect(find.text('Notre équipe'), findsOneWidget);
+  });
+
   testWidgets('restricted Team section never exposes cached member rows', (
     tester,
   ) async {

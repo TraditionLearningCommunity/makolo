@@ -19,8 +19,6 @@ import '../../sync/owner_source_state.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../sync/freshness.dart';
-import '../continuity/conversation_context_screen.dart';
-import '../continuity/conversation_repository.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
 import 'space_us_surface.dart';
@@ -273,7 +271,6 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     projection: snapshot.data,
                     fallbackSpaceName: actor.space.slug,
                     spaceId: actor.space.id,
-                    conversations: widget.runtime.conversations,
                     onRefresh: _refresh,
                     mediaBaseUri: widget.runtime.api?.baseUri,
                   ),
@@ -295,14 +292,12 @@ class _SpaceProjectionBody extends StatelessWidget {
     required this.spaceId,
     required this.onRefresh,
     this.mediaBaseUri,
-    this.conversations,
   });
 
   final SpaceShellSurface surface;
   final StoredProjection? projection;
   final String fallbackSpaceName;
   final String spaceId;
-  final ConversationRepository? conversations;
   final Future<void> Function() onRefresh;
   final Uri? mediaBaseUri;
 
@@ -418,27 +413,15 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
   }
 
-  Widget _usBody(BuildContext context, Map<String, dynamic> payload) => Column(
-    children: [
-      if (conversations != null)
-        ConversationContextAction(
-          repository: conversations!,
-          kind: 'space',
-          contextId: spaceId,
-          onOpen: (id) => context.push('/conversations/$id'),
-        ),
-      Expanded(
-        child: SpaceUsSurface(
+  Widget _usBody(BuildContext context, Map<String, dynamic> payload) =>
+      SpaceUsSurface(
           payload: payload,
           fallbackSpaceName: fallbackSpaceName,
           onOpen: (route) async {
             await context.push(route);
             if (context.mounted) await onRefresh();
           },
-        ),
-      ),
-    ],
-  );
+        );
 
   Map<String, dynamic>? _map(Object? value) => value is Map
       ? value.map((key, value) => MapEntry(key.toString(), value))

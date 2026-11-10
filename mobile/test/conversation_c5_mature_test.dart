@@ -360,6 +360,81 @@ void main() {
     },
   );
 
+  testWidgets('Space inbox uses only the canonical owner context lookup', (
+    tester,
+  ) async {
+    final paths = <String>[];
+    final repository = repositoryFor((request) async {
+      paths.add(request.url.path);
+      if (request.url.path ==
+          '/api/v1/conversations/by-context/space/space-a/') {
+        return MockResponse(
+          jsonEncode({
+            'results': [
+              {
+                'id': 'context-conversation-a',
+                'title': 'Coordination atelier',
+                'context': {'kind': 'space', 'label': 'Atelier'},
+                'updated_at': '2026-11-09T10:00:00Z',
+              },
+            ],
+          }),
+          200,
+        );
+      }
+      throw StateError('A personal or foreign Conversation was requested');
+    });
+    String? opened;
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(
+        repository: repository,
+        spaceId: 'space-a',
+        onOpen: (id) => opened = id,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Échanges liés à cet Espace'), findsOneWidget);
+    expect(find.text('Coordination atelier'), findsOneWidget);
+    expect(find.byKey(const Key('conversation-tab-all')), findsNothing);
+    expect(paths, ['/api/v1/conversations/by-context/space/space-a/']);
+    await tester.tap(find.text('Coordination atelier'));
+    expect(opened, 'context-conversation-a');
+  });
+
+  testWidgets('Space inbox permission failure never shows the personal cache', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path ==
+          '/api/v1/conversations/by-context/space/space-a/') {
+        return const MockResponse('{"detail":"Accès refusé"}', 403);
+      }
+      throw StateError('Unexpected personal request');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.listProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'results': [
+          {'id': 'personal-private', 'title': 'Privé personnel'},
+        ],
+        'count': 1,
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(
+        repository: repository,
+        spaceId: 'space-a',
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Privé personnel'), findsNothing);
+    expect(find.text('Conversations de cet Espace indisponibles.'), findsOneWidget);
+  });
+
   testWidgets(
     'C5: archived conversations are accessible without fabricating unread counts',
     (tester) async {

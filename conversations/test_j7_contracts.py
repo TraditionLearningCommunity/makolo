@@ -418,6 +418,72 @@ class ConversationJ7ContractsTests(TestCase):
         self.assertFalse(unmuted.json()["muted"])
         self.assertTrue(unmuted.json()["pinned"])
 
+    def test_represented_point_retains_human_author_and_distinct_space_context(self):
+        grant_space_role(
+            profile=self.owner,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+            granted_by=self.owner,
+            source="j7-represented-author",
+        )
+        point = create_point(
+            actor=self.owner,
+            conversation=self.conversation,
+            kind=ConversationPointKind.INFORMATION,
+            title="Coordination humaine",
+            represented_space=self.space,
+            visibility_audience=self.audience,
+        )
+        self.client.force_login(self.member)
+        detail = self.client.get(
+            reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+        )
+        self.assertEqual(detail.status_code, 200)
+        payload = detail.json()
+        points = (
+            payload["points"] + payload["essential"] + payload["timeline"]
+        )
+        row = next(item for item in points if item["id"] == str(point.pk))
+        self.assertEqual(row["author"]["label"], self.owner.username)
+        self.assertEqual(row["author"]["space_label"], self.space.name)
+        self.assertTrue(row["author"]["represented_space"])
+        self.assertNotEqual(row["author"]["label"], self.space.name)
+
+    def test_space_context_lookup_only_returns_visible_space_conversations(self):
+        grant_space_role(
+            profile=self.member,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+            granted_by=self.owner,
+            source="j7-conversations-space-list",
+        )
+        space_conversation = ensure_context_conversation(
+            actor=self.owner,
+            kind=ConversationContextKind.SPACE,
+            space=self.space,
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(
+            reverse(
+                "conversations-api:by-context",
+                kwargs={"kind": "space", "context_pk": self.space.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertIn(str(space_conversation.pk), ids)
+        # Activity discussions are not relabeled as the Space's conversation.
+        self.assertNotIn(str(self.conversation.pk), ids)
+        self.client.force_login(self.outsider)
+        outsider = self.client.get(
+            reverse(
+                "conversations-api:by-context",
+                kwargs={"kind": "space", "context_pk": self.space.pk},
+            )
+        )
+        self.assertEqual(outsider.status_code, 200)
+        self.assertEqual(outsider.json()["results"], [])
+
     def test_acting_for_space_is_revalidated_server_side(self):
         point = self._question(client_reference="j7-space-response")
         self.client.force_login(self.member)

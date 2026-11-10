@@ -202,6 +202,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     _goDestination(MakoloDestination.forActor(_actor, door));
   }
 
+  void _openConversations() {
+    final actor = _actor;
+    final uri = actor is SpaceActorContext
+        ? Uri(
+            path: '/conversations',
+            queryParameters: {'context': 'space', 'space': actor.space.id},
+          ).toString()
+        : '/conversations';
+    unawaited(_openSecondary(uri));
+  }
+
   void _openAvatar() {
     showMakoloAvatarSheet(
       context,
@@ -306,7 +317,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
-            onConversations: () => unawaited(_openSecondary('/conversations')),
+            onConversations: _openConversations,
             onNotifications: () => unawaited(_openSecondary('/notifications')),
             onSearch:
                 actor is PersonalActorContext || enableSpaceDiscoveryActions

@@ -455,12 +455,21 @@ class _MeHubListEntry extends StatelessWidget {
     title: entry.title,
     subtitle: entry.subtitle,
     count: entry.count,
-    symbol: _MeHubSymbol(
-      kind: entry.kind,
-      fallback: entry.icon,
-      size: 24,
-      color: scheme.primary,
-    ),
+    symbol: entry.kind == 'follows_collection' &&
+            entry.previews.any((item) => item.destination.kind == 'profile')
+        ? MakoloPeopleAvatarStack(
+            names: [
+              for (final item in entry.previews)
+                if (item.destination.kind == 'profile') item.title,
+            ],
+            size: 30,
+          )
+        : _MeHubSymbol(
+            kind: entry.kind,
+            fallback: entry.icon,
+            size: 24,
+            color: scheme.primary,
+          ),
     onOpen: canNavigate ? onOpen : null,
     bottomSpacing: 6,
     headerVerticalPadding: 12,
@@ -508,12 +517,21 @@ class _MeHubGridEntry extends StatelessWidget {
     title: entry.title,
     subtitle: entry.subtitle,
     countDescription: _countDescription,
-    symbol: _MeHubSymbol(
-      kind: entry.kind,
-      fallback: entry.icon,
-      size: 32,
-      color: Theme.of(context).colorScheme.primary,
-    ),
+    symbol: entry.kind == 'follows_collection' &&
+            entry.previews.any((item) => item.destination.kind == 'profile')
+        ? MakoloPeopleAvatarStack(
+            names: [
+              for (final item in entry.previews)
+                if (item.destination.kind == 'profile') item.title,
+            ],
+            size: 32,
+          )
+        : _MeHubSymbol(
+            kind: entry.kind,
+            fallback: entry.icon,
+            size: 32,
+            color: Theme.of(context).colorScheme.primary,
+          ),
     onOpen: canNavigate ? onOpen : null,
   );
 }

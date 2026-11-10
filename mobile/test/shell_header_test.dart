@@ -38,6 +38,33 @@ void main() {
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 
+  for (final kind in [MakoloHeaderKind.me, MakoloHeaderKind.us]) {
+    testWidgets('Conversations icon is shared by Now and $kind', (tester) async {
+      var opens = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            appBar: MakoloPrimaryHeader(
+              kind: kind,
+              hasConversationAttention: true,
+              onConversations: () => opens++,
+              onAvatar: () {},
+            ),
+          ),
+        ),
+      );
+      final icon = find.byTooltip(
+        'Conversations — quelque chose demande votre attention',
+      );
+      expect(icon, findsOneWidget);
+      expect(find.byTooltip('Échanger'), findsNothing);
+      await tester.tap(icon);
+      expect(opens, 1);
+      expect(find.byTooltip('Avatar'), findsOneWidget);
+    });
+  }
+
   testWidgets('Découvrir is Mark plus title with Search and Map', (
     tester,
   ) async {

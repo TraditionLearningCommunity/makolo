@@ -33,11 +33,14 @@ class ConversationListScreen extends StatefulWidget {
     required this.repository,
     required this.onOpen,
     this.onOpenPoint,
+    this.spaceId,
   });
 
   final ConversationRepository repository;
   final void Function(String id) onOpen;
   final void Function(String id, String pointId)? onOpenPoint;
+  /// Strict owner-scoped mode. A Space never becomes a chat participant.
+  final String? spaceId;
 
   @override
   State<ConversationListScreen> createState() => _ConversationListScreenState();
@@ -48,21 +51,74 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
   bool _attemptedRefresh = false;
+  Future<Map<String, dynamic>>? _spaceRows;
+  String _spaceSearch = '';
+  bool _spaceEnsureBusy = false;
+  String? _spaceEnsureError;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_acquireOrRefresh());
+    if (widget.spaceId == null) {
+      unawaited(_acquireOrRefresh());
+    } else {
+      _loadSpaceRows();
+    }
+  }
+
+  void _loadSpaceRows() {
+    final id = widget.spaceId;
+    if (id == null) return;
+    _spaceRows = widget.repository.contextDecision(
+      kind: 'space',
+      id: id,
+    );
+  }
+
+  void _refreshSpaceRows() => setState(_loadSpaceRows);
+
+  Future<void> _ensureSpaceConversation() async {
+    final id = widget.spaceId;
+    if (id == null || _spaceEnsureBusy) return;
+    setState(() {
+      _spaceEnsureBusy = true;
+      _spaceEnsureError = null;
+    });
+    try {
+      final conversationId = await widget.repository.ensureContext(
+        kind: 'space',
+        id: id,
+      );
+      if (mounted && id == widget.spaceId) {
+        widget.onOpen(conversationId);
+      }
+    } on Object {
+      if (mounted && id == widget.spaceId) {
+        setState(() => _spaceEnsureError =
+            'Impossible d’ouvrir cet échange avec les droits actuels.');
+      }
+    } finally {
+      if (mounted) setState(() => _spaceEnsureBusy = false);
+    }
   }
 
   @override
   void didUpdateWidget(covariant ConversationListScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.spaceId != widget.spaceId) {
       _requestedInitialRefresh = false;
       _attemptedRefresh = false;
       _refreshing = false;
-      unawaited(_acquireOrRefresh());
+      _spaceSearch = '';
+      _spaceEnsureBusy = false;
+      _spaceEnsureError = null;
+      if (widget.spaceId == null) {
+        _spaceRows = null;
+        unawaited(_acquireOrRefresh());
+      } else {
+        _loadSpaceRows();
+      }
     }
   }
 
@@ -136,8 +192,133 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
   }
 
+  /// The same Conversations screen, but the owner selects rows by a
+  /// verified Space context. Never read the personal cached inbox here:
+  /// stale or unscoped results must not appear as collective access.
+  Widget _spaceList(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Conversations'),
+      actions: [
+        IconButton(
+          tooltip: 'Actualiser',
+          onPressed: _refreshSpaceRows,
+          icon: const Icon(Icons.refresh_rounded),
+        ),
+      ],
+    ),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: _spaceRows,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return MakoloErrorState(
+            message: 'Conversations de cet Espace indisponibles.',
+            onRetry: _refreshSpaceRows,
+          );
+        }
+        if (!snapshot.hasData) return const MakoloLoadingState(
+          label: 'Chargement des conversations de cet Espace…',
+        );
+        final response = snapshot.data!;
+        final raw = response['results'];
+        final rows = (raw is List ? raw : const <Object>[])
+            .whereType<Map>()
+            .map((item) => item.map((key, value) =>
+                MapEntry(key.toString(), value)))
+            .map(_ConversationSummary.fromMap)
+            .where((item) => item.id.isNotEmpty)
+            .toList(growable: false);
+        final canEnsure = response['can_ensure'] == true;
+        final term = _spaceSearch.trim().toLowerCase();
+        final visible = term.isEmpty
+            ? rows
+            : rows.where((item) =>
+                item.title.toLowerCase().contains(term) ||
+                (item.purpose ?? '').toLowerCase().contains(term) ||
+                (item.contextLabel ?? '').toLowerCase().contains(term)
+              ).toList(growable: false);
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: ListView(
+              key: const Key('conversation-space-list-content'),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+                vertical: MakoloSpacing.md,
+              ),
+              children: [
+                Text(
+                  'Échanges liés à cet Espace',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+                TextField(
+                  key: const Key('conversation-space-search-field'),
+                  decoration: const InputDecoration(
+                    labelText: 'Rechercher',
+                    hintText: 'Rechercher dans cet Espace…',
+                    prefixIcon: Icon(Icons.search_rounded),
+                  ),
+                  onChanged: (value) => setState(() => _spaceSearch = value),
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+                if (visible.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: MakoloSpacing.lg,
+                    ),
+                    child: Text(
+                      term.isEmpty
+                          ? 'Aucune conversation accessible dans cet Espace.'
+                          : 'Aucun résultat dans cet Espace.',
+                    ),
+                  )
+                else
+                  for (final item in visible) ...[
+                    ConversationListTile(
+                      key: Key('conversation-tile-${item.id}'),
+                      title: item.title,
+                      contextKind: item.contextKind,
+                      subtitle: item.subtitle,
+                      preview: item.preview,
+                      previewKind: item.previewKind,
+                      mediaKinds: item.mediaKinds,
+                      publicImageUri: widget.repository.publicContextImageUri(
+                        item.contextImageUrl,
+                      ),
+                      updatedAt: item.updatedAt,
+                      attentionCount: item.attentionCount,
+                      onTap: () => widget.onOpen(item.id),
+                    ),
+                    const Divider(height: 1),
+                  ],
+                if (rows.isEmpty && canEnsure && term.isEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: _spaceEnsureBusy ? null : _ensureSpaceConversation,
+                    icon: const Icon(Icons.forum_outlined),
+                    label: Text(_spaceEnsureBusy
+                        ? 'Ouverture…'
+                        : 'Commencer un échange'),
+                  ),
+                  if (_spaceEnsureError != null)
+                    Text(
+                      _spaceEnsureError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    if (widget.spaceId != null) return _spaceList(context);
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchList(),
       builder: (context, projectionSnapshot) {
@@ -2868,6 +3049,7 @@ class _PointCardState extends State<_PointCard> {
       isMine: point.isMine,
       authorLabel: point.authorLabel,
       representedSpace: point.representedSpace,
+      representedSpaceLabel: point.representedSpaceLabel,
       publishedAt: point.publishedAt ?? point.updatedAt,
       // Owner-confirmed publication is known. Delivery/read receipts need
       // separate authenticated evidence and are never inferred here.
@@ -3388,6 +3570,7 @@ class _ConversationPoint {
     this.authorLabel,
     this.isMine = false,
     this.representedSpace = false,
+    this.representedSpaceLabel,
     this.clientReference,
     this.exchangeReferences = const [],
   });
@@ -3397,6 +3580,7 @@ class _ConversationPoint {
   final String? authorLabel;
   final bool isMine;
   final bool representedSpace;
+  final String? representedSpaceLabel;
   final String? clientReference;
   final List<String> exchangeReferences;
   final String responseMode;
@@ -3513,6 +3697,7 @@ class _ConversationPoint {
       authorLabel: _string(_map(row['author'])['label']),
       isMine: _map(row['author'])['is_mine'] == true,
       representedSpace: _map(row['author'])['represented_space'] == true,
+      representedSpaceLabel: _string(_map(row['author'])['space_label']),
       clientReference: _string(row['client_reference']),
       exchangeReferences: [
         for (final entry in _maps(row['exchange_preview']))

@@ -125,10 +125,18 @@ class MakoloPrimaryHeader extends StatelessWidget
           onPressed: onCalendar,
         ),
     ],
-    MakoloHeaderKind.mark ||
-    MakoloHeaderKind.me ||
-    MakoloHeaderKind.work ||
-    MakoloHeaderKind.us => const [],
+    MakoloHeaderKind.me || MakoloHeaderKind.us => [
+      if (onConversations != null)
+        _HeaderAction(
+          tooltip: hasConversationAttention
+              ? 'Conversations — quelque chose demande votre attention'
+              : 'Conversations',
+          icon: Icons.forum_outlined,
+          onPressed: onConversations,
+          attention: hasConversationAttention,
+        ),
+    ],
+    MakoloHeaderKind.mark || MakoloHeaderKind.work => const [],
   };
 
   Widget _titleWidget(BuildContext context) {

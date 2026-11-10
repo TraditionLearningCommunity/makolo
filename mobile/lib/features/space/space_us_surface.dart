@@ -192,6 +192,11 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           icon: Icons.groups_outlined,
           target: route('team'),
           count: _nonNegativeCount(team?['active_members']),
+          people: [
+            for (final item in teamRows)
+              if (_value(_map(item['profile'])?['name']) case final name?)
+                name,
+          ],
           previews: [
             if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
             for (final item in teamRows.take(3))
@@ -233,6 +238,11 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           subtitle: 'Représentation et autorité de cet Espace',
           icon: Icons.admin_panel_settings_outlined,
           target: route('ownership'),
+          people: [
+            for (final item in ownershipRows)
+              if (_value(_map(item['profile'])?['name']) case final name?)
+                name,
+          ],
           previews: [
             for (final item in ownershipRows.take(3))
               _value(_map(item['profile'])?['name']) ?? 'Représentant',
@@ -368,11 +378,17 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               title: entry.title,
                               subtitle: entry.subtitle,
                               count: entry.count,
-                              symbol: Icon(
-                                entry.icon,
-                                color: scheme.primary,
-                                size: 24,
-                              ),
+                              symbol: entry.people.isEmpty
+                                  ? Icon(
+                                      entry.icon,
+                                      color: scheme.primary,
+                                      size: 24,
+                                    )
+                                  : MakoloPeopleAvatarStack(
+                                      names: entry.people,
+                                      totalCount: entry.count,
+                                      size: 30,
+                                    ),
                               onOpen: entry.target == null
                                   ? null
                                   : () => open(entry.target!),
@@ -407,11 +423,17 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                     ),
                                     title: entry.title,
                                     subtitle: entry.subtitle,
-                                    symbol: Icon(
-                                      entry.icon,
-                                      color: scheme.primary,
-                                      size: 32,
-                                    ),
+                                    symbol: entry.people.isEmpty
+                                        ? Icon(
+                                            entry.icon,
+                                            color: scheme.primary,
+                                            size: 32,
+                                          )
+                                        : MakoloPeopleAvatarStack(
+                                            names: entry.people,
+                                            totalCount: entry.count,
+                                            size: 31,
+                                          ),
                                     countDescription: entry.count == null
                                         ? null
                                         : entry.count == 1
@@ -598,6 +620,7 @@ class _SpaceUsTerritory {
     this.target,
     this.count,
     this.previews = const [],
+    this.people = const [],
   });
 
   final String keyName;
@@ -607,6 +630,7 @@ class _SpaceUsTerritory {
   final String? target;
   final int? count;
   final List<String> previews;
+  final List<String> people;
 }
 
 int? _nonNegativeCount(Object? value) =>

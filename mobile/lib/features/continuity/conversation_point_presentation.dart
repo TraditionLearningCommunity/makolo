@@ -14,6 +14,7 @@ class ConversationPointShell extends StatelessWidget {
     required this.child,
     this.authorLabel,
     this.representedSpace = false,
+    this.representedSpaceLabel,
     this.publishedAt,
     this.statusIcon,
   });
@@ -22,6 +23,8 @@ class ConversationPointShell extends StatelessWidget {
   final bool isMine;
   final String? authorLabel;
   final bool representedSpace;
+  /// Canonical Space context label; it is not an author's name or a role.
+  final String? representedSpaceLabel;
   final DateTime? publishedAt;
   final Widget? statusIcon;
   final Widget child;
@@ -38,12 +41,7 @@ class ConversationPointShell extends StatelessWidget {
   };
 
   String get _identity {
-    if (isMine) {
-      final space = authorLabel?.trim();
-      return representedSpace && space != null && space.isNotEmpty
-          ? 'Vous · $space'
-          : 'Vous';
-    }
+    if (isMine) return 'Vous';
     final value = authorLabel?.trim();
     return value == null || value.isEmpty ? 'Participant' : value;
   }
@@ -146,6 +144,19 @@ class ConversationPointShell extends StatelessWidget {
                         ],
                       ],
                     ),
+                    if (representedSpace &&
+                        representedSpaceLabel != null &&
+                        representedSpaceLabel!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Dans le cadre de ${representedSpaceLabel!}',
+                        style: theme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                     if (!isOrdinary) ...[
                       const SizedBox(height: 10),
                       Row(

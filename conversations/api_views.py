@@ -121,9 +121,11 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         # Identity only for an already-authorized Point. No account IDs,
         # contact details or private Profile fields escape this projection.
         "author": {
+            # A Space is a context of representation, never the human author.
+            # Preserve the existing public-identifier policy for other users;
+            # the full name remains restricted to the requesting Profile.
             "label": (
-                (point.represented_space.name if point.represented_space_id else "")
-                or (
+                (
                     point.published_by.get_full_name().strip()
                     if point.published_by_id == profile.pk else ""
                 )
@@ -132,6 +134,10 @@ def _serialize_point(point, *, profile, reason=None, section=None):
             ),
             "is_mine": point.published_by_id == profile.pk,
             "represented_space": bool(point.represented_space_id),
+            "space_label": (
+                point.represented_space.name
+                if point.represented_space_id else None
+            ),
         },
         "response_mode": point.response_mode,
         "lifecycle": point.lifecycle,

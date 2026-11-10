@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -24,7 +25,24 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
           message: 'Aucune conversation à afficher pour le moment.',
         );
       }
+      final actor = runtime.actorContext?.value;
+      final requestedContext = state.uri.queryParameters['context'];
+      final requestedSpace = state.uri.queryParameters['space'];
+      // A stale, forged or foreign Space link never falls back to the
+      // personal inbox. Current actor authorization is rechecked server-side.
+      if (requestedContext != null &&
+          (requestedContext != 'space' ||
+              actor is! SpaceActorContext ||
+              requestedSpace != actor.space.id)) {
+        return const MakoloSecondaryScreen(
+          title: 'Conversations',
+          message: 'Ce contexte de conversations n’est plus disponible.',
+        );
+      }
+      final spaceId = actor is SpaceActorContext ? actor.space.id : null;
       return ConversationListScreen(
+        key: ValueKey('conversation-list-${spaceId ?? 'personal'}'),
+        spaceId: spaceId,
         repository: repository,
         onOpen: (id) => context.push('/conversations/$id'),
         onOpenPoint: (id, pointId) => context.push(

@@ -258,6 +258,104 @@ class MakoloPrimaryShortcut extends StatelessWidget {
   }
 }
 
+/// Social recognition without inventing portraits or membership.
+/// Names and totals MUST come from an already-authorized owner projection.
+class MakoloPeopleAvatarStack extends StatelessWidget {
+  const MakoloPeopleAvatarStack({
+    super.key,
+    required this.names,
+    this.totalCount,
+    this.size = 32,
+    this.maxVisible = 3,
+  });
+
+  final List<String> names;
+  final int? totalCount;
+  final double size;
+  final int maxVisible;
+
+  static String initials(String name) {
+    final words = name.trim().split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty).toList(growable: false);
+    if (words.isEmpty) return '?';
+    return words.take(2).map((word) => word[0].toUpperCase()).join();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final people = names.where((name) => name.trim().isNotEmpty)
+        .take(maxVisible).toList(growable: false);
+    if (people.isEmpty) return const SizedBox.shrink();
+    final visible = people.length;
+    final extra = totalCount != null && totalCount! > visible
+        ? totalCount! - visible
+        : 0;
+    final stride = size * 0.67;
+    final colors = <Color>[
+      MakoloColors.indigo,
+      MakoloColors.deep,
+      MakoloColors.pulse,
+    ];
+    return Semantics(
+      container: true,
+      label: 'Personnes visibles : ${people.join(', ')}'
+          '${extra > 0 ? ' et $extra autres' : ''}',
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: stride * (visible - 1 + (extra > 0 ? 1 : 0)) + size,
+          height: size,
+          child: Stack(
+            children: [
+              for (var i = 0; i < people.length; i++)
+                Positioned(
+                  left: stride * i,
+                  child: Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors[i % colors.length],
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.surface,
+                        width: 2,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials(people[i]),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: size * 0.32,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              if (extra > 0)
+                Positioned(
+                  left: stride * visible,
+                  child: CircleAvatar(
+                    radius: size / 2,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Text(
+                      '+$extra',
+                      style: TextStyle(
+                        fontSize: size * 0.29,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 enum MakoloTerritoryLayout { list, grid }
 
 /// Only switches how already-authorized entries are presented.

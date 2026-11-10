@@ -60,6 +60,41 @@ void main() {
     expect(summaries.last.data, summary);
   });
 
+  testWidgets('avatar stack uses only supplied, authorized people', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MakoloPeopleAvatarStack(
+            names: ['Amina Mbala', 'Patrick Kasa', 'Chantal Lunda'],
+            totalCount: 5,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('AM'), findsOneWidget);
+    expect(find.text('PK'), findsOneWidget);
+    expect(find.text('CL'), findsOneWidget);
+    expect(find.text('+2'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Personnes visibles : Amina Mbala, Patrick Kasa, Chantal Lunda et 2 autres',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('no named people means no invented avatar', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: MakoloPeopleAvatarStack(names: [], totalCount: 12),
+        ),
+      ),
+    );
+    expect(find.byType(CircleAvatar), findsNothing);
+    expect(find.text('+12'), findsNothing);
+  });
+
   testWidgets('Passport gateway opens only an owner supplied action', (
     tester,
   ) async {
