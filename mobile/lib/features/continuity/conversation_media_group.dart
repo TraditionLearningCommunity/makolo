@@ -30,21 +30,21 @@ class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
     if (_opening) return;
     _opening = true;
     try {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (_) => FractionallySizedBox(
-        heightFactor: .92,
-        child: ConversationAttachmentViewer(
-          repository: widget.repository,
-          download: widget.download,
-          attachment: widget.attachments[index],
-          gallery: widget.attachments,
-          initialIndex: index,
+      await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        builder: (_) => FractionallySizedBox(
+          heightFactor: .92,
+          child: ConversationAttachmentViewer(
+            repository: widget.repository,
+            download: widget.download,
+            attachment: widget.attachments[index],
+            gallery: widget.attachments,
+            initialIndex: index,
+          ),
         ),
-      ),
-    );
+      );
     } finally {
       _opening = false;
     }
@@ -163,7 +163,8 @@ class _ConversationMediaGroupState extends State<ConversationMediaGroup> {
                   mainAxisExtent: constraints.maxWidth < 220
                       ? 148
                       : ((constraints.maxWidth - 4) / 2 / 1.35)
-                          .clamp(112.0, 180.0).toDouble(),
+                            .clamp(112.0, 180.0)
+                            .toDouble(),
                 ),
                 itemBuilder: (context, cell) {
                   final index = visual[cell];
