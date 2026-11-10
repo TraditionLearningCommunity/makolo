@@ -600,7 +600,7 @@ class _JourneyContent extends StatelessWidget {
             if (!presentation.isTerminal &&
                 _hasVisiblePreparation(presentation)) ...[
               MakoloSection(
-                title: 'Préparation',
+                title: 'Ma préparation',
                 child: _ReadinessGroups(
                   presentation: presentation,
                   ownerAction: _ownerActionForLink,
@@ -656,9 +656,9 @@ class _JourneyContent extends StatelessWidget {
               ),
             ],
             if (presentation.forms.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.xl),
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Formulaires',
+                title: 'Mes formulaires',
                 child: Column(
                   children: [
                     for (
@@ -678,9 +678,9 @@ class _JourneyContent extends StatelessWidget {
               ),
             ],
             if (presentation.requirements.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.xl),
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Éléments nécessaires',
+                title: 'Éléments demandés',
                 child: Column(
                   children: [
                     for (
@@ -711,28 +711,30 @@ class _JourneyContent extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
                 title: 'Paiement',
-                child: Column(
-                  children: [
-                    for (final item in presentation.payments) ...[
-                      _JourneyPaymentCard(
-                        payment: item,
-                        onOpenPaymentObligation: onOpenPaymentObligation,
-                        onOpenCommerceOrder: onOpenCommerceOrder,
-                      ),
-                      const SizedBox(height: MakoloSpacing.sm),
+                child: MakoloCard(
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < presentation.payments.length; index++) ...[
+                        if (index > 0) const Divider(height: MakoloSpacing.sm),
+                        _JourneyPaymentCard(
+                          payment: presentation.payments[index],
+                          onOpenPaymentObligation: onOpenPaymentObligation,
+                          onOpenCommerceOrder: onOpenCommerceOrder,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ],
-            if (presentation.activity != null ||
-                presentation.occurrence != null) ...[
-              const SizedBox(height: MakoloSpacing.xl),
+            if (presentation.activity?.link != null ||
+                presentation.occurrence?.link != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Contexte',
+                title: 'Pour en savoir plus',
                 child: Column(
                   children: [
-                    if (presentation.activity != null)
+                    if (presentation.activity?.link != null)
                       _ReferenceCard(
                         reference: presentation.activity!,
                         contextLabel: 'Activité',
@@ -742,10 +744,10 @@ class _JourneyContent extends StatelessWidget {
                             ? null
                             : () => onOpenActivity(presentation.activity!),
                       ),
-                    if (presentation.activity != null &&
-                        presentation.occurrence != null)
+                    if (presentation.activity?.link != null &&
+                        presentation.occurrence?.link != null)
                       const SizedBox(height: MakoloSpacing.sm),
-                    if (presentation.occurrence != null)
+                    if (presentation.occurrence?.link != null)
                       _ReferenceCard(
                         reference: presentation.occurrence!,
                         contextLabel: 'Occurrence',
@@ -763,7 +765,7 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.access != null) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
-                title: 'Accès',
+                title: 'Mon accès',
                 child: _ReferenceCard(
                   reference: presentation.access!,
                   onTap: presentation.access!.link == null
@@ -1439,9 +1441,9 @@ class _JourneyPaymentCard extends StatelessWidget {
     } else if (payment.orderId != null && onOpenCommerceOrder != null) {
       open = () => onOpenCommerceOrder!(payment.orderId!);
     }
-    return MakoloCard(
-      onTap: open,
-      child: ListTile(
+    return ListTile(
+        onTap: open,
+        dense: true,
         contentPadding: EdgeInsets.zero,
         leading: const Icon(
           Icons.account_balance_wallet_outlined,
@@ -1458,7 +1460,6 @@ class _JourneyPaymentCard extends StatelessWidget {
                 ].join(' · '),
               ),
         trailing: open == null ? null : const Icon(Icons.chevron_right_rounded),
-      ),
     );
   }
 }
