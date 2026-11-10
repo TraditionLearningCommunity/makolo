@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
@@ -203,6 +204,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
 class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _saving = false;
+  bool _saveFailed = false;
   bool _expanded = false;
   int _galleryPage = 0;
   bool _allResources = false;
@@ -218,6 +220,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             widget.item.savedState ==
                 (_confirmedSaved! ? 'saved' : 'not_saved'))) {
       _confirmedSaved = null;
+      _saveFailed = false;
     }
     if (oldWidget.item.candidateKey != widget.item.candidateKey ||
         oldWidget.item.ownerFacts?['identity'].toString() !=
@@ -248,7 +251,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (widget.onSave == null) return;
     final previousState = widget.item.savedState;
     final candidateKey = widget.item.candidateKey;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
     try {
       await widget.onSave!();
       if (mounted &&
@@ -259,10 +265,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       }
     } on Object {
       if (mounted && widget.item.candidateKey == candidateKey) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('L’enregistrement n’a pas pu être confirmé.'),
-          ),
+        setState(() => _saveFailed = true);
+        showMakoloNotice(
+          context,
+          'L’enregistrement n’a pas pu être confirmé.',
+          kind: MakoloNoticeKind.error,
         );
       }
     } finally {
@@ -1338,6 +1345,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final saved = _confirmedSaved ?? (item.savedState == 'saved');
     final canToggle =
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
+    final savePhase = _saving
+        ? MakoloActionPhase.processing
+        : _saveFailed
+        ? MakoloActionPhase.failed
+        : saved
+        ? MakoloActionPhase.confirmed
+        : MakoloActionPhase.available;
 
     final resources = _resourceEntries;
     final actionBar = <Widget>[
@@ -1352,6 +1366,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             Expanded(
               child: MakoloRoundedActionSlot(
                 active: saved,
+                phase: savePhase,
                 child: IconButton(
                   key: Key(
                     widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
@@ -1366,14 +1381,19 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       : null,
                   tooltip: _saving
                       ? 'Enregistrement…'
+                      : _saveFailed
+                      ? 'Échec de l’enregistrement. Réessayer'
                       : saved
                       ? (widget.detailMode
                             ? 'Retirer des enregistrements'
                             : 'Enregistré')
                       : 'Enregistrer',
-                  icon: DiscoveryOrbitIcon(
-                    saved: saved,
-                    color: theme.colorScheme.primary,
+                  icon: MakoloActionFeedback(
+                    phase: savePhase,
+                    child: DiscoveryOrbitIcon(
+                      saved: saved,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                 ),
               ),
