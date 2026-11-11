@@ -2,11 +2,13 @@ from rest_framework import serializers
 
 from notifications.models import Notification, PushEndpoint, PushPlatform, PushProvider
 from notifications.navigation import build_notification_navigation
+from notifications.visuals import notification_visual
 
 
 class NotificationSerializer(serializers.ModelSerializer):
     is_read = serializers.BooleanField(read_only=True)
     navigation = serializers.SerializerMethodField()
+    visual = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
@@ -19,6 +21,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "action_url",
             "metadata",
             "navigation",
+            "visual",
             "is_read",
             "read_at",
             "created_at",
@@ -27,6 +30,9 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     def get_navigation(self, obj):
         return build_notification_navigation(obj)
+
+    def get_visual(self, obj):
+        return notification_visual(obj, self.context.get('request'))
 
 
 class PushEndpointRegistrationSerializer(serializers.Serializer):
