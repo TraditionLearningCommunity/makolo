@@ -711,7 +711,6 @@ class _NotificationRow {
   }
 }
 
-
 String? _visualUrl(Object? raw) {
   if (raw is! Map || raw['kind'] != 'activity') return null;
   final value = raw['image_url'];
@@ -719,8 +718,11 @@ String? _visualUrl(Object? raw) {
   final uri = Uri.tryParse(value);
   // The API is authoritative for whether a public image may be shown.
   // Never interpret arbitrary notification metadata as an image address.
-  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty ||
-      uri.userInfo.isNotEmpty) return null;
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty)
+    return null;
   return value;
 }
 
@@ -746,10 +748,14 @@ class _NotificationVisual extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final fallback = ColoredBox(
       color: scheme.primaryContainer,
-      child: Center(child: Icon(_icon, color: scheme.onPrimaryContainer, size: 25)),
+      child: Center(
+        child: Icon(_icon, color: scheme.onPrimaryContainer, size: 25),
+      ),
     );
     return Semantics(
-      label: url == null ? 'Notification : ${row.category}' : 'Image de l’activité',
+      label: url == null
+          ? 'Notification : ${row.category}'
+          : 'Image de l’activité',
       image: url != null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
