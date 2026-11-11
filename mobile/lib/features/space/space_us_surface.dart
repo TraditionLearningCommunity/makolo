@@ -316,17 +316,16 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                       profileId: _value(_map(item['profile'])?['id']),
                                     ),
                               ],
-                        ],
-                      ),
-                          totalCount: _nonNegativeCount(team?['active_members']),
-                          onOpenProfile: (id) => open(
-                            '/people/${Uri.encodeComponent(id)}',
-                          ),
-                          onOpenMembers: () => open(route('team')!),
+                              totalCount: _nonNegativeCount(team?['active_members']),
+                              onOpenProfile: (id) => open(
+                                '/people/${Uri.encodeComponent(id)}',
+                              ),
+                              onOpenMembers: () => open(route('team')!),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    if (lifecycle == 'suspended' ||
+                      ),
+                                        if (lifecycle == 'suspended' ||
                         lifecycle == 'archived') ...[
                       const SizedBox(height: MakoloSpacing.md),
                       _notice(
