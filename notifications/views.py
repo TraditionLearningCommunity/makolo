@@ -13,6 +13,7 @@ from core.web_navigation import safe_post_next
 from .forms import NotificationPreferenceForm
 from .navigation import build_notification_navigation
 from .selectors import get_notifications_for_user
+from .visuals import notification_visual
 
 
 class NotificationListView(LoginRequiredMixin, ListView):
@@ -22,7 +23,10 @@ class NotificationListView(LoginRequiredMixin, ListView):
     login_url = "core:login"
 
     def get_queryset(self):
-        queryset = get_notifications_for_user(self.request.user)
+        queryset = get_notifications_for_user(self.request.user).select_related(
+            "activity", "activity__event_vertical", "journey", "journey__activity",
+            "journey__activity__event_vertical",
+        )
         if self.request.GET.get("filter") == "unread":
             queryset = queryset.filter(read_at__isnull=True)
         return queryset.order_by('-created_at', '-id')[:15]
@@ -35,6 +39,7 @@ class NotificationListView(LoginRequiredMixin, ListView):
         context["unread_count"] = owner_queryset.filter(read_at__isnull=True).count()
         notifications = list(context["notifications"])
         for notification in notifications:
+            notification.visual = notification_visual(notification, self.request)
             navigation = build_notification_navigation(notification)
             local_action = (
                 notification.action_url.startswith("/")
