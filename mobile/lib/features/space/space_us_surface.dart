@@ -278,41 +278,46 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                         color: scheme.primaryContainer.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(MakoloRadii.card),
                       ),
-                      child: MakoloIdentityPortrait(
-                        name: name,
-                        eyebrow: institutionalLabel,
-                        eyebrowBelowName: true,
-                        subtitle: description,
-                        subtitleMaxLines: 2,
-                        detail: place.isNotEmpty ? place : null,
-                        padding: EdgeInsets.zero,
-                        leading: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: scheme.primary,
-                            borderRadius: BorderRadius.circular(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          MakoloIdentityPortrait(
+                            name: name,
+                            eyebrow: institutionalLabel,
+                            eyebrowBelowName: true,
+                            subtitle: description,
+                            subtitleMaxLines: 2,
+                            detail: place.isNotEmpty ? place : null,
+                            padding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                Icons.apartment_rounded,
+                                size: 26,
+                                color: scheme.onPrimary,
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            Icons.apartment_rounded,
-                            size: 26,
-                            color: scheme.onPrimary,
-                          ),
-                        ),
+                          if (teamVisible && route('team') != null) ...[
+                            const SizedBox(height: 12),
+                            Divider(height: 1, color: scheme.outlineVariant),
+                            const SizedBox(height: 9),
+                            MakoloMemberAvatarStrip(
+                              members: [
+                                for (final item in teamRows)
+                                  if (_value(_map(item['profile'])?['name']) case final memberName?)
+                                    MakoloMemberPreview(
+                                      name: memberName,
+                                      profileId: _value(_map(item['profile'])?['id']),
+                                    ),
+                              ],
+                        ],
                       ),
-                      if (teamVisible && route('team') != null) ...[
-                        const SizedBox(height: 12),
-                        Divider(height: 1, color: scheme.outlineVariant),
-                        const SizedBox(height: 9),
-                        MakoloMemberAvatarStrip(
-                          members: [
-                            for (final item in teamRows)
-                              if (_value(_map(item['profile'])?['name']) case final memberName?)
-                                MakoloMemberPreview(
-                                  name: memberName,
-                                  profileId: _value(_map(item['profile'])?['id']),
-                                ),
-                          ],
                           totalCount: _nonNegativeCount(team?['active_members']),
                           onOpenProfile: (id) => open(
                             '/people/${Uri.encodeComponent(id)}',
