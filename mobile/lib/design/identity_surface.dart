@@ -9,6 +9,7 @@ class MakoloIdentityPortrait extends StatelessWidget {
     required this.name,
     required this.leading,
     this.eyebrow,
+    this.eyebrowBelowName = false,
     this.subtitle,
     this.subtitleMaxLines,
     this.detail,
@@ -19,6 +20,7 @@ class MakoloIdentityPortrait extends StatelessWidget {
   final String name;
   final Widget leading;
   final String? eyebrow;
+  final bool eyebrowBelowName;
   final String? subtitle;
 
   /// Limit long institutional summaries without changing owner data.
@@ -45,16 +47,8 @@ class MakoloIdentityPortrait extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (eyebrow != null && eyebrow!.isNotEmpty) ...[
-                    Text(
-                      eyebrow!,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: MakoloSpacing.xs),
-                  ],
+                  if (!eyebrowBelowName && eyebrow != null && eyebrow!.isNotEmpty)
+                    _identityEyebrow(theme, eyebrow!),
                   Text(
                     name,
                     style: theme.textTheme.headlineSmall?.copyWith(
@@ -63,6 +57,10 @@ class MakoloIdentityPortrait extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if (eyebrowBelowName && eyebrow != null && eyebrow!.isNotEmpty) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    _identityEyebrow(theme, eyebrow!),
+                  ],
                   if (subtitle != null && subtitle!.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.xs),
                     Text(
@@ -94,6 +92,13 @@ class MakoloIdentityPortrait extends StatelessWidget {
       ),
     );
   }
+  static Widget _identityEyebrow(ThemeData theme, String label) => Text(
+    label,
+    style: theme.textTheme.labelMedium?.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.w700,
+    ),
+  );
 }
 
 /// A common Passport recognition card; Sharing still owns all Passport actions.
@@ -254,6 +259,130 @@ class MakoloPrimaryShortcut extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One person from an already-authorized owner preview. Profiles stay
+/// canonical; the caller provides the existing public Profile destination.
+class MakoloMemberPreview {
+  const MakoloMemberPreview({required this.name, this.profileId});
+
+  final String name;
+  final String? profileId;
+}
+
+/// Compact, person-first Space identity footer. No separate team dashboard.
+/// Members and total are supplied by the authorized Space projection only.
+class MakoloMemberAvatarStrip extends StatelessWidget {
+  const MakoloMemberAvatarStrip({
+    super.key,
+    required this.members,
+    required this.totalCount,
+    this.onOpenProfile,
+    this.onOpenMembers,
+  });
+
+  final List<MakoloMemberPreview> members;
+  final int? totalCount;
+  final ValueChanged<String>? onOpenProfile;
+  final VoidCallback? onOpenMembers;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = members.take(4).toList(growable: false);
+    final extra = totalCount != null && totalCount! > visible.length
+        ? totalCount! - visible.length
+        : 0;
+    final scheme = Theme.of(context).colorScheme;
+    const diameter = 31.0;
+    const stride = 22.0;
+    final colors = <Color>[
+      MakoloColors.indigo,
+      MakoloColors.deep,
+      MakoloColors.pulse,
+    ];
+    final markerCount = visible.length + (extra > 0 ? 1 : 0);
+    return Row(
+      key: const Key('space-us-members-strip'),
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        if (visible.isNotEmpty)
+          SizedBox(
+            width: diameter + (markerCount - 1) * stride,
+            height: diameter,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (var i = 0; i < visible.length; i++)
+                  Positioned(
+                    left: stride * i,
+                    child: Semantics(
+                      button: visible[i].profileId != null && onOpenProfile != null,
+                      label: 'Profil de ${visible[i].name}',
+                      child: InkResponse(
+                        key: Key('space-us-member-avatar-$i'),
+                        radius: 19,
+                        onTap: visible[i].profileId != null && onOpenProfile != null
+                            ? () => onOpenProfile!(visible[i].profileId!)
+                            : null,
+                        child: CircleAvatar(
+                          radius: diameter / 2,
+                          backgroundColor: colors[i % colors.length],
+                          child: Text(
+                            MakoloPeopleAvatarStack.initials(visible[i].name),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (extra > 0)
+                  Positioned(
+                    left: stride * visible.length,
+                    child: Semantics(
+                      label: '$extra autres membres',
+                      button: onOpenMembers != null,
+                      child: InkResponse(
+                        onTap: onOpenMembers,
+                        child: CircleAvatar(
+                          radius: diameter / 2,
+                          backgroundColor: scheme.surfaceContainerHigh,
+                          child: Text(
+                            '+$extra',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: scheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          )
+        else
+          const SizedBox.shrink(),
+        if (totalCount != null && onOpenMembers != null)
+          TextButton(
+            key: const Key('space-us-members-link'),
+            onPressed: onOpenMembers,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: Text(
+              '$totalCount membre${totalCount == 1 ? '' : 's'}',
+              style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
     );
   }
 }

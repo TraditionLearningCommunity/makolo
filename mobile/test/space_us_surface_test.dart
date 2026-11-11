@@ -7,6 +7,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
   'identity': {
     'slug': 'atelier',
     'name': 'Atelier collectif',
+    'archetype': 'generic',
     'description': 'Création, formation et transmission.',
     if (!limited) 'location': {'city': 'Lubumbashi', 'country': 'CD'},
   },
@@ -17,7 +18,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
         ? []
         : [
             {
-              'profile': {'name': 'Amina'},
+              'profile': {'id': 'a', 'name': 'Amina Mbala'},
             },
           ],
   },
@@ -103,9 +104,16 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Atelier collectif'), findsOneWidget);
+      expect(find.text('Espace générique'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Espace générique')).dy,
+        greaterThan(tester.getTopLeft(find.text('Atelier collectif')).dy),
+      );
       expect(find.text('Coordination'), findsOneWidget);
       expect(find.text('Toutes'), findsNothing);
-      expect(find.text('Amina'), findsOneWidget);
+      expect(find.text('AM'), findsOneWidget);
+      expect(find.byKey(const Key('space-us-members-strip')), findsOneWidget);
+      expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
       expect(find.text('Partenaires'), findsOneWidget);
       expect(find.text('Paramètres institutionnels'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -204,7 +212,7 @@ void main() {
       );
 
       final first = find.byKey(const Key('space-us-grid-responsibilities'));
-      final second = find.byKey(const Key('space-us-grid-team'));
+      final second = find.byKey(const Key('space-us-grid-relationships'));
       expect(first, findsOneWidget);
       expect(second, findsOneWidget);
       await tester.ensureVisible(first);
@@ -217,7 +225,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       await tester.tap(second);
-      expect(routes.last, '/space/atelier/us/team');
+      expect(routes.last, '/space/atelier/us/relationships');
     });
   }
 
@@ -401,13 +409,71 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('space-us-entry-team')));
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
+    expect(find.byKey(const Key('space-us-members-strip')), findsOneWidget);
     expect(find.text('AM'), findsOneWidget);
     expect(find.text('PK'), findsOneWidget);
     expect(find.text('CL'), findsOneWidget);
     expect(find.text('+2'), findsOneWidget);
-    expect(find.text('Notre équipe'), findsOneWidget);
+    expect(find.text('5 membres'), findsOneWidget);
+    expect(find.text('Notre équipe'), findsNothing);
+  });
+
+  testWidgets('member avatars open existing Profile; count opens team', (
+    tester,
+  ) async {
+    final routes = <String>[];
+    final projection = _projection();
+    (projection['team'] as Map<String, dynamic>)['active_members'] = 5;
+    (projection['team'] as Map<String, dynamic>)['items'] = [
+      for (final person in ['Amina Mbala', 'Esther Sow', 'Grace Mutombo', 'Naomi Traore'])
+        {
+          'profile': {'id': person.split(' ').first.toLowerCase(), 'name': person},
+        },
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Espace',
+            onOpen: routes.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('5 membres'), findsOneWidget);
+    expect(find.text('+1'), findsOneWidget);
+    expect(find.byKey(const Key('space-us-member-avatar-3')), findsOneWidget);
+    expect(find.byKey(const Key('space-us-member-avatar-4')), findsNothing);
+    expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
+    await tester.tap(find.byKey(const Key('space-us-member-avatar-0')));
+    expect(routes.last, '/people/amina');
+    await tester.tap(find.byKey(const Key('space-us-members-link')));
+    expect(routes.last, '/space/atelier/us/team');
+  });
+
+  testWidgets('team preview does not invent a member count', (tester) async {
+    final projection = _projection();
+    (projection['team'] as Map<String, dynamic>).remove('active_members');
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Espace',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('space-us-members-strip')), findsOneWidget);
+    expect(find.textContaining('membres'), findsNothing);
+    expect(find.text('AM'), findsOneWidget);
   });
 
   testWidgets('restricted Team section never exposes cached member rows', (
@@ -432,6 +498,7 @@ void main() {
     expect(find.text('Atelier collectif'), findsOneWidget);
     expect(find.text('Amina'), findsNothing);
     expect(find.text('Notre équipe'), findsNothing);
+    expect(find.byKey(const Key('space-us-members-strip')), findsNothing);
   });
 
   testWidgets('unknown Space visibility never leaks cached institution rows', (
@@ -489,7 +556,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Amina'), findsOneWidget);
+    expect(find.text('AM'), findsOneWidget);
     expect(find.text('Partenaires'), findsNothing);
     expect(find.text('Nos relations'), findsOneWidget);
   });
@@ -596,14 +663,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('space-us-territories-grid')), findsOneWidget);
     expect(find.byKey(const Key('space-us-territories-list')), findsNothing);
-    expect(find.text('Amina'), findsNothing);
-    await tester.ensureVisible(find.byKey(const Key('space-us-grid-team')));
-    await tester.tap(find.byKey(const Key('space-us-grid-team')));
+    expect(find.byKey(const Key('space-us-grid-team')), findsNothing);
+    expect(find.byKey(const Key('space-us-members-strip')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('space-us-members-link')));
+    await tester.tap(find.byKey(const Key('space-us-members-link')));
     expect(opened.single, '/space/atelier/us/team');
     await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
     await tester.tap(find.byIcon(Icons.view_list_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Amina'), findsOneWidget);
+    expect(find.text('AM'), findsOneWidget);
   });
 
   testWidgets('switching Spaces clears the previous presentation and routes', (
@@ -661,10 +729,11 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('space-us-layout-toggle')));
     await tester.tap(find.byIcon(Icons.view_list_outlined));
     await tester.pumpAndSettle();
-    expect(find.text('Amina'), findsOneWidget);
+    expect(find.text('AM'), findsOneWidget);
     await tester.pumpWidget(surface(hidden));
     await tester.pumpAndSettle();
-    expect(find.text('Amina'), findsNothing);
+    expect(find.text('AM'), findsNothing);
+    expect(find.byKey(const Key('space-us-members-strip')), findsNothing);
     expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
     expect(find.byKey(const Key('space-us-entry-resources')), findsNothing);
   });
@@ -742,6 +811,7 @@ void main() {
     await tester.pumpWidget(screen(next));
     await tester.pump();
     expect(find.text('Nouveau collectif'), findsOneWidget);
-    expect(find.text('Amina'), findsNothing);
+    expect(find.text('AM'), findsNothing);
+    expect(find.byKey(const Key('space-us-members-strip')), findsNothing);
   });
 }

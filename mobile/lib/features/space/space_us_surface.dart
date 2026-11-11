@@ -100,9 +100,19 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
         authority?['limited_to_activities'] == true;
     final name = _value(identity?['name']) ?? widget.fallbackSpaceName;
     final description = _value(identity?['description']);
-    final institutionalLabel = _value(
-      _map(_map(payload['organization'])?['operating_preset'])?['label'],
-    );
+    final institutionalLabel = switch (_value(identity?['archetype'])) {
+      'generic' => 'Espace générique',
+      'creative' => 'Artiste / création',
+      'media' => 'Média / journalisme',
+      'education' => 'Enseignement / formation',
+      'commerce' => 'Commerce / distribution',
+      'service_provider' => 'Prestataire de services',
+      'transport_operator' => 'Opérateur de transport',
+      'community' => 'Association / communauté',
+      _ => _value(
+        _map(_map(payload['organization'])?['operating_preset'])?['label'],
+      ),
+    };
     final lifecycle = _value(identity?['lifecycle']);
     final location = _map(identity?['location']);
     final city = _value(location?['city']);
@@ -174,24 +184,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
             _value(item['label']) ?? 'Rôle',
         ],
       ),
-      if (teamVisible)
-        _SpaceUsTerritory(
-          keyName: 'team',
-          title: 'Notre équipe',
-          subtitle: 'Les personnes avec qui nous travaillons',
-          icon: Icons.groups_outlined,
-          target: route('team'),
-          count: _nonNegativeCount(team?['active_members']),
-          people: [
-            for (final item in teamRows)
-              if (_value(_map(item['profile'])?['name']) case final name?) name,
-          ],
-          previews: [
-            if (teamRows.isEmpty) 'Aucun membre dans cet aperçu.',
-            for (final item in teamRows.take(3))
-              _value(_map(item['profile'])?['name']) ?? 'Membre',
-          ],
-        ),
       if (!limited && relationSections.isNotEmpty)
         _SpaceUsTerritory(
           keyName: 'relationships',
@@ -289,6 +281,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                       child: MakoloIdentityPortrait(
                         name: name,
                         eyebrow: institutionalLabel,
+                        eyebrowBelowName: true,
                         subtitle: description,
                         subtitleMaxLines: 2,
                         detail: place.isNotEmpty ? place : null,
@@ -307,6 +300,26 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                           ),
                         ),
                       ),
+                      if (teamVisible && route('team') != null) ...[
+                        const SizedBox(height: 12),
+                        Divider(height: 1, color: scheme.outlineVariant),
+                        const SizedBox(height: 9),
+                        MakoloMemberAvatarStrip(
+                          members: [
+                            for (final item in teamRows)
+                              if (_value(_map(item['profile'])?['name']) case final memberName?)
+                                MakoloMemberPreview(
+                                  name: memberName,
+                                  profileId: _value(_map(item['profile'])?['id']),
+                                ),
+                          ],
+                          totalCount: _nonNegativeCount(team?['active_members']),
+                          onOpenProfile: (id) => open(
+                            '/people/${Uri.encodeComponent(id)}',
+                          ),
+                          onOpenMembers: () => open(route('team')!),
+                        ),
+                      ],
                     ),
                     if (lifecycle == 'suspended' ||
                         lifecycle == 'archived') ...[
