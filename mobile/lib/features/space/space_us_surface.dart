@@ -325,7 +325,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                           ],
                         ),
                       ),
-                                        if (lifecycle == 'suspended' ||
+                    if (lifecycle == 'suspended' ||
                         lifecycle == 'archived') ...[
                       const SizedBox(height: MakoloSpacing.md),
                       _notice(
