@@ -33,7 +33,7 @@ abstract interface class LocalNotificationScheduler {
 class FlutterLocalNotificationScheduler implements LocalNotificationScheduler {
   FlutterLocalNotificationScheduler({
     FlutterLocalNotificationsPlugin? plugin,
-    this.androidDefaultIcon = 'ic_launcher',
+    this.androidDefaultIcon = 'ic_makolo_mark_white',
     this.codec = const StructuredDestinationCodec(),
   }) : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
