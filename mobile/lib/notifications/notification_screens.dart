@@ -514,7 +514,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                                       ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
+                                            _NotificationVisual(row: row),
+                                            const SizedBox(width: 12),
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment:
@@ -657,6 +658,8 @@ class _NotificationRow {
     this.createdAt,
     this.destinationPath,
     this.confirmed = false,
+    this.visualImageUrl,
+    this.category = 'system',
   });
 
   final String id;
@@ -666,6 +669,8 @@ class _NotificationRow {
   final DateTime? createdAt;
   final String? destinationPath;
   final bool confirmed;
+  final String? visualImageUrl;
+  final String category;
 
   static List<_NotificationRow> fromProjection(StoredProjection? projection) {
     final raw = projection?.payload['results'];
@@ -697,10 +702,72 @@ class _NotificationRow {
             isRead: row['is_read'] == true,
             createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
             destinationPath: path,
+            visualImageUrl: _visualUrl(row['visual']),
+            category: row['category']?.toString() ?? 'system',
           );
         })
         .where((row) => row.id.isNotEmpty)
         .toList(growable: false);
+  }
+}
+
+
+String? _visualUrl(Object? raw) {
+  if (raw is! Map || raw['kind'] != 'activity') return null;
+  final value = raw['image_url'];
+  if (value is! String) return null;
+  final uri = Uri.tryParse(value);
+  // The API is authoritative for whether a public image may be shown.
+  // Never interpret arbitrary notification metadata as an image address.
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty) return null;
+  return value;
+}
+
+class _NotificationVisual extends StatelessWidget {
+  const _NotificationVisual({required this.row});
+
+  final _NotificationRow row;
+
+  IconData get _icon => switch (row.category) {
+    'event' => Icons.event_outlined,
+    'ticket' => Icons.confirmation_number_outlined,
+    'payment' => Icons.payments_outlined,
+    'security' => Icons.shield_outlined,
+    'service' => Icons.handyman_outlined,
+    'opportunity' => Icons.lightbulb_outline_rounded,
+    'marketing' => Icons.campaign_outlined,
+    _ => Icons.notifications_none_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final url = row.visualImageUrl;
+    final scheme = Theme.of(context).colorScheme;
+    final fallback = ColoredBox(
+      color: scheme.primaryContainer,
+      child: Center(child: Icon(_icon, color: scheme.onPrimaryContainer, size: 25)),
+    );
+    return Semantics(
+      label: url == null ? 'Notification : ${row.category}' : 'Image de l’activité',
+      image: url != null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 52,
+          height: 52,
+          child: url == null
+              ? fallback
+              : Image.network(
+                  url,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => fallback,
+                ),
+        ),
+      ),
+    );
   }
 }
 
