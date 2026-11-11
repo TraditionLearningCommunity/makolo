@@ -378,31 +378,36 @@ void main() {
     DioExceptionType.sendTimeout,
     DioExceptionType.receiveTimeout,
   ]) {
-    test('each timeout phase preserves existing app error semantics: $phase', () async {
-      final dio = Dio();
-      dio.interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            handler.reject(DioException(requestOptions: options, type: phase));
-          },
-        ),
-      );
-      final api = MakoloApiClient(
-        baseUri: Uri.parse('https://makolo.invalid/'),
-        tokenStore: MemoryTokenStore(),
-        dio: dio,
-      );
-      await expectLater(
-        api.publicGet('api/v1/me/now/?profile=private'),
-        throwsA(
-          isA<TimeoutException>().having(
-            (e) => e.message,
-            'generic message',
-            'Makolo network request timed out.',
+    test(
+      'each timeout phase preserves existing app error semantics: $phase',
+      () async {
+        final dio = Dio();
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              handler.reject(
+                DioException(requestOptions: options, type: phase),
+              );
+            },
           ),
-        ),
-      );
-    });
+        );
+        final api = MakoloApiClient(
+          baseUri: Uri.parse('https://makolo.invalid/'),
+          tokenStore: MemoryTokenStore(),
+          dio: dio,
+        );
+        await expectLater(
+          api.publicGet('api/v1/me/now/?profile=private'),
+          throwsA(
+            isA<TimeoutException>().having(
+              (e) => e.message,
+              'generic message',
+              'Makolo network request timed out.',
+            ),
+          ),
+        );
+      },
+    );
   }
 
   test('cancellation is exposed without leaking Dio CancelToken', () async {

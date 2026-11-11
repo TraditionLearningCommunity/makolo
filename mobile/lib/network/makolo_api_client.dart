@@ -624,10 +624,7 @@ class MakoloApiClient {
     }
   }
 
-  Object _transportError(
-    DioException error, {
-    Duration? elapsed,
-  }) {
+  Object _transportError(DioException error, {Duration? elapsed}) {
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.sendTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
@@ -635,11 +632,14 @@ class MakoloApiClient {
       assert(() {
         final request = error.requestOptions;
         // Never include path identifiers, query, credentials or request body.
-        final group = request.uri.pathSegments.take(3).map((segment) {
-          return RegExp(r'^[a-z][a-z0-9_-]{0,35}$').hasMatch(segment)
-              ? segment
-              : ':other';
-        }).join('/');
+        final group = request.uri.pathSegments
+            .take(3)
+            .map((segment) {
+              return RegExp(r'^[a-z][a-z0-9_-]{0,35}$').hasMatch(segment)
+                  ? segment
+                  : ':other';
+            })
+            .join('/');
         developer.log(
           'timeout phase=${error.type.name} method=${request.method} '
           'route_group=$group elapsed_ms=${elapsed?.inMilliseconds ?? -1}',

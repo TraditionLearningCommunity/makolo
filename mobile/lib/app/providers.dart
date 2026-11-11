@@ -56,7 +56,9 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   );
   // Register before build completion: even a runtime that finishes after its
   // provider was invalidated must close before the replacement opens.
-  ref.onDispose(() => _runtimeCloseBarrier.release(pending, (runtime) => runtime.close()));
+  ref.onDispose(
+    () => _runtimeCloseBarrier.release(pending, (runtime) => runtime.close()),
+  );
   return pending;
 });
 
