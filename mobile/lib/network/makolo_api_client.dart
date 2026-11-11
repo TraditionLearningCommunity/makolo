@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -346,6 +347,7 @@ class MakoloApiClient {
       throw const FormatException('Only same-origin media paths are permitted');
     }
     Future<Response<List<int>>> request(String bearer) async {
+      final started = Stopwatch()..start();
       try {
         return await _dio.get<List<int>>(
           path,
@@ -359,7 +361,7 @@ class MakoloApiClient {
           ),
         );
       } on DioException catch (error) {
-        throw _transportError(error);
+        throw _transportError(error, elapsed: started.elapsed);
       }
     }
 
@@ -558,6 +560,7 @@ class MakoloApiClient {
     MakoloCancelHandle? cancel,
     TransferProgress? onSendProgress,
   }) async {
+    final started = Stopwatch()..start();
     try {
       final response = await _dio.request<Object?>(
         path,
@@ -582,7 +585,7 @@ class MakoloApiClient {
         _headers(response.headers),
       );
     } on DioException catch (error) {
-      throw _transportError(error);
+      throw _transportError(error, elapsed: started.elapsed);
     }
   }
 
@@ -594,6 +597,7 @@ class MakoloApiClient {
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
   }) async {
+    final started = Stopwatch()..start();
     try {
       final response = await _dio.download(
         path,
@@ -616,11 +620,34 @@ class MakoloApiClient {
         _headers(response.headers),
       );
     } on DioException catch (error) {
-      throw _transportError(error);
+      throw _transportError(error, elapsed: started.elapsed);
     }
   }
 
-  Object _transportError(DioException error) {
+  Object _transportError(
+    DioException error, {
+    Duration? elapsed,
+  }) {
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.transformTimeout) {
+      assert(() {
+        final request = error.requestOptions;
+        // Never include path identifiers, query, credentials or request body.
+        final group = request.uri.pathSegments.take(3).map((segment) {
+          return RegExp(r'^[a-z][a-z0-9_-]{0,35}$').hasMatch(segment)
+              ? segment
+              : ':other';
+        }).join('/');
+        developer.log(
+          'timeout phase=${error.type.name} method=${request.method} '
+          'route_group=$group elapsed_ms=${elapsed?.inMilliseconds ?? -1}',
+          name: 'makolo.network',
+        );
+        return true;
+      }());
+    }
     switch (error.type) {
       case DioExceptionType.cancel:
         return const MakoloRequestCancelled();
