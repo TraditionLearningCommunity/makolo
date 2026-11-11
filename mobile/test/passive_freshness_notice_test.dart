@@ -9,7 +9,9 @@ void main() {
     MakoloFreshnessCue.oldObservation,
     MakoloFreshnessCue.refreshRecommended,
   ]) {
-    testWidgets('passive freshness does not interrupt known content: $cue', (tester) async {
+    testWidgets('passive freshness does not interrupt known content: $cue', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -33,12 +35,12 @@ void main() {
     MakoloFreshnessCue.revalidationRequired,
     MakoloFreshnessCue.expired,
   ]) {
-    testWidgets('authority-sensitive freshness remains explicit: $cue', (tester) async {
+    testWidgets('authority-sensitive freshness remains explicit: $cue', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: MakoloFreshnessNotice(freshness: cue),
-          ),
+          home: Scaffold(body: MakoloFreshnessNotice(freshness: cue)),
         ),
       );
       expect(find.byType(MakoloFreshnessNotice), findsOneWidget);

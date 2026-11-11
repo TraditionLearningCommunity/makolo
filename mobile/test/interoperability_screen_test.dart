@@ -459,10 +459,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Service en cache'), findsOneWidget);
-    expect(
-      find.textContaining('Dernier état connu'),
-      findsNothing,
-    );
+    expect(find.textContaining('Dernier état connu'), findsNothing);
 
     await _unmount(tester);
   });
