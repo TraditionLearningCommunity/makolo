@@ -417,7 +417,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('offline cached projection is explicitly last-known', (
+  testWidgets('offline cached connections remain visible without explanation', (
     tester,
   ) async {
     final database = MakoloDatabase.memory();
@@ -460,10 +460,8 @@ void main() {
 
     expect(find.text('Service en cache'), findsOneWidget);
     expect(
-      find.text(
-        'Dernier état connu. La disponibilité actuelle peut avoir changé.',
-      ),
-      findsOneWidget,
+      find.textContaining('Dernier état connu'),
+      findsNothing,
     );
 
     await _unmount(tester);
@@ -487,9 +485,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Connexions indisponibles hors ligne'), findsOneWidget);
+    expect(find.text('Aucune connexion disponible.'), findsOneWidget);
     expect(
-      find.textContaining('Le reste de Makolo continue de fonctionner'),
+      find.byKey(const Key('profile-connections-offline-empty')),
       findsOneWidget,
     );
 

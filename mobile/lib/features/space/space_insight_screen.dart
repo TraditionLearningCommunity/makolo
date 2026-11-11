@@ -228,24 +228,6 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                       freshness,
                     ),
                   ),
-                  if (status?.lastErrorCode != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Actualisation impossible. Dernières informations affichées.',
-                            ),
-                          ),
-                          MakoloActionButton(
-                            label: 'Réessayer',
-                            appearance: MakoloActionAppearance.quiet,
-                            onPressed: refresh,
-                          ),
-                        ],
-                      ),
-                    ),
                   Expanded(
                     child: relations
                         ? relationsBody(payload)
@@ -327,13 +309,11 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             ),
           ),
         ),
-        if (searchFailed)
-          const Text(
-            'Impossible d’actualiser les résultats. Seuls les éléments déjà disponibles sont affichés.',
-          ),
-        if (query.isNotEmpty && results == null)
+        if (searchFailed && groups.values.every((rows) => rows.isEmpty))
+          const Text('Recherche momentanément indisponible.'),
+        if (query.isNotEmpty && results == null && !searchFailed)
           const Text('Rechercher pour obtenir plus de résultats.'),
-        if (groups.values.every((rows) => rows.isEmpty))
+        if (!searchFailed && groups.values.every((rows) => rows.isEmpty))
           Text(
             query.isEmpty ? 'Aucune relation enregistrée.' : 'Aucun résultat.',
           ),

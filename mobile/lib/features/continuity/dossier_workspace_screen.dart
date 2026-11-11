@@ -1883,13 +1883,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _header(data),
-                          if (_offline)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text(
-                                'Mode hors ligne · données locales acquises.',
-                              ),
-                            ),
                           const SizedBox(height: 9),
                           _controls(data),
                           const SizedBox(height: 11),
@@ -1907,13 +1900,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             const Padding(
                               padding: EdgeInsets.all(10),
                               child: LinearProgressIndicator(),
-                            ),
-                          if (_failed)
-                            MakoloActionButton(
-                              label: 'Actualisation impossible · Réessayer',
-                              onPressed: _refresh,
-                              appearance: MakoloActionAppearance.quiet,
-                              icon: Icons.refresh_rounded,
                             ),
                         ],
                       ),

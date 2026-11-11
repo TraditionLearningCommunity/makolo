@@ -1811,13 +1811,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _header(project),
-                                if (_offline)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 10),
-                                    child: Text(
-                                      'Données locales disponibles hors ligne.',
-                                    ),
-                                  ),
                                 const SizedBox(height: 9),
                                 _actionBar(project),
                                 const SizedBox(height: 14),
@@ -1836,13 +1829,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                       child:
                                           CircularProgressIndicator.adaptive(),
                                     ),
-                                  ),
-                                if (_failed)
-                                  MakoloActionButton(
-                                    label:
-                                        'Actualisation impossible · Réessayer',
-                                    onPressed: _refresh,
-                                    appearance: MakoloActionAppearance.quiet,
                                   ),
                                 if (_busy) const LinearProgressIndicator(),
                               ],

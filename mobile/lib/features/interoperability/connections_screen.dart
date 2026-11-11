@@ -123,22 +123,8 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         minHeight: 2,
       );
     }
-    if (_refreshFailed ||
-        syncStatus?.state == SyncVisualState.offline ||
-        syncStatus?.state == SyncVisualState.stale ||
-        syncStatus?.state == SyncVisualState.failed ||
-        syncStatus?.state == SyncVisualState.conflict) {
-      return Padding(
-        key: const Key('profile-connections-last-known'),
-        padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-        child: Text(
-          _refreshFailed
-              ? 'Actualisation impossible. Les informations affichées peuvent être anciennes.'
-              : 'Dernier état connu. La disponibilité actuelle peut avoir changé.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      );
-    }
+    // The shell already shows degraded connectivity. Keep mutation gates
+    // intact; do not repeat a local-cache explanation over known entries.
     return const SizedBox.shrink();
   }
 
@@ -238,8 +224,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                 SizedBox(
                   height: 520,
                   child: MakoloEmptyState(
-                    title: 'Connexions indisponibles hors ligne',
-                    body: 'Aucune connexion enregistrée sur cet appareil.',
+                    title: 'Aucune connexion disponible.',
                   ),
                 ),
               ],

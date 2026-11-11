@@ -73,9 +73,8 @@ class ProjectionScreen extends StatelessWidget {
     final projection = snapshot.data;
     if (projection == null) {
       return const MakoloEmptyState(
-        title: 'Pas encore disponible sur cet appareil',
-        body: 'Une première connexion est nécessaire pour rendre ce contenu disponible ici.',
-        icon: Icons.cloud_off_outlined,
+        title: 'Ce contenu n’est pas encore disponible.',
+        icon: Icons.inbox_outlined,
       );
     }
 

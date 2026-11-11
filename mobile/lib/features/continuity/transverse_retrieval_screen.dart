@@ -786,11 +786,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         const Text(
                           'La date de début doit précéder la date de fin.',
                         ),
-                      if (_failed)
-                        const Text(
-                          'Impossible d’actualiser la recherche. '
-                          'Les résultats affichés peuvent être incomplets.',
-                        ),
+                      if (_failed && rows.isEmpty)
+                        const Text('Recherche momentanément indisponible.'),
                       if (_loading && rows.isNotEmpty)
                         const LinearProgressIndicator(),
                       if (_editingSearch && rows.isNotEmpty)
@@ -809,10 +806,6 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                       if (_loading && rows.isEmpty)
                         const MakoloSkeleton(lines: 3),
-                      if (_unavailableSources.isNotEmpty)
-                        const Text(
-                          'Certaines informations n’ont pas été actualisées.',
-                        ),
                       if (_limitedSources.isNotEmpty)
                         const Text(
                           'D’autres résultats peuvent être disponibles dans les recherches détaillées.',
@@ -956,12 +949,6 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                               ? MakoloActionPhase.processing
                               : MakoloActionPhase.available,
                         ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Couverture partielle. Hors connexion : seuls les '
-                        'éléments disponibles sur cet appareil sont consultables.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
                     ],
                   ),
                 ),

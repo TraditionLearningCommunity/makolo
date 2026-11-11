@@ -211,8 +211,8 @@ class MakoloFreshnessNotice extends StatelessWidget {
     return switch (freshness) {
       MakoloFreshnessCue.unknown => '',
       MakoloFreshnessCue.current => '',
-      MakoloFreshnessCue.oldObservation => 'Informations à actualiser.',
-      MakoloFreshnessCue.refreshRecommended => 'Actualisation disponible.',
+      MakoloFreshnessCue.oldObservation => '',
+      MakoloFreshnessCue.refreshRecommended => '',
       MakoloFreshnessCue.revalidationRequired =>
         'Vérification nécessaire avant de continuer.',
       MakoloFreshnessCue.expired =>
@@ -222,8 +222,11 @@ class MakoloFreshnessNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (freshness == MakoloFreshnessCue.unknown ||
-        freshness == MakoloFreshnessCue.current) {
+    // The shell owns the passive reachability cue. Surface content never
+    // explains that locally retained facts exist or should be refreshed.
+    // Authority-sensitive revalidation still needs an explicit warning.
+    if (freshness != MakoloFreshnessCue.revalidationRequired &&
+        freshness != MakoloFreshnessCue.expired) {
       return const SizedBox.shrink();
     }
     final requiresRevalidation =

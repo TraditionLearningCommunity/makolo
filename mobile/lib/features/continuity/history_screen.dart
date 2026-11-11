@@ -277,11 +277,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               const SizedBox(height: MakoloSpacing.sm),
               if (item.occurredAt != null) Text(item.occurredAt!),
               if (item.outcome != null) Text(item.outcome!),
-              const SizedBox(height: MakoloSpacing.md),
-              const Text(
-                'Cet événement est conservé sur votre appareil. '
-                'Son détail peut nécessiter une nouvelle vérification.',
-              ),
               if (item.id != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 FilledButton.tonal(
@@ -498,13 +493,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           if (_searching) const LinearProgressIndicator(),
 
-                          if (_query.isNotEmpty || _filter != 'all') ...[
-                            const Text(
-                              'La recherche porte sur les éléments enregistrés. '
-                              'D’autres résultats peuvent apparaître après une mise à jour.',
-                            ),
-                            const SizedBox(height: MakoloSpacing.sm),
-                          ],
                           if (visible.isEmpty)
                             const Text(
                               'Aucun résultat correspondant parmi les '
