@@ -25,7 +25,10 @@ class NotificationListAPIView(PrivateNoStoreMixin, generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = get_notifications_for_user(self.request.user)
+        queryset = get_notifications_for_user(self.request.user).select_related(
+            "activity", "activity__event_vertical", "journey",
+            "journey__activity", "journey__activity__event_vertical",
+        )
         if self.request.query_params.get("filter") == "unread":
             queryset = queryset.filter(read_at__isnull=True)
         return queryset
@@ -36,7 +39,10 @@ class NotificationDetailAPIView(PrivateNoStoreMixin, generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return get_notifications_for_user(self.request.user)
+        return get_notifications_for_user(self.request.user).select_related(
+            "activity", "activity__event_vertical", "journey",
+            "journey__activity", "journey__activity__event_vertical",
+        )
 
 
 class NotificationUnreadPresenceAPIView(PrivateNoStoreMixin, views.APIView):
