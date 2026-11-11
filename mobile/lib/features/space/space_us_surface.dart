@@ -310,16 +310,20 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                             MakoloMemberAvatarStrip(
                               members: [
                                 for (final item in teamRows)
-                                  if (_value(_map(item['profile'])?['name']) case final memberName?)
+                                  if (_value(_map(item['profile'])?['name'])
+                                      case final memberName?)
                                     MakoloMemberPreview(
                                       name: memberName,
-                                      profileId: _value(_map(item['profile'])?['id']),
+                                      profileId: _value(
+                                        _map(item['profile'])?['id'],
+                                      ),
                                     ),
                               ],
-                              totalCount: _nonNegativeCount(team?['active_members']),
-                              onOpenProfile: (id) => open(
-                                '/people/${Uri.encodeComponent(id)}',
+                              totalCount: _nonNegativeCount(
+                                team?['active_members'],
                               ),
+                              onOpenProfile: (id) =>
+                                  open('/people/${Uri.encodeComponent(id)}'),
                               onOpenMembers: () => open(route('team')!),
                             ),
                           ],

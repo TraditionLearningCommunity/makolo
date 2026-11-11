@@ -426,9 +426,17 @@ void main() {
     final projection = _projection();
     (projection['team'] as Map<String, dynamic>)['active_members'] = 5;
     (projection['team'] as Map<String, dynamic>)['items'] = [
-      for (final person in ['Amina Mbala', 'Esther Sow', 'Grace Mutombo', 'Naomi Traore'])
+      for (final person in [
+        'Amina Mbala',
+        'Esther Sow',
+        'Grace Mutombo',
+        'Naomi Traore',
+      ])
         {
-          'profile': {'id': person.split(' ').first.toLowerCase(), 'name': person},
+          'profile': {
+            'id': person.split(' ').first.toLowerCase(),
+            'name': person,
+          },
         },
     ];
     await tester.pumpWidget(

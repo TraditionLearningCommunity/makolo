@@ -47,7 +47,9 @@ class MakoloIdentityPortrait extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!eyebrowBelowName && eyebrow != null && eyebrow!.isNotEmpty)
+                  if (!eyebrowBelowName &&
+                      eyebrow != null &&
+                      eyebrow!.isNotEmpty)
                     _identityEyebrow(theme, eyebrow!),
                   Text(
                     name,
@@ -57,7 +59,9 @@ class MakoloIdentityPortrait extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (eyebrowBelowName && eyebrow != null && eyebrow!.isNotEmpty) ...[
+                  if (eyebrowBelowName &&
+                      eyebrow != null &&
+                      eyebrow!.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.xs),
                     _identityEyebrow(theme, eyebrow!),
                   ],
@@ -92,6 +96,7 @@ class MakoloIdentityPortrait extends StatelessWidget {
       ),
     );
   }
+
   static Widget _identityEyebrow(ThemeData theme, String label) => Text(
     label,
     style: theme.textTheme.labelMedium?.copyWith(
@@ -318,12 +323,15 @@ class MakoloMemberAvatarStrip extends StatelessWidget {
                   Positioned(
                     left: stride * i,
                     child: Semantics(
-                      button: visible[i].profileId != null && onOpenProfile != null,
+                      button:
+                          visible[i].profileId != null && onOpenProfile != null,
                       label: 'Profil de ${visible[i].name}',
                       child: InkResponse(
                         key: Key('space-us-member-avatar-$i'),
                         radius: 19,
-                        onTap: visible[i].profileId != null && onOpenProfile != null
+                        onTap:
+                            visible[i].profileId != null &&
+                                onOpenProfile != null
                             ? () => onOpenProfile!(visible[i].profileId!)
                             : null,
                         child: CircleAvatar(
@@ -379,7 +387,10 @@ class MakoloMemberAvatarStrip extends StatelessWidget {
             ),
             child: Text(
               '$totalCount membre${totalCount == 1 ? '' : 's'}',
-              style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
       ],
