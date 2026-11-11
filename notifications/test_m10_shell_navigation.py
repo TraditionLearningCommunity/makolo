@@ -73,11 +73,15 @@ class M100NotificationNavigationContractTests(SimpleTestCase):
         self.assertEqual(notification_visual(notification), {
             "kind": "icon", "category": "system", "image_url": None,
         })
-        notification.activity = SimpleNamespace(
-            status=ActivityStatus.DRAFT,
-            visibility=ActivityVisibility.PRIVATE,
+        private = SimpleNamespace(
+            category="event",
+            activity=SimpleNamespace(
+                status=ActivityStatus.DRAFT,
+                visibility=ActivityVisibility.PRIVATE,
+            ),
+            journey_id=None,
         )
-        self.assertIsNone(notification_visual(notification)["image_url"])
+        self.assertIsNone(notification_visual(private)["image_url"])
 
     def test_action_url_is_never_parsed_into_structured_navigation(self):
         notification = self._notification()
