@@ -27,7 +27,20 @@
         {% for notification in notifications %}
         <article class="relative border-b border-zinc-200 px-2 py-5 transition dark:border-zinc-800">
             {% if not notification.read_at %}<span class="absolute left-0 top-7 h-2 w-2 rounded-full bg-indigo-500" aria-hidden="true"></span><span class="sr-only">Non lue.</span>{% else %}<span class="sr-only">Lue.</span>{% endif %}
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="flex items-start gap-3 pl-4 sm:gap-4">
+                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200" aria-hidden="true">
+                    {% if notification.visual.image_url %}
+                    <img src="{{ notification.visual.image_url }}" alt="" class="h-full w-full object-cover" loading="lazy">
+                    {% elif notification.category == 'event' %}<i data-lucide="calendar-days" class="h-6 w-6"></i>
+                    {% elif notification.category == 'ticket' %}<i data-lucide="ticket" class="h-6 w-6"></i>
+                    {% elif notification.category == 'payment' %}<i data-lucide="wallet" class="h-6 w-6"></i>
+                    {% elif notification.category == 'security' %}<i data-lucide="shield-check" class="h-6 w-6"></i>
+                    {% elif notification.category == 'service' %}<i data-lucide="wrench" class="h-6 w-6"></i>
+                    {% elif notification.category == 'opportunity' %}<i data-lucide="lightbulb" class="h-6 w-6"></i>
+                    {% elif notification.category == 'marketing' %}<i data-lucide="megaphone" class="h-6 w-6"></i>
+                    {% else %}<i data-lucide="bell" class="h-6 w-6"></i>{% endif %}
+                </div>
+                <div class="flex min-w-0 flex-1 flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{{ notification.get_category_display }}</span>
@@ -39,6 +52,7 @@
                 <div class="flex shrink-0 flex-wrap gap-2">
                     {% if notification.action_url %}<a href="{% url 'notifications:open' notification.pk %}" class="mk-action-button" data-variant="primary">Ouvrir</a>{% endif %}
                     {% if not notification.read_at %}<form method="post" action="{% url 'notifications:mark-read' notification.pk %}">{% csrf_token %}<button type="submit" class="mk-action-button" data-variant="secondary">Marquer comme lue</button></form>{% endif %}
+                </div>
                 </div>
             </div>
         </article>
