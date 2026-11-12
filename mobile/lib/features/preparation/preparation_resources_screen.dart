@@ -377,11 +377,13 @@ class _PreparationResourceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = resource.downloadUrl != null
         ? (resource.mimeType == 'application/pdf'
-            ? Icons.picture_as_pdf_outlined
-            : resource.mimeType?.startsWith('image/') == true
-            ? Icons.image_outlined : Icons.description_outlined)
+              ? Icons.picture_as_pdf_outlined
+              : resource.mimeType?.startsWith('image/') == true
+              ? Icons.image_outlined
+              : Icons.description_outlined)
         : resource.externalUrl != null
-        ? Icons.link_rounded : Icons.notes_rounded;
+        ? Icons.link_rounded
+        : Icons.notes_rounded;
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,21 +391,31 @@ class _PreparationResourceCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 25, color: Theme.of(context).colorScheme.secondary),
+              Icon(
+                icon,
+                size: 25,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
               const SizedBox(width: MakoloSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(resource.title,
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      resource.title,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (resource.description != null &&
                         resource.description != resource.text)
-                      Text(resource.description!,
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        resource.description!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     if (resource.version > 1)
-                      Text('Version ${resource.version}',
-                          style: Theme.of(context).textTheme.labelSmall),
+                      Text(
+                        'Version ${resource.version}',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
                   ],
                 ),
               ),
@@ -424,9 +436,11 @@ class _PreparationResourceCard extends StatelessWidget {
                   final opened = await onOpenExternal(resource.externalUrl!);
                   if (!opened && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text(
-                        'Ce lien ne peut pas être ouvert pour le moment.',
-                      )),
+                      const SnackBar(
+                        content: Text(
+                          'Ce lien ne peut pas être ouvert pour le moment.',
+                        ),
+                      ),
                     );
                   }
                 },
@@ -471,7 +485,8 @@ class _ExpandableResourceText extends StatefulWidget {
   final String text;
 
   @override
-  State<_ExpandableResourceText> createState() => _ExpandableResourceTextState();
+  State<_ExpandableResourceText> createState() =>
+      _ExpandableResourceTextState();
 }
 
 class _ExpandableResourceTextState extends State<_ExpandableResourceText> {
@@ -494,7 +509,8 @@ class _ExpandableResourceTextState extends State<_ExpandableResourceText> {
           widget.text,
           maxLines: longContent && !_expanded ? 6 : null,
           overflow: longContent && !_expanded
-              ? TextOverflow.ellipsis : TextOverflow.visible,
+              ? TextOverflow.ellipsis
+              : TextOverflow.visible,
         ),
         if (longContent)
           TextButton(

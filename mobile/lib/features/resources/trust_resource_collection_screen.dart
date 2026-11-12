@@ -287,7 +287,8 @@ class _TrustResourceCollectionScreenState
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: .10),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(

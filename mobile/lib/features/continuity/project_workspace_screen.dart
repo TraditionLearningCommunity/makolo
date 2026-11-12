@@ -978,11 +978,14 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       'profile_id': owner['id'],
                     }, interactive: false)
                   : const Icon(Icons.groups_2_outlined),
-              title: Text(_text(
-                owner['kind'] == 'space' ? owner['label'] : owner['holder'],
-              )),
+              title: Text(
+                _text(
+                  owner['kind'] == 'space' ? owner['label'] : owner['holder'],
+                ),
+              ),
               subtitle: const Text('Porteur'),
-              onTap: owner['kind'] == 'profile' &&
+              onTap:
+                  owner['kind'] == 'profile' &&
                       _canOpenProjectPerson({
                         'profile_view': owner['profile_view'],
                       })
@@ -1035,10 +1038,12 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                         },
                         itemBuilder: (_) => const [
                           PopupMenuItem(
-                            value: 'replace', child: Text('Changer le rôle'),
+                            value: 'replace',
+                            child: Text('Changer le rôle'),
                           ),
                           PopupMenuItem(
-                            value: 'revoke', child: Text('Retirer l’accès'),
+                            value: 'revoke',
+                            child: Text('Retirer l’accès'),
                           ),
                         ],
                       )
@@ -1108,12 +1113,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final input = Uri.tryParse(raw);
     if (input == null) return null;
     final uri = input.hasScheme ? input : widget.api?.baseUri.resolveUri(input);
-    if (uri == null || !['https', 'http'].contains(uri.scheme) ||
-        uri.host.isEmpty) return null;
+    if (uri == null ||
+        !['https', 'http'].contains(uri.scheme) ||
+        uri.host.isEmpty)
+      return null;
     return NetworkImage(uri.toString());
   }
 
-  Widget _projectAvatar(Map<String, dynamic> person, {bool interactive = true}) {
+  Widget _projectAvatar(
+    Map<String, dynamic> person, {
+    bool interactive = true,
+  }) {
     final label = _text(person['label']);
     final image = _projectPhoto(person);
     final scheme = Theme.of(context).colorScheme;
@@ -1134,17 +1144,16 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     );
     return Tooltip(
       message: interactive && _canOpenProjectPerson(person)
-          ? 'Voir le Profil de $label' : label,
+          ? 'Voir le Profil de $label'
+          : label,
       child: interactive && _canOpenProjectPerson(person)
           ? Semantics(
-              button: true, label: 'Voir le Profil de $label',
+              button: true,
+              label: 'Voir le Profil de $label',
               child: InkWell(
                 borderRadius: BorderRadius.circular(22),
                 onTap: () => _openProjectPerson(person),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: avatar,
-                ),
+                child: Padding(padding: const EdgeInsets.all(4), child: avatar),
               ),
             )
           : Padding(padding: const EdgeInsets.all(4), child: avatar),
@@ -1178,8 +1187,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
       ),
     );
-    if (!mounted || selected == null ||
-        selected == _text(member['role_code'])) return;
+    if (!mounted || selected == null || selected == _text(member['role_code']))
+      return;
     await _send('${_base}authority/', {
       'action': 'replace',
       'mandate_id': _text(member['id']),
@@ -1236,10 +1245,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ),
-                  Text(
-                    'Voir',
-                    style: TextStyle(color: scheme.primary),
-                  ),
+                  Text('Voir', style: TextStyle(color: scheme.primary)),
                   Icon(Icons.chevron_right_rounded, color: scheme.primary),
                 ],
               ),
@@ -1607,7 +1613,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
             appearance: MakoloActionAppearance.quiet,
           ),
-
       ],
     );
   }
@@ -1862,9 +1867,11 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
         const SizedBox(height: 11),
         if (milestones.isEmpty)
-          _empty(_time == _ProjectTime.undated
-              ? 'Aucun Dossier sans échéance.'
-              : 'Aucune échéance visible.')
+          _empty(
+            _time == _ProjectTime.undated
+                ? 'Aucun Dossier sans échéance.'
+                : 'Aucune échéance visible.',
+          )
         else
           for (final row in milestones)
             ListTile(

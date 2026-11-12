@@ -6,88 +6,100 @@ import 'package:makolo_mobile/features/continuity/dossier_workspace_screen.dart'
 import 'package:makolo_mobile/features/continuity/objective_repository.dart';
 
 void main() {
-  testWidgets('Dossier overview shows real people, a next action and linked Journeys', (
-    tester,
-  ) async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'viewer');
-    final repo = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
-    );
-    await store.putProjection(
-      kind: ObjectiveRepository.dossierProjectionKind,
-      resourceKey: 'dossier-a',
-      schemaVersion: 1,
-      payload: {
-        'identity': {'kind': 'dossier', 'id': 'dossier-a'},
-        'objective': {'title': 'Objectif concret', 'description': 'Préparer'},
-        'owner': {'kind': 'profile', 'label': 'Dossier personnel'},
-        'state': {'code': 'active'},
-        'readiness': {
-          'state': 'action_required',
-          'label': 'Action requise',
-          'partial': false,
-          'next_action': {'label': 'Continuer la démarche', 'journey_id': 'j-1'},
-        },
-        'visible_journeys_complete': true,
-        'visible_journeys': [
-          {'id': 'j-1', 'label': 'Démarche une', 'state': 'fulfilled'},
-          {
-            'id': 'j-2', 'label': 'Démarche deux',
-            'state': 'draft', 'readiness_state': 'action_required',
+  testWidgets(
+    'Dossier overview shows real people, a next action and linked Journeys',
+    (tester) async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'viewer');
+      final repo = ObjectiveRepository(
+        database: db,
+        store: store,
+        profileId: 'viewer',
+      );
+      await store.putProjection(
+        kind: ObjectiveRepository.dossierProjectionKind,
+        resourceKey: 'dossier-a',
+        schemaVersion: 1,
+        payload: {
+          'identity': {'kind': 'dossier', 'id': 'dossier-a'},
+          'objective': {'title': 'Objectif concret', 'description': 'Préparer'},
+          'owner': {'kind': 'profile', 'label': 'Dossier personnel'},
+          'state': {'code': 'active'},
+          'readiness': {
+            'state': 'action_required',
+            'label': 'Action requise',
+            'partial': false,
+            'next_action': {
+              'label': 'Continuer la démarche',
+              'journey_id': 'j-1',
+            },
           },
-        ],
-        'visible_dependencies': [],
-        'assignments': [
-          {'id': 'assignment', 'label': 'Alice', 'profile_id': 'profile-alice'},
-        ],
-        'mandates': [],
-        'people_preview': {
-          'people': [
-            {'profile_id': 'profile-alice', 'label': 'Alice'},
+          'visible_journeys_complete': true,
+          'visible_journeys': [
+            {'id': 'j-1', 'label': 'Démarche une', 'state': 'fulfilled'},
+            {
+              'id': 'j-2',
+              'label': 'Démarche deux',
+              'state': 'draft',
+              'readiness_state': 'action_required',
+            },
           ],
-          'remaining': 0,
+          'visible_dependencies': [],
+          'assignments': [
+            {
+              'id': 'assignment',
+              'label': 'Alice',
+              'profile_id': 'profile-alice',
+            },
+          ],
+          'mandates': [],
+          'people_preview': {
+            'people': [
+              {'profile_id': 'profile-alice', 'label': 'Alice'},
+            ],
+            'remaining': 0,
+          },
+          'capabilities': [],
         },
-        'capabilities': [],
-      },
-    );
-    String? openedProfile;
-    String? openedJourney;
-    var openedPeople = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DossierWorkspaceScreen(
-          id: 'dossier-a',
-          repository: repo,
-          onOpenJourney: (id) => openedJourney = id,
-          onOpenPerson: (id) => openedProfile = id,
-          onOpenPeople: () => openedPeople = true,
+      );
+      String? openedProfile;
+      String? openedJourney;
+      var openedPeople = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DossierWorkspaceScreen(
+            id: 'dossier-a',
+            repository: repo,
+            onOpenJourney: (id) => openedJourney = id,
+            onOpenPerson: (id) => openedProfile = id,
+            onOpenPeople: () => openedPeople = true,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 150));
-    expect(find.text('Objectif concret'), findsOneWidget);
-    expect(find.text('Personnes et responsabilités'), findsOneWidget);
-    expect(find.text('À faire maintenant'), findsOneWidget);
-    expect(find.text('1 sur 2 démarches visibles terminées'), findsOneWidget);
-    await tester.ensureVisible(find.byType(CircleAvatar).first);
-    await tester.tap(find.byType(CircleAvatar).first);
-    expect(openedProfile, 'profile-alice');
-    final peopleLink = find.text('Personnes et responsabilités');
-    await tester.ensureVisible(peopleLink);
-    await tester.tap(peopleLink);
-    expect(openedPeople, isTrue);
-    await tester.ensureVisible(find.text('Continuer la démarche'));
-    await tester.tap(find.text('Continuer la démarche'));
-    expect(openedJourney, 'j-1');
-    await tester.ensureVisible(find.text('1 à traiter'));
-    await tester.tap(find.text('1 à traiter'));
-    await tester.pump();
-    expect(find.text('Démarche deux'), findsOneWidget);
-    expect(find.text('Démarche une'), findsNothing);
-  });
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('Objectif concret'), findsOneWidget);
+      expect(find.text('Personnes et responsabilités'), findsOneWidget);
+      expect(find.text('À faire maintenant'), findsOneWidget);
+      expect(find.text('1 sur 2 démarches visibles terminées'), findsOneWidget);
+      await tester.ensureVisible(find.byType(CircleAvatar).first);
+      await tester.tap(find.byType(CircleAvatar).first);
+      expect(openedProfile, 'profile-alice');
+      final peopleLink = find.text('Personnes et responsabilités');
+      await tester.ensureVisible(peopleLink);
+      await tester.tap(peopleLink);
+      expect(openedPeople, isTrue);
+      await tester.ensureVisible(find.text('Continuer la démarche'));
+      await tester.tap(find.text('Continuer la démarche'));
+      expect(openedJourney, 'j-1');
+      await tester.ensureVisible(find.text('1 à traiter'));
+      await tester.tap(find.text('1 à traiter'));
+      await tester.pump();
+      expect(find.text('Démarche deux'), findsOneWidget);
+      expect(find.text('Démarche une'), findsNothing);
+    },
+  );
 
   testWidgets('Partial local data is not presented as an empty Dossier', (
     tester,
@@ -96,7 +108,9 @@ void main() {
     addTearDown(db.close);
     final store = ProfileStore(db, 'viewer');
     final repo = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
+      database: db,
+      store: store,
+      profileId: 'viewer',
     );
     await store.putProjection(
       kind: ObjectiveRepository.dossierProjectionKind,
@@ -142,7 +156,9 @@ void main() {
     addTearDown(db.close);
     final store = ProfileStore(db, 'viewer');
     final repo = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
+      database: db,
+      store: store,
+      profileId: 'viewer',
     );
     await store.putProjection(
       kind: ObjectiveRepository.dossierProjectionKind,

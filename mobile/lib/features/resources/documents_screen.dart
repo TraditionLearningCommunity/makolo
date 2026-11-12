@@ -281,7 +281,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: .10),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -507,19 +508,22 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                     _ViewChip(
                                       label: 'Tous',
                                       selected: _view == 'current',
-                                      onSelected: () => _setScope(view: 'current'),
+                                      onSelected: () =>
+                                          _setScope(view: 'current'),
                                     ),
                                     const SizedBox(width: MakoloSpacing.sm),
                                     _ViewChip(
                                       label: 'À échéance',
                                       selected: _view == 'expiring',
-                                      onSelected: () => _setScope(view: 'expiring'),
+                                      onSelected: () =>
+                                          _setScope(view: 'expiring'),
                                     ),
                                     const SizedBox(width: MakoloSpacing.sm),
                                     _ViewChip(
                                       label: 'Archivés',
                                       selected: _view == 'archived',
-                                      onSelected: () => _setScope(view: 'archived'),
+                                      onSelected: () =>
+                                          _setScope(view: 'archived'),
                                     ),
                                   ],
                                 ),

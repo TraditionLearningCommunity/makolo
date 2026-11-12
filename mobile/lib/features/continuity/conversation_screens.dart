@@ -185,10 +185,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         heightFactor: 0.85,
         child: _ConversationInvitationInbox(
           repository: widget.repository,
-          onRefresh: () => _refreshInvitationsIfNeeded(
-            force: true,
-            propagateError: true,
-          ),
+          onRefresh: () =>
+              _refreshInvitationsIfNeeded(force: true, propagateError: true),
           onOpen: (id) {
             Navigator.of(sheetContext).pop();
             widget.onOpen(id);
@@ -409,9 +407,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   StreamBuilder<StoredProjection?>(
                     stream: widget.repository.watchInvitations(),
                     builder: (context, snapshot) {
-                      final count = _ConversationInvitation.fromProjection(
-                        snapshot.data,
-                      ).where((invitation) => !invitation.expired).length +
+                      final count =
+                          _ConversationInvitation.fromProjection(snapshot.data)
+                              .where((invitation) => !invitation.expired)
+                              .length +
                           _ConversationPendingRow.fromProjection(
                             snapshot.data,
                             'join_requests_to_decide',
@@ -810,8 +809,9 @@ class _ConversationInvitationInboxState
       await widget.onRefresh();
     } on Object {
       if (mounted) {
-        setState(() => _refreshError =
-            'Invitations non actualisées. Vos informations conservées restent disponibles.');
+        setState(
+          () => _refreshError = 'Invitations non actualisées. Vos informations conservées restent disponibles.',
+        );
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -873,8 +873,10 @@ class _ConversationInvitationInboxState
                   mine.isEmpty)
                 const Text('Aucune invitation ou demande en attente.'),
               if (invitations.isNotEmpty) ...[
-                Text('Invitations reçues',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Invitations reçues',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final invitation in invitations) ...[
                   _ConversationInvitationCard(
@@ -888,8 +890,10 @@ class _ConversationInvitationInboxState
               ],
               if (toDecide.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
-                Text('Demandes à examiner',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Demandes à examiner',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final row in toDecide) ...[
                   _ConversationPendingActionCard(
@@ -904,8 +908,10 @@ class _ConversationInvitationInboxState
               ],
               if (sent.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
-                Text('Invitations envoyées',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Invitations envoyées',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final row in sent) ...[
                   _ConversationPendingActionCard(
@@ -920,8 +926,10 @@ class _ConversationInvitationInboxState
               ],
               if (mine.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
-                Text('Mes demandes d’entrée',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Mes demandes d’entrée',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final row in mine) ...[
                   _ConversationPersonalJoinCard(
@@ -1116,8 +1124,10 @@ class _ConversationPendingActionCardState
       if (mounted) setState(() => _confirmed = true);
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Décision non confirmée. Actualisez avant de réessayer.');
+        setState(
+          () =>
+              _error = 'Décision non confirmée. Actualisez avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1130,8 +1140,8 @@ class _ConversationPendingActionCardState
     final label = row.identifier == null
         ? 'Demande d’entrée'
         : row.kind == 'profile' || widget.isJoinRequest
-            ? '@${row.identifier}'
-            : row.identifier!;
+        ? '@${row.identifier}'
+        : row.identifier!;
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1145,9 +1155,10 @@ class _ConversationPendingActionCardState
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (widget.isJoinRequest && !row.canApprove)
-            const Text('Cette entrée n’est plus éligible. Vous pouvez la refuser.'),
-          if (_confirmed)
-            const Text('Décision confirmée.'),
+            const Text(
+              'Cette entrée n’est plus éligible. Vous pouvez la refuser.',
+            ),
+          if (_confirmed) const Text('Décision confirmée.'),
           if (_error != null)
             Text(
               _error!,
@@ -1216,9 +1227,11 @@ class _ConversationInvitationCardState
   String? _error;
 
   Future<void> _respond(bool accept) async {
-    if (_busy || widget.invitation.status != 'pending' ||
+    if (_busy ||
+        widget.invitation.status != 'pending' ||
         widget.invitation.expired ||
-        (accept && !widget.invitation.canAccept)) return;
+        (accept && !widget.invitation.canAccept))
+      return;
     setState(() {
       _busy = true;
       _error = null;
@@ -1303,7 +1316,9 @@ class _ConversationInvitationCardState
             children: [
               MakoloActionButton(
                 label: 'Refuser',
-                onPressed: _busy || widget.invitation.status != 'pending' ||
+                onPressed:
+                    _busy ||
+                        widget.invitation.status != 'pending' ||
                         widget.invitation.expired
                     ? null
                     : () => _respond(false),
@@ -1311,7 +1326,9 @@ class _ConversationInvitationCardState
               ),
               MakoloActionButton(
                 label: _busy ? 'En cours…' : 'Accepter',
-                onPressed: _busy || !widget.invitation.canAccept ||
+                onPressed:
+                    _busy ||
+                        !widget.invitation.canAccept ||
                         widget.invitation.status != 'pending' ||
                         widget.invitation.expired
                     ? null

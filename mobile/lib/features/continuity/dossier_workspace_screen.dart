@@ -774,8 +774,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _controls(Map<String, dynamic> data) {
-    final canLink = _mode != _DossierMode.overview &&
-        _cap(data, 'dossier.journey.link');
+    final canLink =
+        _mode != _DossierMode.overview && _cap(data, 'dossier.journey.link');
     final menu = [
       if (_cap(data, 'dossier.edit')) 'edit',
       if (_cap(data, 'dossier.dependency.add')) 'dependency',
@@ -899,11 +899,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: owner['kind'] == 'space' &&
-                      _text(owner['slug']).isNotEmpty
+              onTap: owner['kind'] == 'space' && _text(owner['slug']).isNotEmpty
                   ? (widget.onOpenOwnerSpace == null
-                      ? null
-                      : () => widget.onOpenOwnerSpace!(_text(owner['slug'])))
+                        ? null
+                        : () => widget.onOpenOwnerSpace!(_text(owner['slug'])))
                   : null,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
@@ -1094,17 +1093,22 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final people = hasPreview
         ? _rows(preview['people'])
         : [
-            ...assignments.map((item) => {
-              'label': item['label'],
-              'profile_id': item['profile_id'],
-            }),
-            ...mandates.map((item) => {
-              'label': item['profile'],
-              'profile_id': item['profile_id'],
-            }),
+            ...assignments.map(
+              (item) => {
+                'label': item['label'],
+                'profile_id': item['profile_id'],
+              },
+            ),
+            ...mandates.map(
+              (item) => {
+                'label': item['profile'],
+                'profile_id': item['profile_id'],
+              },
+            ),
           ].take(4).toList();
     final remaining = hasPreview && preview['remaining'] is num
-        ? (preview['remaining'] as num).toInt() : 0;
+        ? (preview['remaining'] as num).toInt()
+        : 0;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1121,15 +1125,19 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.people_outline_rounded,
-                    color: scheme.primary),
+                leading: Icon(
+                  Icons.people_outline_rounded,
+                  color: scheme.primary,
+                ),
                 title: const Text(
                   'Personnes et responsabilités',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-                subtitle: Text(people.isEmpty
-                    ? 'Aucune personne visible'
-                    : 'Voir les personnes et leurs rôles'),
+                subtitle: Text(
+                  people.isEmpty
+                      ? 'Aucune personne visible'
+                      : 'Voir les personnes et leurs rôles',
+                ),
                 trailing: widget.onOpenPeople == null
                     ? null
                     : const Icon(Icons.chevron_right_rounded),
@@ -1147,7 +1155,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             message: _text(person['label']),
                             child: InkWell(
                               customBorder: const CircleBorder(),
-                              onTap: widget.onOpenPerson == null ||
+                              onTap:
+                                  widget.onOpenPerson == null ||
                                       _text(person['profile_id']).isEmpty
                                   ? null
                                   : () => widget.onOpenPerson!(
@@ -1160,7 +1169,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                                   _text(person['label']).isEmpty
                                       ? '•'
                                       : _text(person['label'])
-                                          .substring(0, 1).toUpperCase(),
+                                            .substring(0, 1)
+                                            .toUpperCase(),
                                   style: TextStyle(
                                     color: scheme.onPrimaryContainer,
                                     fontSize: 12,
@@ -1224,13 +1234,20 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
     final nextId = _text(next['journey_id']);
-    final completed = items.where((item) =>
-        ['fulfilled', 'completed', 'complete']
-            .contains(_text(item['state']))).length;
-    final requiringAction = items.where(
-      (item) => item['readiness_state'] == 'action_required',
-    ).length;
-    final complete = data['visible_journeys_complete'] == true &&
+    final completed = items
+        .where(
+          (item) => [
+            'fulfilled',
+            'completed',
+            'complete',
+          ].contains(_text(item['state'])),
+        )
+        .length;
+    final requiringAction = items
+        .where((item) => item['readiness_state'] == 'action_required')
+        .length;
+    final complete =
+        data['visible_journeys_complete'] == true &&
         readiness['partial'] != true;
     final scheme = Theme.of(context).colorScheme;
     return Column(
@@ -1245,16 +1262,21 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 9,
+                horizontal: 14,
+                vertical: 9,
               ),
               leading: Icon(Icons.bolt_rounded, color: scheme.primary),
-              title: const Text('À faire maintenant',
-                  style: TextStyle(fontWeight: FontWeight.w800)),
+              title: const Text(
+                'À faire maintenant',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
               subtitle: Text(_text(next['label'])),
               trailing: nextId.isNotEmpty
-                  ? const Icon(Icons.arrow_forward_rounded) : null,
+                  ? const Icon(Icons.arrow_forward_rounded)
+                  : null,
               onTap: nextId.isNotEmpty
-                  ? () => widget.onOpenJourney(nextId) : null,
+                  ? () => widget.onOpenJourney(nextId)
+                  : null,
             ),
           ),
         const SizedBox(height: 10),
@@ -1268,9 +1290,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             Expanded(
               child: Text(
                 'Démarches',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
             ),
             if (_cap(data, 'dossier.journey.link') && items.isNotEmpty)
@@ -1291,7 +1312,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         if (items.isNotEmpty) ...[
           if (complete) ...[
             Text(
-              completed.toString() + ' sur ' + items.length.toString() +
+              completed.toString() +
+                  ' sur ' +
+                  items.length.toString() +
                   ' démarches visibles terminées',
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -1320,9 +1343,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   if (requiringAction > 0)
                     ActionChip(
                       avatar: const Icon(Icons.bolt_rounded, size: 17),
-                      label: Text(
-                        requiringAction.toString() + ' à traiter',
-                      ),
+                      label: Text(requiringAction.toString() + ' à traiter'),
                       onPressed: () {
                         setState(() => _filter = 'action');
                         _selectMode(_DossierMode.list);
@@ -1331,9 +1352,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   if (completed > 0)
                     ActionChip(
                       avatar: const Icon(Icons.check_circle_outline, size: 17),
-                      label: Text(
-                        completed.toString() + ' terminée(s)',
-                      ),
+                      label: Text(completed.toString() + ' terminée(s)'),
                       onPressed: () {
                         setState(() => _filter = 'fulfilled');
                         _selectMode(_DossierMode.list);
@@ -1342,8 +1361,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 ],
               ),
             ),
-          for (final item in items.take(3))
-            _journeyTile(item, compact: true),
+          for (final item in items.take(3)) _journeyTile(item, compact: true),
         ] else ...[
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1372,10 +1390,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               key: const PageStorageKey<String>('dossier-conditions-preview'),
               shape: const Border(),
               collapsedShape: const Border(),
-              leading: Icon(Icons.account_tree_outlined,
-                  color: scheme.primary),
-              title: const Text('Conditions et dépendances',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              leading: Icon(Icons.account_tree_outlined, color: scheme.primary),
+              title: const Text(
+                'Conditions et dépendances',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
               subtitle: Text(
                 dependencies.length.toString() + ' relation(s) visible(s)',
               ),
@@ -1387,18 +1406,18 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                       _text(dep['state']) == 'waived'
                           ? Icons.remove_circle_outline
                           : dep['satisfied'] == true
-                              ? Icons.check_circle_outline
-                              : Icons.radio_button_unchecked,
+                          ? Icons.check_circle_outline
+                          : Icons.radio_button_unchecked,
                     ),
                     title: Text(_text(dep['required_label'])),
                     subtitle: Text(
                       _text(dep['state']) == 'waived'
                           ? 'Condition levée'
                           : dep['satisfied'] == true
-                              ? 'Satisfaite'
-                              : _text(dep['state']) == 'active'
-                                  ? 'À satisfaire'
-                                  : 'État non précisé',
+                          ? 'Satisfaite'
+                          : _text(dep['state']) == 'active'
+                          ? 'À satisfaire'
+                          : 'État non précisé',
                     ),
                   ),
                 ListTile(
@@ -1414,9 +1433,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           const SizedBox(height: 20),
           Text(
             'Explorer le Dossier',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
           _tabs(),

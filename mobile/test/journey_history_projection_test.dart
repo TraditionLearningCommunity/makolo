@@ -30,10 +30,7 @@ void main() {
             'state': 'fulfilled',
             'at': '2026-11-10T13:45:00+00:00',
           },
-          {
-            'id': 'invalid',
-            'reason': 'Never present private audit text',
-          },
+          {'id': 'invalid', 'reason': 'Never present private audit text'},
         ],
       },
     );

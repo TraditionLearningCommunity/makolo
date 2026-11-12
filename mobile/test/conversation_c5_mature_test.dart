@@ -654,15 +654,10 @@ void main() {
     );
     await PresentationHarness.pump(
       tester,
-      child: ConversationListScreen(
-        repository: repository,
-        onOpen: (_) {},
-      ),
+      child: ConversationListScreen(repository: repository, onOpen: (_) {}),
     );
     await tester.pump();
-    final entry = find.byKey(
-      const Key('conversation-invitations-open'),
-    );
+    final entry = find.byKey(const Key('conversation-invitations-open'));
     expect(entry, findsOneWidget);
     expect(find.byTooltip('Actualiser'), findsOneWidget);
     await tester.tap(entry);
@@ -681,16 +676,10 @@ void main() {
       if (request.url.path ==
           '/api/v1/conversations/conv-1/invitations/sent-1/cancel/') {
         cancelled = true;
-        return const MockResponse(
-          '{"id":"sent-1","status":"cancelled"}',
-          200,
-        );
+        return const MockResponse('{"id":"sent-1","status":"cancelled"}', 200);
       }
       if (request.url.path == '/api/v1/conversations/conv-1/') {
-        return const MockResponse(
-          '{"id":"conv-1","points":[]}',
-          200,
-        );
+        return const MockResponse('{"id":"conv-1","points":[]}', 200);
       }
       if (request.url.path == '/api/v1/conversations/invitations/') {
         return MockResponse(
@@ -764,9 +753,7 @@ void main() {
       tester,
       child: ConversationListScreen(repository: repository, onOpen: (_) {}),
     );
-    await tester.tap(
-      find.byKey(const Key('conversation-invitations-open')),
-    );
+    await tester.tap(find.byKey(const Key('conversation-invitations-open')));
     await tester.pumpAndSettle();
     expect(find.text('Demandes à examiner'), findsOneWidget);
     expect(find.text('@demandeur'), findsOneWidget);
@@ -783,35 +770,41 @@ void main() {
     expect(find.text('@destinataire'), findsNothing);
   });
 
-  test('C5: malformed invitation decision is never reported as accepted', () async {
-    final repository = repositoryFor((request) async {
-      if (request.url.path.endsWith('/invitation-1/respond/')) {
-        return const MockResponse(
-          '{"id":"invitation-1","status":"pending"}',
-          200,
-        );
-      }
-      throw StateError('Unexpected request ${request.url}');
-    });
-    await store.putProjection(
-      kind: ConversationRepository.invitationsProjectionKind,
-      schemaVersion: 1,
-      payload: {
-        'count': 1,
-        'results': [
-          {'id': 'invitation-1', 'status': 'pending'},
-        ],
-      },
-    );
-    await expectLater(
-      repository.respondToInvitation(invitationId: 'invitation-1', accept: true),
-      throwsA(isA<FormatException>()),
-    );
-    expect(
-      (await repository.readInvitations())!.payload['results'],
-      isNotEmpty,
-    );
-  });
+  test(
+    'C5: malformed invitation decision is never reported as accepted',
+    () async {
+      final repository = repositoryFor((request) async {
+        if (request.url.path.endsWith('/invitation-1/respond/')) {
+          return const MockResponse(
+            '{"id":"invitation-1","status":"pending"}',
+            200,
+          );
+        }
+        throw StateError('Unexpected request ${request.url}');
+      });
+      await store.putProjection(
+        kind: ConversationRepository.invitationsProjectionKind,
+        schemaVersion: 1,
+        payload: {
+          'count': 1,
+          'results': [
+            {'id': 'invitation-1', 'status': 'pending'},
+          ],
+        },
+      );
+      await expectLater(
+        repository.respondToInvitation(
+          invitationId: 'invitation-1',
+          accept: true,
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        (await repository.readInvitations())!.payload['results'],
+        isNotEmpty,
+      );
+    },
+  );
 
   testWidgets('C5: my pending request can be withdrawn without detail access', (
     tester,
@@ -847,11 +840,7 @@ void main() {
         'count': 0,
         'results': [],
         'my_join_requests': [
-          {
-            'id': 'request-1',
-            'conversation_id': null,
-            'status': 'pending',
-          },
+          {'id': 'request-1', 'conversation_id': null, 'status': 'pending'},
         ],
       },
     );
@@ -869,35 +858,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(withdrawn, isTrue);
     expect(find.text('Retirer ma demande'), findsNothing);
-    expect((await repository.readInvitations())!.payload['my_join_requests'], isEmpty);
-  });
-
-  test('C5: wrong join withdrawal ACK preserves unconfirmed local request', () async {
-    final repository = repositoryFor((request) async {
-      if (request.url.path.endsWith('/request-1/withdraw/')) {
-        return const MockResponse('{"id":"request-1","status":"pending"}', 200);
-      }
-      throw StateError('Unexpected request ${request.url}');
-    });
-    await store.putProjection(
-      kind: ConversationRepository.invitationsProjectionKind,
-      schemaVersion: 1,
-      payload: {
-        'count': 0,
-        'results': [],
-        'my_join_requests': [
-          {'id': 'request-1', 'status': 'pending'},
-        ],
-      },
-    );
-    await expectLater(
-      repository.withdrawJoinRequest('request-1'),
-      throwsA(isA<FormatException>()),
-    );
     expect(
       (await repository.readInvitations())!.payload['my_join_requests'],
-      isNotEmpty,
+      isEmpty,
     );
   });
 
+  test(
+    'C5: wrong join withdrawal ACK preserves unconfirmed local request',
+    () async {
+      final repository = repositoryFor((request) async {
+        if (request.url.path.endsWith('/request-1/withdraw/')) {
+          return const MockResponse(
+            '{"id":"request-1","status":"pending"}',
+            200,
+          );
+        }
+        throw StateError('Unexpected request ${request.url}');
+      });
+      await store.putProjection(
+        kind: ConversationRepository.invitationsProjectionKind,
+        schemaVersion: 1,
+        payload: {
+          'count': 0,
+          'results': [],
+          'my_join_requests': [
+            {'id': 'request-1', 'status': 'pending'},
+          ],
+        },
+      );
+      await expectLater(
+        repository.withdrawJoinRequest('request-1'),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        (await repository.readInvitations())!.payload['my_join_requests'],
+        isNotEmpty,
+      );
+    },
+  );
 }

@@ -13,7 +13,9 @@ void main() {
     addTearDown(db.close);
     final store = ProfileStore(db, 'viewer');
     final repository = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
+      database: db,
+      store: store,
+      profileId: 'viewer',
     );
     final people = List.generate(
       5,
@@ -44,10 +46,7 @@ void main() {
             },
         ],
         'mandates': [],
-        'people_preview': {
-          'people': people.take(4).toList(),
-          'remaining': 1,
-        },
+        'people_preview': {'people': people.take(4).toList(), 'remaining': 1},
         'capabilities': [],
       },
     );
@@ -86,7 +85,9 @@ void main() {
     addTearDown(db.close);
     final store = ProfileStore(db, 'viewer');
     final repository = ObjectiveRepository(
-      database: db, store: store, profileId: 'viewer',
+      database: db,
+      store: store,
+      profileId: 'viewer',
     );
     await store.putProjection(
       kind: ObjectiveRepository.dossierProjectionKind,

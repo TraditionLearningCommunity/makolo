@@ -607,8 +607,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         refresh(() => entries.remove(row));
       } on Object {
         if (sheetContext.mounted) {
-          refresh(() => decisionError =
-              'Décision non confirmée. Actualisez avant de réessayer.');
+          refresh(
+            () => decisionError =
+                'Décision non confirmée. Actualisez avant de réessayer.',
+          );
         }
       } finally {
         if (sheetContext.mounted) refresh(() => pendingDecisionId = null);
@@ -649,8 +651,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       onPressed: pendingDecisionId != null
                           ? null
                           : () => unawaited(
-                                decide(row, false, refresh, sheetContext),
-                              ),
+                              decide(row, false, refresh, sheetContext),
+                            ),
                       child: const Text('Refuser'),
                     ),
                     if (row['can_approve'] != false)
@@ -658,8 +660,8 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         onPressed: pendingDecisionId != null
                             ? null
                             : () => unawaited(
-                                  decide(row, true, refresh, sheetContext),
-                                ),
+                                decide(row, true, refresh, sheetContext),
+                              ),
                         child: const Text('Accepter'),
                       ),
                   ],

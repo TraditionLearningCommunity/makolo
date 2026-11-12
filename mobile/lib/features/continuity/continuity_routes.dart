@@ -225,9 +225,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         id: state.pathParameters['id']!,
         repository: repository,
         actorContext: runtime.actorContext,
-        onOpenPerson: (id) => context.push(
-          '/people/${Uri.encodeComponent(id)}',
-        ),
+        onOpenPerson: (id) =>
+            context.push('/people/${Uri.encodeComponent(id)}'),
       );
     },
   ),
@@ -261,12 +260,10 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenProject: (id) => context.push('/projects/$id'),
-        onOpenOwnerSpace: (slug) => context.push(
-          '/spaces/${Uri.encodeComponent(slug)}',
-        ),
-        onOpenPerson: (id) => context.push(
-          '/people/${Uri.encodeComponent(id)}',
-        ),
+        onOpenOwnerSpace: (slug) =>
+            context.push('/spaces/${Uri.encodeComponent(slug)}'),
+        onOpenPerson: (id) =>
+            context.push('/people/${Uri.encodeComponent(id)}'),
         onOpenPeople: () => context.push(
           '/dossiers/${Uri.encodeComponent(state.pathParameters['id']!)}/people',
         ),
@@ -295,9 +292,8 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenDossier: (id) => context.push(
           '/dossiers/$id?from_project=${state.pathParameters['id']}',
         ),
-        onOpenPerson: (id) => context.push(
-          '/people/${Uri.encodeComponent(id)}',
-        ),
+        onOpenPerson: (id) =>
+            context.push('/people/${Uri.encodeComponent(id)}'),
         onOpenMyPassport: () => context.push('/me/passport'),
       );
     },

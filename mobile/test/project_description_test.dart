@@ -5,10 +5,7 @@ import 'package:makolo_mobile/features/continuity/project_description.dart';
 void main() {
   Widget harness(String? text) => MaterialApp(
     home: Scaffold(
-      body: SizedBox(
-        width: 320,
-        child: ProjectDescription(description: text),
-      ),
+      body: SizedBox(width: 320, child: ProjectDescription(description: text)),
     ),
   );
 

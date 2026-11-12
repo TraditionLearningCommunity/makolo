@@ -139,6 +139,7 @@ class JourneyDayBadge extends StatefulWidget {
 
   final String occurrenceDate;
   final String? timezoneName;
+
   /// The server already supplied the owner capability and destination.
   final VoidCallback? onOpenDayOf;
 
@@ -214,9 +215,7 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
             ? Theme.of(context).colorScheme.primary
             : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Text(

@@ -32,12 +32,15 @@ class JourneyComposition {
   }) {
     // An intervention repeating the objective without an action is not a
     // useful separate card. The owner check itself is still kept intact.
-    final interventions = p.actorInterventions.where((item) {
-      if (item.key == p.nextActionKey && p.nextActionKey != null) return false;
-      final repeatsTitle = item.summary.trim().toLowerCase() ==
-          p.title.trim().toLowerCase();
-      return !repeatsTitle || item.nextLink != null;
-    }).toList(growable: false);
+    final interventions = p.actorInterventions
+        .where((item) {
+          if (item.key == p.nextActionKey && p.nextActionKey != null)
+            return false;
+          final repeatsTitle =
+              item.summary.trim().toLowerCase() == p.title.trim().toLowerCase();
+          return !repeatsTitle || item.nextLink != null;
+        })
+        .toList(growable: false);
     final actionableKeys = <String>{
       for (final item in p.actorInterventions)
         if (item.nextLink != null && item.nextLink!.isNotEmpty)
@@ -67,21 +70,24 @@ class JourneyComposition {
         dependents[parent] = (dependents[parent] ?? 0) + 1;
       }
     }
-    final hasBranches = dependents.values.any((count) => count > 1) ||
+    final hasBranches =
+        dependents.values.any((count) => count > 1) ||
         p.steps.any((step) => step.dependsOn.length > 1);
     return JourneyComposition(
       situation: situation,
       interventions: interventions,
       hasBranches: hasBranches,
-      hasPreparation: p.ready.isNotEmpty ||
+      hasPreparation:
+          p.ready.isNotEmpty ||
           p.waiting.isNotEmpty ||
           p.blockers.isNotEmpty ||
           interventions.isNotEmpty ||
           p.forms.isNotEmpty ||
           p.requirements.isNotEmpty,
-      hasDocuments: p.resourcesLink != null &&
-          (!resourcesKnown || resourcesCount > 0),
-      hasEngagements: p.payments.isNotEmpty || p.order != null || p.access != null,
+      hasDocuments:
+          p.resourcesLink != null && (!resourcesKnown || resourcesCount > 0),
+      hasEngagements:
+          p.payments.isNotEmpty || p.order != null || p.access != null,
     );
   }
 }

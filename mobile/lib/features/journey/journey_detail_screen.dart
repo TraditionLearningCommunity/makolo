@@ -598,9 +598,11 @@ class _JourneyContent extends StatelessWidget {
                               onOpenResources(presentation.resourcesLink!),
                           icon: const Icon(Icons.arrow_forward_rounded),
                           iconAlignment: IconAlignment.end,
-                          label: Text(resourcesKnown
-                              ? 'Voir les ${resourcesPreview.length} ressources'
-                              : 'Voir les ressources'),
+                          label: Text(
+                            resourcesKnown
+                                ? 'Voir les ${resourcesPreview.length} ressources'
+                                : 'Voir les ressources',
+                          ),
                         ),
                       ),
                     ],
@@ -649,7 +651,8 @@ class _JourneyContent extends StatelessWidget {
                         _ReferenceCard(
                           reference: presentation.occurrence!,
                           contextLabel: 'Occurrence',
-                          hideRepeatedTitle: presentation.occurrence!.label ==
+                          hideRepeatedTitle:
+                              presentation.occurrence!.label ==
                               presentation.title,
                           onTap: () =>
                               onOpenOccurrence(presentation.occurrence!),
@@ -746,9 +749,12 @@ class _JourneyContent extends StatelessWidget {
     if (presentation.dayOfLink == link) {
       final facts = presentation.practical;
       if (JourneyDayPresentation.dayOffset(
-        facts?.startDate, DateTime.now(),
-        timezoneName: facts?.timezone,
-      ) != 0) return null;
+            facts?.startDate,
+            DateTime.now(),
+            timezoneName: facts?.timezone,
+          ) !=
+          0)
+        return null;
       return MakoloActionButton(
         appearance: appearance,
         label: label,
@@ -769,8 +775,7 @@ class _JourneyHistory extends StatelessWidget {
     return MakoloCard(
       child: Column(
         children: [
-          for (final entry in entries.take(3))
-            _JourneyHistoryRow(entry: entry),
+          for (final entry in entries.take(3)) _JourneyHistoryRow(entry: entry),
           if (entries.length > 3)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
@@ -796,8 +801,7 @@ class _JourneyHistoryRow extends StatelessWidget {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      leading: Icon(Icons.history_rounded,
-          color: _journeyAccent(context)),
+      leading: Icon(Icons.history_rounded, color: _journeyAccent(context)),
       title: Text(entry.label),
       subtitle: Text(
         '${MaterialLocalizations.of(context).formatMediumDate(entry.at.toLocal())}'
@@ -839,20 +843,27 @@ class _JourneyEngagements extends StatelessWidget {
             ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.shopping_bag_outlined,
-                  color: _journeyAccent(context)),
+              leading: Icon(
+                Icons.shopping_bag_outlined,
+                color: _journeyAccent(context),
+              ),
               title: const Text('Ma commande'),
-              subtitle: Text([
-                if (presentation.payments.isEmpty &&
-                    order.total != null && order.currency != null)
-                  '${order.total} ${order.currency}',
-                MakoloHumanization.presentationLabel(order.state) ??
-                    order.state,
-              ].join(' · ')),
+              subtitle: Text(
+                [
+                  if (presentation.payments.isEmpty &&
+                      order.total != null &&
+                      order.currency != null)
+                    '${order.total} ${order.currency}',
+                  MakoloHumanization.presentationLabel(order.state) ??
+                      order.state,
+                ].join(' · '),
+              ),
               trailing: onOpenCommerceOrder == null
-                  ? null : const Icon(Icons.chevron_right_rounded),
+                  ? null
+                  : const Icon(Icons.chevron_right_rounded),
               onTap: onOpenCommerceOrder == null
-                  ? null : () => onOpenCommerceOrder!(order.id),
+                  ? null
+                  : () => onOpenCommerceOrder!(order.id),
             ),
           if (order != null && presentation.access != null)
             const Divider(height: 8),
@@ -860,7 +871,8 @@ class _JourneyEngagements extends StatelessWidget {
             _ReferenceCard(
               reference: presentation.access!,
               onTap: presentation.access!.link == null
-                  ? null : () => onOpenAccess(presentation.access!),
+                  ? null
+                  : () => onOpenAccess(presentation.access!),
             ),
         ],
       ),
@@ -911,8 +923,8 @@ class _JourneySituationPanel extends StatelessWidget {
         firstBlocker?.summary ?? 'Une demande a été refusée.',
       JourneySituation.waiting =>
         firstWaiting?.summary ?? 'Une réponse est attendue.',
-      JourneySituation.action || JourneySituation.choices =>
-        presentation.nextActionLabel,
+      JourneySituation.action ||
+      JourneySituation.choices => presentation.nextActionLabel,
       _ => null,
     };
     final color = situation == JourneySituation.blocked
@@ -936,12 +948,15 @@ class _JourneySituationPanel extends StatelessWidget {
                 Icon(icon, color: color, size: 21),
                 const SizedBox(width: MakoloSpacing.sm),
                 Expanded(
-                  child: Text(title,
-                    style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
               ],
             ),
-            if (detail != null && detail.trim().isNotEmpty &&
+            if (detail != null &&
+                detail.trim().isNotEmpty &&
                 detail.trim().toLowerCase() !=
                     presentation.title.trim().toLowerCase()) ...[
               const SizedBox(height: MakoloSpacing.sm),
@@ -952,22 +967,27 @@ class _JourneySituationPanel extends StatelessWidget {
               for (final item in presentation.actorInterventions)
                 if (item.nextLink != null &&
                     item.nextLink!.isNotEmpty &&
-                    seen.add(item.key.isNotEmpty ? item.key : item.nextLink!)) ...[
+                    seen.add(
+                      item.key.isNotEmpty ? item.key : item.nextLink!,
+                    )) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                    child: ownerAction(
-                      item.nextLabel ?? item.summary,
-                      item.nextLink,
-                    ) ?? Text(item.summary),
+                    child:
+                        ownerAction(
+                          item.nextLabel ?? item.summary,
+                          item.nextLink,
+                        ) ??
+                        Text(item.summary),
                   ),
                 ],
               if (presentation.nextActionLink != null &&
-                  seen.add(presentation.nextActionKey ??
-                      presentation.nextActionLink!))
+                  seen.add(
+                    presentation.nextActionKey ?? presentation.nextActionLink!,
+                  ))
                 primaryAction ?? const SizedBox.shrink(),
             ] else if (primaryAction != null &&
                 (situation == JourneySituation.action ||
-                 situation == JourneySituation.blocked)) ...[
+                    situation == JourneySituation.blocked)) ...[
               const SizedBox(height: MakoloSpacing.sm),
               primaryAction!,
             ],
@@ -1045,12 +1065,14 @@ class _JourneyIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = Theme.of(context).colorScheme;
     final facts = presentation.practical;
-    final date = JourneyDayPresentation.civilDate(facts?.startDate) ??
+    final date =
+        JourneyDayPresentation.civilDate(facts?.startDate) ??
         facts?.startAt?.toLocal();
     final dateLabel = date == null
         ? null
         : MaterialLocalizations.of(context).formatMediumDate(date);
-    final startTime = JourneyDayPresentation.clock(facts?.startTime) ??
+    final startTime =
+        JourneyDayPresentation.clock(facts?.startTime) ??
         (facts?.startAt == null
             ? null
             : JourneyDayPresentation.clock(
@@ -1058,8 +1080,8 @@ class _JourneyIdentity extends StatelessWidget {
                 '${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
               ));
     final endTime = JourneyDayPresentation.clock(facts?.endTime);
-    final sameDay = facts?.endDate == null ||
-        facts?.endDate == facts?.startDate;
+    final sameDay =
+        facts?.endDate == null || facts?.endDate == facts?.startDate;
     String shorten(String value) =>
         value.endsWith('h00') ? value.substring(0, value.length - 2) : value;
     final timeLabel = startTime == null
@@ -1136,8 +1158,7 @@ class _JourneyIdentity extends StatelessWidget {
                     MakoloStatus(label: status),
                     const SizedBox(width: MakoloSpacing.xs),
                   ],
-                  if (conversationEntry != null)
-                    conversationEntry!,
+                  if (conversationEntry != null) conversationEntry!,
                   if (presentation.liveLink != null)
                     IconButton(
                       tooltip: 'Ouvrir Makolo Live',
@@ -1146,7 +1167,8 @@ class _JourneyIdentity extends StatelessWidget {
                     ),
                 ],
               ),
-              if (dateLabel != null || timeLabel != null ||
+              if (dateLabel != null ||
+                  timeLabel != null ||
                   placeLabel != null) ...[
                 const SizedBox(height: MakoloSpacing.xs),
                 Divider(color: palette.outlineVariant, height: 12),
@@ -1209,23 +1231,22 @@ class _JourneyHeroFact extends StatelessWidget {
 /// JourneySteps are shown as facts, not a locally computed percentage/timeline.
 /// Dependencies are named only when the owner supplied both linked steps.
 class _JourneyPath extends StatelessWidget {
-  const _JourneyPath({
-    required this.steps,
-    required this.hasBranches,
-  });
+  const _JourneyPath({required this.steps, required this.hasBranches});
 
   final List<JourneyStepSummary> steps;
   final bool hasBranches;
 
   @override
   Widget build(BuildContext context) {
-    final active = steps.where((step) => !step.isTerminal &&
-        step.status != 'pending').toList();
+    final active = steps
+        .where((step) => !step.isTerminal && step.status != 'pending')
+        .toList();
     final future = steps.where((step) => step.status == 'pending').toList();
     final past = steps.where((step) => step.isTerminal).toList();
     final shownFuture = hasBranches ? future : future.take(2).toList();
-    final hiddenFuture = hasBranches ? <JourneyStepSummary>[] :
-        future.skip(2).toList();
+    final hiddenFuture = hasBranches
+        ? <JourneyStepSummary>[]
+        : future.skip(2).toList();
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1233,12 +1254,13 @@ class _JourneyPath extends StatelessWidget {
           if (hasBranches) ...[
             Row(
               children: [
-                Icon(Icons.alt_route_rounded,
-                    size: 18, color: _journeyAccent(context)),
-                const SizedBox(width: MakoloSpacing.sm),
-                const Expanded(
-                  child: Text('Plusieurs chemins possibles'),
+                Icon(
+                  Icons.alt_route_rounded,
+                  size: 18,
+                  color: _journeyAccent(context),
                 ),
+                const SizedBox(width: MakoloSpacing.sm),
+                const Expanded(child: Text('Plusieurs chemins possibles')),
               ],
             ),
             const Divider(height: 16),
@@ -1250,9 +1272,7 @@ class _JourneyPath extends StatelessWidget {
           if (hiddenFuture.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: Text(
-                'Voir les ${hiddenFuture.length} étapes suivantes',
-              ),
+              title: Text('Voir les ${hiddenFuture.length} étapes suivantes'),
               children: [
                 for (final step in hiddenFuture)
                   _JourneyStepRow(step: step, allSteps: steps),
@@ -1261,8 +1281,10 @@ class _JourneyPath extends StatelessWidget {
           if (past.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: Icon(Icons.check_circle_outline_rounded,
-                  color: _journeyAccent(context)),
+              leading: Icon(
+                Icons.check_circle_outline_rounded,
+                color: _journeyAccent(context),
+              ),
               title: Text(
                 '${past.length} étape${past.length > 1 ? 's' : ''} passée${past.length > 1 ? 's' : ''}',
               ),
@@ -1357,7 +1379,8 @@ class _JourneyPreparation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasReadiness = !presentation.isTerminal &&
+    final hasReadiness =
+        !presentation.isTerminal &&
         (presentation.ready.isNotEmpty ||
             presentation.waiting.isNotEmpty ||
             presentation.blockers.isNotEmpty ||
@@ -1394,10 +1417,7 @@ class _JourneyPreparation extends StatelessWidget {
 }
 
 class _JourneyRequirementRow extends StatelessWidget {
-  const _JourneyRequirementRow({
-    required this.reference,
-    required this.onOpen,
-  });
+  const _JourneyRequirementRow({required this.reference, required this.onOpen});
 
   final JourneyReference reference;
   final void Function(JourneyReference) onOpen;
@@ -1406,23 +1426,30 @@ class _JourneyRequirementRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = MakoloHumanization.presentationLabel(reference.state);
     final fulfilled = const {
-      'satisfied', 'accepted', 'approved', 'completed',
+      'satisfied',
+      'accepted',
+      'approved',
+      'completed',
     }.contains(reference.state);
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
       leading: Icon(
-        fulfilled ? Icons.check_circle_outline_rounded :
-            Icons.assignment_turned_in_outlined,
+        fulfilled
+            ? Icons.check_circle_outline_rounded
+            : Icons.assignment_turned_in_outlined,
         color: _journeyAccent(context),
       ),
       title: Text(reference.label),
-      subtitle: Text([
-        if (reference.isRequired) 'Obligatoire',
-        if (state != null) state,
-      ].join(' · ')),
+      subtitle: Text(
+        [
+          if (reference.isRequired) 'Obligatoire',
+          if (state != null) state,
+        ].join(' · '),
+      ),
       trailing: reference.link == null
-          ? null : const Icon(Icons.chevron_right_rounded),
+          ? null
+          : const Icon(Icons.chevron_right_rounded),
       onTap: reference.link == null ? null : () => onOpen(reference),
     );
   }
@@ -1453,12 +1480,13 @@ class _ReadinessGroups extends StatelessWidget {
     final interventions = situation == JourneySituation.choices
         ? <JourneyReadinessItem>[]
         : composition.interventions;
-    final blockers = situation == JourneySituation.blocked &&
+    final blockers =
+        situation == JourneySituation.blocked &&
             presentation.blockers.isNotEmpty
         ? presentation.blockers.skip(1).toList()
         : presentation.blockers;
-    final waiting = situation == JourneySituation.waiting &&
-            presentation.waiting.isNotEmpty
+    final waiting =
+        situation == JourneySituation.waiting && presentation.waiting.isNotEmpty
         ? presentation.waiting.skip(1).toList()
         : presentation.waiting;
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
@@ -1478,8 +1506,10 @@ class _ReadinessGroups extends StatelessWidget {
               Icon(group.$3, size: 18, color: _journeyAccent(context)),
               const SizedBox(width: MakoloSpacing.sm),
               Expanded(
-                child: Text(group.$1,
-                    style: Theme.of(context).textTheme.titleSmall),
+                child: Text(
+                  group.$1,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
             ],
           ),
@@ -1490,11 +1520,13 @@ class _ReadinessGroups extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(item.summary),
-                  if (item.nextLabel != null && item.nextLink != null &&
+                  if (item.nextLabel != null &&
+                      item.nextLink != null &&
                       item.nextLink != presentation.nextActionLink)
                     Padding(
                       padding: const EdgeInsets.only(top: 5),
-                      child: ownerAction(item.nextLabel!, item.nextLink) ??
+                      child:
+                          ownerAction(item.nextLabel!, item.nextLink) ??
                           const SizedBox.shrink(),
                     ),
                 ],
@@ -1507,20 +1539,20 @@ class _ReadinessGroups extends StatelessWidget {
               ? ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.check_circle_outline_rounded,
-                      color: _journeyAccent(context)),
-                  title: Text(
-                    '${presentation.ready.length} points vérifiés',
+                  leading: Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: _journeyAccent(context),
                   ),
+                  title: Text('${presentation.ready.length} points vérifiés'),
                 )
               : ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.check_circle_outline_rounded,
-                      color: _journeyAccent(context)),
-                  title: Text(
-                    '${presentation.ready.length} points vérifiés',
+                  leading: Icon(
+                    Icons.check_circle_outline_rounded,
+                    color: _journeyAccent(context),
                   ),
+                  title: Text('${presentation.ready.length} points vérifiés'),
                   children: [
                     for (final item in readableReady)
                       ListTile(
@@ -1594,19 +1626,26 @@ class _JourneyResourceTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(_resourceIcon(resource),
-                  size: 22, color: _journeyAccent(context)),
+              Icon(
+                _resourceIcon(resource),
+                size: 22,
+                color: _journeyAccent(context),
+              ),
               const SizedBox(height: 5),
-              Text(resource.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                resource.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
               if (resource.description != null)
-                Text(resource.description!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall),
+                Text(
+                  resource.description!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
             ],
           ),
         ),
@@ -1747,7 +1786,9 @@ class _FormCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = isTerminal ? 'Consulter' : form.canComplete
+    final label = isTerminal
+        ? 'Consulter'
+        : form.canComplete
         ? 'À compléter'
         : MakoloHumanization.presentationLabel(form.state);
     final deadline = form.dueAt == null
@@ -1755,24 +1796,24 @@ class _FormCard extends StatelessWidget {
         : MaterialLocalizations.of(context)
               .formatMediumDate(form.dueAt!.toLocal());
     return ListTile(
-        dense: true,
-        onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(
-          form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
-          color: _journeyAccent(context),
-        ),
-        title: Text(form.title),
-        subtitle: Text(
-          [
-            if (label != null) label,
-            if (form.required) 'Obligatoire',
-            if (deadline != null) 'Avant le $deadline',
-          ].join(' · '),
-        ),
-        trailing: form.detailLink.isNotEmpty
-            ? const Icon(Icons.chevron_right_rounded)
-            : null,
+      dense: true,
+      onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
+        color: _journeyAccent(context),
+      ),
+      title: Text(form.title),
+      subtitle: Text(
+        [
+          if (label != null) label,
+          if (form.required) 'Obligatoire',
+          if (deadline != null) 'Avant le $deadline',
+        ].join(' · '),
+      ),
+      trailing: form.detailLink.isNotEmpty
+          ? const Icon(Icons.chevron_right_rounded)
+          : null,
     );
   }
 }
@@ -1816,15 +1857,13 @@ class _ReferenceCard extends StatelessWidget {
       if (state != null) state,
     ].join(' · ');
     return ListTile(
-        dense: true,
-        onTap: onTap,
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(symbol, color: _journeyAccent(context)),
-        title: Text(title),
-        subtitle: subtitle.isEmpty ? null : Text(subtitle),
-        trailing: onTap == null
-            ? null
-            : const Icon(Icons.chevron_right_rounded),
+      dense: true,
+      onTap: onTap,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(symbol, color: _journeyAccent(context)),
+      title: Text(title),
+      subtitle: subtitle.isEmpty ? null : Text(subtitle),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }

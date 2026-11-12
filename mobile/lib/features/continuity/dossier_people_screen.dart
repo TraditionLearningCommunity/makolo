@@ -153,7 +153,9 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
       body: StreamBuilder<OwnerSourceState>(
         key: ValueKey('people-owner:' + identity),
         stream: widget.repository.watchSource(
-          ObjectiveDepth.dossier, widget.id, spaceSlug: slug,
+          ObjectiveDepth.dossier,
+          widget.id,
+          spaceSlug: slug,
         ),
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
@@ -166,7 +168,9 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
           return StreamBuilder<StoredProjection?>(
             key: ValueKey('people-detail:' + identity),
             stream: widget.repository.watch(
-              ObjectiveDepth.dossier, widget.id, spaceSlug: slug,
+              ObjectiveDepth.dossier,
+              widget.id,
+              spaceSlug: slug,
             ),
             builder: (context, snapshot) {
               final data = snapshot.data?.payload;
@@ -180,7 +184,8 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
               final assignments = _items(data['assignments']);
               final mandates = _items(data['mandates']);
               final owner = _object(data['owner']);
-              final title = _object(data['objective'])['title']?.toString() ?? '';
+              final title =
+                  _object(data['objective'])['title']?.toString() ?? '';
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView(
@@ -189,9 +194,8 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 12),
                     ListTile(
@@ -201,7 +205,9 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                             : Icons.person_outline_rounded,
                       ),
                       title: const Text('Porteur du Dossier'),
-                      subtitle: Text(owner['label']?.toString() ?? 'Non précisé'),
+                      subtitle: Text(
+                        owner['label']?.toString() ?? 'Non précisé',
+                      ),
                     ),
                     if (source.lastErrorCode != null || _refreshFailed)
                       const Padding(
@@ -213,9 +219,8 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Coordination',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     if (assignments.isEmpty)
                       const ListTile(
@@ -224,14 +229,15 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                     else
                       for (final item in assignments)
                         _personTile(
-                          item, 'label', 'Responsabilité opérationnelle',
+                          item,
+                          'label',
+                          'Responsabilité opérationnelle',
                         ),
                     const SizedBox(height: 14),
                     Text(
                       'Autorisations',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     if (mandates.isEmpty)
                       const ListTile(

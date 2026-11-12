@@ -407,18 +407,24 @@ class JourneyDetailSelector {
   }
 
   static List<JourneyHistoryEntry> _history(Object? value) {
-    return _maps(value).map((row) {
-      final id = _string(row['id']);
-      final label = _string(row['label']);
-      final state = _string(row['state']);
-      final at = _dateTime(row['at']);
-      if (id == null || label == null || state == null || at == null) {
-        return null;
-      }
-      return JourneyHistoryEntry(
-        id: id, label: label, state: state, at: at,
-      );
-    }).whereType<JourneyHistoryEntry>().toList(growable: false);
+    return _maps(value)
+        .map((row) {
+          final id = _string(row['id']);
+          final label = _string(row['label']);
+          final state = _string(row['state']);
+          final at = _dateTime(row['at']);
+          if (id == null || label == null || state == null || at == null) {
+            return null;
+          }
+          return JourneyHistoryEntry(
+            id: id,
+            label: label,
+            state: state,
+            at: at,
+          );
+        })
+        .whereType<JourneyHistoryEntry>()
+        .toList(growable: false);
   }
 
   static JourneyOrderSummary? _order(Object? value) {

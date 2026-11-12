@@ -249,10 +249,7 @@ class ConversationRepository {
 
   /// Reconcile only the confirmed row, preserving the age of all other data.
   /// An unavailable refresh is not a second or failed owner mutation.
-  Future<void> _forgetConfirmedPendingRow(
-    String section,
-    String id,
-  ) async {
+  Future<void> _forgetConfirmedPendingRow(String section, String id) async {
     try {
       final prior = await readInvitations();
       if (prior == null || prior.payload[section] is! List) return;
