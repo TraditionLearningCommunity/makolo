@@ -1,34 +1,44 @@
 {% extends 'base/app.html' %}{% load services_ui preparation_ui trust_ui spatiotemporal_ui %}{% block title %}{{ journey.activity.title }} | Mes démarches{% endblock %}{% block workspace_layout %}inspect{% endblock %}{% block content %}<style>
 .mk-journey-hero {
-  background: linear-gradient(130deg, #2B176E, #5232DB);
-  color: #FAF7F5;
-  border-radius: 1.1rem;
-  padding: clamp(1.1rem, 4vw, 1.75rem);
+  background: var(--mk-surface-muted);
+  color: var(--mk-text);
+  border: 1px solid var(--mk-border);
+  border-radius: 1rem;
+  padding: clamp(.85rem, 3vw, 1.35rem);
 }
-.mk-journey-hero h1 { color: #FAF7F5; line-height: 1.15; overflow-wrap: anywhere; }
-.mk-journey-hero .mk-kicker { color: #DBD2FF; }
-.mk-journey-hero .mk-badge {
-  background: rgba(250,247,245,0.14);
-  color: #FAF7F5;
-  border: 1px solid rgba(250,247,245,0.24);
-}
-.mk-journey-hero p { color: #EAE4FF; }
-.mk-journey-facts { display:flex; flex-wrap:wrap; align-items:center; gap:.65rem 1.1rem; }
-.mk-journey-facts > span { display:inline-flex; align-items:center; gap:.4rem; }
-.mk-journey-facts [data-lucide] { width:1.1rem; height:1.1rem; flex:none; }
-.mk-journey-day { background:#5232DB; border-radius:.7rem; padding:.5rem .8rem; font-weight:800; }
-.mk-journey-facts a { color:#FAF7F5; }
+.mk-journey-hero h1 { color:var(--mk-text); line-height:1.2; overflow-wrap:anywhere; }
+.mk-journey-hero .mk-kicker { color:var(--mk-muted); }
+.mk-journey-hero .mk-badge { background:var(--mk-surface-solid); color:var(--mk-text); }
+.mk-journey-facts { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem .85rem; }
+.mk-journey-facts > span { display:inline-flex; align-items:center; gap:.35rem; white-space:nowrap; }
+.mk-journey-facts [data-lucide] { width:.95rem; height:.95rem; flex:none; }
+.mk-journey-day { display:inline-flex; align-items:center; border-radius:.65rem;
+ padding:.4rem .65rem; font-size:.85rem; font-weight:700;
+ background:var(--mk-surface-solid); color:var(--mk-text);
+ border:1px solid var(--mk-border-strong); }
+a.mk-journey-day { color:#fff; background:#5232DB; }
+.mk-journey-compact-link { display:inline-flex; align-items:center;
+ justify-content:center; width:2.6rem; height:2.6rem;
+ border-radius:.7rem; border:1px solid var(--mk-border-strong); }
+.mk-journey-compact-link [data-lucide] { width:1.2rem; height:1.2rem; }
+.mk-journey-situation { background:var(--mk-surface-muted);
+ border:1px solid var(--mk-border); border-radius:1rem; padding:1rem; }
 
-</style><div class="mk-deep-workspace mx-auto max-w-3xl space-y-5 pb-10"><div class="flex flex-wrap gap-2"><a href="{% url 'core:participant-journeys' %}" class="mk-action-button" data-variant="ghost">← Mes démarches</a>{% if day_of_url %}<a href="{{ day_of_url }}" class="mk-action-button" data-variant="secondary">Jour J</a>{% endif %}{% if journey.workflow == 'service' %}{% if journey.service_context.service_plan_template %}<a href="{% url 'sharing:journey-reuse' journey.pk %}" class="mk-action-button" data-variant="secondary">Permettre à quelqu’un de repartir de mon parcours</a>{% endif %}{% endif %}</div><section class="mk-panel p-5 sm:p-7" aria-labelledby="journey-readiness-title"><div class="mk-journey-hero"><span class="mk-kicker">Mon objectif</span><h1 id="journey-readiness-title" class="mt-2 text-3xl font-extrabold">{{ journey.activity.title }}</h1>{% if journey.activity.short_description and journey.activity.short_description != journey.activity.title %}<p class="mt-2 text-sm" >{{ journey.activity.short_description }}</p>{% endif %}<div class="mt-4 flex flex-wrap gap-2"><span class="mk-badge">{{ status_label }}</span></div>
+</style><div class="mk-deep-workspace mx-auto max-w-3xl space-y-5 pb-10"><div class="flex flex-wrap gap-2"><a href="{% url 'core:participant-journeys' %}" class="mk-action-button" data-variant="ghost">← Mes démarches</a>{% if journey.workflow == 'service' %}{% if journey.service_context.service_plan_template %}<a href="{% url 'sharing:journey-reuse' journey.pk %}" class="mk-action-button" data-variant="secondary">Permettre à quelqu’un de repartir de mon parcours</a>{% endif %}{% endif %}</div><section aria-labelledby="journey-readiness-title"><div class="mk-journey-hero"><span class="mk-kicker">Mon objectif</span><h1 id="journey-readiness-title" class="mt-1 text-2xl font-extrabold">{{ journey.activity.title }}</h1><div class="mt-3 flex flex-wrap items-center gap-2"><span class="mk-badge">{{ status_label }}</span>
+{% if journey_conversation_available %}<a class="mk-journey-compact-link" href="{% url 'conversations:by-context' 'journey' journey.pk %}" aria-label="Conversation de cette démarche" title="Conversation"><i data-lucide="message-circle" aria-hidden="true"></i></a>{% endif %}
+{% if live_url %}<a class="mk-journey-compact-link" href="{{ live_url }}" aria-label="Ouvrir Makolo Live" title="Makolo Live"><i data-lucide="radio-tower" aria-hidden="true"></i></a>{% endif %}
+{% if journey_day_label %}{% if journey_day_label == 'Jour J' and day_of_url %}<a class="mk-journey-day" href="{{ day_of_url }}">{{ journey_day_label }}</a>{% else %}<span class="mk-journey-day">{{ journey_day_label }}</span>{% endif %}{% endif %}
+</div>
 {% if journey.occurrence %}
 <div class="mk-journey-facts mt-4 pt-4 border-t" style="border-color:rgba(250,247,245,.24)" aria-label="Date et lieu de la démarche">
 {% if journey.occurrence.start_date %}<span><i data-lucide="calendar-days" aria-hidden="true"></i>{{ journey.occurrence.start_date|date:"j M Y" }}</span>{% endif %}
-{% if journey.occurrence.start_time %}<span><i data-lucide="clock-3" aria-hidden="true"></i>{{ journey.occurrence.start_time|time:"H" }}h{{ journey.occurrence.start_time|time:"i" }}</span>{% endif %}
+{% if journey.occurrence.start_time %}<span><i data-lucide="clock-3" aria-hidden="true"></i>{{ journey.occurrence.start_time|time:"H" }}h{{ journey.occurrence.start_time|time:"i" }}{% if journey.occurrence.end_time and journey.occurrence.end_date == journey.occurrence.start_date %}–{{ journey.occurrence.end_time|time:"H" }}h{{ journey.occurrence.end_time|time:"i" }}{% endif %}</span>{% endif %}
 {% if place %}{% if place.name or place.locality %}<span><i data-lucide="map-pin" aria-hidden="true"></i>{% if place.name %}{{ place.name }}{% else %}{{ place.locality }}{% endif %}</span>{% endif %}{% endif %}
-{% if journey_day_label %}<span class="mk-journey-day">{{ journey_day_label }}</span>{% endif %}
 </div>
 {% endif %}
-</div>{% if journey_steps %}<div class="mt-6" aria-labelledby="journey-steps-title"><h2 id="journey-steps-title" class="text-lg font-bold">Où j’en suis</h2><ul class="mt-3 grid gap-2">{% for step in journey_steps %}<li class="flex items-start gap-3 rounded-xl border p-3" style="border-color:var(--mk-border)"><span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border" style="border-color:var(--mk-border)" aria-hidden="true">{% if step.status == 'completed' %}✓{% elif step.status == 'blocked' %}!{% elif step.status == 'in_progress' %}●{% else %}○{% endif %}</span><div class="min-w-0"><p class="font-semibold">{{ step.title }}</p><p class="text-xs" style="color:var(--mk-muted)">{{ step.get_status_display }}</p></div></li>{% endfor %}</ul></div>{% endif %}{% if readiness.next_action %}<div class="mt-5"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Pour avancer</p><p class="mt-1 text-lg font-bold">{{ next_action }}</p>{% if payment_url %}<a href="{{ payment_url }}" class="mk-action-button mt-4" data-variant="primary">Payer</a>{% elif can_respond_invitation %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre réponse à l’invitation est attendue ci-dessous.</p>{% endif %}</div>{% endif %}{% if journey.workflow != 'service' %}{% if mature.blocking_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Ce qui bloque</p>{% for check in mature.blocking_items %}<p class="text-sm font-semibold">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% if mature.action_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">De votre côté</p>{% for check in mature.action_items %}<p class="text-sm font-semibold">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% if mature.waiting_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">En attente</p>{% for check in mature.waiting_items %}<p class="text-sm" style="color:var(--mk-muted)">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% endif %}</section>{% if mature.handoff %}<section class="mk-panel p-5 sm:p-6" aria-labelledby="journey-handoff-title"><span class="mk-kicker">{{ mature.handoff.eyebrow }}</span><h2 id="journey-handoff-title" class="mt-2 text-xl font-extrabold">{{ mature.handoff.label }}</h2>{% if live_url %}<a class="mk-action-button mt-4" data-variant="primary" href="{{ live_url }}">{{ mature.handoff.cta }}</a>{% endif %}</section>{% endif %}{% if journey_additional_address or journey_access_instructions %}<section class="mk-panel p-5 sm:p-6" aria-labelledby="journey-where-extra">
+</div>
+{% if journey.activity.short_description and journey.activity.short_description != journey.activity.title %}<p class="my-4 px-1 text-sm leading-relaxed" style="color:var(--mk-text)">{{ journey.activity.short_description }}</p>{% endif %}
+{% if journey_steps %}<div class="mt-5 mk-journey-situation" aria-labelledby="journey-steps-title"><h2 id="journey-steps-title" class="text-lg font-bold">Où j’en suis</h2><ul class="mt-3 grid gap-2">{% for step in journey_steps %}<li class="flex items-start gap-3 rounded-xl border p-3" style="border-color:var(--mk-border)"><span class="grid h-7 w-7 shrink-0 place-items-center rounded-full border" style="border-color:var(--mk-border)" aria-hidden="true">{% if step.status == 'completed' %}✓{% elif step.status == 'blocked' %}!{% elif step.status == 'in_progress' %}●{% else %}○{% endif %}</span><div class="min-w-0"><p class="font-semibold">{{ step.title }}</p><p class="text-xs" style="color:var(--mk-muted)">{{ step.get_status_display }}</p></div></li>{% endfor %}</ul></div>{% endif %}{% if readiness.next_action %}<div class="mt-5"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Pour avancer</p><p class="mt-1 text-lg font-bold">{{ next_action }}</p>{% if payment_url %}<a href="{{ payment_url }}" class="mk-action-button mt-4" data-variant="primary">Payer</a>{% elif can_respond_invitation %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Votre réponse à l’invitation est attendue ci-dessous.</p>{% endif %}</div>{% endif %}{% if journey.workflow != 'service' %}{% if mature.blocking_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Ce qui bloque</p>{% for check in mature.blocking_items %}<p class="text-sm font-semibold">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% if mature.action_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">De votre côté</p>{% for check in mature.action_items %}<p class="text-sm font-semibold">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% if mature.waiting_items %}<div class="mt-5 space-y-2"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">En attente</p>{% for check in mature.waiting_items %}<p class="text-sm" style="color:var(--mk-muted)">{{ check.summary }}</p>{% endfor %}</div>{% endif %}{% endif %}</section>{% if mature.handoff %}<section class="mk-panel p-5 sm:p-6" aria-labelledby="journey-handoff-title"><span class="mk-kicker">{{ mature.handoff.eyebrow }}</span><h2 id="journey-handoff-title" class="mt-2 text-xl font-extrabold">{{ mature.handoff.label }}</h2>{% if live_url %}<a class="mk-action-button mt-4" data-variant="primary" href="{{ live_url }}">{{ mature.handoff.cta }}</a>{% endif %}</section>{% endif %}{% if journey_additional_address or journey_access_instructions %}<section class="mk-panel p-5 sm:p-6" aria-labelledby="journey-where-extra">
 <h2 id="journey-where-extra" class="font-extrabold">Sur place</h2>
 <div class="mt-3 grid gap-3">
 {% if journey_additional_address %}<div class="flex items-start gap-3"><i data-lucide="map-pin" class="h-5 w-5 shrink-0" aria-hidden="true"></i><p>{{ journey_additional_address }}</p></div>{% endif %}
