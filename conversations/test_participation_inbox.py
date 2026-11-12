@@ -129,6 +129,25 @@ class ParticipationInboxTests(TestCase):
         )
         self.assertEqual(result.status, "rejected")
 
+    def test_changed_contact_policy_withdraws_acceptance_without_erasing_invitation(self):
+        from .contact_models import ProfileContactPolicy, ContactPolicyMode
+        ProfileContactPolicy.objects.create(
+            profile=self.invitee, mode=ContactPolicyMode.CLOSED,
+        )
+        received = self._inbox(self.invitee)
+        self.assertEqual(len(received["results"]), 1)
+        self.assertFalse(received["results"][0]["can_accept"])
+        with self.assertRaises(ValidationError):
+            respond_to_conversation_invitation(
+                actor=self.invitee, invitation=self.invitation, accept=True,
+            )
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, ConversationInvitationStatus.PENDING)
+        declined = respond_to_conversation_invitation(
+            actor=self.invitee, invitation=self.invitation, accept=False,
+        )
+        self.assertEqual(declined.status, ConversationInvitationStatus.DECLINED)
+
     def test_closed_conversation_cannot_admit_late_invitation_or_request(self):
         from .core_models import ConversationLifecycle
         transition_conversation(
