@@ -1,7 +1,10 @@
 from django.urls import path
 
 from .media_views import serve_attachment, serve_inline_attachment
-from .participant_views import ConversationParticipantsWebView, ConversationCollectiveRespondWebView
+from .participant_views import (
+    ConversationParticipantsWebView, ConversationCollectiveRespondWebView,
+    ConversationWithdrawJoinRequestWebView,
+)
 from .views import (
     ConversationDetailView,
     ConversationPointHistoryView,
@@ -31,6 +34,7 @@ urlpatterns = [
     path("<uuid:pk>/", ConversationDetailView.as_view(), name="detail"),
     path("<uuid:pk>/participants/", ConversationParticipantsWebView.as_view(), name="participants"),
     path("collective-invitations/<uuid:access_pk>/respond/", ConversationCollectiveRespondWebView.as_view(), name="collective-respond"),
+    path("join-requests/<uuid:join_request_pk>/withdraw/", ConversationWithdrawJoinRequestWebView.as_view(), name="join-withdraw"),
     path("<uuid:pk>/history/", ConversationPointHistoryView.as_view(), name="history"),
     path("<uuid:pk>/personal-state/", ConversationPersonalStateWebView.as_view(), name="personal-state"),
     path("<uuid:pk>/compose/", ConversationComposeView.as_view(), name="compose"),
