@@ -460,7 +460,13 @@
   for (const opener of root.querySelectorAll('[data-dialog-open]')) {
     opener.addEventListener('click', () => {
       const dialog = document.getElementById(opener.dataset.dialogOpen);
-      if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+      if (dialog && typeof dialog.showModal === 'function') {
+        // People and role management are distinct depths, never two
+        // competing modal surfaces at once.
+        const parent = opener.closest('dialog');
+        if (parent && parent !== dialog && parent.open) parent.close();
+        if (!dialog.open) dialog.showModal();
+      }
     });
   }
   for (const closer of root.querySelectorAll('[data-dialog-close]')) {
