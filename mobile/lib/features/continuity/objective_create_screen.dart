@@ -39,6 +39,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   String? _error;
   String? _confirmedId;
   String? _confirmedSpaceSlug;
+  String? _confirmedKind;
+  ObjectiveRepository? _confirmedRepository;
 
   bool get _isProject => widget.kind == 'project';
   bool get _actorValid {
@@ -157,14 +159,18 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       setState(() => _error = 'La fin ne peut pas précéder le début.');
       return;
     }
+    final submittedKind = widget.kind;
+    final submittedSpaceSlug = widget.spaceActor?.slug;
+    final submittedRepository = widget.repository;
+    final submittedApi = widget.api;
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      final result = await widget.api.post(
-        'api/v1/objectives/${_isProject ? 'projects' : 'dossiers'}/'
-        '${ObjectiveRepository.contextQuery(widget.spaceActor?.slug)}',
+      final result = await submittedApi.post(
+        'api/v1/objectives/${submittedKind == 'project' ? 'projects' : 'dossiers'}/'
+        '${ObjectiveRepository.contextQuery(submittedSpaceSlug)}',
         body: {
           'title': _title.text.trim(),
           'description': _description.text.trim(),
@@ -183,18 +189,20 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       if (mounted) {
         setState(() {
           _confirmedId = id;
-          _confirmedSpaceSlug = widget.spaceActor?.slug;
+          _confirmedSpaceSlug = submittedSpaceSlug;
+          _confirmedKind = submittedKind;
+          _confirmedRepository = submittedRepository;
         });
       }
       // The mutation is confirmed. The parent list is now revalidated.
       try {
-        await widget.repository.refreshOrganizerPage(
+        await submittedRepository.refreshOrganizerPage(
           0,
-          spaceSlug: widget.spaceActor?.slug,
+          spaceSlug: submittedSpaceSlug,
         );
-        if (widget.spaceActor != null) {
+        if (submittedSpaceSlug != null) {
           try {
-            await widget.repository.refreshOrganizerPage(0);
+            await submittedRepository.refreshOrganizerPage(0);
           } on Object {
             // Refreshing Moi is secondary to the confirmed Space creation.
           }
@@ -202,7 +210,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       } on Object {
         // The new detail still opens; the organizer can retry its refresh.
       }
-      if (mounted && _actorValid) widget.onCreated(id);
+      if (mounted &&
+          _actorValid &&
+          widget.kind == submittedKind &&
+          widget.spaceActor?.slug == submittedSpaceSlug &&
+          identical(widget.repository, submittedRepository)) {
+        widget.onCreated(id);
+      }
     } on Object {
       if (mounted) {
         setState(
@@ -267,7 +281,11 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     const SizedBox(height: 18),
                     MakoloActionButton(
                       label: 'Ouvrir la réalisation',
-                      onPressed: !_actorValid || _submitting
+                      onPressed: !_actorValid ||
+                              _submitting ||
+                              widget.kind != _confirmedKind ||
+                              widget.spaceActor?.slug != _confirmedSpaceSlug ||
+                              !identical(widget.repository, _confirmedRepository)
                           ? null
                           : () => widget.onCreated(confirmedId),
                       appearance: MakoloActionAppearance.primary,
