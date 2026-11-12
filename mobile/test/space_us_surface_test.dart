@@ -12,7 +12,9 @@ Map<String, dynamic> _projection({bool limited = false}) => {
     if (!limited) 'location': {'city': 'Lubumbashi', 'country': 'CD'},
   },
   'authority': {'scope': limited ? 'activity_limited' : 'space'},
-  'primary_role': limited ? null : {'code': 'space-admin', 'label': 'Coordination'},
+  'primary_role': limited
+      ? null
+      : {'code': 'space-admin', 'label': 'Coordination'},
   'team': {
     'visibility': limited ? 'restricted' : 'visible',
     'items': limited
@@ -140,7 +142,10 @@ void main() {
       await tester.tap(find.text('Nos démarches'));
       expect(routes.last, '/space/atelier/objectives');
 
-      expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
+      expect(
+        find.byKey(const Key('space-us-entry-relationships')),
+        findsNothing,
+      );
       await tester.tap(find.byKey(const Key('space-us-primary-role')));
       expect(routes.last, '/space/atelier/us/responsibilities');
       await tester.scrollUntilVisible(
@@ -159,7 +164,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('space-us-entry-trust')));
       expect(routes.last, '/space/atelier/us/trust');
-      await tester.ensureVisible(find.byKey(const Key('space-us-edit-passport')));
+      await tester.ensureVisible(
+        find.byKey(const Key('space-us-edit-passport')),
+      );
       await tester.tap(find.byKey(const Key('space-us-edit-passport')));
       expect(routes.last, '/space/atelier/us/settings');
       await tester.scrollUntilVisible(

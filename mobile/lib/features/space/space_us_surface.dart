@@ -265,7 +265,10 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                 : IconButton(
                                     key: const Key('space-us-edit-passport'),
                                     tooltip: 'Modifier notre Passeport',
-                                    icon: Icon(Icons.edit_outlined, color: scheme.primary),
+                                    icon: Icon(
+                                      Icons.edit_outlined,
+                                      color: scheme.primary,
+                                    ),
                                     onPressed: () => open(settingsTarget),
                                   ),
                             leading: Container(
@@ -293,7 +296,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                                 iconAlignment: IconAlignment.end,
                                 icon: const Icon(Icons.chevron_right, size: 18),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
@@ -304,7 +309,8 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                             Divider(height: 1, color: scheme.outlineVariant),
                             const SizedBox(height: 9),
                             if (teamRows.isEmpty &&
-                                _nonNegativeCount(team?['active_members']) == null)
+                                _nonNegativeCount(team?['active_members']) ==
+                                    null)
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton.icon(
@@ -317,24 +323,24 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               )
                             else
                               MakoloMemberAvatarStrip(
-                              members: [
-                                for (final item in teamRows)
-                                  if (_value(_map(item['profile'])?['name'])
-                                      case final memberName?)
-                                    MakoloMemberPreview(
-                                      name: memberName,
-                                      profileId: _value(
-                                        _map(item['profile'])?['id'],
+                                members: [
+                                  for (final item in teamRows)
+                                    if (_value(_map(item['profile'])?['name'])
+                                        case final memberName?)
+                                      MakoloMemberPreview(
+                                        name: memberName,
+                                        profileId: _value(
+                                          _map(item['profile'])?['id'],
+                                        ),
                                       ),
-                                    ),
-                              ],
-                              totalCount: _nonNegativeCount(
-                                team?['active_members'],
+                                ],
+                                totalCount: _nonNegativeCount(
+                                  team?['active_members'],
+                                ),
+                                onOpenProfile: (id) =>
+                                    open('/people/${Uri.encodeComponent(id)}'),
+                                onOpenMembers: () => open(route('team')!),
                               ),
-                              onOpenProfile: (id) =>
-                                  open('/people/${Uri.encodeComponent(id)}'),
-                              onOpenMembers: () => open(route('team')!),
-                            ),
                           ],
                         ],
                       ),
