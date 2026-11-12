@@ -81,7 +81,7 @@ class JourneyComposition {
           p.requirements.isNotEmpty,
       hasDocuments: p.resourcesLink != null &&
           (!resourcesKnown || resourcesCount > 0),
-      hasEngagements: p.payments.isNotEmpty || p.access != null,
+      hasEngagements: p.payments.isNotEmpty || p.order != null || p.access != null,
     );
   }
 }
