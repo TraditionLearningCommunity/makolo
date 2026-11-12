@@ -1548,9 +1548,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           key: const PageStorageKey('conversation-attention-lens'),
           leading: const Icon(Icons.fact_check_outlined),
           title: Text(
-            count > 0
-                ? 'À présent · $count à traiter'
-                : 'À présent · à savoir',
+            count > 0 ? 'À présent · $count à traiter' : 'À présent · à savoir',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -3547,16 +3545,13 @@ class _PointCardState extends State<_PointCard> {
               onPressed: _busy ? null : _respond,
             ),
         ],
-        if ((point.canCloseResponses || point.canResolve) &&
-            !widget.readOnly)
+        if ((point.canCloseResponses || point.canResolve) && !widget.readOnly)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
             child: ExpansionTile(
               key: Key('conversation-point-management-${point.id}'),
               tilePadding: EdgeInsets.zero,
-              childrenPadding: const EdgeInsets.only(
-                bottom: MakoloSpacing.sm,
-              ),
+              childrenPadding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
               title: const Text('Gérer ce Point'),
               leading: const Icon(Icons.tune_rounded, size: 20),
               dense: true,
