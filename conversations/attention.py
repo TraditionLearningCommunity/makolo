@@ -180,7 +180,10 @@ def attention_points_for_profile(profile, *, at=None, limit=100, only_actionable
         return []
     at = at or timezone.now()
     candidates = (
-        ConversationPoint.objects.filter(lifecycle__in=ATTENTION_LIFECYCLES)
+        ConversationPoint.objects.filter(
+            lifecycle__in=ATTENTION_LIFECYCLES,
+            conversation__lifecycle=ConversationLifecycle.OPEN,
+        )
         .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
         .select_related(
             "conversation",
