@@ -1,8 +1,9 @@
 {# Shared canonical Save/owner/Sharing controls; no new authority. #}
   {% if not discovery_space %}
-  <div class="mt-5 grid {% if detail %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Actions pour cette opportunité">
-    <div class="min-w-0">
-      {% if card.actions.save and card.actions.save.url %}
+  {% if not detail or card.actions.save and card.actions.save.url or card.actions.share and card.actions.share.url %}
+  <div class="mt-5 flex flex-wrap gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Actions pour cette opportunité">
+    {% if card.actions.save and card.actions.save.url %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
         {% if request.user.is_authenticated %}
           <form method="post" action="{{ card.actions.save.url }}">
             {% csrf_token %}
@@ -18,19 +19,19 @@
             <span class="sr-only">Enregistrer</span>
           </a>
         {% endif %}
-      {% endif %}
     </div>
+    {% endif %}
     {% if not detail %}
-    <div class="min-w-0">
+    <div class="min-w-0 flex-1" style="min-width:64px">
       {% if card.actions.primary and card.actions.primary.enabled and card.actions.primary.url %}
         <a href="{{ card.actions.primary.url }}" class="mk-action-button min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="primary" aria-label="{% if card.actions.primary.code == 'access' %}{% if card.presentation_kind == 'event' or card.presentation_kind == 'transport' %}Voir mon billet{% elif card.presentation_kind == 'service' %}Voir ma confirmation{% else %}Voir mon accès{% endif %}{% else %}{{ card.actions.primary.label }}{% endif %}"><i data-lucide="{{ card.actions.primary.icon }}" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">{{ card.actions.primary.label }}</span></a>
       {% else %}
-        <a href="{{ card.url }}" class="mk-action-button min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="secondary" aria-label="Voir plus"><i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Voir plus</span></a>
+        <a href="{% if card.n2_url %}{{ card.n2_url }}{% if discovery_space %}&{% else %}?{% endif %}from={{ request.get_full_path|urlencode }}{% else %}{{ card.url }}{% endif %}" class="mk-action-button min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="secondary" aria-label="Voir le détail"><i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Voir plus</span></a>
       {% endif %}
     </div>
     {% endif %}
-    <div class="min-w-0">
-      {% if card.actions.share and card.actions.share.url %}
+    {% if card.actions.share and card.actions.share.url %}
+    <div class="min-w-0 flex-1" style="min-width:64px">
         {% if request.user.is_authenticated %}
           <div data-makolo-share data-create-url="{{ card.actions.share.url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ card.title }}" data-share-text="{{ card.summary|default:'Une opportunité Makolo vous a été partagée.' }}">
             <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
@@ -56,7 +57,8 @@
         {% else %}
           <a href="{% url 'core:login' %}?next={{ request.get_full_path|urlencode }}" class="mk-action-button min-h-[48px] w-full justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="ghost" aria-label="Partager"><i data-lucide="send" class="h-5 w-5 shrink-0" aria-hidden="true"></i><span class="sr-only">Partager</span></a>
         {% endif %}
-      {% endif %}
     </div>
+    {% endif %}
   </div>
+  {% endif %}
   {% endif %}
