@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required as django_login_required
-from django.core.exceptions import ObjectDoesNotExist, ValidationError, SuspiciousOperation
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError, SuspiciousOperation
 from django.http import Http404
 from django.db import transaction
 from django.shortcuts import redirect, render
@@ -105,8 +105,21 @@ def dossier_create(request):
     form = DossierCreateForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         space = fixed_space
-        dossier = create_dossier(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, deadline=form.cleaned_data["deadline"])
-        return _web_redirect(request, "objectives:dossier-detail", dossier_id=dossier.pk)
+        try:
+            dossier = create_dossier(
+                actor=request.user, title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                owner_profile=None if space else request.user,
+                owning_space=space, deadline=form.cleaned_data["deadline"],
+            )
+        except PermissionDenied as exc:
+            # Authority may be revoked between the entry check and the owner
+            # command. Do not render a success or leak an inaccessible Space.
+            raise Http404 from exc
+        except ValidationError as exc:
+            form.add_error(None, exc.messages[0])
+        else:
+            return _web_redirect(request, "objectives:dossier-detail", dossier_id=dossier.pk)
     return render(request, "objectives/dossier_form.html", {
         "form": form, "space_context_label": fixed_space.name if fixed_space else None,
         "scope_query": context.query_suffix(),
@@ -129,8 +142,20 @@ def project_create(request):
     form = ProjectCreateForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         space = fixed_space
-        project = create_project(actor=request.user, title=form.cleaned_data["title"], description=form.cleaned_data["description"], owner_profile=None if space else request.user, owning_space=space, starts_on=form.cleaned_data["starts_on"], ends_on=form.cleaned_data["ends_on"])
-        return _web_redirect(request, "objectives:project-detail", project_id=project.pk)
+        try:
+            project = create_project(
+                actor=request.user, title=form.cleaned_data["title"],
+                description=form.cleaned_data["description"],
+                owner_profile=None if space else request.user,
+                owning_space=space, starts_on=form.cleaned_data["starts_on"],
+                ends_on=form.cleaned_data["ends_on"],
+            )
+        except PermissionDenied as exc:
+            raise Http404 from exc
+        except ValidationError as exc:
+            form.add_error(None, exc.messages[0])
+        else:
+            return _web_redirect(request, "objectives:project-detail", project_id=project.pk)
     return render(request, "objectives/project_form.html", {
         "form": form, "space_context_label": fixed_space.name if fixed_space else None,
         "scope_query": context.query_suffix(),
