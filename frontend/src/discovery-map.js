@@ -67,7 +67,18 @@ function selectResult(id, map, coordinates) {
 
 function showMapFallback() {
   const fallback = document.getElementById('discovery-map-fallback');
+  const container = document.getElementById('discovery-map');
+  const mapButton = document.getElementById('discovery-show-map');
+  const listButton = document.getElementById('discovery-show-list');
+  if (container) container.classList.add('hidden');
   if (fallback) fallback.classList.remove('hidden');
+  if (mapButton) {
+    mapButton.disabled = true;
+    mapButton.setAttribute('aria-disabled', 'true');
+  }
+  if (listButton && window.matchMedia('(max-width: 1023px)').matches) {
+    listButton.click();
+  }
 }
 
 function supportsWebGL2() {
@@ -123,7 +134,10 @@ function buildMap() {
   if (!container) return;
   const items = parseJson('discovery-map-data', []);
   const config = parseJson('discovery-map-config', {});
-  if (!items.length || !config.tile_url) return;
+  if (!items.length || !config.tile_url) {
+    showMapFallback();
+    return;
+  }
   if (!supportsWebGL2()) {
     showMapFallback();
     return;
@@ -168,7 +182,11 @@ function buildMap() {
       attributionControl: true,
     });
     window.__makoloDiscoveryMap = map;
-    map.on('error', showMapFallback);
+    // Tile failures can be transient. Do not disable a usable map because
+    // one raster request failed after the Discovery layer was installed.
+    map.on('error', () => {
+      if (!map.getSource('discovery-results')) showMapFallback();
+    });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     map.on('load', () => {
       const shouldCluster = features.length > 1;
