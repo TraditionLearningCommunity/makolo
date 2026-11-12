@@ -72,7 +72,7 @@ void main() {
     await tester.ensureVisible(find.byType(CircleAvatar).first);
     await tester.tap(find.byType(CircleAvatar).first);
     expect(openedProfile, 'profile-alice');
-    final peopleLink = find.byTooltip('Voir les personnes et responsabilités');
+    final peopleLink = find.text('Personnes et responsabilités');
     await tester.ensureVisible(peopleLink);
     await tester.tap(peopleLink);
     expect(openedPeople, isTrue);
