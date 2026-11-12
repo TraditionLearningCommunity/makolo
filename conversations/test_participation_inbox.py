@@ -158,6 +158,40 @@ class ParticipationInboxTests(TestCase):
         with self.assertRaises(ValidationError):
             join_conversation(actor=self.member, conversation=self.conversation)
 
+    def test_join_requests_expose_handle_not_private_full_name(self):
+        self.member.first_name = "Nom"
+        self.member.last_name = "Confidentiel"
+        self.member.save(update_fields=["first_name", "last_name"])
+        self.client.force_login(self.manager)
+        endpoint = reverse(
+            "conversations-api:join-requests",
+            kwargs={"pk": self.conversation.pk},
+        )
+        response = self.client.get(endpoint)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"][0]["label"], self.member.username)
+        self.assertNotIn("Confidentiel", str(response.json()))
+        page = self.client.get(reverse(
+            "conversations:participants",
+            kwargs={"pk": self.conversation.pk},
+        ))
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, "Nom Confidentiel")
+        self.assertContains(page, "@" + self.member.username)
+
+    def test_inactive_requester_cannot_gain_access_from_pending_decision(self):
+        self.member.is_active = False
+        self.member.save(update_fields=["is_active"])
+        overview = self._inbox(self.manager)
+        self.assertFalse(overview["join_requests_to_decide"][0]["can_approve"])
+        with self.assertRaises(PermissionDenied):
+            respond_to_join_request(
+                actor=self.manager, join_request=self.join_request,
+                approve=True,
+            )
+        self.join_request.refresh_from_db()
+        self.assertEqual(self.join_request.status, "pending")
+
     def test_pending_request_from_other_group_is_not_in_manager_inbox(self):
         other_group = Group.objects.create(
             name="Collectif isolé", owner_profile=self.unrelated,
