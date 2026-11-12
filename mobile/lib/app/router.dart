@@ -342,6 +342,9 @@ GoRouter createMakoloRouter(
         GoRoute(
           path: '/services/:id/start',
           builder: (context, state) => ServiceStartScreen(
+            key: ValueKey(
+              'service-start:${runtime.session?.profileId}:${state.pathParameters['id']}',
+            ),
             runtime: runtime,
             serviceId: state.pathParameters['id']!,
           ),
