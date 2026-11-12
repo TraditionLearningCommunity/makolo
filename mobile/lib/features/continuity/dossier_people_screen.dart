@@ -24,12 +24,14 @@ class DossierPeopleScreen extends StatefulWidget {
     required this.id,
     required this.repository,
     required this.onOpenPerson,
+    this.onOpenMyPassport,
     this.actorContext,
   });
 
   final String id;
   final ObjectiveRepository repository;
   final ValueChanged<String> onOpenPerson;
+  final VoidCallback? onOpenMyPassport;
   final ActorContextController? actorContext;
 
   @override
@@ -121,8 +123,11 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     final id = row['profile_id']?.toString() ?? '';
     // A visible Assignment or Mandate does not open a private Profile.
     // Older cached projections lacking this owner-backed link stay read-only.
+    final isSelf = row['profile_view'] == 'self';
     final canOpen =
-        id.isNotEmpty && (row['profile_url']?.toString() ?? '').isNotEmpty;
+        id.isNotEmpty &&
+        (row['profile_url']?.toString() ?? '').isNotEmpty &&
+        (!isSelf || widget.onOpenMyPassport != null);
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: CircleAvatar(
@@ -135,7 +140,11 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
       title: Text(name),
       subtitle: Text(subtitle),
       trailing: canOpen ? const Icon(Icons.chevron_right_rounded) : null,
-      onTap: canOpen ? () => widget.onOpenPerson(id) : null,
+      onTap: !canOpen
+          ? null
+          : isSelf
+          ? widget.onOpenMyPassport
+          : () => widget.onOpenPerson(id),
     );
   }
 
