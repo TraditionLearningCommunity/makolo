@@ -32,6 +32,9 @@ class ConversationAttachmentViewer extends StatefulWidget {
     this.initialIndex = 0,
     this.downloads = const AndroidDeviceDownloads(),
     this.sharing = const SystemShareGateway(),
+    this.authorizeExport,
+    this.allowDownload = true,
+    this.allowShare = true,
   });
 
   final ConversationRepository? repository;
@@ -42,6 +45,9 @@ class ConversationAttachmentViewer extends StatefulWidget {
   final int initialIndex;
   final DeviceDownloads downloads;
   final ShareGateway sharing;
+  final Future<File> Function(bool share)? authorizeExport;
+  final bool allowDownload;
+  final bool allowShare;
 
   @override
   State<ConversationAttachmentViewer> createState() =>
@@ -181,10 +187,13 @@ class _ConversationAttachmentViewerState
   }
 
   Future<void> _fileAction({required bool share}) async {
-    final file = _file;
+    var file = _file;
     if (file == null || _exporting) return;
+    if (share ? !widget.allowShare : !widget.allowDownload) return;
     setState(() => _exporting = true);
     try {
+      final authorize = widget.authorizeExport;
+      if (authorize != null) file = await authorize(share);
       if (share) {
         await widget.sharing.shareFiles(paths: [file.path]);
       } else {
@@ -215,6 +224,7 @@ class _ConversationAttachmentViewerState
         );
       }
     } finally {
+      if (file != _file && await file.exists()) await file.delete();
       if (mounted) setState(() => _exporting = false);
     }
   }
@@ -375,14 +385,32 @@ class _ConversationAttachmentViewerState
     }
     // DOC/DOCX are offered only to installed native viewers after explicit
     // action. There is no public URL or silent permanent export.
+    if (!widget.allowDownload)
+      return const Text('Aperçu indisponible pour ce format.');
     return Center(
       child: FilledButton.icon(
         onPressed: () async {
-          final result = await OpenFilex.open(file.path);
-          if (result.type != ResultType.done && mounted) {
-            setState(
-              () => _error = 'Aucune application ne peut ouvrir ce document.',
-            );
+          File? authorized;
+          try {
+            authorized = widget.authorizeExport == null
+                ? file
+                : await widget.authorizeExport!(false);
+            final result = await OpenFilex.open(authorized.path);
+            if (result.type != ResultType.done && mounted) {
+              setState(
+                () => _error = 'Aucune application ne peut ouvrir ce document.',
+              );
+            }
+          } on Object {
+            if (mounted)
+              setState(
+                () => _error = 'Ouverture non autorisée ou indisponible.',
+              );
+          } finally {
+            if (authorized != null &&
+                authorized != file &&
+                await authorized.exists())
+              await authorized.delete();
           }
         },
         icon: const Icon(Icons.open_in_new_rounded),
@@ -499,20 +527,22 @@ class _ConversationAttachmentViewerState
                 icon: const Icon(Icons.chevron_right_rounded),
               ),
             ],
-            IconButton(
-              tooltip: 'Télécharger',
-              onPressed: _file == null || _exporting
-                  ? null
-                  : () => _fileAction(share: false),
-              icon: const Icon(Icons.download_outlined),
-            ),
-            IconButton(
-              tooltip: 'Partager le fichier',
-              onPressed: _file == null || _exporting
-                  ? null
-                  : () => _fileAction(share: true),
-              icon: const Icon(Icons.share_outlined),
-            ),
+            if (widget.allowDownload)
+              IconButton(
+                tooltip: 'Télécharger',
+                onPressed: _file == null || _exporting
+                    ? null
+                    : () => _fileAction(share: false),
+                icon: const Icon(Icons.download_outlined),
+              ),
+            if (widget.allowShare)
+              IconButton(
+                tooltip: 'Partager le fichier',
+                onPressed: _file == null || _exporting
+                    ? null
+                    : () => _fileAction(share: true),
+                icon: const Icon(Icons.share_outlined),
+              ),
             IconButton(
               tooltip: 'Fermer',
               onPressed: _exporting ? null : () => Navigator.of(context).pop(),

@@ -445,6 +445,7 @@ class ConversationJoinRequest(models.Model):
 
 
 class ConversationUserState(models.Model):
+    share_read_receipts = models.BooleanField(default=True)
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="user_states")
     profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="conversation_user_states")

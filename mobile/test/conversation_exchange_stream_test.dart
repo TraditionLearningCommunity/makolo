@@ -208,6 +208,92 @@ void main() {
     },
   );
 
+  test('remote search paginates through the owner and context navigation preserves its target', () async {
+    final cursors = <String?>[];
+    final repo = repository((request) async {
+      if (request.url.path.endsWith('/search/')) {
+        final cursor = request.url.queryParameters['cursor'];
+        cursors.add(cursor);
+        return MockResponse(
+          jsonEncode({
+            'viewer_profile_id': 'profile-a',
+            'point_id': 'point-a',
+            'scope': 'scope-a',
+            'results': [
+              message(
+                cursor == null ? 'two' : 'one',
+                cursor == null ? 2 : 1,
+                cursor == null ? 2 : 1,
+              ),
+            ],
+            'next_cursor': cursor == null ? 2 : null,
+          }),
+          200,
+        );
+      }
+      return MockResponse(
+        jsonEncode({
+          'viewer_profile_id': 'profile-a',
+          'point_id': 'point-a',
+          'scope': 'scope-a',
+          'target_id': 'one',
+          'results': [message('one', 1, 1)],
+          'before_sequence': 1,
+          'has_more': false,
+        }),
+        200,
+      );
+    });
+    final first = await repo.searchExchange('point-a', 'Message');
+    await repo.searchExchange(
+      'point-a',
+      'Message',
+      cursor: first['next_cursor'].toString(),
+    );
+    expect(cursors, [null, '2']);
+    final context = await repo.locateExchangeEntry('point-a', 'one');
+    expect(context['target_id'], 'one');
+    expect((await entries.read('point-a')).single['id'], 'one');
+  });
+
+  test(
+    'local search retains useful results when remote acquisition fails',
+    () async {
+      await entries.apply('point-a', [
+        message('one', 1, 1, body: 'Rendez-vous confirmé'),
+      ], nextVersion: 1);
+      final repo = repository(
+        (_) async => const MockResponse('{"detail":"unavailable"}', 503),
+      );
+      expect(await entries.search('point-a', 'Rendez-vous'), hasLength(1));
+      await expectLater(
+        repo.searchExchange('point-a', 'Rendez-vous'),
+        throwsA(isA<MakoloApiError>()),
+      );
+      expect(await entries.search('point-a', 'Rendez-vous'), hasLength(1));
+    },
+  );
+
+  test(
+    'a visible later bubble cannot acknowledge earlier unseen messages',
+    () async {
+      await entries.apply('point-a', [
+        message('one', 1, 1),
+        message('two', 2, 2),
+      ], nextVersion: 2);
+      var posted = false;
+      final repo = repository((request) async {
+        if (request.data != null) posted = true;
+        return const MockResponse(
+          '{"read_sequence":0,"delivered_sequence":2,"entries":[]}',
+          200,
+        );
+      });
+      await repo.markVisibleExchangeRead('point-a', {'two'});
+      expect(posted, false);
+    },
+  );
+
   testWidgets(
     'offline screen renders useful Drift messages with no refresh skeleton',
     (tester) async {

@@ -8,6 +8,7 @@ import '../../network/api_error.dart';
 import '../../data/files/file_transfer_coordinator.dart';
 import 'conversation_local_delivery.dart';
 import 'conversation_media_group.dart';
+import 'conversation_attachment_viewer.dart';
 import 'conversation_media_sheet.dart';
 import 'conversation_repository.dart';
 
@@ -50,6 +51,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
   final _body = TextEditingController();
   final _search = TextEditingController();
   final _scroll = ScrollController();
+  final _viewportKey = GlobalKey();
   List<Map<String, dynamic>> _rows = [];
   List<ConversationOutgoing> _outgoing = [];
   StreamSubscription<List<Map<String, dynamic>>>? _messages;
@@ -74,6 +76,16 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
   bool _foreground = true;
   bool _newMessages = false;
   int _limit = 100;
+  int _searchGeneration = 0;
+  Timer? _searchDebounce;
+  String? _searchCursor;
+  bool _searchBusy = false;
+  String? _searchFreshness;
+  final Map<String, Map<String, dynamic>> _searchRows = {};
+  List<Map<String, dynamic>>? _focusedContext;
+  final Map<String, GlobalKey> _messageKeys = {};
+  String? _highlight;
+  bool _programmaticScroll = false;
 
   String get _draftKind => 'exchange:${widget.pointId}';
   ConversationLocalDelivery? get _delivery => widget.repository.delivery;
@@ -83,9 +95,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _body.addListener(_draftChanged);
-    _search.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _search.addListener(_searchChanged);
     _initialize();
     _restoreDraft();
     _pending = _delivery?.watchOutgoing(widget.conversationId).listen((rows) {
@@ -98,7 +108,19 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       if (_outgoing.any((row) => row.isConfirmed)) unawaited(_refresh());
     });
     _signals = widget.repository.realtime?.signals.listen((signal) {
-      if (!mounted || signal['point_id'] != widget.pointId) return;
+      if (!mounted) return;
+      if (signal['type'] == 'connected') {
+        setState(() => _ephemeral = null);
+        return;
+      }
+      if (signal['type'] == 'transport_unavailable' ||
+          signal['type'] == 'disconnected') {
+        setState(
+          () => _ephemeral = 'Temps réel interrompu · Actualisation périodique',
+        );
+        return;
+      }
+      if (signal['point_id'] != widget.pointId) return;
       if (signal['code'] == 'access_revoked') {
         setState(() {
           _revoked = true;
@@ -236,6 +258,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _searchDebounce?.cancel();
     _poll?.cancel();
     _typingExpiry?.cancel();
     unawaited(_messages?.cancel());
@@ -281,6 +304,19 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       );
       if (!mounted) return;
       setState(() {
+        if (_focusedContext != null) {
+          final merged = {
+            for (final row in [
+              ..._entries(page['results']),
+              ..._focusedContext!,
+            ])
+              row['id']: row,
+          };
+          _focusedContext = merged.values.toList()
+            ..sort(
+              (a, b) => (a['sequence'] as int).compareTo(b['sequence'] as int),
+            );
+        }
         _cursor = page['next_cursor']?.toString();
         _limit += 50;
       });
@@ -481,39 +517,285 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     }
   }
 
+  void _searchChanged() {
+    final query = _search.text.trim();
+    final generation = ++_searchGeneration;
+    _searchDebounce?.cancel();
+    _searchCursor = null;
+    _searchRows.clear();
+    _searchFreshness = null;
+    if (query.isEmpty) {
+      setState(() {});
+      return;
+    }
+    () async {
+      final rows = await widget.repository.exchangeStore.search(
+        widget.pointId,
+        query,
+      );
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        for (final row in rows) _searchRows[row['id'].toString()] = row;
+        _searchFreshness = 'Messages reçus sur cet appareil';
+      });
+    }().catchError((Object error) {
+      if (mounted && generation == _searchGeneration)
+        setState(() => _error = 'Recherche locale indisponible.');
+    });
+    if (query.length >= 2)
+      _searchDebounce = Timer(
+        const Duration(milliseconds: 300),
+        () => _remoteSearch(generation),
+      );
+  }
+
+  Future<void> _remoteSearch(int generation, {bool append = false}) async {
+    if (_searchBusy) return;
+    setState(() => _searchBusy = true);
+    final query = _search.text.trim();
+    try {
+      final page = await widget.repository.searchExchange(
+        widget.pointId,
+        query,
+        cursor: append ? _searchCursor : null,
+      );
+      if (!mounted ||
+          generation != _searchGeneration ||
+          query != _search.text.trim())
+        return;
+      setState(() {
+        if (page['local_scope_changed'] == true) _searchRows.clear();
+        for (final row in _entries(page['results']))
+          _searchRows[row['id'].toString()] = row;
+        _searchCursor = page['next_cursor']?.toString();
+        _searchFreshness = 'Résultats serveur actualisés';
+      });
+    } on MakoloApiError catch (error) {
+      if (mounted && generation == _searchGeneration) {
+        if ({401, 403, 404}.contains(error.statusCode)) {
+          await widget.repository.exchangeStore.revoke(widget.pointId);
+          if (mounted)
+            setState(() {
+              _revoked = true;
+              _rows = [];
+              _searchRows.clear();
+              _focusedContext = null;
+              _error = 'Cette Discussion n’est plus accessible.';
+            });
+        } else
+          setState(
+            () => _searchFreshness =
+                'Réseau indisponible · Résultats locaux conservés',
+          );
+      }
+    } on Object {
+      if (mounted && generation == _searchGeneration)
+        setState(
+          () => _searchFreshness =
+              'Réseau indisponible · Résultats locaux conservés',
+        );
+    } finally {
+      if (mounted) {
+        setState(() => _searchBusy = false);
+        if (generation != _searchGeneration && _search.text.trim().length >= 2)
+          _searchDebounce = Timer(
+            const Duration(milliseconds: 100),
+            () => _remoteSearch(_searchGeneration),
+          );
+      }
+    }
+  }
+
+  Future<void> _jumpEntry(String id) async {
+    final generation = ++_searchGeneration;
+    try {
+      final page = await widget.repository.locateExchangeEntry(
+        widget.pointId,
+        id,
+      );
+      if (!mounted || generation != _searchGeneration) return;
+      _programmaticScroll = true;
+      _search.removeListener(_searchChanged);
+      _search.clear();
+      _search.addListener(_searchChanged);
+      setState(() {
+        _focusedContext = _entries(page['results']);
+        _highlight = id;
+        _cursor = page['has_more'] == true
+            ? page['before_sequence']?.toString()
+            : null;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+      // Context is bounded by the owner to 51 rows. Bring a lazily built
+      // target into the viewport without fetching any unrelated history.
+      for (var attempt = 0; attempt < 55 && mounted; attempt++) {
+        final target = _messageKeys[id]?.currentContext;
+        if (target != null) {
+          await Scrollable.ensureVisible(
+            target,
+            alignment: .45,
+            duration: Duration.zero,
+          );
+          break;
+        }
+        if (!_scroll.hasClients) break;
+        final next = (_scroll.offset + _scroll.position.viewportDimension * .75)
+            .clamp(0.0, _scroll.position.maxScrollExtent)
+            .toDouble();
+        if (next == _scroll.offset) break;
+        _scroll.jumpTo(next);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      if (mounted) setState(() => _newMessages = true);
+    } on Object {
+      if (mounted) setState(() => _error = 'Message indisponible.');
+    } finally {
+      _programmaticScroll = false;
+    }
+  }
+
   Future<void> _openReference(String id) async {
     try {
       final reference = await widget.repository.exchangeReference(id);
       if (!mounted) return;
-      await showDialog<void>(
+      final open = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(reference['label'].toString()),
           content: Text(
             [
-              if (reference['state_label'] != null)
-                reference['state_label'].toString(),
+              reference['description'],
+              reference['state_label'],
+              reference['mode_label'],
               if (reference['version'] != null)
                 'Version ${reference['version']}',
-              if (reference['mode_label'] != null)
-                reference['mode_label'].toString(),
-              if (reference['mime_type'] != null)
-                reference['mime_type'].toString(),
-              if (reference['size'] is int)
-                '${((reference['size'] as int) / 1024).ceil()} Ko',
-            ].join(' · '),
+              reference['mime_type'],
+            ].whereType<String>().join(' · '),
           ),
           actions: [
+            if (reference['view_url'] != null)
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Ouvrir'),
+              ),
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Fermer'),
             ),
           ],
         ),
       );
+      if (open != true || !mounted) return;
+      final mime =
+          reference['mime_type']?.toString() ?? 'application/octet-stream';
+      final ext =
+          {
+            'application/pdf': 'pdf',
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'text/plain': 'txt',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                'docx',
+          }[mime] ??
+          'bin';
+      final filename = '${reference['label']}.$ext';
+      await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        builder: (context) => FractionallySizedBox(
+          heightFactor: .92,
+          child: ConversationAttachmentViewer(
+            attachment: {
+              'id': id,
+              'name': filename,
+              'mime_type': mime,
+              'kind': mime.startsWith('image/') ? 'image' : 'file',
+            },
+            download:
+                ({required String attachmentId, required String filename}) =>
+                    widget.repository.downloadEntryReference(
+                      referenceId: id,
+                      filename: filename,
+                    ),
+            allowDownload: reference['can_download'] == true,
+            allowShare: reference['can_share'] == true,
+            authorizeExport: (share) async {
+              if (reference['export_warning'] == true) {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Confirmer l’export ?'),
+                    content: const Text(
+                      'Ce document peut contenir des données personnelles.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Annuler'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Confirmer'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) throw StateError('Export annulé');
+              }
+              return widget.repository.downloadEntryReference(
+                referenceId: id,
+                filename: filename,
+                mode: share ? 'system_share' : 'download',
+                confirm: true,
+              );
+            },
+          ),
+        ),
+      );
     } on Object {
       if (mounted)
         setState(() => _error = 'Cette référence n’est plus accessible.');
+    }
+  }
+
+  Future<void> _privacy() async {
+    final detail = await widget.repository.readDetail(widget.conversationId);
+    if (!mounted) return;
+    final current =
+        (detail?.payload['personal_state'] as Map?)?['share_read_receipts'] !=
+        false;
+    final selected = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reçus de lecture'),
+        content: Text(
+          current
+              ? 'Vos lectures sont partagées dans cette Conversation.'
+              : 'Vos lectures ne sont pas partagées dans cette Conversation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Conserver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, !current),
+            child: Text(current ? 'Ne plus partager' : 'Partager'),
+          ),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    try {
+      await widget.repository.updatePersonalState(
+        conversationId: widget.conversationId,
+        shareReadReceipts: selected,
+      );
+    } on Object {
+      if (mounted)
+        setState(() => _error = 'Préférence non confirmée. Réessayez.');
     }
   }
 
@@ -545,25 +827,34 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
   Future<void> _markRead() async {
     if (!_foreground ||
         _revoked ||
-        _rows.isEmpty ||
-        !_scroll.hasClients ||
-        _scroll.offset > 24 ||
+        _programmaticScroll ||
         ModalRoute.of(context)?.isCurrent != true)
       return;
+    final viewport = _viewportKey.currentContext?.findRenderObject();
+    if (viewport is! RenderBox) return;
+    final origin = viewport.localToGlobal(Offset.zero);
+    final bounds = origin & viewport.size;
+    final visible = <String>{};
+    for (final entry in _messageKeys.entries) {
+      final node = entry.value.currentContext?.findRenderObject();
+      if (node is! RenderBox || !node.attached) continue;
+      final top = node.localToGlobal(Offset.zero);
+      final box = top & node.size;
+      if (box.top >= bounds.top && box.bottom <= bounds.bottom)
+        visible.add(entry.key);
+    }
     try {
-      await widget.repository.markExchangeRead(
-        widget.pointId,
-        _rows.last['sequence'] as int,
-      );
+      await widget.repository.markVisibleExchangeRead(widget.pointId, visible);
     } on Object {
       if (mounted)
         setState(
-          () => _error = 'Lecture non synchronisée. Elle sera confirmée lors d’une prochaine interaction.',
+          () =>
+              _error = 'Lecture non synchronisée. Vos messages sont conservés.',
         );
     }
   }
 
-  Widget _bubble(Map<String, dynamic> row) {
+  Widget _bubble(Map<String, dynamic> row, {bool showAuthor = true}) {
     final own = row['own'] == true, removed = row['removed'] == true;
     final capabilities = row['capabilities'] as Map? ?? {};
     final quote = row['reply_to'] as Map?;
@@ -595,10 +886,11 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              own ? 'Vous' : author?['label']?.toString() ?? '',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            if (showAuthor)
+              Text(
+                own ? 'Vous' : author?['label']?.toString() ?? '',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
             if (row['represented_space'] case final Map space)
               Text(
                 space['label'].toString(),
@@ -616,12 +908,19 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                     ),
                   ),
                 ),
-                child: Text(
-                  quote['removed'] == true
-                      ? 'Message supprimé'
-                      : quote['body']?.toString() ?? 'Réponse citée',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                child: TextButton(
+                  onPressed: quote['available'] == false
+                      ? null
+                      : () => _jumpEntry(quote['id'].toString()),
+                  child: Text(
+                    quote['available'] == false
+                        ? 'Message indisponible'
+                        : quote['removed'] == true
+                        ? 'Message supprimé'
+                        : quote['body']?.toString() ?? 'Réponse citée',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             SelectableText(
@@ -695,15 +994,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
 
   @override
   Widget build(BuildContext context) {
-    final query = _search.text.toLowerCase().trim();
-    final rows = _rows
-        .where(
-          (row) =>
-              query.isEmpty ||
-              (row['removed'] != true &&
-                  row['body'].toString().toLowerCase().contains(query)),
-        )
-        .toList();
+    final rows = _focusedContext ?? _rows;
     final references = _rows.map((row) => row['client_reference']).toSet();
     final pending = _outgoing
         .where((row) => !references.contains(row.reference))
@@ -723,6 +1014,11 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
             title: Text(widget.title),
             actions: [
               IconButton(
+                tooltip: 'Confidentialité des lectures',
+                onPressed: _privacy,
+                icon: const Icon(Icons.visibility_outlined),
+              ),
+              IconButton(
                 tooltip: 'Actualiser',
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh_rounded),
@@ -736,11 +1032,50 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                 child: TextField(
                   controller: _search,
                   decoration: const InputDecoration(
-                    labelText: 'Rechercher dans les messages reçus',
+                    labelText: 'Rechercher dans les messages',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
               ),
+              if (_search.text.trim().isNotEmpty) ...[
+                if (_searchFreshness != null)
+                  Text(
+                    _searchFreshness!,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                if (_searchBusy) const LinearProgressIndicator(),
+                SizedBox(
+                  height: 180,
+                  child: ListView(
+                    children: [
+                      for (final row
+                          in (_searchRows.values.toList()..sort(
+                            (a, b) => (b['sequence'] as int).compareTo(
+                              a['sequence'] as int,
+                            ),
+                          )))
+                        ListTile(
+                          title: Text(
+                            row['body'].toString(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => _jumpEntry(row['id'].toString()),
+                        ),
+                      if (_searchCursor != null)
+                        TextButton(
+                          onPressed: _searchBusy
+                              ? null
+                              : () => _remoteSearch(
+                                  _searchGeneration,
+                                  append: true,
+                                ),
+                          child: const Text('Résultats suivants'),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               if (_ephemeral != null)
                 Text(
                   _ephemeral!,
@@ -759,8 +1094,10 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
               else
                 Expanded(
                   child: NotificationListener<ScrollNotification>(
+                    key: _viewportKey,
                     onNotification: (notification) {
-                      if (notification is UserScrollNotification)
+                      if (!_programmaticScroll &&
+                          notification is UserScrollNotification)
                         unawaited(_markRead());
                       return false;
                     },
@@ -858,7 +1195,52 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                         : 'Messages précédents',
                                   ),
                                 );
-                        return _bubble(rows[rows.length - 1 - messageIndex]);
+                        final row = rows[rows.length - 1 - messageIndex];
+                        final id = row['id'].toString();
+                        final previous = rows.length - 2 - messageIndex >= 0
+                            ? rows[rows.length - 2 - messageIndex]
+                            : null;
+                        final date = DateTime.tryParse(
+                          row['created_at'].toString(),
+                        )?.toLocal();
+                        final priorDate = previous == null
+                            ? null
+                            : DateTime.tryParse(
+                                previous['created_at'].toString(),
+                              )?.toLocal();
+                        final dayChanged =
+                            priorDate == null ||
+                            date?.day != priorDate.day ||
+                            date?.month != priorDate.month ||
+                            date?.year != priorDate.year;
+                        return Container(
+                          key: _messageKeys.putIfAbsent(id, () => GlobalKey()),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: id == _highlight
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              if (dayChanged && date != null)
+                                Text(
+                                  MaterialLocalizations.of(context)
+                                      .formatMediumDate(date),
+                                ),
+                              _bubble(
+                                row,
+                                showAuthor:
+                                    dayChanged ||
+                                    previous == null ||
+                                    (previous['author'] as Map?)?['id'] !=
+                                        (row['author'] as Map?)?['id'],
+                              ),
+                            ],
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -866,8 +1248,16 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
               if (_newMessages)
                 TextButton(
                   onPressed: () {
-                    _scroll.jumpTo(0);
-                    setState(() => _newMessages = false);
+                    _programmaticScroll = true;
+                    setState(() {
+                      _focusedContext = null;
+                      _newMessages = false;
+                      _highlight = null;
+                    });
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_scroll.hasClients) _scroll.jumpTo(0);
+                      _programmaticScroll = false;
+                    });
                   },
                   child: const Text('Nouveaux messages ↓'),
                 ),

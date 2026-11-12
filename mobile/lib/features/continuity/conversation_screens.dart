@@ -47,7 +47,8 @@ class ConversationListScreen extends StatefulWidget {
   State<ConversationListScreen> createState() => _ConversationListScreenState();
 }
 
-class _ConversationListScreenState extends State<ConversationListScreen> {
+class _ConversationListScreenState extends State<ConversationListScreen>
+    with WidgetsBindingObserver {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
@@ -60,11 +61,23 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.spaceId == null) {
       unawaited(_acquireOrRefresh());
     } else {
       _loadSpaceRows();
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    widget.repository.realtime?.foreground(state == AppLifecycleState.resumed);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void _loadSpaceRows() {
@@ -320,6 +333,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                       ),
                       updatedAt: item.updatedAt,
                       attentionCount: item.attentionCount,
+                      unreadCount: item.unreadCount,
                       onTap: () => widget.onOpen(item.id),
                     ),
                     const Divider(height: 1),
@@ -762,6 +776,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                               .publicContextImageUri(item.contextImageUrl),
                           updatedAt: item.updatedAt,
                           attentionCount: item.attentionCount,
+                          unreadCount: item.unreadCount,
                           archived: _tab == 'archived',
                           onTap: () => _open(item),
                         ),
@@ -3748,6 +3763,7 @@ class _ConversationSummary {
     required this.title,
     required this.lifecycle,
     required this.attentionCount,
+    this.unreadCount = 0,
     required this.allClear,
     this.contextLabel,
     this.purpose,
@@ -3766,6 +3782,7 @@ class _ConversationSummary {
   final String title;
   final String? lifecycle;
   final int attentionCount;
+  final int unreadCount;
   final bool allClear;
   final String? contextLabel;
   final String? purpose;
@@ -3823,7 +3840,11 @@ class _ConversationSummary {
     final title =
         _string(card['title']) ??
         _fallbackTitle(original, contextLabel, contextKind);
+    final last = _map(row['last_message']);
     final preview =
+        (last['removed'] == true
+            ? 'Message supprimé'
+            : _string(last['body'])) ??
         _string(card['preview']) ??
         _string(row['latest_result']) ??
         _string(row['purpose']);
@@ -3840,7 +3861,10 @@ class _ConversationSummary {
       contextLabel: _string(context['label']),
       purpose: _string(row['purpose']),
       latestResult: _string(row['latest_result']),
-      updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
+      unreadCount: row['unread_count'] is int ? row['unread_count'] as int : 0,
+      updatedAt: DateTime.tryParse(
+        _string(last['created_at']) ?? _string(row['updated_at']) ?? '',
+      ),
       matchedPointId: _string(row['matched_point_id']),
       subtitle:
           _string(card['context_label']) ??

@@ -228,9 +228,11 @@ def _serialize_point(point, *, profile, reason=None, section=None):
     }
 
 
-def _serialize_conversation_row(row):
+def _serialize_conversation_row(row, profile=None):
     conversation = row.conversation
+    from .exchange_list_projection import exchange_list_summary
     return {
+        **(exchange_list_summary(profile, conversation) if profile is not None else {}),
         "id": str(conversation.pk),
         "title": conversation.title_override or row.context_label,
         "purpose": conversation.purpose,
@@ -375,7 +377,10 @@ class ConversationListAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin
                 })
                 if len(payload) >= limit:
                     break
-            return Response({"results": payload, "count": len(payload)})
+            from .exchange_list_projection import exchange_list_summary
+            for item in payload:
+                item.update(exchange_list_summary(request.user, Conversation.objects.select_related("context").get(pk=item["id"])))
+            return Response({"viewer_profile_id": str(request.user.pk), "results": payload, "count": len(payload)})
 
         rows = conversation_rows_for_profile(
             request.user,
@@ -386,7 +391,7 @@ class ConversationListAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin
         if updated_after:
             rows = [row for row in rows if row.conversation.updated_at > updated_after]
         rows = rows[:limit]
-        return Response({"results": [_serialize_conversation_row(row) for row in rows], "count": len(rows)})
+        return Response({"viewer_profile_id": str(request.user.pk), "results": [_serialize_conversation_row(row, request.user) for row in rows], "count": len(rows)})
 
 
 class ConversationPointsDepthAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
@@ -513,6 +518,7 @@ class ConversationDetailAPIView(ConversationProfileScopeMixin, PrivateNoStoreMix
             ),
             "composer": composer_capabilities(request.user, conversation),
             "personal_state": {
+                "share_read_receipts": state.share_read_receipts if state else True,
                 "muted": bool(state and state.muted_at),
                 "hidden": bool(state and state.hidden_at),
                 "archived": bool(state and state.archived_at),
@@ -911,7 +917,7 @@ class ConversationPersonalStateAPIView(ConversationProfileScopeMixin, PrivateNoS
 
     def post(self, request, pk):
         conversation = _visible_conversation_or_404(request.user, pk)
-        allowed = {"mute", "hidden", "archived", "pinned", "revisit"}
+        allowed = {"mute", "hidden", "archived", "pinned", "revisit", "share_read_receipts"}
         unknown = set(request.data) - allowed
         if unknown:
             raise DRFValidationError({"detail": "État Conversation inconnu."})
@@ -924,11 +930,13 @@ class ConversationPersonalStateAPIView(ConversationProfileScopeMixin, PrivateNoS
                 archived=request.data.get("archived") if "archived" in request.data else None,
                 pinned=request.data.get("pinned") if "pinned" in request.data else None,
                 revisit=request.data.get("revisit") if "revisit" in request.data else None,
+                share_read_receipts=request.data.get("share_read_receipts"),
             )
         except (ValidationError, PermissionDenied) as exc:
             return _service_error(exc)
         return Response({
             "conversation_id": str(conversation.pk),
+            "share_read_receipts": state.share_read_receipts,
             "muted": bool(state.muted_at),
             "hidden": bool(state.hidden_at),
             "archived": bool(state.archived_at),

@@ -40,6 +40,22 @@ class RealtimeTicketTests(SimpleTestCase):
 @override_settings(CONVERSATIONS_REALTIME_ENABLED=True, ALLOWED_HOSTS=["testserver"],
                    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
 class RealtimeSocketTests(SimpleTestCase):
+    @patch("conversations.consumers.within_budget", return_value=True)
+    @patch("conversations.consumers.consume_ticket", return_value={"profile_id": "owner"})
+    @patch("conversations.consumers.authorize", new_callable=AsyncMock, return_value="owner")
+    @patch("conversations.consumers.authorize_conversation", new_callable=AsyncMock)
+    async def test_conversation_subscription_revalidates_before_disclosure(self, permission, actor, ticket, budget):
+        permission.return_value=True
+        socket=self.communicator();await socket.connect()
+        await socket.send_json_to({"type":"authenticate","ticket":"x"*43});await socket.receive_json_from()
+        conversation_id=str(uuid4())
+        await socket.send_json_to({"type":"subscribe","conversation_id":conversation_id})
+        self.assertEqual((await socket.receive_json_from())["conversation_id"],conversation_id)
+        permission.return_value=False
+        await get_channel_layer().group_send(f"conversation.scope.{conversation_id}",{"type":"conversation.signal","conversation_id":conversation_id})
+        self.assertTrue(await socket.receive_nothing(timeout=.05))
+        await socket.disconnect()
+
     def communicator(self, origin="https://testserver", path="/ws/v1/conversations/"):
         return WebsocketCommunicator(AllowedHostsOriginValidator(URLRouter(websocket_urlpatterns)), path,
                                      headers=[(b"origin", origin.encode())])

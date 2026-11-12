@@ -3,7 +3,7 @@ from .realtime_api import ConversationRealtimeTicketAPIView
 from .entry_api import (ConversationEntrySyncAPIView, ConversationEntryDetailAPIView,
                         ConversationEntryReactionAPIView, ConversationEntrySearchAPIView,
                         ConversationEntryReceiptsAPIView, ConversationEntryMentionCandidatesAPIView,
-                        ConversationEntryReferenceAPIView, ConversationEntryReferenceOptionsAPIView)
+                        ConversationEntryReferenceAPIView, ConversationEntryReferenceOptionsAPIView, ConversationEntryReferenceFileAPIView)
 
 from .api_views import (
     ConversationAttentionPresenceAPIView,
@@ -53,6 +53,7 @@ urlpatterns = [
     path("points/<uuid:point_pk>/mentions/", ConversationEntryMentionCandidatesAPIView.as_view(), name="entry-mentions"),
     path("points/<uuid:point_pk>/references/options/", ConversationEntryReferenceOptionsAPIView.as_view(), name="entry-reference-options"),
     path("references/<uuid:reference_pk>/", ConversationEntryReferenceAPIView.as_view(), name="entry-reference"),
+    path("references/<uuid:reference_pk>/file/", ConversationEntryReferenceFileAPIView.as_view(), name="entry-reference-file"),
     path("entries/<uuid:entry_pk>/", ConversationEntryDetailAPIView.as_view(), name="entry-detail"),
     path("entries/<uuid:entry_pk>/reactions/", ConversationEntryReactionAPIView.as_view(), name="entry-reactions"),
     path("", ConversationListAPIView.as_view(), name="list"),

@@ -156,6 +156,21 @@ class ConversationEntrySyncAPIView(EntryAPIView):
 
 
 class ConversationEntryDetailAPIView(EntryAPIView):
+    @transaction.atomic
+    def get(self, request, entry_pk):
+        target = entry_for(request.user, entry_pk)
+        point = lock_point(target.point_id)
+        rows = entries_for(request.user, point)
+        # Recheck after the Point lock; never fetch surrounding history first.
+        target = get_object_or_404(rows, pk=entry_pk)
+        older = list(projected_rows(rows.filter(sequence__lt=target.sequence)).order_by("-sequence")[:25])
+        newer = list(projected_rows(rows.filter(sequence__gte=target.sequence)).order_by("sequence")[:26])
+        page = list(reversed(older)) + newer
+        return Response({"viewer_profile_id": str(request.user.pk), "point_id": str(point.pk),
+                         "scope": projection_scope(point, request.user), "target_id": str(target.pk),
+                         "results": [project_entry(request.user, row, point=point) for row in page],
+                         "before_sequence": page[0].sequence,
+                         "has_more": rows.filter(sequence__lt=page[0].sequence).exists()})
     def patch(self, request, entry_pk):
         entry = edit_entry(actor=request.user, entry=entry_for(request.user, entry_pk), **validate(EditSerializer, request))
         return Response({**entry_ack(entry, profile=request.user), "entry": project_entry(request.user, entry)})
@@ -186,7 +201,8 @@ class ConversationEntrySearchAPIView(EntryAPIView):
         page = list(projected_rows(rows).order_by("-sequence")[:51])
         more = len(page) > 50
         page = page[:50]
-        return Response({"results": [project_entry(request.user, row, point=point) for row in page],
+        return Response({"viewer_profile_id": str(request.user.pk), "point_id": str(point.pk), "scope": projection_scope(point, request.user),
+                         "results": [project_entry(request.user, row, point=point) for row in page],
                          "next_cursor": page[-1].sequence if more else None})
 
 
@@ -237,6 +253,41 @@ class ConversationEntryReferenceAPIView(EntryAPIView):
         if entry.moderation_state != "visible":
             raise NotFound("Référence inaccessible.")
         return Response(project_reference(request.user, reference))
+
+
+class ConversationEntryReferenceFileAPIView(EntryAPIView):
+    def get(self, request, reference_pk):
+        from django.http import FileResponse, Http404
+        from django.utils.text import slugify
+        from .entry_models import ConversationEntryReference
+        from .reference_services import authorized_target
+        from sharing.document_services import export_decision_for_artifact
+        from journeys.views import EXTENSION_BY_MIME
+        reference = get_object_or_404(ConversationEntryReference, pk=reference_pk)
+        entry = entry_for(request.user, reference.entry_id)
+        if entry.moderation_state != "visible" or not reference.journey_artifact_id:
+            raise NotFound("Référence inaccessible.")
+        artifact = authorized_target(request.user, "journey_artifact", reference.journey_artifact_id)
+        mode = request.query_params.get("mode", "view")
+        if mode not in {"view", "download", "system_share"}:
+            raise serializers.ValidationError("Mode inconnu.")
+        if mode != "view":
+            artifact, decision = export_decision_for_artifact(actor=request.user, artifact_id=artifact.pk, channel=mode)
+            if decision.requires_warning and request.query_params.get("confirm") != "1":
+                return Response({"confirmation_required": True}, status=409)
+        try:
+            handle = artifact.file.open("rb")
+        except (FileNotFoundError, OSError) as exc:
+            raise Http404("Document indisponible.") from exc
+        filename = f"{slugify(artifact.title) or 'document'}-v{artifact.version}{EXTENSION_BY_MIME.get(artifact.mime_type, '')}"
+        safe_inline = artifact.mime_type in {"application/pdf", "image/png", "image/jpeg", "text/plain"}
+        response = FileResponse(handle, as_attachment=mode != "view" or not safe_inline, filename=filename, content_type=artifact.mime_type)
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        if mode != "view":
+            from sharing.analytics import emit_artifact_exported
+            emit_artifact_exported(artifact=artifact, channel=mode)
+        return response
 
 
 class ConversationEntryReferenceOptionsAPIView(EntryAPIView):

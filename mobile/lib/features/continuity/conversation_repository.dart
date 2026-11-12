@@ -93,6 +93,7 @@ class ConversationRepository {
       api: engine.api,
       profileId: profileId,
       onChanged: refreshExchange,
+      onInbox: refreshList,
       onRevoked: exchangeStore.revoke,
     );
   }
@@ -113,9 +114,9 @@ class ConversationRepository {
   Future<void> refreshExchange(String pointId) =>
       _exchangeRefreshes.putIfAbsent(
         pointId,
-        () =>
-            _refreshExchange(pointId)
-                .whenComplete(() => _exchangeRefreshes.remove(pointId)),
+        () => _refreshExchange(pointId).whenComplete(() {
+          _exchangeRefreshes.remove(pointId);
+        }),
       );
 
   Future<void> _refreshExchange(String pointId) async {
@@ -180,13 +181,37 @@ class ConversationRepository {
     }
   }
 
-  Future<void> markExchangeRead(String pointId, int sequence) async {
+  Future<void> markVisibleExchangeRead(
+    String pointId,
+    Set<String> visible,
+  ) async {
+    if (visible.isEmpty) return;
     final engine = sync;
     if (engine == null) return;
+    final state = (await engine.api.get(
+      'api/v1/conversations/points/$pointId/receipts/',
+      headers: {'X-Makolo-Profile': profileId},
+    )).jsonObject();
+    final read = state['read_sequence'];
+    if (read is! int) throw const FormatException('Invalid read watermark');
+    var next = read;
+    for (final row in await exchangeStore.after(pointId, read)) {
+      if (row['own'] != true &&
+          row['removed'] != true &&
+          !visible.contains(row['id']))
+        break;
+      next = row['sequence'] as int;
+    }
+    if (next <= read) return;
+    final newest = await exchangeStore.read(pointId, limit: 1);
+    if (newest.isEmpty) return;
     await engine.api.post(
       'api/v1/conversations/points/$pointId/receipts/',
       headers: {'X-Makolo-Profile': profileId},
-      body: {'delivered_sequence': sequence, 'read_sequence': sequence},
+      body: {
+        'delivered_sequence': newest.last['sequence'],
+        'read_sequence': next,
+      },
     );
   }
 
@@ -273,6 +298,96 @@ class ConversationRepository {
     return result.map((row) => Map<String, dynamic>.from(row as Map)).toList();
   }
 
+  Future<Map<String, dynamic>> locateExchangeEntry(
+    String pointId,
+    String entryId,
+  ) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final page = (await engine.api.get(
+      'api/v1/conversations/entries/$entryId/',
+      headers: {'X-Makolo-Profile': profileId},
+    )).jsonObject();
+    if (page['viewer_profile_id'] != profileId ||
+        page['point_id'] != pointId ||
+        page['target_id'] != entryId ||
+        page['scope'] is! String ||
+        page['results'] is! List)
+      throw const FormatException('Invalid message context');
+    await database.transaction(() async {
+      final prior = await exchangeStore.scope(pointId);
+      if (prior != null && prior != page['scope'])
+        await exchangeStore.revoke(pointId);
+      await exchangeStore.setScope(pointId, page['scope'] as String);
+      await exchangeStore.apply(pointId, _entriesForStore(page['results']));
+    });
+    return page;
+  }
+
+  static List<Map<String, dynamic>> _entriesForStore(Object? value) => [
+    for (final row in value as List) Map<String, dynamic>.from(row as Map),
+  ];
+  Future<Map<String, dynamic>> searchExchange(
+    String pointId,
+    String query, {
+    String? cursor,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final suffix = cursor == null
+        ? ''
+        : '&cursor=${Uri.encodeQueryComponent(cursor)}';
+    final page = (await engine.api.get(
+      'api/v1/conversations/points/$pointId/entries/search/?q=${Uri.encodeQueryComponent(query)}$suffix',
+      headers: {'X-Makolo-Profile': profileId},
+    )).jsonObject();
+    if (page['viewer_profile_id'] != profileId ||
+        page['point_id'] != pointId ||
+        page['scope'] is! String)
+      throw const FormatException('Invalid search scope');
+    final priorScope = await exchangeStore.scope(pointId);
+    if (priorScope != null && priorScope != page['scope']) {
+      await exchangeStore.revoke(pointId);
+      page['local_scope_changed'] = true;
+    }
+    if (page['results'] is! List)
+      throw const FormatException('Invalid owner search');
+    return page;
+  }
+
+  Future<File> downloadEntryReference({
+    required String referenceId,
+    required String filename,
+    String mode = 'view',
+    bool confirm = false,
+  }) async {
+    if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(referenceId) ||
+        !{'view', 'download', 'system_share'}.contains(mode))
+      throw const FormatException('Invalid reference');
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final directory = await NativeDirectories.temporary();
+    final safeProfile = MakoloDatabase.profileDirectoryKey(profileId);
+    final folder = Directory('${directory.path}/conversation-$safeProfile');
+    await folder.create(recursive: true);
+    final ext = filename.split('.').last;
+    final suffix = RegExp(r'^[A-Za-z0-9]{1,9}$').hasMatch(ext) ? ext : 'bin';
+    final file = File(
+      '${folder.path}/$referenceId-${DateTime.now().microsecondsSinceEpoch}.$suffix',
+    );
+    try {
+      await engine.api.download(
+        'api/v1/conversations/references/$referenceId/file/?mode=$mode${confirm ? '&confirm=1' : ''}',
+        destinationPath: file.path,
+        headers: {'X-Makolo-Profile': profileId},
+      );
+      return file;
+    } on Object {
+      if (await file.exists()) await file.delete();
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> exchangeReference(String referenceId) async {
     final engine = sync;
     if (engine == null) throw StateError('Connexion indisponible.');
@@ -296,6 +411,14 @@ class ConversationRepository {
           'Expected Conversations owner collection contract.',
         );
       }
+      if (payload['viewer_profile_id'] != null &&
+          payload['viewer_profile_id'] != profileId)
+        throw const FormatException('Conversations Profile changed');
+      realtime?.conversations(
+        (payload['results'] as List).whereType<Map>().map(
+          (row) => row['id'].toString(),
+        ),
+      );
       return AcquiredProjection(schemaVersion: 1, payload: payload);
     },
     applier: applyProjectionSnapshot,
@@ -371,8 +494,15 @@ class ConversationRepository {
   Future<StoredProjection?> readArchived() =>
       store.readProjection(archivedProjectionKind);
 
-  Stream<StoredProjection?> watchList() =>
-      store.watchProjection(listProjectionKind);
+  Stream<StoredProjection?> watchList() async* {
+    final socket = realtime;
+    socket?.acquireInbox();
+    try {
+      yield* store.watchProjection(listProjectionKind);
+    } finally {
+      socket?.releaseInbox();
+    }
+  }
 
   Future<StoredProjection?> readList() =>
       store.readProjection(listProjectionKind);
@@ -426,7 +556,10 @@ class ConversationRepository {
     sourceKey: 'conversation:$id',
   );
 
-  Future<void> refreshList() async {
+  Future<void>? _listRefresh;
+  Future<void> refreshList() =>
+      _listRefresh ??= _refreshList().whenComplete(() => _listRefresh = null);
+  Future<void> _refreshList() async {
     final engine = sync;
     if (engine == null) {
       throw StateError('Remote Conversations owner is not configured.');
@@ -1390,6 +1523,7 @@ class ConversationRepository {
     bool? archived,
     bool? pinned,
     bool? revisit,
+    bool? shareReadReceipts,
   }) async {
     final engine = sync;
     if (engine == null) {
@@ -1397,7 +1531,9 @@ class ConversationRepository {
     }
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/personal-state/',
+      headers: {'X-Makolo-Profile': profileId},
       body: {
+        if (shareReadReceipts != null) 'share_read_receipts': shareReadReceipts,
         'mute': ?mute,
         'hidden': ?hidden,
         'archived': ?archived,
@@ -1416,6 +1552,7 @@ class ConversationRepository {
           payload: {
             ...prior.payload,
             'personal_state': {
+              'share_read_receipts': confirmed['share_read_receipts'] != false,
               'muted': confirmed['muted'] == true,
               'hidden': confirmed['hidden'] == true,
               'archived': confirmed['archived'] == true,

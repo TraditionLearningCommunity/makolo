@@ -9,6 +9,7 @@ const points = [1,2,3].map(i => `10000000-0000-4000-8000-00000000000${i}`);
 async function messagingOwner(page, { loseFirstAck = false } = {}) {
   const rows = new Map(points.map(point => [point, []]));
   const references = [];
+  const receipts=[];let read=0;
   let revoked = false, lost = false;
   await page.route('**/api/v1/conversations/**', async route => {
     const request = route.request(), url = new URL(request.url());
@@ -20,8 +21,10 @@ async function messagingOwner(page, { loseFirstAck = false } = {}) {
     if (conversationIndex >= 0) return reply({id:ids[conversationIndex],title:`Discussion ${conversationIndex+1}`,
       composer:{exchange_targets:[{id:points[conversationIndex],title:'Coordination'}],media_kinds:[]},points:[],essential:[],elsewhere:[],timeline:[]});
     const point = path.split('/')[1];
+    if(path.startsWith('entries/')&&request.method()==='GET'){const target=[...rows.values()].flat().find(row=>row.id===point);if(!target||revoked)return reply({detail:'inaccessible'},404);return reply({target_id:target.id,point_id:target.point_id,scope:'scope-a',results:rows.get(target.point_id),before_sequence:1,has_more:false});}
+    if(path.endsWith('/entries/search/')){const cursor=Number(url.searchParams.get('cursor')||Infinity),found=rows.get(point).filter(row=>row.sequence<cursor&&row.body.includes(url.searchParams.get('q'))).sort((a,b)=>b.sequence-a.sequence);return reply({results:found.slice(0,50),next_cursor:found.length>50?found[49].sequence:null});}
     if (revoked && path.startsWith('points/')) return reply({detail:'inaccessible'},404);
-    if (path.endsWith('/receipts/')) return reply({delivered_sequence:0,read_sequence:0,entries:[]});
+    if(path.endsWith('/receipts/')){if(request.method()==='POST'){const value=request.postDataJSON();receipts.push(value);read=Math.max(read,value.read_sequence||0);return reply({...value,read_sequence:read});}return reply({delivered_sequence:rows.get(point).length,read_sequence:read,entries:[]});}
     if (path.endsWith('/entries/sync/')) {
       const after = Number(url.searchParams.get('after_version') || 0);
       return reply({scope:'scope-a',point_id:point,stream_version:rows.get(point).length,
@@ -43,7 +46,7 @@ async function messagingOwner(page, { loseFirstAck = false } = {}) {
     }
     return reply({detail:'unexpected test route'},400);
   });
-  return {rows,references,revoke:()=>{revoked=true;}};
+  return {rows,references,receipts,revoke:()=>{revoked=true;}};
 }
 
 async function openDiscussion(page, index=0) {
@@ -104,4 +107,18 @@ test('narrow screens show one active window and stay inside the viewport @mobile
   const windows=page.locator('.mk-messaging-windows .mk-exchange-window');
   await expect(windows.first()).toBeHidden();await expect(windows.last()).toBeVisible();
   const box=await windows.last().boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(390);
+});
+
+
+test('Web delivery requires durable cache and reads require real message interaction',async({page})=>{
+  await login(page,'owner@e2e.makolo.test');
+  await page.evaluate(()=>{Object.defineProperty(navigator.storage,'persisted',{value:async()=>true,configurable:true});});
+  const owner=await messagingOwner(page);
+  owner.rows.get(points[0]).push({id:'30000000-0000-4000-8000-000000000001',point_id:points[0],sequence:1,last_change_version:1,
+    body:'Message entrant',own:false,removed:false,created_at:'2026-11-12T10:00:00Z',author:{id:'peer',label:'Autre personne'},attachments:[],references:[],mentions:[],reactions:[],capabilities:{}});
+  const window=await openDiscussion(page);
+  await expect.poll(()=>owner.receipts.some(r=>r.delivered_sequence===1)).toBe(true);
+  expect(owner.receipts.some(r=>r.read_sequence>0)).toBe(false);
+  await window.locator('.mk-exchange-log').click();
+  await expect.poll(()=>owner.receipts.some(r=>r.read_sequence===1)).toBe(true);
 });

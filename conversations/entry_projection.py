@@ -34,10 +34,12 @@ def project_entry(profile, entry, *, point=None):
     if not removed and entry.reply_to_id:
         target = entries_for(profile, point).filter(pk=entry.reply_to_id).select_related("author").first()
         if target:
-            quote = {"id": str(target.pk), "sequence": target.sequence,
+            quote = {"available": True, "id": str(target.pk), "sequence": target.sequence,
                      "removed": target.moderation_state != "visible",
                      "body": target.body[:160] if target.moderation_state == "visible" else "",
                      "author": target.author.get_full_name() or target.author.username}
+        else:
+            quote = {"available": False, "body": "", "removed": False}
     reactions = []
     if not removed:
         rows = list(entry.reactions.all())
@@ -79,9 +81,10 @@ def project_entry(profile, entry, *, point=None):
                                      point.response_visibility == "point_viewers" or can_manage_conversation(r.profile, point.conversation))]
             point._receipt_projection = cache
         authorized = cache[profile.pk]
+        private = set(point.conversation.user_states.filter(share_read_receipts=False).values_list("profile_id", flat=True))
         result["delivery"] = {
             "delivered_count": sum(r.delivered_sequence >= entry.sequence for r in authorized),
-            "read_count": sum(r.read_sequence >= entry.sequence for r in authorized),
+            "read_count": sum(r.read_sequence >= entry.sequence and r.profile_id not in private for r in authorized),
         }
     return result
 

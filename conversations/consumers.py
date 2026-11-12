@@ -14,9 +14,18 @@ from redis.exceptions import RedisError
 from .point_models import ConversationPoint
 from .point_services import _active_window, point_response_allowed, point_visible_to
 from .realtime_auth import bound_actor, consume_ticket
-from .realtime_events import point_group
+from .realtime_events import point_group, conversation_group, inbox_group
 from .realtime_limits import within_budget
 from .realtime_presence import mark_active
+
+
+@database_sync_to_async
+def authorize_conversation(binding, conversation_id):
+    from .core_models import Conversation
+    from .services import can_view_conversation
+    actor = bound_actor(binding)
+    conversation = Conversation.objects.select_related("context").filter(pk=conversation_id).first()
+    return bool(actor and conversation and can_view_conversation(actor, conversation))
 
 
 @database_sync_to_async
@@ -45,6 +54,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         self.binding = None
         self.authenticated = False
         self.subscriptions = set()
+        self.conversations = set()
+        self.inbox = None
         self.deadline_task = None
         self.started = time.monotonic()
         self.frames = 0
@@ -83,6 +94,15 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     await self.revoke(point_id)
                 else:
                     await self.channel_layer.group_add(point_group(point_id), self.channel_name)
+            if self.inbox:
+                await self.channel_layer.group_add(self.inbox, self.channel_name)
+            for conversation_id in tuple(self.conversations):
+                if await authorize_conversation(self.binding, conversation_id):
+                    await self.channel_layer.group_add(conversation_group(conversation_id), self.channel_name)
+                else:
+                    self.conversations.discard(conversation_id)
+                    await self.channel_layer.group_discard(conversation_group(conversation_id), self.channel_name)
+                    await self.send_frame(type="error", code="access_revoked", conversation_id=conversation_id)
 
     async def disconnect(self, code):
         if self.deadline_task:
@@ -92,6 +112,11 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_discard(point_group(point_id), self.channel_name)
             except (RedisError, OSError):
                 pass  # Membership expires; there is no durable mutation to retry.
+        for group in [*(conversation_group(c) for c in self.conversations), *([self.inbox] if self.inbox else [])]:
+            try:
+                await self.channel_layer.group_discard(group, self.channel_name)
+            except (RedisError, OSError):
+                pass  # Expiring transport membership.
 
     async def send_frame(self, **frame):
         await self.send(text_data=json.dumps(frame))
@@ -129,6 +154,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                     await self.close(code=4401)
                     return
                 self.authenticated = True
+                self.inbox = inbox_group(self.binding["profile_id"])
+                await self.channel_layer.group_add(self.inbox, self.channel_name)
                 await self.send_frame(type="authenticated")
                 return
             if not await authorize(self.binding):
@@ -139,6 +166,22 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 return
             if kind not in {"subscribe", "unsubscribe", "typing", "presence"}:
                 raise ValueError
+            if "conversation_id" in data and "point_id" not in data:
+                conversation_id = str(UUID(str(data["conversation_id"])))
+                if kind == "unsubscribe":
+                    self.conversations.discard(conversation_id)
+                    await self.channel_layer.group_discard(conversation_group(conversation_id), self.channel_name)
+                    return
+                if kind != "subscribe" or not await authorize_conversation(self.binding, conversation_id):
+                    await self.send_frame(type="error", code="inaccessible")
+                    return
+                if len(self.subscriptions) + len(self.conversations) >= settings.CONVERSATIONS_REALTIME_MAX_SUBSCRIPTIONS and conversation_id not in self.conversations:
+                    await self.send_frame(type="error", code="subscription_limit")
+                    return
+                await self.channel_layer.group_add(conversation_group(conversation_id), self.channel_name)
+                self.conversations.add(conversation_id)
+                await self.send_frame(type="subscribed", conversation_id=conversation_id)
+                return
             point_id = str(UUID(str(data.get("point_id"))))
             if kind == "unsubscribe":
                 self.subscriptions.discard(point_id)
@@ -150,7 +193,7 @@ class ConversationConsumer(AsyncWebsocketConsumer):
                 await self.send_frame(type="error", code="inaccessible")
                 return
             if kind == "subscribe":
-                if len(self.subscriptions) >= settings.CONVERSATIONS_REALTIME_MAX_SUBSCRIPTIONS and point_id not in self.subscriptions:
+                if len(self.subscriptions) + len(self.conversations) >= settings.CONVERSATIONS_REALTIME_MAX_SUBSCRIPTIONS and point_id not in self.subscriptions:
                     await self.send_frame(type="error", code="subscription_limit")
                     return
                 await self.channel_layer.group_add(point_group(point_id), self.channel_name)
@@ -180,3 +223,8 @@ class ConversationConsumer(AsyncWebsocketConsumer):
         if ephemeral and not await authorize(self.binding, point_id, ephemeral=True):
             return
         await self.send_frame(**{**{k: v for k, v in event.items() if k not in {"type", "signal"}}, "type": event["signal"]})
+
+    async def conversation_signal(self, event):
+        # Even inbox fanout is merely a candidate set, never an access grant.
+        if await authorize_conversation(self.binding, event["conversation_id"]):
+            await self.send_frame(type="conversation_changed", conversation_id=event["conversation_id"])

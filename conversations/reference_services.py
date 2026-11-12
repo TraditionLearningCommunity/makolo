@@ -58,10 +58,17 @@ def project_reference(actor, reference):
     label = obj.requirement.title if kind == "journey_requirement_assessment" else obj.title
     result = {"id": str(reference.pk), "kind": kind, "label": label, "available": True}
     if kind == "journey_artifact":
-        result["download_url"] = reverse("journeys:artifact-download", kwargs={"artifact_id": obj.pk})
+        from sharing.document_services import can_export_journey_artifact
+        path = reverse("conversations-api:entry-reference-file", kwargs={"reference_pk": reference.pk})
+        result["view_url"] = path
+        result["download_url"] = path + "?mode=download"
+        result["can_download"] = can_export_journey_artifact(actor, obj, "download").allowed
+        result["can_share"] = can_export_journey_artifact(actor, obj, "system_share").allowed
+        result["export_warning"] = can_export_journey_artifact(actor, obj, "download").requires_warning
         result.update(version=obj.version, size=obj.size, mime_type=obj.mime_type, state_label=obj.get_status_display())
     if kind == "requirement_definition":
-        result.update(version=obj.version, mode_label=obj.get_mode_display(), state_label=obj.get_status_display())
+        result.update(version=obj.version, mode_label=obj.get_mode_display(), state_label=obj.get_status_display(),
+                      description=obj.description, mandatory=obj.is_mandatory)
     if kind == "journey_requirement_assessment":
         result["state"] = obj.state
         result["state_label"] = obj.get_state_display()

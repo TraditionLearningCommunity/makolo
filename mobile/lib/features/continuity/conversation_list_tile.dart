@@ -18,6 +18,7 @@ class ConversationListTile extends StatelessWidget {
     this.publicImageUri,
     this.updatedAt,
     this.attentionCount = 0,
+    this.unreadCount = 0,
     this.archived = false,
   });
 
@@ -30,6 +31,7 @@ class ConversationListTile extends StatelessWidget {
   final Uri? publicImageUri;
   final DateTime? updatedAt;
   final int attentionCount;
+  final int unreadCount;
   final bool archived;
   final VoidCallback onTap;
 
@@ -124,6 +126,7 @@ class ConversationListTile extends StatelessWidget {
       title,
       if (detail.isNotEmpty) detail,
       if (attentionCount > 0) '$attentionCount à traiter',
+      if (unreadCount > 0) '$unreadCount messages non lus',
       if (summary.isNotEmpty) summary,
       if (visibleKinds.isNotEmpty)
         'Contenus : ${visibleKinds.map(mediaLabel).join(", ")}',
@@ -237,6 +240,11 @@ class ConversationListTile extends StatelessWidget {
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
+                          ),
+                        if (unreadCount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Badge(label: Text('$unreadCount non lus')),
                           ),
                         if (attentionCount > 0) ...[
                           const SizedBox(height: 8),

@@ -48,6 +48,12 @@ def clean_reference(value, *, required=False):
 
 
 def lock_point(point_id):
+    # The list's existing updated_at ordering must observe new messages, even
+    # in Conversations outside its first page. Match the parent's lifecycle
+    # lock order before touching a child to avoid a close/send inversion.
+    from .core_models import Conversation
+    conversation_id = ConversationPoint.objects.values_list("conversation_id", flat=True).get(pk=point_id)
+    Conversation.objects.select_for_update().get(pk=conversation_id)
     return ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__policy").get(pk=point_id)
 
 
@@ -173,6 +179,8 @@ def send_entry(*, actor, point, body, reply_to=None, represented_space=None, cli
             )
             entry._validated_entry_content = bool(references or uploaded_media)
             entry.save()
+            from .core_models import Conversation
+            Conversation.objects.filter(pk=point.conversation_id).update(updated_at=entry.created_at)
     except IntegrityError as exc:
         raise ExchangeConflict("Cette référence d'envoi est déjà utilisée.") from exc
     ConversationEntryMention.objects.bulk_create([ConversationEntryMention(entry=entry, profile=p) for p in mentions])

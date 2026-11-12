@@ -12,11 +12,18 @@ class ConversationRealtime {
     required this.profileId,
     required this.onChanged,
     required this.onRevoked,
+    this.onInbox,
   });
   final MakoloApiClient api;
   final String profileId;
   final Future<void> Function(String pointId) onChanged;
   final Future<void> Function(String pointId) onRevoked;
+  final Future<void> Function()? onInbox;
+  int _inboxUsers = 0;
+  Timer? _inboxPoll;
+  final Set<String> _conversations = {};
+  List<String> _knownConversations = [];
+  bool get _hasScopes => _points.isNotEmpty || _inboxUsers > 0;
   final _signals = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get signals => _signals.stream;
   final Map<String, int> _points = {};
@@ -33,6 +40,7 @@ class ConversationRealtime {
 
   void acquire(String pointId) {
     _points[pointId] = (_points[pointId] ?? 0) + 1;
+    conversations(_knownConversations);
     if (_authenticated) _send('subscribe', pointId);
     _connect();
   }
@@ -45,7 +53,58 @@ class ConversationRealtime {
     }
     _points.remove(pointId);
     _send('unsubscribe', pointId);
-    if (_points.isEmpty) _stop();
+    if (!_hasScopes)
+      scheduleMicrotask(() {
+        if (!_hasScopes) _stop();
+      });
+  }
+
+  void acquireInbox() {
+    _inboxUsers++;
+    _inboxPoll ??= Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_foreground) unawaited(_refreshInbox());
+    });
+    _connect();
+  }
+
+  void releaseInbox() {
+    if (_inboxUsers > 0) _inboxUsers--;
+    if (_inboxUsers == 0) {
+      _inboxPoll?.cancel();
+      _inboxPoll = null;
+    }
+    if (!_hasScopes)
+      scheduleMicrotask(() {
+        if (!_hasScopes) _stop();
+      });
+  }
+
+  void conversations(Iterable<String> ids) {
+    _knownConversations = ids.toList(growable: false);
+    final desired = _knownConversations
+        .take(max(0, 20 - _points.length))
+        .toSet();
+    for (final id in _conversations.difference(desired))
+      _sendConversation('unsubscribe', id);
+    for (final id in desired.difference(_conversations))
+      _sendConversation('subscribe', id);
+    _conversations
+      ..clear()
+      ..addAll(desired);
+  }
+
+  void _sendConversation(String type, String id) {
+    if (_authenticated && _socket?.readyState == WebSocket.open)
+      _socket!.add(jsonEncode({'type': type, 'conversation_id': id}));
+  }
+
+  Future<void> _refreshInbox() async {
+    if (_disposed || !_foreground) return;
+    try {
+      await onInbox?.call();
+    } on Object {
+      if (!_disposed) _signals.add({'type': 'sync_unavailable'});
+    }
   }
 
   void _send(String type, [String? pointId]) {
@@ -80,7 +139,7 @@ class ConversationRealtime {
   Future<void> _connect() async {
     if (_disposed ||
         !_foreground ||
-        _points.isEmpty ||
+        !_hasScopes ||
         _connecting ||
         _socket != null)
       return;
@@ -115,7 +174,7 @@ class ConversationRealtime {
       if (_disposed ||
           generation != _generation ||
           !_foreground ||
-          _points.isEmpty) {
+          !_hasScopes) {
         await socket.close();
         return;
       }
@@ -123,19 +182,35 @@ class ConversationRealtime {
       socket.add(
         jsonEncode({'type': 'authenticate', 'ticket': ticket['ticket']}),
       );
+      void lost() {
+        if (generation == _generation && identical(_socket, socket)) _lost();
+      }
+
       _subscription = socket.listen(
         (dynamic raw) {
-          if (raw is! String) return;
+          if (_disposed ||
+              generation != _generation ||
+              !identical(_socket, socket) ||
+              raw is! String)
+            return;
           try {
             final value = jsonDecode(raw);
             if (value is! Map<String, dynamic>) return;
             if (value['type'] == 'authenticated') {
               _authenticated = true;
+              _signals.add({'type': 'connected'});
+              for (final id in _conversations)
+                _sendConversation('subscribe', id);
+              unawaited(_refreshInbox());
               _attempt = 0;
               for (final point in _points.keys) {
                 _send('subscribe', point);
                 unawaited(_refresh(point));
               }
+            }
+            if (value['type'] == 'conversation_changed') {
+              unawaited(_refreshInbox());
+              _signals.add(value);
             }
             final point = value['point_id'];
             if (point is String && _points.containsKey(point)) {
@@ -151,9 +226,9 @@ class ConversationRealtime {
           }
         },
         onError: (Object error) {
-          _lost();
+          lost();
         },
-        onDone: _lost,
+        onDone: lost,
         cancelOnError: true,
       );
       _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
@@ -165,10 +240,17 @@ class ConversationRealtime {
       _schedule();
     } finally {
       _connecting = false;
+      if (!_disposed &&
+          _foreground &&
+          _hasScopes &&
+          _socket == null &&
+          _retry?.isActive != true)
+        _schedule();
     }
   }
 
   void _lost() {
+    if (!_disposed) _signals.add({'type': 'disconnected'});
     _authenticated = false;
     _socket = null;
     _heartbeat?.cancel();
@@ -177,7 +259,7 @@ class ConversationRealtime {
 
   void _schedule() {
     _retry?.cancel();
-    if (_disposed || !_foreground || _points.isEmpty) return;
+    if (_disposed || !_foreground || !_hasScopes) return;
     final seconds = min(60, pow(2, min(_attempt++, 6)).toInt());
     _retry = Timer(
       Duration(
@@ -200,6 +282,7 @@ class ConversationRealtime {
   }
 
   Future<void> dispose() async {
+    _inboxPoll?.cancel();
     _disposed = true;
     _points.clear();
     _stop();

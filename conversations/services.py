@@ -665,12 +665,16 @@ def join_conversation(*, actor, conversation: Conversation):
 
 @transaction.atomic
 def update_personal_conversation_state(
-    *, actor, conversation: Conversation, opened=False, mute=None, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None
+    *, actor, conversation: Conversation, opened=False, mute=None, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None, share_read_receipts=None
 ) -> ConversationUserState:
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Cette Conversation n’est pas accessible.")
     state, _ = ConversationUserState.objects.select_for_update().get_or_create(conversation=conversation, profile=actor)
     now = timezone.now()
+    if share_read_receipts is not None:
+        if type(share_read_receipts) is not bool:
+            raise ValidationError("Préférence de lecture invalide.")
+        state.share_read_receipts = share_read_receipts
     if opened:
         state.last_opened_at = now
     if mute is True:

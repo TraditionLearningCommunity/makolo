@@ -19,6 +19,49 @@ class ConversationEntryStore {
   final ProfileStore store;
   final String profileId;
 
+  Future<List<Map<String, dynamic>>> search(
+    String pointId,
+    String query,
+  ) async {
+    final rows = await database
+        .customSelect(
+          "SELECT payload_json FROM projection_snapshots WHERE profile_id=? AND projection_kind=? "
+          "AND json_extract(payload_json,'\$.point_id')=? AND json_extract(payload_json,'\$.removed')=0 "
+          "AND instr(lower(json_extract(payload_json,'\$.body')),lower(?))>0 "
+          "ORDER BY json_extract(payload_json,'\$.sequence') DESC LIMIT 100",
+          variables: [
+            Variable.withString(profileId),
+            Variable.withString(kind),
+            Variable.withString(pointId),
+            Variable.withString(query),
+          ],
+          readsFrom: {database.projectionSnapshots},
+        )
+        .get();
+    return _decode(rows);
+  }
+
+  Future<List<Map<String, dynamic>>> after(String pointId, int sequence) async {
+    final rows = await database
+        .customSelect(
+          "SELECT payload_json FROM projection_snapshots WHERE profile_id=? AND projection_kind=? "
+          "AND json_extract(payload_json,'\$.point_id')=? AND json_extract(payload_json,'\$.sequence')>? "
+          "ORDER BY json_extract(payload_json,'\$.sequence') LIMIT 200",
+          variables: [
+            Variable.withString(profileId),
+            Variable.withString(kind),
+            Variable.withString(pointId),
+            Variable.withInt(sequence),
+          ],
+          readsFrom: {database.projectionSnapshots},
+        )
+        .get();
+    return [
+      for (final row in rows)
+        jsonDecode(row.read<String>('payload_json')) as Map<String, dynamic>,
+    ];
+  }
+
   Selectable<QueryRow> _query(
     String pointId, {
     int limit = 100,
