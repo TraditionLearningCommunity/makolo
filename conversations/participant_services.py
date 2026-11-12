@@ -106,6 +106,10 @@ def invitation_accept_allowed(actor, invitation):
         or (invitation.expires_at and invitation.expires_at <= timezone.now())
         or not invitation.created_by.is_active
         or not can_manage_conversation(invitation.created_by, conversation)
+        or (invitation.represented_space_id and not can(
+            actor, PermissionCode.SPACE_CONVERSATIONS_PUBLISH,
+            space=invitation.represented_space,
+        ))
     ):
         return False
     try:
