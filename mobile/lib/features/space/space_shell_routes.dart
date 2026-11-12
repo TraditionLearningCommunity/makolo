@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -233,13 +234,8 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     projection,
                     now: DateTime.now(),
                   );
-            if (freshness == FreshnessState.expired &&
-                widget.surface != SpaceShellSurface.us) {
-              return MakoloErrorState(
-                message: 'Ces informations ne sont plus à jour.',
-                onRetry: _refresh,
-              );
-            }
+            // Stale locally acquired facts remain readable. Freshness is a
+            // presentation cue, not evidence of withdrawn permission.
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -250,24 +246,6 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                   MakoloFreshnessNotice(
                     freshness: const ProjectionSurfaceAdapter().freshnessCue(
                       freshness,
-                    ),
-                  ),
-                if (status.data?.lastErrorCode != null && projection == null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Impossible d’afficher les informations.',
-                          ),
-                        ),
-                        MakoloActionButton(
-                          label: 'Réessayer',
-                          onPressed: _refresh,
-                          appearance: MakoloActionAppearance.quiet,
-                        ),
-                      ],
                     ),
                   ),
                 Expanded(
@@ -310,7 +288,7 @@ class _SpaceProjectionBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final payload = projection?.payload;
     if (payload == null) {
-      return _message('Cette vue n’est pas disponible pour le moment.');
+      return _initialStructure(context);
     }
 
     return switch (surface) {
@@ -435,6 +413,33 @@ class _SpaceProjectionBody extends StatelessWidget {
   String? _text(Object? value) {
     if (value is! String || value.trim().isEmpty) return null;
     return value.trim();
+  }
+
+  Widget _initialStructure(BuildContext context) {
+    // The screen's composition is known even when the owner has never
+    // provided this Space's content. Do not invent rows, counts or authority.
+    final sections = switch (surface) {
+      SpaceShellSurface.now => const ['Now'],
+      SpaceShellSurface.discover => const ['Découvrir'],
+      SpaceShellSurface.work => const ['Métier'],
+      SpaceShellSurface.us => const [
+        'Notre Passeport',
+        'Nos démarches',
+        'Notre espace',
+      ],
+    };
+    return ListView(
+      key: Key('space-initial-structure-${surface.name}'),
+      padding: const EdgeInsets.all(MakoloSpacing.lg),
+      children: [
+        for (final title in sections) ...[
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: MakoloSpacing.sm),
+          const MakoloCard(child: MakoloSkeleton(lines: 3)),
+          const SizedBox(height: MakoloSpacing.md),
+        ],
+      ],
+    );
   }
 
   Widget _message(String message) => ListView(
