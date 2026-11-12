@@ -3,6 +3,62 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/occurrence/occurrence_experience_content.dart';
 
 void main() {
+  testWidgets('Jour J can open owner-protected QR depth offline', (
+    tester,
+  ) async {
+    String? openedAccess;
+    String? openedPath;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OccurrenceExperienceContent(
+            payload: const {
+              'surface': 'day_of',
+              'phase': 'arrival',
+              'context': {
+                'activity': {'title': 'Formation'},
+                'occurrence': {'label': 'Session'},
+              },
+              'live': {'available': false},
+              'sections': {
+                'participant': {
+                  'access': [
+                    {
+                      'identity': {'id': 'access-1'},
+                      'state': 'valid',
+                      'usable': true,
+                      'credential': {'presentable': true},
+                      'links': {
+                        'credential': '/api/v1/me/accesses/access-1/credential/',
+                      },
+                    },
+                  ],
+                  'queue': [],
+                  'placement': [],
+                },
+              },
+              'actions': [],
+              'capabilities': {},
+            },
+            live: false,
+            remoteActionsAvailable: false,
+            readOnlyReason: 'Dernière information connue.',
+            onPresentCredential: (accessId, credentialPath) {
+              openedAccess = accessId;
+              openedPath = credentialPath;
+            },
+          ),
+        ),
+      ),
+    );
+    final button = find.widgetWithText(FilledButton, 'Présenter mon accès');
+    await tester.ensureVisible(button);
+    expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+    await tester.tap(button);
+    expect(openedAccess, 'access-1');
+    expect(openedPath, '/api/v1/me/accesses/access-1/credential/');
+  });
+
   testWidgets('Jour J can show participant and organizer moves together', (
     tester,
   ) async {
