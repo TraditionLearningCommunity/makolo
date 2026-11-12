@@ -535,8 +535,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Confirmer cette modification ?'),
         content: const Text(
-          'Les droits de participation sont recalculés côté serveur. '
-          'Un accès issu du contexte peut continuer d’exister.',
+          'Retirer cette personne de la conversation ?'
         ),
         actions: [
           TextButton(
@@ -609,7 +608,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         if (sheetContext.mounted) {
           refresh(
             () => decisionError =
-                'Décision non confirmée. Actualisez avant de réessayer.',
+                'Décision non confirmée.',
           );
         }
       } finally {
@@ -762,7 +761,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         else ...[
           if (people.isEmpty)
             const ListTile(
-              title: Text('Aucune participation explicite à afficher'),
+              title: Text('Aucun participant ajouté'),
             ),
           for (final member in people)
             ListTile(
@@ -777,7 +776,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               ),
               trailing: manage && member['participation_id'] != null
                   ? IconButton(
-                      tooltip: 'Retirer cette participation explicite',
+                      tooltip: 'Retirer cette personne',
                       onPressed: _busy != null
                           ? null
                           : () => _manageParticipant(
@@ -795,8 +794,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             leading: const Icon(Icons.groups_outlined),
             title: Text(derived['label']?.toString() ?? 'Groupe'),
             subtitle: Text(
-              'Accès dérivé du Groupe · ${derived['identifier'] ?? ''}. '
-              'Il ne crée aucune participation explicite.',
+              'Via le groupe · ${derived['identifier'] ?? ''}'
             ),
           ),
         ],
@@ -893,7 +891,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       if (mounted) setState(() => _busy = null);
                     }
                   },
-            child: const Text('Quitter ma participation explicite'),
+            child: const Text('Quitter la conversation'),
           ),
         ],
         if (_error != null)
