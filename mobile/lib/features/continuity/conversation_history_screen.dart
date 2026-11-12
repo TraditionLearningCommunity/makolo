@@ -424,8 +424,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
                 Text('Points accessibles', style: themed.textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(
-                  'Les plus anciens en haut · les Points terminés se déplient '
-                  'pour retrouver leurs détails.',
+                  'Retrouvez les informations et décisions passées.',
                   style: themed.textTheme.bodySmall,
                 ),
                 const SizedBox(height: 10),
