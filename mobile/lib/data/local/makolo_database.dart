@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../files/profile_paths.dart';
 import 'tables.dart';
+import 'encrypted_profile_database.dart';
 
 part 'makolo_database.g.dart';
 
@@ -32,10 +33,12 @@ class MakoloDatabase extends _$MakoloDatabase {
     final safeProfile = profileDirectoryKey(profileId);
     final directory = Directory('${base.path}/profiles/$safeProfile');
     await directory.create(recursive: true);
+    final encrypted = await EncryptedProfileDatabase.prepare(
+      profileId: profileId,
+      directory: directory,
+    );
     return MakoloDatabase(
-      NativeDatabase.createInBackground(
-        File('${directory.path}/makolo.sqlite'),
-      ),
+      NativeDatabase.createInBackground(encrypted.file, setup: encrypted.setup),
     );
   }
 

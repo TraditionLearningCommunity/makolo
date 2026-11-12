@@ -35,21 +35,23 @@ Prévoir une fenêtre de maintenance sans écritures Exchange pour la bascule. S
 
 Le temps réel est désactivé par défaut. Pour l’activer, fournir une vraie `CONVERSATIONS_REDIS_URL`, un `CONVERSATIONS_REDIS_PREFIX` propre au déploiement et `CONVERSATIONS_REALTIME_ENABLED=true`. Aucun fournisseur ni hôte de production n’est présumé. Servir l’application ASGI derrière la terminaison HTTPS/WSS et les origines/hôtes autorisés existants. Une panne du transport ne doit pas bloquer les mutations REST ; les clients ouverts tentent aussi le rattrapage REST toutes les 20 secondes au premier plan.
 
-Le cache Flutter existant reste une base SQLite applicative ; aucun chiffrement SQLCipher, chiffrement intégral des drafts/outbox ou chiffrement de bout en bout n’est revendiqué par cette intervention.
+La continuation configure SQLite3MultipleCiphers pour la base Flutter, incluant les drafts/outbox qu’elle contient. Le binaire natif doit être reconstruit avec les hooks déclarés ; une bibliothèque SQLite sans chiffrement est refusée en release. Les clés ne sont ni exportées ni recréées lorsque la base chiffrée existe sans clé accessible. Configuration fondée sur les [instructions Drift](https://drift.simonbinder.eu/platforms/encryption/) et les [hooks sqlite3](https://pub.dev/documentation/sqlite3/latest/topics/hook-topic.html).
 
-## Éléments encore incomplets
+## Reliquats du commit f7ee18ba8 — raccordements de continuation
 
-Les lots R0–R7 ont des modifications concrètes, mais le périmètre industriel complet du prompt **n’est pas fermé** :
+Les reliquats identifiés ont maintenant les raccordements suivants dans le code ; leur recette reste à exécuter par le propriétaire :
 
-- R0/R6 : abonnement temps réel par Conversation et rafraîchissement global des Discussions non ouvertes ; les abonnements actuels ciblent les Points ouverts.
-- R2/R6 : rejoindre une citation située hors de l’historique actuellement chargé.
-- R3/R6 : pagination des résultats de recherche dans les interfaces et recherche serveur Flutter ; Flutter propose actuellement la recherche dans les messages déjà reçus.
-- R4 : le Web affiche les reçus réellement acquis par les appareils, mais n’émet pas d’ACK « livré » depuis un cache Web durable. Il ne prétend donc pas avoir persisté/reçu durablement un message sur cet appareil.
-- R5 : parcours natif complet de consultation/export d’un JourneyArtifact référencé ; le client affiche les métadonnées autorisées. Aucun export propriétaire n’est contourné.
-- R6 : virtualisation Web des très grands historiques, approfondissement du regroupement/date et de la navigation tactile/clavier, Hover Cards et recette visuelle/accessibilité complète.
-- R7 : stratégie de chiffrement des caches sensibles au repos et son déploiement ; validation opérationnelle complète des nouveaux chemins.
+- Abonnements Conversation, invalidations d’inbox candidates par Profile puis revalidation avant émission, dernière entrée visible et non-lus dérivés des reçus ; listes Web/panneau/Flutter actualisées et rattrapage périodique REST. Un seul adaptateur/socket par repository ou shell, avec leases et protection des reconnexions.
+- Recherche ciblée d’une Entry autorisée avant acquisition de son contexte historique borné ; navigation, ancrage et mise en évidence Web/Flutter ; tombstones et placeholder sans identifiant pour les citations désormais inaccessibles.
+- Recherche immédiate Drift, recherche serveur et pagination dédupliquée Flutter ; pagination et navigation vers les résultats Web. Une erreur réseau conserve les résultats locaux ; une révocation connue les masque.
+- Pages IndexedDB transactionnelles, contrôle du stockage persistant avant ACK de livraison Web et lecture uniquement après interaction réelle sur un préfixe effectivement visible. Aucun ACK depuis un preload, une fenêtre réduite ou une navigation programmatique. Préférence de partage des lectures dans `ConversationUserState`, consultable/modifiable depuis les deux clients.
+- Références consultables depuis les deux clients ; fichier JourneyArtifact servi sous les ACL de l’Entry et du propriétaire. Export/partage vérifiés à nouveau via le service Sharing propriétaire et confirmation explicite quand requise. Les viewers natifs ne réutilisent jamais une ancienne autorisation d’export.
+- Fenêtres agrandissables, réduction/restauration avec scroll conservé, brouillons/fichiers séparés par Point, historique Web à fenêtre DOM bornée et hauteurs mesurées, regroupements/date, filtres, menus et cartes d’information accessibles au focus/tactile.
+- SQLite chiffré via le moteur natif SQLite3MultipleCiphers supporté par Drift/sqlite3, clé aléatoire par Profile dans Keystore/Keychain, contrôle du moteur en release, migration en arrière-plan. La source est conservée jusqu’à réouverture chiffrée et comparaison logique exacte ; clés indisponibles ou copies divergentes bloquent l’ouverture sans remplacer les données. Les journaux et copies dérivées sont nettoyés seulement après les contrôles appropriés. Les fichiers médias existants restent à leurs emplacements privés et ne sont pas supprimés par la migration SQLite. Aucun E2EE ni chiffrement applicatif des fichiers médias externes à SQLite n’est revendiqué.
 
-Ces manques ne sont pas masqués par des capacités simulées et ne doivent pas être déclarés livrés.
+Migration Django additive supplémentaire : `0012_read_receipt_privacy`. Pas de nouvelle migration du schéma Drift : chiffrement du fichier existant et conservation de ses données/schemaVersion.
+
+Les essais de migration native réelle, clés verrouillées/restaurées, multi-workers Redis/PostgreSQL, écran/appareil, accessibilité et performances restent **non exécutés**. Aucune fermeture de ces gates n’est revendiquée sur la seule base du code ou du formatter.
 
 ## Vérifications effectuées et limites
 
@@ -68,7 +70,8 @@ python -m pip install -r requirements.txt
 python manage.py makemigrations --check --dry-run
 python manage.py migrate --plan
 python manage.py migrate
-python manage.py test conversations.test_exchange_stream conversations.test_realtime_transport conversations.test_exchange_migration
+python manage.py collectstatic --noinput
+python manage.py test conversations.test_exchange_stream conversations.test_exchange_continuity conversations.test_realtime_transport conversations.test_exchange_migration
 python manage.py test conversations notifications
 ```
 
@@ -76,9 +79,11 @@ Les tests de concurrence nécessitent PostgreSQL. Prévoir aussi une recette ave
 
 ```bash
 cd mobile
+flutter pub get
 bash tool/dart_format.sh write
 bash tool/dart_format.sh check
-flutter test test/conversation_exchange_stream_test.dart test/conversation_local_delivery_test.dart
+flutter test test/conversation_exchange_stream_test.dart test/conversation_local_delivery_test.dart test/encrypted_profile_database_test.dart
+flutter build apk --debug
 ```
 
 Depuis la racine avec les dépendances E2E habituelles :
@@ -87,4 +92,4 @@ Depuis la racine avec les dépendances E2E habituelles :
 npm run test:e2e -- e2e/specs/conversations-messaging.spec.mjs
 ```
 
-Ne pas intégrer avant traitement des manques et des résultats de ces gates.
+Le build natif est obligatoire pour embarquer le moteur de chiffrement ; ne pas distribuer une mise à jour Dart seule. Valider une mise à niveau sur une copie représentative de bases existantes et les cas de clé indisponible avant intégration. Ces commandes ne sont pas exécutées par l’agent.
