@@ -976,7 +976,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                       'avatar_url': owner['avatar_url'],
                       'profile_view': owner['profile_view'],
                       'profile_id': owner['id'],
-                    })
+                    }, interactive: false)
                   : const Icon(Icons.groups_2_outlined),
               title: Text(_text(
                 owner['kind'] == 'space' ? owner['label'] : owner['holder'],
@@ -1002,7 +1002,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             for (final member in members)
               ListTile(
-                leading: _projectAvatar(member),
+                leading: _projectAvatar(member, interactive: false),
                 title: Text(_text(member['label'])),
                 subtitle: Text(_text(member['role'])),
                 onTap: _canOpenProjectPerson(member)
@@ -1051,7 +1051,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             for (final contributor in contributors)
               ListTile(
-                leading: _projectAvatar(contributor),
+                leading: _projectAvatar(contributor, interactive: false),
                 title: Text(_text(contributor['label'])),
                 subtitle: const Text('Intervention visible'),
                 onTap: _canOpenProjectPerson(contributor)
@@ -1113,7 +1113,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     return NetworkImage(uri.toString());
   }
 
-  Widget _projectAvatar(Map<String, dynamic> person) {
+  Widget _projectAvatar(Map<String, dynamic> person, {bool interactive = true}) {
     final label = _text(person['label']);
     final image = _projectPhoto(person);
     final scheme = Theme.of(context).colorScheme;
@@ -1133,9 +1133,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           : null,
     );
     return Tooltip(
-      message: _canOpenProjectPerson(person)
+      message: interactive && _canOpenProjectPerson(person)
           ? 'Voir le Profil de $label' : label,
-      child: _canOpenProjectPerson(person)
+      child: interactive && _canOpenProjectPerson(person)
           ? Semantics(
               button: true, label: 'Voir le Profil de $label',
               child: InkWell(
