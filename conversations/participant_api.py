@@ -242,7 +242,9 @@ class ConversationJoinRequestsAPIView(PrivateNoStoreMixin, views.APIView):
             "results": [
                 {
                     "id": str(item.pk), "identifier": item.requester.username,
-                    "label": item.requester.full_name or item.requester.username,
+                    # The requester intentionally supplies her Makolo handle;
+                    # a private full name is not implied by the join request.
+                    "label": item.requester.username,
                     "status": item.status,
                 }
                 for item in qs
