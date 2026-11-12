@@ -39,7 +39,7 @@ void main() {
       db.execute("INSERT INTO outbox VALUES ('intent','reference-stable')");
       db.execute('PRAGMA user_version = 2');
     } finally {
-      db.dispose();
+      db.close();
     }
   }
 
@@ -65,7 +65,7 @@ void main() {
       );
       expect(db.userVersion, 2);
     } finally {
-      db.dispose();
+      db.close();
     }
     expect(await File('${directory.path}/makolo.sqlite').exists(), false);
     expect(await File('${encrypted.file.path}.encrypting').exists(), false);
@@ -126,7 +126,7 @@ void main() {
         encrypted.setup(db);
         expect(db.select('SELECT * FROM outbox'), hasLength(1));
       } finally {
-        db.dispose();
+        db.close();
       }
     },
   );
