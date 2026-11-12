@@ -53,6 +53,10 @@ void main() {
     );
     final button = find.widgetWithText(FilledButton, 'Présenter mon accès');
     await tester.ensureVisible(button);
+    expect(
+      find.text('Mon accès · Valide à la dernière vérification'),
+      findsOneWidget,
+    );
     expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
     await tester.tap(button);
     expect(openedAccess, 'access-1');
