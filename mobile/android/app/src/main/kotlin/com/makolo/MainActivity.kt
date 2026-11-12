@@ -1,5 +1,11 @@
 package com.makolo
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import java.util.Locale
 import android.content.ContentValues
 import android.content.Intent
 import android.app.NotificationChannel
@@ -21,10 +27,13 @@ class MainActivity : FlutterFragmentActivity() {
         private const val SHARE_CHANNEL = "makolo/native_share"
         private const val DOWNLOAD_CHANNEL = "makolo/downloads"
         private const val DEVICE_CHANNEL = "makolo/device"
+        private const val SPEECH_CHANNEL = "makolo/native_dictation"
         private const val ALERT_CHANNEL = "makolo_alerts"
     }
 
     private var shareChannel: MethodChannel? = null
+    private var speechChannel: MethodChannel? = null
+    private var speechRecognizer: SpeechRecognizer? = null
     private var pendingShare: Map<String, Any?>? = null
     private var launchReady = false
     private var removeNativeSplash: (() -> Unit)? = null
@@ -81,6 +90,27 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         }
+        speechChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger, SPEECH_CHANNEL
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "available" -> result.success(
+                        SpeechRecognizer.isRecognitionAvailable(this)
+                    )
+                    "start" -> startNativeDictation(result)
+                    "stop" -> {
+                        speechRecognizer?.stopListening()
+                        result.success(null)
+                    }
+                    "cancel" -> {
+                        releaseNativeDictation()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEVICE_CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method == "name") {
@@ -117,6 +147,92 @@ class MainActivity : FlutterFragmentActivity() {
         } else {
             channel.invokeMethod("shareReceived", payload)
         }
+    }
+
+    private fun speechEvent(type: String, value: String? = null) {
+        val payload = mutableMapOf<String, Any>("type" to type)
+        if (value != null) payload["text"] = value
+        speechChannel?.invokeMethod("speechEvent", payload)
+    }
+
+    private fun releaseNativeDictation() {
+        val active = speechRecognizer
+        speechRecognizer = null
+        try {
+            active?.cancel()
+            active?.destroy()
+        } catch (_: Exception) {
+            // The Android recognizer may have been released by the OS.
+        }
+    }
+
+    private fun startNativeDictation(result: MethodChannel.Result) {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            result.error("not_available", "No system speech recognition capability.", null)
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            result.error("permission_denied", "Microphone permission required.", null)
+            return
+        }
+        if (speechRecognizer != null) {
+            result.error("already_listening", "Recognition is already running.", null)
+            return
+        }
+        try {
+            val recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+            speechRecognizer = recognizer
+            recognizer.setRecognitionListener(object : RecognitionListener {
+                override fun onReadyForSpeech(params: Bundle?) {
+                    speechEvent("listening")
+                }
+                override fun onBeginningOfSpeech() {}
+                override fun onRmsChanged(rmsdB: Float) {}
+                override fun onBufferReceived(buffer: ByteArray?) {}
+                override fun onEndOfSpeech() {
+                    speechEvent("processing")
+                }
+                override fun onError(error: Int) {
+                    speechEvent("error", error.toString())
+                    releaseNativeDictation()
+                }
+                override fun onResults(results: Bundle?) {
+                    val words = results?.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    )?.firstOrNull().orEmpty()
+                    speechEvent(if (words.isBlank()) "empty" else "final", words)
+                    releaseNativeDictation()
+                }
+                override fun onPartialResults(partialResults: Bundle?) {
+                    val words = partialResults?.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    )?.firstOrNull()
+                    if (!words.isNullOrBlank()) speechEvent("partial", words)
+                }
+                override fun onEvent(eventType: Int, params: Bundle?) {}
+            })
+            val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                )
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            }
+            recognizer.startListening(speechIntent)
+            result.success(null)
+        } catch (_: Exception) {
+            releaseNativeDictation()
+            result.error("start_failed", "System speech recognition could not start.", null)
+        }
+    }
+
+    override fun onDestroy() {
+        releaseNativeDictation()
+        speechChannel?.setMethodCallHandler(null)
+        speechChannel = null
+        super.onDestroy()
     }
 
     private fun parseShareIntent(intent: Intent?): Map<String, Any?>? {
