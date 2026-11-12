@@ -86,6 +86,7 @@ class ConversationOutgoing {
   final String body;
   final DateTime observedAt;
   final String state;
+
   /// The owner outbox will retry this exact idempotent intent in foreground.
   final bool retryScheduled;
   final String? remotePointId;
@@ -514,7 +515,8 @@ class ConversationLocalDelivery {
       body: payload['body']?.toString() ?? '',
       observedAt: row.observedAt,
       state: row.state,
-      retryScheduled: row.state == OutboxState.failed.wireValue &&
+      retryScheduled:
+          row.state == OutboxState.failed.wireValue &&
           OutboxRepository.retryableErrorCodes.contains(row.lastErrorCode),
       mediaKind: payload['media_kind']?.toString(),
       filename: payload['filename']?.toString(),

@@ -2125,8 +2125,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       'confirmed' => ('Envoyé', Icons.check_rounded),
       'queued' => ('En attente', Icons.schedule_rounded),
       'in_flight' => ('Envoi en cours', Icons.schedule_rounded),
-      'failed' when intent.retryScheduled =>
-        ('En attente de reprise', Icons.schedule_rounded),
+      'failed' when intent.retryScheduled => (
+        'En attente de reprise',
+        Icons.schedule_rounded,
+      ),
       'failed' => ('Non envoyé', Icons.error_outline_rounded),
       'conflict' => ('Non envoyé · à vérifier', Icons.error_outline_rounded),
       _ => ('En attente de confirmation', Icons.help_outline_rounded),
