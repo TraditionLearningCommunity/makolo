@@ -36,7 +36,7 @@
             <div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)">
                 <label for="discover-query" class="sr-only">{% if discovery_space %}Que pourrions-nous découvrir ?{% else %}Qu’avez-vous envie de vivre, faire ou obtenir ?{% endif %}</label>
                 <div class="relative">
-                    <i data-lucide="sparkles" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-brand)"></i>
+                    <i data-lucide="search" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-brand)"></i>
                     <input id="discover-query" name="q" value="{{ discovery_intent.raw_text|default:'' }}" maxlength="120" placeholder="{% if discovery_space %}Ex. Participer à un programme à Kolwezi{% else %}Ex. Je veux voyager à Kolwezi demain matin{% endif %}" class="!min-h-[50px] !pl-12" autocomplete="off">
                 </div>
                 <div class="flex items-end"><button class="mk-action-button min-h-[50px] w-full justify-center px-6" data-variant="primary" type="submit"><i data-lucide="arrow-right" class="h-4 w-4"></i>Découvrir</button></div>
@@ -94,11 +94,11 @@
                 {% endif %}
             {% endfor %}
             <button type="submit" class="mk-action-button" data-variant="secondary">
-                <i data-lucide="sparkles" class="h-4 w-4" aria-hidden="true"></i>
-                Clarifier cette recherche
+                <i data-lucide="sliders-horizontal" class="h-4 w-4" aria-hidden="true"></i>
+                Affiner la recherche
             </button>
             <span class="text-xs" style="color:var(--mk-muted)">
-                Des frais peuvent s’appliquer selon votre service connecté.
+                Frais possibles selon le service connecté.
             </span>
         </form>
         <form method="post" action="{% url 'discovery:research' %}" class="mt-2 flex flex-wrap items-center gap-3">
@@ -106,10 +106,10 @@
             <input type="hidden" name="q" value="{{ discovery_intent.raw_text }}">
             <button type="submit" class="mk-action-button" data-variant="ghost">
                 <i data-lucide="book-open" class="h-4 w-4" aria-hidden="true"></i>
-                Chercher des sources externes
+                Explorer d’autres sources
             </button>
             <span class="text-xs" style="color:var(--mk-muted)">
-                Sources externes non vérifiées. Des frais peuvent s’appliquer selon votre service connecté.
+                Sources externes à confirmer · frais possibles.
             </span>
             <a href="{% url 'core:participant-connections' %}" class="text-xs underline" style="color:var(--mk-brand)">Gérer mes connexions</a>
         </form>
