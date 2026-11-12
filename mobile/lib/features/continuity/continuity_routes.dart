@@ -227,6 +227,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         actorContext: runtime.actorContext,
         onOpenPerson: (id) =>
             context.push('/people/${Uri.encodeComponent(id)}'),
+        onOpenMyPassport: () => context.push('/me/passport'),
       );
     },
   ),
@@ -264,6 +265,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
             context.push('/spaces/${Uri.encodeComponent(slug)}'),
         onOpenPerson: (id) =>
             context.push('/people/${Uri.encodeComponent(id)}'),
+        onOpenMyPassport: () => context.push('/me/passport'),
         onOpenPeople: () => context.push(
           '/dossiers/${Uri.encodeComponent(state.pathParameters['id']!)}/people',
         ),
