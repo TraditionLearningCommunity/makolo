@@ -261,3 +261,24 @@ class MaturePersonalExperienceTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertEqual(route.call_args.kwargs["input_kind"], "text")
             self.assertEqual(route.call_args.kwargs["context"], {})
+
+    def test_mark_web_preserves_selected_context_without_client_authority(self):
+        response = self.client.get(
+            reverse("core:makolo-mark"),
+            {"selected_kind": "journey", "selected_id": "owned-journey-id",
+             "permission": "space.manage", "is_admin": "true"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-clear-selection')
+        self.assertContains(response, 'name="selected_kind" value="journey"')
+        self.assertContains(response, 'name="selected_id" value="owned-journey-id"')
+        self.assertNotContains(response, 'name="permission"')
+        self.assertNotContains(response, 'name="is_admin"')
+
+    def test_mark_web_rejects_incomplete_untrusted_selected_context(self):
+        response = self.client.get(
+            reverse("core:makolo-mark"),
+            {"selected_kind": "discovery_item", "selected_id": "some-id"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-mk-mark-clear-selection')
