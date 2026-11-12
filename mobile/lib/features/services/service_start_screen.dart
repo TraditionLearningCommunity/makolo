@@ -111,7 +111,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       final results = choices is Map ? choices['results'] : null;
       setState(() {
         final title = representation is Map ? representation['title'] : null;
-        final summary = representation is Map ? representation['summary'] : null;
+        final summary = representation is Map
+            ? representation['summary']
+            : null;
         _serviceTitle = title is String && title.trim().isNotEmpty
             ? title.trim()
             : null;
@@ -158,8 +160,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error =
-              'Impossible de rechercher les opportunités disponibles.',
+          () =>
+              _error = 'Impossible de rechercher les opportunités disponibles.',
         );
       }
     } finally {

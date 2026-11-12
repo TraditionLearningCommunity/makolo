@@ -182,10 +182,7 @@ void main() {
       schemaVersion: 1,
       payload: {
         ..._payload('Demander une bourse'),
-        'service_result': {
-          'code': 'under_review',
-          'label': 'En revue',
-        },
+        'service_result': {'code': 'under_review', 'label': 'En revue'},
       },
     );
     final repository = JourneyRepository(
