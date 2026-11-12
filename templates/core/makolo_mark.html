@@ -19,6 +19,18 @@
     {% csrf_token %}
     <label for="mark-intent" class="sr-only">Votre demande</label>
     <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
+    {% if mark_selected %}
+    <div class="mk-mark-selected" data-mk-mark-selected>
+      <span>Élément déjà sélectionné pour cette demande</span>
+      <input type="hidden" name="selected_kind" value="{{ mark_selected.kind }}">
+      <input type="hidden" name="selected_id" value="{{ mark_selected.id }}">
+      {% if mark_selected.family %}
+      <input type="hidden" name="selected_family" value="{{ mark_selected.family }}">
+      {% endif %}
+      <button type="button" class="mk-action-button" data-variant="secondary"
+        data-mk-mark-clear-selection>Retirer cet élément</button>
+    </div>
+    {% endif %>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
     {% include 'partials/mark_input_tools.html' with mark_scope='personal' %}
     <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
