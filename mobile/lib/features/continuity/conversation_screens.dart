@@ -1278,7 +1278,7 @@ class _ConversationInvitationCardState
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-          if (!widget.invitation.canAccept && !widget.invitation.collective)
+          if (!widget.invitation.canAccept)
             const Padding(
               padding: EdgeInsets.only(top: MakoloSpacing.xs),
               child: Text(
@@ -4311,6 +4311,7 @@ class _ConversationInvitation {
           label: _string(row['label']),
           identifier: _string(row['identifier']),
           invitedBy: _string(row['invited_by']),
+          canAccept: row['can_accept'] != false,
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
           createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
