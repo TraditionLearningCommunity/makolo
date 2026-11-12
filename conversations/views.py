@@ -91,7 +91,7 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                     conversation__lifecycle="open",
                 ).filter(
                     Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
-                ).select_related("conversation")
+                ).select_related("conversation", "created_by")
                 .order_by("created_at", "id")[:50]
             )
         context.update(
