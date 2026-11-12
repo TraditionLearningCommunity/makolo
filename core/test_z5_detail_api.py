@@ -126,6 +126,11 @@ class Z5DetailAPIContractTests(TestCase):
         initial = self.client.get(url)
         self.assertEqual(initial.status_code, 200)
         self.assertIsNone(initial.json()["data"]["service_result"])
+        self.assertEqual(
+            initial.json()["data"]["service_request"]["objective"],
+            "Faire examiner mon dossier",
+        )
+        self.assertIsNone(initial.json()["data"]["service_request"]["opportunity"])
 
         ServiceJourneyContext.objects.filter(journey=journey).update(
             current_outcome=ServiceCurrentOutcome.UNDER_REVIEW,
