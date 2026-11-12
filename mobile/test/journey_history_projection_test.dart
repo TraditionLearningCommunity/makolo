@@ -34,6 +34,46 @@ void main() {
     expect(view.isTerminal, isFalse);
   });
 
+  test('Service request keeps its personal objective and pinned Opportunity', () {
+    final projection = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'service-pinned-opportunity',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 13),
+      payload: const {
+        'identity': {'workflow': 'service'},
+        'representation': {'title': 'Candidature accompagnée'},
+        'state': {'code': 'draft', 'label': 'En préparation'},
+        'readiness': {
+          'state': 'waiting',
+          'ready': [],
+          'actor_interventions': [],
+          'waiting': [],
+          'blockers': [],
+        },
+        'service_request': {
+          'objective': 'Obtenir un financement pour mes études',
+          'opportunity': {
+            'id': 'opportunity-1',
+            'title': 'Bourse 2026',
+            'issuer': 'Institut de formation',
+            'publication_state': 'withdrawn',
+          },
+        },
+      },
+    );
+    final view = const JourneyDetailSelector().select(
+      projection: projection,
+      source: JourneySourceState.unknown,
+      now: DateTime.utc(2026, 11, 13),
+    );
+    expect(view.serviceRequest?.objective,
+        'Obtenir un financement pour mes études');
+    expect(view.serviceRequest?.opportunityTitle, 'Bourse 2026');
+    expect(view.serviceRequest?.opportunityPublicationState, 'withdrawn');
+    expect(view.journeyState, 'En préparation');
+  });
+
   test('Journey N3 uses only owner history labels and dates', () {
     final projection = StoredProjection(
       kind: JourneyRepository.projectionKind,
