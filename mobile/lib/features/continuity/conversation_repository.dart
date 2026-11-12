@@ -247,6 +247,35 @@ class ConversationRepository {
     await engine.refreshSource(invitationsSource());
   }
 
+  /// Reconcile only the confirmed row, preserving the age of all other data.
+  /// An unavailable refresh is not a second or failed owner mutation.
+  Future<void> _forgetConfirmedPendingRow(
+    String section,
+    String id,
+  ) async {
+    try {
+      final prior = await readInvitations();
+      if (prior == null || prior.payload[section] is! List) return;
+      final rows = (prior.payload[section] as List)
+          .where((row) => row is Map && row['id']?.toString() != id)
+          .toList(growable: false);
+      await store.putProjection(
+        kind: invitationsProjectionKind,
+        schemaVersion: prior.schemaVersion,
+        payload: {
+          ...prior.payload,
+          section: rows,
+          if (section == 'results') 'count': rows.length,
+        },
+        receivedAt: prior.receivedAt,
+        freshnessPolicyId: invitationsFreshness.id,
+        expiresAt: prior.expiresAt,
+      );
+    } on Object {
+      // The confirmed decision still belongs to the server.
+    }
+  }
+
   Future<void> refreshDetail(String id, {String? focusPointId}) async {
     final engine = sync;
     if (engine == null) {
@@ -936,10 +965,26 @@ class ConversationRepository {
     final response = await engine.api.post(
       'api/v1/conversations/$conversationId/$route',
     );
-    if (response.jsonObject()['status'] == null) {
+    final payload = response.jsonObject();
+    final expected = switch (operation) {
+      'remove' => 'removed',
+      'cancel' => 'cancelled',
+      'revoke' => 'revoked',
+      _ => '',
+    };
+    if (payload['id']?.toString() != resourceId ||
+        payload['status'] != expected) {
       throw const FormatException(
         'Modification de participation non confirmée.',
       );
+    }
+    if (operation == 'cancel' || operation == 'revoke') {
+      await _forgetConfirmedPendingRow('sent_results', resourceId);
+      try {
+        await refreshInvitations();
+      } on Object {
+        // Keep the confirmed row removal until the next acquisition.
+      }
     }
     try {
       await refreshDetail(conversationId);
@@ -958,9 +1003,12 @@ class ConversationRepository {
       'api/v1/conversations/collective-invitations/$accessId/respond/',
       body: {'decision': accept ? 'accept' : 'decline'},
     );
-    if (response.jsonObject()['status'] == null) {
+    final payload = response.jsonObject();
+    if (payload['id']?.toString() != accessId ||
+        payload['status'] != (accept ? 'active' : 'declined')) {
       throw const FormatException('Décision non confirmée.');
     }
+    await _forgetConfirmedPendingRow('collective_results', accessId);
     try {
       await refreshInvitations();
     } on Object {
@@ -984,8 +1032,16 @@ class ConversationRepository {
       'api/v1/conversations/$conversationId/join-requests/$requestId/decide/',
       body: {'decision': approve ? 'approve' : 'reject'},
     );
-    if (response.jsonObject()['status'] == null) {
+    final payload = response.jsonObject();
+    if (payload['id']?.toString() != requestId ||
+        payload['status'] != (approve ? 'approved' : 'rejected')) {
       throw const FormatException('Décision non confirmée.');
+    }
+    await _forgetConfirmedPendingRow('join_requests_to_decide', requestId);
+    try {
+      await refreshInvitations();
+    } on Object {
+      // Keep the owner-confirmed decision until refresh resumes.
     }
     try {
       await refreshDetail(conversationId);
@@ -1047,31 +1103,11 @@ class ConversationRepository {
       body: {'decision': accept ? 'accept' : 'decline'},
     );
     final payload = response.jsonObject();
-    try {
-      final prior = await readInvitations();
-      if (prior != null && payload['status'] != 'pending') {
-        final entries = (prior.payload['results'] as List? ?? [])
-            .where(
-              (entry) =>
-                  entry is Map && entry['id']?.toString() != invitationId,
-            )
-            .toList(growable: false);
-        await store.putProjection(
-          kind: invitationsProjectionKind,
-          schemaVersion: prior.schemaVersion,
-          payload: {
-            ...prior.payload,
-            'results': entries,
-            'count': entries.length,
-          },
-          receivedAt: DateTime.now().toUtc(),
-          freshnessPolicyId: invitationsFreshness.id,
-          expiresAt: prior.expiresAt,
-        );
-      }
-    } on Object {
-      // A failed optional local projection update never negates an owner ACK.
+    if (payload['id']?.toString() != invitationId ||
+        payload['status'] != (accept ? 'accepted' : 'declined')) {
+      throw const FormatException('Décision non confirmée.');
     }
+    await _forgetConfirmedPendingRow('results', invitationId);
     // The invitation decision is confirmed already. Refresh errors must
     // never turn that success into a second accept/decline attempt.
     try {
