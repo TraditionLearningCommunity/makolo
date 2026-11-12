@@ -69,7 +69,7 @@ void main() {
       expect(find.text('Joindre'), findsOneWidget);
       expect(find.text('Photo'), findsOneWidget);
       expect(find.text('Image'), findsOneWidget);
-      expect(find.text('Voix'), findsNothing);
+      expect(find.text('Voix'), findsOneWidget);
       expect(find.text('Continuer'), findsOneWidget);
       expect(find.textContaining('A1'), findsNothing);
       expect(find.textContaining('A2'), findsNothing);
