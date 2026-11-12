@@ -1430,10 +1430,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _dossierInformation(Map<String, dynamic> data) {
-    final deadline = _parse(data['deadline']);
     final created = _parse(data['created_at']);
     final updated = _parse(data['updated_at']);
-    if (created == null && updated == null && deadline == null) {
+    if (created == null && updated == null) {
       return const SizedBox.shrink();
     }
     return ExpansionTile(
@@ -1446,13 +1445,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       shape: const Border(),
       collapsedShape: const Border(),
       children: [
-        if (deadline != null)
-          ListTile(
-            dense: true,
-            leading: const Icon(Icons.event_outlined),
-            title: const Text('Échéance'),
-            subtitle: Text(_dateLabel(context, deadline)),
-          ),
         if (created != null)
           ListTile(
             dense: true,
