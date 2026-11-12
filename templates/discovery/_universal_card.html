@@ -1,15 +1,9 @@
 <article id="discovery-card-{{ card.candidate_key|slugify }}" data-discovery-result="{% if card.occurrence_id %}{{ card.occurrence_id }}{% else %}{{ card.candidate_key }}{% endif %}" data-candidate-key="{{ card.candidate_key }}" class="mk-panel relative overflow-visible transition">
   <div class="block">
     {% if card.representation.image_url %}
-    <details class="relative overflow-hidden" style="background:var(--mk-surface-muted)">
-      <summary class="cursor-zoom-in list-none" aria-label="Agrandir le visuel de {{ card.title }}">
-        <img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;max-height:340px;object-fit:cover" decoding="async">
-      </summary>
-      <div class="p-3">
-        <img src="{{ card.representation.image_url }}" alt="Visuel agrandi de {{ card.title }}" loading="lazy" class="max-h-[80vh] w-full object-contain">
-        <a href="{{ card.representation.image_url }}" download class="mt-2 inline-flex items-center gap-2 text-sm font-semibold underline" aria-label="Télécharger le visuel de {{ card.title }}">Télécharger le visuel</a>
-      </div>
-    </details>
+    <a href="{% if card.n2_url %}{{ card.n2_url }}{% if discovery_space %}&{% else %}?{% endif %}from={{ request.get_full_path|urlencode }}{% else %}{{ card.url }}{% endif %}" class="relative block overflow-hidden" style="background:var(--mk-surface-muted);border-radius:1rem 1rem 0 0" aria-label="Découvrir {{ card.title }}">
+      <img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" loading="lazy" style="display:block;width:100%;aspect-ratio:16/10;max-height:340px;object-fit:cover" decoding="async">
+    </a>
     {% elif card.representation.kind == 'route' %}
     <div class="px-5 pb-5 sm:px-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:var(--mk-surface-muted)"><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle)">Trajet</p><p class="mt-2 text-xl font-extrabold">{{ card.representation.route_label|default:card.title }}</p></div></div>
     {% endif %}
@@ -107,12 +101,9 @@
       <summary class="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm font-semibold" style="color:var(--mk-primary)"><i data-lucide="images" class="h-4 w-4" aria-hidden="true"></i>Autres images<i data-lucide="chevron-down" class="ml-auto h-4 w-4" aria-hidden="true"></i></summary>
       <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2">
         {% for media in card.gallery_media %}
-          <details class="w-36 shrink-0 snap-start overflow-hidden rounded-xl border sm:w-44" style="border-color:var(--mk-border)">
-            <summary class="cursor-zoom-in list-none" aria-label="Agrandir {{ media.resource.alt_text|default:card.title }}">
-              <img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" loading="lazy" class="block aspect-[4/3] w-full object-contain">
-            </summary>
-            <a href="{{ media.resource.url }}" download class="block p-2 text-xs underline">Télécharger</a>
-          </details>
+          <a href="{% if card.n2_url %}{{ card.n2_url }}{% if discovery_space %}&{% else %}?{% endif %}from={{ request.get_full_path|urlencode }}{% else %}{{ card.url }}{% endif %}" class="w-36 shrink-0 snap-start overflow-hidden rounded-xl border sm:w-44" style="border-color:var(--mk-border)" aria-label="Voir les images de {{ card.title }}">
+            <img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" loading="lazy" class="block aspect-[4/3] w-full object-cover" decoding="async">
+          </a>
         {% endfor %}
       </div>
     </details>
