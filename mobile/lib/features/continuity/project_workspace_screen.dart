@@ -1223,62 +1223,57 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     }
     final shown = people.take(4).toList();
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      child: InkWell(
-        onTap: () => _projectAccess(project),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(Icons.people_outline_rounded, color: scheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Personnes et accès',
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  Text('Voir', style: TextStyle(color: scheme.primary)),
-                  Icon(Icons.chevron_right_rounded, color: scheme.primary),
-                ],
+              Icon(Icons.people_outline_rounded, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Personnes et accès',
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
               ),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  if (owner['kind'] == 'space') ...[
-                    CircleAvatar(
-                      radius: 17,
-                      backgroundColor: scheme.primaryContainer,
-                      child: Icon(
-                        Icons.groups_2_outlined,
-                        color: scheme.onPrimaryContainer,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  for (final person in shown) _projectAvatar(person),
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.add_rounded, size: 19),
-                  ),
-                ],
+              TextButton.icon(
+                onPressed: () => _projectAccess(project),
+                iconAlignment: IconAlignment.end,
+                icon: const Icon(Icons.chevron_right_rounded, size: 19),
+                label: const Text('Voir'),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              if (owner['kind'] == 'space') ...[
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: scheme.primaryContainer,
+                  child: Icon(
+                    Icons.groups_2_outlined,
+                    color: scheme.onPrimaryContainer,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              for (final person in shown) _projectAvatar(person),
+              IconButton(
+                tooltip: 'Voir toutes les personnes et accès',
+                onPressed: () => _projectAccess(project),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor: scheme.surfaceContainerHighest,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
