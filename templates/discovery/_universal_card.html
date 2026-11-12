@@ -61,7 +61,7 @@
         {% if card.facts %}
           <dl class="grid grid-cols-1 gap-x-4 gap-y-3 min-[330px]:grid-cols-2">
             {% for fact in card.facts %}
-              {% if forloop.counter <= 3 %}
+              {% if forloop.counter <= 4 %}
               <div class="min-w-0">
                 <dt class="flex items-center gap-1 text-xs font-medium" style="color:var(--mk-subtle)">
                   {% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="h-4 w-4 shrink-0" aria-hidden="true"></i>{% endif %}{{ fact.label }}
@@ -71,11 +71,11 @@
               {% endif %}
             {% endfor %}
           </dl>
-          {% if card.facts|length > 3 %}
+          {% if card.facts|length > 4 %}
           <details class="group mt-3">
             <summary class="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm font-semibold" style="color:var(--mk-primary)"><i data-lucide="list-filter" class="h-4 w-4" aria-hidden="true"></i>Autres informations<i data-lucide="chevron-down" class="ml-auto h-4 w-4 group-open:rotate-180" aria-hidden="true"></i></summary>
             <dl class="grid grid-cols-1 gap-3 pt-2 min-[330px]:grid-cols-2">
-              {% for fact in card.facts %}{% if forloop.counter > 3 %}
+              {% for fact in card.facts %}{% if forloop.counter > 4 %}
               <div class="min-w-0"><dt class="text-xs" style="color:var(--mk-subtle)">{% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="mr-1 inline h-4 w-4" aria-hidden="true"></i>{% endif %}{{ fact.label }}</dt><dd class="break-words text-sm font-semibold">{{ fact.value }}</dd></div>
               {% endif %}{% endfor %}
             </dl>
