@@ -714,15 +714,10 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             key: const Key('conversation-invite-identifier'),
             onPressed: _busy != null ? null : _inviteByIdentifier,
             icon: const Icon(Icons.person_add_alt_rounded),
-            label: const Text('Ajouter avec un identifiant Makolo'),
+            label: const Text('Inviter'),
           ),
           const SizedBox(height: 10),
-          Text(
-            'Aucun contact obligatoire. L’invitation attend l’acceptation '
-            'du Profil ou d’un responsable du collectif.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
         ],
         if (data['can_join'] == true ||
             data['can_request_entry'] == true ||
@@ -829,10 +824,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
             'Espaces et Groupes',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          Text(
-            'Les membres actuels sont dérivés après acceptation du collectif.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+
           if (collectives.isEmpty)
             const ListTile(title: Text('Aucun collectif invité')),
           for (final item in collectives)
