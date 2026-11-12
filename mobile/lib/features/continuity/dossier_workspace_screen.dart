@@ -85,6 +85,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
     this.onOpenProject,
     this.onOpenOwnerSpace,
     this.onOpenPerson,
+    this.onOpenMyPassport,
     this.onOpenPeople,
     this.api,
     this.conversations,
@@ -100,6 +101,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final ValueChanged<String>? onOpenProject;
   final ValueChanged<String>? onOpenOwnerSpace;
   final ValueChanged<String>? onOpenPerson;
+  final VoidCallback? onOpenMyPassport;
   final VoidCallback? onOpenPeople;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
@@ -1156,9 +1158,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             child: InkWell(
                               customBorder: const CircleBorder(),
                               onTap:
-                                  widget.onOpenPerson == null ||
-                                      _text(person['profile_id']).isEmpty ||
+                                  _text(person['profile_id']).isEmpty ||
                                       _text(person['profile_url']).isEmpty
+                                  ? null
+                                  : _text(person['profile_view']) == 'self'
+                                  ? widget.onOpenMyPassport
+                                  : widget.onOpenPerson == null
                                   ? null
                                   : () => widget.onOpenPerson!(
                                       _text(person['profile_id']),
