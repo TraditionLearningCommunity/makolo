@@ -119,6 +119,10 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
   Widget _personTile(Map<String, dynamic> row, String key, String subtitle) {
     final name = (row[key]?.toString() ?? '').trim();
     final id = row['profile_id']?.toString() ?? '';
+    // A visible Assignment or Mandate does not open a private Profile.
+    // Older cached projections lacking this owner-backed link stay read-only.
+    final canOpen = id.isNotEmpty &&
+        (row['profile_url']?.toString() ?? '').isNotEmpty;
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: CircleAvatar(
@@ -130,8 +134,8 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
       ),
       title: Text(name),
       subtitle: Text(subtitle),
-      trailing: id.isEmpty ? null : const Icon(Icons.chevron_right_rounded),
-      onTap: id.isEmpty ? null : () => widget.onOpenPerson(id),
+      trailing: canOpen ? const Icon(Icons.chevron_right_rounded) : null,
+      onTap: canOpen ? () => widget.onOpenPerson(id) : null,
     );
   }
 
