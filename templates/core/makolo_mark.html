@@ -36,6 +36,8 @@
     <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
   </form>
 
+  {% include 'partials/mark_personal_asset_form.html' %}
+
   {% if mark_result %}
   <section class="mk-mark-clarify" aria-live="polite" aria-labelledby="mark-result-title">
     <h2 id="mark-result-title">{{ mark_result.message }}</h2>
