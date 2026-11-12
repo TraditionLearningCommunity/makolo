@@ -82,3 +82,35 @@ Les tests ajoutés restent **tests écrits, non exécutés**. Aucun succès comp
 Cette passe GitHub a modifié les sources et ajouté les tests, mais **aucun test ni build n'a été exécuté** dans ce mode de travail. L'état doit être considéré comme `SOURCE MODIFIÉE — NON VALIDÉE SUR APPAREIL` jusqu'aux contrôles locaux appropriés. Aucun workflow GitHub Actions n'a été lancé, annulé, désactivé ou modifié ici. Aucun merge n'a été effectué.
 
 **Frontière impérative :** les propriétaires Django conservent Permissions, Mandates, Access, Payment, Resource/Proof et les confirmations effectives. Les médias privés ne sont pas des vérités métier sous prétexte d'être joints à Mark.
+
+## Complément d'implémentation Web / Desktop — 12 novembre 2026
+
+Le périmètre de cette passe étend **la préparation et l'interface**, pas les capacités de compréhension et de réponse d'un LLM.
+
+### Expérience Web partagée
+
+- Les vues Web personnelle et Space réutilisent `templates/partials/mark_input_tools.html`, chargée depuis `templates/base/app.html` avec `static/js/mark-intake.js` et `static/css/mark-intake.css`. Les deux clients gardent la même question et les mêmes frontières d'autorité.
+- En largeur Expanded (à partir de 1200 px), le Mark peut être placé en fenêtre d'action **non modale**, réduit puis réouvert dans la page. Ce n'est pas une conversation persistante. En Compact/Adaptive, la composition reste intégrée à la page, sans une seconde navigation.
+- La sélection de fichiers, les photos, les liens et la dictée du navigateur sont préparés en mémoire ; l'interface distingue les supports locaux des données envoyées. Elle sollicite explicitement l'accord pour continuer avec le seul texte. L'API Mark personnelle/Space reste textuelle.
+- L'aperçu via `<dialog>` concerne les images et certains audios réellement compatibles avec le navigateur. Un PDF ou un document sans aperçu reste sélectionné localement, jamais réputé lu ou analysé.
+- La Web Speech API n'est activée que si `SpeechRecognition`/`webkitSpeechRecognition` existe. Elle dépend du navigateur, de la langue, des permissions et possiblement d'un service externe. Le transcript reste modifiable et n'est inséré qu'après validation explicite.
+- Un brouillon texte/liens est stocké uniquement dans `sessionStorage` de l'onglet, borné à l'acteur utilisateur/Space. **Les fichiers File/Blob ne persistent pas après navigation/rechargement**. Le bouton d'effacement supprime le brouillon de l'onglet, sans prétendre annuler une décision métier déjà confirmée.
+- Le Web personnel reçoit désormais les éléments sélectionnés en entrée `selected_kind/selected_id/selected_family`, strictement bornés ; l'orchestrateur propriétaire continue de vérifier l'existence et l'autorité. Le contexte peut être retiré sans supprimer le texte.
+- Les réponses Mark Web sont servies avec `no-store`. Space permet d'annuler la confirmation Team sans la déclencher et rejette une demande vide ou plus longue que 600 caractères sans troncature silencieuse.
+
+### Handoffs Flutter ajoutés
+
+- Les résultats Space d'Operations Jour J et Scanner ouvrent leurs routes Flutter Space vérifiées, avec l'identité d'Occurrence issue de la projection serveur. Les résultats incomplets n'ouvrent rien ; aucune route personnelle ou autorité implicite n'est dérivée.
+
+### Contrats et preuves source
+
+- Fichiers Web ajoutés : `templates/partials/mark_input_tools.html`, `static/js/mark-intake.js`, `static/css/mark-intake.css`.
+- Fichiers Web modifiés : `templates/base/app.html`, `templates/core/makolo_mark.html`, `templates/organizations/space/mark_ws5.html`, `core/mature_experience_views.py`, `organizations/space_ws5_web.py`.
+- Fichiers Flutter modifiés : `mobile/lib/features/mark/mark_navigation.dart`, `mobile/test/mark_navigation_test.dart`.
+- Tests serveur ajoutés dans `core/test_mature_personal_experience.py` et `organizations/test_ws5_space_day_of_live_scanner_mark_web.py` pour le Web, les contextes sélectionnés, l'absence de faux upload, la limite textuelle, le cache privé et l'annulation.
+
+### État réel et obstacles
+
+**Implémentation écrite, mais non compilée ni exécutée dans cet environnement connecté GitHub.** Les tests Dart, Python, E2E Web et Android, la validation visuelle, le formatter canonique et la recette multi-écran restent à réaliser séparément. Le parcours direct de transfert multimodal entre Mark et chaque owner, l'interprétation visuelle, les PDF, la compréhension audio générique et toute intelligence nécessitant un fournisseur/modèle ou des contrats propriétaires non présents restent des capacités **non closes**, pas des fonctionnalités simulées.
+
+Aucune CI, aucun workflow ni aucune configuration de workflow n'a été lancée, annulée ou modifiée dans cette passe. La PR #522 demeure ouverte et `main` non modifiée.
