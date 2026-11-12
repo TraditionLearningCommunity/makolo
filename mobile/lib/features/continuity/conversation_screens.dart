@@ -3008,7 +3008,7 @@ class _PointCardState extends State<_PointCard> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (dialogContext, refreshDialog) => AlertDialog(
-            title: const Text('Résultat de coordination'),
+            title: const Text('Conclusion'),
             content: SizedBox(
               width: 420,
               child: SingleChildScrollView(
@@ -3016,10 +3016,6 @@ class _PointCardState extends State<_PointCard> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Indiquez la conclusion retenue.',
-                    ),
-                    const SizedBox(height: MakoloSpacing.md),
                     TextField(
                       controller: controller,
                       maxLength: 500,
@@ -3089,7 +3085,7 @@ class _PointCardState extends State<_PointCard> {
         _resolutionDraft = '';
         _resolutionSelections.clear();
         if (mounted) {
-          setState(() => _feedback = 'Résultat de coordination enregistré.');
+          setState(() => _feedback = 'Conclusion enregistrée.');
         }
       } on Object {
         try {
