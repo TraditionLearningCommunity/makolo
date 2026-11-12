@@ -1136,6 +1136,14 @@ class _ConversationInvitationCardState
                 : 'Invitation à rejoindre une coordination',
             style: Theme.of(context).textTheme.titleSmall,
           ),
+          if (widget.invitation.invitedBy != null)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(
+                'Envoyée par @${widget.invitation.invitedBy}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           if (widget.invitation.collective)
             Padding(
               padding: const EdgeInsets.only(top: MakoloSpacing.xs),
@@ -4115,6 +4123,7 @@ class _ConversationInvitation {
     this.collective = false,
     this.label,
     this.identifier,
+    this.invitedBy,
     this.expiresAt,
     this.createdAt,
   });
@@ -4125,6 +4134,7 @@ class _ConversationInvitation {
   final bool collective;
   final String? label;
   final String? identifier;
+  final String? invitedBy;
   final DateTime? expiresAt;
   final DateTime? createdAt;
 
@@ -4147,6 +4157,7 @@ class _ConversationInvitation {
           id: id,
           conversationId: _string(row['conversation_id']) ?? '',
           status: _string(row['status']) ?? '',
+          invitedBy: _string(row['invited_by']),
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
           createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
@@ -4164,6 +4175,7 @@ class _ConversationInvitation {
           collective: true,
           label: _string(row['label']),
           identifier: _string(row['identifier']),
+          invitedBy: _string(row['invited_by']),
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
           createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
