@@ -16,7 +16,11 @@ from opportunities.selectors import published_opportunities
 from journeys.models import JourneyStatus
 
 from .forms import ServiceIntakeForm, ServiceStartForm
-from .native_start import ServiceStartIdempotencyConflict, start_service_journey_idempotently
+from .native_start import (
+    ServiceStartIdempotencyConflict,
+    replay_native_start_if_exists,
+    start_service_journey_idempotently,
+)
 from .models import OpportunityPolicy, ServiceDetails, ServiceIntakeQuestion, ServicePlanTemplateStatus
 from .selectors import service_journeys_visible_to
 from .services import answer_intake_question, create_service_journey, submit_service_journey
@@ -104,6 +108,12 @@ class ServiceStartView(LoginRequiredMixin, FormView):
         if posted:
             return posted
         session_key = self._operation_session_key()
+        # Each rendered GET form is its own intention, including two tabs of
+        # the same Service. The session token is a legacy POST fallback only.
+        if self.request.method == "GET":
+            key = secrets.token_urlsafe(24)
+            self.request.session[session_key] = key
+            return key
         key = self.request.session.get(session_key)
         if not isinstance(key, str) or not key:
             key = secrets.token_urlsafe(24)
@@ -129,12 +139,6 @@ class ServiceStartView(LoginRequiredMixin, FormView):
         return kwargs
 
     def get_context_data(self, **kwargs):
-        if self.request.method == "GET":
-            # A deliberate new visit starts a new possible intention. Replays
-            # of the previous submitted key still resolve to the first Journey.
-            session_key = self._operation_session_key()
-            if self.request.session.pop(f"{session_key}:used", False):
-                self.request.session.pop(session_key, None)
         context = super().get_context_data(**kwargs)
         context.update({
             "service": self.service,
@@ -142,6 +146,32 @@ class ServiceStartView(LoginRequiredMixin, FormView):
             "operation_key": self._operation_key(),
         })
         return context
+
+    def post(self, request, *args, **kwargs):
+        # Replay an already accepted intention before checking today's
+        # Opportunity publication. The pinned revision may have been withdrawn
+        # between a successful POST and a browser/network retry.
+        operation_key = self._operation_key()
+        try:
+            replay = replay_native_start_if_exists(
+                service=self.service,
+                actor=request.user,
+                operation_key=operation_key,
+                objective=request.POST.get("objective", ""),
+                opportunity_id=request.POST.get("opportunity") or None,
+            )
+        except (ServiceStartIdempotencyConflict, DjangoValidationError) as exc:
+            form = self.get_form()
+            form.add_error(None, (
+                "Cette opération a déjà été utilisée pour une autre demande."
+                if isinstance(exc, ServiceStartIdempotencyConflict)
+                else "; ".join(exc.messages)
+            ))
+            return self.form_invalid(form)
+        if replay is not None:
+            journey, _created = replay
+            return redirect("services:intake", pk=journey.pk)
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         operation_key = self._operation_key()
@@ -159,9 +189,6 @@ class ServiceStartView(LoginRequiredMixin, FormView):
         except DjangoValidationError as exc:
             form.add_error(None, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
             return self.form_invalid(form)
-        session_key = self._operation_session_key()
-        if self.request.session.get(session_key) == operation_key:
-            self.request.session[f"{session_key}:used"] = True
         return redirect("services:intake", pk=journey.pk)
 
 
