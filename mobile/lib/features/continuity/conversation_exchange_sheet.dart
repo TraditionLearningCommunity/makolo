@@ -283,13 +283,13 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
           _revoked = true;
           _rows = [];
         }
-        _error = _revoked ? 'Cette Discussion n’est plus accessible.' : 'Actualisation interrompue. Vos messages locaux restent disponibles.';
+        _error = _revoked ? 'Cette Discussion n’est plus accessible.' : 'Actualisation impossible.';
       });
     } on Object {
       if (mounted)
         setState(
           () =>
-              _error = 'Actualisation interrompue. Votre saisie est conservée.',
+              _error = 'Actualisation impossible.',
         );
     }
   }
@@ -391,7 +391,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     } on Object {
       if (mounted)
         setState(
-          () => _error = 'Envoi non confirmé. Votre saisie est conservée.',
+          () => _error = 'Envoi non confirmé.',
         );
     } finally {
       if (mounted) setState(() => _sending = false);
