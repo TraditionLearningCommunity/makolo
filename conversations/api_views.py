@@ -1024,7 +1024,7 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
             ).filter(
                 Q(expires_at__isnull=True) | Q(expires_at__gt=now)
             ).select_related(
-                "conversation", "conversation__context"
+                "conversation", "conversation__context", "created_by"
             ).order_by("created_at", "id")[:limit]
         )
         return Response({
@@ -1032,6 +1032,8 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 {
                     "id": str(invitation.pk),
                     "conversation_id": str(invitation.conversation_id),
+                    "invited_by": invitation.created_by.username,
+                    "context_kind": invitation.conversation.context.kind,
                     "status": invitation.status,
                     "expires_at": invitation.expires_at,
                     "created_at": invitation.created_at,
@@ -1043,6 +1045,8 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 {
                     "id": str(item.pk),
                     "conversation_id": str(item.conversation_id),
+                    "invited_by": item.created_by.username,
+                    "context_kind": item.conversation.context.kind,
                     "kind": "space" if item.space_id else "group",
                     "identifier": item.space.slug if item.space_id else item.group.slug,
                     "label": item.space.name if item.space_id else item.group.name,
