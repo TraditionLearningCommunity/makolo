@@ -86,6 +86,9 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(response.data["identity"]["id"], str(self.space.pk))
         self.assertEqual(response.data["identity"]["name"], self.space.name)
         self.assertEqual(response.data["authority"]["scope"], "space")
+        self.assertEqual(
+            response.data["primary_role"]["code"], SystemRoleCode.SPACE_OWNER
+        )
         self.assertEqual(response.data["team"]["active_members"], 2)
         self.assertEqual(response.data["team"]["visibility"], "visible")
         self.assertIn(
@@ -210,6 +213,9 @@ class ZS4SpaceProjectionTests(TestCase):
         )
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(response.data["authority"]["scope"], "space")
+        self.assertEqual(
+            response.data["primary_role"]["code"], SystemRoleCode.MARKETING
+        )
         self.assertEqual(response.data["team"]["visibility"], "restricted")
         self.assertIsNone(response.data["team"]["active_members"])
         self.assertEqual(response.data["team"]["items"], [])
@@ -246,6 +252,7 @@ class ZS4SpaceProjectionTests(TestCase):
         )
         self.assertEqual(us.status_code, 200, us.data)
         self.assertEqual(us.data["authority"]["scope"], "activity_limited")
+        self.assertIsNone(us.data["primary_role"])
         self.assertEqual(us.data["team"]["items"], [])
         self.assertEqual(us.data["team"]["visibility"], "restricted")
         self.assertIsNone(us.data["team"]["active_members"])
