@@ -410,7 +410,7 @@ def collective_invitation_inbox(actor, *, limit=30):
         return []
     # Allow one extra authorized row when an API caller needs a truthful
     # "more results" indicator without exposing an unbounded collection.
-    size = max(1, min(int(limit), 51))
+    size = max(1, min(int(limit), 101))
     now = timezone.now()
     candidates = ConversationCollectiveAccess.objects.filter(
         status=ConversationCollectiveStatus.PENDING,
