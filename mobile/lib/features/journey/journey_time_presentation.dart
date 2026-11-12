@@ -134,10 +134,13 @@ class JourneyDayBadge extends StatefulWidget {
     super.key,
     required this.occurrenceDate,
     this.timezoneName,
+    this.onOpenDayOf,
   });
 
   final String occurrenceDate;
   final String? timezoneName;
+  /// The server already supplied the owner capability and destination.
+  final VoidCallback? onOpenDayOf;
 
   @override
   State<JourneyDayBadge> createState() => _JourneyDayBadgeState();
@@ -203,26 +206,42 @@ class _JourneyDayBadgeState extends State<JourneyDayBadge> {
         : offset < 0
         ? 'Dans ${-offset} jours'
         : 'Il y a $offset jours';
-    return Semantics(
-      label: '$label. $spoken',
-      child: ExcludeSemantics(
-        child: Container(
-          key: const Key('journey-relative-day'),
-          decoration: BoxDecoration(
-            color: const Color(0xFF5232DB),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-            ),
-          ),
+    final enabled = offset == 0 && widget.onOpenDayOf != null;
+    final badge = Container(
+      key: const Key('journey-relative-day'),
+      decoration: BoxDecoration(
+        color: enabled
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant,
         ),
       ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: enabled
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurface,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
+        ),
+        maxLines: 1,
+      ),
+    );
+    return Semantics(
+      button: enabled,
+      enabled: enabled,
+      label: '$label. $spoken',
+      child: enabled
+          ? InkWell(
+              onTap: widget.onOpenDayOf,
+              borderRadius: BorderRadius.circular(12),
+              child: ExcludeSemantics(child: badge),
+            )
+          : ExcludeSemantics(child: badge),
     );
   }
 }
