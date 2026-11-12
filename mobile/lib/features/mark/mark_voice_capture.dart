@@ -175,9 +175,12 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
     if (file == null || _busy) return;
     setState(() => _busy = true);
     try {
-      await widget.onCaptured(file);
+      // The parent may remove this widget immediately after saving the draft.
+      // Transfer ownership before invoking its callback.
       _adopted = true;
+      await widget.onCaptured(file);
     } on Object {
+      _adopted = false;
       if (mounted) {
         setState(() {
           _busy = false;
@@ -217,7 +220,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
   @override
   void dispose() {
     _ticker?.cancel();
-    unawaited(_recorder.cancel().then((_) => _recorder.dispose()));
+    unawaited(_recorder.cancel().catchError((Object _) {}).then((_) => _recorder.dispose()));
     unawaited(_player.dispose());
     unawaited(_removeTemporaryFile());
     final staged = _staged;
