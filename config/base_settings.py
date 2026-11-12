@@ -3,7 +3,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -169,7 +169,12 @@ TEMPLATES = [
     },
 ]
 
-DATABASE_ENGINE = os.environ.get("DJANGO_DATABASE_ENGINE", "sqlite").strip().lower()
+# A hosted PostgreSQL URL is optional; local development still defaults to SQLite.
+# Explicit DJANGO_DATABASE_* values take precedence over the URL.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+DATABASE_ENGINE = os.environ.get(
+    "DJANGO_DATABASE_ENGINE", "postgresql" if DATABASE_URL else "sqlite"
+).strip().lower()
 if DATABASE_ENGINE == "sqlite":
     DATABASES = {
         "default": {
@@ -181,6 +186,14 @@ if DATABASE_ENGINE == "sqlite":
         }
     }
 elif DATABASE_ENGINE in {"postgresql", "postgres"}:
+    database_url = urlparse(DATABASE_URL) if DATABASE_URL else None
+    if database_url and database_url.scheme not in {"postgres", "postgresql"}:
+        raise ImproperlyConfigured("DATABASE_URL doit utiliser postgres:// ou postgresql://.")
+    database_url_name = unquote(database_url.path.lstrip("/")) if database_url else ""
+    database_url_user = unquote(database_url.username or "") if database_url else ""
+    database_url_password = unquote(database_url.password or "") if database_url else ""
+    database_url_host = (database_url.hostname or "") if database_url else ""
+    database_url_port = str(database_url.port or 5432) if database_url else "5432"
     database_options = {
         "connect_timeout": int(
             os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
@@ -196,11 +209,11 @@ elif DATABASE_ENGINE in {"postgresql", "postgres"}:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("DJANGO_DATABASE_NAME", "").strip(),
-            "USER": os.environ.get("DJANGO_DATABASE_USER", "").strip(),
-            "PASSWORD": os.environ.get("DJANGO_DATABASE_PASSWORD", ""),
-            "HOST": os.environ.get("DJANGO_DATABASE_HOST", "").strip(),
-            "PORT": os.environ.get("DJANGO_DATABASE_PORT", "5432").strip(),
+            "NAME": os.environ.get("DJANGO_DATABASE_NAME", database_url_name).strip(),
+            "USER": os.environ.get("DJANGO_DATABASE_USER", database_url_user).strip(),
+            "PASSWORD": os.environ.get("DJANGO_DATABASE_PASSWORD", database_url_password),
+            "HOST": os.environ.get("DJANGO_DATABASE_HOST", database_url_host).strip(),
+            "PORT": os.environ.get("DJANGO_DATABASE_PORT", database_url_port).strip(),
             "CONN_MAX_AGE": int(os.environ.get("DJANGO_DATABASE_CONN_MAX_AGE", "60")),
             "CONN_HEALTH_CHECKS": env_bool("DJANGO_DATABASE_CONN_HEALTH_CHECKS", True),
             "OPTIONS": database_options,
