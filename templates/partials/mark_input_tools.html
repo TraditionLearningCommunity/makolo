@@ -1,0 +1,58 @@
+{% comment %}
+Shared Mark input affordances. No field below has a server-posted name:
+Z7/Space Mark accept text only; browser attachments remain strictly local.
+The JS progressively enhances this panel; without JS, text/owner forms work.
+{% endcomment %}
+<section class="mk-mark-support" data-mk-mark-support aria-label="Éléments pour votre demande">
+  <div class="mk-mark-tools" role="group" aria-label="Ajouter un élément">
+    <label class="mk-action-button" data-variant="secondary" for="mark-browser-files-{{ mark_scope|default:'personal' }}">
+      Joindre un fichier
+      <input id="mark-browser-files-{{ mark_scope|default:'personal' }}" data-mk-mark-files type="file"
+        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,.m4a,.mp3,.wav,audio/*,image/*"
+        multiple hidden>
+    </label>
+    <label class="mk-action-button" data-variant="secondary" for="mark-browser-photo-{{ mark_scope|default:'personal' }}">
+      Photo
+      <input id="mark-browser-photo-{{ mark_scope|default:'personal' }}" data-mk-mark-photo type="file"
+        accept="image/*" capture="environment" hidden>
+    </label>
+    <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-voice hidden>Dicter</button>
+    <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-link-toggle>Ajouter un lien</button>
+  </div>
+  <div data-mk-mark-link-editor hidden class="mk-mark-link-editor">
+    <label for="mark-browser-link-{{ mark_scope|default:'personal' }}">Adresse du lien</label>
+    <div class="mk-mark-link-row">
+      <input id="mark-browser-link-{{ mark_scope|default:'personal' }}" data-mk-mark-link-input
+        type="url" inputmode="url" autocomplete="url" placeholder="https://…">
+      <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-link-add>Ajouter</button>
+    </div>
+  </div>
+  <div data-mk-mark-dictation hidden class="mk-mark-dictation">
+    <label for="mark-browser-transcript-{{ mark_scope|default:'personal' }}">Texte reconnu — vérifiez-le avant de l'utiliser</label>
+    <textarea id="mark-browser-transcript-{{ mark_scope|default:'personal' }}"
+      data-mk-mark-transcript rows="3" maxlength="600" spellcheck="true"></textarea>
+    <div class="mk-mark-tools">
+      <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-speech-start>Commencer</button>
+      <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-speech-stop disabled>Terminer</button>
+      <button type="button" class="mk-action-button" data-variant="primary" data-mk-mark-speech-use>Utiliser ce texte</button>
+    </div>
+  </div>
+  <div data-mk-mark-references class="mk-mark-references" aria-live="polite"></div>
+  <p class="mk-mark-hint" data-mk-mark-hint>
+    Les pièces et liens restent dans cet onglet. L'API Mark reçoit seulement le texte ;
+    aucune photo, pièce ou transcription n'est envoyée automatiquement.
+  </p>
+  <p class="mk-mark-error" data-mk-mark-feedback role="status" aria-live="polite" hidden></p>
+  {% if mark_scope == 'personal' %}
+  <a class="mk-mark-owner-link" href="{% url 'personal_assets:add' %}">
+    Conserver un document dans Mes documents
+  </a>
+  {% endif %}
+</section>
+<div data-mk-mark-text-consent class="mk-mark-text-consent" hidden>
+  <p>Cette action n'enverra que votre texte. Les pièces et liens de cet onglet ne seront ni transmis ni analysés.</p>
+  <div class="mk-mark-tools">
+    <button type="button" class="mk-action-button" data-variant="primary" data-mk-mark-confirm-text>Continuer avec le texte seul</button>
+    <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-keep-draft>Garder mon brouillon</button>
+  </div>
+</div>
