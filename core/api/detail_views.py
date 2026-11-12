@@ -29,7 +29,10 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
             participant_readiness_queryset(
                 request.user,
                 participant_journeys(request.user),
-            ).select_related("service_context").prefetch_related(
+            ).select_related(
+                "service_context__opportunity",
+                "service_context__opportunity_revision",
+            ).prefetch_related(
                 "payment_obligations__payments",
                 "commerce_orders__payments",
                 "service_context__requirement_assessments__evidence",
