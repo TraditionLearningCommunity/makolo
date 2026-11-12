@@ -149,7 +149,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
   }
 
-  Future<void> _refreshInvitationsIfNeeded({bool force = false}) async {
+  Future<void> _refreshInvitationsIfNeeded({
+    bool force = false,
+    bool propagateError = false,
+  }) async {
     final repository = widget.repository;
     try {
       final invitations = await repository.readInvitations();
@@ -165,7 +168,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         await repository.refreshInvitations();
       }
     } on Object {
-      // Invitation errors are independent from the conversation list.
+      // Passive refresh remains discreet. Explicit refresh must tell its
+      // caller that the current owner acquisition was not confirmed.
+      if (propagateError) rethrow;
     }
   }
 
@@ -180,7 +185,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         heightFactor: 0.85,
         child: _ConversationInvitationInbox(
           repository: widget.repository,
-          onRefresh: () => _refreshInvitationsIfNeeded(force: true),
+          onRefresh: () => _refreshInvitationsIfNeeded(
+            force: true,
+            propagateError: true,
+          ),
           onOpen: (id) {
             Navigator.of(sheetContext).pop();
             widget.onOpen(id);
@@ -771,7 +779,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
   }
 }
 
-class _ConversationInvitationInbox extends StatelessWidget {
+class _ConversationInvitationInbox extends StatefulWidget {
   const _ConversationInvitationInbox({
     required this.repository,
     required this.onRefresh,
@@ -783,20 +791,48 @@ class _ConversationInvitationInbox extends StatelessWidget {
   final void Function(String id) onOpen;
 
   @override
+  State<_ConversationInvitationInbox> createState() =>
+      _ConversationInvitationInboxState();
+}
+
+class _ConversationInvitationInboxState
+    extends State<_ConversationInvitationInbox> {
+  bool _refreshing = false;
+  String? _refreshError;
+
+  Future<void> _refresh() async {
+    if (_refreshing) return;
+    setState(() {
+      _refreshing = true;
+      _refreshError = null;
+    });
+    try {
+      await widget.onRefresh();
+    } on Object {
+      if (mounted) {
+        setState(() => _refreshError =
+            'Invitations non actualisées. Vos informations conservées restent disponibles.');
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Invitations'),
+        title: const Text('Invitations et demandes'),
         actions: [
           IconButton(
             tooltip: 'Actualiser les invitations',
-            onPressed: onRefresh,
+            onPressed: _refreshing ? null : _refresh,
             icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
       body: StreamBuilder<StoredProjection?>(
-        stream: repository.watchInvitations(),
+        stream: widget.repository.watchInvitations(),
         builder: (context, snapshot) {
           final invitations = _ConversationInvitation.fromProjection(
             snapshot.data,
@@ -816,6 +852,17 @@ class _ConversationInvitationInbox extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(MakoloSpacing.inner),
             children: [
+              if (_refreshing) const LinearProgressIndicator(minHeight: 2),
+              if (_refreshError != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                  child: Text(
+                    _refreshError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
               if (snapshot.data == null)
                 const Text(
                   'Invitations non encore disponibles sur cet appareil.',
@@ -833,8 +880,8 @@ class _ConversationInvitationInbox extends StatelessWidget {
                   _ConversationInvitationCard(
                     key: Key('conversation-received-${invitation.id}'),
                     invitation: invitation,
-                    repository: repository,
-                    onOpen: onOpen,
+                    repository: widget.repository,
+                    onOpen: widget.onOpen,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
@@ -848,9 +895,9 @@ class _ConversationInvitationInbox extends StatelessWidget {
                   _ConversationPendingActionCard(
                     key: Key('conversation-request-${row.id}'),
                     row: row,
-                    repository: repository,
+                    repository: widget.repository,
                     isJoinRequest: true,
-                    onOpen: onOpen,
+                    onOpen: widget.onOpen,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
@@ -864,8 +911,8 @@ class _ConversationInvitationInbox extends StatelessWidget {
                   _ConversationPendingActionCard(
                     key: Key('conversation-sent-${row.id}'),
                     row: row,
-                    repository: repository,
-                    onOpen: onOpen,
+                    repository: widget.repository,
+                    onOpen: widget.onOpen,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
@@ -884,7 +931,7 @@ class _ConversationInvitationInbox extends StatelessWidget {
                         if (row.conversationId != null)
                           MakoloActionButton(
                             label: 'Voir ma demande',
-                            onPressed: () => onOpen(row.conversationId!),
+                            onPressed: () => widget.onOpen(row.conversationId!),
                             appearance: MakoloActionAppearance.quiet,
                           ),
                       ],
