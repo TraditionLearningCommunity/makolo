@@ -33,6 +33,7 @@
     let recognizer = null;
     let previousFocus = null;
     let mode = 'inline';
+    let previewUrl = null;
     const hasLocalReferences = () => attachments.length > 0 || links.length > 0;
 
     // Only the active browser tab may keep a text/link draft. No File, media,
@@ -76,6 +77,47 @@
       if (panel) panel.hidden = true;
     }
 
+    function closePreview() {
+      const dialog = $('[data-mk-mark-preview]');
+      if (dialog?.open) dialog.close();
+      const body = $('[data-mk-mark-preview-body]');
+      body?.replaceChildren();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = null;
+    }
+
+    function previewFile(file) {
+      const dialog = $('[data-mk-mark-preview]');
+      const body = $('[data-mk-mark-preview-body]');
+      if (!dialog?.showModal || !body) return;
+      closePreview();
+      const type = file.type || '';
+      let visual;
+      if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(type)) {
+        visual = document.createElement('img');
+        visual.alt = file.name || 'Image locale';
+        visual.className = 'mk-mark-preview-media';
+      } else if (['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/x-m4a'].includes(type)) {
+        visual = document.createElement('audio');
+        visual.controls = true;
+        visual.className = 'mk-mark-preview-media';
+      }
+      const description = document.createElement('p');
+      description.textContent = file.name || 'Pièce locale';
+      body.appendChild(description);
+      if (visual) {
+        previewUrl = URL.createObjectURL(file);
+        visual.src = previewUrl;
+        body.appendChild(visual);
+      } else {
+        const note = document.createElement('p');
+        note.textContent = 'Aperçu indisponible pour ce format. Le fichier reste local.';
+        body.appendChild(note);
+      }
+      dialog.showModal();
+      $('[data-mk-mark-preview-close]')?.focus();
+    }
+
     function renderReferences() {
       const target = $('[data-mk-mark-references]');
       if (!target) return;
@@ -90,6 +132,18 @@
         text.textContent = entry.label;
         text.title = entry.label;
         item.appendChild(text);
+        if (entry.type === 'file') {
+          const preview = document.createElement('button');
+          preview.type = 'button';
+          preview.className = 'mk-mark-reference-remove';
+          preview.textContent = '⌕';
+          preview.setAttribute('aria-label', 'Aperçu de ' + entry.label);
+          preview.addEventListener('click', () => {
+            const file = attachments[Number(entry.value)];
+            if (file) previewFile(file);
+          });
+          item.appendChild(preview);
+        }
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'mk-mark-reference-remove';
@@ -125,6 +179,7 @@
     }
 
     function setMode(next) {
+      if (next === 'minimized' || next === 'inline') closePreview();
       const desktop = window.matchMedia('(min-width: 1200px)').matches;
       mode = desktop ? next : 'inline';
       root.dataset.mkMarkMode = mode;
@@ -144,6 +199,8 @@
     restore();
     renderReferences();
     setMode('inline');
+    $('[data-mk-mark-preview-close]')?.addEventListener('click', closePreview);
+    $('[data-mk-mark-preview]')?.addEventListener('close', closePreview);
 
     root.querySelectorAll('[data-mk-mark-file-input]').forEach((picker) => {
       picker.addEventListener('change', () => {
@@ -301,6 +358,22 @@
     $('[data-mk-mark-keep-draft]')?.addEventListener('click', () => {
       const panel = $('[data-mk-mark-text-consent]');
       if (panel) panel.hidden = true;
+      input.focus();
+    });
+
+    $('[data-mk-mark-clear]')?.addEventListener('click', () => {
+      if (!window.confirm('Effacer votre brouillon de cet onglet ? Cette action ne revient pas sur les décisions déjà confirmées.')) return;
+      closePreview();
+      if (recognizer) recognizer.abort();
+      input.value = '';
+      links = [];
+      attachments = [];
+      const transcript = $('[data-mk-mark-transcript]');
+      if (transcript) transcript.value = '';
+      resetConsent();
+      try { window.sessionStorage.removeItem(draftKey); } catch (_) {}
+      renderReferences();
+      announce('Brouillon de cet onglet effacé.');
       input.focus();
     });
 
