@@ -13,14 +13,19 @@ from .point_models import (
     ConversationPointKind, ConversationPointLifecycle, ConversationPointResponseMode,
     ConversationPointResponseStatus, ConversationResponseVisibility,
 )
-from .point_services import point_visible_to, point_response_allowed
-from .audience_services import profile_in_audience
+from .point_services import _audience_membership, point_visible_to, point_response_allowed
 from .services import can_manage_conversation
 
 
-def _calculate_point_interactions(profile, point, *, at=None):
+def _calculate_point_interactions(
+    profile, point, *, at=None, visibility_cache=None, audience_cache=None,
+    history_cache=None, manage_cache=None, attention_only=False,
+):
     at = at or timezone.now()
-    if not point_visible_to(profile, point, at=at):
+    if not point_visible_to(
+        profile, point, at=at, visibility_cache=visibility_cache,
+        audience_cache=audience_cache, history_cache=history_cache,
+    ):
         return {
             "can_respond": False, "can_acknowledge": False,
             "can_close_responses": False, "can_resolve": False,
@@ -57,15 +62,38 @@ def _calculate_point_interactions(profile, point, *, at=None):
         and (point.deadline_at is None or point.deadline_at > at)
         and (point.valid_until is None or point.valid_until > at)
     )
-    manager = can_manage_conversation(profile, point.conversation)
+    manager_scope = (getattr(profile, "pk", None), point.conversation_id)
+    if manage_cache is None:
+        manager = can_manage_conversation(profile, point.conversation)
+    else:
+        if manager_scope not in manage_cache:
+            manage_cache[manager_scope] = can_manage_conversation(profile, point.conversation)
+        manager = manage_cache[manager_scope]
     resolution_authorized = manager and (
         not point.resolution_audience_id
-        or profile_in_audience(profile, point.resolution_audience, at=at)
+        or _audience_membership(
+            profile, point.resolution_audience, at=at, audience_cache=audience_cache,
+        )
     )
+    # Permission checks remain canonical; only identical reads in this projection
+    # share their result. No authorization is cached beyond this invocation.
+    allowed_to_respond = None
+
+    def response_allowed():
+        nonlocal allowed_to_respond
+        if allowed_to_respond is None:
+            allowed_to_respond = point_response_allowed(
+                profile, point, at=at,
+                visibility_cache=visibility_cache,
+                audience_cache=audience_cache,
+                history_cache=history_cache,
+            )
+        return allowed_to_respond
+
     can_respond = bool(
         active and point.kind not in {ConversationPointKind.FORM_REQUEST}
         and point.response_mode != ConversationPointResponseMode.NONE
-        and point_response_allowed(profile, point, at=at)
+        and response_allowed()
         and (mine is None or point.allow_response_change
              or point.kind == ConversationPointKind.EXCHANGE)
     )
@@ -89,7 +117,7 @@ def _calculate_point_interactions(profile, point, *, at=None):
             response_hint = "Ce Point n'est plus valide."
         elif mine is not None and not point.allow_response_change:
             response_hint = "Votre réponse est déjà enregistrée."
-        elif not point_response_allowed(profile, point, at=at):
+        elif not response_allowed():
             response_hint = "Ce Point ne vous demande pas de réponse."
     can_acknowledge = bool(
         point.conversation.lifecycle == ConversationLifecycle.OPEN
@@ -101,7 +129,9 @@ def _calculate_point_interactions(profile, point, *, at=None):
         and (point.valid_until is None or point.valid_until > at)
         and not (state and state.acknowledged_at)
         and (not point.expected_action_audience_id
-             or profile_in_audience(profile, point.expected_action_audience, at=at))
+             or _audience_membership(
+                 profile, point.expected_action_audience, at=at, audience_cache=audience_cache,
+             ))
     )
     can_close = bool(
         manager and point.conversation.lifecycle == ConversationLifecycle.OPEN
@@ -116,7 +146,7 @@ def _calculate_point_interactions(profile, point, *, at=None):
         }
     )
     represented_responses = []
-    if point_response_allowed(profile, point, at=at):
+    if not attention_only and response_allowed():
         for response in point.responses.filter(
             status=ConversationPointResponseStatus.ACTIVE,
             represented_space__isnull=False,
@@ -133,10 +163,10 @@ def _calculate_point_interactions(profile, point, *, at=None):
     response_window_open = bool(
         active and point.response_mode != ConversationPointResponseMode.NONE
         and point.kind != ConversationPointKind.FORM_REQUEST
-        and point_response_allowed(profile, point, at=at)
+        and response_allowed()
     )
     poll_results = None
-    if point.kind == ConversationPointKind.POLL and (
+    if not attention_only and point.kind == ConversationPointKind.POLL and (
         manager or point.response_visibility in {
             ConversationResponseVisibility.AGGREGATE,
             ConversationResponseVisibility.POINT_VIEWERS,
@@ -174,14 +204,25 @@ def _calculate_point_interactions(profile, point, *, at=None):
     }
 
 
-def point_interactions_for_profile(profile, point, *, at=None):
+def point_interactions_for_profile(
+    profile, point, *, at=None, visibility_cache=None, audience_cache=None,
+    history_cache=None, manage_cache=None, attention_only=False,
+):
     """Memoize repeated Web/Flutter projection reads on this Point instance only.
 
     The same instance belongs to one request; never cache across HTTP requests,
     Profiles or explicit time-based permission evaluations.
     """
-    if at is not None:
-        return _calculate_point_interactions(profile, point, at=at)
+    if (
+        at is not None or visibility_cache is not None or audience_cache is not None
+        or history_cache is not None or manage_cache is not None or attention_only
+    ):
+        return _calculate_point_interactions(
+            profile, point, at=at,
+            visibility_cache=visibility_cache, audience_cache=audience_cache,
+            history_cache=history_cache, manage_cache=manage_cache,
+            attention_only=attention_only,
+        )
     viewer = getattr(profile, "pk", None)
     cached = getattr(point, "_profile_point_interactions_cache", None)
     if cached is not None and cached[0] == viewer:
