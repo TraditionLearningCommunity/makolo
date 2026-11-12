@@ -136,6 +136,23 @@ ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+# HTTP remains available without the explicitly configured realtime deployment.
+CONVERSATIONS_REALTIME_ENABLED = env_bool("CONVERSATIONS_REALTIME_ENABLED")
+CONVERSATIONS_REDIS_URL = os.environ.get("CONVERSATIONS_REDIS_URL", "").strip()
+CONVERSATIONS_REDIS_PREFIX = os.environ.get("CONVERSATIONS_REDIS_PREFIX", f"makolo:{DJANGO_ENV}:conversations")
+CONVERSATIONS_REALTIME_EDIT_SECONDS = 900
+CONVERSATIONS_REALTIME_FRAME_BYTES = 4096
+CONVERSATIONS_REALTIME_MAX_SUBSCRIPTIONS = 20
+CHANNEL_LAYERS = {}
+if CONVERSATIONS_REALTIME_ENABLED:
+    if not CONVERSATIONS_REDIS_URL or urlparse(CONVERSATIONS_REDIS_URL).scheme not in {"redis", "rediss"}:
+        raise ImproperlyConfigured("CONVERSATIONS_REDIS_URL est obligatoire pour le temps réel.")
+    CHANNEL_LAYERS = {"default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [CONVERSATIONS_REDIS_URL], "prefix": CONVERSATIONS_REDIS_PREFIX,
+                   "expiry": 30, "group_expiry": 120, "capacity": 100},
+    }}
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",

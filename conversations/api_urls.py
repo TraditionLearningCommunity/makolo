@@ -1,4 +1,9 @@
 from django.urls import path
+from .realtime_api import ConversationRealtimeTicketAPIView
+from .entry_api import (ConversationEntrySyncAPIView, ConversationEntryDetailAPIView,
+                        ConversationEntryReactionAPIView, ConversationEntrySearchAPIView,
+                        ConversationEntryReceiptsAPIView, ConversationEntryMentionCandidatesAPIView,
+                        ConversationEntryReferenceAPIView, ConversationEntryReferenceOptionsAPIView)
 
 from .api_views import (
     ConversationAttentionPresenceAPIView,
@@ -41,6 +46,15 @@ from .participant_api import (
 app_name = "conversations-api"
 
 urlpatterns = [
+    path("realtime-ticket/", ConversationRealtimeTicketAPIView.as_view(), name="realtime-ticket"),
+    path("points/<uuid:point_pk>/entries/sync/", ConversationEntrySyncAPIView.as_view(), name="entry-sync"),
+    path("points/<uuid:point_pk>/entries/search/", ConversationEntrySearchAPIView.as_view(), name="entry-search"),
+    path("points/<uuid:point_pk>/receipts/", ConversationEntryReceiptsAPIView.as_view(), name="entry-receipts"),
+    path("points/<uuid:point_pk>/mentions/", ConversationEntryMentionCandidatesAPIView.as_view(), name="entry-mentions"),
+    path("points/<uuid:point_pk>/references/options/", ConversationEntryReferenceOptionsAPIView.as_view(), name="entry-reference-options"),
+    path("references/<uuid:reference_pk>/", ConversationEntryReferenceAPIView.as_view(), name="entry-reference"),
+    path("entries/<uuid:entry_pk>/", ConversationEntryDetailAPIView.as_view(), name="entry-detail"),
+    path("entries/<uuid:entry_pk>/reactions/", ConversationEntryReactionAPIView.as_view(), name="entry-reactions"),
     path("", ConversationListAPIView.as_view(), name="list"),
     path("attention-presence/", ConversationAttentionPresenceAPIView.as_view(), name="attention-presence"),
     path("by-context/<str:kind>/<str:context_pk>/", ConversationContextLookupAPIView.as_view(), name="by-context"),

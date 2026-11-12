@@ -16,6 +16,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
+from .profile_scope import ConversationProfileScopeMixin
 from .attention import has_conversation_attention
 from .attention_projection import conversation_attention_sections
 from .point_interactions import point_interactions_for_profile
@@ -243,7 +244,7 @@ def _serialize_conversation_row(row):
     }
 
 
-class ConversationContextLookupAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationContextLookupAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, kind, context_pk):
@@ -292,6 +293,9 @@ def _visible_point_or_404(profile, pk):
 
 
 def _service_error(exc):
+    from .entry_services import ExchangeConflict
+    if isinstance(exc, ExchangeConflict):
+        return Response({"errors": exc.messages}, status=409)
     if isinstance(exc, PermissionDenied):
         return Response({"detail": "Action non autorisée."}, status=status.HTTP_403_FORBIDDEN)
     if hasattr(exc, "message_dict"):
@@ -299,14 +303,14 @@ def _service_error(exc):
     return Response({"errors": getattr(exc, "messages", [str(exc)])}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ConversationAttentionPresenceAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationAttentionPresenceAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         return Response({"has_attention": has_conversation_attention(request.user)})
 
 
-class ConversationAttentionAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationAttentionAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """The current action lens; not a second Point feed or a notification store."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -315,7 +319,7 @@ class ConversationAttentionAPIView(PrivateNoStoreMixin, views.APIView):
         return Response(conversation_attention_sections(request.user, conversation))
 
 
-class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationListAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -385,7 +389,7 @@ class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
         return Response({"results": [_serialize_conversation_row(row) for row in rows], "count": len(rows)})
 
 
-class ConversationPointsDepthAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointsDepthAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Search and stable-keyset history of real Points; never a chat timeline."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -413,7 +417,7 @@ class ConversationPointsDepthAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationDetailAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -531,7 +535,7 @@ def _represented_space_from_request(request):
         raise PermissionDenied("Espace non autorisé.") from exc
 
 
-class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationComposeAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Owner-confirmed Point publication or contribution to an existing Exchange."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -548,8 +552,11 @@ class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
                     point_id=request.data.get("point_id"),
                     client_reference=client_ref, represented_space=represented_space,
                     audience_id=request.data.get("audience_id"),
+                    reply_to_id=request.data.get("reply_to_id"),
+                    mention_profile_ids=request.data.get("mention_profile_ids", []), references=request.data.get("references", []),
                 )
-                return Response({"kind": outcome, "id": str(result.pk), "point_id": str(point_id)})
+                from .entry_projection import entry_ack
+                return Response(entry_ack(result) if outcome == "exchange" else {"kind": outcome, "id": str(result.pk), "point_id": str(point_id)})
             if mode == "point":
                 point = publish_composed_point(
                     actor=request.user, conversation=conversation,
@@ -567,7 +574,7 @@ class ConversationComposeAPIView(PrivateNoStoreMixin, views.APIView):
             return _service_error(exc)
 
 
-class ConversationExchangeEntryAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationExchangeEntryAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -586,7 +593,7 @@ class ConversationExchangeEntryAPIView(PrivateNoStoreMixin, views.APIView):
             return _service_error(exc)
 
 
-class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationContextEnsureAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Open a permitted contextual Conversation; never infer direct consent."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -612,7 +619,7 @@ class ConversationContextEnsureAPIView(PrivateNoStoreMixin, views.APIView):
         return Response({"id": str(conversation.pk)})
 
 
-class ConversationPointMediaResponseAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointMediaResponseAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -641,7 +648,7 @@ class ConversationPointMediaResponseAPIView(PrivateNoStoreMixin, views.APIView):
             return _service_error(exc)
 
 
-class ConversationFormOptionsAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationFormOptionsAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -652,7 +659,7 @@ class ConversationFormOptionsAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationFormComposeAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationFormComposeAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -676,7 +683,7 @@ class ConversationFormComposeAPIView(PrivateNoStoreMixin, views.APIView):
             return _service_error(exc)
 
 
-class ConversationSemanticMediaAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationSemanticMediaAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Atomic upload of media associated to a Point and specific Poll choices."""
 
     permission_classes = [permissions.IsAuthenticated]
@@ -742,7 +749,7 @@ class ConversationSemanticMediaAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationMediaUploadAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -788,16 +795,16 @@ class ConversationMediaUploadAPIView(PrivateNoStoreMixin, views.APIView):
                 form_version_id=request.data.get("form_version_id") or None,
                 questions=questions,
             )
-            return Response({
-                "point_id": str(point.pk), "attachment": serialize_attachment(attachment),
-            })
+            from .entry_projection import entry_ack
+            ack = entry_ack(attachment.exchange_entry) if attachment.exchange_entry_id else {}
+            return Response({**ack, "point_id": str(point.pk), "attachment": serialize_attachment(attachment) if can_download_attachment(request.user, attachment) else None})
         except PermissionDenied:
             raise
         except ValidationError as exc:
             return _service_error(exc)
 
 
-class ConversationAttachmentDownloadAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationAttachmentDownloadAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, attachment_pk):
@@ -817,54 +824,10 @@ class ConversationAttachmentDownloadAPIView(PrivateNoStoreMixin, views.APIView):
         return reply
 
 
-class ConversationExchangeEntriesAPIView(PrivateNoStoreMixin, views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, point_pk):
-        point = _visible_point_or_404(request.user, point_pk)
-        try:
-            _, entry, target_id = contribute_text(
-                actor=request.user, conversation=point.conversation,
-                body=request.data.get("body"), point_id=str(point.pk),
-                represented_space=_represented_space_from_request(request),
-                client_reference=request.data.get("client_reference"),
-            )
-            return Response({"kind": "exchange", "id": str(entry.pk), "point_id": str(target_id)})
-        except PermissionDenied:
-            raise
-        except ValidationError as exc:
-            return _service_error(exc)
-
-    def get(self, request, point_pk):
-        point = _visible_point_or_404(request.user, point_pk)
-        limit = _bounded_limit(request, default=25)
-        try:
-            entries, cursor = readable_exchange_entries(
-                request.user, point, cursor=request.query_params.get("cursor"),
-                limit=limit,
-            )
-        except PermissionDenied as exc:
-            raise NotFound("Échange inaccessible.") from exc
-        except ValidationError as exc:
-            return _service_error(exc)
-        return Response({
-            "results": [
-                {
-                    "id": str(entry.pk), "body": entry.body,
-                    "created_at": entry.created_at, "own": entry.author_id == request.user.pk,
-                    "attachments": [
-                        serialize_attachment(item)
-                        for item in entry.attachments.all()
-                        if can_download_attachment(request.user, item)
-                    ],
-                }
-                for entry in entries
-            ],
-            "next_cursor": cursor,
-        })
+from .entry_api import ConversationExchangeEntriesAPIView
 
 
-class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointResponseAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -897,7 +860,7 @@ class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationPointCloseResponsesAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointCloseResponsesAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Close responses only through the existing Conversation owner service."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -913,7 +876,7 @@ class ConversationPointCloseResponsesAPIView(PrivateNoStoreMixin, views.APIView)
         })
 
 
-class ConversationPointResolveAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointResolveAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     """Coordination outcome, never a mutation of the contextual domain."""
     permission_classes = [permissions.IsAuthenticated]
 
@@ -943,7 +906,7 @@ class ConversationPointResolveAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPersonalStateAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -974,7 +937,7 @@ class ConversationPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationPointPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointPersonalStateAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -999,7 +962,7 @@ class ConversationPointPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationPointAcknowledgeAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationPointAcknowledgeAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, point_pk):
@@ -1011,7 +974,7 @@ class ConversationPointAcknowledgeAPIView(PrivateNoStoreMixin, views.APIView):
         return Response({"point_id": str(point.pk), "acknowledged_at": state.acknowledged_at})
 
 
-class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationInvitationListAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -1071,7 +1034,7 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
         })
 
 
-class ConversationInvitationRespondAPIView(PrivateNoStoreMixin, views.APIView):
+class ConversationInvitationRespondAPIView(ConversationProfileScopeMixin, PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, invitation_pk):

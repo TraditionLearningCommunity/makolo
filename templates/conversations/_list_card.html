@@ -1,5 +1,6 @@
 {% load conversation_tags %}
 <a href="{% url 'conversations:detail' conversation.pk %}{% if matched_point %}?focus={{ matched_point.pk }}#point-{{ matched_point.pk }}{% endif %}"
+   data-messaging-conversation="{{ conversation.pk }}"
    class="group flex min-h-20 items-start gap-3 px-3 py-4 sm:px-4 hover:bg-black/[.03] focus-visible:relative focus-visible:z-10 focus-visible:rounded-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
    style="outline-color:var(--mk-brand)"
    aria-label="Ouvrir {{ card.title }}{% if attention_count %}, {{ attention_count }} à traiter{% endif %}">

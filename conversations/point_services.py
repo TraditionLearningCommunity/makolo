@@ -574,30 +574,9 @@ def supersede_point(*, actor, old_point, new_point):
     return new_point
 
 
-@transaction.atomic
-def create_exchange_entry(*, actor, point, body, reply_to=None, represented_space=None, client_reference=None):
-    locked = ConversationPoint.objects.select_for_update(of=("self",)).select_related("conversation__policy", "visibility_audience", "response_audience").get(pk=point.pk)
-    if locked.kind != ConversationPointKind.EXCHANGE or not locked.conversation.policy.allow_free_exchange:
-        raise ValidationError("Ce Point n’autorise pas la discussion libre.")
-    if not point_response_allowed(actor, locked):
-        raise PermissionDenied("Vous ne pouvez pas contribuer à cet échange.")
-    _validate_represented_space(actor, represented_space)
-    ref = (client_reference or "").strip() or None
-    if ref:
-        existing = PointExchangeEntry.objects.filter(client_reference=ref).first()
-        if existing:
-            if (
-                existing.point_id == locked.pk and existing.author_id == actor.pk
-                and existing.body == (body or "").strip()
-                and existing.represented_space_id == getattr(represented_space, "pk", None)
-                and existing.reply_to_id == getattr(reply_to, "pk", None)
-            ):
-                return existing
-            raise ValidationError("Cette référence d’idempotence est déjà utilisée.")
-    # A confirmed send remains replayable after closure. A new send must
-    # always meet the current lifecycle and time-window requirements.
-    _active_window(locked)
-    return PointExchangeEntry.objects.create(
-        point=locked, author=actor, represented_space=represented_space, body=body,
-        reply_to=reply_to, client_reference=ref,
-    )
+def create_exchange_entry(*, actor, point, body, reply_to=None, represented_space=None, client_reference=None,
+                          mention_profile_ids=(), references=()):
+    from .entry_services import send_entry
+    return send_entry(actor=actor, point=point, body=body, reply_to=reply_to,
+                      represented_space=represented_space, client_reference=client_reference,
+                      mention_profile_ids=mention_profile_ids, references=references)

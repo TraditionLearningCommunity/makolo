@@ -7,3 +7,4 @@ from .media_models import *  # noqa: F401,F403
 from .contact_models import *  # noqa: F401,F403
 
 from .collective_models import *  # noqa: F401,F403
+from .entry_models import *  # noqa: F401,F403

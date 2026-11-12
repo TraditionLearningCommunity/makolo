@@ -241,12 +241,12 @@ def publish_composed_point(
 
 def contribute_text(
     *, actor, conversation, body, point_id=None, represented_space=None,
-    client_reference=None, audience_id=None,
+    client_reference=None, audience_id=None, reply_to_id=None, mention_profile_ids=(), references=(),
 ):
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Conversation non accessible.")
     _validate_represented_context(conversation, represented_space)
-    body = _clean_text(body, "body")
+    body = "" if references and not body else _clean_text(body, "body")
     if not isinstance(client_reference, str) or not client_reference.strip() or len(client_reference) > 80:
         raise ValidationError({"client_reference": "Référence d'envoi obligatoire."})
     # The UI may have selected the only active Exchange implicitly, without
@@ -268,6 +268,8 @@ def contribute_text(
             actor=actor, point=prior.point, body=body,
             represented_space=represented_space,
             client_reference=client_reference,
+            reply_to=_exchange_reply(prior.point, reply_to_id),
+            mention_profile_ids=mention_profile_ids, references=references,
         )
         return "exchange", entry, prior.point_id
     exchange_points = _active_exchange_points(actor, conversation)
@@ -279,8 +281,12 @@ def contribute_text(
             actor=actor, point=target, body=body,
             represented_space=represented_space,
             client_reference=client_reference,
+            reply_to=_exchange_reply(target, reply_to_id),
+            mention_profile_ids=mention_profile_ids, references=references,
         )
         return "exchange", entry, target.pk
+    if reply_to_id or mention_profile_ids or references:
+        raise ValidationError("Choisissez une Discussion pour ces éléments.")
     if point_id:
         raise PermissionDenied("Cet échange n'est plus accessible.")
     if len(exchange_points) > 1:
@@ -310,3 +316,12 @@ def can_ensure_context_conversation(profile, kind, context_pk):
     except (target_model.DoesNotExist, ValidationError, ValueError, TypeError):
         return False
     return _has_scope_permission(profile, pending, "MANAGE")
+
+
+def _exchange_reply(point, reply_to_id):
+    if not reply_to_id:
+        return None
+    try:
+        return PointExchangeEntry.objects.get(pk=reply_to_id, point=point)
+    except (PointExchangeEntry.DoesNotExist, ValueError, ValidationError) as exc:
+        raise PermissionDenied("Message cité inaccessible.") from exc

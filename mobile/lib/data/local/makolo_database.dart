@@ -54,6 +54,12 @@ class MakoloDatabase extends _$MakoloDatabase {
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
       await customStatement(
+        'CREATE INDEX IF NOT EXISTS conversation_entry_profile_sequence '
+        "ON projection_snapshots(profile_id, projection_kind, json_extract(payload_json, '\$.point_id'), "
+        "json_extract(payload_json, '\$.sequence')) "
+        "WHERE projection_kind = 'conversation.exchange.entry'",
+      );
+      await customStatement(
         'CREATE INDEX IF NOT EXISTS outbox_profile_state '
         'ON outbox_operations(profile_id, state, observed_at)',
       );

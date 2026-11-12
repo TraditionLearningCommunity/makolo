@@ -231,6 +231,17 @@ def upload_conversation_media(
     ref = _validate_compose_reference(client_reference)
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Conversation non accessible.")
+    prior_entry = PointExchangeEntry.objects.select_related("point").filter(
+        client_reference=ref, point__conversation=conversation, author=actor,
+    ).first()
+    if prior_entry is not None:
+        from .entry_services import ExchangeConflict, send_entry
+        if point_id and str(point_id) != str(prior_entry.point_id):
+            raise ExchangeConflict("Cette référence désigne un autre échange.")
+        entry = send_entry(actor=actor, point=prior_entry.point, body=(body or "").strip(),
+                           represented_space=represented_space, client_reference=ref,
+                           uploaded_media={"file": uploaded_file, "kind": kind})
+        return entry.point, entry.attachments.order_by("created_at", "pk").first()
     if conversation.lifecycle != ConversationLifecycle.OPEN:
         raise PermissionDenied("Conversation fermée.")
     _validate_represented_context(conversation, represented_space)
@@ -284,13 +295,11 @@ def upload_conversation_media(
 
         entry = None
         if selected is not None:
-            _, entry, _ = contribute_text(
-                actor=actor, conversation=conversation,
-                body=caption or raw_name,
-                point_id=str(selected.pk), represented_space=represented_space,
-                client_reference=ref,
-            )
-            point = selected
+            from .entry_services import send_entry
+            entry = send_entry(actor=actor, point=selected, body=caption,
+                               represented_space=represented_space, client_reference=ref,
+                               uploaded_media={"file": uploaded_file, "kind": kind})
+            return selected, entry.attachments.order_by("created_at", "pk").first()
         else:
             point = publish_composed_point(
                 actor=actor, conversation=conversation,
@@ -307,7 +316,7 @@ def upload_conversation_media(
         if existing.kind != kind or existing.content_hash != digest:
             raise ValidationError("Cette référence d'envoi désigne un autre média.")
         return point, existing
-    incoming = SimpleUploadedFile(raw_name, data, content_type=mime)
+    incoming = uploaded_file
     attachment = create_point_attachment(
         actor=actor, point=point, uploaded_file=incoming, kind=kind,
         exchange_entry=entry,
@@ -363,8 +372,6 @@ def submit_point_media_response(
             raise ValidationError("Cette référence de réponse désigne un autre fichier.")
         return response, attachment
     attachment = create_point_attachment(
-        actor=actor, point=point, uploaded_file=SimpleUploadedFile(
-            raw_name, data, content_type=mime,
-        ), kind=kind, response=response,
+        actor=actor, point=point, uploaded_file=uploaded_file, kind=kind, response=response,
     )
     return response, attachment

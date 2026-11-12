@@ -10,10 +10,55 @@ import '../platform/files/native_directories.dart';
 import '../auth/token_store.dart';
 import '../data/local/makolo_database.dart';
 import '../data/files/profile_paths.dart';
+import '../data/files/profile_file_store.dart';
+import '../data/files/file_transfer_coordinator.dart';
 import '../network/makolo_api_client.dart';
 import '../repositories/draft_repository.dart';
 import '../sync/outbox/outbox_processor.dart';
 import '../sync/outbox/outbox_repository.dart';
+
+class ConversationTransfer {
+  const ConversationTransfer(
+    this.state, {
+    this.transferred = 0,
+    this.total = 0,
+  });
+  final FileTransferState state;
+  final int transferred;
+  final int total;
+}
+
+class _ConversationMediaOwner implements FileOwnerTransfer {
+  _ConversationMediaOwner(this.send, this.cancelHandle);
+  final Future<ApiResponse> Function(
+    StoredLocalFile file,
+    FileTransferProgress? progress,
+  )
+  send;
+  final MakoloCancelHandle cancelHandle;
+  ApiResponse? response;
+  @override
+  Future<FileTransferReceipt> upload({
+    required StoredLocalFile file,
+    FileTransferProgress? onProgress,
+  }) async {
+    response = await send(file, onProgress);
+    final ack = response!.jsonObject();
+    return FileTransferReceipt(
+      confirmed:
+          ack['point_id'] is String &&
+          (ack['attachment'] is Map ||
+              (ack['status'] == 'confirmed' &&
+                  ack['removed'] == true &&
+                  ack['entry_id'] is String)),
+    );
+  }
+
+  @override
+  Future<void> cancel(String fileId) async {
+    cancelHandle.cancel();
+  }
+}
 
 /// One local intent belongs to one authenticated Profile and Conversation.
 /// This is transport metadata, not a second authority for canonical Points.
@@ -26,6 +71,7 @@ class ConversationOutgoing {
     required this.observedAt,
     required this.state,
     this.remotePointId,
+    this.pointId,
     this.mediaKind,
     this.filename,
     this.localFilePath,
@@ -40,6 +86,7 @@ class ConversationOutgoing {
   final DateTime observedAt;
   final String state;
   final String? remotePointId;
+  final String? pointId;
   final String? mediaKind;
   final String? filename;
   final String? localFilePath;
@@ -93,6 +140,110 @@ class ConversationLocalDelivery {
   final Future<Directory> Function()? mediaDirectory;
 
   Future<void> Function()? requestDispatch;
+
+  Future<ProfileFileStore>? _files;
+  final _transferUpdates =
+      StreamController<MapEntry<String, ConversationTransfer>>.broadcast();
+  final Map<String, ConversationTransfer> _transfers = {};
+  final Map<String, MakoloCancelHandle> _transferCancels = {};
+  Future<ProfileFileStore> _fileStore() => _files ??= () async {
+    if (mediaDirectory == null)
+      return ProfileFileStore.open(database: database, profileId: profileId);
+    final root = await mediaDirectory!();
+    return ProfileFileStore(
+      database: database,
+      profileId: profileId,
+      privateDirectory: Directory('${root.path}/private'),
+      stagingDirectory: Directory('${root.path}/staging'),
+    );
+  }();
+  Stream<ConversationTransfer?> watchTransfer(String reference) async* {
+    yield _transfers[reference];
+    yield* _transferUpdates.stream
+        .where((entry) => entry.key == reference)
+        .map((entry) => entry.value);
+  }
+
+  void _transfer(String reference, ConversationTransfer progress) {
+    _transfers[reference] = progress;
+    _transferUpdates.add(MapEntry(reference, progress));
+  }
+
+  void cancelTransfer(String reference) =>
+      _transferCancels[reference]?.cancel();
+
+  Future<ApiResponse> _uploadIntent(
+    String reference,
+    String path, {
+    required Map<String, Object?> fields,
+    required List<MakoloUploadFile> files,
+    String? fileId,
+  }) async {
+    final cancel = MakoloCancelHandle();
+    _transferCancels[reference] = cancel;
+    void progress(int sent, int total) => _transfer(
+      reference,
+      ConversationTransfer(
+        FileTransferState.transferring,
+        transferred: sent,
+        total: total,
+      ),
+    );
+    _transfer(
+      reference,
+      const ConversationTransfer(FileTransferState.transferring),
+    );
+    try {
+      if (fileId == null)
+        return await api.upload(
+          path,
+          fields: fields,
+          files: files,
+          headers: {'X-Makolo-Profile': profileId},
+          cancel: cancel,
+          onProgress: progress,
+        );
+      final store = await _fileStore();
+      final owner = _ConversationMediaOwner(
+        (file, onProgress) => api.upload(
+          path,
+          fields: fields,
+          files: [
+            MakoloUploadFile(
+              fieldName: 'file',
+              path: file.path,
+              filename: files.single.filename,
+            ),
+          ],
+          headers: {'X-Makolo-Profile': profileId},
+          cancel: cancel,
+          onProgress: onProgress,
+        ),
+        cancel,
+      );
+      final result = await FileTransferCoordinator(store).transferToOwner(
+        fileId: fileId,
+        owner: owner,
+        onProgress: progress,
+        onState: (state) => _transfer(reference, ConversationTransfer(state)),
+      );
+      if (result.receipt?.confirmed != true && owner.response == null)
+        throw StateError('Owner confirmation unavailable');
+      return owner.response!;
+    } on Object {
+      _transfer(
+        reference,
+        ConversationTransfer(
+          cancel.isCancelled
+              ? FileTransferState.ownerConfirmationRequired
+              : FileTransferState.failedRecoverable,
+        ),
+      );
+      rethrow;
+    } finally {
+      _transferCancels.remove(reference);
+    }
+  }
 
   static String _reference() {
     final random = Random.secure();
@@ -204,6 +355,9 @@ class ConversationLocalDelivery {
     String? formVersionId,
     List<String>? questions,
     String? pointId,
+    String? replyToId,
+    List<String>? mentionProfileIds,
+    List<Map<String, dynamic>>? references,
     String? audienceId,
     String? representedSpaceId,
     String? filePath,
@@ -233,22 +387,15 @@ class ConversationLocalDelivery {
       if (!await original.exists()) {
         throw StateError('Le fichier sélectionné est introuvable.');
       }
-      final folder = mediaDirectory == null
-          ? Directory(
-              '${(await NativeDirectories.support()).path}/profiles/'
-              '${ProfilePaths.safeProfileId(profileId)}/conversation-outgoing',
-            )
-          : await mediaDirectory!();
-      await folder.create(recursive: true);
-      final name = filename.split(RegExp(r'[/\\]')).last;
-      final suffix = name.contains('.')
-          ? name.substring(name.lastIndexOf('.'))
-          : '.bin';
-      final extension = RegExp(r'^\.[A-Za-z0-9]{1,10}$').hasMatch(suffix)
-          ? suffix
-          : '.bin';
-      stagedPath = '${folder.path}/$reference$extension';
-      await original.copy(stagedPath);
+      final store = await _fileStore();
+      final staged = await store.stage(
+        fileId: reference,
+        owner: owner,
+        sourcePath: original.path,
+        purpose: 'conversation.outgoing',
+        sensitivity: 'private',
+      );
+      stagedPath = staged.path;
     }
     final request = <String, dynamic>{
       'conversation_id': conversationId,
@@ -262,9 +409,13 @@ class ConversationLocalDelivery {
       'form_version_id': ?formVersionId,
       'questions': ?questions,
       'point_id': ?pointId,
+      'reply_to_id': ?replyToId,
+      'mention_profile_ids': ?mentionProfileIds,
+      'references': ?references,
       'audience_id': ?audienceId,
       'represented_space_id': ?representedSpaceId,
       'local_file_path': ?stagedPath,
+      if (stagedPath != null) 'local_file_id': reference,
       'filename': ?filename,
       'media_kind': ?mediaKind,
       'point_kind': ?pointKind,
@@ -291,7 +442,11 @@ class ConversationLocalDelivery {
     } on Object {
       if (stagedPath != null) {
         try {
-          await File(stagedPath).delete();
+          if (mode == 'media') {
+            await (await _fileStore()).remove(reference);
+          } else {
+            await File(stagedPath).delete();
+          }
         } on Object {
           // Best-effort cleanup: preserve the original dispatch failure.
         }
@@ -344,6 +499,7 @@ class ConversationLocalDelivery {
     final mode = payload['mode']?.toString();
     return ConversationOutgoing(
       reference: row.intentId,
+      pointId: payload['point_id']?.toString(),
       kind: mode == 'form'
           ? 'form_request'
           : mode == 'media'
@@ -432,7 +588,8 @@ class ConversationLocalDelivery {
           MakoloUploadFile(fieldName: field, path: path, filename: filename),
         );
       }
-      final response = await api.upload(
+      final response = await _uploadIntent(
+        operation.intentId,
         'api/v1/conversations/$conversationId/semantic-media/',
         fields: {
           'client_reference': operation.intentId,
@@ -463,8 +620,10 @@ class ConversationLocalDelivery {
           !await File(localFile).exists()) {
         return OutboxResolution.conflict;
       }
-      final response = await api.upload(
+      final response = await _uploadIntent(
+        operation.intentId,
         'api/v1/conversations/$conversationId/media/',
+        fileId: payload['local_file_id']?.toString(),
         fields: {
           'client_reference': operation.intentId,
           'kind': kind,
@@ -493,7 +652,10 @@ class ConversationLocalDelivery {
         ],
       );
       confirmed = response.jsonObject();
-      if (confirmed['attachment'] is! Map) {
+      if (confirmed['attachment'] is! Map &&
+          !(confirmed['removed'] == true &&
+              confirmed['status'] == 'confirmed' &&
+              confirmed['entry_id'] is String)) {
         return OutboxResolution.awaitingConfirmation;
       }
     } else {
@@ -502,8 +664,19 @@ class ConversationLocalDelivery {
           : 'api/v1/conversations/$conversationId/compose/';
       final data = Map<String, dynamic>.from(payload)
         ..remove('conversation_id');
-      final response = await api.post(endpoint, body: data);
+      final response = await api.post(
+        endpoint,
+        body: data,
+        headers: {'X-Makolo-Profile': profileId},
+      );
       confirmed = response.jsonObject();
+    }
+    if (mode == 'text' &&
+        payload['point_id'] != null &&
+        (confirmed['status'] != 'confirmed' ||
+            confirmed['entry_id'] is! String ||
+            confirmed['sequence'] is! int)) {
+      return OutboxResolution.awaitingConfirmation;
     }
     final remoteId = confirmed['point_id']?.toString();
     if (remoteId == null || remoteId.isEmpty) {

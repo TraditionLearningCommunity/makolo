@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import hashlib
+from io import BytesIO
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from django.conf import settings
 
@@ -31,14 +33,57 @@ def _validate_kind_mime(kind, mime_type):
     return ensure_media_kind(kind, mime_type)
 
 
+def _validate_extension(uploaded_file, mime):
+    extensions = {
+        "application/pdf": {".pdf"}, "text/plain": {".txt"},
+        "application/msword": {".doc"},
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {".docx"},
+        "image/jpeg": {".jpg", ".jpeg"}, "image/png": {".png"}, "image/webp": {".webp"},
+        "audio/webm": {".webm"}, "audio/ogg": {".ogg", ".oga"},
+        "audio/mp4": {".m4a", ".mp4"}, "audio/x-m4a": {".m4a"},
+        "audio/wav": {".wav"}, "audio/mpeg": {".mp3"},
+        "video/mp4": {".mp4"}, "video/webm": {".webm"},
+    }
+    if Path(getattr(uploaded_file, "name", "")).suffix.lower() not in extensions.get(mime, set()):
+        raise ValidationError("L'extension du fichier ne correspond pas à son type.")
+
+
 def validate_conversation_upload(uploaded_file, kind):
     # Technical validation is shared. Conversation owns its policy and files.
     if kind not in {
         ConversationAttachmentKind.AUDIO, ConversationAttachmentKind.VOICE,
         ConversationAttachmentKind.VIDEO,
     }:
-        return validate_artifact_upload(uploaded_file)
-    return validate_recorded_media(uploaded_file, kind)
+        cached = getattr(uploaded_file, "_conversation_validated", None)
+        if cached is not None:
+            return cached
+        data, mime, digest = validate_artifact_upload(uploaded_file)
+        _validate_extension(uploaded_file, mime)
+        if mime.startswith("image/"):
+            try:
+                with Image.open(BytesIO(data)) as image:
+                    if image.width * image.height > 20_000_000:
+                        raise ValidationError("L'image dépasse la définition prise en charge.")
+                    image_format = image.format
+                    if image_format not in {"JPEG", "PNG", "WEBP"}:
+                        raise ValidationError("Format d'image non pris en charge.")
+                    image = ImageOps.exif_transpose(image)
+                    image.thumbnail((2200, 2200))
+                    image.info.clear()
+                    if image_format == "JPEG" and image.mode not in {"L", "RGB"}:
+                        image = image.convert("RGB")
+                    output = BytesIO()
+                    image.save(output, format=image_format, quality=85, optimize=True)
+                    data = output.getvalue()
+                    digest = hashlib.sha256(data).hexdigest()
+            except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+                raise ValidationError("Image invalide ou trop volumineuse.") from exc
+        result = data, mime, digest
+        uploaded_file._conversation_validated = result
+        return result
+    data, mime, digest = validate_recorded_media(uploaded_file, kind)
+    _validate_extension(uploaded_file, mime)
+    return data, mime, digest
 
 
 def _ensure_policy(point, kind):
@@ -67,7 +112,7 @@ def _ensure_upload_authority(*, actor, point, response=None, exchange_entry=None
     if exchange_entry is not None:
         if exchange_entry.point_id != point.pk or exchange_entry.author_id != getattr(actor, "pk", None):
             raise PermissionDenied("Vous ne pouvez pas joindre un fichier à cet échange.")
-        if not point_visible_to(actor, point):
+        if exchange_entry.moderation_state != ConversationExchangeModerationState.VISIBLE or not point_response_allowed(actor, point):
             raise PermissionDenied("Ce Point n’est pas accessible.")
         return
     if not can_publish_in_conversation(actor, point.conversation):
@@ -102,6 +147,11 @@ def create_point_attachment(
     attachment.file.save("payload.bin", ContentFile(data), save=False)
     try:
         attachment.save()
+        if exchange_entry is not None:
+            from .entry_services import lock_point, touch_entry
+            locked_point = lock_point(point.pk)
+            exchange_entry.content_kind = "mixed" if exchange_entry.body else "media"
+            touch_entry(locked_point, exchange_entry, fields=["content_kind"])
     except Exception:
         if attachment.file.name:
             attachment.file.storage.delete(attachment.file.name)
@@ -141,6 +191,8 @@ def can_download_attachment(
         return False
     if attachment.exchange_entry_id:
         entry = attachment.exchange_entry
+        if entry.moderation_state == ConversationExchangeModerationState.REMOVED:
+            return False
         manager = _can_manage()
         if entry.moderation_state != ConversationExchangeModerationState.VISIBLE:
             return bool(manager or entry.author_id == getattr(actor, "pk", None))

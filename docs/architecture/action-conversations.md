@@ -328,3 +328,24 @@ La profondeur **Détails de la conversation** utilise le même propriétaire Con
 - **Partage** : le partage natif propose uniquement la route Web authentifiée existante `/conversations/<id>/`. Le lien est une adresse, pas un jeton d'Access, pas une invitation et pas un transfert de Permission. Tout destinataire reste soumis à `can_view_conversation`.
 - **Local-first** : les nouveaux champs sont dans la projection `conversation.detail` du Profil courant ; le dernier détail encore valide reste lisible hors ligne, mais un refus serveur explicite prime sur la copie locale.
 - **Vérification** : tests ciblés de confidentialité et de navigation ajoutés à #522. Exécution Flutter/Android et CI non attestées par ce checkpoint.
+
+
+## Addendum du 12 novembre 2026 — commodités des Discussions Exchange
+
+La demande de modernisation du 12 novembre autorise les citations, modifications,
+réactions, mentions, reçus et signaux contextuels de saisie/présence à l’intérieur
+des Points Exchange. Elle fait évoluer les restrictions historiques de l’UX
+Conversations sur ces commodités ; elle ne supprime aucune frontière du domaine.
+
+PostgreSQL et les services Conversations restent autoritatifs. REST porte les
+mutations et la synchronisation ; WebSocket accélère les invalidations. Les
+signaux de présence et de saisie sont éphémères, bornés, filtrés et ne constituent
+jamais un statut global ou une preuve de lecture. Les compteurs d’attention
+continuent à représenter les Points qui demandent une action.
+
+Une citation, mention ou référence documentaire n’accorde aucun accès ni autorité.
+Les documents JourneyArtifact et Requirement restent servis sous les contrôles de
+leurs propriétaires, sans copie silencieuse ni satisfaction automatique.
+
+Les changements locaux, limites encore ouvertes et gates non exécutées sont
+consignés dans [le relevé d’implémentation](../implementation/conversations-realtime-2026-11-12.md).

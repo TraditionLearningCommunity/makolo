@@ -1,0 +1,14 @@
+{% load static %}
+{% if request.user.is_authenticated %}
+<div id="mk-messaging-host" data-profile="{{ request.user.pk }}" data-api="{% url 'conversations-api:list' %}" data-web="{% url 'conversations:list' %}">
+  <button type="button" class="mk-messaging-launch" aria-expanded="false" aria-controls="mk-messaging-panel"><i data-lucide="messages-square" aria-hidden="true"></i><span>Discussions</span></button>
+  <section id="mk-messaging-panel" class="mk-messaging-panel" aria-label="Discussions" hidden>
+    <header><strong>Discussions</strong><a href="{% url 'conversations:list' %}">Tout ouvrir</a><button type="button" data-panel-close aria-label="Fermer les discussions">×</button></header>
+    <form role="search"><label class="sr-only" for="mk-messaging-search">Rechercher une discussion</label><input id="mk-messaging-search" type="search" placeholder="Rechercher…"><button type="submit">Rechercher</button></form>
+    <p class="mk-messaging-status" role="status"></p><div data-discussion-list></div>
+  </section>
+  <div class="mk-messaging-windows" aria-label="Discussions ouvertes"></div>
+</div>
+<link rel="stylesheet" href="{% static 'css/conversations-messaging.css' %}">
+<script defer src="{% static 'js/conversations-messaging.js' %}"></script>
+{% endif %}

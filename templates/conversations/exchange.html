@@ -9,6 +9,8 @@
     <h1 class="mk-page-title mt-2">{{ point.title|default:'Discussion' }}</h1>
     {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ point.body }}</p>{% endif %}
   </header>
+  <div data-exchange-page data-conversation="{{ conversation.pk }}" data-point="{{ point.pk }}" data-title="{{ point.title|default:'Discussion' }}"></div>
+  <details class="mt-4"><summary>Historique et envoi sans connexion temps réel</summary>
   {% if entries %}
     <div class="space-y-3">
       {% for entry in entries %}
@@ -34,6 +36,7 @@
       <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
     </form>
   {% endif %}
+  </details>
 </main>
 <script defer src="{% static 'js/conversations-media-gallery.js' %}"></script>
 {% endblock %}

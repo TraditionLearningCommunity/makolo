@@ -2,6 +2,7 @@
 {% load conversation_tags %}
 {% block title %}Conversations | Makolo{% endblock %}
 {% block content %}
+<div class="mk-conversations-columns">
 <main class="mx-auto max-w-3xl pb-12">
   <header class="mb-6">
     <h1 class="mk-page-title">Conversations</h1>
@@ -83,4 +84,6 @@
     {% endif %}
   </section>
 </main>
+<aside data-messaging-page aria-label="Discussion sélectionnée"></aside>
+</div>
 {% endblock %}

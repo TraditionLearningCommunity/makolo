@@ -39,6 +39,8 @@ class DomainEventType:
     CONVERSATION_INVITATION_DECLINED = "conversation.invitation.declined"
     CONVERSATION_ROUTE_ADDED = "conversation.route.added"
     CONVERSATION_ROUTE_RETIRED = "conversation.route.retired"
+    CONVERSATION_ENTRY_CREATED = "conversation.entry.created"
+    CONVERSATION_ENTRY_MENTIONED = "conversation.entry.mentioned"
 
     PLACEMENT_ASSIGNED = "placement.assigned"
     PLACEMENT_CHANGED = "placement.changed"

@@ -48,6 +48,7 @@ def _category_allowed(preferences, category: str, *, channel: str) -> bool:
 
 
 _EXTERNAL_TEMPLATE_KEYS = frozenset({
+    "conversation.entry.message", "conversation.entry.mention", "conversation.entry.reply",
     "journey.payment.required", "access.issued",
     "occurrence.cancelled", "occurrence.rescheduled",
     "conversation.point.action_required", "conversation.point.escalation",
@@ -279,6 +280,13 @@ def _conversation_delivery_allowed(notification):
     ).filter(pk=point_id, conversation=conversation).first()
     if point is None or not point_visible_to(recipient, point):
         return False
+    if metadata.get("entry_id"):
+        from conversations.entry_services import entries_for
+        try:
+            entry_id = UUID(str(metadata["entry_id"]))
+        except (ValueError, TypeError, AttributeError):
+            return False
+        return entries_for(recipient, point).filter(pk=entry_id, moderation_state="visible").exclude(author=recipient).exists()
     if notification.template_key == "conversation.point.resolved":
         return point.lifecycle == "resolved" and point_resolution_visible_to(recipient, point)
     if notification.template_key == "conversation.point.action_required":

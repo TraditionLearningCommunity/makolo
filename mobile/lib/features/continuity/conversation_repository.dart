@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -11,6 +12,8 @@ import '../../network/api_error.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../data/local/conversation_entry_store.dart';
+import 'conversation_realtime.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_engine.dart';
@@ -78,6 +81,206 @@ class ConversationRepository {
 
   // Injected by the authenticated runtime; no second domain store.
   ConversationLocalDelivery? delivery;
+
+  late final exchangeStore = ConversationEntryStore(database, store, profileId);
+  ConversationRealtime? _realtime;
+  final Map<String, Future<void>> _exchangeRefreshes = {};
+
+  ConversationRealtime? get realtime {
+    final engine = sync;
+    if (engine == null) return null;
+    return _realtime ??= ConversationRealtime(
+      api: engine.api,
+      profileId: profileId,
+      onChanged: refreshExchange,
+      onRevoked: exchangeStore.revoke,
+    );
+  }
+
+  Stream<List<Map<String, dynamic>>> watchExchange(
+    String pointId, {
+    int limit = 100,
+  }) async* {
+    final socket = realtime;
+    socket?.acquire(pointId);
+    try {
+      yield* exchangeStore.watch(pointId, limit: limit);
+    } finally {
+      socket?.release(pointId);
+    }
+  }
+
+  Future<void> refreshExchange(String pointId) =>
+      _exchangeRefreshes.putIfAbsent(
+        pointId,
+        () =>
+            _refreshExchange(pointId)
+                .whenComplete(() => _exchangeRefreshes.remove(pointId)),
+      );
+
+  Future<void> _refreshExchange(String pointId) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    try {
+      var more = true;
+      while (more) {
+        final version = await exchangeStore.version(pointId);
+        final response = await engine.api.get(
+          'api/v1/conversations/points/$pointId/entries/sync/?after_version=$version&limit=50',
+          headers: {'X-Makolo-Profile': profileId},
+        );
+        final page = response.jsonObject();
+        if (page['viewer_profile_id'] != profileId ||
+            page['scope'] is! String ||
+            page['point_id'] != pointId ||
+            page['next_version'] is! int ||
+            page['has_more'] is! bool ||
+            page['results'] is! List) {
+          throw const FormatException('Invalid Exchange synchronization scope');
+        }
+        final scope = page['scope'] as String;
+        final priorScope = await exchangeStore.scope(pointId);
+        if (priorScope != scope && (priorScope != null || version > 0)) {
+          await database.transaction(() async {
+            await exchangeStore.revoke(pointId);
+            await exchangeStore.setScope(pointId, scope);
+          });
+          continue;
+        }
+        final rows = (page['results'] as List)
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .toList();
+        final next = page['next_version'] as int;
+        more = page['has_more'] as bool;
+        if (more && next <= version)
+          throw const FormatException('Exchange delta did not advance');
+        await database.transaction(() async {
+          await exchangeStore.apply(pointId, rows, nextVersion: next);
+          await exchangeStore.setScope(pointId, scope);
+        });
+      }
+      final rows = await exchangeStore.read(pointId, limit: 1);
+      if (rows.isNotEmpty) {
+        // ACK only after Drift committed the authorized projection and cursor.
+        await engine.api.post(
+          'api/v1/conversations/points/$pointId/receipts/',
+          headers: {'X-Makolo-Profile': profileId},
+          body: {
+            'delivered_sequence': rows.last['sequence'],
+            'read_sequence': 0,
+          },
+        );
+      }
+      await refreshExchangeReceipts(pointId);
+    } on MakoloApiError catch (error) {
+      if ({401, 403, 404}.contains(error.statusCode))
+        await exchangeStore.revoke(pointId);
+      if (error.statusCode == 409) await exchangeStore.revoke(pointId);
+      rethrow;
+    }
+  }
+
+  Future<void> markExchangeRead(String pointId, int sequence) async {
+    final engine = sync;
+    if (engine == null) return;
+    await engine.api.post(
+      'api/v1/conversations/points/$pointId/receipts/',
+      headers: {'X-Makolo-Profile': profileId},
+      body: {'delivered_sequence': sequence, 'read_sequence': sequence},
+    );
+  }
+
+  Future<void> refreshExchangeReceipts(String pointId) async {
+    final engine = sync;
+    if (engine == null) return;
+    final response = await engine.api.get(
+      'api/v1/conversations/points/$pointId/receipts/',
+      headers: {'X-Makolo-Profile': profileId},
+    );
+    final receipts = response.jsonObject()['entries'];
+    if (receipts is! List)
+      throw const FormatException('Invalid Exchange receipts');
+    final rows = await exchangeStore.read(pointId, limit: 100);
+    final byId = {
+      for (final row in receipts)
+        if (row is Map) row['id']: row['delivery'],
+    };
+    await exchangeStore.apply(pointId, [
+      for (final row in rows)
+        if (byId.containsKey(row['id'])) {...row, 'delivery': byId[row['id']]},
+    ]);
+  }
+
+  Future<void> mutateEntry(
+    String entryId, {
+    String? body,
+    int? expectedVersion,
+    String? reference,
+    List<String>? mentionProfileIds,
+    String? emoji,
+    bool? selected,
+    bool remove = false,
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    if (remove) {
+      await engine.api.delete(
+        'api/v1/conversations/entries/$entryId/',
+        headers: {'X-Makolo-Profile': profileId},
+      );
+    } else if (emoji != null) {
+      await engine.api.post(
+        'api/v1/conversations/entries/$entryId/reactions/',
+        headers: {'X-Makolo-Profile': profileId},
+        body: {
+          'emoji': emoji,
+          'selected': selected,
+          'client_reference': reference,
+        },
+      );
+    } else {
+      await engine.api.patch(
+        'api/v1/conversations/entries/$entryId/',
+        headers: {'X-Makolo-Profile': profileId},
+        body: {
+          'body': body,
+          'expected_edit_version': expectedVersion,
+          'client_reference': reference,
+          if (mentionProfileIds != null)
+            'mention_profile_ids': mentionProfileIds,
+        },
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> exchangeOptions(
+    String pointId, {
+    bool references = false,
+    String query = '',
+  }) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final route = references
+        ? 'references/options/'
+        : 'mentions/?q=${Uri.encodeQueryComponent(query)}';
+    final response = await engine.api.get(
+      'api/v1/conversations/points/$pointId/$route',
+      headers: {'X-Makolo-Profile': profileId},
+    );
+    final result = response.jsonObject()['results'];
+    if (result is! List)
+      throw const FormatException('Invalid Exchange options');
+    return result.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> exchangeReference(String referenceId) async {
+    final engine = sync;
+    if (engine == null) throw StateError('Connexion indisponible.');
+    return (await engine.api.get(
+      'api/v1/conversations/references/$referenceId/',
+      headers: {'X-Makolo-Profile': profileId},
+    )).jsonObject();
+  }
 
   SyncSourceDefinition listSource() => SyncSourceDefinition(
     sourceKey: 'conversations',
@@ -721,22 +924,41 @@ class ConversationRepository {
   Future<Map<String, dynamic>> exchangeEntries({
     required String pointId,
     String? cursor,
-    int limit = 25,
+    int limit = 50,
   }) async {
     final engine = sync;
-    if (engine == null) {
-      throw StateError('Connexion nécessaire pour ouvrir cet échange.');
+    if (engine == null) throw StateError('Connexion indisponible.');
+    final before = cursor == null
+        ? ''
+        : '&before_sequence=${Uri.encodeQueryComponent(cursor)}';
+    try {
+      final response = await engine.api.get(
+        'api/v1/conversations/points/$pointId/entries/?order=latest&limit=$limit$before',
+        headers: {'X-Makolo-Profile': profileId},
+      );
+      final page = response.jsonObject();
+      if (page['viewer_profile_id'] != profileId || page['results'] is! List) {
+        throw const FormatException('Invalid Exchange history scope');
+      }
+      final rows = (page['results'] as List)
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+      await database.transaction(() async {
+        final priorScope = await exchangeStore.scope(pointId);
+        final scope = page['scope'];
+        if (scope is! String)
+          throw const FormatException('Invalid Exchange history scope');
+        if (priorScope != null && priorScope != scope)
+          await exchangeStore.revoke(pointId);
+        await exchangeStore.setScope(pointId, scope);
+        await exchangeStore.apply(pointId, rows);
+      });
+      return {...page, 'next_cursor': page['before_sequence']?.toString()};
+    } on MakoloApiError catch (error) {
+      if ({401, 403, 404}.contains(error.statusCode))
+        await exchangeStore.revoke(pointId);
+      rethrow;
     }
-    final query =
-        '?limit=$limit${cursor == null ? '' : '&cursor=${Uri.encodeQueryComponent(cursor)}'}';
-    final response = await engine.api.get(
-      'api/v1/conversations/points/$pointId/entries/$query',
-    );
-    final payload = response.jsonObject();
-    if (payload['results'] is! List) {
-      throw const FormatException('Expected Exchange owner collection.');
-    }
-    return payload;
   }
 
   Future<File> downloadAttachment({
