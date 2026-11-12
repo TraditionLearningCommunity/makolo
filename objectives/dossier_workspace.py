@@ -201,11 +201,13 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
         people_preview.setdefault(item["profile_id"], {
             "profile_id": item["profile_id"], "label": item["label"],
             "profile_url": item.get("profile_url"),
+            "profile_view": item.get("profile_view"),
         })
     for item in mandates:
         people_preview.setdefault(item["profile_id"], {
             "profile_id": item["profile_id"], "label": item["profile"],
             "profile_url": item.get("profile_url"),
+            "profile_view": item.get("profile_view"),
         })
     people_values = list(people_preview.values())
 
