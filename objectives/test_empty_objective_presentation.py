@@ -83,6 +83,24 @@ class EmptyObjectivePresentationTests(TestCase):
         self.assertIn('Description courte du Projet', html)
         self.assertNotIn('>Informations du Projet</h2>', html)
 
+    def test_web_project_people_are_one_preview_with_on_demand_depth(self):
+        project = create_project(
+            actor=self.owner, owner_profile=self.owner,
+            title="Projet collectif",
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("objectives:project-detail", args=[project.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertEqual(html.count('class="mk-project__people-preview"'), 1)
+        self.assertEqual(html.count('id="project-people"'), 1)
+        self.assertIn('data-dialog-open="project-people"', html)
+        self.assertIn(self.owner.username, html)
+        self.assertNotIn('id="project-people-details"', html)
+        self.assertNotIn("Aucun mandat Projet actif", html)
+
     def test_web_project_omits_description_when_not_provided(self):
         project = create_project(
             actor=self.owner, owner_profile=self.owner,
