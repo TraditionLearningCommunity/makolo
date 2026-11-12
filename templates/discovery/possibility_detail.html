@@ -16,12 +16,20 @@
     {% if card.representation.image_url or card.gallery_media %}
     <section class="overflow-hidden rounded-2xl" style="background:var(--mk-surface-muted)" aria-label="Images publiées">
       {% if card.representation.image_url %}
-      <img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" class="block w-full object-contain" style="max-height:480px" decoding="async">
+      <details class="group">
+        <summary class="cursor-zoom-in list-none" aria-label="Agrandir le visuel de {{ card.title }}">
+          <img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" class="block w-full object-contain" style="max-height:480px" decoding="async">
+        </summary>
+        <div class="space-y-2 p-3">
+          <img src="{{ card.representation.image_url }}" alt="Visuel agrandi de {{ card.title }}" class="mx-auto w-full object-contain" style="max-height:80vh" loading="lazy">
+          <a href="{{ card.representation.image_url }}" download class="mk-action-button" data-variant="ghost" aria-label="Télécharger le visuel"><i data-lucide="download" class="h-5 w-5" aria-hidden="true"></i><span class="sr-only">Télécharger le visuel</span></a>
+        </div>
+      </details>
       {% endif %}
       {% if card.gallery_media %}
       <div class="flex snap-x gap-3 overflow-x-auto p-3">
         {% for media in card.gallery_media %}
-        <img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-36 shrink-0 snap-start rounded-xl object-contain" loading="lazy" decoding="async">
+        <a href="{{ media.resource.url }}" target="_blank" rel="noopener noreferrer" class="shrink-0 snap-start rounded-xl" aria-label="Agrandir {{ media.resource.alt_text|default:card.title }}"><img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-36 rounded-xl object-contain" loading="lazy" decoding="async"></a>
         {% endfor %}
       </div>
       {% endif %}
