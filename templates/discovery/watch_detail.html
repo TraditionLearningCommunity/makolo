@@ -33,12 +33,21 @@
         <span class="sr-only">{% if watch.status == 'active' %}Mettre en pause{% else %}Reprendre{% endif %}</span>
       </button>
     </form>
-    <form method="post" action="{% url 'discovery:watch-delete' watch.id %}" onsubmit="return confirm('Supprimer cette veille ?')">
-      {% csrf_token %}
-      <button class="mk-action-button" data-variant="danger" data-size="icon" type="submit" aria-label="Supprimer la veille" title="Supprimer">
-        <i data-lucide="trash-2" class="h-5 w-5" aria-hidden="true"></i><span class="sr-only">Supprimer</span>
-      </button>
-    </form>
+    <details class="group relative">
+      <summary class="mk-action-button cursor-pointer list-none" data-variant="ghost" data-size="icon" aria-label="Options de suppression" title="Supprimer">
+        <i data-lucide="trash-2" class="h-5 w-5" aria-hidden="true"></i>
+        <span class="sr-only">Options de suppression</span>
+      </summary>
+      <div class="absolute right-0 top-full z-30 mt-2 w-64 max-w-[85vw] rounded-xl border p-4 shadow-lg" style="border-color:var(--mk-border);background:var(--mk-surface-solid)">
+        <p class="mb-3 text-sm font-semibold">Supprimer cette veille ?</p>
+        <form method="post" action="{% url 'discovery:watch-delete' watch.id %}">
+          {% csrf_token %}
+          <button class="mk-action-button w-full" data-variant="danger" type="submit">
+            <i data-lucide="trash-2" class="h-4 w-4" aria-hidden="true"></i> Supprimer
+          </button>
+        </form>
+      </div>
+    </details>
   </section>
   {% if search_errors %}
   <section class="mk-panel p-4" role="alert">
