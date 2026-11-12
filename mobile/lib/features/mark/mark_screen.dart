@@ -32,6 +32,7 @@ import '../../runtime/runtime_providers.dart';
 import 'mark_dictation_capture.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
+import 'mark_team_member_clarification.dart';
 import 'mark_voice_capture.dart';
 
 class MarkScreen extends StatefulWidget {
@@ -63,6 +64,7 @@ class _MarkScreenState extends State<MarkScreen> {
   List<Map<String, dynamic>> _attachments = const [];
   List<String> _links = const [];
   Map<String, String>? _selectedContext;
+  Map<String, String>? _teamMember;
   NativeFileAcquisitionCoordinator? _files;
   ProfileFileStore? _voiceStore;
   bool _voiceCapture = false;
@@ -125,6 +127,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
+      _teamMember = null;
       _restoring = true;
       _busy = false;
       _input.clear();
@@ -166,6 +169,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
+      _teamMember = null;
       _restoring = true;
       _busy = false;
     });
@@ -187,6 +191,14 @@ class _MarkScreenState extends State<MarkScreen> {
     if (draft != null) {
       _pendingConfirmationCode = draft['pending_confirmation_code']?.toString();
       _pendingConfirmationKey = draft['pending_confirmation_key']?.toString();
+      final priorTeam = draft['team_member'];
+      if (priorTeam is Map &&
+          priorTeam['email'] is String && priorTeam['role'] is String) {
+        _teamMember = {
+          'email': priorTeam['email'] as String,
+          'role': priorTeam['role'] as String,
+        };
+      }
       _input.text = draft['input']?.toString() ?? '';
       final rawSelected = draft['selected'];
       if (_selectedContext == null && rawSelected is Map) {
@@ -839,6 +851,18 @@ class _MarkScreenState extends State<MarkScreen> {
     await _saveDraft();
   }
 
+  Future<void> _submitTeamMember(String email, String role) async {
+    if (_actor is! SpaceActorContext || _busy || _restoring) return;
+    setState(() {
+      _teamMember = {'email': email, 'role': role};
+      _result = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
+    });
+    await _saveDraft();
+    if (mounted) await _submit();
+  }
+
   Future<void> _chooseOption(Map option) async {
     if (_busy || _restoring) return;
     final selected = markClarificationSelection(option);
@@ -865,6 +889,7 @@ class _MarkScreenState extends State<MarkScreen> {
     attachments: _attachments,
     links: _links,
     selected: _selectedContext,
+    teamMember: _teamMember,
     pendingConfirmationCode: _pendingConfirmationCode,
     pendingConfirmationKey: _pendingConfirmationKey,
   );
@@ -992,6 +1017,7 @@ class _MarkScreenState extends State<MarkScreen> {
       attachments: attachments,
       links: links,
       selected: _selectedContext,
+      teamMember: actor is SpaceActorContext ? _teamMember : null,
       allowTextOnly: allowTextOnly,
     );
     if (!mounted ||
@@ -1123,6 +1149,7 @@ class _MarkScreenState extends State<MarkScreen> {
                           _result = null;
                           _pendingConfirmationCode = null;
                           _pendingConfirmationKey = null;
+                          _teamMember = null;
                         });
                         unawaited(_saveDraft());
                       },
@@ -1310,15 +1337,20 @@ class _MarkScreenState extends State<MarkScreen> {
                         result: _result!,
                         onChooseOption: (option) =>
                             unawaited(_chooseOption(option)),
+                        onTeamMember: (email, role) =>
+                            unawaited(_submitTeamMember(email, role)),
                         onEdit: () => _inputFocus.requestFocus(),
                         onCancel: _result!.state == 'needs_confirmation'
                             ? _cancelConfirmation
                             : null,
                         onConfirm:
                             _result!.state == 'needs_confirmation' &&
-                                _result!.action?['code'] ==
-                                    'redeem_recognition' &&
-                                actor is PersonalActorContext
+                                ((_result!.action?['code'] ==
+                                          'redeem_recognition' &&
+                                      actor is PersonalActorContext) ||
+                                  (_result!.action?['code'] ==
+                                          'add_team_member' &&
+                                      actor is SpaceActorContext))
                             ? () => unawaited(_confirmAction())
                             : null,
                         onOpenHandoff: switch (markHandoffRoute(
@@ -1345,6 +1377,7 @@ class _MarkResultView extends StatelessWidget {
   const _MarkResultView({
     required this.result,
     required this.onChooseOption,
+    required this.onTeamMember,
     required this.onEdit,
     this.onOpenHandoff,
     this.onConfirm,
@@ -1353,6 +1386,7 @@ class _MarkResultView extends StatelessWidget {
 
   final MarkResult result;
   final ValueChanged<Map> onChooseOption;
+  final void Function(String email, String role) onTeamMember;
   final VoidCallback onEdit;
   final VoidCallback? onOpenHandoff;
   final VoidCallback? onConfirm;
@@ -1411,6 +1445,9 @@ class _MarkResultView extends StatelessWidget {
                               appearance: MakoloActionAppearance.secondary,
                             ),
                     ),
+              if (result.needsInput &&
+                  question?['code'] == 'team_member_identity_and_responsibility')
+                MarkTeamMemberClarification(onSubmit: onTeamMember),
               if (result.needsInput)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
@@ -1428,7 +1465,9 @@ class _MarkResultView extends StatelessWidget {
               if (onConfirm != null) ...[
                 const SizedBox(height: 12),
                 MakoloActionButton(
-                  label: 'Confirmer cette utilisation',
+                  label: action?['code'] == 'add_team_member'
+                      ? 'Confirmer l’ajout'
+                      : 'Confirmer cette utilisation',
                   onPressed: onConfirm,
                   appearance: MakoloActionAppearance.primary,
                   icon: Icons.check_circle_outline,
