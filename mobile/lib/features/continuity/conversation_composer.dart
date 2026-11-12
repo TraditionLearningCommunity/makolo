@@ -585,7 +585,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
                   onPressed: _sending ? null : _selectType,
                   icon: const Icon(Icons.tune_rounded, size: 19),
                   label: Text(
-                    'Type · ${_selectedType == 'information'
+                    '${_selectedType == 'information'
                         ? 'Information'
                         : _selectedType == 'form'
                         ? 'Formulaire'
