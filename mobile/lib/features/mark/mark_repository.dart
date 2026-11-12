@@ -47,6 +47,7 @@ class MarkRepository {
     required String inputKind,
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
+    List<String> links = const [],
     String? pendingConfirmationCode,
     String? pendingConfirmationKey,
   }) async {
@@ -64,6 +65,7 @@ class MarkRepository {
         'input_kind': inputKind,
         'selected': selected,
         'attachments': attachments,
+        'links': links,
         if (pendingConfirmationCode != null)
           'pending_confirmation_code': pendingConfirmationCode,
         if (pendingConfirmationKey != null)
@@ -99,6 +101,7 @@ class MarkRepository {
     String inputKind = 'text',
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
+    List<String> links = const [],
     bool allowTextOnly = false,
     Map<String, dynamic>? confirmation,
     String? idempotencyKey,
@@ -109,16 +112,26 @@ class MarkRepository {
       inputKind: inputKind,
       selected: selected,
       attachments: attachments,
+      links: links,
       pendingConfirmationCode: confirmation?['code']?.toString(),
       pendingConfirmationKey: idempotencyKey,
     );
 
     // FileRecords are local references. Neither Mark owner API accepts media
     // yet: never silently claim to have submitted these attachments.
-    if (attachments.isNotEmpty && (!allowTextOnly || input.trim().isEmpty)) {
+    if ((attachments.isNotEmpty || links.isNotEmpty) &&
+        (!allowTextOnly || input.trim().isEmpty)) {
+      if (attachments.isNotEmpty) {
+        return const MarkResult(
+          state: 'local_attachments_only',
+          message:
+              'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
+        );
+      }
       return const MarkResult(
-        state: 'local_attachments_only',
-        message: 'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
+        state: 'local_references_only',
+        message:
+            'Liens conservés dans le brouillon. Ils ne sont pas interprétés ni transmis automatiquement.',
       );
     }
 
@@ -178,7 +191,7 @@ class MarkRepository {
         raw: data,
       );
       // A completed text-only action does not dispose of unsent local media.
-      if (result.state == 'completed' && attachments.isEmpty) {
+      if (result.state == 'completed' && attachments.isEmpty && links.isEmpty) {
         await clearDraft(actor);
       }
       return result;
