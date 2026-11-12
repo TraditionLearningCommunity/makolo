@@ -38,6 +38,7 @@ class DossierPeopleScreen extends StatefulWidget {
 
 class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
   bool _refreshing = false;
+  bool _refreshFailed = false;
   int _revision = 0;
 
   String? get _spaceSlug {
@@ -61,12 +62,25 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
       oldWidget.actorContext?.removeListener(_actorChanged);
       widget.actorContext?.addListener(_actorChanged);
     }
+    if (oldWidget.id != widget.id ||
+        oldWidget.repository != widget.repository ||
+        oldWidget.actorContext != widget.actorContext) {
+      _revision++;
+      _refreshing = false;
+      _refreshFailed = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_refresh());
+      });
+    }
   }
 
   void _actorChanged() {
     if (!mounted) return;
     _revision++;
-    setState(() => _refreshing = false);
+    setState(() {
+      _refreshing = false;
+      _refreshFailed = false;
+    });
     unawaited(_refresh());
   }
 
@@ -80,7 +94,10 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     if (_refreshing) return;
     final revision = _revision;
     final slug = _spaceSlug;
-    setState(() => _refreshing = true);
+    setState(() {
+      _refreshing = true;
+      _refreshFailed = false;
+    });
     try {
       await widget.repository.refresh(
         ObjectiveDepth.dossier,
@@ -89,6 +106,9 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
       );
     } on Object {
       // A local snapshot remains readable, but is not a permission grant.
+      if (mounted && revision == _revision) {
+        setState(() => _refreshFailed = true);
+      }
     } finally {
       if (mounted && revision == _revision) {
         setState(() => _refreshing = false);
@@ -183,7 +203,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                       title: const Text('Porteur du Dossier'),
                       subtitle: Text(owner['label']?.toString() ?? 'Non précisé'),
                     ),
-                    if (source.lastErrorCode != null)
+                    if (source.lastErrorCode != null || _refreshFailed)
                       const Padding(
                         padding: EdgeInsets.all(8),
                         child: Text(
