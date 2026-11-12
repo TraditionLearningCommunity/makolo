@@ -26,10 +26,13 @@ Date : 12 novembre 2026. Branche : PR #522.
 7. Distinguer porteur, mandataires Projet et contributions transversales ;
    aucun mandat Projet n'accorde implicitement accès aux Dossiers,
    Conversations ou autres domaines.
-8. Les avatars affichent actuellement des représentations neutres
-   (initiales Flutter, pictogrammes Web). Les vraies photos et l'ouverture
-   directe des Profils nécessitent un **contrat de projection d'identité
-   autorisée et une route de Profil approuvée** ; ne pas les inventer.
+8. Les avatars utilisent maintenant les faits canoniques du Profil
+   lorsqu'ils sont réellement visibles : `ProfileVisibilityResolver`,
+   Passeport public ou propre Passeport du viewer, et route native
+   `/people/:id` ou `/me/passport`. Les photos privées des autres
+   Profils restent absentes et leurs avatars ne deviennent pas des liens
+   vers un Passeport privé. Une identité sans photo rend des initiales
+   (Flutter) ou un pictogramme (Web).
 9. Les indicateurs ne montrent pas de zéros inutiles et ne calculent
    aucun pourcentage d'accomplissement fictif.
 10. Les vues Dossiers / Calendrier restent les mêmes composants et les
@@ -41,8 +44,10 @@ Date : 12 novembre 2026. Branche : PR #522.
 - Nouveau composant réutilisable `ProjectDescription`, alimenté exclusivement
   par `project.horizon.description`.
 - `_peoplePreview` compose `owner` et `collaboration.members` déjà
-  projetés par `project_workspace()` ; l'ouverture donne accès aux mandats
-  et à la délégation si autorisée.
+  projetés par `project_workspace()`, avec les avatars et liens disclosables ;
+  la profondeur « Personnes et accès » permet de consulter, déléguer,
+  remplacer ou révoquer un mandat selon `project.authority.manage`.
+  Aucun `ProjectMember` parallèle n'a été ajouté.
 - Web : `project_detail.html`, `project-workspace.js`,
   `project-workspace.css` ; le texte est intégral sans JS et se replie
   seulement lorsque le client peut mesurer son débordement.
@@ -59,9 +64,32 @@ Date : 12 novembre 2026. Branche : PR #522.
 - Lecteur d'un Projet partagé : uniquement les mandats que le serveur
   autorise à lui révéler. Un bouton ne suppose jamais une autorité.
 - Même présentation depuis Profil et Espace, en mobile et Web.
-- Aucun lien vers un Profil non autorisé ; photo/URL non contractuelle non
-  rendue.
+- Aucun lien vers un Profil privé d'un tiers ni aucune photo qui
+  échoue au contrat de visibilité de l'owner Profile.
 - Analyse Flutter, tests widget et Django, rendu sur émulateur et smoke
   tests Web à exécuter avant validation complète.
 
 Ne pas merger #522 avec une CI obligatoire rouge.
+
+## Finalisation des reliquats — 12 novembre 2026
+
+- Les éléments « Sans échéance » ne remplissent plus le Calendrier par
+  défaut ; ils restent consultables par un filtre explicite.
+- Aperçu Dossiers limité à quatre éléments et un lien vers la vue complète.
+- Sections Personnes et accès uniques : l'aperçu ouvre sa profondeur
+  (bottom sheet native / dialogue Web). Le menu général n'en présente
+  pas une seconde action redondante.
+- Les avatars personnels (quatre au maximum) sont ouvrables uniquement
+  si le Passeport public est disponible ou si le viewer agit sur son
+  propre Profil. Les identités sont dédupliquées dans l'aperçu mobile ;
+  le porteur Espace reste représenté par son icône collective.
+- Les mandats Projet peuvent être explicitement attribués, révoqués ou
+  remplacés ; un nouveau grant refuse d'ajouter un deuxième rôle
+  effectif concurrent pour la même personne et le même Projet.
+- La commande `replace` est atomique et ne touche aucun mandat Dossier,
+  espace, conversation ou autre verticale.
+- Les tests serveur ont été étendus pour les photos privées, les routes
+  publiques, la non-divulgation des Dossiers, les mandats concurrents et
+  les opérations `replace` inter-Projets interdites.
+- Il n'existe toujours pas de pourcentage d'accomplissement Projet ni
+  d'historique propriétaire consolidé inventé par la Presentation.
