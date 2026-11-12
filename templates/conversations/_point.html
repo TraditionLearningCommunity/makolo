@@ -143,8 +143,8 @@
 
   {% if actions.can_close_responses or actions.can_resolve %}
     <details class="mt-4 rounded-xl border p-3" style="border-color:var(--mk-border)">
-      <summary class="cursor-pointer text-sm font-semibold">Décisions de coordination</summary>
-      <p class="mt-2 text-xs" style="color:var(--mk-muted)">Ces actions concernent le Point uniquement. Elles ne modifient pas le domaine propriétaire.</p>
+      <summary class="cursor-pointer text-sm font-semibold">Gérer ce Point</summary>
+      
       {% if actions.can_close_responses %}
         <form class="mt-3" method="post" action="{% url 'conversations:point-close-responses' point.pk %}">
           {% csrf_token %}
@@ -174,7 +174,7 @@
     {% csrf_token %}
     <button class="mk-btn mk-btn-secondary" type="submit" name="action" value="revisit"
             aria-label="{% if actions.revisit %}Ne plus revoir ce Point{% else %}Revoir ce Point plus tard{% endif %}">
-      {% if actions.revisit %}✓ À revoir · retirer{% else %}Revoir ce Point{% endif %}
+      {% if actions.revisit %}✓ À revoir · retirer{% else %}À revoir{% endif %}
     </button>
   </form>
   <footer class="mt-3 flex justify-end gap-2 text-xs" style="color:var(--mk-muted)">
