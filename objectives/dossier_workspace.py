@@ -151,6 +151,7 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
         {
             "id": str(item.pk),
             "label": _person(item.assignee) if manage else "Vous",
+            "profile_id": str(item.assignee_id),
             "assigned_at": _iso(item.assigned_at),
             "self": item.assignee_id == viewer.pk,
             "capabilities": ["remove"] if manage else [],
@@ -167,6 +168,7 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
     if authority:
         mandates = [
             {"id": str(item.pk), "profile": _person(item.profile),
+             "profile_id": str(item.profile_id),
              "role": item.role.name, "capabilities": ["revoke"],
              "web_revoke_url": reverse(
                  "objectives:dossier-revoke-authority", kwargs={
@@ -175,6 +177,19 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
              )}
             for item in current_dossier_authority_mandates(dossier)
         ]
+
+    # Compact people preview: only already-visible Assignments and Mandates.
+    # Deduplicate on the canonical Profile ID; labels are not identities.
+    people_preview = {}
+    for item in assignments:
+        people_preview.setdefault(item["profile_id"], {
+            "profile_id": item["profile_id"], "label": item["label"],
+        })
+    for item in mandates:
+        people_preview.setdefault(item["profile_id"], {
+            "profile_id": item["profile_id"], "label": item["profile"],
+        })
+    people_values = list(people_preview.values())
 
     candidates = {}
     if manage:
@@ -301,6 +316,10 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
         ] if next_action else [],
         "assignments": assignments,
         "mandates": mandates,
+        "people_preview": {
+            "people": people_values[:4],
+            "remaining": max(0, len(people_values) - 4),
+        },
         "allowed_transitions": sorted(ALLOWED_LIFECYCLE_TRANSITIONS[dossier.lifecycle])
                                if manage else [],
         "capabilities": (
