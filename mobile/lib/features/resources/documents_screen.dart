@@ -613,6 +613,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       },
     );
   }
+}
 
 class _ResourceContinuityNotice extends StatelessWidget {
   const _ResourceContinuityNotice({required this.message});
