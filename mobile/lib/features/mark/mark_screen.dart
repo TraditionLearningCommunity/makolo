@@ -707,8 +707,10 @@ class _MarkScreenState extends State<MarkScreen> {
                         onChooseOption: (option) =>
                             unawaited(_chooseOption(option)),
                         onEdit: () => _inputFocus.requestFocus(),
-                        onConfirm: _result!.state == 'needs_confirmation' &&
-                                _result!.action?['code'] == 'redeem_recognition' &&
+                        onConfirm:
+                            _result!.state == 'needs_confirmation' &&
+                                _result!.action?['code'] ==
+                                    'redeem_recognition' &&
                                 actor is PersonalActorContext
                             ? () => unawaited(_confirmAction())
                             : null,
