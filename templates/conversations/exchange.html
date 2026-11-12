@@ -10,7 +10,7 @@
     {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ point.body }}</p>{% endif %}
   </header>
   <div data-exchange-page data-conversation="{{ conversation.pk }}" data-point="{{ point.pk }}" data-title="{{ point.title|default:'Discussion' }}"></div>
-  <details class="mt-4"><summary>Historique et envoi sans connexion temps réel</summary>
+  <details class="mt-4"><summary>Messages précédents</summary>
   {% if entries %}
     <div class="space-y-3">
       {% for entry in entries %}
