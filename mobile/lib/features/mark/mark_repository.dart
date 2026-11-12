@@ -93,6 +93,7 @@ class MarkRepository {
     String inputKind = 'text',
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
+    bool allowTextOnly = false,
   }) async {
     await saveDraft(
       actor: actor,
@@ -101,6 +102,16 @@ class MarkRepository {
       selected: selected,
       attachments: attachments,
     );
+
+    // FileRecords are local references. Neither Mark owner API accepts media
+    // yet: never silently claim to have submitted these attachments.
+    if (attachments.isNotEmpty && (!allowTextOnly || input.trim().isEmpty)) {
+      return const MarkResult(
+        state: 'local_attachments_only',
+        message:
+            'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
+      );
+    }
 
     final api = runtime.api;
     if (api == null) {
@@ -120,14 +131,14 @@ class MarkRepository {
         PersonalActorContext() => await api.post(
           'api/v1/me/mark/',
           body: {
-            'input': {'kind': inputKind, 'value': input},
+            'input': {'kind': allowTextOnly ? 'text' : inputKind, 'value': input},
             'context': context,
           },
         ),
         SpaceActorContext(:final space, :final perspective) => await api.post(
           'api/v1/organizations/workspaces/${space.slug}/mark/',
           body: {
-            'input': {'kind': inputKind, 'value': input},
+            'input': {'kind': allowTextOnly ? 'text' : inputKind, 'value': input},
             'context': {
               ...context,
               if (!perspective.isAll) 'responsibility': perspective.id,
@@ -149,7 +160,10 @@ class MarkRepository {
         links: _map(data['links']) ?? const {},
         raw: data,
       );
-      if (result.state == 'completed') await clearDraft(actor);
+      // A completed text-only action does not dispose of unsent local media.
+      if (result.state == 'completed' && attachments.isEmpty) {
+        await clearDraft(actor);
+      }
       return result;
     } on MakoloTransportError {
       return const MarkResult(
