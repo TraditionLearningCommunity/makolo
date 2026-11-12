@@ -14,7 +14,7 @@ from .audience_models import ConversationAudienceRuleKind, ConversationAudienceR
 from .audience_services import add_audience_rule, create_audience_set
 from .core_models import Conversation, ConversationContextKind
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointResponseMode, ConversationResponseVisibility, PointExchangeEntry
-from .point_services import create_exchange_entry, create_point
+from .point_services import create_exchange_entry, create_point, resolve_point
 from .services import activate_participation, ensure_context_conversation
 
 
@@ -188,6 +188,41 @@ class ConversationC3CompositionTests(TestCase):
         points = detail["points"] + detail["essential"] + detail["elsewhere"]
         item = next(item for item in points if item["id"] == point_id)
         self.assertEqual(item["exchange_preview"][0]["body"], payload["body"])
+
+    def test_confirmed_exchange_retry_after_resolution_is_idempotent(self):
+        self.client.force_login(self.owner)
+        started = self._post({
+            "mode": "point", "kind": "exchange",
+            "title": "Coordination", "client_reference": "c3-replay-start",
+        })
+        self.assertEqual(started.status_code, 200)
+        point_id = started.json()["point_id"]
+        payload = {
+            "mode": "text", "point_id": point_id,
+            "body": "Message reçu", "client_reference": "c3-replay-entry",
+        }
+        self.client.force_login(self.member)
+        first = self._post(payload)
+        self.assertEqual(first.status_code, 200)
+
+        self.client.force_login(self.owner)
+        resolve_point(
+            actor=self.owner, point=ConversationPoint.objects.get(pk=point_id),
+            summary="Coordination terminée",
+        )
+        self.client.force_login(self.member)
+        replay = self._post(payload)
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay.json()["id"], first.json()["id"])
+        self.assertEqual(PointExchangeEntry.objects.filter(point_id=point_id).count(), 1)
+
+        # A fresh intent is not a retry and must remain blocked.
+        fresh = self._post({**payload, "client_reference": "c3-replay-new"})
+        self.assertEqual(fresh.status_code, 403)
+        self.assertEqual(PointExchangeEntry.objects.filter(point_id=point_id).count(), 1)
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self._post(payload).status_code, 404)
 
     def test_direct_profile_conversation_is_composable_only_after_owner_ensures_it(self):
         # Consent is established by the domain before the UI opens this
