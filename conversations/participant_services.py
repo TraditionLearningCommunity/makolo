@@ -370,25 +370,40 @@ def revoke_collective_access(*, actor, access):
 
 
 def collective_invitation_inbox(actor, *, limit=30):
-    """Search pending associations but reveal only targets actor can represent."""
-    if not getattr(actor, "is_authenticated", False):
+    """Select pending collective consents after evaluating live authority.
+
+    A fixed pre-authorization candidate window can hide all legitimate rows
+    when many requests belong to other Spaces/Groups. Scan in DB chunks and
+    stop after the actual owner-visible limit.
+    """
+    if (not getattr(actor, "is_authenticated", False)
+            or not getattr(actor, "is_active", False)):
         return []
+    size = max(1, min(int(limit), 50))
+    now = timezone.now()
     candidates = ConversationCollectiveAccess.objects.filter(
         status=ConversationCollectiveStatus.PENDING,
+        conversation__lifecycle=ConversationLifecycle.OPEN,
+    ).filter(
+        Q(expires_at__isnull=True) | Q(expires_at__gt=now)
     ).select_related(
         "space", "group", "conversation__context", "created_by",
-    ).order_by("-created_at")[:400]
-    return [
-        item for item in candidates
-        if (not item.expires_at or item.expires_at > timezone.now())
-        and item.conversation.lifecycle == ConversationLifecycle.OPEN
-        and ((
-            item.space is not None and _eligible_space(item.space)
-        ) or (
-            item.group is not None and item.group.status == GroupStatus.ACTIVE
-        ))
-        and _collective_manage_allowed(actor, space=item.space, group=item.group)
-    ][:max(1, min(limit, 50))]
+    ).order_by("-created_at", "-pk")
+    visible = []
+    for item in candidates.iterator(chunk_size=100):
+        if not (
+            (item.space is not None and _eligible_space(item.space))
+            or (item.group is not None and item.group.status == GroupStatus.ACTIVE)
+        ):
+            continue
+        if not _collective_manage_allowed(
+            actor, space=item.space, group=item.group,
+        ):
+            continue
+        visible.append(item)
+        if len(visible) >= size:
+            break
+    return visible
 
 
 def conversation_collectives_for_manager(actor, conversation):
