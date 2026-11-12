@@ -1202,9 +1202,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                   style: Theme.of(sheetContext).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Ces sources ne sont pas confirmées par Makolo.',
-                ),
+                const Text('Ces sources ne sont pas confirmées par Makolo.'),
                 if (result.leads.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
@@ -1266,11 +1264,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         _vertical = params['vertical'] ?? '';
         _date = params['date'] ?? '';
         _searchChanged(_search.text, immediate: true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recherche affinée.'),
-          ),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Recherche affinée.')));
       } else {
         final message = result.status == 'unavailable'
             ? _providerFailureMessage(result.reason)
