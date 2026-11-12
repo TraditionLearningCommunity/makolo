@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404, JsonResponse
+from django.db.models import Q
 from rest_framework.exceptions import NotFound
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -29,6 +30,7 @@ from .history import page_points_for_profile
 from .timeline import recent_timeline_for_profile, group_timeline_points
 from .attention_projection import conversation_attention_sections
 from .participant_services import collective_invitation_inbox
+from .participation_inbox import participation_inbox_for_profile
 from .presentation import (
     catch_up_summary,
     conversation_context_label,
@@ -86,8 +88,10 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 ConversationInvitation.objects.filter(
                     invitee=self.request.user,
                     status=ConversationInvitationStatus.PENDING,
-                )
-                .select_related("conversation")
+                    conversation__lifecycle="open",
+                ).filter(
+                    Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+                ).select_related("conversation")
                 .order_by("created_at", "id")[:50]
             )
         context.update(
@@ -98,6 +102,10 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 "pending_collective_invitations": (
                     collective_invitation_inbox(self.request.user)
                     if not q and tab != "archived" else []
+                ),
+                "participation_overview": (
+                    participation_inbox_for_profile(self.request.user)
+                    if not q and tab != "archived" else {}
                 ),
                 "rows": conversation_rows_for_profile(
                     self.request.user,
