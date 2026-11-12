@@ -671,4 +671,144 @@ void main() {
     expect(find.text('Refuser'), findsWidgets);
   });
 
+  testWidgets('C5: one inbox shows managed requests and sent invitations', (
+    tester,
+  ) async {
+    var cancelled = false;
+    final repository = repositoryFor((request) async {
+      if (request.url.path ==
+          '/api/v1/conversations/conv-1/invitations/sent-1/cancel/') {
+        cancelled = true;
+        return const MockResponse(
+          '{"id":"sent-1","status":"cancelled"}',
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conv-1/') {
+        return const MockResponse(
+          '{"id":"conv-1","points":[]}',
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/invitations/') {
+        return MockResponse(
+          jsonEncode({
+            'count': 0,
+            'results': [],
+            'collective_results': [],
+            'join_requests_to_decide': [
+              {
+                'id': 'join-1',
+                'conversation_id': 'conv-1',
+                'identifier': 'demandeur',
+                'can_approve': false,
+                'status': 'pending',
+              },
+            ],
+            'sent_results': cancelled
+                ? []
+                : [
+                    {
+                      'id': 'sent-1',
+                      'conversation_id': 'conv-1',
+                      'identifier': 'destinataire',
+                      'kind': 'profile',
+                      'status': 'pending',
+                    },
+                  ],
+            'my_join_requests': [],
+          }),
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return const MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.listProjectionKind,
+      schemaVersion: 1,
+      payload: {'count': 0, 'results': []},
+    );
+    await store.putProjection(
+      kind: ConversationRepository.invitationsProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'count': 0,
+        'results': [],
+        'join_requests_to_decide': [
+          {
+            'id': 'join-1',
+            'conversation_id': 'conv-1',
+            'identifier': 'demandeur',
+            'can_approve': false,
+            'status': 'pending',
+          },
+        ],
+        'sent_results': [
+          {
+            'id': 'sent-1',
+            'conversation_id': 'conv-1',
+            'identifier': 'destinataire',
+            'kind': 'profile',
+            'status': 'pending',
+          },
+        ],
+        'my_join_requests': [],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(repository: repository, onOpen: (_) {}),
+    );
+    await tester.tap(
+      find.byKey(const Key('conversation-invitations-open')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Demandes à examiner'), findsOneWidget);
+    expect(find.text('@demandeur'), findsOneWidget);
+    expect(find.text('Invitations envoyées'), findsOneWidget);
+    expect(find.text('@destinataire'), findsOneWidget);
+    // The requester lost eligibility: rejection remains possible but
+    // approval is never advertised by the local presentation.
+    expect(find.text('Accepter'), findsNothing);
+    final cancel = find.text('Annuler l’invitation');
+    await tester.ensureVisible(cancel);
+    await tester.tap(cancel);
+    await tester.pumpAndSettle();
+    expect(cancelled, isTrue);
+    expect(find.text('@destinataire'), findsNothing);
+  });
+
+  test('C5: malformed invitation decision is never reported as accepted', () async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path.endsWith('/invitation-1/respond/')) {
+        return const MockResponse(
+          '{"id":"invitation-1","status":"pending"}',
+          200,
+        );
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.invitationsProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'count': 1,
+        'results': [
+          {'id': 'invitation-1', 'status': 'pending'},
+        ],
+      },
+    );
+    await expectLater(
+      repository.respondToInvitation(invitationId: 'invitation-1', accept: true),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      (await repository.readInvitations())!.payload['results'],
+      isNotEmpty,
+    );
+  });
+
 }
