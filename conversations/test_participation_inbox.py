@@ -79,6 +79,8 @@ class ParticipationInboxTests(TestCase):
             [item["id"] for item in invitee["results"]],
             [str(self.invitation.pk)],
         )
+        self.assertEqual(invitee["results"][0]["invited_by"], self.manager.username)
+        self.assertEqual(invitee["results"][0]["context_kind"], "group")
         self.assertEqual(invitee["sent_results"], [])
         self.assertEqual(invitee["join_requests_to_decide"], [])
         self.assertNotIn(self.member.username, str(invitee))
