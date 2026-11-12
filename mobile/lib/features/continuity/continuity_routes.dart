@@ -261,6 +261,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         conversations: runtime.conversations,
         onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenProject: (id) => context.push('/projects/$id'),
+        onOpenOwnerSpace: (slug) => context.push(
+          '/spaces/${Uri.encodeComponent(slug)}',
+        ),
         onOpenPerson: (id) => context.push(
           '/people/${Uri.encodeComponent(id)}',
         ),
