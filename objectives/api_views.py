@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.core.exceptions import ValidationError as DomainValidationError
+from django.core.exceptions import PermissionDenied, ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -244,6 +244,13 @@ def _create_objective(request, kind):
     }
     try:
         obj = create_project(**common) if kind == "project" else create_dossier(**common)
+    except PermissionDenied:
+        # The owner service is authoritative. A revoked or absent Space
+        # mandate must be an explicit refusal, never an unhandled HTTP 500.
+        return Response(
+            {"detail": "Action non autorisée."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     except DomainValidationError as exc:
         return Response(
             {"detail": exc.messages or ["Données invalides."]},
