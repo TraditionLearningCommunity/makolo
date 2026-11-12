@@ -1,9 +1,14 @@
+import secrets
+
 from django.contrib import messages
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import FormView, TemplateView
+
+from groups.selectors import filter_queryset_by_activity_group_eligibility
 
 from activities.models import ActivityStatus, ActivityVisibility
 from organizations.models import SpaceLifecycle
@@ -11,6 +16,7 @@ from opportunities.selectors import published_opportunities
 from journeys.models import JourneyStatus
 
 from .forms import ServiceIntakeForm, ServiceStartForm
+from .native_start import ServiceStartIdempotencyConflict, start_service_journey_idempotently
 from .models import OpportunityPolicy, ServiceDetails, ServiceIntakeQuestion, ServicePlanTemplateStatus
 from .selectors import service_journeys_visible_to
 from .services import answer_intake_question, create_service_journey, submit_service_journey
@@ -88,8 +94,29 @@ class ServiceStartView(LoginRequiredMixin, FormView):
     form_class = ServiceStartForm
     login_url = "core:login"
 
+    def _operation_session_key(self):
+        return f"services.start.operation:{self.request.user.pk}:{self.service.pk}"
+
+    def _operation_key(self):
+        # The hidden key survives a repeated POST. A session fallback also
+        # protects older forms and direct posts, without inventing a Journey.
+        posted = (self.request.POST.get("operation_key") or "").strip()
+        if posted:
+            return posted
+        session_key = self._operation_session_key()
+        key = self.request.session.get(session_key)
+        if not isinstance(key, str) or not key:
+            key = secrets.token_urlsafe(24)
+            self.request.session[session_key] = key
+        return key
+
     def dispatch(self, request, *args, **kwargs):
-        self.service = get_object_or_404(public_services(), pk=kwargs["pk"])
+        self.service = get_object_or_404(
+            filter_queryset_by_activity_group_eligibility(
+                public_services(), request.user,
+            ),
+            pk=kwargs["pk"],
+        )
         self.initial_opportunity = None
         opportunity_id = request.GET.get("opportunity") or request.POST.get("opportunity")
         if opportunity_id:
@@ -102,22 +129,39 @@ class ServiceStartView(LoginRequiredMixin, FormView):
         return kwargs
 
     def get_context_data(self, **kwargs):
+        if self.request.method == "GET":
+            # A deliberate new visit starts a new possible intention. Replays
+            # of the previous submitted key still resolve to the first Journey.
+            session_key = self._operation_session_key()
+            if self.request.session.pop(f"{session_key}:used", False):
+                self.request.session.pop(session_key, None)
         context = super().get_context_data(**kwargs)
-        context.update({"service": self.service, "initial_opportunity": self.initial_opportunity})
+        context.update({
+            "service": self.service,
+            "initial_opportunity": self.initial_opportunity,
+            "operation_key": self._operation_key(),
+        })
         return context
 
     def form_valid(self, form):
-        opportunity = form.cleaned_data.get("opportunity")
-        revision = opportunity.current_revision if opportunity is not None else None
-        journey = create_service_journey(
-            service=self.service,
-            initiated_by=self.request.user,
-            beneficiary=self.request.user,
-            objective=form.cleaned_data.get("objective", ""),
-            template=_published_template(self.service),
-            opportunity=opportunity,
-            opportunity_revision=revision,
-        )
+        operation_key = self._operation_key()
+        try:
+            journey, _created = start_service_journey_idempotently(
+                service=self.service,
+                actor=self.request.user,
+                operation_key=operation_key,
+                objective=form.cleaned_data.get("objective", ""),
+                opportunity=form.cleaned_data.get("opportunity"),
+            )
+        except ServiceStartIdempotencyConflict:
+            form.add_error(None, "Cette opération a déjà été utilisée pour une autre demande.")
+            return self.form_invalid(form)
+        except DjangoValidationError as exc:
+            form.add_error(None, "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc))
+            return self.form_invalid(form)
+        session_key = self._operation_session_key()
+        if self.request.session.get(session_key) == operation_key:
+            self.request.session[f"{session_key}:used"] = True
         return redirect("services:intake", pk=journey.pk)
 
 

@@ -73,6 +73,59 @@ class ServiceParticipantWebTests(TestCase):
         self.assertEqual(journey.service_context.opportunity_id, self.opportunity.pk)
         self.assertEqual(journey.service_context.opportunity_revision_id, self.opportunity.current_revision_id)
 
+    def test_web_start_replays_same_intention_without_creating_another_journey(self):
+        self.client.force_login(self.participant)
+        url = reverse("services:start", kwargs={"pk": self.none_service.pk})
+        first_page = self.client.get(url)
+        key = first_page.context["operation_key"]
+        self.assertTrue(key)
+        payload = {"objective": "Réviser mon CV", "operation_key": key}
+        first = self.client.post(url, payload)
+        repeated = self.client.post(url, payload)
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(repeated.status_code, 302)
+        self.assertEqual(first["Location"], repeated["Location"])
+        self.assertEqual(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.none_service.activity
+            ).count(), 1,
+        )
+
+        new_page = self.client.get(url)
+        new_key = new_page.context["operation_key"]
+        self.assertNotEqual(new_key, key)
+        self.assertEqual(
+            self.client.post(url, {
+                "objective": "Nouvelle demande volontaire",
+                "operation_key": new_key,
+            }).status_code, 302,
+        )
+        self.assertEqual(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.none_service.activity
+            ).count(), 2,
+        )
+
+    def test_web_start_rejects_reused_key_with_changed_payload(self):
+        self.client.force_login(self.participant)
+        url = reverse("services:start", kwargs={"pk": self.none_service.pk})
+        key = self.client.get(url).context["operation_key"]
+        self.assertEqual(
+            self.client.post(url, {
+                "operation_key": key, "objective": "Première demande",
+            }).status_code, 302,
+        )
+        changed = self.client.post(url, {
+            "operation_key": key, "objective": "Demande altérée",
+        })
+        self.assertEqual(changed.status_code, 200)
+        self.assertContains(changed, "déjà été utilisée pour une autre demande")
+        self.assertEqual(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.none_service.activity
+            ).count(), 1,
+        )
+
     def test_participant_cannot_open_another_users_intake(self):
         self.client.force_login(self.participant)
         self.client.post(reverse("services:start", kwargs={"pk": self.none_service.pk}), {"objective": "CV"})

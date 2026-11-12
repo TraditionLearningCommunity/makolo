@@ -76,6 +76,7 @@ class NativeServiceStartAPITests(TestCase):
         self.assertEqual(information.status_code, 200)
         self.assertEqual(information.json()["capabilities"], ["start"])
         self.assertTrue(information.json()["requirements"]["idempotency_key_required"])
+        self.assertEqual(information.json()["representation"]["title"], self.activity.title)
         created = self._start()
         self.assertEqual(created.status_code, 201)
         first_id = created.json()["journey"]["id"]

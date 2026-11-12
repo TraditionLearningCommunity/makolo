@@ -6,6 +6,7 @@ from django.urls import reverse
 from journeys.models import JourneyStatus, RequestStatus, WorkflowKind
 from payments.models import PaymentObligationProcessingMode, PaymentObligationStatus
 from readiness import ReadinessCheckState
+from services.models import ServiceCurrentOutcome
 from services.requirement_services import derive_requirement_consequence
 from services.trusted_reuse_ui import trusted_reuse_options_for_assessment
 
@@ -313,6 +314,23 @@ def _journey_history(journey):
     ]
 
 
+def _service_result(journey):
+    """Disclose only the recipient's owner-established external outcome."""
+    try:
+        context = journey.service_context
+    except (ObjectDoesNotExist, AttributeError):
+        return None
+    if context.current_outcome in {
+        ServiceCurrentOutcome.NOT_SUBMITTED,
+        ServiceCurrentOutcome.UNKNOWN,
+    }:
+        return None
+    return {
+        "code": context.current_outcome,
+        "label": context.get_current_outcome_display(),
+    }
+
+
 def build_journey_detail(*, journey, readiness, profile, live=None):
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     pending = [
@@ -392,6 +410,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         "readiness": serialize_readiness(readiness),
         "steps": _journey_step_summaries(journey),
         "history": _journey_history(journey),
+        "service_result": _service_result(journey),
         "requests": {"pending": pending, "rejected": rejected},
         "requirements": _service_requirements(journey),
         "forms": form_links,

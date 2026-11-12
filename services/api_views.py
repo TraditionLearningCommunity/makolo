@@ -101,6 +101,10 @@ class ServiceStartAPIView(APIView):
         response = Response({
             "service": {"kind": "service", "id": str(service.pk)},
             "activity": {"kind": "activity", "id": str(service.activity_id)},
+            "representation": {
+                "title": service.activity.title,
+                "summary": service.activity.short_description or None,
+            },
             "capabilities": ["start"],
             "opportunities": opportunities,
             "requirements": {

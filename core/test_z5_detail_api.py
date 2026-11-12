@@ -60,7 +60,13 @@ from questionnaires.services import (
     request_form,
 )
 from requirements.contracts import RequirementAssessmentState
-from services.models import OpportunityPolicy, ServiceKind, ServiceRequirementAssessment
+from services.models import (
+    OpportunityPolicy,
+    ServiceCurrentOutcome,
+    ServiceJourneyContext,
+    ServiceKind,
+    ServiceRequirementAssessment,
+)
 from services.requirement_services import assess_requirement, derive_requirement_consequence
 from services.services import create_service_details, create_service_journey
 
@@ -105,6 +111,43 @@ class Z5DetailAPIContractTests(TestCase):
             workflow=WorkflowKind.REGISTRATION,
             status=status,
         )
+
+    def test_service_result_is_owner_fact_distinct_from_journey_state(self):
+        service = create_service_details(
+            activity=self.activity, actor=self.user,
+            service_kind=ServiceKind.OTHER,
+        )
+        journey = create_service_journey(
+            service=service, initiated_by=self.user,
+            beneficiary=self.user, objective="Faire examiner mon dossier",
+        )
+        self.client.force_authenticate(self.user)
+        url = f"/api/v1/me/journeys/{journey.pk}/"
+        initial = self.client.get(url)
+        self.assertEqual(initial.status_code, 200)
+        self.assertIsNone(initial.json()["data"]["service_result"])
+
+        ServiceJourneyContext.objects.filter(journey=journey).update(
+            current_outcome=ServiceCurrentOutcome.UNDER_REVIEW,
+        )
+        reading = self.client.get(url)
+        self.assertEqual(reading.status_code, 200)
+        result = reading.json()["data"]["service_result"]
+        self.assertEqual(result["code"], ServiceCurrentOutcome.UNDER_REVIEW)
+        self.assertEqual(result["label"], "En revue")
+        self.assertEqual(reading.json()["data"]["state"]["code"], JourneyStatus.DRAFT)
+
+        ServiceJourneyContext.objects.filter(journey=journey).update(
+            current_outcome=ServiceCurrentOutcome.UNSUCCESSFUL,
+        )
+        unsuccessful = self.client.get(url)
+        self.assertEqual(unsuccessful.json()["data"]["service_result"]["code"],
+                         ServiceCurrentOutcome.UNSUCCESSFUL)
+        self.assertEqual(unsuccessful.json()["data"]["state"]["code"],
+                         JourneyStatus.DRAFT)
+
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_web_n3_uses_canonical_goal_and_does_not_invent_progress(self):
         journey = self.journey()
