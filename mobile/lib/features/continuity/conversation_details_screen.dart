@@ -583,6 +583,38 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       return;
     }
     if (!mounted) return;
+    String? pendingDecisionId;
+    String? decisionError;
+
+    Future<void> decide(
+      Map<String, dynamic> row,
+      bool approve,
+      StateSetter refresh,
+      BuildContext sheetContext,
+    ) async {
+      if (pendingDecisionId != null) return;
+      refresh(() {
+        pendingDecisionId = row['id']?.toString();
+        decisionError = null;
+      });
+      try {
+        await widget.repository.decideJoinRequest(
+          conversationId: widget.conversationId,
+          requestId: row['id'].toString(),
+          approve: approve,
+        );
+        if (!sheetContext.mounted) return;
+        refresh(() => entries.remove(row));
+      } on Object {
+        if (sheetContext.mounted) {
+          refresh(() => decisionError =
+              'Décision non confirmée. Actualisez avant de réessayer.');
+        }
+      } finally {
+        if (sheetContext.mounted) refresh(() => pendingDecisionId = null);
+      }
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -595,45 +627,41 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
               'Demandes d’entrée',
               style: Theme.of(sheetContext).textTheme.titleLarge,
             ),
+            if (decisionError != null)
+              Text(
+                decisionError!,
+                style: TextStyle(
+                  color: Theme.of(sheetContext).colorScheme.error,
+                ),
+              ),
             for (final row in entries)
               ListTile(
-                title: Text(row['label']?.toString() ?? 'Profil'),
-                subtitle: Text('@${row['identifier'] ?? ''}'),
+                title: Text('@${row['identifier'] ?? ''}'),
+                subtitle: Text(
+                  row['can_approve'] == false
+                      ? 'Entrée non éligible. Vous pouvez refuser.'
+                      : 'Demande en attente de décision',
+                ),
                 trailing: Wrap(
                   spacing: 6,
                   children: [
                     TextButton(
-                      onPressed: () async {
-                        try {
-                          await widget.repository.decideJoinRequest(
-                            conversationId: widget.conversationId,
-                            requestId: row['id'].toString(),
-                            approve: false,
-                          );
-                          entries.remove(row);
-                          refresh(() {});
-                        } on Object {
-                          /* Owner state unchanged. */
-                        }
-                      },
+                      onPressed: pendingDecisionId != null
+                          ? null
+                          : () => unawaited(
+                                decide(row, false, refresh, sheetContext),
+                              ),
                       child: const Text('Refuser'),
                     ),
-                    FilledButton(
-                      onPressed: () async {
-                        try {
-                          await widget.repository.decideJoinRequest(
-                            conversationId: widget.conversationId,
-                            requestId: row['id'].toString(),
-                            approve: true,
-                          );
-                          entries.remove(row);
-                          refresh(() {});
-                        } on Object {
-                          /* Owner state unchanged. */
-                        }
-                      },
-                      child: const Text('Accepter'),
-                    ),
+                    if (row['can_approve'] != false)
+                      FilledButton(
+                        onPressed: pendingDecisionId != null
+                            ? null
+                            : () => unawaited(
+                                  decide(row, true, refresh, sheetContext),
+                                ),
+                        child: const Text('Accepter'),
+                      ),
                   ],
                 ),
               ),
