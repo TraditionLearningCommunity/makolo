@@ -37,6 +37,20 @@ class JourneyPaymentSummary {
   final String? orderId;
 }
 
+class JourneyHistoryEntry {
+  const JourneyHistoryEntry({
+    required this.id,
+    required this.label,
+    required this.state,
+    required this.at,
+  });
+
+  final String id;
+  final String label;
+  final String state;
+  final DateTime at;
+}
+
 class JourneyOrderSummary {
   const JourneyOrderSummary({
     required this.id,
@@ -208,6 +222,7 @@ class JourneyDetailPresentation {
     this.rejectedRequests = 0,
     this.payment,
     this.order,
+    this.history = const [],
     this.payments = const [],
     this.practical,
     this.workflowKind = '',
@@ -257,6 +272,7 @@ class JourneyDetailPresentation {
   final int rejectedRequests;
   final JourneyPaymentSummary? payment;
   final JourneyOrderSummary? order;
+  final List<JourneyHistoryEntry> history;
   final List<JourneyPaymentSummary> payments;
   final JourneyPracticalFacts? practical;
 
@@ -333,6 +349,7 @@ class JourneyDetailSelector {
       rejectedRequests: _maps(requests['rejected']).length,
       payment: _payment(payload['payment']),
       order: _order(payload['payment']),
+      history: _history(payload['history']),
       payments: _payments(payload['payment']),
       practical: _practical(occurrence),
       summary: summary != null && summary.toLowerCase() != title.toLowerCase()
@@ -387,6 +404,21 @@ class JourneyDetailSelector {
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );
+  }
+
+  static List<JourneyHistoryEntry> _history(Object? value) {
+    return _maps(value).map((row) {
+      final id = _string(row['id']);
+      final label = _string(row['label']);
+      final state = _string(row['state']);
+      final at = _dateTime(row['at']);
+      if (id == null || label == null || state == null || at == null) {
+        return null;
+      }
+      return JourneyHistoryEntry(
+        id: id, label: label, state: state, at: at,
+      );
+    }).whereType<JourneyHistoryEntry>().toList(growable: false);
   }
 
   static JourneyOrderSummary? _order(Object? value) {
