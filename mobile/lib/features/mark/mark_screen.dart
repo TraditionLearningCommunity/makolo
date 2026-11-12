@@ -915,6 +915,60 @@ class _MarkScreenState extends State<MarkScreen> {
     final proposal = _result;
     if (_busy || proposal?.state != 'needs_confirmation') return;
     final action = proposal?.action;
+    if (action?['code'] == 'add_team_member' &&
+        _actor is SpaceActorContext) {
+      final target = action?['target'];
+      if (target is! Map ||
+          target['email'] is! String ||
+          target['role'] is! String) {
+        _show('Cette proposition ne peut pas être confirmée ici.');
+        return;
+      }
+      final email = (target['email'] as String).trim().toLowerCase();
+      final role = (target['role'] as String).trim();
+      if (email.isEmpty || role.isEmpty) return;
+      final revision = _draftRevision;
+      final actor = _actor;
+      final repository = _repository;
+      setState(() {
+        _busy = true;
+        _teamMember = {'email': email, 'role': role};
+        _pendingConfirmationCode = 'add_team_member';
+      });
+      final result = await repository.submit(
+        actor: actor,
+        input: _input.text.trim(),
+        selected: _selectedContext,
+        teamMember: {'email': email, 'role': role},
+        attachments: _attachments,
+        links: _links,
+        allowTextOnly: _attachments.isNotEmpty || _links.isNotEmpty,
+        confirmation: {
+          'code': 'add_team_member',
+          'email': email,
+          'role': role,
+        },
+      );
+      if (!mounted ||
+          revision != _draftRevision ||
+          repository != _repository ||
+          actor != _actor) {
+        return;
+      }
+      setState(() {
+        _busy = false;
+        _result = result;
+        if (result.state == 'completed') {
+          _pendingConfirmationCode = null;
+        }
+      });
+      if (result.state == 'completed' &&
+          (_attachments.isNotEmpty || _links.isNotEmpty)) {
+        await _saveDraft();
+      }
+      unawaited(_drainSharedInputs());
+      return;
+    }
     if (action?['code'] != 'redeem_recognition' ||
         _actor is! PersonalActorContext) {
       return;
