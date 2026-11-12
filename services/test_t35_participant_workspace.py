@@ -8,6 +8,7 @@ from django.urls import reverse
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from journeys.collaboration_models import JourneyArtifactKind, JourneyNote, JourneyNoteVisibility
 from journeys.collaboration_services import create_artifact
+from journeys.models import Journey, JourneyStatus
 
 from .models import ServiceKind
 from .services import create_service_details, create_service_journey
@@ -64,6 +65,19 @@ class ServiceParticipantWorkspaceTests(TestCase):
                     reverse("journeys:artifact-download", args=[artifact.pk]),
                 )
                 self.assertContains(response, "Exporter")
+
+    def test_web_completed_service_does_not_claim_external_acceptance(self):
+        Journey.objects.filter(pk=self.journey.pk).update(
+            status=JourneyStatus.FULFILLED,
+        )
+        self.journey.refresh_from_db()
+        self.client.force_login(self.participant)
+        response = self.client.get(
+            reverse("core:participant-journey-detail", args=[self.journey.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Suivi terminé dans Makolo")
+        self.assertNotContains(response, "Échec externe")
 
     def test_foreign_participant_still_cannot_load_services_workspace(self):
         self.client.force_login(self.other)
