@@ -100,7 +100,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Échange indisponible. Votre saisie est conservée.',
+          () => _error = 'Discussion indisponible. Votre saisie est conservée.',
         );
       }
     } finally {
@@ -178,7 +178,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
         ),
         child: Scaffold(
           appBar: AppBar(
-            title: Text(widget.title.isEmpty ? 'Échange' : widget.title),
+            title: Text(widget.title.isEmpty ? 'Discussion' : widget.title),
           ),
           body: Column(
             children: [
@@ -189,7 +189,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
                     if (_loading && !_loaded)
                       const Center(child: CircularProgressIndicator()),
                     if (!_loading && _loaded && _rows.isEmpty)
-                      const Text('Aucune contribution accessible.'),
+                      const Text('Aucun message pour le moment.'),
                     for (final row in _rows) ...[
                       if (row['own'] == true)
                         Text(
@@ -268,7 +268,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet> {
                           maxLines: 4,
                           maxLength: 5000,
                           decoration: const InputDecoration(
-                            hintText: 'Écrire…',
+                            hintText: 'Écrire un message…',
                             border: OutlineInputBorder(),
                             counterText: '',
                           ),
