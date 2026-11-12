@@ -287,12 +287,12 @@
     if (rows.length)
       add(area, el('h3', 'mk-project__subtitle', 'Dossiers'));
     const cards = el('div', 'mk-project__cards');
-    for (const row of rows.slice(0, 6)) add(cards, card(row));
+    for (const row of rows.slice(0, 4)) add(cards, card(row));
     if (!rows.length) add(cards, empty('Aucun Dossier visible.'));
 
     add(area, cards);
-    if (rows.length > 6) {
-      const btn = el('button', 'mk-action-button', 'Voir tous les dossiers acquis');
+    if (rows.length > 4) {
+      const btn = el('button', 'mk-action-button', 'Voir les dossiers');
       btn.dataset.variant = 'secondary';
       btn.type = 'button';
       btn.addEventListener('click', () => { state.view = 'dossiers'; render(); });
