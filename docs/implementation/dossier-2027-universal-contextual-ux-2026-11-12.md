@@ -116,10 +116,15 @@ recherche infructueuse restent différents.
   synthèse progressive, avatars à initiales, action contextuelle,
   progression des Journeys visibles, accordéon de dépendances ;
 - mobile/lib/features/continuity/continuity_routes.dart : handoff
-  vers /people/:id, sans écran Profil Dossier parallèle ;
+  vers /people/:id et /dossiers/:id/people, sans écran Profil parallèle ;
+- mobile/lib/features/continuity/dossier_people_screen.dart : page
+  secondaire de consultation des Assignments et Mandates visibles ;
+  les capacités de mutation demeurent dans l'écran Dossier ;
 - objectives/test_d5_cross_context_closure.py : visibilité et
   déduplication des Profils ;
-- mobile/test/dossier_2027_overview_test.dart : états rempli et vide.
+- mobile/test/dossier_2027_overview_test.dart : états rempli et vide ;
+- mobile/test/dossier_people_screen_test.dart : vue détaillée, navigation
+  Profil et non-divulgation des personnes absentes de la projection.
 
 ## Vérifications obligatoires avant validation UX
 
@@ -130,6 +135,7 @@ Django :
 Flutter :
     cd mobile
     flutter test test/dossier_2027_overview_test.dart
+    flutter test test/dossier_people_screen_test.dart
     flutter test test/objective_dossier_context_test.dart
     flutter analyze
     ./tool/dart_format.sh
