@@ -498,7 +498,15 @@ class _MarkScreenState extends State<MarkScreen> {
         _show('Ce document local n’est plus accessible.');
         return;
       }
-      const supported = {'.pdf', '.docx', '.doc', '.txt', '.jpg', '.jpeg', '.png'};
+      const supported = {
+        '.pdf',
+        '.docx',
+        '.doc',
+        '.txt',
+        '.jpg',
+        '.jpeg',
+        '.png',
+      };
       final extension = p.extension(file.path).toLowerCase();
       if (!supported.contains(extension)) {
         _show('Ce format ne peut pas être conservé comme document.');
@@ -945,8 +953,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                 onPressed: _busy || _restoring
                                     ? null
                                     : () => unawaited(
-                                          _saveToPersonalResources(item),
-                                        ),
+                                        _saveToPersonalResources(item),
+                                      ),
                               ),
                           ],
                         ],
