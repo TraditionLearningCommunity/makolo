@@ -295,6 +295,24 @@ def _journey_step_summaries(journey):
     ]
 
 
+def _journey_history(journey):
+    """Only owner state transitions, not private reasons or actor data."""
+    rows = sorted(
+        journey.transitions.all(),
+        key=lambda row: (row.created_at, str(row.pk)),
+        reverse=True,
+    )[:10]
+    return [
+        {
+            "id": str(row.pk),
+            "state": row.to_status,
+            "label": JourneyStatus(row.to_status).label,
+            "at": _iso(row.created_at),
+        }
+        for row in rows
+    ]
+
+
 def build_journey_detail(*, journey, readiness, profile, live=None):
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     pending = [
@@ -373,6 +391,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         },
         "readiness": serialize_readiness(readiness),
         "steps": _journey_step_summaries(journey),
+        "history": _journey_history(journey),
         "requests": {"pending": pending, "rejected": rejected},
         "requirements": _service_requirements(journey),
         "forms": form_links,
