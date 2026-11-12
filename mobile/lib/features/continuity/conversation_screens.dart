@@ -1549,14 +1549,18 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           leading: const Icon(Icons.fact_check_outlined),
           title: Text(
             count > 0
-                ? 'À présent · $count action(s) à traiter'
-                : 'À présent · aucune action due',
+                ? 'À présent · $count à traiter'
+                : 'À présent · à savoir',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          subtitle: Text(
-            knowledge.isNotEmpty
-                ? '${knowledge.length} information(s) à savoir'
-                : 'Ouvrir pour accéder aux Points concernés',
-          ),
+          subtitle: knowledge.isNotEmpty
+              ? Text(
+                  '${knowledge.length} information${knowledge.length > 1 ? 's' : ''} utile${knowledge.length > 1 ? 's' : ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : null,
           children: [
             ConstrainedBox(
               constraints: BoxConstraints(
@@ -3544,33 +3548,47 @@ class _PointCardState extends State<_PointCard> {
             ),
         ],
         if ((point.canCloseResponses || point.canResolve) &&
-            !widget.readOnly) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          Text('Décisions de coordination', style: theme.titleSmall),
-          Text(
-            'La clôture et la résolution ne modifient aucune donnée métier du contexte.',
-            style: theme.bodySmall?.copyWith(color: muted),
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          Wrap(
-            spacing: MakoloSpacing.sm,
-            runSpacing: MakoloSpacing.sm,
-            children: [
-              if (point.canCloseResponses)
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _closeResponses,
-                  icon: const Icon(Icons.lock_clock_outlined),
-                  label: const Text('Clore les réponses'),
+            !widget.readOnly)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: ExpansionTile(
+              key: Key('conversation-point-management-${point.id}'),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(
+                bottom: MakoloSpacing.sm,
+              ),
+              title: const Text('Gérer ce Point'),
+              leading: const Icon(Icons.tune_rounded, size: 20),
+              dense: true,
+              initiallyExpanded: false,
+              children: [
+                Text(
+                  'Clore les réponses ou consigner un résultat de coordination. '
+                  'Cela ne modifie pas les données métier du contexte.',
+                  style: theme.bodySmall?.copyWith(color: muted),
                 ),
-              if (point.canResolve)
-                FilledButton.tonalIcon(
-                  onPressed: _busy ? null : _resolvePoint,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('Résoudre le Point'),
+                const SizedBox(height: MakoloSpacing.sm),
+                Wrap(
+                  spacing: MakoloSpacing.sm,
+                  runSpacing: MakoloSpacing.sm,
+                  children: [
+                    if (point.canCloseResponses)
+                      OutlinedButton.icon(
+                        onPressed: _busy ? null : _closeResponses,
+                        icon: const Icon(Icons.lock_clock_outlined),
+                        label: const Text('Clore les réponses'),
+                      ),
+                    if (point.canResolve)
+                      FilledButton.tonalIcon(
+                        onPressed: _busy ? null : _resolvePoint,
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: const Text('Consigner le résultat'),
+                      ),
+                  ],
                 ),
-            ],
+              ],
+            ),
           ),
-        ],
       ],
     );
     return ConversationPointShell(
