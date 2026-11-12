@@ -169,3 +169,47 @@
 .mk-project__description:not(.is-collapsed) .mk-project__description-toggle svg {
   transform:rotate(180deg);
 }
+
+
+/* Compact people access preview: real, authorized identities only. */
+.mk-project__people-preview {
+  display:block;width:100%;max-width:780px;
+  padding:12px 14px;margin:0 0 17px;
+  border:1px solid var(--edge);border-radius:15px;
+  background:var(--mk-surface, #fff);
+  color:var(--ink);
+}
+.mk-project__people-preview:hover {
+  border-color:var(--violet);
+}
+.mk-project__people-preview-heading {
+  display:flex;align-items:center;gap:9px;
+}
+.mk-project__people-preview-heading > svg:first-child {
+  color:var(--violet);
+}
+.mk-project__people-preview-heading strong {
+  flex:1;font-size:15px;
+}
+.mk-project__people-preview-heading span {
+  color:var(--violet);font-size:13px;
+}
+.mk-project__people-preview-heading > svg:last-child {
+  color:var(--violet);width:17px;height:17px;
+}
+.mk-project__avatar-row {
+  display:flex;align-items:center;gap:5px;margin-top:11px;
+}
+.mk-project__avatar {
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;min-width:36px;border-radius:50%;
+  background:#ede8ff;color:var(--violet);
+  border:2px solid white;
+}
+.mk-project__avatar svg {width:18px;height:18px}
+.mk-project__avatar--more {
+  background:var(--soft);color:var(--quiet);
+}
+.mk-project__people:target {
+  scroll-margin-top:20px;
+}
