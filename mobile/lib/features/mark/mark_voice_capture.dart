@@ -29,7 +29,8 @@ class MarkVoiceCapture extends StatefulWidget {
   State<MarkVoiceCapture> createState() => _MarkVoiceCaptureState();
 }
 
-class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
+class _MarkVoiceCaptureState extends State<MarkVoiceCapture>
+    with WidgetsBindingObserver {
   static const maxSeconds = 120;
   final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _player = AudioPlayer();
@@ -43,6 +44,22 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
   bool _adopted = false;
   int _seconds = 0;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed &&
+        _recording &&
+        !_paused &&
+        !_busy) {
+      unawaited(_togglePause());
+    }
+  }
 
   Future<void> _start() async {
     if (_busy || _recording || _staged != null) return;
@@ -214,12 +231,19 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
     }
     await _removeTemporaryFile();
     final staged = _staged;
-    if (staged != null && !_adopted) await widget.store.remove(staged.fileId);
+    if (staged != null && !_adopted) {
+      try {
+        await widget.store.remove(staged.fileId);
+      } on Object {
+        // The same file record remains Profile-scoped for later cleanup.
+      }
+    }
     if (mounted) widget.onClose();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     unawaited(
       _recorder
