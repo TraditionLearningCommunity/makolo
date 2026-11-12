@@ -1025,8 +1025,12 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 Q(expires_at__isnull=True) | Q(expires_at__gt=now)
             ).select_related(
                 "conversation", "conversation__context", "created_by"
-            ).order_by("created_at", "id")[:limit]
+            ).order_by("created_at", "id")[:limit + 1]
         )
+        more_received = len(invitations) > limit
+        invitations = invitations[:limit]
+        collective = collective_invitation_inbox(request.user, limit=limit + 1)
+        more_collective = len(collective) > limit
         return Response({
             "results": [
                 {
@@ -1042,6 +1046,8 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 for invitation in invitations
             ],
             "count": len(invitations),
+            "more_received": more_received,
+            "more_collective": more_collective,
             "collective_results": [
                 {
                     "id": str(item.pk),
@@ -1055,7 +1061,7 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                     "expires_at": item.expires_at,
                     "created_at": item.created_at,
                 }
-                for item in collective_invitation_inbox(request.user)
+                for item in collective[:limit]
             ],
             **participation_inbox_for_profile(request.user, limit=limit),
         })
