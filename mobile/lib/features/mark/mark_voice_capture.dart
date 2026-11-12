@@ -132,6 +132,7 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
         sourcePath: path,
         owner: widget.owner,
         purpose: 'mark_intake',
+        sensitivity: 'private',
       );
       await _removeTemporaryFile();
       if (!mounted) {
