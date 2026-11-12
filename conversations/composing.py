@@ -17,6 +17,7 @@ from .point_models import (
     ConversationPoint, ConversationPointKind, ConversationPointLifecycle,
     ConversationResponseVisibility,
     ConversationPointResolutionPolicy, ConversationPointResponseMode,
+    PointExchangeEntry,
 )
 from .point_services import (
     POINT_POLICY_CAPABILITY, create_exchange_entry, create_point,
@@ -260,6 +261,25 @@ def contribute_text(
         )
         return "exchange", entry, target.pk
     if point_id:
+        # A confirmed message can be retried after its Exchange closes.
+        # Only the exact original subject/content may be reconciled.
+        prior = PointExchangeEntry.objects.filter(
+            client_reference=client_reference,
+        ).select_related(
+            "point__conversation__policy", "point__visibility_audience",
+            "point__response_audience",
+        ).first()
+        if (
+            prior is not None
+            and str(prior.point_id) == str(point_id)
+            and prior.point.conversation_id == conversation.pk
+        ):
+            entry = create_exchange_entry(
+                actor=actor, point=prior.point, body=body,
+                represented_space=represented_space,
+                client_reference=client_reference,
+            )
+            return "exchange", entry, prior.point_id
         raise PermissionDenied("Cet échange n'est plus accessible.")
     if len(exchange_points) > 1:
         raise ValidationError({"point_id": "Choisissez l'échange auquel répondre."})
