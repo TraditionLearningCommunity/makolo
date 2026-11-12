@@ -1057,6 +1057,27 @@ class ConversationRepository {
     }
   }
 
+  Future<void> withdrawJoinRequest(String requestId) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Connexion requise pour retirer la demande.');
+    }
+    final response = await engine.api.post(
+      'api/v1/conversations/join-requests/$requestId/withdraw/',
+    );
+    final payload = response.jsonObject();
+    if (payload['id']?.toString() != requestId ||
+        payload['status'] != 'cancelled') {
+      throw const FormatException('Retrait non confirmé par Conversations.');
+    }
+    await _forgetConfirmedPendingRow('my_join_requests', requestId);
+    try {
+      await refreshInvitations();
+    } on Object {
+      // Retrait confirmé ; le prochain cycle réconciliera le snapshot.
+    }
+  }
+
   Future<List<Map<String, dynamic>>> conversationJoinRequests(String id) async {
     final engine = sync;
     if (engine == null)
