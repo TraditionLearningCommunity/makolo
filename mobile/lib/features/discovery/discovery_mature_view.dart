@@ -2113,7 +2113,7 @@ class _DiscoveryMedia extends StatelessWidget {
     return MakoloMediaFrame(
       aspect: MakoloMediaAspect.landscape,
       semanticLabel: item.imageUrl == null ? null : 'Média de ${item.title}',
-      placeholder: MakoloMediaPlaceholder(label: item.eyebrow ?? 'Possibilité'),
+      placeholder: MakoloMediaPlaceholder(label: item.eyebrow ?? 'Opportunité'),
       child: child,
     );
   }
@@ -2338,7 +2338,7 @@ class _DiscoveryEndOfField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       container: true,
-      label: 'Fin du champ actuel',
+      label: 'Fin des opportunités à explorer',
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: context.makoloSurfaces.low,
