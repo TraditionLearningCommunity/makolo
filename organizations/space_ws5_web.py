@@ -269,6 +269,7 @@ class SpaceOccurrenceScannerActionView(_SpaceOccurrenceWebMixin, View):
         return response
 
 
+@method_decorator(never_cache, name="dispatch")
 class SpaceMarkWS5View(SpaceWebMixin):
     template_name = "organizations/space/mark_ws5.html"
     space_nav_key = "mark"
@@ -300,6 +301,18 @@ class SpaceMarkWS5View(SpaceWebMixin):
 
     def post(self, request, *args, **kwargs):
         value = (request.POST.get("value") or "").strip()
+        if request.POST.get("cancel_confirmation"):
+            return self.render_to_response(self.get_context_data(mark_value=value))
+        if not value or len(value) > 600:
+            message = (
+                "Dites simplement ce que vous voulez faire."
+                if not value
+                else "Votre demande doit contenir au maximum 600 caractères."
+            )
+            return self.render_to_response(
+                self.get_context_data(mark_value=value, mark_error=message),
+                status=400,
+            )
         result = orchestrate_space_mark(
             profile=request.user,
             space=self.space,
