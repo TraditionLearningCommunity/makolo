@@ -712,11 +712,21 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           url,
           trustedOrigin: base,
         )) {
-      return RetainedPublicDiscoveryImage(
-        url: url,
-        trustedOrigin: base,
-        placeholder: const MakoloMediaSkeleton(),
-        fit: fit,
+      return Semantics(
+        label: image['label'],
+        image: true,
+        child: RetainedPublicDiscoveryImage(
+          url: url,
+          trustedOrigin: base,
+          placeholder: const MakoloMediaSkeleton(),
+          unavailablePlaceholder: Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          fit: fit,
+        ),
       );
     }
     return Image.network(
