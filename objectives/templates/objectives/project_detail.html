@@ -27,12 +27,6 @@
       <a class="mk-project__quiet mk-action-button" data-variant="ghost" href="{% url 'conversations:by-context' 'project' project.pk %}">
         <i data-lucide="messages-square" aria-hidden="true"></i> Échanges
       </a>
-      {% if access_form %}
-      <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost"
-              data-dialog-open="project-authority" aria-label="Gérer les accès" title="Gérer les accès">
-        <i data-lucide="user-plus" aria-hidden="true"></i>
-      </button>
-      {% endif %}
       {% if can_manage %}
       <button type="button" class="mk-project__quiet mk-action-button" data-variant="ghost" data-dialog-open="project-edit">
         <i data-lucide="pencil" aria-hidden="true"></i> Modifier
