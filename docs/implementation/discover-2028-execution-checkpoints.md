@@ -71,3 +71,20 @@ Ce journal suit la maturation du **produit déjà livré en code**, sans rouvrir
 - Icônes accessibles avec nom compréhensible ; les gestes sensibles gardent une conséquence claire.
 - Unknown n'est ni gratuit, ni disponible, ni refusé.
 - Conserver les composants et l'identité Makolo existants ; ne jamais redessiner le Makolo Mark.
+
+## Relecture corrective du 13 novembre 2026 — revue du code, sans exécution
+
+Les correctifs suivants ont été apportés sur la PR #522 à partir des fichiers effectivement consultés :
+
+- `frontend/src/discovery-map.js` et `static/dist/discovery-map.js` : la carte ne déduit plus la position (0, 0) à partir de coordonnées `null`, vides ou hors bornes. Le code servi est aligné avec le source.
+- `frontend/src/discovery-map.js`, `static/dist/discovery-map.js` et `static/js/discovery-ux.js` : l'absence de service de tuiles ou une erreur initiale déclenche un repli vers la liste. Une erreur de tuile une fois la projection cartographique initialisée n'interrompt plus systématiquement une carte utilisable.
+- `templates/discovery/watch_list.html` : la pagination déjà possédée par Django (30 Veilles par page) possède désormais un moyen d'accéder aux pages suivantes.
+- `mobile/lib/features/discovery/discovery_watch_screens.dart` : les pages de Veilles locales sont présentées avant rafraîchissement discret ; les flux sont séparés par Profile, Veille et page afin de ne pas montrer brièvement la projection précédente lors d'un changement de contexte.
+- `templates/discovery/_action_bar.html` : les commandes absentes ne réservent plus de colonnes vides ; le geste N1 de consultation sans action propriétaire conduit au N2 canonique.
+- `mobile/lib/presentation/possibilities/discovery_possibility_unit.dart` : suppression des commandes Save/Share inactives dans les situations où les conditions de présentation établies ne permettent pas de les offrir.
+
+**Vérifications effectuées :** lecture des sources GitHub, de la composition serveur, des templates, du JavaScript source et servi, des contrats de widgets Flutter et de la navigation. Il ne s'agit pas d'une certification d'exécution.
+
+**Non effectué :** test automatisé, CI, analyse Flutter, compilation Android, navigation réelle dans le navigateur, recette de permission réelle, merge ou déploiement.
+
+**Reste à établir sur environnement réel avant certification :** rendu des styles après reconstruction officielle des assets, comportement MapLibre sur appareil, interactions et accessibilité en situation, gestion concurrente des changements d'acteur, gestes Save/Sharing et continuité N3 avec toutes les verticales. Ces points ne doivent pas être déclarés défaillants sans preuve d'exécution.
