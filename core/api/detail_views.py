@@ -34,6 +34,7 @@ class PersonalJourneyDetailAPIView(PersonalProjectionAPIView):
                 "commerce_orders__payments",
                 "service_context__requirement_assessments__evidence",
                 "steps__dependencies",
+                "transitions",
                 "form_requests__form_version",
                 "occurrence__place_links__place",
             ),
