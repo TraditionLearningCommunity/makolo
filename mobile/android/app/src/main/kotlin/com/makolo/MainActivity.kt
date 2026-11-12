@@ -70,7 +70,9 @@ class MainActivity : FlutterFragmentActivity() {
             channel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "initialShare" -> {
-                        val payload = pendingShare ?: parseShareIntent(intent)
+                        // Consume each Android share intent once; remounting the
+                        // Flutter router must not re-import a previous payload.
+                        val payload = pendingShare
                         pendingShare = null
                         result.success(payload)
                     }
