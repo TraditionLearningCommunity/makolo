@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../design/action_controls.dart';
 
@@ -363,6 +364,7 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                               kind: 'journey',
                               contextId: widget.journeyId,
                               onOpen: widget.onOpenConversation!,
+                              iconOnly: true,
                             )
                           : null,
                     ),
@@ -430,7 +432,25 @@ class _JourneyContent extends StatelessWidget {
           key: const PageStorageKey<String>('journey-detail-content'),
           padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
           children: [
-            _JourneyIdentity(presentation: presentation),
+            _JourneyIdentity(
+              presentation: presentation,
+              conversationEntry: conversationEntry,
+              onOpenDayOf: onOpenDayOf,
+              onOpenLive: onOpenLive,
+            ),
+            if (presentation.summary != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.inner,
+                  MakoloSpacing.sm,
+                  MakoloSpacing.inner,
+                  0,
+                ),
+                child: Text(
+                  presentation.summary!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
             if (presentation.isTerminal) ...[
               const SizedBox(height: MakoloSpacing.lg),
               Padding(
@@ -798,10 +818,7 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-            if (conversationEntry != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              conversationEntry!,
-            ],
+
           ],
         ),
       ),
@@ -933,166 +950,160 @@ class _JourneyOutcomeCard extends StatelessWidget {
 
 /// The top of N3 reads as a human objective, not a collection of owners.
 class _JourneyIdentity extends StatelessWidget {
-  const _JourneyIdentity({required this.presentation});
+  const _JourneyIdentity({
+    required this.presentation,
+    this.conversationEntry,
+    required this.onOpenDayOf,
+    required this.onOpenLive,
+  });
 
   final JourneyDetailPresentation presentation;
+  final Widget? conversationEntry;
+  final ValueChanged<String> onOpenDayOf;
+  final ValueChanged<String> onOpenLive;
 
   IconData get _symbol => switch (presentation.workflowKind) {
     'purchase' => Icons.shopping_bag_outlined,
     'reservation' => Icons.event_available_outlined,
     'registration' => Icons.badge_outlined,
-    'invitation' => Icons.mark_email_read_outlined,
+    'invitation' => Icons.mail_outline_rounded,
     'service' => Icons.handyman_outlined,
     'fulfillment' => Icons.task_alt_outlined,
-    'order_approval' => Icons.fact_check_outlined,
     _ => Icons.route_outlined,
   };
 
   @override
   Widget build(BuildContext context) {
-    final state = MakoloHumanization.presentationLabel(
-      presentation.journeyState,
-    );
+    final palette = Theme.of(context).colorScheme;
     final facts = presentation.practical;
-    final civil = JourneyDayPresentation.civilDate(facts?.startDate);
-    final date =
-        civil ?? (facts?.startAt == null ? null : facts!.startAt!.toLocal());
+    final date = JourneyDayPresentation.civilDate(facts?.startDate) ??
+        facts?.startAt?.toLocal();
     final dateLabel = date == null
         ? null
-        : MaterialLocalizations.of(context).formatMediumDate(date);
-    final timeLabel =
-        JourneyDayPresentation.clock(facts?.startTime) ??
+        : DateFormat('EEE d MMM', 'fr').format(date);
+    final startTime = JourneyDayPresentation.clock(facts?.startTime) ??
         (facts?.startAt == null
             ? null
-            : JourneyDayPresentation.clock(
-                '${facts!.startAt!.toLocal().hour.toString().padLeft(2, '0')}'
-                ':${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
-              ));
+            : DateFormat('HH:mm').format(facts!.startAt!.toLocal())
+                .replaceFirst(':', 'h'));
+    final endTime = JourneyDayPresentation.clock(facts?.endTime);
+    final sameDay = facts?.endDate == null ||
+        facts?.endDate == facts?.startDate;
+    String shorten(String value) =>
+        value.endsWith('h00') ? value.substring(0, value.length - 2) : value;
+    final timeLabel = startTime == null
+        ? null
+        : sameDay && endTime != null
+        ? '${shorten(startTime)}–${shorten(endTime)}'
+        : shorten(startTime);
     final placeLabel = JourneyDayPresentation.place(
       name: facts?.placeName,
       locality: facts?.placeLocality,
     );
+    final status = MakoloHumanization.presentationLabel(
+      presentation.journeyState,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         MakoloSpacing.inner,
-        MakoloSpacing.md,
+        MakoloSpacing.sm,
         MakoloSpacing.inner,
         0,
       ),
-      child: Container(
+      child: DecoratedBox(
         key: const Key('journey-identity'),
-        width: double.infinity,
         decoration: BoxDecoration(
-          color: const Color(0xFF2B176E),
-          borderRadius: BorderRadius.circular(20),
+          color: palette.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: palette.outlineVariant),
         ),
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(MakoloSpacing.md),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5232DB),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(_symbol, color: Colors.white, size: 27),
-                ),
-                const SizedBox(width: MakoloSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'MON OBJECTIF',
-                        style: TextStyle(
-                          color: Color(0xFFD5CCFF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.7,
+        child: Padding(
+          padding: const EdgeInsets.all(MakoloSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(_symbol, color: _journeyAccent(context), size: 24),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MON OBJECTIF',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: palette.onSurfaceVariant),
                         ),
-                      ),
-                      const SizedBox(height: MakoloSpacing.xs),
-                      Text(
-                        presentation.title,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          presentation.title,
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
                   ),
+                  if (facts?.startDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: JourneyDayBadge(
+                        occurrenceDate: facts!.startDate!,
+                        timezoneName: facts.timezone,
+                        onOpenDayOf: presentation.dayOfLink == null
+                            ? null
+                            : () => onOpenDayOf(presentation.dayOfLink!),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: MakoloSpacing.xs),
+              Row(
+                children: [
+                  if (status != null) ...[
+                    MakoloStatus(label: status),
+                    const SizedBox(width: MakoloSpacing.xs),
+                  ],
+                  if (conversationEntry != null)
+                    conversationEntry!,
+                  if (presentation.liveLink != null)
+                    IconButton(
+                      tooltip: 'Ouvrir Makolo Live',
+                      icon: const Icon(Icons.sensors_rounded),
+                      onPressed: () => onOpenLive(presentation.liveLink!),
+                    ),
+                ],
+              ),
+              if (dateLabel != null || timeLabel != null ||
+                  placeLabel != null) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Divider(color: palette.outlineVariant, height: 12),
+                Wrap(
+                  spacing: MakoloSpacing.md,
+                  runSpacing: MakoloSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (dateLabel != null)
+                      _JourneyHeroFact(
+                        icon: Icons.calendar_today_outlined,
+                        label: dateLabel,
+                      ),
+                    if (timeLabel != null)
+                      _JourneyHeroFact(
+                        icon: Icons.schedule_outlined,
+                        label: timeLabel,
+                      ),
+                    if (placeLabel != null)
+                      _JourneyHeroFact(
+                        icon: Icons.place_outlined,
+                        label: placeLabel,
+                      ),
+                  ],
                 ),
               ],
-            ),
-            if (presentation.summary != null) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Text(
-                presentation.summary!,
-                style: const TextStyle(color: Color(0xFFE6DEFF)),
-              ),
             ],
-            if (state != null || presentation.kindLabel != 'Démarche') ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Wrap(
-                spacing: MakoloSpacing.md,
-                runSpacing: MakoloSpacing.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (state != null)
-                    _JourneyHeroFact(
-                      icon: Icons.circle,
-                      label: state,
-                      smallIcon: true,
-                    ),
-                  if (presentation.kindLabel != 'Démarche')
-                    Text(
-                      presentation.kindLabel,
-                      style: const TextStyle(color: Color(0xFFD5CCFF)),
-                    ),
-                ],
-              ),
-            ],
-            if (dateLabel != null ||
-                timeLabel != null ||
-                placeLabel != null ||
-                civil != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              Container(height: 1, color: const Color(0xFF6F60A4)),
-              const SizedBox(height: MakoloSpacing.md),
-              Wrap(
-                spacing: MakoloSpacing.md,
-                runSpacing: MakoloSpacing.md,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (dateLabel != null)
-                    _JourneyHeroFact(
-                      icon: Icons.calendar_today_outlined,
-                      label: dateLabel,
-                    ),
-                  if (timeLabel != null)
-                    _JourneyHeroFact(
-                      icon: Icons.schedule_outlined,
-                      label: timeLabel,
-                    ),
-                  if (placeLabel != null)
-                    _JourneyHeroFact(
-                      icon: Icons.place_outlined,
-                      label: placeLabel,
-                    ),
-                  if (civil != null)
-                    JourneyDayBadge(
-                      occurrenceDate: facts!.startDate!,
-                      timezoneName: facts.timezone,
-                    ),
-                ],
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -1100,33 +1111,28 @@ class _JourneyIdentity extends StatelessWidget {
 }
 
 class _JourneyHeroFact extends StatelessWidget {
-  const _JourneyHeroFact({
-    required this.icon,
-    required this.label,
-    this.smallIcon = false,
-  });
+  const _JourneyHeroFact({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
-  final bool smallIcon;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, color: const Color(0xFFDBD2FF), size: smallIcon ? 9 : 18),
-      const SizedBox(width: MakoloSpacing.xs),
-      Flexible(
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
         ),
       ),
-    ],
-  );
+    );
+  }
 }
 
 /// JourneySteps are shown as facts, not a locally computed percentage/timeline.
