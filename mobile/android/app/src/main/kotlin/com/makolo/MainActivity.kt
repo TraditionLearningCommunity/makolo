@@ -193,10 +193,12 @@ class MainActivity : FlutterFragmentActivity() {
                     speechEvent("processing")
                 }
                 override fun onError(error: Int) {
+                    if (speechRecognizer !== recognizer) return
                     speechEvent("error", error.toString())
                     releaseNativeDictation()
                 }
                 override fun onResults(results: Bundle?) {
+                    if (speechRecognizer !== recognizer) return
                     val words = results?.getStringArrayList(
                         SpeechRecognizer.RESULTS_RECOGNITION
                     )?.firstOrNull().orEmpty()
