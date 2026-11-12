@@ -550,7 +550,10 @@ class _JourneyContent extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
                 title: 'Où j’en suis',
-                child: _JourneyPath(steps: presentation.steps),
+                child: _JourneyPath(
+                  steps: presentation.steps,
+                  hasBranches: composition.hasBranches,
+                ),
               ),
             ],
             if (composition.hasPreparation) ...[
@@ -1145,38 +1148,68 @@ class _JourneyHeroFact extends StatelessWidget {
 /// JourneySteps are shown as facts, not a locally computed percentage/timeline.
 /// Dependencies are named only when the owner supplied both linked steps.
 class _JourneyPath extends StatelessWidget {
-  const _JourneyPath({required this.steps});
+  const _JourneyPath({
+    required this.steps,
+    required this.hasBranches,
+  });
 
   final List<JourneyStepSummary> steps;
+  final bool hasBranches;
 
   @override
   Widget build(BuildContext context) {
-    final current = steps.where((step) => !step.isTerminal).toList();
-    final previous = steps.where((step) => step.isTerminal).toList();
+    final active = steps.where((step) => !step.isTerminal &&
+        step.status != 'pending').toList();
+    final future = steps.where((step) => step.status == 'pending').toList();
+    final past = steps.where((step) => step.isTerminal).toList();
+    final shownFuture = hasBranches ? future : future.take(2).toList();
+    final hiddenFuture = hasBranches ? <JourneyStepSummary>[] :
+        future.skip(2).toList();
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final step in current)
+          if (hasBranches) ...[
+            Row(
+              children: [
+                Icon(Icons.alt_route_rounded,
+                    size: 18, color: _journeyAccent(context)),
+                const SizedBox(width: MakoloSpacing.sm),
+                const Expanded(
+                  child: Text('Plusieurs chemins possibles'),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+          ],
+          for (final step in active)
             _JourneyStepRow(step: step, allSteps: steps),
-          if (previous.isNotEmpty && current.isNotEmpty)
+          for (final step in shownFuture)
+            _JourneyStepRow(step: step, allSteps: steps),
+          if (hiddenFuture.isNotEmpty)
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.check_circle_outline_rounded,
-                color: _journeyAccent(context),
-              ),
               title: Text(
-                '${previous.length} étape${previous.length > 1 ? 's' : ''} passée${previous.length > 1 ? 's' : ''}',
+                'Voir les ${hiddenFuture.length} étapes suivantes',
               ),
               children: [
-                for (final step in previous)
+                for (final step in hiddenFuture)
                   _JourneyStepRow(step: step, allSteps: steps),
               ],
             ),
-          if (current.isEmpty)
-            for (final step in previous)
-              _JourneyStepRow(step: step, allSteps: steps),
+          if (past.isNotEmpty)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              leading: Icon(Icons.check_circle_outline_rounded,
+                  color: _journeyAccent(context)),
+              title: Text(
+                '${past.length} étape${past.length > 1 ? 's' : ''} passée${past.length > 1 ? 's' : ''}',
+              ),
+              children: [
+                for (final step in past)
+                  _JourneyStepRow(step: step, allSteps: steps),
+              ],
+            ),
         ],
       ),
     );
