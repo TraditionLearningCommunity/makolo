@@ -1091,6 +1091,15 @@ class ConversationInvitationRespondAPIView(PrivateNoStoreMixin, views.APIView):
             )
         except (ValidationError, PermissionDenied) as exc:
             return _service_error(exc)
+        expected = (
+            ConversationInvitationStatus.ACCEPTED
+            if decision == "accept" else ConversationInvitationStatus.DECLINED
+        )
+        if invitation.status != expected:
+            return Response(
+                {"errors": ["Cette invitation a changé. Actualisez son état."]},
+                status=409,
+            )
         return Response({
             "id": str(invitation.pk),
             "conversation_id": str(invitation.conversation_id),
