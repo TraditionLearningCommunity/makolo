@@ -74,11 +74,10 @@ def depth_page(*, occurrence, actor, projection, kind):
         # One person may be a participant and an operator. The advertised
         # readiness depth belongs to its declared territory, not whichever
         # backend section happens to be populated first.
-        facts = (
-            participant.get("readiness") or {}
-            if item.get("territory") == "participant"
-            else operator.get("operational_readiness") or {}
-        )
+        if item.get("territory") == "participant":
+            facts = participant.get("readiness") or {}
+        else:
+            facts = operator.get("operational_readiness") or {}
         if "contributors" in facts:
             rows = facts.get("contributors") or []
         else:
