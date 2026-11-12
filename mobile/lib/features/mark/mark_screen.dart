@@ -538,6 +538,15 @@ class _MarkScreenState extends State<MarkScreen> {
     ).join();
   }
 
+  void _cancelConfirmation() {
+    setState(() {
+      _result = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
+    });
+    unawaited(_saveDraft());
+  }
+
   Future<void> _confirmAction() async {
     final proposal = _result;
     if (_busy || proposal?.state != 'needs_confirmation') return;
@@ -587,6 +596,10 @@ class _MarkScreenState extends State<MarkScreen> {
         _pendingConfirmationKey = null;
       }
     });
+    if (result.state == 'completed' &&
+        (_attachments.isNotEmpty || _links.isNotEmpty)) {
+      await _saveDraft();
+    }
   }
 
   Future<void> _submit() async {
@@ -922,6 +935,9 @@ class _MarkScreenState extends State<MarkScreen> {
                         onChooseOption: (option) =>
                             unawaited(_chooseOption(option)),
                         onEdit: () => _inputFocus.requestFocus(),
+                        onCancel: _result!.state == 'needs_confirmation'
+                            ? _cancelConfirmation
+                            : null,
                         onConfirm:
                             _result!.state == 'needs_confirmation' &&
                                 _result!.action?['code'] ==
@@ -956,6 +972,7 @@ class _MarkResultView extends StatelessWidget {
     required this.onEdit,
     this.onOpenHandoff,
     this.onConfirm,
+    this.onCancel,
   });
 
   final MarkResult result;
@@ -963,6 +980,7 @@ class _MarkResultView extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback? onOpenHandoff;
   final VoidCallback? onConfirm;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -1038,6 +1056,14 @@ class _MarkResultView extends StatelessWidget {
                   onPressed: onConfirm,
                   appearance: MakoloActionAppearance.primary,
                   icon: Icons.check_circle_outline,
+                ),
+              ],
+              if (onCancel != null) ...[
+                const SizedBox(height: 8),
+                MakoloActionButton(
+                  label: 'Annuler cette proposition',
+                  onPressed: onCancel,
+                  appearance: MakoloActionAppearance.quiet,
                 ),
               ],
               if (onOpenHandoff != null) ...[
