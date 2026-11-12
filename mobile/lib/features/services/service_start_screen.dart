@@ -199,6 +199,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       _operationKey = key;
       _attempted = false;
       _conflicted = false;
+      _error = null;
     });
     try {
       await widget.runtime.interactions?.save(_interactionId, {
