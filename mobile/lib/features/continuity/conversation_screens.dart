@@ -912,6 +912,7 @@ class _ConversationInvitationInboxState
                     key: Key('conversation-sent-${row.id}'),
                     row: row,
                     repository: widget.repository,
+                    isJoinRequest: false,
                     onOpen: widget.onOpen,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
@@ -1194,6 +1195,7 @@ class _ConversationPendingActionCardState
 
 class _ConversationInvitationCard extends StatefulWidget {
   const _ConversationInvitationCard({
+    super.key,
     required this.invitation,
     required this.repository,
     required this.onOpen,
