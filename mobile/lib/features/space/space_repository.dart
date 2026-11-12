@@ -344,9 +344,7 @@ final class WorkspaceContextRepository {
   Future<bool> hasAcquiredSpaceContext(SpaceActorIdentity space) async {
     final inventoryState = await readSource(inventorySource());
     if (!_usableForLocalContext(inventoryState)) return false;
-    final known = (await readInventory()).any(
-      (item) => item.identity == space,
-    );
+    final known = (await readInventory()).any((item) => item.identity == space);
     if (!known) return false;
 
     final workspaceState = await readSource(workspaceSource(space));

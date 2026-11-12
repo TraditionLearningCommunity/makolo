@@ -244,8 +244,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           ),
                         ),
                       ),
-                    if (_switching)
-                      const LinearProgressIndicator(),
+                    if (_switching) const LinearProgressIndicator(),
                     const SizedBox(height: MakoloSpacing.md),
                     if (widget.runtime.api != null && repository.sync != null)
                       OutlinedButton.icon(

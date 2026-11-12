@@ -259,62 +259,56 @@ void main() {
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
   });
 
-  test(
-    'acquired Space stays locally selectable on outage but never after revocation',
-    () async {
-      var phase = 'online';
-      final harness = await _harness(
-        handler: (request) async {
-          if (phase == 'offline') {
-            throw const SocketException('offline');
-          }
-          if (phase == 'revoked') {
-            return MockResponse(
-              jsonEncode({
-                'error': {
-                  'code': 'permission_denied',
-                  'message': 'Access revoked',
-                },
-              }),
-              403,
-            );
-          }
-          if (request.url.path.endsWith('/space-x/')) {
-            return MockResponse(jsonEncode(_workspace()), 200);
-          }
-          return MockResponse(jsonEncode([_inventoryRow()]), 200);
-        },
-      );
-      addTearDown(harness.close);
-      final repository = harness.repository;
-      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
-      final unknown = SpaceActorIdentity(id: 'unknown', slug: 'unknown');
-      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
-      await repository.refreshInventory();
-      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
-      await repository.refreshWorkspace(space);
-      expect(await repository.hasAcquiredSpaceContext(space), isTrue);
-      expect(await repository.hasAcquiredSpaceContext(unknown), isFalse);
+  test('acquired Space stays locally selectable on outage but never after revocation', () async {
+    var phase = 'online';
+    final harness = await _harness(
+      handler: (request) async {
+        if (phase == 'offline') {
+          throw const SocketException('offline');
+        }
+        if (phase == 'revoked') {
+          return MockResponse(
+            jsonEncode({
+              'error': {
+                'code': 'permission_denied',
+                'message': 'Access revoked',
+              },
+            }),
+            403,
+          );
+        }
+        if (request.url.path.endsWith('/space-x/')) {
+          return MockResponse(jsonEncode(_workspace()), 200);
+        }
+        return MockResponse(jsonEncode([_inventoryRow()]), 200);
+      },
+    );
+    addTearDown(harness.close);
+    final repository = harness.repository;
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    final unknown = SpaceActorIdentity(id: 'unknown', slug: 'unknown');
+    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+    await repository.refreshInventory();
+    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+    await repository.refreshWorkspace(space);
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+    expect(await repository.hasAcquiredSpaceContext(unknown), isFalse);
 
-      phase = 'offline';
-      await expectLater(
-        repository.refreshInventory(),
-        throwsA(isA<Exception>()),
-      );
-      await expectLater(
-        repository.refreshWorkspace(space),
-        throwsA(isA<Exception>()),
-      );
-      expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+    phase = 'offline';
+    await expectLater(repository.refreshInventory(), throwsA(isA<Exception>()));
+    await expectLater(
+      repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
 
-      phase = 'revoked';
-      await expectLater(
-        repository.refreshWorkspace(space),
-        throwsA(isA<Exception>()),
-      );
-      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
-    },
-  );
+    phase = 'revoked';
+    await expectLater(
+      repository.refreshWorkspace(space),
+      throwsA(isA<Exception>()),
+    );
+    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+  });
 
   test('Space context uses the current Profile local inventory only', () async {
     final harness = await _harness(
@@ -1087,10 +1081,8 @@ void main() {
           home: Builder(
             builder: (context) => Scaffold(
               body: TextButton(
-                onPressed: () => showMakoloActorPicker(
-                  context,
-                  runtime: runtime,
-                ),
+                onPressed: () =>
+                    showMakoloActorPicker(context, runtime: runtime),
                 child: const Text('Choisir un contexte'),
               ),
             ),
