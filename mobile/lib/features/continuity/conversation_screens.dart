@@ -2291,7 +2291,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: Text(
-                  'Point recherché'
+                  'Point recherché',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
