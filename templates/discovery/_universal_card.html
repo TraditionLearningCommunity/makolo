@@ -102,7 +102,7 @@
       <div class="mt-2 flex snap-x gap-3 overflow-x-auto pb-2">
         {% for media in card.gallery_media %}
           <a href="{% if card.n2_url %}{{ card.n2_url }}{% if discovery_space %}&{% else %}?{% endif %}from={{ request.get_full_path|urlencode }}{% else %}{{ card.url }}{% endif %}" class="w-36 shrink-0 snap-start overflow-hidden rounded-xl border sm:w-44" style="border-color:var(--mk-border)" aria-label="Voir les images de {{ card.title }}">
-            <img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" loading="lazy" class="block aspect-[4/3] w-full object-cover" decoding="async">
+            <img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" loading="lazy" class="block aspect-[4/3] w-full object-cover" style="width:100%;height:96px;object-fit:cover" decoding="async">
           </a>
         {% endfor %}
       </div>
