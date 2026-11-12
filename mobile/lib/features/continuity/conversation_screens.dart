@@ -1513,7 +1513,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       return '$reason · Échéance : $deadline';
     }
 
-    Widget group(String name, List<Map<String, dynamic>> entries) => Column(
+    Widget group(String name, List<Map<String, dynamic>> entries) => entries.isEmpty
+        ? const SizedBox.shrink()
+        : Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
