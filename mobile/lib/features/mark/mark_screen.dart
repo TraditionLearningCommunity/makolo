@@ -537,8 +537,10 @@ class _MarkScreenState extends State<MarkScreen> {
                         onChooseOption: (option) =>
                             unawaited(_chooseOption(option)),
                         onEdit: () => _inputFocus.requestFocus(),
-                        onOpenHandoff: switch (
-                            markHandoffRoute(_result!, actor)) {
+                        onOpenHandoff: switch (markHandoffRoute(
+                          _result!,
+                          actor,
+                        )) {
                           final String path => () => context.push(path),
                           null => null,
                         },
@@ -612,7 +614,8 @@ class _MarkResultView extends StatelessWidget {
                       child: markClarificationSelection(option) == null
                           ? Text(option['label']?.toString() ?? '')
                           : MakoloActionButton(
-                              label: option['label']?.toString() ??
+                              label:
+                                  option['label']?.toString() ??
                                   'Choisir cet élément',
                               onPressed: () => onChooseOption(option),
                               appearance: MakoloActionAppearance.secondary,
@@ -643,7 +646,9 @@ class _MarkResultView extends StatelessWidget {
               ] else if (handoff?['surface'] != null &&
                   result.state == 'resolved') ...[
                 const SizedBox(height: 12),
-                const Text('Cette destination n’est pas accessible ici pour le moment.'),
+                const Text(
+                  'Cette destination n’est pas accessible ici pour le moment.',
+                ),
               ],
             ],
           ),
