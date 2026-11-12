@@ -102,6 +102,10 @@ def point_visible_to(
 
     if not point.visibility_audience_id:
         return True
+    # An audience targets recipients; it must not hide the author's own
+    # publication. Conversation access and FROM_JOIN were still checked above.
+    if point.published_by_id == getattr(profile, "pk", None):
+        return True
     return _audience_membership(
         profile, point.visibility_audience, at=at, audience_cache=audience_cache,
     )
