@@ -540,6 +540,8 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
     if locked.status != ConversationInvitationStatus.PENDING:
         return locked
     if accept:
+        if not actor.is_active:
+            raise PermissionDenied("Ce Profil n'est pas actif.")
         if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
             raise ValidationError("Cette Conversation n'accepte plus d'invitations.")
         # Consent cannot revive an access that has become blocked or closed
@@ -571,7 +573,7 @@ def create_join_request(*, actor, conversation: Conversation, represented_space=
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.REQUEST:
         raise ValidationError("Cette Conversation n’accepte pas de demandes d’entrée.")
-    if not context_base_eligible(actor, locked.context):
+    if not actor.is_active or not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
     normalized_reference = (client_reference or "").strip() or None
     if normalized_reference:
@@ -605,7 +607,8 @@ def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, app
         if (locked.conversation.lifecycle != ConversationLifecycle.OPEN
                 or locked.conversation.entry_mode != ConversationEntryMode.REQUEST):
             raise ValidationError("Cette Conversation n'accepte plus d'entrées.")
-        if not context_base_eligible(locked.requester, locked.conversation.context):
+        if (not locked.requester.is_active
+                or not context_base_eligible(locked.requester, locked.conversation.context)):
             raise PermissionDenied("La demande n'est plus éligible dans ce contexte.")
     locked.status = ConversationJoinRequestStatus.APPROVED if approve else ConversationJoinRequestStatus.REJECTED
     locked.responded_at = timezone.now()
@@ -626,7 +629,7 @@ def join_conversation(*, actor, conversation: Conversation):
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
     if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.JOIN:
         raise ValidationError("Cette Conversation ne permet pas l’adhésion directe.")
-    if not context_base_eligible(actor, locked.context):
+    if not actor.is_active or not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
     return activate_participation(
         actor=actor,
