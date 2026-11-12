@@ -6,8 +6,8 @@ from authorization.models import AuthorityScope, Role
 from journeys.models import Journey
 
 from .models import DossierJourneyLink, DossierLifecycle, Project, ProjectLifecycle
-from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
-from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_dossier, can_manage_project
+from .selectors import collaboration_candidates_for_dossier, coordination_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
+from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_project
 
 
 User = get_user_model()
@@ -216,15 +216,11 @@ class DossierAssignmentForm(forms.Form):
 
     def __init__(self, *args, dossier, **kwargs):
         super().__init__(*args, **kwargs)
-        # Mirror the bounded authorized candidates exposed to Flutter.
-        # Team membership alone must not be presented as a Dossier mandate.
-        people = list(collaboration_candidates_for_dossier(dossier)[:50])
-        allowed_ids = [
-            person.pk for person in people if can_manage_dossier(person, dossier)
-        ]
-        self.fields["assignee"].queryset = User.objects.filter(
-            pk__in=allowed_ids,
-        ).order_by("first_name", "last_name", "username", "pk")
+        # Match the owner-backed candidate selection used by Flutter.
+        # The service rechecks effective authority when the form is posted.
+        self.fields["assignee"].queryset = (
+            coordination_candidates_for_dossier(dossier)
+        )
         self.fields["assignee"].label_from_instance = _profile_label
 
 
