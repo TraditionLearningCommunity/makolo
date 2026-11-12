@@ -18,12 +18,14 @@ class RetainedPublicDiscoveryImage extends StatefulWidget {
     required this.url,
     required this.trustedOrigin,
     required this.placeholder,
+    this.fit = BoxFit.cover,
     this.storeOverride,
   });
 
   final Uri url;
   final Uri trustedOrigin;
   final Widget placeholder;
+  final BoxFit fit;
   final DiscoveryOfflineStore? storeOverride;
 
   @override
@@ -140,7 +142,7 @@ class _RetainedPublicDiscoveryImageState
           : Image.memory(
               bytes,
               key: ValueKey<String>('image-ready-${widget.url}'),
-              fit: BoxFit.cover,
+              fit: widget.fit,
               gaplessPlayback: true,
               errorBuilder: (_, _, _) => widget.placeholder,
             ),
