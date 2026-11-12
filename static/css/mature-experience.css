@@ -124,6 +124,39 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 }
 
 
+/* Discover 2028 — compose one owner-backed field beside its spatial view.
+   Content layout only; buttons, tokens and map behavior remain shared. */
+@media (min-width:1024px) {
+  .mk-discovery-workspace[data-discovery-layout="spatial"] .mk-discovery-results {
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    min-width:0;
+  }
+  .mk-discovery-workspace[data-discovery-layout="spatial"] .mk-discovery-results>* {
+    min-width:0;
+    margin-top:0!important;
+  }
+  .mk-discovery-workspace[data-discovery-layout="spatial"] #discovery-map-panel {
+    position:sticky;
+    top:84px;
+    align-self:start;
+    min-width:0;
+  }
+}
+.mk-discovery-workspace .mk-discovery-results article[data-candidate-key] {
+  overflow:hidden;
+  border-radius:18px;
+  transition:border-color 150ms ease, box-shadow 150ms ease;
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .mk-discovery-workspace .mk-discovery-results article[data-candidate-key]:hover {
+    border-color:color-mix(in srgb,var(--mk-brand) 30%,var(--mk-border));
+    box-shadow:0 8px 26px rgba(15,23,42,.06);
+  }
+}
+
+
 /* W5 — Deep workspaces. Keep Compact untouched; context appears only on Expanded. */
 .mk-deep-context{display:none}
 .mk-deep-context-link{display:flex;align-items:center;min-height:40px;padding:0 11px;border:1px solid var(--mk-border);border-radius:12px;background:var(--mk-surface-muted);font-weight:760;color:var(--mk-text)}
