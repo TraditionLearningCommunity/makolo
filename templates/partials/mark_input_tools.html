@@ -38,14 +38,20 @@ The JS progressively enhances this panel; without JS, text/owner forms work.
     </div>
   </div>
   <div data-mk-mark-references class="mk-mark-references" aria-live="polite"></div>
+  <dialog data-mk-mark-preview class="mk-mark-preview" aria-label="Aperçu local de la pièce">
+    <div class="mk-mark-preview-content" data-mk-mark-preview-body></div>
+    <button type="button" class="mk-action-button" data-variant="secondary"
+      data-mk-mark-preview-close>Fermer l’aperçu</button>
+  </dialog>
   <p class="mk-mark-hint" data-mk-mark-hint>
-    Les pièces et liens restent dans cet onglet. L'API Mark reçoit seulement le texte ;
-    aucune photo, pièce ou transcription n'est envoyée automatiquement.
+    Les liens restent dans ce brouillon d’onglet ; les pièces sont sélectionnées
+    pour cette vue seulement et devront être reprises après un rechargement.
+    L’API Mark reçoit uniquement le texte, sans envoi automatique de médias.
   </p>
   <p class="mk-mark-error" data-mk-mark-feedback role="status" aria-live="polite" hidden></p>
   {% if mark_scope == 'personal' %}
   <a class="mk-mark-owner-link" href="{% url 'personal_assets:add' %}">
-    Conserver un document dans Mes documents
+    Conserver un document dans Mes documents (choisir le fichier à nouveau)
   </a>
   {% endif %}
 </section>
