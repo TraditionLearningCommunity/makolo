@@ -450,8 +450,11 @@ class _DiscoveryWatchResultsScreenState
     final repository = widget.repository;
     final page = _page;
     await repository.readWatchResults(watchId, page: page);
-    if (!mounted || !identical(repository, widget.repository) ||
-        widget.watchId != watchId || _page != page) return;
+    if (!mounted ||
+        !identical(repository, widget.repository) ||
+        widget.watchId != watchId ||
+        _page != page)
+      return;
     unawaited(_refresh());
   }
 
