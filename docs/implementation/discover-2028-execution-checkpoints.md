@@ -33,6 +33,7 @@ Ce journal suit la maturation du **produit déjà livré en code**, sans rouvrir
 - `templates/discovery/_universal_card.html` : visuel publié en tête ouvrant N2, hauteur bornée, quatre faits utiles visibles avec ordre par famille, faits secondaires repliables et ressources en une seule divulgation.
 - `templates/discovery/_action_bar.html` : Save / owner / Sharing factorisés, avec commandes iconographiques accessibles. Aucun comportement de mutation déplacé.
 - `templates/discovery/possibility_detail.html` : média agrandissable, transport sans photo présenté par le trajet réellement connu, informations structurées, Save et Sharing accessibles depuis N2 personnel, conditions formulées humainement.
+- `templates/discovery/watch_list.html` et `watch_detail.html` : vues de Veilles moins administratives, résultats ouverts via les routes existantes et actions accessibles, suppression protégée par confirmation.
 - Le partage des contrôles entre N1 et N2 évite de créer deux moteurs d'interaction. Le retour N2 → N1 utilise l'historique natif seulement lorsque le contexte exact d'origine correspond, sans sauvegarde privée dans le navigateur.
 - `static/css/mature-experience.css` : disposition spatiale bornée, sans écraser les composants communs ni rogner les menus de partage.
 - `discovery/views.py` : ordre de lecture des faits N1 Web par nature de l'opportunité, sans modifier l'admission ni le classement.
@@ -43,6 +44,7 @@ Ce journal suit la maturation du **produit déjà livré en code**, sans rouvrir
 - `mobile/lib/presentation/media/retained_public_discovery_image.dart` : adaptation du mode de remplissage de l'image, sans nouvelle source de rétention.
 - `mobile/lib/features/discovery/discovery_mature_view.dart` : skeleton natif réutilisé pour une pagination en cours ; états sobres.
 - `mobile/lib/features/discovery/discovery_screens.dart` : vocabulaire de recherche plus naturel et icône de réglage plutôt que métaphore magique.
+- `mobile/lib/features/discovery/discovery_watch_screens.dart` : acquisition initiale représentée par un skeleton existant ; états vides et résultats formulés comme des opportunités.
 - Le média N1 ouvre N2 ; le média N2 ouvre le Reader. Les quatre premiers faits sont utiles selon leur famille et les autres restent accessibles.
 - Une image effectivement absente cesse d'afficher le squelette de chargement ; les copies publiques autorisées sont gardées par le mécanisme existant.
 - Les médias publics first-party demeurent seuls concernés par la conservation automatique autorisée ; aucun téléchargement exhaustif de ressources privées.
