@@ -5,17 +5,15 @@ The JS progressively enhances this panel; without JS, text/owner forms work.
 {% endcomment %}
 <section class="mk-mark-support" data-mk-mark-support aria-label="Éléments pour votre demande">
   <div class="mk-mark-tools" role="group" aria-label="Ajouter un élément">
-    <label class="mk-action-button" data-variant="secondary" for="mark-browser-files-{{ mark_scope|default:'personal' }}">
-      Joindre un fichier
-      <input id="mark-browser-files-{{ mark_scope|default:'personal' }}" data-mk-mark-files type="file"
-        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,.m4a,.mp3,.wav,audio/*,image/*"
-        multiple hidden>
-    </label>
-    <label class="mk-action-button" data-variant="secondary" for="mark-browser-photo-{{ mark_scope|default:'personal' }}">
-      Photo
-      <input id="mark-browser-photo-{{ mark_scope|default:'personal' }}" data-mk-mark-photo type="file"
-        accept="image/*" capture="environment" hidden>
-    </label>
+    <button type="button" class="mk-action-button" data-variant="secondary"
+      data-mk-mark-files-open>Joindre un fichier</button>
+    <input id="mark-browser-files-{{ mark_scope|default:'personal' }}" data-mk-mark-files type="file"
+      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,.m4a,.mp3,.wav,audio/*,image/*"
+      multiple hidden>
+    <button type="button" class="mk-action-button" data-variant="secondary"
+      data-mk-mark-photo-open>Photo</button>
+    <input id="mark-browser-photo-{{ mark_scope|default:'personal' }}" data-mk-mark-photo type="file"
+      accept="image/*" capture="environment" hidden>
     <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-voice hidden>Dicter</button>
     <button type="button" class="mk-action-button" data-variant="secondary" data-mk-mark-link-toggle>Ajouter un lien</button>
   </div>
