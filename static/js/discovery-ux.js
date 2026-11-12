@@ -24,6 +24,19 @@
 
   }
 
+  // Only reflect which view is selected; the map controller keeps owning
+  // list/map visibility, camera and selection.
+  const listControl = document.getElementById('discovery-show-list');
+  const mapControl = document.getElementById('discovery-show-map');
+  if (listControl && mapControl) {
+    const activeView = (view) => {
+      listControl.dataset.variant = view === 'list' ? 'secondary' : 'ghost';
+      mapControl.dataset.variant = view === 'map' ? 'secondary' : 'ghost';
+    };
+    listControl.addEventListener('click', () => activeView('list'));
+    mapControl.addEventListener('click', () => activeView('map'));
+  }
+
   const map = window.__makoloDiscoveryMap;
   if (!map || typeof map.on !== 'function') return;
 
