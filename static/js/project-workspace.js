@@ -365,17 +365,16 @@
     renderRows();
   }
   function renderCalendar(rows) {
-    add(area, el('h2', '', 'Calendrier du Projet'));
-    add(area, el('p', 'mk-project__hint', 'Une échéance est un jalon ponctuel. Aucune barre de durée ni pourcentage n’est inventé pour un Dossier.'));
     const horizon = payload.horizon || {};
     const start = parse(horizon.starts_on);
     const end = parse(horizon.ends_on);
-    const panel = el('div', 'mk-project__calendar');
-    add(panel, el('h3', '', 'Horizon du Projet'));
-    add(panel, el('p', 'mk-project__hint', start || end
-      ? 'Début : ' + (start ? when(start) : 'non défini') +
-        ' · Fin : ' + (end ? when(end) : 'non définie')
-      : 'Aucune date d’horizon renseignée.'));
+    if (start || end) {
+      const panel = el('div', 'mk-project__calendar');
+      add(panel, el('h3', '', 'Horizon du Projet'));
+      add(panel, el('p', 'mk-project__hint', [
+        start ? 'Début : ' + when(start) : '',
+        end ? 'Fin : ' + when(end) : '',
+      ].filter(Boolean).join(' · ')));
     if (start && end && end > start) {
       const line = el('div', 'mk-project__line');
       const first = Date.parse(start + 'T00:00:00Z');
@@ -397,7 +396,8 @@
       add(bounds, el('span', '', when(end)));
       add(panel, bounds);
     }
-    add(area, panel);
+      add(area, panel);
+    }
     const control = el('div', 'mk-project__filters');
     const options = [
       ['all', 'Tous les jalons'], ['upcoming', '30 prochains jours'],
@@ -422,15 +422,16 @@
       switch (state.calendar) {
         case 'upcoming': return d && d >= todayDate && d <= in30;
         case 'late': return d && d < todayDate && row.state === 'active';
-        case 'active': return row.state === 'active';
+        case 'active': return !!d && row.state === 'active';
         case 'undated': return !d;
-        default: return true;
+        default: return !!d;
       }
     }).sort((a, b) => {
       const first = parse(a.deadline), second = parse(b.deadline);
       return !first ? (second ? 1 : 0) : !second ? -1 : first.localeCompare(second);
     });
-    if (!dates.length) add(area, empty('Aucun jalon correspondant'));
+    if (!dates.length) add(area, empty(state.calendar === 'undated'
+      ? 'Aucun Dossier sans échéance.' : 'Aucune échéance visible.'));
     for (const row of dates) {
       const line = el('div', 'mk-project__milestone');
       add(line, icon(row.deadline ? 'flag' : 'calendar-off'));
