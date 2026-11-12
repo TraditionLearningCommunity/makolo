@@ -6,11 +6,6 @@
   <header>
     <a class="text-sm underline" href="{% url 'conversations:detail' conversation.pk %}">Retour à la conversation</a>
     <h1 class="mk-page-title mt-3">Participants et invitations</h1>
-    <p class="mt-2 text-sm" style="color:var(--mk-muted)">
-      Ajouter un participant ne requiert aucun contact préalable. L'identifiant Makolo
-      est la seule clé de sélection : username d'un Profil, slug d'un Espace ou d'un Groupe.
-      Un nom peut être partagé par plusieurs personnes.
-    </p>
   </header>
 
   {% if can_manage %}
@@ -51,10 +46,6 @@
 
   <section class="mk-panel p-5" aria-labelledby="participants-heading">
     <h2 id="participants-heading" class="text-lg font-bold">Participations explicites</h2>
-    <p class="mt-1 text-xs" style="color:var(--mk-muted)">
-      Un accès obtenu par le contexte ou un collectif n'apparaît pas comme une
-      participation individuelle ajoutée manuellement.
-    </p>
     {% if members.scope == 'restricted' %}
       <p class="mt-4 text-sm" style="color:var(--mk-muted)">
         La liste des autres participants est réservée aux responsables.
@@ -110,7 +101,7 @@
     {% if can_leave %}
       <form method="post" class="mt-4">{% csrf_token %}
         <button type="submit" class="mk-action-button" data-variant="secondary"
-                name="action" value="leave">Quitter ma participation explicite</button>
+                name="action" value="leave">Quitter la conversation</button>
       </form>
     {% endif %}
   </section>
@@ -139,10 +130,6 @@
 
     <section class="mk-panel p-5" aria-labelledby="collectives-heading">
       <h2 id="collectives-heading" class="text-lg font-bold">Espaces et Groupes invités</h2>
-      <p class="mt-1 text-xs" style="color:var(--mk-muted)">
-        L'accès collectif exige l'acceptation d'une personne habilitée.
-        Ensuite, les membres actuels sont déterminés par leurs adhésions canoniques.
-      </p>
       <div class="mt-3 space-y-3">
         {% for item in members.collectives %}
           <div class="flex items-center justify-between gap-3 rounded-xl border p-3" style="border-color:var(--mk-border)">
