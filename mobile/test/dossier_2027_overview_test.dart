@@ -33,7 +33,10 @@ void main() {
         'visible_journeys_complete': true,
         'visible_journeys': [
           {'id': 'j-1', 'label': 'Démarche une', 'state': 'fulfilled'},
-          {'id': 'j-2', 'label': 'Démarche deux', 'state': 'draft'},
+          {
+            'id': 'j-2', 'label': 'Démarche deux',
+            'state': 'draft', 'readiness_state': 'action_required',
+          },
         ],
         'visible_dependencies': [],
         'assignments': [
@@ -79,6 +82,57 @@ void main() {
     await tester.ensureVisible(find.text('Continuer la démarche'));
     await tester.tap(find.text('Continuer la démarche'));
     expect(openedJourney, 'j-1');
+    await tester.ensureVisible(find.text('1 à traiter'));
+    await tester.tap(find.text('1 à traiter'));
+    await tester.pump();
+    expect(find.text('Démarche deux'), findsOneWidget);
+    expect(find.text('Démarche une'), findsNothing);
+  });
+
+  testWidgets('Partial local data is not presented as an empty Dossier', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'viewer');
+    final repo = ObjectiveRepository(
+      database: db, store: store, profileId: 'viewer',
+    );
+    await store.putProjection(
+      kind: ObjectiveRepository.dossierProjectionKind,
+      resourceKey: 'dossier-partial',
+      schemaVersion: 1,
+      payload: {
+        'identity': {'kind': 'dossier', 'id': 'dossier-partial'},
+        'objective': {'title': 'Dossier à synchroniser'},
+        'owner': {'kind': 'profile', 'label': 'Personnel'},
+        'state': {'code': 'active'},
+        'readiness': {'partial': true},
+        'visible_journeys_complete': false,
+        'visible_journeys': [],
+        'visible_dependencies': [],
+        'assignments': [],
+        'mandates': [],
+        'capabilities': [],
+      },
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DossierWorkspaceScreen(
+          id: 'dossier-partial',
+          repository: repo,
+          onOpenJourney: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(
+      find.text('Aucune démarche disponible dans les données acquises.'),
+      findsOneWidget,
+    );
+    expect(find.text('Aucune démarche visible.'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
   testWidgets('Empty Dossier avoids invented progress and keeps simple state', (
