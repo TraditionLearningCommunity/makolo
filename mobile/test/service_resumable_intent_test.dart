@@ -21,6 +21,21 @@ void main() {
     },
   );
 
+  test('a rejected Service intention keeps an editable local draft', () async {
+    final store = ResumableInteractionStore.memory();
+    const id = 'services.start:profile-1:service-1';
+    await store.save(id, {
+      'idempotency_key': 'request-rejected-1',
+      'objective': 'Trouver un accompagnement',
+      'opportunity': null,
+      'attempted': false,
+    });
+    final recovered = await store.read(id);
+    expect(recovered['attempted'], isFalse);
+    expect(recovered['objective'], 'Trouver un accompagnement');
+    expect(recovered['idempotency_key'], 'request-rejected-1');
+  });
+
   test('resumable interactions never persist sensitive credentials', () async {
     final store = ResumableInteractionStore.memory();
     await store.save('services.start:profile-1:service-1', {
