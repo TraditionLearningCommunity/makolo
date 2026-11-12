@@ -77,45 +77,7 @@ class _MakoloActorPicker extends StatefulWidget {
 
 class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   bool _switching = false;
-  bool _inventoryLoading = false;
-  bool _inventoryConfirmed = false;
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.runtime.space?.sync != null) {
-      unawaited(_refreshInventory());
-    }
-  }
-
-  Future<void> _refreshInventory() async {
-    final repository = widget.runtime.space;
-    if (repository?.sync == null || _inventoryLoading || _switching) return;
-    setState(() {
-      _inventoryLoading = true;
-      _error = null;
-    });
-    try {
-      await repository!.refreshInventory();
-      final source = await repository.readSource(repository.inventorySource());
-      if (source.invalidated ||
-          source.lastSuccessAt == null ||
-          source.lastErrorCode != null) {
-        throw StateError('Inventaire non vérifié.');
-      }
-      if (mounted) setState(() => _inventoryConfirmed = true);
-    } on Object {
-      if (mounted) {
-        setState(() {
-          _inventoryConfirmed = false;
-          _error = 'Les Espaces ne peuvent pas être vérifiés pour le moment.';
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _inventoryLoading = false);
-    }
-  }
 
   Future<void> _selectPersonal() async {
     if (_switching) return;
@@ -138,59 +100,51 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   }
 
   Future<void> _selectSpace(SpaceSummary summary) async {
-    if (_switching || _inventoryLoading) return;
+    if (_switching) return;
     final controller = widget.runtime.actorContext;
     final repository = widget.runtime.space;
-    if (controller == null || repository?.sync == null) {
-      setState(
-        () => _error = 'Une connexion est nécessaire pour vérifier cet Espace.',
-      );
-      return;
-    }
+    if (controller == null || repository == null) return;
     setState(() {
       _switching = true;
       _error = null;
     });
     try {
-      await repository!.refreshInventory();
-      final inventoryState = await repository.readSource(
-        repository.inventorySource(),
+      // Local-first: a previously acquired and non-invalidated Space is a
+      // selectable reading context, not a new grant of authority.
+      var available = await repository.hasAcquiredSpaceContext(
+        summary.identity,
       );
-      if (inventoryState.lastSuccessAt == null ||
-          inventoryState.invalidated ||
-          inventoryState.lastErrorCode != null) {
-        throw StateError('Inventaire non vérifié.');
-      }
-      final authorized = (await repository.readInventory()).any(
-        (space) =>
-            space.identity.id == summary.identity.id &&
-            space.identity.slug == summary.identity.slug,
-      );
-      if (!authorized) {
-        throw StateError(
-          'Cet Espace ne figure plus parmi vos accès autorisés.',
+      if (!available && repository.sync != null) {
+        // Only first-time or invalidated contexts require a server decision.
+        await repository.refreshInventory();
+        final verified = (await repository.readInventory()).any(
+          (space) => space.identity == summary.identity,
         );
+        if (verified) {
+          await repository.refreshWorkspace(summary.identity);
+          available = await repository.hasAcquiredSpaceContext(
+            summary.identity,
+          );
+        }
       }
-      await repository.refreshWorkspace(summary.identity);
-      final workspaceState = await repository.readSource(
-        repository.workspaceSource(summary.identity),
-      );
-      if (workspaceState.lastSuccessAt == null ||
-          workspaceState.invalidated ||
-          workspaceState.lastErrorCode != null) {
-        throw StateError('Contexte Space non vérifié.');
+      if (!available) {
+        // The actor is unchanged: never infer a role or grant from a title.
+        if (mounted) {
+          setState(
+            () => _error = 'Cet Espace n’est pas disponible pour le moment.',
+          );
+        }
+        return;
       }
-      // Selecting an actor never selects one Mandate over the others.
+      // Switching a view never selects one Mandate over the others.
       await controller.selectSpace(summary.identity);
       if (mounted) Navigator.of(context).pop();
     } on Object {
+      // If a remote refresh failed after a valid local acquisition, the
+      // previously acquired view is still allowed; permissions are not.
       if (mounted) {
-        final current = controller.value;
         setState(
-          () => _error = current is PersonalActorContext
-              ? 'Les accès ont changé. Vous êtes revenu à Moi.'
-              : 'Impossible de vérifier cet Espace. '
-                    'Aucun nouveau contexte n’a été sélectionné.',
+          () => _error = 'Cet Espace n’est pas disponible pour le moment.',
         );
       }
     } finally {
@@ -276,38 +230,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         selected:
                             actor is SpaceActorContext &&
                             actor.space.id == space.identity.id,
-                        onTap: _switching || _inventoryLoading
-                            ? null
-                            : () => _selectSpace(space),
-                      ),
-                    if (spaces.isEmpty && _inventoryConfirmed)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: MakoloSpacing.md,
-                        ),
-                        child: Text('Aucun Espace accessible.'),
-                      ),
-                    if (spaces.isEmpty &&
-                        !_inventoryConfirmed &&
-                        !_inventoryLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: MakoloSpacing.md,
-                        ),
-                        child: Text(
-                          'Impossible de vérifier vos Espaces. '
-                          'Cela ne signifie pas que vous n’avez aucun Espace.',
-                        ),
-                      ),
-                    if (spaces.isNotEmpty && !_inventoryConfirmed)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: MakoloSpacing.sm,
-                        ),
-                        child: Text(
-                          'Espaces déjà consultés. '
-                          'L’accès sera vérifié avant de basculer.',
-                        ),
+                        onTap: _switching ? null : () => _selectSpace(space),
                       ),
                     if (_error != null)
                       Padding(
@@ -321,22 +244,12 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           ),
                         ),
                       ),
-                    if (_switching || _inventoryLoading)
+                    if (_switching)
                       const LinearProgressIndicator(),
-                    if (!_inventoryLoading &&
-                        !_inventoryConfirmed &&
-                        repository.sync != null)
-                      TextButton.icon(
-                        onPressed: _switching ? null : _refreshInventory,
-                        icon: const Icon(Icons.refresh_outlined),
-                        label: const Text('Vérifier mes Espaces'),
-                      ),
                     const SizedBox(height: MakoloSpacing.md),
                     if (widget.runtime.api != null && repository.sync != null)
                       OutlinedButton.icon(
-                        onPressed: _switching || _inventoryLoading
-                            ? null
-                            : _openCreateSpace,
+                        onPressed: _switching ? null : _openCreateSpace,
                         icon: const Icon(Icons.add),
                         label: const Text('Créer un nouvel Espace'),
                       ),

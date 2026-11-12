@@ -335,6 +335,44 @@ final class WorkspaceContextRepository {
   Stream<StoredProjection?> watchPilot(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.pilot, space);
 
+  /// A previously acquired Space can be selected as a *presentation context*
+  /// without waiting for a new network response. This does not grant any
+  /// authority: each owner still validates permissions for its own actions.
+  ///
+  /// A source explicitly invalidated by its owner, a denied/missing Space,
+  /// an unrecognized Profile, or a mismatched cached identity is never used.
+  Future<bool> hasAcquiredSpaceContext(SpaceActorIdentity space) async {
+    final inventoryState = await readSource(inventorySource());
+    if (!_usableForLocalContext(inventoryState)) return false;
+    final known = (await readInventory()).any(
+      (item) => item.identity == space,
+    );
+    if (!known) return false;
+
+    final workspaceState = await readSource(workspaceSource(space));
+    if (!_usableForLocalContext(workspaceState)) return false;
+    try {
+      final workspace = await readWorkspace(space);
+      return workspace != null && workspace.identity == space;
+    } on FormatException {
+      return false;
+    }
+  }
+
+  static bool _usableForLocalContext(OwnerSourceState source) {
+    if (source.invalidated || source.lastSuccessAt == null) return false;
+    // Only known transport failures preserve a previously acquired view.
+    // Unknown errors are not evidence of retained authority.
+    return source.lastErrorCode == null ||
+        const {
+          'timeout',
+          'makolo_unreachable',
+          'secure_connection_failed',
+          'transport_error',
+          'server_unavailable',
+        }.contains(source.lastErrorCode);
+  }
+
   Future<void> refreshInventory() async {
     final engine = _requireSync();
     final previous = await readInventory();

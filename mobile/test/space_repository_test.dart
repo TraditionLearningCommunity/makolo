@@ -12,6 +12,7 @@ import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/navigation/actor_selector.dart';
 import 'package:makolo_mobile/features/space/space_occurrence_repository.dart';
 import 'package:makolo_mobile/features/space/space_create_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
@@ -256,6 +257,93 @@ void main() {
     );
     expect(oldAll.path, isNot(contains('responsibility=')));
     expect(scoped.path, contains('responsibility=mandate%3Aa%2Fb'));
+  });
+
+  test(
+    'acquired Space stays locally selectable on outage but never after revocation',
+    () async {
+      var phase = 'online';
+      final harness = await _harness(
+        handler: (request) async {
+          if (phase == 'offline') {
+            throw const SocketException('offline');
+          }
+          if (phase == 'revoked') {
+            return MockResponse(
+              jsonEncode({
+                'error': {
+                  'code': 'permission_denied',
+                  'message': 'Access revoked',
+                },
+              }),
+              403,
+            );
+          }
+          if (request.url.path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final repository = harness.repository;
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      final unknown = SpaceActorIdentity(id: 'unknown', slug: 'unknown');
+      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+      await repository.refreshInventory();
+      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+      await repository.refreshWorkspace(space);
+      expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+      expect(await repository.hasAcquiredSpaceContext(unknown), isFalse);
+
+      phase = 'offline';
+      await expectLater(
+        repository.refreshInventory(),
+        throwsA(isA<Exception>()),
+      );
+      await expectLater(
+        repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      expect(await repository.hasAcquiredSpaceContext(space), isTrue);
+
+      phase = 'revoked';
+      await expectLater(
+        repository.refreshWorkspace(space),
+        throwsA(isA<Exception>()),
+      );
+      expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+    },
+  );
+
+  test('Space context uses the current Profile local inventory only', () async {
+    final harness = await _harness(
+      handler: (request) async {
+        if (request.url.path.endsWith('/space-x/')) {
+          return MockResponse(jsonEncode(_workspace()), 200);
+        }
+        return MockResponse(jsonEncode([_inventoryRow()]), 200);
+      },
+    );
+    addTearDown(harness.close);
+    final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+    await harness.repository.refreshInventory();
+    await harness.repository.refreshWorkspace(space);
+
+    final otherStore = ProfileStore(harness.database, 'profile-b');
+    final otherActor = await ActorContextController.restore(
+      profileId: 'profile-b',
+      store: _ActorStore(),
+    );
+    addTearDown(otherActor.dispose);
+    final otherRepository = WorkspaceContextRepository(
+      database: harness.database,
+      store: otherStore,
+      profileId: 'profile-b',
+      actorContext: otherActor,
+    );
+    expect(await otherRepository.hasAcquiredSpaceContext(space), isFalse);
+    expect(await harness.repository.hasAcquiredSpaceContext(space), isTrue);
   });
 
   test('Space projections parse into local snapshots', () async {
@@ -959,6 +1047,68 @@ void main() {
       expect(posted, isTrue);
       expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
       expect(harness.actorContext.value, const PersonalActorContext());
+    },
+  );
+
+  testWidgets(
+    'actor picker switches to an acquired Space without the server or network chatter',
+    (tester) async {
+      var offline = false;
+      var requests = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          requests++;
+          if (offline) throw const SocketException('offline');
+          if (request.url.path.endsWith('/space-x/')) {
+            return MockResponse(jsonEncode(_workspace()), 200);
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      await harness.repository.refreshWorkspace(space);
+      offline = true;
+      await expectLater(
+        harness.repository.refreshInventory(),
+        throwsA(isA<Exception>()),
+      );
+      final baseline = requests;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showMakoloActorPicker(
+                  context,
+                  runtime: runtime,
+                ),
+                child: const Text('Choisir un contexte'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choisir un contexte'));
+      await tester.pumpAndSettle();
+      expect(find.text('Space X'), findsOneWidget);
+      expect(find.text('Vérifier mes Espaces'), findsNothing);
+      expect(find.textContaining('Espaces déjà consultés'), findsNothing);
+      expect(find.textContaining('ne peuvent pas être vérifiés'), findsNothing);
+      await tester.tap(find.text('Space X'));
+      await tester.pumpAndSettle();
+      expect(harness.actorContext.value, SpaceActorContext(space: space));
+      expect(requests, baseline);
+      expect(find.text('Agir en tant que'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 
