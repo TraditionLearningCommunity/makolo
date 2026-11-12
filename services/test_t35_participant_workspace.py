@@ -46,7 +46,7 @@ class ServiceParticipantWorkspaceTests(TestCase):
                 artifact = create_artifact(
                     journey=self.journey,
                     uploaded_file=SimpleUploadedFile(
-                        "cv.pdf", b"%PDF-1.4\\nDocument CV\\n%%EOF",
+                        "cv.pdf", b"%PDF-1.4\nDocument CV\n%%EOF",
                         content_type="application/pdf",
                     ),
                     uploaded_by=self.participant,
