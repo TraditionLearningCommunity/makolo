@@ -230,6 +230,8 @@ class ParticipationInboxTests(TestCase):
         self.assertEqual(self.join_request.status, "pending")
 
     def test_requester_withdraws_pending_request_without_conversation_access(self):
+        self.membership.status = GroupMembershipStatus.LEFT
+        self.membership.save(update_fields=["status", "updated_at"])
         self.client.force_login(self.member)
         url = reverse(
             "conversations-api:join-withdraw",
