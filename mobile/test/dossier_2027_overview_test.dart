@@ -51,6 +51,7 @@ void main() {
     );
     String? openedProfile;
     String? openedJourney;
+    var openedPeople = false;
     await tester.pumpWidget(
       MaterialApp(
         home: DossierWorkspaceScreen(
@@ -58,6 +59,7 @@ void main() {
           repository: repo,
           onOpenJourney: (id) => openedJourney = id,
           onOpenPerson: (id) => openedProfile = id,
+          onOpenPeople: () => openedPeople = true,
         ),
       ),
     );
@@ -70,6 +72,10 @@ void main() {
     await tester.ensureVisible(find.byType(CircleAvatar).first);
     await tester.tap(find.byType(CircleAvatar).first);
     expect(openedProfile, 'profile-alice');
+    final peopleLink = find.byTooltip('Voir les personnes et responsabilités');
+    await tester.ensureVisible(peopleLink);
+    await tester.tap(peopleLink);
+    expect(openedPeople, isTrue);
     await tester.ensureVisible(find.text('Continuer la démarche'));
     await tester.tap(find.text('Continuer la démarche'));
     expect(openedJourney, 'j-1');
