@@ -324,11 +324,27 @@ class MainActivity : FlutterFragmentActivity() {
                 ?: throw IllegalStateException("Shared content is unavailable.")
             input.use { source ->
                 destination.outputStream().use { target ->
-                    source.copyTo(target)
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    while (true) {
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 25L * 1024L * 1024L) {
+                            throw IllegalStateException("Shared file is too large.")
+                        }
+                        target.write(buffer, 0, count)
+                    }
+                    if (total == 0L) throw IllegalStateException("Shared file is empty.")
                 }
             }
             result.success(null)
         } catch (error: Exception) {
+            try {
+                File(destinationPath).delete()
+            } catch (_: Exception) {
+                // Partial stage cleanup is best-effort.
+            }
             result.error("share_copy_failed", "Unable to stage shared content.", null)
         }
     }
