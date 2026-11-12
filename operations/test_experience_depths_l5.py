@@ -129,7 +129,10 @@ class ExperienceDepthsL5Tests(TestCase):
 
     def test_personal_readiness_depth_keeps_grouped_checks(self):
         projection = {
-            "depths": [{"kind": "readiness", "label": "Ma préparation"}],
+            "depths": [{
+                "kind": "readiness", "label": "Ma préparation",
+                "territory": "participant",
+            }],
             "sections": {
                 "participant": {
                     "readiness": {
@@ -161,10 +164,43 @@ class ExperienceDepthsL5Tests(TestCase):
         self.assertEqual(detail["rows"][1]["state"], "waiting")
         self.assertEqual(detail["rows"][1]["source"], "operations.placement")
 
+    def test_dual_role_readiness_stays_on_participant_territory(self):
+        projection = {
+            "depths": [{
+                "kind": "readiness",
+                "label": "Ma préparation",
+                "territory": "participant",
+            }],
+            "sections": {
+                "participant": {
+                    "readiness": {
+                        "blockers": [{"key": "my-access", "summary": "Mon accès"}],
+                    },
+                },
+                "organizer": {
+                    "operational_readiness": {
+                        "contributors": [{
+                            "key": "private-operations",
+                            "summary": "Préparation de l'organisateur",
+                        }],
+                    },
+                },
+            },
+        }
+        detail = depth_page(
+            occurrence=self.occurrence, actor=self.operator,
+            projection=projection, kind="readiness",
+        )
+        self.assertEqual(len(detail["rows"]), 1)
+        self.assertEqual(detail["rows"][0]["label"], "Mon accès")
+
     def test_operator_readiness_keeps_flat_owner_contributors(self):
         contributor = {"key": "operations.queue", "state": "action_required"}
         projection = {
-            "depths": [{"kind": "readiness", "label": "Préparation"}],
+            "depths": [{
+                "kind": "readiness", "label": "Préparation",
+                "territory": "organizer",
+            }],
             "sections": {
                 "organizer": {
                     "operational_readiness": {"contributors": [contributor]}
