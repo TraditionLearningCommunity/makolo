@@ -145,7 +145,7 @@ a[aria-label="Revenir à Mon espace"]{display:none}
   }
 }
 .mk-discovery-workspace .mk-discovery-results article[data-candidate-key] {
-  overflow:hidden;
+  /* Share menus extend beyond their card; do not clip this surface. */
   border-radius:18px;
   transition:border-color 150ms ease, box-shadow 150ms ease;
 }
