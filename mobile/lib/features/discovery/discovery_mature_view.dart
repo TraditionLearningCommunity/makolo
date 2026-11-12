@@ -1953,7 +1953,10 @@ class _DiscoveryScrollableField extends StatelessWidget {
                 children: [
                   if (autoLoadMore && loadingMore) ...[
                     const SizedBox(height: MakoloSpacing.lg),
-                    const Center(child: CircularProgressIndicator()),
+                    const MakoloCardSkeleton(
+                      kind: MakoloCardSkeletonKind.discover,
+                      count: 1,
+                    ),
                   ],
                   if (autoLoadMore && loadMoreFailed) ...[
                     const SizedBox(height: MakoloSpacing.md),
@@ -2242,7 +2245,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.contractError)) {
       return _EmptyBody(
         icon: Icons.error_outline_rounded,
-        title: 'Informations indisponibles.',
+        title: 'Ce contenu n’est pas disponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -2258,7 +2261,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
-        title: 'Service momentanément indisponible.',
+        title: 'Découvrir n’est pas accessible pour le moment.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -2267,7 +2270,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
         states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
       return _EmptyBody(
         icon: Icons.info_outline_rounded,
-        title: 'Connexion indisponible.',
+        title: 'Recherche momentanément indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -2282,7 +2285,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
-      title: 'Aucune possibilité pour le moment.',
+      title: 'Rien à découvrir pour le moment.',
     );
   }
 }
