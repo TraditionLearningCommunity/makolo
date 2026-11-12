@@ -455,6 +455,42 @@ class _JourneyContent extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
+            if (presentation.serviceRequest != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                title: 'Votre demande',
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (presentation.serviceRequest!.objective != null)
+                        Text(presentation.serviceRequest!.objective!),
+                      if (presentation.serviceRequest!.opportunityTitle != null) ...[
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          'Opportunité concernée',
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        Text(
+                          presentation.serviceRequest!.opportunityTitle!,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        if (presentation.serviceRequest!.opportunityIssuer != null)
+                          Text(presentation.serviceRequest!.opportunityIssuer!),
+                        if (presentation.serviceRequest!.opportunityPublicationState != null &&
+                            presentation.serviceRequest!.opportunityPublicationState !=
+                                'published') ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          const Text(
+                            'Cette opportunité n’est plus publiée. Votre demande conserve sa référence.',
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
             if (presentation.serviceResult != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
