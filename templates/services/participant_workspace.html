@@ -22,6 +22,32 @@
   </section>
   {% endif %}
 
+  {% if requirements %}
+  <section class="mk-panel p-5 sm:p-6" aria-labelledby="service-requirements-title">
+    <h2 id="service-requirements-title" class="text-lg font-extrabold">Conditions de ma demande</h2>
+    <div class="mt-3 grid gap-3">
+      {% for row in requirements %}
+      <div class="rounded-xl border p-4" style="border-color:var(--mk-border)">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-semibold">{{ row.requirement.title }}</p>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">
+              {{ row.assessment.get_status_display }}{% if row.requirement.is_mandatory %} · Obligatoire{% endif %}
+            </p>
+            {% if row.consequence_label %}
+            <p class="mt-1 text-sm">{{ row.consequence_label }}</p>
+            {% endif %}
+          </div>
+          {% if row.assessment.status != 'satisfied' and row.assessment.status != 'not_applicable' %}
+          <a class="mk-action-button" data-variant="secondary" href="{% url 'services:participant-trusted-reuse' journey.pk row.assessment.pk %}">Vérifier mes éléments</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="mk-panel p-5 sm:p-6" aria-labelledby="service-documents-title">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="service-documents-title" class="text-lg font-extrabold">Pièces de ma demande</h2>
@@ -31,20 +57,6 @@
         <a class="mk-action-button" data-variant="primary" href="{% url 'services:participant-artifact-upload' journey.pk %}">Ajouter une pièce</a>
       </div>
     </div>
-    {% if reuse_candidates %}
-    <div class="mt-4 space-y-2">
-      <p class="text-sm font-semibold">Éléments que je peux réutiliser</p>
-      {% for row in reuse_candidates %}
-      <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3" style="border-color:var(--mk-border)">
-        <div class="min-w-0">
-          <p class="font-medium">{{ row.requirement.title }}</p>
-          <p class="text-sm" style="color:var(--mk-muted)">{{ row.assessment.get_status_display }}</p>
-        </div>
-        <a class="mk-action-button" data-variant="secondary" href="{% url 'services:participant-trusted-reuse' journey.pk row.assessment.pk %}">Voir les possibilités</a>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
     {% if artifacts %}
     <div class="mt-4 space-y-3">
       {% for artifact in artifacts %}
