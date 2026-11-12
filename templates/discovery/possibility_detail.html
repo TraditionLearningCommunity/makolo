@@ -13,6 +13,13 @@
       {% if card.summary %}<p class="text-base">{{ card.summary }}</p>{% endif %}
     </header>
 
+    {% if not card.representation.image_url and card.representation.kind == 'route' and card.representation.route_label %}
+    <section class="rounded-2xl p-5 sm:p-7" style="background:var(--mk-surface-muted)" aria-label="Trajet proposé">
+      <i data-lucide="route" class="h-6 w-6" style="color:var(--mk-primary)" aria-hidden="true"></i>
+      <h2 class="mt-3 break-words text-xl font-bold">{{ card.representation.route_label }}</h2>
+    </section>
+    {% endif %}
+
     {% if card.representation.image_url or card.gallery_media %}
     <section class="overflow-hidden rounded-2xl" style="background:var(--mk-surface-muted)" aria-label="Images publiées">
       {% if card.representation.image_url %}
