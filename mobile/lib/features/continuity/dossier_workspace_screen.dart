@@ -83,6 +83,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenJourney,
     this.onOpenProject,
+    this.onOpenOwnerSpace,
     this.onOpenPerson,
     this.onOpenPeople,
     this.api,
@@ -97,6 +98,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final MakoloApiClient? api;
   final ValueChanged<String> onOpenJourney;
   final ValueChanged<String>? onOpenProject;
+  final ValueChanged<String>? onOpenOwnerSpace;
   final ValueChanged<String>? onOpenPerson;
   final VoidCallback? onOpenPeople;
   final ConversationRepository? conversations;
@@ -895,23 +897,38 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         if (_text(owner['label']).isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Row(
-              children: [
-                Icon(
-                  owner['kind'] == 'space'
-                      ? Icons.groups_outlined
-                      : Icons.person_outline_rounded,
-                  size: 16,
-                  color: theme.colorScheme.primary,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: owner['kind'] == 'space' &&
+                      _text(owner['slug']).isNotEmpty
+                  ? (widget.onOpenOwnerSpace == null
+                      ? null
+                      : () => widget.onOpenOwnerSpace!(_text(owner['slug'])))
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Icon(
+                      owner['kind'] == 'space'
+                          ? Icons.groups_outlined
+                          : Icons.person_outline_rounded,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'Porteur · ' + _text(owner['label']),
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    if (owner['kind'] == 'space' &&
+                        widget.onOpenOwnerSpace != null)
+                      const Icon(Icons.chevron_right_rounded, size: 18),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Porteur · ' + _text(owner['label']),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         if (_text(objective['description']).isNotEmpty) ...[
@@ -1380,8 +1397,15 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         ? Icons.check_circle_outline
                         : Icons.radio_button_unchecked),
                     title: Text(_text(dep['required_label'])),
-                    subtitle: Text(dep['satisfied'] == true
-                        ? 'Satisfaite' : 'Non confirmée'),
+                    subtitle: Text(
+                      _text(dep['state']) == 'waived'
+                          ? 'Condition levée'
+                          : dep['satisfied'] == true
+                              ? 'Satisfaite'
+                              : _text(dep['state']) == 'active'
+                                  ? 'À satisfaire'
+                                  : 'État non précisé',
+                    ),
                   ),
                 ListTile(
                   title: const Text('Explorer les dépendances'),
@@ -1403,8 +1427,60 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           const SizedBox(height: 10),
           _tabs(),
         ],
-        // Historical events and resources are not owned by Dossier.
-        // Their cards will be enabled only with authoritative projections.
+        const SizedBox(height: 12),
+        _dossierInformation(data),
+        // No fabricated resources, proofs, payments or activity stream.
+        // Any future contextual card must come from its canonical owner.
+      ],
+    );
+  }
+
+  Widget _dossierInformation(Map<String, dynamic> data) {
+    final owner = _map(data['owner']);
+    final deadline = _parse(data['deadline']);
+    final created = _parse(data['created_at']);
+    final updated = _parse(data['updated_at']);
+    if (owner.isEmpty && created == null && updated == null &&
+        deadline == null) return const SizedBox.shrink();
+    return ExpansionTile(
+      key: const PageStorageKey<String>('dossier-information'),
+      leading: const Icon(Icons.info_outline_rounded),
+      title: const Text(
+        'Informations du Dossier',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      children: [
+        if (_text(owner['label']).isNotEmpty)
+          ListTile(
+            dense: true,
+            leading: Icon(owner['kind'] == 'space'
+                ? Icons.groups_outlined : Icons.person_outline_rounded),
+            title: const Text('Porteur'),
+            subtitle: Text(_text(owner['label'])),
+          ),
+        if (deadline != null)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.event_outlined),
+            title: const Text('Échéance'),
+            subtitle: Text(_dateLabel(context, deadline)),
+          ),
+        if (created != null)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.add_circle_outline_rounded),
+            title: const Text('Créé le'),
+            subtitle: Text(_dateLabel(context, created.toLocal())),
+          ),
+        if (updated != null)
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.update_rounded),
+            title: const Text('Mis à jour le'),
+            subtitle: Text(_dateLabel(context, updated.toLocal())),
+          ),
       ],
     );
   }
