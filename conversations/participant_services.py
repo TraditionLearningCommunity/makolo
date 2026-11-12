@@ -358,6 +358,12 @@ def collective_invitation_inbox(actor, *, limit=30):
     return [
         item for item in candidates
         if (not item.expires_at or item.expires_at > timezone.now())
+        and item.conversation.lifecycle == ConversationLifecycle.OPEN
+        and ((
+            item.space is not None and _eligible_space(item.space)
+        ) or (
+            item.group is not None and item.group.status == GroupStatus.ACTIVE
+        ))
         and _collective_manage_allowed(actor, space=item.space, group=item.group)
     ][:max(1, min(limit, 50))]
 
