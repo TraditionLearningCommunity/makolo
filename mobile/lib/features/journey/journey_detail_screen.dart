@@ -465,7 +465,8 @@ class _JourneyContent extends StatelessWidget {
                     children: [
                       if (presentation.serviceRequest!.objective != null)
                         Text(presentation.serviceRequest!.objective!),
-                      if (presentation.serviceRequest!.opportunityTitle != null) ...[
+                      if (presentation.serviceRequest!.opportunityTitle !=
+                          null) ...[
                         const SizedBox(height: MakoloSpacing.sm),
                         Text(
                           'Opportunité concernée',
@@ -475,10 +476,16 @@ class _JourneyContent extends StatelessWidget {
                           presentation.serviceRequest!.opportunityTitle!,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        if (presentation.serviceRequest!.opportunityIssuer != null)
+                        if (presentation.serviceRequest!.opportunityIssuer !=
+                            null)
                           Text(presentation.serviceRequest!.opportunityIssuer!),
-                        if (presentation.serviceRequest!.opportunityPublicationState != null &&
-                            presentation.serviceRequest!.opportunityPublicationState !=
+                        if (presentation
+                                    .serviceRequest!
+                                    .opportunityPublicationState !=
+                                null &&
+                            presentation
+                                    .serviceRequest!
+                                    .opportunityPublicationState !=
                                 'published') ...[
                           const SizedBox(height: MakoloSpacing.sm),
                           const Text(

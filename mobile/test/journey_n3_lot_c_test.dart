@@ -261,7 +261,9 @@ void main() {
     expect(find.text('Bourse annuelle'), findsOneWidget);
     expect(find.text('Fondation locale'), findsOneWidget);
     expect(
-      find.text('Cette opportunité n’est plus publiée. Votre demande conserve sa référence.'),
+      find.text(
+        'Cette opportunité n’est plus publiée. Votre demande conserve sa référence.',
+      ),
       findsOneWidget,
     );
   });
