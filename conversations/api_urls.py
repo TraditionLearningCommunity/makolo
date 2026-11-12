@@ -34,6 +34,7 @@ from .participant_api import (
     ConversationCollectiveInboxAPIView, ConversationCollectiveRespondAPIView,
     ConversationSelfEntryAPIView, ConversationJoinRequestsAPIView,
     ConversationJoinRequestDecisionAPIView,
+    ConversationWithdrawJoinRequestAPIView,
 )
 
 
@@ -55,6 +56,7 @@ urlpatterns = [
     path("collective-invitations/", ConversationCollectiveInboxAPIView.as_view(), name="collective-inbox"),
     path("collective-invitations/<uuid:access_pk>/respond/", ConversationCollectiveRespondAPIView.as_view(), name="collective-respond"),
     path("<uuid:pk>/entry/", ConversationSelfEntryAPIView.as_view(), name="self-entry"),
+    path("join-requests/<uuid:join_request_pk>/withdraw/", ConversationWithdrawJoinRequestAPIView.as_view(), name="join-withdraw"),
     path("<uuid:pk>/join-requests/", ConversationJoinRequestsAPIView.as_view(), name="join-requests"),
     path("<uuid:pk>/join-requests/<uuid:join_request_pk>/decide/", ConversationJoinRequestDecisionAPIView.as_view(), name="join-decision"),
 
