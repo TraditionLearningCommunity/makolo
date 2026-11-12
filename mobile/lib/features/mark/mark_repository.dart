@@ -108,8 +108,7 @@ class MarkRepository {
     if (attachments.isNotEmpty && (!allowTextOnly || input.trim().isEmpty)) {
       return const MarkResult(
         state: 'local_attachments_only',
-        message:
-            'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
+        message: 'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
       );
     }
 
@@ -131,14 +130,20 @@ class MarkRepository {
         PersonalActorContext() => await api.post(
           'api/v1/me/mark/',
           body: {
-            'input': {'kind': allowTextOnly ? 'text' : inputKind, 'value': input},
+            'input': {
+              'kind': allowTextOnly ? 'text' : inputKind,
+              'value': input,
+            },
             'context': context,
           },
         ),
         SpaceActorContext(:final space, :final perspective) => await api.post(
           'api/v1/organizations/workspaces/${space.slug}/mark/',
           body: {
-            'input': {'kind': allowTextOnly ? 'text' : inputKind, 'value': input},
+            'input': {
+              'kind': allowTextOnly ? 'text' : inputKind,
+              'value': input,
+            },
             'context': {
               ...context,
               if (!perspective.isAll) 'responsibility': perspective.id,

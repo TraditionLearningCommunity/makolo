@@ -20,10 +20,9 @@ String? markHandoffRoute(MarkResult result, ActorContext actor) {
   final raw = result.raw['result'];
   final data = raw is Map ? raw : const {};
   final id = data['id']?.toString();
-  String? detail(String prefix) =>
-      id == null || id.trim().isEmpty
-          ? null
-          : '$prefix/${Uri.encodeComponent(id)}';
+  String? detail(String prefix) => id == null || id.trim().isEmpty
+      ? null
+      : '$prefix/${Uri.encodeComponent(id)}';
 
   return switch ('$owner/$surface') {
     'access/personal_accesses' => '/accesses',
@@ -32,9 +31,10 @@ String? markHandoffRoute(MarkResult result, ActorContext actor) {
     'journey/journey_detail' => detail('/journeys'),
     'objectives/dossier_detail' => detail('/dossiers'),
     'objectives/project_detail' => detail('/projects'),
-    'operations/occurrence_day_of' => detail('/occurrences') == null
-        ? null
-        : '${detail('/occurrences')}/day-of',
+    'operations/occurrence_day_of' =>
+      detail('/occurrences') == null
+          ? null
+          : '${detail('/occurrences')}/day-of',
     'discovery/discover' => Uri(
       path: '/discover/search',
       queryParameters: {'q': data['query']?.toString() ?? ''},
