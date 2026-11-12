@@ -245,6 +245,7 @@ class ConversationC4RichTests(TestCase):
         view = self.client.get(reverse('conversations:exchange-detail', kwargs={'point_pk': exchange.pk}))
         self.assertEqual(view.status_code, 200)
         self.assertContains(view, 'Un message privé')
+        self.assertContains(view, 'Discussion')
 
     def test_file_response_attaches_to_canonical_response_not_new_point(self):
         self.client.force_login(self.owner)
