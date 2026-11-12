@@ -114,7 +114,7 @@
         </span>
         {% endif %}
       {% endif %}
-      {% for member in workspace.collaboration.members|slice:":4" %}
+      {% for member in workspace.collaboration.members|slice:":3" %}
         {% if member.profile_id != workspace.owner.id %}
           {% if member.profile_url %}
           <a class="mk-project__avatar" href="{{ member.profile_url }}"
