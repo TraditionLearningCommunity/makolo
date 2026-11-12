@@ -30,6 +30,25 @@ void main() {
     expect(result.message, contains('Enregistré sur cet appareil'));
   });
 
+  test('a local document is never represented as a server submission', () async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    final repository = MarkRepository(runtime);
+    final result = await repository.submit(
+      actor: const PersonalActorContext(),
+      input: '',
+      inputKind: 'document',
+      attachments: [
+        {'file_id': 'local-only', 'purpose': 'mark_intake'},
+      ],
+    );
+    expect(result.state, 'local_attachments_only');
+    expect(result.message, contains('Aucun fichier n’a été transmis'));
+  });
+
   testWidgets(
     'initial Mark keeps input dominant and exposes native intake actions',
     (tester) async {
@@ -46,7 +65,8 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
       expect(find.text('Joindre'), findsOneWidget);
       expect(find.text('Photo'), findsOneWidget);
-      expect(find.text('Voix'), findsOneWidget);
+      expect(find.text('Image'), findsOneWidget);
+      expect(find.text('Voix'), findsNothing);
       expect(find.text('Continuer'), findsOneWidget);
       expect(find.textContaining('A1'), findsNothing);
       expect(find.textContaining('A2'), findsNothing);
