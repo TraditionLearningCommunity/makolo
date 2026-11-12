@@ -1076,7 +1076,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     ),
   );
 
-  /// Compact, privacy-scoped preview. Assignment is not authority.
+  /// One compact surface, with the canonical people page as the full list.
+  /// Assignments do not convey Mandates, and the preview only shows
+  /// Profiles visible to the active viewer.
   Widget _collaboration(Map<String, dynamic> data) {
     final assignments = _rows(data['assignments']);
     final mandates = _rows(data['mandates']);
@@ -1087,8 +1089,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     }
     final preview = _map(data['people_preview']);
     final hasPreview = data['people_preview'] is Map;
-    // Older local snapshots may predate the optional people_preview field.
-    // Keep already-visible names without inventing Profile links or totals.
+    // Older local snapshots keep visible names, but cannot infer
+    // additional people or a Profile ID from a display label.
     final people = hasPreview
         ? _rows(preview['people'])
         : [
@@ -1105,33 +1107,37 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         ? (preview['remaining'] as num).toInt() : 0;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: BorderSide(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(17),
+          borderRadius: BorderRadius.circular(18),
         ),
-        child: ExpansionTile(
-          key: const PageStorageKey<String>('dossier-people-preview'),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          trailing: widget.onOpenPeople == null
-              ? null
-              : IconButton(
-                  tooltip: 'Voir les personnes et responsabilités',
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  onPressed: widget.onOpenPeople,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 7, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.people_outline_rounded,
+                    color: scheme.primary),
+                title: const Text(
+                  'Personnes et responsabilités',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-          leading: Icon(Icons.people_outline, color: scheme.primary),
-          title: const Text(
-            'Personnes et responsabilités',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          subtitle: people.isEmpty
-              ? const Text('Aucune personne visible')
-              : Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                subtitle: Text(people.isEmpty
+                    ? 'Aucune personne visible'
+                    : 'Voir les personnes et leurs rôles'),
+                trailing: widget.onOpenPeople == null
+                    ? null
+                    : const Icon(Icons.chevron_right_rounded),
+                onTap: widget.onOpenPeople,
+              ),
+              if (people.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 5, top: 1),
                   child: Row(
                     children: [
                       for (final person in people.take(4))
@@ -1145,10 +1151,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                                       _text(person['profile_id']).isEmpty
                                   ? null
                                   : () => widget.onOpenPerson!(
-                                        _text(person['profile_id']),
-                                      ),
+                                      _text(person['profile_id']),
+                                    ),
                               child: CircleAvatar(
-                                radius: 17,
+                                radius: 18,
                                 backgroundColor: scheme.primaryContainer,
                                 child: Text(
                                   _text(person['label']).isEmpty
@@ -1156,8 +1162,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                                       : _text(person['label'])
                                           .substring(0, 1).toUpperCase(),
                                   style: TextStyle(
-                                    fontSize: 12,
                                     color: scheme.onPrimaryContainer,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
@@ -1171,7 +1178,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                             customBorder: const CircleBorder(),
                             onTap: widget.onOpenPeople,
                             child: CircleAvatar(
-                              radius: 17,
+                              radius: 18,
                               child: Text(
                                 '+' + remaining.toString(),
                                 style: const TextStyle(fontSize: 11),
@@ -1182,80 +1189,30 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                     ],
                   ),
                 ),
-          children: [
-            if (assignments.isNotEmpty)
-              const ListTile(
-                dense: true,
-                title: Text('Coordination',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            for (final item in assignments)
-              ListTile(
-                leading: const Icon(Icons.person_outline),
-                title: Text(_text(item['label'])),
-                subtitle: const Text('Responsabilité opérationnelle'),
-                onTap: widget.onOpenPerson == null ||
-                        _text(item['profile_id']).isEmpty
-                    ? null
-                    : () => widget.onOpenPerson!(
-                          _text(item['profile_id']),
+              if (canAssign || canGrant)
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Wrap(
+                    spacing: 7,
+                    runSpacing: 3,
+                    children: [
+                      if (canAssign)
+                        TextButton.icon(
+                          onPressed: _canMutate ? () => _assign(data) : null,
+                          icon: const Icon(Icons.person_add_alt_1_outlined),
+                          label: const Text('Responsabilité'),
                         ),
-                trailing: _cap(item, 'remove')
-                    ? IconButton(
-                        tooltip: 'Retirer la responsabilité',
-                        icon: const Icon(Icons.person_remove_outlined),
-                        onPressed: _canMutate
-                            ? () => _removeAssignment(item) : null,
-                      )
-                    : null,
-              ),
-            if (mandates.isNotEmpty)
-              const ListTile(
-                dense: true,
-                title: Text('Autorisations',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            for (final item in mandates)
-              ListTile(
-                leading: const Icon(Icons.shield_outlined),
-                title: Text(_text(item['profile'])),
-                subtitle: Text('Mandat · ' + _text(item['role'])),
-                onTap: widget.onOpenPerson == null ||
-                        _text(item['profile_id']).isEmpty
-                    ? null
-                    : () => widget.onOpenPerson!(
-                          _text(item['profile_id']),
+                      if (canGrant)
+                        TextButton.icon(
+                          onPressed: _canMutate ? () => _grant(data) : null,
+                          icon: const Icon(Icons.shield_outlined),
+                          label: const Text('Gérer les accès'),
                         ),
-                trailing: _cap(item, 'revoke')
-                    ? IconButton(
-                        tooltip: 'Révoquer le mandat',
-                        icon: const Icon(Icons.shield_outlined),
-                        onPressed: _canMutate ? () => _revoke(item) : null,
-                      )
-                    : null,
-              ),
-            if (canAssign || canGrant)
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    if (canAssign)
-                      TextButton.icon(
-                        onPressed: _canMutate ? () => _assign(data) : null,
-                        icon: const Icon(Icons.person_add_alt_1_outlined),
-                        label: const Text('Responsabilité'),
-                      ),
-                    if (canGrant)
-                      TextButton.icon(
-                        onPressed: _canMutate ? () => _grant(data) : null,
-                        icon: const Icon(Icons.admin_panel_settings_outlined),
-                        label: const Text('Gérer les accès'),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
