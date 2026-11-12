@@ -1035,126 +1035,292 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     ),
   );
 
+  /// Compact, privacy-scoped preview. Assignment is not authority.
   Widget _collaboration(Map<String, dynamic> data) {
     final assignments = _rows(data['assignments']);
     final mandates = _rows(data['mandates']);
-    if (assignments.isEmpty && mandates.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 19),
-        Text(
-          'Personnes et responsabilités',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.w800),
+    final canAssign = _cap(data, 'dossier.assignment.manage');
+    final canGrant = _cap(data, 'dossier.authority.manage');
+    if (assignments.isEmpty && mandates.isEmpty && !canAssign && !canGrant) {
+      return const SizedBox.shrink();
+    }
+    final entries = [
+      ...assignments.map((item) => _text(item['label'])),
+      ...mandates.map((item) => _text(item['profile'])),
+    ].where((name) => name.isNotEmpty).toList();
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 12),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: scheme.outlineVariant),
+          borderRadius: BorderRadius.circular(17),
         ),
-        for (final row in assignments)
-          ListTile(
-            leading: const Icon(Icons.person_outline_rounded),
-            title: Text(_text(row['label'])),
-            subtitle: const Text('Responsabilité opérationnelle'),
-            trailing: _cap(row, 'remove')
-                ? MakoloIconActionButton(
-                    tooltip: 'Retirer la responsabilité',
-                    icon: Icons.person_remove_outlined,
-                    onPressed: _canMutate ? () => _removeAssignment(row) : null,
-                  )
-                : null,
+        child: ExpansionTile(
+          key: const PageStorageKey<String>('dossier-people-preview'),
+          shape: const Border(),
+          collapsedShape: const Border(),
+          leading: Icon(Icons.people_outline, color: scheme.primary),
+          title: const Text(
+            'Personnes et responsabilités',
+            style: TextStyle(fontWeight: FontWeight.w800),
           ),
-        for (final row in mandates)
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: Text(_text(row['profile'])),
-            subtitle: Text('Mandat · ${_text(row['role'])}'),
-            trailing: _cap(row, 'revoke')
-                ? MakoloIconActionButton(
-                    tooltip: 'Révoquer ce mandat',
-                    icon: Icons.shield_outlined,
-                    onPressed: _canMutate ? () => _revoke(row) : null,
-                  )
-                : null,
-          ),
-      ],
+          subtitle: entries.isEmpty
+              ? const Text('Aucune personne visible')
+              : Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    children: [
+                      for (final name in entries.take(4))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 5),
+                          child: Tooltip(
+                            message: name,
+                            child: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: scheme.primaryContainer,
+                              child: Text(
+                                name.trim().isEmpty ? '•' :
+                                    name.trim().substring(0, 1).toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: scheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (entries.length > 4)
+                        CircleAvatar(
+                          radius: 16,
+                          child: Text(
+                            '+' + (entries.length - 4).toString(),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+          children: [
+            if (assignments.isNotEmpty)
+              const ListTile(
+                dense: true,
+                title: Text('Coordination',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            for (final item in assignments)
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: Text(_text(item['label'])),
+                subtitle: const Text('Responsabilité opérationnelle'),
+                trailing: _cap(item, 'remove')
+                    ? IconButton(
+                        tooltip: 'Retirer la responsabilité',
+                        icon: const Icon(Icons.person_remove_outlined),
+                        onPressed: _canMutate
+                            ? () => _removeAssignment(item) : null,
+                      )
+                    : null,
+              ),
+            if (mandates.isNotEmpty)
+              const ListTile(
+                dense: true,
+                title: Text('Autorisations',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            for (final item in mandates)
+              ListTile(
+                leading: const Icon(Icons.shield_outlined),
+                title: Text(_text(item['profile'])),
+                subtitle: Text('Mandat · ' + _text(item['role'])),
+                trailing: _cap(item, 'revoke')
+                    ? IconButton(
+                        tooltip: 'Révoquer le mandat',
+                        icon: const Icon(Icons.shield_outlined),
+                        onPressed: _canMutate ? () => _revoke(item) : null,
+                      )
+                    : null,
+              ),
+            if (canAssign || canGrant)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    if (canAssign)
+                      TextButton.icon(
+                        onPressed: _canMutate ? () => _assign(data) : null,
+                        icon: const Icon(Icons.person_add_alt_1_outlined),
+                        label: const Text('Responsabilité'),
+                      ),
+                    if (canGrant)
+                      TextButton.icon(
+                        onPressed: _canMutate ? () => _grant(data) : null,
+                        icon: const Icon(Icons.admin_panel_settings_outlined),
+                        label: const Text('Gérer les accès'),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _overview(Map<String, dynamic> data) {
     final items = _rows(data['visible_journeys']);
-    final deps = _rows(data['visible_dependencies']);
+    final dependencies = _rows(data['visible_dependencies']);
     final readiness = _map(data['readiness']);
     final next = _map(readiness['next_action']);
-    final completed = items.where((row) => row['state'] == 'fulfilled').length;
-    final actions = items
-        .where((row) => row['readiness_state'] == 'action_required')
-        .length;
-    final prerequisites = deps.where((row) => row['state'] == 'active').length;
-    final readinessState = _text(readiness['state']);
-    final hasReadiness =
-        readinessState.isNotEmpty &&
-        (items.isNotEmpty || readinessState != 'ready');
+    final nextId = _text(next['journey_id']);
+    final completed = items.where((item) =>
+        ['fulfilled', 'completed', 'complete']
+            .contains(_text(item['state']))).length;
+    final complete = data['visible_journeys_complete'] == true &&
+        readiness['partial'] != true;
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (hasReadiness) ...[
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              next.isNotEmpty
-                  ? Icons.priority_high_rounded
-                  : Icons.fact_check_outlined,
-              color: Theme.of(context).colorScheme.primary,
+        if (_text(next['label']).isNotEmpty)
+          Card(
+            elevation: 0,
+            color: scheme.primaryContainer.withValues(alpha: .45),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(17),
             ),
-            title: Text(
-              _text(readiness['label']),
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 9,
+              ),
+              leading: Icon(Icons.bolt_rounded, color: scheme.primary),
+              title: const Text('À faire maintenant',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(_text(next['label'])),
+              trailing: nextId.isNotEmpty
+                  ? const Icon(Icons.arrow_forward_rounded) : null,
+              onTap: nextId.isNotEmpty
+                  ? () => widget.onOpenJourney(nextId) : null,
             ),
-            subtitle: next.isNotEmpty
-                ? Text(_text(next['label']))
-                : readiness['partial'] == true
-                ? const Text('Informations visibles partielles')
-                : null,
-            trailing: next['journey_id'] != null
-                ? MakoloIconActionButton(
-                    tooltip: 'Ouvrir la démarche',
-                    icon: Icons.arrow_forward_rounded,
-                    onPressed: () =>
-                        widget.onOpenJourney(_text(next['journey_id'])),
-                  )
-                : null,
           ),
-          const SizedBox(height: 7),
-        ],
-        if (items.isNotEmpty || prerequisites > 0)
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              if (items.isNotEmpty) _metric('${items.length}', 'Démarches'),
-              if (completed > 0) _metric('$completed', 'Réalisées'),
-              if (actions > 0) _metric('$actions', 'Action requise'),
-              if (prerequisites > 0) _metric('$prerequisites', 'Prérequis'),
-            ],
-          ),
-        if (items.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            'Démarches',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 7),
-          for (final row in items.take(7)) _journeyTile(row, compact: true),
-          if (items.length > 7)
-            MakoloActionButton(
-              label: 'Voir toutes les démarches',
-              onPressed: () => setState(() => _mode = _DossierMode.list),
-              appearance: MakoloActionAppearance.quiet,
-              icon: Icons.list_rounded,
-            ),
-        ] else
-          _empty('Aucune démarche visible.'),
         _collaboration(data),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Icon(Icons.route_outlined, color: scheme.primary),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                'Démarches',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (items.isNotEmpty)
+              TextButton.icon(
+                onPressed: () => setState(() => _mode = _DossierMode.list),
+                iconAlignment: IconAlignment.end,
+                icon: const Icon(Icons.chevron_right_rounded),
+                label: const Text('Tout voir'),
+              ),
+          ],
+        ),
+        if (items.isNotEmpty) ...[
+          if (complete) ...[
+            Text(
+              completed.toString() + ' sur ' + items.length.toString() +
+                  ' démarches visibles terminées',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: completed / items.length,
+                minHeight: 7,
+                backgroundColor: scheme.primaryContainer,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ] else
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text('Démarches visibles · données partielles'),
+            ),
+          for (final item in items.take(3))
+            _journeyTile(item, compact: true),
+          if (items.length > 3)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _mode = _DossierMode.list),
+                icon: const Icon(Icons.list_rounded),
+                label: const Text('Toutes les démarches'),
+              ),
+            ),
+        ] else ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              readiness['partial'] == true
+                  ? 'Aucune démarche disponible dans les données acquises.'
+                  : 'Aucune démarche visible.',
+            ),
+          ),
+          if (_cap(data, 'dossier.journey.link'))
+            TextButton.icon(
+              onPressed: _canMutate ? () => _link(data) : null,
+              icon: const Icon(Icons.add_link_rounded),
+              label: const Text('Lier une première démarche'),
+            ),
+        ],
+        if (dependencies.isNotEmpty ||
+            _cap(data, 'dossier.dependency.add')) ...[
+          const SizedBox(height: 9),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ExpansionTile(
+              key: const PageStorageKey<String>('dossier-conditions-preview'),
+              shape: const Border(),
+              collapsedShape: const Border(),
+              leading: Icon(Icons.account_tree_outlined,
+                  color: scheme.primary),
+              title: const Text('Conditions et dépendances',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                dependencies.length.toString() + ' relation(s) visible(s)',
+              ),
+              children: [
+                for (final dep in dependencies.take(3))
+                  ListTile(
+                    dense: true,
+                    leading: Icon(dep['satisfied'] == true
+                        ? Icons.check_circle_outline
+                        : Icons.radio_button_unchecked),
+                    title: Text(_text(dep['required_label'])),
+                    subtitle: Text(dep['satisfied'] == true
+                        ? 'Satisfaite' : 'Non confirmée'),
+                  ),
+                ListTile(
+                  title: const Text('Explorer les dépendances'),
+                  trailing: const Icon(Icons.arrow_forward_rounded),
+                  onTap: () => setState(
+                    () => _mode = _DossierMode.dependencies,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        // Historical events and resources are not owned by Dossier.
+        // Their cards will be enabled only with authoritative projections.
       ],
     );
   }
