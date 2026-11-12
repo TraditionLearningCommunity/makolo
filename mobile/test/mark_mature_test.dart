@@ -52,6 +52,36 @@ void main() {
     },
   );
 
+  test('newest Mark draft wins when autosaves overlap', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final drafts = DraftRepository(
+      database: database,
+      outbox: OutboxRepository(database, 'profile-serial'),
+      profileId: 'profile-serial',
+    );
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      drafts: drafts,
+    );
+    final repository = MarkRepository(runtime);
+    final first = repository.saveDraft(
+      actor: const PersonalActorContext(),
+      input: 'Première version',
+      inputKind: 'text',
+    );
+    final second = repository.saveDraft(
+      actor: const PersonalActorContext(),
+      input: 'Version finale',
+      inputKind: 'text',
+    );
+    await Future.wait([first, second]);
+    final draft = await repository.readDraft(const PersonalActorContext());
+    expect(draft?['input'], 'Version finale');
+  });
+
   test('a local URL is not treated as an interpreted reference', () async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
