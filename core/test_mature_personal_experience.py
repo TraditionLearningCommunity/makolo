@@ -223,3 +223,41 @@ class MaturePersonalExperienceTests(TestCase):
             response, "au maximum 600 caractères", status_code=400
         )
         self.assertContains(response, original, status_code=400)
+
+    def test_mark_web_exposes_local_intake_and_desktop_without_faking_upload(self):
+        response = self.client.get(reverse("core:makolo-mark"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-root')
+        self.assertContains(response, 'data-mk-mark-float')
+        self.assertContains(response, 'data-mk-mark-minimize')
+        self.assertContains(response, 'data-mk-mark-restore')
+        self.assertContains(response, 'data-mk-mark-files')
+        self.assertContains(response, 'data-mk-mark-photo')
+        self.assertContains(response, 'data-mk-mark-voice')
+        self.assertContains(response, 'data-mk-mark-link-input')
+        self.assertContains(response, 'data-mk-mark-text-consent')
+        self.assertContains(response, 'mark-intake.js')
+        self.assertContains(response, 'mark-intake.css')
+        # Browser file pickers deliberately have no multipart upload name;
+        # the Mark owner contract stays text-only.
+        self.assertNotContains(response, 'name="attachments"')
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_mark_web_does_not_imply_uploaded_file_from_untrusted_form_field(self):
+        with patch("core.mature_experience_views.orchestrate_mark") as route:
+            route.return_value = {
+                "state": "unsupported",
+                "message": "Cette entrée n'est pas encore prise en charge.",
+            }
+            response = self.client.post(
+                reverse("core:makolo-mark"),
+                {
+                    "intent": "Prépare cette demande",
+                    "input_kind": "document",
+                    "media_uploaded": "true",
+                    "attachment_ids": "fake-asset-id",
+                },
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(route.call_args.kwargs["input_kind"], "text")
+            self.assertEqual(route.call_args.kwargs["context"], {})
