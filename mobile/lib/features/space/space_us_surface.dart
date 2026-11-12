@@ -10,7 +10,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/identity_surface.dart';
 import '../me/me_country_choices.dart';
 
-/// The collective identity of the active Space. All rows originate in
+/// The institutional identity of the active Space. All rows originate in
 /// server-scoped owner projections; this widget never infers authority.
 class SpaceUsSurface extends StatefulWidget {
   const SpaceUsSurface({
@@ -123,20 +123,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final place = [?city, ?country].join(', ');
     final team = _map(payload['team']);
     final ownership = _map(payload['ownership']);
-    final relations = _map(payload['relationships']);
-    final relationSections = relations?['visibility'] == 'visible'
-        ? _map(relations?['sections']) ?? <String, dynamic>{}
-        : <String, dynamic>{};
-    final displayedRelations = relationSections.entries
-        .where(
-          (entry) =>
-              entry.key != 'team' &&
-              _rows(_map(entry.value)?['items']).isNotEmpty,
-        )
-        .toList();
-    final responsibilities = _rows(_map(payload['responsibilities'])?['items'])
-        .where((item) => item['combined'] != true)
-        .toList(growable: false);
+    final primaryRole = _value(_map(payload['primary_role'])?['label']);
     final teamVisible =
         !limited && team?['visibility'] == 'visible' && team?['items'] is List;
     final teamRows = teamVisible
@@ -168,36 +155,12 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final settingsTarget = limited ? null : route('settings');
     final pilotTarget = limited ? null : route('pilot');
     final trustTarget = limited ? null : route('trust');
+    final roleTarget = route('responsibilities');
+    final historyTarget = !limited && slug != null ? '/space/history' : null;
 
     // Each entry is composed only from already-authorized Space projections.
     // A missing handoff never becomes a fabricated N2/N3 destination.
     final territories = <_SpaceUsTerritory>[
-      _SpaceUsTerritory(
-        keyName: 'responsibilities',
-        title: 'Ma place dans cet Espace',
-        subtitle: 'Mes rôles autorisés dans ce collectif',
-        icon: Icons.assignment_ind_outlined,
-        target: route('responsibilities'),
-        previews: [
-          if (responsibilities.isEmpty) 'Aucun autre rôle visible.',
-          for (final item in responsibilities.take(3))
-            _value(item['label']) ?? 'Rôle',
-        ],
-      ),
-      if (!limited && relationSections.isNotEmpty)
-        _SpaceUsTerritory(
-          keyName: 'relationships',
-          title: 'Nos relations',
-          subtitle: 'Personnes, groupes et partenaires visibles',
-          icon: Icons.hub_outlined,
-          target: route('relationships'),
-          previews: [
-            if (displayedRelations.isEmpty)
-              'Aucune relation visible dans cet aperçu.',
-            for (final item in displayedRelations.take(3))
-              _relationLabel(item.key),
-          ],
-        ),
       if (resourcesVisible)
         _SpaceUsTerritory(
           keyName: 'resources',
@@ -227,6 +190,14 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
             for (final item in ownershipRows.take(3))
               _value(_map(item['profile'])?['name']) ?? 'Représentant',
           ],
+        ),
+      if (historyTarget != null)
+        _SpaceUsTerritory(
+          keyName: 'history',
+          title: 'Notre historique',
+          subtitle: 'Parcours de cet Espace',
+          icon: Icons.history_outlined,
+          target: historyTarget,
         ),
       if (trustTarget != null)
         _SpaceUsTerritory(
@@ -289,6 +260,14 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                             subtitleMaxLines: 2,
                             detail: place.isNotEmpty ? place : null,
                             padding: EdgeInsets.zero,
+                            trailing: settingsTarget == null
+                                ? null
+                                : IconButton(
+                                    key: const Key('space-us-edit-passport'),
+                                    tooltip: 'Modifier notre Passeport',
+                                    icon: Icon(Icons.edit_outlined, color: scheme.primary),
+                                    onPressed: () => open(settingsTarget),
+                                  ),
                             leading: Container(
                               width: 48,
                               height: 48,
@@ -303,11 +282,41 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               ),
                             ),
                           ),
+                          if (primaryRole != null && roleTarget != null) ...[
+                            const SizedBox(height: 6),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton.icon(
+                                key: const Key('space-us-primary-role'),
+                                onPressed: () => open(roleTarget),
+                                label: Text(primaryRole),
+                                iconAlignment: IconAlignment.end,
+                                icon: const Icon(Icons.chevron_right, size: 18),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                            ),
+                          ],
                           if (teamVisible && route('team') != null) ...[
                             const SizedBox(height: 12),
                             Divider(height: 1, color: scheme.outlineVariant),
                             const SizedBox(height: 9),
-                            MakoloMemberAvatarStrip(
+                            if (teamRows.isEmpty &&
+                                _nonNegativeCount(team?['active_members']) == null)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  key: const Key('space-us-team-link-empty'),
+                                  onPressed: () => open(route('team')!),
+                                  label: const Text('Notre équipe'),
+                                  iconAlignment: IconAlignment.end,
+                                  icon: const Icon(Icons.chevron_right),
+                                ),
+                              )
+                            else
+                              MakoloMemberAvatarStrip(
                               members: [
                                 for (final item in teamRows)
                                   if (_value(_map(item['profile'])?['name'])
@@ -476,24 +485,15 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               },
                             ),
                     ),
-                    if (settingsTarget != null || pilotTarget != null) ...[
+                    if (pilotTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.inner),
                       _sectionTitle(context, 'Informations et gestion', ''),
                     ],
-                    if (settingsTarget != null)
-                      _managementAction(
-                        context,
-                        'Modifier les informations collectives',
-                        'Identité et informations institutionnelles',
-                        Icons.settings_outlined,
-                        settingsTarget,
-                        open,
-                      ),
                     if (pilotTarget != null)
                       _managementAction(
                         context,
                         'Comprendre notre activité',
-                        'Suivre les activités du collectif',
+                        'Suivre les activités de cet Espace',
                         Icons.analytics_outlined,
                         pilotTarget,
                         open,
@@ -515,7 +515,7 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     ValueChanged<String> open,
   ) => MakoloPassportGateway(
     title: 'Notre Passeport',
-    subtitle: 'Présenter notre collectif avec les faits disponibles',
+    subtitle: 'Présenter cet Espace avec les faits disponibles',
     onOpen: () => open(target),
   );
 
@@ -537,15 +537,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
 
   static String? _value(Object? value) =>
       value is String && value.trim().isNotEmpty ? value.trim() : null;
-
-  static String _relationLabel(String kind) => switch (kind) {
-    'team' => 'Équipe',
-    'groups' => 'Groupes',
-    'crm_contacts' => 'Contacts',
-    'audiences' => 'Publics',
-    'partners' => 'Partenaires',
-    _ => 'Relations',
-  };
 
   static Widget _sectionTitle(
     BuildContext context,
