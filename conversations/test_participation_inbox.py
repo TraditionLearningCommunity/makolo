@@ -254,6 +254,44 @@ class ParticipationInboxTests(TestCase):
         self.join_request.refresh_from_db()
         self.assertEqual(self.join_request.status, "pending")
 
+    def test_approved_request_cannot_be_silently_rejected_by_second_manager_action(self):
+        respond_to_join_request(
+            actor=self.manager, join_request=self.join_request,
+            approve=True,
+        )
+        self.client.force_login(self.manager)
+        endpoint = reverse(
+            "conversations-api:join-decision",
+            kwargs={
+                "pk": self.conversation.pk,
+                "join_request_pk": self.join_request.pk,
+            },
+        )
+        conflict = self.client.post(
+            endpoint, {"decision": "reject"},
+            content_type="application/json",
+        )
+        self.assertEqual(conflict.status_code, 409)
+        self.join_request.refresh_from_db()
+        self.assertEqual(self.join_request.status, "approved")
+
+    def test_declined_invitation_never_acknowledges_a_late_acceptance(self):
+        respond_to_conversation_invitation(
+            actor=self.invitee, invitation=self.invitation, accept=False,
+        )
+        self.client.force_login(self.invitee)
+        endpoint = reverse(
+            "conversations-api:invitation-respond",
+            kwargs={"invitation_pk": self.invitation.pk},
+        )
+        conflict = self.client.post(
+            endpoint, {"decision": "accept"},
+            content_type="application/json",
+        )
+        self.assertEqual(conflict.status_code, 409)
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, "declined")
+
     def test_requester_withdraws_pending_request_without_conversation_access(self):
         self.membership.status = GroupMembershipStatus.LEFT
         self.membership.save(update_fields=["status", "updated_at"])
