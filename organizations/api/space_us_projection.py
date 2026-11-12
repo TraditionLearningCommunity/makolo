@@ -42,6 +42,29 @@ def build_space_us_projection(*, profile, space):
         profile, space, PermissionCode.SPACE_OWNERSHIP_MANAGE
     )
 
+    # A display-only primary Space role: owner, then administrator, then
+    # other active Space mandates. Activity-only roles do not become Space
+    # authority. The complete set remains in the responsibilities depth.
+    space_roles = list(
+        current_mandates()
+        .filter(profile=profile, scope_type=AuthorityScope.SPACE, space=space)
+        .select_related("role")
+        .order_by("role__name", "pk")
+    )
+    role_rank = {
+        SystemRoleCode.SPACE_OWNER: 0,
+        SystemRoleCode.SPACE_ADMIN: 1,
+    }
+    space_roles.sort(key=lambda mandate: (
+        role_rank.get(mandate.role.code, 2),
+        mandate.role.name,
+        mandate.pk,
+    ))
+    primary_role = (
+        {"code": space_roles[0].role.code, "label": space_roles[0].role.name}
+        if space_roles else None
+    )
+
     # Team counts are private unless the viewer can manage the team.
     team = {
         "active_members": None,
@@ -215,6 +238,7 @@ def build_space_us_projection(*, profile, space):
     return {
         "identity": identity,
         "team": team,
+        "primary_role": primary_role,
         "responsibilities": {
             "items": workspace.get("responsibilities", []),
             "links": {},
