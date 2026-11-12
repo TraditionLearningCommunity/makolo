@@ -18,6 +18,7 @@ class RetainedPublicDiscoveryImage extends StatefulWidget {
     required this.url,
     required this.trustedOrigin,
     required this.placeholder,
+    this.unavailablePlaceholder,
     this.fit = BoxFit.cover,
     this.storeOverride,
   });
@@ -25,6 +26,7 @@ class RetainedPublicDiscoveryImage extends StatefulWidget {
   final Uri url;
   final Uri trustedOrigin;
   final Widget placeholder;
+  final Widget? unavailablePlaceholder;
   final BoxFit fit;
   final DiscoveryOfflineStore? storeOverride;
 
@@ -36,6 +38,7 @@ class RetainedPublicDiscoveryImage extends StatefulWidget {
 class _RetainedPublicDiscoveryImageState
     extends State<RetainedPublicDiscoveryImage> {
   Uint8List? _bytes;
+  bool _loading = true;
   int _generation = 0;
 
   DiscoveryOfflineStore get _store =>
@@ -55,6 +58,7 @@ class _RetainedPublicDiscoveryImageState
         oldWidget.trustedOrigin != widget.trustedOrigin ||
         oldWidget.storeOverride != widget.storeOverride) {
       _bytes = null;
+      _loading = true;
       unawaited(_restore());
     }
   }
@@ -67,6 +71,9 @@ class _RetainedPublicDiscoveryImageState
       url,
       trustedOrigin: widget.trustedOrigin,
     )) {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
       return;
     }
     try {
@@ -123,6 +130,9 @@ class _RetainedPublicDiscoveryImageState
       // An unavailable server must not erase a previously received image.
     } finally {
       client.close(force: true);
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -137,7 +147,9 @@ class _RetainedPublicDiscoveryImageState
       child: bytes == null
           ? KeyedSubtree(
               key: ValueKey<String>('image-placeholder-${widget.url}'),
-              child: widget.placeholder,
+              child: _loading
+                  ? widget.placeholder
+                  : widget.unavailablePlaceholder ?? widget.placeholder,
             )
           : Image.memory(
               bytes,
