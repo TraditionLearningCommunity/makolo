@@ -49,6 +49,7 @@ class MarkRepository {
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
     List<String> links = const [],
+    Map<String, String>? teamMember,
     String? pendingConfirmationCode,
     String? pendingConfirmationKey,
   }) {
@@ -65,6 +66,7 @@ class MarkRepository {
         for (final item in attachments) Map<String, dynamic>.of(item),
       ],
       'links': List<String>.of(links),
+      if (teamMember != null) 'team_member': Map<String, String>.of(teamMember),
       if (pendingConfirmationCode != null)
         'pending_confirmation_code': pendingConfirmationCode,
       if (pendingConfirmationKey != null)
@@ -126,6 +128,7 @@ class MarkRepository {
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
     List<String> links = const [],
+    Map<String, String>? teamMember,
     bool allowTextOnly = false,
     Map<String, dynamic>? confirmation,
     String? idempotencyKey,
@@ -137,6 +140,7 @@ class MarkRepository {
       selected: selected,
       attachments: attachments,
       links: links,
+      teamMember: teamMember,
       pendingConfirmationCode: confirmation?['code']?.toString(),
       pendingConfirmationKey: idempotencyKey,
     );
@@ -193,6 +197,7 @@ class MarkRepository {
             },
             'context': {
               ...context,
+              if (teamMember != null) 'team_member': teamMember,
               if (!perspective.isAll) 'responsibility': perspective.id,
             },
           },
