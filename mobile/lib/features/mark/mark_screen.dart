@@ -195,9 +195,11 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _acceptVoiceFile(StoredLocalFile file) async {
     final revision = _draftRevision;
     final actor = _actor;
-    if (!mounted || !_voiceCapture) {
-      await _voiceStore?.remove(file.fileId);
-      return;
+    if (!mounted ||
+        !_voiceCapture ||
+        widget.runtime.session?.profileId != file.profileId) {
+      // The recorder still owns this staged file and cleans it on disposal.
+      throw StateError('Mark actor changed before audio draft adoption');
     }
     setState(() {
       _attachments = [
