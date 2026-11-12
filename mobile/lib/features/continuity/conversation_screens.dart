@@ -2811,6 +2811,8 @@ class _PointCardState extends State<_PointCard> {
   String? _feedback;
   String? _clientReference;
   Object? _lastValue;
+  Object? _unconfirmedResponse;
+  bool _hasUnconfirmedResponse = false;
   final Set<String> _choices = {};
   String _resolutionDraft = '';
   final Set<String> _resolutionSelections = {};
@@ -2839,6 +2841,9 @@ class _PointCardState extends State<_PointCard> {
         ..addAll(
           widget.point.selectedOptionsForScope(widget.representedSpaceId),
         );
+      _unconfirmedResponse = null;
+      _hasUnconfirmedResponse = false;
+      _clientReference = null;
     }
   }
 
@@ -2924,17 +2929,19 @@ class _PointCardState extends State<_PointCard> {
         representedSpaceId: widget.representedSpaceId,
       );
       _clientReference = null;
-      if (mounted) setState(() => _feedback = 'Réponse enregistrée.');
+      _hasUnconfirmedResponse = false;
+      _unconfirmedResponse = null;
+      if (mounted) setState(() => _feedback = null);
     } on Object {
-      try {
-        await widget.repository.refreshDetail(widget.conversationId);
-      } on Object {
-        // The response remains unconfirmed until the owner can be reached.
-      }
+      // Preserve precisely the value and idempotency reference of this
+      // attempt. A network timeout is not proof the owner rejected it.
+      // Never create a fresh intent to "retry" the same response.
       if (mounted) {
-        setState(
-          () => _feedback = 'Envoi non confirmé. Vérifiez avant de réessayer.',
-        );
+        setState(() {
+          _unconfirmedResponse = value;
+          _hasUnconfirmedResponse = true;
+          _feedback = null;
+        });
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -3379,6 +3386,25 @@ class _PointCardState extends State<_PointCard> {
               appearance: MakoloActionAppearance.quiet,
             ),
           ),
+        if (_hasUnconfirmedResponse && !widget.readOnly) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Wrap(
+            spacing: MakoloSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(Icons.schedule_rounded, size: 16),
+              const Text('Non confirmé'),
+              TextButton.icon(
+                key: Key('conversation-point-retry-${point.id}'),
+                onPressed: _busy || !canRespond
+                    ? null
+                    : () => _submitResponse(_unconfirmedResponse),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Réessayer'),
+              ),
+            ],
+          ),
+        ],
         if (point.resolutionSummary != null) ...[
           const SizedBox(height: MakoloSpacing.sm),
           Text('✓ ${point.resolutionSummary!}'),
