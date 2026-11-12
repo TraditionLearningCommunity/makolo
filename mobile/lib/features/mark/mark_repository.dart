@@ -27,9 +27,10 @@ class MarkResult {
 }
 
 class MarkRepository {
-  const MarkRepository(this.runtime);
+  MarkRepository(this.runtime);
 
   final AppRuntime runtime;
+  final Map<String, Future<void>> _draftWrites = {};
 
   String _draftId(ActorContext actor) => switch (actor) {
     PersonalActorContext() => 'mark:personal',
@@ -50,37 +51,53 @@ class MarkRepository {
     List<String> links = const [],
     String? pendingConfirmationCode,
     String? pendingConfirmationKey,
-  }) async {
+  }) {
     final drafts = runtime.drafts;
-    if (drafts == null) return;
-    await drafts.saveLocal(
-      draftId: _draftId(actor),
-      owner: _owner(actor),
-      resourceKind: 'mark_intake',
-      resourceId: _draftId(actor),
-      payload: {
-        'version': 1,
-        'actor_context': ActorContextCodec.encode(actor),
-        'input': input,
-        'input_kind': inputKind,
-        'selected': selected,
-        'attachments': attachments,
-        'links': links,
-        if (pendingConfirmationCode != null)
-          'pending_confirmation_code': pendingConfirmationCode,
-        if (pendingConfirmationKey != null)
-          'pending_confirmation_key': pendingConfirmationKey,
-      },
-    );
+    if (drafts == null) return Future<void>.value();
+    final id = _draftId(actor);
+    final payload = <String, dynamic>{
+      'version': 1,
+      'actor_context': ActorContextCodec.encode(actor),
+      'input': input,
+      'input_kind': inputKind,
+      'selected': selected == null ? null : Map<String, String>.of(selected),
+      'attachments': [
+        for (final item in attachments) Map<String, dynamic>.of(item),
+      ],
+      'links': List<String>.of(links),
+      if (pendingConfirmationCode != null)
+        'pending_confirmation_code': pendingConfirmationCode,
+      if (pendingConfirmationKey != null)
+        'pending_confirmation_key': pendingConfirmationKey,
+    };
+    // Autosave, share ingress, confirmation and deletion can interleave.
+    // Serialize by actor and snapshot each payload before it is enqueued.
+    final previous = _draftWrites[id] ?? Future<void>.value();
+    final write = previous
+        .catchError((Object _) {})
+        .then((_) => drafts.saveLocal(
+              draftId: id,
+              owner: _owner(actor),
+              resourceKind: 'mark_intake',
+              resourceId: id,
+              payload: payload,
+            ));
+    _draftWrites[id] = write;
+    return write;
   }
 
   Future<Map<String, dynamic>?> readDraft(ActorContext actor) async {
     final drafts = runtime.drafts;
     if (drafts == null) return null;
+    final id = _draftId(actor);
+    final pending = _draftWrites[id];
+    if (pending != null) {
+      await pending.catchError((Object _) {});
+    }
     final draft = await drafts.read(
       owner: _owner(actor),
       resourceKind: 'mark_intake',
-      resourceId: _draftId(actor),
+      resourceId: id,
     );
     return draft?.payload;
   }
@@ -88,10 +105,15 @@ class MarkRepository {
   Future<void> clearDraft(ActorContext actor) async {
     final drafts = runtime.drafts;
     if (drafts == null) return;
+    final id = _draftId(actor);
+    final pending = _draftWrites[id];
+    if (pending != null) {
+      await pending.catchError((Object _) {});
+    }
     await drafts.delete(
       owner: _owner(actor),
       resourceKind: 'mark_intake',
-      resourceId: _draftId(actor),
+      resourceId: id,
     );
   }
 
