@@ -6,6 +6,8 @@ authorized readiness facts are projected; no hidden Dossier totals are inferred.
 from __future__ import annotations
 
 from django.urls import reverse
+from accounts.models import UserProfile
+from accounts.profile_visibility import ProfileVisibilityResolver
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
@@ -102,6 +104,38 @@ def _person(profile):
     return profile.get_full_name().strip() or profile.username
 
 
+def _profile_public_presentation(profile, *, actor):
+    """Only Profile-owned public/self presentation facts are exposed.
+
+    Project authority reveals a mandate, not another person's private avatar
+    or a right to open their private Passeport.
+    """
+    is_self = actor.pk == profile.pk
+    is_public = UserProfile.objects.filter(
+        user_id=profile.pk, public_profile=True,
+    ).exists()
+    profile_url = (
+        reverse("sharing:passport-me") if is_self
+        else reverse("sharing:passport-profile", kwargs={"profile_id": profile.pk})
+        if is_public else None
+    )
+    avatar_url = None
+    if is_self or (is_public and ProfileVisibilityResolver(
+        owner=profile, viewer=actor,
+    ).field("avatar")):
+        image = getattr(profile, "avatar", None)
+        if image:
+            try:
+                avatar_url = image.url
+            except ValueError:
+                pass
+    return {
+        "profile_url": profile_url,
+        "profile_view": "self" if is_self else "public" if is_public else None,
+        "avatar_url": avatar_url,
+    }
+
+
 def _project_collaboration(actor, project, dossiers, *, partial):
     """Viewer-aware composition: a Project mandate is not a Dossier assignment.
 
@@ -123,7 +157,8 @@ def _project_collaboration(actor, project, dossiers, *, partial):
             "role": mandate.role.name,
             "role_code": mandate.role.code,
             "self": mandate.profile_id == actor.pk,
-            "capabilities": ["revoke"] if authority else [],
+            "capabilities": ["revoke", "replace"] if authority else [],
+            **_profile_public_presentation(mandate.profile, actor=actor),
         })
     contributors = {}
     candidates = {}
@@ -137,6 +172,7 @@ def _project_collaboration(actor, project, dossiers, *, partial):
                 "profile_id": key,
                 "label": _person(assignment.assignee) if manageable else "Vous",
                 "dossier_ids": [],
+                **_profile_public_presentation(assignment.assignee, actor=actor),
             })
             contributor["dossier_ids"].append(str(dossier.pk))
         if authority and manageable:
@@ -238,6 +274,8 @@ def project_workspace(actor, project, *, actor_context=None):
             "id": str(project.owning_space_id or project.owner_profile_id),
             "label": project.owning_space.name if project.owning_space_id else "Projet personnel",
             "holder": _person(project.owner_profile) if project.owner_profile_id else None,
+            **(_profile_public_presentation(project.owner_profile, actor=actor)
+               if project.owner_profile_id else {}),
             **({"slug": project.owning_space.slug}
                if project.owning_space_id else {}),
         },
