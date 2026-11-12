@@ -26,7 +26,9 @@ class MigrationBlocked(RuntimeError):
 
 
 def quote_ident(name):
-    """Safely quote an arbitrary SQLite identifier for SELECT queries."""
+    """Quote only a valid SQLite identifier, escaping embedded quote bytes."""
+    if not isinstance(name, str) or not name or "\x00" in name:
+        raise ValueError("Identifiant SQLite invalide.")
     return '"' + name.replace('"', '""') + '"'
 
 
@@ -56,7 +58,8 @@ def source_inventory(source, *, verify_integrity=True):
         columns = [row[1] for row in source.execute(
             "PRAGMA table_info(" + quote_ident(name) + ")"
         )]
-        count = source.execute(
+        # SQLite has no identifier bind parameters; quote_ident doubles quotes.
+        count = source.execute(  # nosec B608: tested quoted SQLite identifier
             "SELECT COUNT(*) FROM " + quote_ident(name)
         ).fetchone()[0]
         inventory[name] = {"columns": columns, "count": count}
@@ -223,7 +226,8 @@ def copy_data(source, cursor, inventory, *, batch_size=500):
             sql.Identifier("public", table),
             sql.SQL(", ").join(sql.Identifier(c) for c in columns),
         )
-        source_cursor = source.execute(
+        # Identifiers come from SQLite schema inventory and are quoted above.
+        source_cursor = source.execute(  # nosec B608: tested quoted SQLite identifiers
             "SELECT " + ", ".join(quote_ident(c) for c in columns)
             + " FROM " + quote_ident(table)
         )
