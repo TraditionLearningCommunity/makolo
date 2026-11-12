@@ -10,15 +10,8 @@
   <div class="space-y-2" data-semantic-point-captions></div>
   {% if point_kind == 'poll' %}
     <div class="space-y-3" data-semantic-option-uploads>
-      <p class="text-xs" style="color:var(--mk-muted)">
-        Chaque choix peut avoir ses propres médias et légendes. Ils apparaîtront
-        immédiatement sous ce choix, avant le suivant.
-      </p>
     </div>
   {% endif %}
-  <p class="text-xs" style="color:var(--mk-muted)">
-    Les fichiers restent privés et soumis aux autorisations de la Conversation.
-  </p>
   <p role="status" aria-live="polite" data-semantic-media-status class="text-sm"></p>
 </div>
 {% endif %}
