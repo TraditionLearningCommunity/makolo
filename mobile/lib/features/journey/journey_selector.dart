@@ -37,6 +37,14 @@ class JourneyPaymentSummary {
   final String? orderId;
 }
 
+/// Decision communicated by the Service owner, not a Journey state.
+class JourneyServiceResult {
+  const JourneyServiceResult({required this.code, required this.label});
+
+  final String code;
+  final String label;
+}
+
 class JourneyHistoryEntry {
   const JourneyHistoryEntry({
     required this.id,
@@ -222,6 +230,7 @@ class JourneyDetailPresentation {
     this.rejectedRequests = 0,
     this.payment,
     this.order,
+    this.serviceResult,
     this.history = const [],
     this.payments = const [],
     this.practical,
@@ -272,6 +281,7 @@ class JourneyDetailPresentation {
   final int rejectedRequests;
   final JourneyPaymentSummary? payment;
   final JourneyOrderSummary? order;
+  final JourneyServiceResult? serviceResult;
   final List<JourneyHistoryEntry> history;
   final List<JourneyPaymentSummary> payments;
   final JourneyPracticalFacts? practical;
@@ -349,6 +359,7 @@ class JourneyDetailSelector {
       rejectedRequests: _maps(requests['rejected']).length,
       payment: _payment(payload['payment']),
       order: _order(payload['payment']),
+      serviceResult: _serviceResult(payload['service_result']),
       history: _history(payload['history']),
       payments: _payments(payload['payment']),
       practical: _practical(occurrence),
@@ -404,6 +415,14 @@ class JourneyDetailSelector {
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );
+  }
+
+  static JourneyServiceResult? _serviceResult(Object? value) {
+    final result = _map(value);
+    final code = _string(result['code']);
+    final label = _string(result['label']);
+    if (code == null || label == null) return null;
+    return JourneyServiceResult(code: code, label: label);
   }
 
   static List<JourneyHistoryEntry> _history(Object? value) {
