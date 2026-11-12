@@ -75,6 +75,7 @@ class _MarkScreenState extends State<MarkScreen> {
   RuntimeIngress? _ingress;
   StreamSubscription<void>? _shareSubscription;
   bool _processingShare = false;
+  bool _textOnlyConsent = false;
 
   @override
   void initState() {
@@ -121,6 +122,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _result = null;
       _attachments = const [];
       _links = const [];
+      _textOnlyConsent = false;
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
@@ -163,6 +165,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _result = null;
       _attachments = const [];
       _links = const [];
+      _textOnlyConsent = false;
       _voiceCapture = false;
       _dictating = false;
       _voiceStore = null;
@@ -1038,7 +1041,9 @@ class _MarkScreenState extends State<MarkScreen> {
     final attachments = List<Map<String, dynamic>>.of(_attachments);
     final links = List<String>.of(_links);
     var allowTextOnly = false;
-    if ((attachments.isNotEmpty || links.isNotEmpty) && input.isNotEmpty) {
+    if ((attachments.isNotEmpty || links.isNotEmpty) &&
+        input.isNotEmpty &&
+        !_textOnlyConsent) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -1061,8 +1066,10 @@ class _MarkScreenState extends State<MarkScreen> {
       );
       if (!mounted || revision != _draftRevision || actor != _actor) return;
       if (confirmed != true) return;
-      allowTextOnly = true;
+      _textOnlyConsent = true;
     }
+    allowTextOnly = _textOnlyConsent &&
+        (attachments.isNotEmpty || links.isNotEmpty);
     setState(() => _busy = true);
     final result = await repository.submit(
       actor: actor,
@@ -1204,6 +1211,7 @@ class _MarkScreenState extends State<MarkScreen> {
                           _pendingConfirmationCode = null;
                           _pendingConfirmationKey = null;
                           _teamMember = null;
+                          _textOnlyConsent = false;
                         });
                         unawaited(_saveDraft());
                       },
