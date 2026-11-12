@@ -16,6 +16,7 @@ import 'conversation_repository.dart';
 import 'objective_repository.dart';
 import 'objective_workspace_view_switcher.dart';
 import 'objective_filter_reset.dart';
+import 'project_description.dart';
 
 enum _ProjectMode { summary, dossiers, calendar }
 
@@ -1119,10 +1120,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
           ],
         ),
-        if (_text(horizon['description']).trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(_text(horizon['description']), style: theme.textTheme.bodySmall),
-        ],
         if (start != null || end != null)
           Padding(
             padding: const EdgeInsets.only(top: 7),
@@ -1815,6 +1812,13 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                 _actionBar(project),
                                 const SizedBox(height: 14),
                                 _tabs(),
+                                if (_text(_map(project['horizon'])['description']).trim().isNotEmpty) ...[
+                                  const SizedBox(height: 14),
+                                  ProjectDescription(
+                                    key: ValueKey('project-description:${widget.id}'),
+                                    description: _text(_map(project['horizon'])['description']),
+                                  ),
+                                ],
                                 const SizedBox(height: 12),
                                 if (_mode == _ProjectMode.summary)
                                   _summary(project, rows, more)
