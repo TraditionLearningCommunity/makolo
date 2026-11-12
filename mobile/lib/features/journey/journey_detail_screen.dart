@@ -1306,97 +1306,110 @@ class _JourneyRequirementRow extends StatelessWidget {
   }
 }
 
+bool _usefulReadySummary(String value) {
+  final normalized = value.toLowerCase().trim();
+  return !normalized.startsWith("l'état de la démarche permet") &&
+      !normalized.startsWith('aucun obstacle actif') &&
+      !normalized.startsWith("l’occurrence est exploitable") &&
+      !normalized.startsWith("l'occurrence est exploitable");
+}
+
 class _ReadinessGroups extends StatelessWidget {
   const _ReadinessGroups({
     required this.presentation,
+    required this.composition,
     required this.ownerAction,
   });
 
   final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
   final Widget? Function(String label, String? link) ownerAction;
 
   @override
   Widget build(BuildContext context) {
-    final interventions = presentation.actorInterventions
-        .where((item) => _showReadinessItem(presentation, item))
-        .toList();
+    final situation = composition.situation;
+    final interventions = situation == JourneySituation.choices
+        ? <JourneyReadinessItem>[]
+        : composition.interventions;
+    final blockers = situation == JourneySituation.blocked &&
+            presentation.blockers.isNotEmpty
+        ? presentation.blockers.skip(1).toList()
+        : presentation.blockers;
+    final waiting = situation == JourneySituation.waiting &&
+            presentation.waiting.isNotEmpty
+        ? presentation.waiting.skip(1).toList()
+        : presentation.waiting;
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
-      ('Bloque la suite', presentation.blockers, Icons.warning_amber_rounded),
+      ('Encore à résoudre', blockers, Icons.warning_amber_rounded),
       ('De votre côté', interventions, Icons.touch_app_outlined),
-      ('En attente', presentation.waiting, Icons.hourglass_empty_rounded),
+      ('En attente', waiting, Icons.hourglass_empty_rounded),
     ].where((item) => item.$2.isNotEmpty).toList();
-    return MakoloCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var index = 0; index < groups.length; index++) ...[
-            if (index > 0) const Divider(height: MakoloSpacing.lg),
-            Row(
-              children: [
-                Icon(
-                  groups[index].$3,
-                  size: 21,
-                  color: _journeyAccent(context),
-                ),
-                const SizedBox(width: MakoloSpacing.sm),
-                Expanded(
-                  child: Text(
-                    groups[index].$1,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
+    final readableReady = presentation.ready
+        .where((item) => _usefulReadySummary(item.summary))
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final group in groups) ...[
+          Row(
+            children: [
+              Icon(group.$3, size: 18, color: _journeyAccent(context)),
+              const SizedBox(width: MakoloSpacing.sm),
+              Expanded(
+                child: Text(group.$1,
+                    style: Theme.of(context).textTheme.titleSmall),
+              ),
+            ],
+          ),
+          for (final item in group.$2)
+            Padding(
+              padding: const EdgeInsets.only(left: 27, top: 5, bottom: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.summary),
+                  if (item.nextLabel != null && item.nextLink != null &&
+                      item.nextLink != presentation.nextActionLink)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: ownerAction(item.nextLabel!, item.nextLink) ??
+                          const SizedBox.shrink(),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: MakoloSpacing.xs),
-            for (final item in groups[index].$2)
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: 30,
-                  top: MakoloSpacing.xs,
-                  bottom: MakoloSpacing.xs,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const Divider(height: 12),
+        ],
+        if (presentation.ready.isNotEmpty)
+          readableReady.isEmpty
+              ? ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.check_circle_outline_rounded,
+                      color: _journeyAccent(context)),
+                  title: Text(
+                    '${presentation.ready.length} points vérifiés',
+                  ),
+                )
+              : ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.check_circle_outline_rounded,
+                      color: _journeyAccent(context)),
+                  title: Text(
+                    '${presentation.ready.length} points vérifiés',
+                  ),
                   children: [
-                    Text(item.summary),
-                    if (item.nextLabel != null &&
-                        item.nextLink != presentation.nextActionLink) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      if (ownerAction(item.nextLabel!, item.nextLink)
-                          case final action?)
-                        action,
-                    ],
+                    for (final item in readableReady)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.check_rounded, size: 18),
+                        title: Text(item.summary),
+                      ),
                   ],
                 ),
-              ),
-          ],
-          if (presentation.ready.isNotEmpty) ...[
-            if (groups.isNotEmpty) const Divider(height: MakoloSpacing.lg),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              leading: Icon(
-                Icons.check_circle_outline_rounded,
-                color: _journeyAccent(context),
-              ),
-              title: Text(
-                '${presentation.ready.length} élément${presentation.ready.length > 1 ? 's' : ''} en ordre',
-              ),
-              children: [
-                for (final item in presentation.ready)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.check_rounded,
-                      color: _journeyAccent(context),
-                    ),
-                    title: Text(item.summary),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
+      ],
     );
   }
 }
@@ -1567,9 +1580,9 @@ class _FormCard extends StatelessWidget {
         ? null
         : MaterialLocalizations.of(context)
               .formatMediumDate(form.dueAt!.toLocal());
-    return MakoloCard(
-      onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
-      child: ListTile(
+    return ListTile(
+        dense: true,
+        onTap: form.detailLink.isEmpty ? null : () => onOpen(form),
         contentPadding: EdgeInsets.zero,
         leading: Icon(
           form.canComplete ? Icons.edit_outlined : Icons.description_outlined,
@@ -1586,7 +1599,6 @@ class _FormCard extends StatelessWidget {
         trailing: form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
             : null,
-      ),
     );
   }
 }
