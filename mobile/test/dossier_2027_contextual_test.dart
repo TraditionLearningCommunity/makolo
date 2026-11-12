@@ -22,6 +22,7 @@ void main() {
       (i) => {
         'label': 'Personne ' + (i + 1).toString(),
         'profile_id': 'profile-' + i.toString(),
+        'profile_url': '/people/profile-' + i.toString(),
       },
     );
     await store.putProjection(
