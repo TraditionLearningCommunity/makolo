@@ -205,6 +205,12 @@ class ConversationCollectiveRespondAPIView(PrivateNoStoreMixin, views.APIView):
             )
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
+        expected = "active" if request.data["decision"] == "accept" else "declined"
+        if link.status != expected:
+            return Response(
+                {"errors": ["Cette invitation a changé. Actualisez son état."]},
+                status=409,
+            )
         return Response({
             "id": str(link.pk), "status": link.status,
             "conversation_id": str(link.conversation_id),
@@ -300,4 +306,12 @@ class ConversationJoinRequestDecisionAPIView(PrivateNoStoreMixin, views.APIView)
             )
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
+        expected = (
+            "approved" if request.data["decision"] == "approve" else "rejected"
+        )
+        if resolved.status != expected:
+            return Response(
+                {"errors": ["Cette demande a changé. Actualisez son état."]},
+                status=409,
+            )
         return Response({"id": str(resolved.pk), "status": resolved.status})
