@@ -38,6 +38,21 @@ class JourneyPaymentSummary {
 }
 
 /// Decision communicated by the Service owner, not a Journey state.
+/// Service owner details pinned to this personal Journey, never a new owner.
+class JourneyServiceRequest {
+  const JourneyServiceRequest({
+    this.objective,
+    this.opportunityTitle,
+    this.opportunityIssuer,
+    this.opportunityPublicationState,
+  });
+
+  final String? objective;
+  final String? opportunityTitle;
+  final String? opportunityIssuer;
+  final String? opportunityPublicationState;
+}
+
 class JourneyServiceResult {
   const JourneyServiceResult({required this.code, required this.label});
 
@@ -231,6 +246,7 @@ class JourneyDetailPresentation {
     this.payment,
     this.order,
     this.serviceResult,
+    this.serviceRequest,
     this.history = const [],
     this.payments = const [],
     this.practical,
@@ -282,6 +298,7 @@ class JourneyDetailPresentation {
   final JourneyPaymentSummary? payment;
   final JourneyOrderSummary? order;
   final JourneyServiceResult? serviceResult;
+  final JourneyServiceRequest? serviceRequest;
   final List<JourneyHistoryEntry> history;
   final List<JourneyPaymentSummary> payments;
   final JourneyPracticalFacts? practical;
@@ -360,6 +377,7 @@ class JourneyDetailSelector {
       payment: _payment(payload['payment']),
       order: _order(payload['payment']),
       serviceResult: _serviceResult(payload['service_result']),
+      serviceRequest: _serviceRequest(payload['service_request']),
       history: _history(payload['history']),
       payments: _payments(payload['payment']),
       practical: _practical(occurrence),
@@ -414,6 +432,20 @@ class JourneyDetailSelector {
           _string(links['invitation']) != null,
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
+    );
+  }
+
+  static JourneyServiceRequest? _serviceRequest(Object? value) {
+    final request = _map(value);
+    final opportunity = _map(request['opportunity']);
+    final objective = _string(request['objective']);
+    final title = _string(opportunity['title']);
+    if (objective == null && title == null) return null;
+    return JourneyServiceRequest(
+      objective: objective,
+      opportunityTitle: title,
+      opportunityIssuer: _string(opportunity['issuer']),
+      opportunityPublicationState: _string(opportunity['publication_state']),
     );
   }
 
