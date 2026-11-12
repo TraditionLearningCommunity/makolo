@@ -112,6 +112,57 @@ class D5CrossContextClosureTests(TestCase):
     def project_url(self, project):
         return reverse("objectives_api:project-detail", args=[project.pk])
 
+    def test_dossier_people_links_follow_profile_visibility_not_mandates(self):
+        from accounts.models import UserProfile
+
+        self.client.force_authenticate(user=self.owner)
+        url = self.dossier_url(self.dossier_a) + self.scope(self.space_a)
+        private = self.client.get(url)
+        self.assertEqual(private.status_code, 200, private.data)
+        private_data = private.data["data"]
+        assignment = next(
+            row for row in private_data["assignments"]
+            if row["profile_id"] == str(self.member.pk)
+        )
+        mandate = next(
+            row for row in private_data["mandates"]
+            if row["profile_id"] == str(self.member.pk)
+        )
+        preview = next(
+            row for row in private_data["people_preview"]["people"]
+            if row["profile_id"] == str(self.member.pk)
+        )
+        # A manager can see the delegated responsibility, not the private
+        # Passport merely because it holds the corresponding Mandate.
+        self.assertIsNone(assignment["profile_url"])
+        self.assertIsNone(mandate["profile_url"])
+        self.assertIsNone(preview["profile_url"])
+
+        profile, _ = UserProfile.objects.get_or_create(user=self.member)
+        profile.public_profile = True
+        profile.save(update_fields=["public_profile"])
+        public = self.client.get(url)
+        self.assertEqual(public.status_code, 200, public.data)
+        expected = reverse(
+            "sharing:passport-profile", kwargs={"profile_id": self.member.pk},
+        )
+        public_data = public.data["data"]
+        self.assertEqual(
+            next(row for row in public_data["assignments"]
+                 if row["profile_id"] == str(self.member.pk))["profile_url"],
+            expected,
+        )
+        self.assertEqual(
+            next(row for row in public_data["mandates"]
+                 if row["profile_id"] == str(self.member.pk))["profile_url"],
+            expected,
+        )
+        self.assertEqual(
+            next(row for row in public_data["people_preview"]["people"]
+                 if row["profile_id"] == str(self.member.pk))["profile_url"],
+            expected,
+        )
+
     def test_people_preview_only_contains_visible_profiles_and_deduplicates(self):
         # The member is an Assignment holder and a Dossier mandate holder;
         # without authority to manage mandates, only their own Assignment
