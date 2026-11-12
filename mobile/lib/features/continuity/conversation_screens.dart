@@ -923,19 +923,11 @@ class _ConversationInvitationInboxState
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: MakoloSpacing.sm),
                 for (final row in mine) ...[
-                  MakoloCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Demande en attente de décision'),
-                        if (row.conversationId != null)
-                          MakoloActionButton(
-                            label: 'Voir ma demande',
-                            onPressed: () => widget.onOpen(row.conversationId!),
-                            appearance: MakoloActionAppearance.quiet,
-                          ),
-                      ],
-                    ),
+                  _ConversationPersonalJoinCard(
+                    key: Key('conversation-my-request-${row.id}'),
+                    row: row,
+                    repository: widget.repository,
+                    onOpen: widget.onOpen,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
@@ -955,6 +947,88 @@ class _ConversationInvitationInboxState
       ),
     );
   }
+}
+
+class _ConversationPersonalJoinCard extends StatefulWidget {
+  const _ConversationPersonalJoinCard({
+    super.key,
+    required this.row,
+    required this.repository,
+    required this.onOpen,
+  });
+
+  final _ConversationPendingRow row;
+  final ConversationRepository repository;
+  final void Function(String id) onOpen;
+
+  @override
+  State<_ConversationPersonalJoinCard> createState() =>
+      _ConversationPersonalJoinCardState();
+}
+
+class _ConversationPersonalJoinCardState
+    extends State<_ConversationPersonalJoinCard> {
+  bool _busy = false;
+  bool _confirmed = false;
+  String? _error;
+
+  Future<void> _withdraw() async {
+    if (_busy || _confirmed) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.withdrawJoinRequest(widget.row.id);
+      if (mounted) setState(() => _confirmed = true);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _error = 'Retrait non confirmé. Actualisez avant de réessayer.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => MakoloCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _confirmed ? 'Demande retirée' : 'Demande en attente de décision',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        if (_error != null)
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        const SizedBox(height: MakoloSpacing.sm),
+        Wrap(
+          spacing: MakoloSpacing.sm,
+          runSpacing: MakoloSpacing.xs,
+          children: [
+            if (!_confirmed && widget.row.conversationId != null)
+              MakoloActionButton(
+                label: 'Voir ma demande',
+                onPressed: () => widget.onOpen(widget.row.conversationId!),
+                appearance: MakoloActionAppearance.quiet,
+              ),
+            if (!_confirmed)
+              MakoloActionButton(
+                label: _busy ? 'Retrait en cours…' : 'Retirer ma demande',
+                onPressed: _busy ? null : _withdraw,
+                appearance: MakoloActionAppearance.secondary,
+                busy: _busy,
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _ConversationPendingRow {
