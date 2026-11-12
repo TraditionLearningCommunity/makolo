@@ -1,8 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
+from groups.models import (
+    ActivityGroupEligibility,
+    ActivityGroupEligibilityStatus,
+    Group,
+    GroupMembership,
+    GroupMembershipStatus,
+)
 from opportunities.models import OpportunityKind, OpportunitySourceType
 from opportunities.services import create_opportunity, create_opportunity_revision, create_opportunity_source, publish_opportunity_revision
 
@@ -124,6 +132,43 @@ class ServiceParticipantWebTests(TestCase):
             self.participant.beneficiary_journeys.filter(
                 activity=self.none_service.activity
             ).count(), 1,
+        )
+
+    def test_direct_web_service_start_respects_group_eligibility(self):
+        self.client.force_login(self.participant)
+        group = Group.objects.create(
+            name="Service réservé",
+            owner_profile=self.manager,
+            created_by=self.manager,
+        )
+        ActivityGroupEligibility.objects.create(
+            group=group,
+            activity=self.none_service.activity,
+            status=ActivityGroupEligibilityStatus.APPROVED,
+            requested_by=self.manager,
+            decided_by=self.manager,
+            decided_at=timezone.now(),
+        )
+        url = reverse("services:start", kwargs={"pk": self.none_service.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(
+            self.client.post(url, {"objective": "Tentative non autorisée"}).status_code,
+            404,
+        )
+        self.assertFalse(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.none_service.activity
+            ).exists()
+        )
+        GroupMembership.objects.create(
+            group=group,
+            profile=self.participant,
+            status=GroupMembershipStatus.ACTIVE,
+        )
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(
+            self.client.post(url, {"objective": "Demande admissible"}).status_code,
+            302,
         )
 
     def test_participant_cannot_open_another_users_intake(self):
