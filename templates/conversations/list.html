@@ -55,8 +55,12 @@
             {% csrf_token %}
             <button class="mk-action-button" data-variant="secondary" type="submit"
                     name="decision" value="decline">Refuser</button>
+            {% if invitation.can_accept %}
             <button class="mk-action-button" data-variant="primary" type="submit"
                     name="decision" value="accept">Accepter</button>
+            {% else %}
+            <span class="text-xs" style="color:var(--mk-muted)">Acceptation indisponible</span>
+            {% endif %}
           </form>
         </article>
       {% endfor %}
