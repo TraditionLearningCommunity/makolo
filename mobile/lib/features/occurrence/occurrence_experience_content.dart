@@ -459,12 +459,12 @@ class OccurrenceExperienceContent extends StatelessWidget {
                     onPresentCredential != null) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   FilledButton.icon(
-                    onPressed: remoteActionsAvailable
-                        ? () => onPresentCredential!(
-                            _text(_map(access['identity'])['id']) ?? '',
-                            _text(_map(access['links'])['credential'])!,
-                          )
-                        : null,
+                    // Opening the Access depth is not a server mutation.
+                    // Access itself decides whether a retained QR may be shown.
+                    onPressed: () => onPresentCredential!(
+                      _text(_map(access['identity'])['id']) ?? '',
+                      _text(_map(access['links'])['credential'])!,
+                    ),
                     icon: const Icon(Icons.qr_code_2_rounded),
                     label: const Text('Présenter mon accès'),
                   ),
