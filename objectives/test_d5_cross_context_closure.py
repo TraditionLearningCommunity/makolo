@@ -165,6 +165,9 @@ class D5CrossContextClosureTests(TestCase):
     def test_dossier_people_links_follow_profile_visibility_not_mandates(self):
         from accounts.models import UserProfile
 
+        profile, _ = UserProfile.objects.get_or_create(user=self.member)
+        profile.public_profile = False
+        profile.save(update_fields=["public_profile"])
         self.client.force_authenticate(user=self.owner)
         url = self.dossier_url(self.dossier_a) + self.scope(self.space_a)
         private = self.client.get(url)
@@ -188,7 +191,6 @@ class D5CrossContextClosureTests(TestCase):
         self.assertIsNone(mandate["profile_url"])
         self.assertIsNone(preview["profile_url"])
 
-        profile, _ = UserProfile.objects.get_or_create(user=self.member)
         profile.public_profile = True
         profile.save(update_fields=["public_profile"])
         public = self.client.get(url)
