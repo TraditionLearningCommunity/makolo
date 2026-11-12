@@ -91,9 +91,14 @@ function supportsWebGL2() {
 }
 
 function coordinatesFor(item) {
-  const longitude = Number(item?.place?.longitude);
-  const latitude = Number(item?.place?.latitude);
-  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  const rawLongitude = item?.place?.longitude;
+  const rawLatitude = item?.place?.latitude;
+  if (rawLongitude == null || rawLatitude == null ||
+      String(rawLongitude).trim() === '' || String(rawLatitude).trim() === '') return null;
+  const longitude = Number(rawLongitude);
+  const latitude = Number(rawLatitude);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude) ||
+      longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) return null;
   return [longitude, latitude];
 }
 
