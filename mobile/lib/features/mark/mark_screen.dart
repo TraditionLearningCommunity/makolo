@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -79,10 +81,6 @@ class _MarkScreenState extends State<MarkScreen> {
       _draftRevision++;
       _repository = MarkRepository(widget.runtime);
       _files = null;
-      _voiceStore = null;
-      _voiceCapture = false;
-      _pendingConfirmationCode = null;
-      _pendingConfirmationKey = null;
       _actor =
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _result = null;
@@ -382,6 +380,81 @@ class _MarkScreenState extends State<MarkScreen> {
     await _saveDraft();
   }
 
+  Future<void> _previewAttachment(Map<String, dynamic> item) async {
+    final id = item['file_id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final revision = _draftRevision;
+    final actor = _actor;
+    try {
+      final coordinator = await _fileCoordinator();
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      final file = await coordinator?.store.read(id);
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      if (file == null || !await File(file.path).exists()) {
+        _show('Cette pièce locale n’est plus disponible.');
+        return;
+      }
+      if (item['kind'] == 'photo') {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Image enregistrée'),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 540),
+              child: Image.file(
+                File(file.path),
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) =>
+                    const Text('Impossible de prévisualiser cette image.'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Fermer'),
+              ),
+            ],
+          ),
+        );
+      } else if (item['kind'] == 'audio') {
+        final player = AudioPlayer();
+        try {
+          await player.setFilePath(file.path);
+          if (!mounted || revision != _draftRevision || actor != _actor) {
+            return;
+          }
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Enregistrement audio'),
+              content: const Text('Écoutez votre fichier enregistré sur cet appareil.'),
+              actions: [
+                TextButton(
+                  onPressed: () => unawaited(player.play()),
+                  child: const Text('Écouter'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Fermer'),
+                ),
+              ],
+            ),
+          );
+        } finally {
+          await player.dispose();
+        }
+      } else {
+        if (mounted) {
+          _show(
+            'Le fichier est conservé, mais son aperçu n’est pas disponible ici.',
+          );
+        }
+      }
+    } on Object {
+      if (mounted) _show('Impossible d’ouvrir cette pièce locale.');
+    }
+  }
+
   Future<void> _removeAttachment(Map<String, dynamic> item) async {
     final revision = _draftRevision;
     final actor = _actor;
@@ -669,9 +742,11 @@ class _MarkScreenState extends State<MarkScreen> {
                         alignLabelWithHint: true,
                       ),
                       onChanged: (_) {
-                        _result = null;
-                        _pendingConfirmationCode = null;
-                        _pendingConfirmationKey = null;
+                        setState(() {
+                          _result = null;
+                          _pendingConfirmationCode = null;
+                          _pendingConfirmationKey = null;
+                        });
                         unawaited(_saveDraft());
                       },
                     ),
@@ -710,9 +785,19 @@ class _MarkScreenState extends State<MarkScreen> {
                               deleteButtonTooltipMessage: 'Retirer ce lien',
                             ),
                           for (final item in _attachments)
-                            Chip(
-                              avatar: const Icon(Icons.attach_file, size: 18),
+                            InputChip(
+                              avatar: Icon(
+                                item['kind'] == 'audio'
+                                    ? Icons.mic_none
+                                    : item['kind'] == 'photo'
+                                        ? Icons.image_outlined
+                                        : Icons.attach_file,
+                                size: 18,
+                              ),
                               label: Text(item['name']?.toString() ?? 'Pièce'),
+                              onPressed: _busy
+                                  ? null
+                                  : () => unawaited(_previewAttachment(item)),
                               onDeleted: _busy
                                   ? null
                                   : () => unawaited(_removeAttachment(item)),
