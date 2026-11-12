@@ -337,7 +337,8 @@ class _MarkScreenState extends State<MarkScreen> {
         ...result.files.asMap().entries.map(
           (entry) => {
             'file_id': entry.value.fileId,
-            'name': entry.key < selectedNames.length &&
+            'name':
+                entry.key < selectedNames.length &&
                     selectedNames[entry.key].trim().isNotEmpty
                 ? selectedNames[entry.key].trim()
                 : 'Document',
