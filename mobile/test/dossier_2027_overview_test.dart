@@ -51,12 +51,17 @@ void main() {
               'id': 'assignment',
               'label': 'Alice',
               'profile_id': 'profile-alice',
+              'profile_url': '/people/profile-alice',
             },
           ],
           'mandates': [],
           'people_preview': {
             'people': [
-              {'profile_id': 'profile-alice', 'label': 'Alice'},
+              {
+                'profile_id': 'profile-alice',
+                'label': 'Alice',
+                'profile_url': '/people/profile-alice',
+              },
             ],
             'remaining': 0,
           },
