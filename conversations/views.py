@@ -101,23 +101,20 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 invitation.can_accept = invitation_accept_allowed(
                     self.request.user, invitation,
                 )
+        collective_invitations = (
+            collective_invitation_inbox(self.request.user)
+            if not q and tab != "archived" else []
+        )
+        for invitation in collective_invitations:
+            invitation.can_accept = collective_invitation_accept_allowed(
+                self.request.user, invitation,
+            )
         context.update(
             {
                 "tab": tab,
                 "q": q,
                 "pending_invitations": invitations,
-                "pending_collective_invitations": (
-                    [
-                        {
-                            "item": item,
-                            "can_accept": collective_invitation_accept_allowed(
-                                self.request.user, item,
-                            ),
-                        }
-                        for item in collective_invitation_inbox(self.request.user)
-                    ]
-                    if not q and tab != "archived" else []
-                ),
+                "pending_collective_invitations": collective_invitations,
                 "participation_overview": (
                     participation_inbox_for_profile(self.request.user)
                     if not q and tab != "archived" else {}
