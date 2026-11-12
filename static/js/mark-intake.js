@@ -267,11 +267,11 @@
     $('[data-mk-mark-owner-cancel]')?.addEventListener('click', closeAssetForm);
     $('[data-mk-mark-preview]')?.addEventListener('close', closePreview);
 
-    root.querySelectorAll('[data-mk-mark-file-input]').forEach((picker) => {
-      picker.addEventListener('change', () => {
-        addFiles(picker.files);
-        picker.value = '';
-      });
+    $('[data-mk-mark-files-open]')?.addEventListener('click', () => {
+      $('[data-mk-mark-files]')?.click();
+    });
+    $('[data-mk-mark-photo-open]')?.addEventListener('click', () => {
+      $('[data-mk-mark-photo]')?.click();
     });
     root.querySelectorAll('[data-mk-mark-files],[data-mk-mark-photo]').forEach((picker) => {
       picker.addEventListener('change', () => {
