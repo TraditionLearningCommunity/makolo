@@ -292,7 +292,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
         if (mounted) widget.onQueued?.call();
       } else {
         if (_mediaPath != null) {
-          setState(() => _error = 'Pièce indisponible sans stockage local.');
+          setState(() => _error = 'Pièce indisponible.');
           return;
         }
         _reference ??= _newFormReference();
