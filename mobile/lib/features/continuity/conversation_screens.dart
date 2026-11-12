@@ -1092,7 +1092,8 @@ class _ConversationInvitationCardState
 
   Future<void> _respond(bool accept) async {
     if (_busy || widget.invitation.status != 'pending' ||
-        widget.invitation.expired) return;
+        widget.invitation.expired ||
+        (accept && !widget.invitation.canAccept)) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -1154,6 +1155,13 @@ class _ConversationInvitationCardState
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
+          if (!widget.invitation.canAccept && !widget.invitation.collective)
+            const Padding(
+              padding: EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(
+                'Cette invitation ne peut plus être acceptée. Vous pouvez la refuser.',
+              ),
+            ),
           if (widget.invitation.expired)
             const Padding(
               padding: EdgeInsets.only(top: MakoloSpacing.xs),
@@ -1178,7 +1186,8 @@ class _ConversationInvitationCardState
               ),
               MakoloActionButton(
                 label: _busy ? 'En cours…' : 'Accepter',
-                onPressed: _busy || widget.invitation.status != 'pending' ||
+                onPressed: _busy || !widget.invitation.canAccept ||
+                        widget.invitation.status != 'pending' ||
                         widget.invitation.expired
                     ? null
                     : () => _respond(true),
@@ -4124,6 +4133,7 @@ class _ConversationInvitation {
     this.label,
     this.identifier,
     this.invitedBy,
+    this.canAccept = true,
     this.expiresAt,
     this.createdAt,
   });
@@ -4135,6 +4145,7 @@ class _ConversationInvitation {
   final String? label;
   final String? identifier;
   final String? invitedBy;
+  final bool canAccept;
   final DateTime? expiresAt;
   final DateTime? createdAt;
 
@@ -4158,6 +4169,7 @@ class _ConversationInvitation {
           conversationId: _string(row['conversation_id']) ?? '',
           status: _string(row['status']) ?? '',
           invitedBy: _string(row['invited_by']),
+          canAccept: row['can_accept'] != false,
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
           createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
