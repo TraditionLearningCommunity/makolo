@@ -1280,6 +1280,18 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.sm),
           Text(intro, style: Theme.of(context).textTheme.bodyMedium),
+          if (widget.depth == 'team' &&
+              _map(payload['handoffs'])?['relationships'] ==
+                  '/space/${widget.slug}/us/relationships') ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloActionButton(
+              label: 'Voir les relations de cet Espace',
+              onPressed: () =>
+                  context.push('/space/${widget.slug}/us/relationships'),
+              appearance: MakoloActionAppearance.quiet,
+              icon: Icons.hub_outlined,
+            ),
+          ],
           if (widget.depth == 'responsibilities' &&
               _map(payload['handoffs'])?['authority'] ==
                   '/space/${widget.slug}/us/authority') ...[
