@@ -16,6 +16,7 @@ from .core_models import (
 from .detail_presentation import conversation_members_for_profile
 from .participant_services import (
     answer_collective_invitation, collective_invitation_inbox,
+    collective_invitation_accept_allowed,
     conversation_collectives_for_manager, invite_identifier,
     revoke_collective_access, search_invitation_candidates,
 )
@@ -181,6 +182,9 @@ class ConversationCollectiveInboxAPIView(PrivateNoStoreMixin, views.APIView):
                     "label": item.space.name if item.space_id else item.group.name,
                     "status": item.status, "created_at": item.created_at,
                     "expires_at": item.expires_at,
+                    "can_accept": collective_invitation_accept_allowed(
+                        request.user, item,
+                    ),
                 }
                 for item in collective_invitation_inbox(request.user)
             ],
