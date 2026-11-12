@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from accounts.models import UserProfile, ProfileVisibilityPolicy
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Mandate, Role
 from authorization.services import can, can_many, effective_permission_codes, grant_dossier_role, grant_project_role
@@ -102,6 +103,111 @@ class ProjectAuthorityIntegrationTests(TestCase):
             ).status_code,
             403,
         )
+
+    def test_project_member_profile_visibility_controls_avatar_and_link(self):
+        profile, _ = UserProfile.objects.get_or_create(user=self.viewer)
+        profile.public_profile = True
+        profile.save(update_fields=["public_profile"])
+        self.viewer.avatar.name = "accounts/users/safe-public-avatar.jpg"
+        self.viewer.save(update_fields=["avatar"])
+        self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
+        self.client.force_authenticate(user=self.owner)
+        data = self.client.get(
+            self.endpoint("objectives_api:project-detail"),
+        ).data["data"]
+        member = data["collaboration"]["members"][0]
+        self.assertEqual(
+            member["profile_url"],
+            reverse("sharing:passport-profile", args=[self.viewer.pk]),
+        )
+        self.assertIn("safe-public-avatar.jpg", member["avatar_url"])
+        self.assertEqual(member["profile_view"], "public")
+
+        # A saved owner visibility policy with no audience denies the avatar,
+        # even when the viewer administers a real Project Mandate.
+        ProfileVisibilityPolicy.objects.create(
+            owner=self.viewer, target_kind="field", field_key="avatar",
+        )
+        data = self.client.get(
+            self.endpoint("objectives_api:project-detail"),
+        ).data["data"]
+        self.assertIsNone(data["collaboration"]["members"][0]["avatar_url"])
+
+        profile.public_profile = False
+        profile.save(update_fields=["public_profile"])
+        data = self.client.get(
+            self.endpoint("objectives_api:project-detail"),
+        ).data["data"]
+        member = data["collaboration"]["members"][0]
+        self.assertIsNone(member["profile_url"])
+        self.assertIsNone(member["profile_view"])
+        self.assertIsNone(member["avatar_url"])
+        # Authorized Project identity is not permission to open a private Profile.
+        self.assertEqual(member["label"], self.viewer.username)
+
+    def test_project_role_replacement_is_atomic_and_scope_limited(self):
+        initial_id = self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.endpoint("objectives_api:project-authority"),
+            {
+                "action": "replace",
+                "mandate_id": initial_id,
+                "role_code": SystemRoleCode.PROJECT_MANAGER,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["action"], "replace")
+        self.assertNotEqual(response.data["mandate_id"], initial_id)
+        self.assertFalse(Mandate.objects.get(pk=initial_id).is_current())
+        self.assertEqual(
+            Mandate.objects.filter(
+                project=self.project, profile=self.viewer,
+                status="active",
+            ).count(),
+            1,
+        )
+        self.client.force_authenticate(user=self.viewer)
+        self.assertTrue(can(
+            self.viewer, PermissionCode.PROJECT_MANAGE, project=self.project,
+        ))
+        self.assertFalse(can(
+            self.viewer, PermissionCode.PROJECT_MANAGE, project=self.other,
+        ))
+        self.assertEqual(
+            self.client.get(reverse(
+                "objectives_api:dossier-detail", args=[self.dossier.pk],
+            )).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                self.endpoint("objectives_api:project-authority"),
+                {
+                    "action": "replace",
+                    "mandate_id": response.data["mandate_id"],
+                    "role_code": SystemRoleCode.PROJECT_ADMIN,
+                },
+                format="json",
+            ).status_code,
+            403,
+        )
+
+    def test_other_project_mandate_cannot_be_replaced(self):
+        initial_id = self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
+        self.client.force_authenticate(user=self.owner)
+        result = self.client.post(
+            self.endpoint("objectives_api:project-authority", self.other),
+            {
+                "action": "replace",
+                "mandate_id": initial_id,
+                "role_code": SystemRoleCode.PROJECT_ADMIN,
+            },
+            format="json",
+        )
+        self.assertEqual(result.status_code, 404)
+        self.assertTrue(Mandate.objects.get(pk=initial_id).is_current())
 
     def test_project_manager_does_not_inherit_dossier_management(self):
         self.grant(self.manager, SystemRoleCode.PROJECT_MANAGER)
