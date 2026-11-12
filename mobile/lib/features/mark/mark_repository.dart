@@ -124,14 +124,12 @@ class MarkRepository {
       if (attachments.isNotEmpty) {
         return const MarkResult(
           state: 'local_attachments_only',
-          message:
-              'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
+          message: 'Pièces conservées sur cet appareil. Aucun fichier n’a été transmis à Makolo.',
         );
       }
       return const MarkResult(
         state: 'local_references_only',
-        message:
-            'Liens conservés dans le brouillon. Ils ne sont pas interprétés ni transmis automatiquement.',
+        message: 'Liens conservés dans le brouillon. Ils ne sont pas interprétés ni transmis automatiquement.',
       );
     }
 

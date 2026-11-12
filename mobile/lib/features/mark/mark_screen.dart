@@ -222,9 +222,8 @@ class _MarkScreenState extends State<MarkScreen> {
             keyboardType: TextInputType.url,
             autocorrect: false,
             decoration: const InputDecoration(hintText: 'https://…'),
-            onChanged: (value) => refresh(
-              () => accepted = _isSafeLink(value.trim()),
-            ),
+            onChanged: (value) =>
+                refresh(() => accepted = _isSafeLink(value.trim())),
           ),
           actions: [
             TextButton(
@@ -249,10 +248,12 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 
   Future<void> _removeLink(String link) async {
-    setState(() => _links = [
-      for (final item in _links)
-        if (item != link) item,
-    ]);
+    setState(
+      () => _links = [
+        for (final item in _links)
+          if (item != link) item,
+      ],
+    );
     await _saveDraft();
   }
 
@@ -694,7 +695,9 @@ class _MarkScreenState extends State<MarkScreen> {
                             Chip(
                               avatar: const Icon(Icons.link, size: 18),
                               label: ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 280),
+                                constraints: const BoxConstraints(
+                                  maxWidth: 280,
+                                ),
                                 child: Text(
                                   link,
                                   maxLines: 1,
