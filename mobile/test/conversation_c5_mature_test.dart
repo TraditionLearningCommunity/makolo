@@ -647,6 +647,7 @@ void main() {
             'id': 'invitation-1',
             'conversation_id': 'conversation-1',
             'status': 'pending',
+            'invited_by': 'organisateur',
           },
         ],
       },
@@ -669,6 +670,7 @@ void main() {
     expect(find.byTooltip('Actualiser les invitations'), findsOneWidget);
     expect(find.text('Accepter'), findsWidgets);
     expect(find.text('Refuser'), findsWidgets);
+    expect(find.text('Envoyée par @organisateur'), findsOneWidget);
   });
 
   testWidgets('C5: one inbox shows managed requests and sent invitations', (
