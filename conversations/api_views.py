@@ -20,6 +20,7 @@ from .attention import has_conversation_attention
 from .attention_projection import conversation_attention_sections
 from .point_interactions import point_interactions_for_profile
 from .participant_services import collective_invitation_inbox
+from .participation_inbox import participation_inbox_for_profile
 from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
 from .timeline import recent_timeline_for_profile, timeline_presentation
@@ -1011,13 +1012,20 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from django.db.models import Q
+        from .core_models import ConversationLifecycle
+        now = timezone.now()
+        limit = _bounded_limit(request)
         invitations = list(
             ConversationInvitation.objects.filter(
                 invitee=request.user,
                 status=ConversationInvitationStatus.PENDING,
-            )
-            .select_related("conversation", "conversation__context")
-            .order_by("created_at", "id")[:_bounded_limit(request)]
+                conversation__lifecycle=ConversationLifecycle.OPEN,
+            ).filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+            ).select_related(
+                "conversation", "conversation__context"
+            ).order_by("created_at", "id")[:limit]
         )
         return Response({
             "results": [
@@ -1044,6 +1052,7 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                 }
                 for item in collective_invitation_inbox(request.user)
             ],
+            **participation_inbox_for_profile(request.user, limit=limit),
         })
 
 
