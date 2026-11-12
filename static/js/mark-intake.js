@@ -334,7 +334,8 @@
       consent = true;
       const panel = $('[data-mk-mark-text-consent]');
       if (panel) panel.hidden = true;
-      form.requestSubmit(submission && form.contains(submission) ? submission : undefined);
+      if (submission && form.contains(submission)) form.requestSubmit(submission);
+      else form.requestSubmit();
     }
 
     form.addEventListener('submit', (event) => {
