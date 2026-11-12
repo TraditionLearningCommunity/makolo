@@ -1,6 +1,6 @@
 {# Shared canonical Save/owner/Sharing controls; no new authority. #}
   {% if not discovery_space %}
-  <div class="mt-5 grid {% if detail %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Interactions avec cette possibilité">
+  <div class="mt-5 grid {% if detail %}grid-cols-2{% else %}grid-cols-3{% endif %} gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Actions pour cette opportunité">
     <div class="min-w-0">
       {% if card.actions.save and card.actions.save.url %}
         {% if request.user.is_authenticated %}
@@ -32,7 +32,7 @@
     <div class="min-w-0">
       {% if card.actions.share and card.actions.share.url %}
         {% if request.user.is_authenticated %}
-          <div data-makolo-share data-create-url="{{ card.actions.share.url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ card.title }}" data-share-text="{{ card.summary|default:'Une possibilité Makolo vous a été partagée.' }}">
+          <div data-makolo-share data-create-url="{{ card.actions.share.url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ card.title }}" data-share-text="{{ card.summary|default:'Une opportunité Makolo vous a été partagée.' }}">
             <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
             <details class="relative group">
               <summary class="mk-action-button min-h-[48px] w-full cursor-pointer justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" data-variant="ghost" aria-label="Options de partage"><i data-lucide="send" class="h-4 w-4 shrink-0" aria-hidden="true"></i><span class="sr-only">Partager</span><i data-lucide="chevron-down" class="h-3 w-3 shrink-0" aria-hidden="true"></i></summary>
