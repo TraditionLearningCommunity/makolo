@@ -63,6 +63,38 @@ class EmptyObjectivePresentationTests(TestCase):
         self.assertIsNone(rows[0]["readiness"]["state"])
         self.assertIsNone(rows[0]["readiness"]["label"])
 
+    def test_web_project_description_follows_views_before_people(self):
+        project = create_project(
+            actor=self.owner, owner_profile=self.owner,
+            title="Mon horizon", description="Description courte du Projet",
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("objectives:project-detail", args=[project.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertNotIn('class="mk-project__desc"', html)
+        views = html.index('class="mk-project__view-switch')
+        description = html.index('data-project-description')
+        people = html.index('class="mk-project__people-preview"')
+        self.assertLess(views, description)
+        self.assertLess(description, people)
+        self.assertIn('Description courte du Projet', html)
+        self.assertNotIn('>Informations du Projet</h2>', html)
+
+    def test_web_project_omits_description_when_not_provided(self):
+        project = create_project(
+            actor=self.owner, owner_profile=self.owner,
+            title="Sans description",
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("objectives:project-detail", args=[project.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'data-project-description')
+
     def test_personal_project_creation_ignores_no_client_owner_override(self):
         response = self.client.post(
             reverse("objectives_api:project-list"),
