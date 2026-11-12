@@ -383,7 +383,9 @@ def collective_invitation_inbox(actor, *, limit=30):
     if (not getattr(actor, "is_authenticated", False)
             or not getattr(actor, "is_active", False)):
         return []
-    size = max(1, min(int(limit), 50))
+    # Allow one extra authorized row when an API caller needs a truthful
+    # "more results" indicator without exposing an unbounded collection.
+    size = max(1, min(int(limit), 51))
     now = timezone.now()
     candidates = ConversationCollectiveAccess.objects.filter(
         status=ConversationCollectiveStatus.PENDING,
