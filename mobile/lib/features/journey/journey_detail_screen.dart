@@ -540,7 +540,8 @@ class _JourneyContent extends StatelessWidget {
                   presentation: presentation,
                   composition: composition,
                   primaryAction: action,
-                  ownerAction: _ownerActionForLink,
+                  ownerAction: (label, link) =>
+                      _ownerActionForLink(label, link),
                 ),
               ),
               const SizedBox(height: MakoloSpacing.md),
@@ -836,8 +837,7 @@ class _JourneySituationPanel extends StatelessWidget {
   final JourneyDetailPresentation presentation;
   final JourneyComposition composition;
   final Widget? primaryAction;
-  final Widget? Function(String label, String? link, {bool primary})
-      ownerAction;
+  final Widget? Function(String label, String? link) ownerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -901,13 +901,6 @@ class _JourneySituationPanel extends StatelessWidget {
                     presentation.title.trim().toLowerCase()) ...[
               const SizedBox(height: MakoloSpacing.sm),
               Text(detail),
-            ],
-            if (situation == JourneySituation.blocked &&
-                firstBlocker?.reason != null &&
-                firstBlocker!.reason != firstBlocker.summary) ...[
-              const SizedBox(height: MakoloSpacing.xs),
-              Text(firstBlocker.reason!,
-                  style: Theme.of(context).textTheme.bodySmall),
             ],
             if (situation == JourneySituation.choices) ...[
               const SizedBox(height: MakoloSpacing.sm),
