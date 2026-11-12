@@ -937,8 +937,15 @@ class ConversationRepository {
       body: {'kind': kind, 'identifier': identifier.trim()},
     );
     final result = response.jsonObject();
-    if (result['id'] == null || result['status'] == null) {
+    if (result['id']?.toString().isEmpty != false ||
+        result['kind'] != kind ||
+        !{'pending', 'active'}.contains(result['status'])) {
       throw const FormatException('Invitation non confirmée.');
+    }
+    try {
+      await refreshInvitations();
+    } on Object {
+      // The owner accepted this invitation command. Retry only the read.
     }
     try {
       await refreshDetail(conversationId);
@@ -1078,8 +1085,21 @@ class ConversationRepository {
       'api/v1/conversations/$conversationId/entry/',
       body: {'action': action},
     );
-    if (response.jsonObject()['status'] == null) {
+    final payload = response.jsonObject();
+    final expected = switch (action) {
+      'join' => 'active',
+      'request' => 'pending',
+      'leave' => 'left',
+      _ => throw ArgumentError.value(action, 'action'),
+    };
+    if (payload['id']?.toString().isEmpty != false ||
+        payload['status'] != expected) {
       throw const FormatException('État de participation non confirmé.');
+    }
+    try {
+      await refreshInvitations();
+    } on Object {
+      // The action was confirmed; its projections can reconcile later.
     }
     try {
       await refreshDetail(conversationId);
