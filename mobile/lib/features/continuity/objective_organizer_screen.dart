@@ -1384,8 +1384,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
           item.projectId != null &&
           !hierarchy.byKey.containsKey('project:${item.projectId}'))
         'Projet non chargé',
-      if (item.kind == 'dossier' &&
-          hierarchy.additionalSharedLinks(item) > 0)
+      if (item.kind == 'dossier' && hierarchy.additionalSharedLinks(item) > 0)
         organizerSharedLinksLabel(hierarchy.additionalSharedLinks(item)),
     ];
     return Column(
@@ -1428,16 +1427,24 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                       item.title,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.titleSmall
-                                          ?.copyWith(fontWeight: FontWeight.w700),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       details.join(' · '),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context).textTheme.bodySmall
-                                          ?.copyWith(color: scheme.onSurfaceVariant),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),
