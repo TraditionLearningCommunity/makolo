@@ -140,6 +140,46 @@ class D5CrossContextClosureTests(TestCase):
         self.assertTrue(manager.data["data"]["mandates"])
         self.assertTrue(manager.data["data"]["assignments"])
 
+    def test_people_preview_caps_at_four_visible_distinct_profiles(self):
+        role = Role.objects.get(
+            scope_type=AuthorityScope.DOSSIER,
+            code=SystemRoleCode.DOSSIER_VIEWER,
+        )
+        for index in range(4):
+            colleague = User.objects.create_user(username=f"d5-colleague-{index}")
+            grant_dossier_role(
+                profile=colleague,
+                dossier=self.dossier_a,
+                role=role,
+                granted_by=self.owner,
+            )
+
+        self.client.force_authenticate(user=self.owner)
+        result = self.client.get(
+            self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+        )
+        self.assertEqual(result.status_code, 200, result.data)
+        preview = result.data["data"]["people_preview"]
+        ids = [row["profile_id"] for row in preview["people"]]
+        self.assertEqual(len(ids), 4)
+        self.assertEqual(len(set(ids)), 4)
+        self.assertEqual(preview["remaining"], 1)
+        self.assertIn(str(self.member.pk), ids)
+
+        # A single mandate holder sees neither an owner-scoped roster nor
+        # the count of hidden people in the same Dossier.
+        self.client.force_authenticate(user=self.member)
+        limited = self.client.get(
+            self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+        )
+        self.assertEqual(limited.status_code, 200, limited.data)
+        preview = limited.data["data"]["people_preview"]
+        self.assertEqual(
+            [row["profile_id"] for row in preview["people"]],
+            [str(self.member.pk)],
+        )
+        self.assertEqual(preview["remaining"], 0)
+
     def test_move_preserves_dossier_and_shared_journey_identities(self):
         a = self.client.get(self.dossier_url(self.dossier_a) + self.scope(self.space_a))
         b = self.client.get(self.dossier_url(self.dossier_b) + self.scope(self.space_b))
