@@ -1048,7 +1048,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
 
   String _initials(String label) {
-    final words = label.trim().split(RegExp(r'\\s+'));
+    final words = label.trim().split(RegExp(r'\s+'));
     if (words.isEmpty || label.trim().isEmpty) return '?';
     return words.take(2).map((word) => word[0].toUpperCase()).join();
   }
