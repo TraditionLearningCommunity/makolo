@@ -1044,6 +1044,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 maxHeight: MediaQuery.sizeOf(context).height * 0.38,
               ),
               child: ListView(
+                // The ExpansionTile stores a bool under its PageStorageKey.
+                // Give this nested scrollable a separate slot for its double.
+                key: const PageStorageKey('conversation-attention-scroll'),
                 shrinkWrap: true,
                 children: [
                   group('Pour moi', mine),
