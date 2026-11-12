@@ -20,7 +20,7 @@ from .participant_services import (
 from .services import (
     can_manage_conversation, can_view_conversation, context_base_eligible,
     create_join_request, join_conversation, leave_conversation,
-    remove_participation, respond_to_join_request,
+    remove_participation, respond_to_join_request, withdraw_join_request,
 )
 
 
@@ -154,6 +154,26 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
         if action == "leave" and not can_view_conversation(request.user, conversation):
             return redirect("conversations:list")
         return redirect("conversations:participants", pk=conversation.pk)
+
+
+class ConversationWithdrawJoinRequestWebView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def post(self, request, join_request_pk):
+        personal_request = get_object_or_404(
+            ConversationJoinRequest,
+            pk=join_request_pk, requester=request.user,
+        )
+        try:
+            withdraw_join_request(
+                actor=request.user, join_request=personal_request,
+            )
+            messages.success(request, "Demande retirée.")
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(
+                request, "; ".join(getattr(exc, "messages", [str(exc)])),
+            )
+        return redirect("conversations:list")
 
 
 class ConversationCollectiveRespondWebView(LoginRequiredMixin, View):
