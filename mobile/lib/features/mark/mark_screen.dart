@@ -85,9 +85,8 @@ class _MarkScreenState extends State<MarkScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final next = ProviderScope.containerOf(context).read(
-      runtimeIngressProvider,
-    );
+    final next = ProviderScope.containerOf(context)
+        .read(runtimeIngressProvider);
     if (identical(next, _ingress)) return;
     _shareSubscription?.cancel();
     _ingress = next;
@@ -325,7 +324,9 @@ class _MarkScreenState extends State<MarkScreen> {
           });
           await _saveDraft();
           if (_input.text.length > 600) {
-            _show('Texte conservé. Raccourcissez votre demande avant de continuer.');
+            _show(
+              'Texte conservé. Raccourcissez votre demande avant de continuer.',
+            );
           }
           continue;
         }
@@ -350,16 +351,15 @@ class _MarkScreenState extends State<MarkScreen> {
         }
         List<StoredLocalFile> acquired = const [];
         try {
-          final captured = await SharedPayloadCoordinator(
-            coordinator.store,
-          ).capture(
-            item,
-            owner: _owner,
-            purpose: 'mark_intake',
-            sensitivity: 'private',
-            fileIdFor: (index, source) =>
-                'mark-share-${DateTime.now().microsecondsSinceEpoch}-$index',
-          );
+          final captured = await SharedPayloadCoordinator(coordinator.store)
+              .capture(
+                item,
+                owner: _owner,
+                purpose: 'mark_intake',
+                sensitivity: 'private',
+                fileIdFor: (index, source) =>
+                    'mark-share-${DateTime.now().microsecondsSinceEpoch}-$index',
+              );
           acquired = captured.files;
           final tooLarge = <StoredLocalFile>[];
           for (final file in acquired) {
@@ -381,9 +381,11 @@ class _MarkScreenState extends State<MarkScreen> {
                   'file_id': acquired[index].fileId,
                   'name': p.basename(item.files[index].name),
                   'purpose': acquired[index].purpose,
-                  if ({'.png', '.jpg', '.jpeg'}.contains(
-                    p.extension(acquired[index].path).toLowerCase(),
-                  ))
+                  if ({
+                    '.png',
+                    '.jpg',
+                    '.jpeg',
+                  }.contains(p.extension(acquired[index].path).toLowerCase()))
                     'kind': 'photo',
                 },
             ];
@@ -399,7 +401,9 @@ class _MarkScreenState extends State<MarkScreen> {
             }
           }
           if (mounted && revision == _draftRevision) {
-            _show('Le fichier partagé n’a pas été conservé. Réessayez depuis le partage.');
+            _show(
+              'Le fichier partagé n’a pas été conservé. Réessayez depuis le partage.',
+            );
           }
         }
       }
