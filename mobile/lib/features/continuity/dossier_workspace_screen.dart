@@ -1227,6 +1227,9 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final completed = items.where((item) =>
         ['fulfilled', 'completed', 'complete']
             .contains(_text(item['state']))).length;
+    final requiringAction = items.where(
+      (item) => item['readiness_state'] == 'action_required',
+    ).length;
     final complete = data['visible_journeys_complete'] == true &&
         readiness['partial'] != true;
     final scheme = Theme.of(context).colorScheme;
@@ -1307,14 +1310,45 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               padding: EdgeInsets.only(bottom: 12),
               child: Text('Démarches visibles · données partielles'),
             ),
+          if (completed > 0 || requiringAction > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                spacing: 7,
+                runSpacing: 4,
+                children: [
+                  if (requiringAction > 0)
+                    ActionChip(
+                      avatar: const Icon(Icons.bolt_rounded, size: 17),
+                      label: Text(
+                        requiringAction.toString() + ' à traiter',
+                      ),
+                      onPressed: () {
+                        setState(() => _filter = 'action');
+                        _selectMode(_DossierMode.list);
+                      },
+                    ),
+                  if (completed > 0)
+                    ActionChip(
+                      avatar: const Icon(Icons.check_circle_outline, size: 17),
+                      label: Text(
+                        completed.toString() + ' terminée(s)',
+                      ),
+                      onPressed: () {
+                        setState(() => _filter = 'fulfilled');
+                        _selectMode(_DossierMode.list);
+                      },
+                    ),
+                ],
+              ),
+            ),
           for (final item in items.take(3))
             _journeyTile(item, compact: true),
- 
         ] else ...[
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              readiness['partial'] == true
+              !complete
                   ? 'Aucune démarche disponible dans les données acquises.'
                   : 'Aucune démarche visible.',
             ),
@@ -1431,7 +1465,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             title: const Text('Créé le'),
             subtitle: Text(_dateLabel(context, created.toLocal())),
           ),
-        if (updated != null)
+        if (updated != null && updated != created)
           ListTile(
             dense: true,
             leading: const Icon(Icons.update_rounded),
