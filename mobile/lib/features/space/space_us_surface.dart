@@ -317,8 +317,9 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                             Divider(height: 1, color: scheme.outlineVariant),
                             const SizedBox(height: 9),
                             if (teamRows.isEmpty &&
-                                _nonNegativeCount(team?['active_members']) ==
-                                    null)
+                                (_nonNegativeCount(team?['active_members']) ??
+                                        0) ==
+                                    0)
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton.icon(
