@@ -403,10 +403,11 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                     builder: (context, snapshot) {
                       final count = _ConversationInvitation.fromProjection(
                         snapshot.data,
-                      ).length + _ConversationPendingRow.fromProjection(
-                        snapshot.data,
-                        'join_requests_to_decide',
-                      ).length;
+                      ).where((invitation) => !invitation.expired).length +
+                          _ConversationPendingRow.fromProjection(
+                            snapshot.data,
+                            'join_requests_to_decide',
+                          ).length;
                       return IconButton(
                         key: const Key('conversation-invitations-open'),
                         tooltip: 'Invitations reçues',
@@ -1090,7 +1091,8 @@ class _ConversationInvitationCardState
   String? _error;
 
   Future<void> _respond(bool accept) async {
-    if (_busy || widget.invitation.expired) return;
+    if (_busy || widget.invitation.status != 'pending' ||
+        widget.invitation.expired) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -1160,14 +1162,16 @@ class _ConversationInvitationCardState
             children: [
               MakoloActionButton(
                 label: 'Refuser',
-                onPressed: _busy || widget.invitation.expired
+                onPressed: _busy || widget.invitation.status != 'pending' ||
+                        widget.invitation.expired
                     ? null
                     : () => _respond(false),
                 appearance: MakoloActionAppearance.secondary,
               ),
               MakoloActionButton(
                 label: _busy ? 'En cours…' : 'Accepter',
-                onPressed: _busy || widget.invitation.expired
+                onPressed: _busy || widget.invitation.status != 'pending' ||
+                        widget.invitation.expired
                     ? null
                     : () => _respond(true),
                 appearance: MakoloActionAppearance.primary,
@@ -4135,6 +4139,7 @@ class _ConversationInvitation {
   ) {
     final results = <_ConversationInvitation>[];
     for (final row in _maps(projection?.payload['results'])) {
+      if (row['status'] != 'pending') continue;
       final id = _string(row['id']);
       if (id == null || id.isEmpty) continue;
       results.add(
@@ -4148,6 +4153,7 @@ class _ConversationInvitation {
       );
     }
     for (final row in _maps(projection?.payload['collective_results'])) {
+      if (row['status'] != 'pending') continue;
       final id = _string(row['id']);
       if (id == null || id.isEmpty) continue;
       results.add(
