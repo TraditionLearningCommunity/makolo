@@ -162,6 +162,15 @@ class ServiceParticipantWebTests(TestCase):
         journey.service_context.refresh_from_db()
         self.assertEqual(journey.service_context.opportunity_revision_id, original_revision)
 
+        detail = self.client.get(
+            reverse("core:participant-journey-detail", args=[journey.pk])
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "L’opportunité n’est plus publiée")
+        self.assertNotContains(
+            detail, reverse("opportunities:detail", args=[self.opportunity.pk])
+        )
+
     def test_web_start_rejects_reused_key_with_changed_payload(self):
         self.client.force_login(self.participant)
         url = reverse("services:start", kwargs={"pk": self.none_service.pk})
