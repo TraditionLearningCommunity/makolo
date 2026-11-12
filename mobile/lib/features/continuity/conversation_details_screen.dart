@@ -887,7 +887,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                       if (mounted) setState(() => _busy = null);
                     }
                   },
-            child: const Text('Quitter la conversation'),
+            child: const Text('Quitter ma participation'),
           ),
         ],
         if (_error != null)
