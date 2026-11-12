@@ -17,6 +17,7 @@ import '../../platform/camera/system_media_picker.dart';
 import '../../platform/files/native_file_acquisition.dart';
 import '../../platform/files/system_file_picker.dart';
 import '../../platform/permissions/permission_gateway.dart';
+import 'mark_navigation.dart';
 import 'mark_repository.dart';
 
 class MarkScreen extends StatefulWidget {
@@ -38,6 +39,7 @@ class MarkScreen extends StatefulWidget {
 
 class _MarkScreenState extends State<MarkScreen> {
   late final TextEditingController _input;
+  final FocusNode _inputFocus = FocusNode();
   late MarkRepository _repository;
   int _draftRevision = 0;
   ActorContext _actor = const PersonalActorContext();
@@ -89,6 +91,7 @@ class _MarkScreenState extends State<MarkScreen> {
   void dispose() {
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     _input.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
@@ -200,22 +203,35 @@ class _MarkScreenState extends State<MarkScreen> {
     await _saveDraft();
   }
 
-  Future<void> _capturePhoto() async {
+  Future<void> _capturePhoto() => _acquirePhoto(capture: true);
+
+  Future<void> _pickPhoto() => _acquirePhoto(capture: false);
+
+  Future<void> _acquirePhoto({required bool capture}) async {
     final revision = _draftRevision;
     final coordinator = await _fileCoordinator();
     if (revision != _draftRevision || !mounted) return;
     if (coordinator == null) {
-      _show('Impossible de prendre une photo.');
+      _show('Les images ne sont pas disponibles dans cette session.');
       return;
     }
-    final result = await coordinator.capturePhoto(
-      fileId: 'mark-photo-${DateTime.now().microsecondsSinceEpoch}',
-      owner: _owner,
-      purpose: 'mark_intake',
-    );
+    final fileId = 'mark-photo-${DateTime.now().microsecondsSinceEpoch}';
+    final result = capture
+        ? await coordinator.capturePhoto(
+            fileId: fileId,
+            owner: _owner,
+            purpose: 'mark_intake',
+          )
+        : await coordinator.pickPhoto(
+            fileId: fileId,
+            owner: _owner,
+            purpose: 'mark_intake',
+          );
     if (!mounted || revision != _draftRevision) return;
     if (!result.acquired) {
-      _show('La photo n’a pas été capturée.');
+      if (result.status != FileAcquisitionStatus.cancelled) {
+        _show('Impossible d’ajouter cette image.');
+      }
       return;
     }
     setState(() {
@@ -232,6 +248,45 @@ class _MarkScreenState extends State<MarkScreen> {
     await _saveDraft();
   }
 
+  Future<void> _removeAttachment(Map<String, dynamic> item) async {
+    final revision = _draftRevision;
+    final actor = _actor;
+    final fileId = item['file_id']?.toString();
+    setState(() {
+      _attachments = [
+        for (final entry in _attachments)
+          if (entry['file_id'] != fileId) entry,
+      ];
+    });
+    await _saveDraft();
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
+    if (fileId == null || fileId.isEmpty) return;
+    try {
+      final coordinator = await _fileCoordinator();
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      final staged = await coordinator?.store.read(fileId);
+      if (staged != null &&
+          staged.owner == _owner &&
+          staged.purpose == 'mark_intake') {
+        await coordinator!.store.remove(fileId);
+      }
+    } on Object {
+      if (mounted) _show('La copie locale n’a pas pu être supprimée.');
+    }
+  }
+
+  Future<void> _chooseOption(Map option) async {
+    if (_busy || _restoring) return;
+    final selected = markClarificationSelection(option);
+    if (selected == null) return;
+    setState(() {
+      _selectedContext = selected;
+      _result = null;
+    });
+    await _saveDraft();
+    if (mounted) await _submit();
+  }
+
   String get _owner => switch (_actor) {
     PersonalActorContext() => 'profile',
     SpaceActorContext(:final space) => 'space:${space.slug}',
@@ -246,22 +301,50 @@ class _MarkScreenState extends State<MarkScreen> {
   );
 
   Future<void> _submit() async {
-    if (_busy) return;
+    if (_busy || _restoring) return;
     final input = _input.text.trim();
     if (input.isEmpty && _attachments.isEmpty) {
-      _show('Écrivez un message ou ajoutez un fichier.');
+      _show('Écrivez une demande ou ajoutez une pièce.');
       return;
     }
     final revision = _draftRevision;
     final actor = _actor;
     final repository = _repository;
+    final attachments = List<Map<String, dynamic>>.of(_attachments);
+    var allowTextOnly = false;
+    if (attachments.isNotEmpty && input.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Continuer avec le texte seulement ?'),
+          content: const Text(
+            'Les pièces restent enregistrées sur cet appareil. '
+            'Elles ne seront ni envoyées ni analysées par Makolo.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Garder mon brouillon'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continuer avec le texte'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      if (confirmed != true) return;
+      allowTextOnly = true;
+    }
     setState(() => _busy = true);
     final result = await repository.submit(
       actor: actor,
       input: input,
-      inputKind: _attachments.isEmpty ? 'text' : 'document',
-      attachments: _attachments,
+      inputKind: 'text',
+      attachments: attachments,
       selected: _selectedContext,
+      allowTextOnly: allowTextOnly,
     );
     if (!mounted ||
         revision != _draftRevision ||
@@ -364,6 +447,7 @@ class _MarkScreenState extends State<MarkScreen> {
                     const SizedBox(height: 20),
                     TextField(
                       controller: _input,
+                      focusNode: _inputFocus,
                       minLines: 7,
                       maxLines: 12,
                       maxLength: 600,
@@ -393,9 +477,21 @@ class _MarkScreenState extends State<MarkScreen> {
                             Chip(
                               avatar: const Icon(Icons.attach_file, size: 18),
                               label: Text(item['name']?.toString() ?? 'Pièce'),
+                              onDeleted: _busy
+                                  ? null
+                                  : () => unawaited(_removeAttachment(item)),
+                              deleteButtonTooltipMessage: 'Retirer cette pièce',
                             ),
                         ],
                       ),
+                      if (_attachments.isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Pièces enregistrées sur cet appareil uniquement. '
+                            'Elles ne sont pas envoyées avec la demande.',
+                          ),
+                        ),
                     ],
                     const SizedBox(height: 16),
                     Wrap(
@@ -415,14 +511,10 @@ class _MarkScreenState extends State<MarkScreen> {
                           icon: Icons.photo_camera_outlined,
                         ),
                         MakoloActionButton(
-                          label: 'Voix',
-                          onPressed: _busy
-                              ? null
-                              : () => _show(
-                                  'La voix sera disponible lorsque la capability de transcription sera exposée.',
-                                ),
+                          label: 'Image',
+                          onPressed: _busy ? null : _pickPhoto,
                           appearance: MakoloActionAppearance.secondary,
-                          icon: Icons.mic_none,
+                          icon: Icons.photo_library_outlined,
                         ),
                       ],
                     ),
@@ -440,7 +532,17 @@ class _MarkScreenState extends State<MarkScreen> {
                       ),
                     if (_result != null) ...[
                       const SizedBox(height: 24),
-                      _MarkResultView(result: _result!),
+                      _MarkResultView(
+                        result: _result!,
+                        onChooseOption: (option) =>
+                            unawaited(_chooseOption(option)),
+                        onEdit: () => _inputFocus.requestFocus(),
+                        onOpenHandoff: switch (
+                            markHandoffRoute(_result!, actor)) {
+                          final String path => () => context.push(path),
+                          null => null,
+                        },
+                      ),
                     ],
                   ],
                 ),
@@ -454,8 +556,17 @@ class _MarkScreenState extends State<MarkScreen> {
 }
 
 class _MarkResultView extends StatelessWidget {
-  const _MarkResultView({required this.result});
+  const _MarkResultView({
+    required this.result,
+    required this.onChooseOption,
+    required this.onEdit,
+    this.onOpenHandoff,
+  });
+
   final MarkResult result;
+  final ValueChanged<Map> onChooseOption;
+  final VoidCallback onEdit;
+  final VoidCallback? onOpenHandoff;
 
   @override
   Widget build(BuildContext context) {
@@ -466,6 +577,7 @@ class _MarkResultView extends StatelessWidget {
       'needs_clarification' => 'Précision nécessaire',
       'needs_confirmation' => 'Confirmation nécessaire',
       'offline_draft' => 'Brouillon local',
+      'local_attachments_only' => 'Pièces conservées localement',
       'completed' => 'Terminé',
       'forbidden' => 'Action non autorisée',
       'unsupported' => 'Pas encore disponible',
@@ -497,15 +609,41 @@ class _MarkResultView extends StatelessWidget {
                   if (option is Map)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text(option['label']?.toString() ?? ''),
+                      child: markClarificationSelection(option) == null
+                          ? Text(option['label']?.toString() ?? '')
+                          : MakoloActionButton(
+                              label: option['label']?.toString() ??
+                                  'Choisir cet élément',
+                              onPressed: () => onChooseOption(option),
+                              appearance: MakoloActionAppearance.secondary,
+                            ),
                     ),
+              if (result.needsInput)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: MakoloActionButton(
+                    label: 'Préciser ma demande',
+                    onPressed: onEdit,
+                    appearance: MakoloActionAppearance.quiet,
+                    icon: Icons.edit_outlined,
+                  ),
+                ),
               if (action?['consequence'] != null) ...[
                 const SizedBox(height: 12),
                 Text(action!['consequence'].toString()),
               ],
-              if (handoff?['surface'] != null) ...[
+              if (onOpenHandoff != null) ...[
                 const SizedBox(height: 12),
-                Text('Suite : ${handoff!['surface']}'),
+                MakoloActionButton(
+                  label: 'Ouvrir la suite',
+                  onPressed: onOpenHandoff,
+                  appearance: MakoloActionAppearance.primary,
+                  icon: Icons.arrow_forward_rounded,
+                ),
+              ] else if (handoff?['surface'] != null &&
+                  result.state == 'resolved') ...[
+                const SizedBox(height: 12),
+                const Text('Cette destination n’est pas accessible ici pour le moment.'),
               ],
             ],
           ),
