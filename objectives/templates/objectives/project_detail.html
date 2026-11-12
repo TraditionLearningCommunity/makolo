@@ -83,6 +83,32 @@
     </div>
   </section>
   {% endif %}
+  <a class="mk-project__people-preview" href="#project-people-details"
+     aria-label="Voir les personnes et les accès du Projet">
+    <span class="mk-project__people-preview-heading">
+      <i data-lucide="users" aria-hidden="true"></i>
+      <strong>Personnes et accès</strong>
+      <span>Voir</span><i data-lucide="chevron-right" aria-hidden="true"></i>
+    </span>
+    <span class="mk-project__avatar-row">
+      {% if workspace.owner.kind == "space" %}
+        <span class="mk-project__avatar mk-project__avatar--space"
+              title="{{ workspace.owner.label }}" aria-label="Porteur : {{ workspace.owner.label }}">
+          <i data-lucide="building-2" aria-hidden="true"></i>
+        </span>
+      {% elif workspace.owner.holder %}
+        <span class="mk-project__avatar" title="{{ workspace.owner.holder }}"
+              aria-label="Porteur : {{ workspace.owner.holder }}"><i data-lucide="user-round" aria-hidden="true"></i></span>
+      {% endif %}
+      {% for member in workspace.collaboration.members|slice:":4" %}
+        <span class="mk-project__avatar" title="{{ member.label }}"
+              aria-label="{{ member.label }} · {{ member.role }}">
+          <i data-lucide="user-round" aria-hidden="true"></i>
+        </span>
+      {% endfor %}
+      <span class="mk-project__avatar mk-project__avatar--more" aria-hidden="true"><i data-lucide="plus"></i></span>
+    </span>
+  </a>
   <section class="mk-project__presentation">
     <div data-project-content aria-live="polite">
       <h2>Dossiers visibles</h2>
@@ -99,8 +125,15 @@
     </div>
   </section>
 
-  {% if workspace.collaboration.members or workspace.collaboration.contributors %}
-  <section class="mk-project__people" aria-label="Personnes et responsabilités du Projet">
+  <section class="mk-project__people" id="project-people-details"
+           aria-label="Personnes et accès du Projet">
+    <h2>Personnes et accès</h2>
+    <div class="mk-project__person">
+      <div>
+        <strong>{% if workspace.owner.kind == "space" %}{{ workspace.owner.label }}{% else %}{{ workspace.owner.holder }}{% endif %}</strong>
+        <small>Porteur</small>
+      </div>
+    </div>
     <div class="mk-project__people-heading">
       <div>
         <h2>Personnes et responsabilités</h2>
@@ -147,7 +180,6 @@
       <p class="mk-project__hint">Interventions visibles uniquement.</p>
     {% endif %}
   </section>
-  {% endif %}
 
   {% if access_form %}
   <dialog id="project-authority" class="mk-project__dialog">
