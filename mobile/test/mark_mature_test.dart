@@ -92,6 +92,24 @@ void main() {
     },
   );
 
+  testWidgets('microphone is never presented as a successful capture without storage', (
+    tester,
+  ) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+    await tester.pump();
+    await tester.tap(find.text('Voix'));
+    await tester.pump();
+    expect(
+      find.text('L’enregistrement n’est pas disponible dans cette session.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Mark runtime switch does not display another Profile draft', (
     tester,
   ) async {
