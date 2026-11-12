@@ -1812,11 +1812,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                 _actionBar(project),
                                 const SizedBox(height: 14),
                                 _tabs(),
-                                if (_text(_map(project['horizon'])['description']).trim().isNotEmpty) ...[
+                                if (_text(
+                                  _map(project['horizon'])['description'],
+                                ).trim().isNotEmpty) ...[
                                   const SizedBox(height: 14),
                                   ProjectDescription(
-                                    key: ValueKey('project-description:${widget.id}'),
-                                    description: _text(_map(project['horizon'])['description']),
+                                    key: ValueKey(
+                                      'project-description:${widget.id}',
+                                    ),
+                                    description: _text(
+                                      _map(project['horizon'])['description'],
+                                    ),
                                   ),
                                 ],
                                 const SizedBox(height: 12),

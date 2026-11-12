@@ -35,10 +35,8 @@ class _ProjectDescriptionState extends State<ProjectDescription> {
     if (text.isEmpty) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-      height: 1.45,
-      color: scheme.onSurfaceVariant,
-    );
+    final style = Theme.of(context).textTheme.bodyMedium
+        ?.copyWith(height: 1.45, color: scheme.onSurfaceVariant);
     final direction = Directionality.of(context);
     final scale = MediaQuery.textScalerOf(context);
 
@@ -86,9 +84,7 @@ class _ProjectDescriptionState extends State<ProjectDescription> {
                         tooltip: _expanded
                             ? 'Replier les informations'
                             : 'Lire toutes les informations',
-                        onPressed: () => setState(
-                          () => _expanded = !_expanded,
-                        ),
+                        onPressed: () => setState(() => _expanded = !_expanded),
                         icon: Icon(
                           _expanded
                               ? Icons.keyboard_arrow_up_rounded
