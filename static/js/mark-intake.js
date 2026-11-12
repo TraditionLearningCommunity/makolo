@@ -118,6 +118,56 @@
       $('[data-mk-mark-preview-close]')?.focus();
     }
 
+    function closeAssetForm() {
+      const panel = $('[data-mk-mark-owner-panel]');
+      const ownerForm = $('[data-mk-mark-owner-form]');
+      if (panel) panel.hidden = true;
+      ownerForm?.reset();
+    }
+
+    function canSaveAsPersonalAsset(file) {
+      const name = (file?.name || '').toLowerCase();
+      return ['.pdf', '.docx', '.doc', '.txt', '.jpg', '.jpeg', '.png']
+        .some((extension) => name.endsWith(extension));
+    }
+
+    function openAssetForm(file) {
+      const panel = $('[data-mk-mark-owner-panel]');
+      const ownerForm = $('[data-mk-mark-owner-form]');
+      if (!panel || !ownerForm || !canSaveAsPersonalAsset(file)) return;
+      const fileInput = ownerForm.querySelector('input[name="file"][type="file"]');
+      if (!fileInput || typeof DataTransfer === 'undefined') {
+        announce('Ouvrez Mes documents pour sélectionner ce fichier et le conserver.');
+        return;
+      }
+      try {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        fileInput.files = transfer.files;
+      } catch (_) {
+        announce('Le navigateur ne permet pas ce transfert local. Utilisez Mes documents.');
+        return;
+      }
+      const title = ownerForm.elements.namedItem('title');
+      if (title) title.value = file.name.replace(/\\.[^.]+$/, '').slice(0, 220);
+      ['kind', 'sensitivity'].forEach((name) => {
+        const select = ownerForm.elements.namedItem(name);
+        if (!(select instanceof HTMLSelectElement)) return;
+        if (!select.querySelector('option[value=""]')) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = 'Choisir…';
+          option.disabled = true;
+          select.prepend(option);
+        }
+        select.value = '';
+      });
+      panel.hidden = false;
+      panel.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      title?.focus();
+      announce('Complétez le type et la confidentialité. Rien n’est encore envoyé.');
+    }
+
     function renderReferences() {
       const target = $('[data-mk-mark-references]');
       if (!target) return;
@@ -143,6 +193,16 @@
             if (file) previewFile(file);
           });
           item.appendChild(preview);
+          const source = attachments[Number(entry.value)];
+          if (source && canSaveAsPersonalAsset(source) && $('[data-mk-mark-owner-panel]')) {
+            const save = document.createElement('button');
+            save.type = 'button';
+            save.className = 'mk-mark-reference-save';
+            save.textContent = 'Conserver';
+            save.setAttribute('aria-label', 'Conserver ' + entry.label + ' dans Mes documents');
+            save.addEventListener('click', () => openAssetForm(source));
+            item.appendChild(save);
+          }
         }
         const remove = document.createElement('button');
         remove.type = 'button';
@@ -151,7 +211,10 @@
         remove.setAttribute('aria-label', 'Retirer ' + entry.label);
         remove.addEventListener('click', () => {
           if (entry.type === 'link') links = links.filter((url) => url !== entry.value);
-          else attachments.splice(Number(entry.value), 1);
+          else {
+            attachments.splice(Number(entry.value), 1);
+            closeAssetForm();
+          }
           resetConsent();
           renderReferences();
           persist();
@@ -173,6 +236,7 @@
         return;
       }
       attachments.push(...files);
+      closeAssetForm();
       resetConsent();
       renderReferences();
       announce('Pièces conservées dans cet onglet uniquement. Utilisez Mes documents pour les transmettre.');
@@ -200,6 +264,7 @@
     renderReferences();
     setMode('inline');
     $('[data-mk-mark-preview-close]')?.addEventListener('click', closePreview);
+    $('[data-mk-mark-owner-cancel]')?.addEventListener('click', closeAssetForm);
     $('[data-mk-mark-preview]')?.addEventListener('close', closePreview);
 
     root.querySelectorAll('[data-mk-mark-file-input]').forEach((picker) => {
@@ -372,6 +437,7 @@
     $('[data-mk-mark-clear]')?.addEventListener('click', () => {
       if (!window.confirm('Effacer votre brouillon de cet onglet ? Cette action ne revient pas sur les décisions déjà confirmées.')) return;
       closePreview();
+      closeAssetForm();
       if (recognizer) recognizer.abort();
       input.value = '';
       links = [];
