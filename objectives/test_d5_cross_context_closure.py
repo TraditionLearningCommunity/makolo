@@ -272,6 +272,11 @@ class D5CrossContextClosureTests(TestCase):
             [str(self.member.pk)],
         )
         self.assertEqual(own.data["data"]["mandates"], [])
+        self.assertEqual(people["people"][0]["profile_view"], "self")
+        self.assertEqual(
+            people["people"][0]["profile_url"],
+            reverse("sharing:passport-me"),
+        )
 
         # The owner sees both Assignment and Mandate facts for the member,
         # but the preview must show that human Profile only once.
