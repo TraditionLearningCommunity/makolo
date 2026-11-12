@@ -333,7 +333,7 @@ class _ConversationMediaSheetState extends State<ConversationMediaSheet> {
       widget.onPublished(id);
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Fichier non conservé pour envoi. Réessayer.');
+        setState(() => _error = 'Fichier non conservé.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
