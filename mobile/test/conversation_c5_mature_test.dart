@@ -616,4 +616,59 @@ void main() {
       expect(find.text('Point confirmé'), findsOneWidget);
     },
   );
+  testWidgets('C5: received invitations open from the Conversations header', (
+    tester,
+  ) async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path == '/api/v1/conversations/invitations/') {
+        return const MockResponse(
+          '{"count":1,"results":[{"id":"invitation-1",'
+          '"conversation_id":"conversation-1","status":"pending"}]}',
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return const MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.listProjectionKind,
+      schemaVersion: 1,
+      payload: {'count': 0, 'results': []},
+    );
+    await store.putProjection(
+      kind: ConversationRepository.invitationsProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'count': 1,
+        'results': [
+          {
+            'id': 'invitation-1',
+            'conversation_id': 'conversation-1',
+            'status': 'pending',
+          },
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(
+        repository: repository,
+        onOpen: (_) {},
+      ),
+    );
+    await tester.pump();
+    final entry = find.byKey(
+      const Key('conversation-invitations-open'),
+    );
+    expect(entry, findsOneWidget);
+    expect(find.byTooltip('Actualiser'), findsOneWidget);
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Actualiser les invitations'), findsOneWidget);
+    expect(find.text('Accepter'), findsWidgets);
+    expect(find.text('Refuser'), findsWidgets);
+  });
+
 }
