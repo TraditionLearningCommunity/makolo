@@ -114,6 +114,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   late Stream<OwnerSourceState> _owner;
   final _search = TextEditingController();
   final _transform = TransformationController();
+  final _pageScroll = ScrollController();
   _DossierMode _mode = _DossierMode.overview;
   _ListSort _sort = _ListSort.recent;
   _TimeScale _timeScale = _TimeScale.month;
@@ -125,6 +126,16 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   String? get _selectedSpaceSlug {
     final actor = widget.actorContext?.value;
     return actor is SpaceActorContext ? actor.space.slug : null;
+  }
+
+  void _selectMode(_DossierMode mode) {
+    if (_mode == mode) return;
+    setState(() => _mode = mode);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pageScroll.hasClients) {
+        _pageScroll.jumpTo(0);
+      }
+    });
   }
 
   void _resetPresentation() {
@@ -202,6 +213,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     _search.removeListener(_changed);
     _search.dispose();
     _transform.dispose();
+    _pageScroll.dispose();
     super.dispose();
   }
 
@@ -973,7 +985,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
         'Dépendances',
       ),
     ],
-    onSelected: (mode) => setState(() => _mode = mode),
+    onSelected: _selectMode,
   );
 
   Widget _journeyTile(Map<String, dynamic> row, {bool compact = false}) {
@@ -1280,7 +1292,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
             if (items.isNotEmpty)
               TextButton.icon(
-                onPressed: () => setState(() => _mode = _DossierMode.list),
+                onPressed: () => _selectMode(_DossierMode.list),
                 iconAlignment: IconAlignment.end,
                 icon: const Icon(Icons.chevron_right_rounded),
                 label: const Text('Tout voir'),
@@ -1315,7 +1327,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => setState(() => _mode = _DossierMode.list),
+                onPressed: () => _selectMode(_DossierMode.list),
                 icon: const Icon(Icons.list_rounded),
                 label: const Text('Toutes les démarches'),
               ),
@@ -1370,9 +1382,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 ListTile(
                   title: const Text('Explorer les dépendances'),
                   trailing: const Icon(Icons.arrow_forward_rounded),
-                  onTap: () => setState(
-                    () => _mode = _DossierMode.dependencies,
-                  ),
+                  onTap: () => _selectMode(_DossierMode.dependencies),
                 ),
               ],
             ),
@@ -2106,6 +2116,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             return RefreshIndicator(
               onRefresh: _refresh,
               child: ListView(
+                controller: _pageScroll,
                 key: PageStorageKey<String>(
                   'dossier-workspace-scroll:${_spaceSlug ?? 'personal'}',
                 ),
