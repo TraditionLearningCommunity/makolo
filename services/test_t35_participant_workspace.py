@@ -10,7 +10,7 @@ from journeys.collaboration_models import JourneyArtifactKind, JourneyNote, Jour
 from journeys.collaboration_services import create_artifact
 from journeys.models import Journey, JourneyStatus
 
-from .models import ServiceKind
+from .models import ServiceCurrentOutcome, ServiceJourneyContext, ServiceKind
 from .services import create_service_details, create_service_journey
 
 
@@ -71,13 +71,17 @@ class ServiceParticipantWorkspaceTests(TestCase):
             status=JourneyStatus.FULFILLED,
         )
         self.journey.refresh_from_db()
+        ServiceJourneyContext.objects.filter(journey=self.journey).update(
+            current_outcome=ServiceCurrentOutcome.UNSUCCESSFUL,
+        )
         self.client.force_login(self.participant)
         response = self.client.get(
             reverse("core:participant-journey-detail", args=[self.journey.pk])
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Suivi terminé dans Makolo")
-        self.assertNotContains(response, "Échec externe")
+        self.assertContains(response, "Échec externe")
+        self.assertNotContains(response, "Démarche réalisée")
 
     def test_foreign_participant_still_cannot_load_services_workspace(self):
         self.client.force_login(self.other)
