@@ -217,8 +217,86 @@ Les workflows du HEAD de #522 changent pendant les travaux parallèles :
 leur état doit être relevé à nouveau sur le commit final. Aucun verdict
 global vert ni réussite Android n'est déclaré ici.
 
-**Écarts restant à décider/vérifier avant une clôture produit exhaustive :**
-l'agrégation globale des invitations envoyées et demandes de participation
-dans un lieu unique (les services présents sont attachés aux Conversations),
-ainsi que la recette réelle des médias/permissions sur appareils. Aucune
-API ou information fictive n'est ajoutée pour masquer ces écarts.
+**Écarts à la date du premier durcissement :** l'agrégation des
+invitations et demandes était encore incomplète. Le complément de la section 8
+ci-dessous en décrit désormais l'implémentation. La recette réelle des médias,
+permissions et appareils reste distincte du code poussé.
+
+
+## 8. Fermeture du suivi des participations — 12 novembre 2026
+
+**Périmètre :** un seul territoire *Conversations*, sans table Inbox, modèle
+de participant supplémentaire, permission implicite, migration ou nouveau
+scheduler. Le propriétaire reste Conversations ; les Groupes, Espaces,
+Profils et mandats gardent leurs droits canoniques.
+
+### Projection propriétaire
+
+`conversations/participation_inbox.py` compose, pour le viewer réel :
+
+- `sent_results` — ses invitations individuelles et collectives encore en
+  attente, sur des Conversations qu'il peut toujours gérer ;
+- `join_requests_to_decide` — demandes d'entrée effectivement visibles
+  par une autorité actuelle, avec `can_approve` recalculé ;
+- `my_join_requests` — demandes personnelles en attente, sans exposer le
+  titre, le contexte privé ni la liste des membres lorsqu'il n'existe pas de
+  droit de lecture ;
+- `more_sent`, `more_join_requests`, `more_my_requests` — signalement
+  honnête des résultats bornés.
+
+L'API privée **existante** `GET /api/v1/conversations/invitations/` conserve
+`results`, `count` et `collective_results` pour la compatibilité mobile,
+et ajoute ces nouvelles sections. Les identifiants servant à décider sont
+`username`, `Group.slug`, `Organization.slug`, jamais une recherche
+par nom ambigu. La source d'une invitation reçue est présentée au moyen du
+`username` de l'émetteur et du seul type de contexte, pas du titre privé
+de la Conversation. `can_accept` est dérivé du mandat, de l'état actif,
+du consentement de contact et des blocages actuels.
+
+La collection est bornée par section à 50 éléments et les lignes sont
+filtrées **après** vérification owner ; aucune fenêtre fixe de demandes
+d'autres collectifs ne peut produire un faux zéro. Un indicateur de suite
+n'est pas une promesse de chargement exhaustif ni un comptage global.
+
+### Web et Flutter
+
+- Sur la liste Web existante, les invitations reçues, envoyées, demandes à
+  examiner et demandes personnelles sont rassemblées sans duplication du
+  contrôleur : annulation et décisions POST avec CSRF réutilisent
+  `ConversationParticipantsWebView` et les services propriétaires.
+- Dans Flutter, le volet ouvert depuis l'en-tête Conversations lit d'abord
+  la projection privée locale par Profil, puis réconcilie ; les sections
+  reçues/envoyées/à examiner/mes demandes sont distinctes. Le badge
+  représente seulement les décisions reçues ou à examiner, pas toutes les
+  invitations envoyées.
+- Les APIs de gestion existantes restent propriétaires des mutations.
+  Les réponses HTTP doivent confirmer l'identifiant **et** l'état précis
+  attendu. Une décision confirmée retire uniquement sa ligne locale sans
+  rajeunir artificiellement le reste du snapshot ; la relecture réseau
+  peut échouer sans annuler l'accusé propriétaire.
+- Le volet de détail des participants applique aussi `can_approve`, bloque
+  les doubles décisions et affiche les erreurs à l'endroit de l'action.
+  Les identifiants des demandeurs, et non leurs noms privés, sont présentés.
+
+### Autorité et non-régression
+
+Une invitation ne permet plus d'accepter une Conversation fermée, un Profil
+inactif, une politique de contact fermée, une relation bloquée, un mandat
+d'émetteur devenu invalide ou une représentation Space sans permission
+`SPACE_CONVERSATIONS_PUBLISH`. Refuser reste possible. Une nouvelle
+adhésion ou une approbation ne peut agir sur une Conversation fermée ni
+sur un demandeur devenu inéligible.
+
+Couverture ajoutée :
+`conversations/test_participation_inbox.py` (isolation entre viewers,
+demandeur inéligible, état fermé, contact fermé, autorité Space, identité
+privée et parité Web/API) ;
+`mobile/test/conversation_c5_mature_test.dart` (affichage des sections,
+action annulée réconciliée et refus d'un accusé invalide). Les autres tests
+existants restent inchangés.
+
+**Vérification de cette intervention :** revue statique des contrats et
+fichiers GitHub, code et tests ajoutés/poussés sur #522. Aucune CI, exécution
+Django/PostgreSQL, analyse/formatage Flutter ou recette Android n'a été
+déclenchée ici, conformément à la demande. Le statut de compilation et de
+recette reste non attesté. Aucune fusion avec `main`.
