@@ -26,7 +26,12 @@ void main() {
           'objective': {'title': 'Un résultat à coordonner'},
           'owner': {'kind': 'space', 'label': 'Collectif A'},
           'assignments': [
-            {'id': 'a1', 'label': 'Alice', 'profile_id': 'alice-profile'},
+            {
+              'id': 'a1',
+              'label': 'Alice',
+              'profile_id': 'alice-profile',
+              'profile_url': '/people/alice-profile',
+            },
           ],
           'mandates': [
             {
@@ -58,6 +63,12 @@ void main() {
       await tester.ensureVisible(find.text('Alice'));
       await tester.tap(find.text('Alice'));
       expect(selected, 'alice-profile');
+
+      // Bob's Mandate is visible, but his private Profile is not a link.
+      selected = null;
+      await tester.ensureVisible(find.text('Bob'));
+      await tester.tap(find.text('Bob'));
+      expect(selected, isNull);
     },
   );
 
