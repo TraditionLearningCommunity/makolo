@@ -29,8 +29,9 @@ Ce journal suit la maturation du **produit déjà livré en code**, sans rouvrir
 ## 3 — Web N1, carte et N2 · CODE MODIFIÉ
 
 - `templates/discovery/home.html` : liste et carte dans une même grille en écran large, modes compacts à icônes accessibles, résultats et états vides plus discrets.
+- Le panneau historique `discovery/_preview.html` n'est plus monté : aucun geste actif ne l'alimentait. La fiche N2 reste la profondeur de consultation; le champ Web récupère toute sa largeur, même hors carte.
 - `static/js/discovery-ux.js` : état actif visible de la bascule carte/liste ; le runtime cartographique existant garde la main sur caméra, sélection et affichage.
-- `templates/discovery/_universal_card.html` : visuel publié en tête ouvrant N2, hauteur bornée, quatre faits utiles visibles avec ordre par famille, faits secondaires repliables et ressources en une seule divulgation.
+- `templates/discovery/_universal_card.html` : visuel publié en tête ouvrant N2, hauteur bornée, quatre faits utiles visibles avec ordre par famille, faits secondaires repliables et ressources en une seule divulgation. Le titre ouvre également le même N2 plutôt qu'une destination différente.
 - `templates/discovery/_action_bar.html` : Save / owner / Sharing factorisés, avec commandes iconographiques accessibles. Aucun comportement de mutation déplacé.
 - `templates/discovery/possibility_detail.html` : média agrandissable, transport sans photo présenté par le trajet réellement connu, informations structurées, Save et Sharing accessibles depuis N2 personnel, conditions formulées humainement.
 - `templates/discovery/watch_list.html` et `watch_detail.html` : vues de Veilles moins administratives, résultats ouverts via les routes existantes et actions accessibles, suppression protégée par confirmation.
