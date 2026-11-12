@@ -282,3 +282,38 @@ class MaturePersonalExperienceTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'data-mk-mark-clear-selection')
+
+    def test_mark_web_reuses_canonical_personal_asset_form_for_explicit_upload(self):
+        response = self.client.get(reverse("core:makolo-mark"))
+        self.assertEqual(response.status_code, 200)
+        form = response.context["mark_asset_form"]
+        self.assertEqual(
+            set(form.fields),
+            {"title", "kind", "sensitivity", "issued_at", "expires_at", "file"},
+        )
+        self.assertContains(response, 'data-mk-mark-owner-panel')
+        self.assertContains(response, 'data-mk-mark-owner-form')
+        self.assertContains(response, 'enctype="multipart/form-data"')
+        self.assertContains(response, reverse("personal_assets:add"))
+        self.assertContains(response, 'name="sensitivity"')
+        self.assertContains(response, 'name="kind"')
+        self.assertContains(response, 'name="file"')
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_untrusted_mark_file_metadata_never_becomes_owner_upload(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "unsupported",
+            "message": "Traitement de document indisponible depuis Mark.",
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Conserver ce document",
+                "kind": "identity_document",
+                "sensitivity": "normal",
+                "file_id": "fake-mark-local-file",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(orchestrate.call_args.kwargs["context"], {})
+        self.assertEqual(orchestrate.call_args.kwargs["input_kind"], "text")
