@@ -3421,25 +3421,23 @@ class _PointCardState extends State<_PointCard> {
               style: theme.bodySmall?.copyWith(color: muted),
             ),
           ),
-        if (!widget.readOnly) ...[
+        if (!widget.readOnly)
           Align(
             alignment: Alignment.centerRight,
-            child: MakoloActionButton(
+            child: IconButton(
               key: Key('conversation-point-revisit-${point.id}'),
-              label: _busy
-                  ? 'Mise à jour…'
-                  : point.revisit
-                  ? 'Ne plus revoir ce Point'
-                  : 'Revoir ce Point',
-              icon: point.revisit
-                  ? Icons.bookmark_added_rounded
-                  : Icons.bookmark_add_outlined,
+              tooltip: point.revisit
+                  ? 'Ne plus revoir plus tard'
+                  : 'Revoir plus tard',
+              icon: Icon(
+                point.revisit
+                    ? Icons.bookmark_added_rounded
+                    : Icons.bookmark_add_outlined,
+              ),
+              color: muted,
               onPressed: _busy ? null : _toggleRevisit,
-              busy: _busy,
-              appearance: MakoloActionAppearance.quiet,
             ),
           ),
-        ],
         if (point.acknowledged)
           Padding(
             padding: const EdgeInsets.only(top: MakoloSpacing.sm),
