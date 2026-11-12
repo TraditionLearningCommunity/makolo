@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show mapEquals;
+import 'package:flutter/foundation.dart' show mapEquals, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -27,6 +28,7 @@ import '../../platform/sharing/shared_payload_coordinator.dart';
 import '../../platform/sharing/system_share_receiver.dart';
 import '../../runtime/runtime_ingress.dart';
 import '../../runtime/runtime_providers.dart';
+import 'mark_dictation_capture.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
 import 'mark_voice_capture.dart';
@@ -63,6 +65,7 @@ class _MarkScreenState extends State<MarkScreen> {
   NativeFileAcquisitionCoordinator? _files;
   ProfileFileStore? _voiceStore;
   bool _voiceCapture = false;
+  bool _dictating = false;
   String? _pendingConfirmationCode;
   String? _pendingConfirmationKey;
   Stream<StoredProjection?>? _meStream;
@@ -111,6 +114,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _attachments = const [];
       _links = const [];
       _voiceCapture = false;
+      _dictating = false;
       _voiceStore = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
@@ -151,6 +155,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _attachments = const [];
       _links = const [];
       _voiceCapture = false;
+      _dictating = false;
       _voiceStore = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
@@ -293,6 +298,7 @@ class _MarkScreenState extends State<MarkScreen> {
         _restoring ||
         _busy ||
         _voiceCapture ||
+        _dictating ||
         !mounted ||
         widget.runtime.drafts == null) {
       return;
@@ -429,6 +435,71 @@ class _MarkScreenState extends State<MarkScreen> {
     }
   }
 
+  Future<void> _openVoiceInput() async {
+    if (_busy || _restoring || _voiceCapture || _dictating) return;
+    final revision = _draftRevision;
+    var canDictate = false;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        canDictate = await const MethodChannel(
+          'makolo/native_dictation',
+        ).invokeMethod<bool>('available') == true;
+      } on Object {
+        // No installed system recognition service is a valid configuration.
+      }
+    }
+    if (!mounted || revision != _draftRevision) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (canDictate)
+              ListTile(
+                leading: const Icon(Icons.mic_outlined),
+                title: const Text('Dicter une demande'),
+                subtitle: const Text(
+                  'Reconnaissance du téléphone, selon la langue et le réseau',
+                ),
+                onTap: () => Navigator.pop(sheetContext, 'dictation'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.graphic_eq),
+              title: const Text('Enregistrer un audio'),
+              subtitle: const Text('Conserver une pièce locale, sans transcription'),
+              onTap: () => Navigator.pop(sheetContext, 'audio'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || revision != _draftRevision) return;
+    if (choice == 'dictation') {
+      setState(() => _dictating = true);
+    } else if (choice == 'audio') {
+      await _openVoiceCapture();
+    }
+  }
+
+  void _acceptDictation(String value) {
+    if (!_dictating || !mounted || value.trim().isEmpty) return;
+    setState(() {
+      _input.text = [
+        if (_input.text.trim().isNotEmpty) _input.text.trim(),
+        value.trim(),
+      ].join('\n');
+      _dictating = false;
+      _result = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
+    });
+    unawaited(_saveDraft());
+    if (_input.text.length > 600) {
+      _show('Texte conservé. Raccourcissez votre demande avant de continuer.');
+    }
+  }
+
   Future<void> _openVoiceCapture() async {
     if (_busy || _voiceCapture) return;
     final revision = _draftRevision;
@@ -469,6 +540,7 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted || revision != _draftRevision || actor != _actor) return;
     setState(() {
       _voiceCapture = false;
+      _dictating = false;
       _voiceStore = null;
     });
   }
@@ -860,8 +932,12 @@ class _MarkScreenState extends State<MarkScreen> {
   }
 
   Future<void> _submit() async {
-    if (_busy || _restoring) return;
+    if (_busy || _restoring || _voiceCapture || _dictating) return;
     final input = _input.text.trim();
+    if (input.length > 600) {
+      _show('Raccourcissez votre demande à 600 caractères avant de continuer.');
+      return;
+    }
     if (input.isEmpty && _attachments.isEmpty && _links.isEmpty) {
       _show('Écrivez une demande ou ajoutez une pièce.');
       return;
@@ -1158,7 +1234,7 @@ class _MarkScreenState extends State<MarkScreen> {
                         ),
                         MakoloActionButton(
                           label: 'Voix',
-                          onPressed: _busy ? null : _openVoiceCapture,
+                          onPressed: _busy ? null : _openVoiceInput,
                           appearance: MakoloActionAppearance.secondary,
                           icon: Icons.mic_none,
                         ),
@@ -1170,6 +1246,16 @@ class _MarkScreenState extends State<MarkScreen> {
                         ),
                       ],
                     ),
+                    if (_dictating) ...[
+                      const SizedBox(height: 12),
+                      MarkDictationCapture(
+                        key: ValueKey('dictation:${widget.runtime.session?.profileId}:$_owner'),
+                        onText: _acceptDictation,
+                        onClose: () {
+                          if (mounted) setState(() => _dictating = false);
+                        },
+                      ),
+                    ],
                     if (_voiceCapture && _voiceStore != null) ...[
                       const SizedBox(height: 12),
                       MarkVoiceCapture(
@@ -1192,7 +1278,7 @@ class _MarkScreenState extends State<MarkScreen> {
                     const SizedBox(height: 20),
                     MakoloActionButton(
                       appearance: MakoloActionAppearance.primary,
-                      onPressed: _busy || _restoring || _voiceCapture
+                      onPressed: _busy || _restoring || _voiceCapture || _dictating
                           ? null
                           : _submit,
                       busy: _busy,
