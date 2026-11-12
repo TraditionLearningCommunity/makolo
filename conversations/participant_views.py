@@ -198,9 +198,12 @@ class ConversationCollectiveRespondWebView(LoginRequiredMixin, View):
                     accept=decision == "accept",
                 )
                 expected = "active" if decision == "accept" else "declined"
-                if result.status != expected:
+                if result.status == "expired":
+                    messages.info(request, "Cette invitation a expiré.")
+                elif result.status != expected:
                     raise ValidationError("Cette invitation a changé. Actualisez son état.")
-                messages.success(request, "Décision enregistrée.")
+                else:
+                    messages.success(request, "Décision enregistrée.")
             except (ValidationError, PermissionDenied) as exc:
                 messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
         return redirect("conversations:list")
