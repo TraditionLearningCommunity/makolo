@@ -539,6 +539,13 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
         raise PermissionDenied("Seule la personne invitée peut répondre.")
     if locked.status != ConversationInvitationStatus.PENDING:
         return locked
+    if accept:
+        if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
+            raise ValidationError("Cette Conversation n'accepte plus d'invitations.")
+        # Consent cannot revive an access that has become blocked or closed
+        # since the invitation was sent.
+        from .participant_services import _target_can_be_invited
+        _target_can_be_invited(locked.created_by, actor, locked.conversation)
     now = timezone.now()
     if locked.expires_at and now >= locked.expires_at:
         locked.status = ConversationInvitationStatus.EXPIRED
@@ -562,7 +569,7 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
 @transaction.atomic
 def create_join_request(*, actor, conversation: Conversation, represented_space=None, client_reference=None):
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
-    if locked.entry_mode != ConversationEntryMode.REQUEST:
+    if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.REQUEST:
         raise ValidationError("Cette Conversation n’accepte pas de demandes d’entrée.")
     if not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
@@ -594,6 +601,12 @@ def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, app
         raise PermissionDenied("Vous ne pouvez pas traiter cette demande d’entrée.")
     if locked.status != ConversationJoinRequestStatus.PENDING:
         return locked
+    if approve:
+        if (locked.conversation.lifecycle != ConversationLifecycle.OPEN
+                or locked.conversation.entry_mode != ConversationEntryMode.REQUEST):
+            raise ValidationError("Cette Conversation n'accepte plus d'entrées.")
+        if not context_base_eligible(locked.requester, locked.conversation.context):
+            raise PermissionDenied("La demande n'est plus éligible dans ce contexte.")
     locked.status = ConversationJoinRequestStatus.APPROVED if approve else ConversationJoinRequestStatus.REJECTED
     locked.responded_at = timezone.now()
     locked.save(update_fields=["status", "responded_at", "updated_at"])
@@ -611,7 +624,7 @@ def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, app
 @transaction.atomic
 def join_conversation(*, actor, conversation: Conversation):
     locked = Conversation.objects.select_for_update(of=("self",)).select_related("context").get(pk=conversation.pk)
-    if locked.entry_mode != ConversationEntryMode.JOIN:
+    if locked.lifecycle != ConversationLifecycle.OPEN or locked.entry_mode != ConversationEntryMode.JOIN:
         raise ValidationError("Cette Conversation ne permet pas l’adhésion directe.")
     if not context_base_eligible(actor, locked.context):
         raise PermissionDenied("Cette Conversation n’est pas disponible dans votre contexte actuel.")
