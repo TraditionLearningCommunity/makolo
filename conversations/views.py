@@ -29,7 +29,10 @@ from .point_services import (
 from .history import page_points_for_profile
 from .timeline import recent_timeline_for_profile, group_timeline_points
 from .attention_projection import conversation_attention_sections
-from .participant_services import collective_invitation_inbox, invitation_accept_allowed
+from .participant_services import (
+    collective_invitation_inbox, invitation_accept_allowed,
+    collective_invitation_accept_allowed,
+)
 from .participation_inbox import participation_inbox_for_profile
 from .presentation import (
     catch_up_summary,
@@ -104,7 +107,15 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 "q": q,
                 "pending_invitations": invitations,
                 "pending_collective_invitations": (
-                    collective_invitation_inbox(self.request.user)
+                    [
+                        {
+                            "item": item,
+                            "can_accept": collective_invitation_accept_allowed(
+                                self.request.user, item,
+                            ),
+                        }
+                        for item in collective_invitation_inbox(self.request.user)
+                    ]
                     if not q and tab != "archived" else []
                 ),
                 "participation_overview": (
