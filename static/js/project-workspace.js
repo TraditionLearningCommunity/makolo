@@ -17,6 +17,41 @@
 
   const $ = (selector) => root.querySelector(selector);
   const area = $('[data-project-content]');
+  // Project information is shared between every view, and starts fully
+  // readable without JavaScript. Fold only if its real rendered height
+  // exceeds three lines at the current viewport/font scale.
+  const descriptionRoot = $('[data-project-description]');
+  const descriptionText = $('[data-project-description-text]');
+  const descriptionToggle = $('[data-project-description-toggle]');
+  let descriptionExpanded = false;
+  const updateDescription = () => {
+    if (!descriptionRoot || !descriptionText || !descriptionToggle) return;
+    descriptionRoot.classList.remove('is-collapsed');
+    const style = window.getComputedStyle(descriptionText);
+    const lineHeight = parseFloat(style.lineHeight) ||
+      (parseFloat(style.fontSize) || 15) * 1.45;
+    const overflowed = descriptionText.getBoundingClientRect().height >
+      lineHeight * 3 + 2;
+    descriptionToggle.hidden = !overflowed;
+    descriptionRoot.classList.toggle(
+      'is-collapsed', overflowed && !descriptionExpanded,
+    );
+    descriptionToggle.setAttribute(
+      'aria-expanded', String(overflowed && descriptionExpanded),
+    );
+    const label = descriptionExpanded
+      ? 'Replier les informations' : 'Lire toutes les informations';
+    descriptionToggle.setAttribute('aria-label', label);
+    descriptionToggle.setAttribute('title', label);
+  };
+  if (descriptionRoot && descriptionToggle) {
+    descriptionToggle.addEventListener('click', () => {
+      descriptionExpanded = !descriptionExpanded;
+      updateDescription();
+    });
+    window.addEventListener('resize', updateDescription);
+    updateDescription();
+  }
   const more = $('[data-project-more]');
   const moreButton = $('[data-project-more-button]');
   const moreError = $('[data-project-more-error]');
