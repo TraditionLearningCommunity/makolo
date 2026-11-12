@@ -23,7 +23,7 @@ from .audience_models import (
     ConversationAudienceRuleOperation,
 )
 from .audience_services import add_audience_rule, create_audience_set
-from .core_models import ConversationContextKind
+from .core_models import ConversationContextKind, ConversationLifecycle
 from .point_models import ConversationPointKind, ConversationPointResponseMode
 from .point_services import create_point
 from .services import ensure_context_conversation
@@ -176,3 +176,9 @@ class ConversationAttentionPerformanceTests(TestCase):
         items = attention_points_for_profile(self.profile, limit=1)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0].conversation_id, self.conversation.pk)
+
+    def test_closed_conversation_has_no_attention(self):
+        self._create_attention_points(1)
+        self.conversation.lifecycle = ConversationLifecycle.CLOSED
+        self.conversation.save(update_fields=["lifecycle"])
+        self.assertEqual(attention_points_for_profile(self.profile, limit=1), [])
