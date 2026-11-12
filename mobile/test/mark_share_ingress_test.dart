@@ -29,25 +29,31 @@ void main() {
     expect(ingress.hasPendingShare, isFalse);
   });
 
-  test('temporary share queue stays bounded and leaves no background owner', () async {
-    final ingress = RuntimeIngress();
-    addTearDown(ingress.close);
-    for (var i = 0; i < 8; i++) {
-      ingress.offerShare(
-        SharedPayload(
-          kind: SharedPayloadKind.text,
-          text: 'shared-$i',
-        ),
-        profileId: 'profile-a',
-      );
-    }
-    final entries = <String>[];
-    while (ingress.hasPendingShare) {
-      final next = ingress.takeShare(profileId: 'profile-a');
-      if (next?.text != null) entries.add(next!.text!);
-    }
-    expect(entries, ['shared-3', 'shared-4', 'shared-5', 'shared-6', 'shared-7']);
-    ingress.discardShares();
-    expect(ingress.hasPendingShare, isFalse);
-  });
+  test(
+    'temporary share queue stays bounded and leaves no background owner',
+    () async {
+      final ingress = RuntimeIngress();
+      addTearDown(ingress.close);
+      for (var i = 0; i < 8; i++) {
+        ingress.offerShare(
+          SharedPayload(kind: SharedPayloadKind.text, text: 'shared-$i'),
+          profileId: 'profile-a',
+        );
+      }
+      final entries = <String>[];
+      while (ingress.hasPendingShare) {
+        final next = ingress.takeShare(profileId: 'profile-a');
+        if (next?.text != null) entries.add(next!.text!);
+      }
+      expect(entries, [
+        'shared-3',
+        'shared-4',
+        'shared-5',
+        'shared-6',
+        'shared-7',
+      ]);
+      ingress.discardShares();
+      expect(ingress.hasPendingShare, isFalse);
+    },
+  );
 }

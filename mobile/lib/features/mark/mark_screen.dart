@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart' show mapEquals, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show mapEquals, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -441,9 +442,10 @@ class _MarkScreenState extends State<MarkScreen> {
     var canDictate = false;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        canDictate = await const MethodChannel(
-          'makolo/native_dictation',
-        ).invokeMethod<bool>('available') == true;
+        canDictate =
+            await const MethodChannel('makolo/native_dictation')
+                .invokeMethod<bool>('available') ==
+            true;
       } on Object {
         // No installed system recognition service is a valid configuration.
       }
@@ -467,7 +469,9 @@ class _MarkScreenState extends State<MarkScreen> {
             ListTile(
               leading: const Icon(Icons.graphic_eq),
               title: const Text('Enregistrer un audio'),
-              subtitle: const Text('Conserver une pièce locale, sans transcription'),
+              subtitle: const Text(
+                'Conserver une pièce locale, sans transcription',
+              ),
               onTap: () => Navigator.pop(sheetContext, 'audio'),
             ),
           ],
@@ -1249,7 +1253,9 @@ class _MarkScreenState extends State<MarkScreen> {
                     if (_dictating) ...[
                       const SizedBox(height: 12),
                       MarkDictationCapture(
-                        key: ValueKey('dictation:${widget.runtime.session?.profileId}:$_owner'),
+                        key: ValueKey(
+                          'dictation:${widget.runtime.session?.profileId}:$_owner',
+                        ),
                         onText: _acceptDictation,
                         onClose: () {
                           if (mounted) setState(() => _dictating = false);
@@ -1278,7 +1284,8 @@ class _MarkScreenState extends State<MarkScreen> {
                     const SizedBox(height: 20),
                     MakoloActionButton(
                       appearance: MakoloActionAppearance.primary,
-                      onPressed: _busy || _restoring || _voiceCapture || _dictating
+                      onPressed:
+                          _busy || _restoring || _voiceCapture || _dictating
                           ? null
                           : _submit,
                       busy: _busy,
