@@ -2042,9 +2042,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             child: const SizedBox(
               width: 48,
               height: 48,
-              child: Center(
-                child: Icon(Icons.info_outline_rounded, size: 18),
-              ),
+              child: Center(child: Icon(Icons.info_outline_rounded, size: 18)),
             ),
           ),
         ),

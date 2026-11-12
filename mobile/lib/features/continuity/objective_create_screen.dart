@@ -281,11 +281,15 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     const SizedBox(height: 18),
                     MakoloActionButton(
                       label: 'Ouvrir la réalisation',
-                      onPressed: !_actorValid ||
+                      onPressed:
+                          !_actorValid ||
                               _submitting ||
                               widget.kind != _confirmedKind ||
                               widget.spaceActor?.slug != _confirmedSpaceSlug ||
-                              !identical(widget.repository, _confirmedRepository)
+                              !identical(
+                                widget.repository,
+                                _confirmedRepository,
+                              )
                           ? null
                           : () => widget.onCreated(confirmedId),
                       appearance: MakoloActionAppearance.primary,
