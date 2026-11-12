@@ -1608,8 +1608,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         if (rows.isEmpty)
           _empty('Aucun dossier visible pour le moment.')
         else
-          for (final row in rows.take(6)) _dossierCard(row, project),
-        if (rows.length > 6)
+          for (final row in rows.take(4)) _dossierCard(row, project),
+        if (rows.length > 4)
           MakoloActionButton(
             label: 'Voir les dossiers',
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
