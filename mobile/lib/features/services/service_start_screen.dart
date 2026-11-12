@@ -6,6 +6,25 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../design/action_controls.dart';
+import '../../network/api_error.dart';
+
+/// Client handling of the server response; never a substitute for its decision.
+enum ServiceStartFailureKind { rejected, conflict, unavailable, retryable }
+
+ServiceStartFailureKind classifyServiceStartFailure(Object error) {
+  if (error is MakoloApiError) {
+    if (error.statusCode == 400 || error.statusCode == 422) {
+      return ServiceStartFailureKind.rejected;
+    }
+    if (error.statusCode == 409) {
+      return ServiceStartFailureKind.conflict;
+    }
+    if (error.statusCode == 401 || error.statusCode == 403 || error.statusCode == 404) {
+      return ServiceStartFailureKind.unavailable;
+    }
+  }
+  return ServiceStartFailureKind.retryable;
+}
 
 /// Native Services owner handoff. The server owns eligibility, idempotence
 /// and the actual Journey; Discovery only provides the typed Service identity.
@@ -32,6 +51,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   bool _loading = true;
   bool _submitting = false;
   bool _attempted = false;
+  bool _conflicted = false;
   String? _error;
   Map<String, dynamic>? _requirements;
   String? _serviceTitle;
@@ -55,7 +75,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
               ? previous['objective'] as String
               : '';
           _selectedOpportunity = previous['opportunity'] as String?;
-          _attempted = true;
+          // Missing flag means a legacy saved operation pending replay.
+          _attempted = previous['attempted'] != false;
         }
       } on Object {
         // Idempotence is still enforced by the owner when a retry is possible.
@@ -169,6 +190,30 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     }
   }
 
+  Future<void> _newIntention() async {
+    if (!mounted || _submitting) return;
+    final key = _newOperationKey();
+    setState(() {
+      _operationKey = key;
+      _attempted = false;
+      _conflicted = false;
+    });
+    try {
+      await widget.runtime.interactions?.save(_interactionId, {
+        'idempotency_key': key,
+        'objective': _objective.text.trim(),
+        'opportunity': _selectedOpportunity,
+        'attempted': false,
+      });
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = 'Votre brouillon reste visible, mais son enregistrement local a échoué.';
+        });
+      }
+    }
+  }
+
   Future<void> _start() async {
     if (_loading || _submitting || _requirements == null) return;
     if (_requirements!['opportunity_required'] == true &&
@@ -179,6 +224,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       _submitting = true;
       _error = null;
       _attempted = true;
+      _conflicted = false;
     });
     try {
       final store = widget.runtime.interactions;
@@ -187,6 +233,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
           'idempotency_key': _operationKey,
           'objective': _objective.text.trim(),
           'opportunity': _selectedOpportunity,
+          'attempted': true,
         });
       }
       final api = widget.runtime.api;
@@ -211,10 +258,49 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         unawaited(store.clear(_interactionId).catchError((Object _) {}));
       }
       context.push('/journeys/${journey['id']}');
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      switch (classifyServiceStartFailure(error)) {
+        case ServiceStartFailureKind.rejected:
+          // The server explicitly rejected this payload. A corrected
+          // attempt requires a fresh key while retaining the editable draft.
+          setState(() {
+            _attempted = false;
+            _operationKey = _newOperationKey();
+            _error = 'Cette demande doit être corrigée avant de continuer.';
+          });
+          try {
+            await widget.runtime.interactions?.save(_interactionId, {
+              'idempotency_key': _operationKey,
+              'objective': _objective.text.trim(),
+              'opportunity': _selectedOpportunity,
+              'attempted': false,
+            });
+          } on Object {
+            if (mounted) {
+              setState(() {
+                _error = 'La demande doit être corrigée. Le brouillon local n’a pas pu être enregistré.';
+              });
+            }
+          }
+        case ServiceStartFailureKind.conflict:
+          setState(() {
+            _conflicted = true;
+            _error = 'Cette clé correspond à une autre demande. Vérifiez vos démarches en cours avant de recommencer.';
+          });
+        case ServiceStartFailureKind.unavailable:
+          setState(() {
+            _error = 'Ce Service n’est plus accessible avec votre compte actuel.';
+          });
+        case ServiceStartFailureKind.retryable:
+          setState(() {
+            _error = 'Aucune confirmation reçue. Réessayez sans modifier la demande.';
+          });
+      }
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error = 'Le démarrage n’a pas été confirmé. Réessayez sans changer la demande.';
+        _error = 'Aucune confirmation reçue. Réessayez sans modifier la demande.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -276,6 +362,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 onSubmitted: (_) => _searchOpportunities(),
               ),
               DropdownButtonFormField<String>(
+                key: ValueKey('service-opportunity-${_selectedOpportunity ?? 'none'}'),
                 initialValue: _selectedOpportunity,
                 isExpanded: true,
                 decoration: InputDecoration(
@@ -317,6 +404,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
             MakoloActionButton(
               onPressed:
                   _submitting ||
+                      _conflicted ||
                       (needsOpportunity && _selectedOpportunity == null)
                   ? null
                   : _start,
@@ -327,6 +415,19 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   : _attempted
                   ? 'Reprendre la demande'
                   : 'Commencer',
+            ),
+          ],
+          if (_conflicted) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Une demande a peut-être déjà été enregistrée. Consultez En cours avant d’en créer une autre.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            MakoloActionButton(
+              onPressed: _submitting ? null : _newIntention,
+              label: 'Créer une nouvelle demande',
+              appearance: MakoloActionAppearance.secondary,
             ),
           ],
           if (_error != null) ...[
