@@ -1,4 +1,22 @@
 (() => {
+  // Native history keeps the exact scroll and selection on a true N2 return.
+  // Deep links keep their safe server-generated href instead.
+  const returnLink = document.querySelector('[data-discovery-return]');
+  if (returnLink) {
+    returnLink.addEventListener('click', (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey ||
+          event.shiftKey || event.altKey || window.history.length < 2 ||
+          !document.referrer) return;
+      const destination = new URL(returnLink.href, window.location.href);
+      const previous = new URL(document.referrer, window.location.href);
+      if (destination.origin !== previous.origin ||
+          destination.pathname !== previous.pathname ||
+          destination.search !== previous.search) return;
+      event.preventDefault();
+      window.history.back();
+    });
+  }
+
   const form = document.getElementById('discovery-search-form');
   const latitude = document.getElementById('discover-lat');
   const longitude = document.getElementById('discover-lon');
