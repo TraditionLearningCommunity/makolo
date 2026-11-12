@@ -41,8 +41,11 @@ abstract interface class SystemShareReceiver {
 class AndroidSystemShareReceiver implements SystemShareReceiver {
   AndroidSystemShareReceiver({MethodChannel? channel})
     : _channel = channel ?? const MethodChannel('makolo/native_share') {
+    _activeListenerId = _listenerId;
     _channel.setMethodCallHandler(_handleMethod);
   }
+
+  static String? _activeListenerId;
 
   final MethodChannel _channel;
   final String _listenerId = DateTime.now().microsecondsSinceEpoch.toString();
@@ -69,7 +72,12 @@ class AndroidSystemShareReceiver implements SystemShareReceiver {
     } on Object {
       // Shutdown must never block navigation or session cleanup.
     }
-    _channel.setMethodCallHandler(null);
+    // A previous router instance must not detach the handler that a new
+    // authenticated listener has just installed on this same channel.
+    if (_activeListenerId == _listenerId) {
+      _activeListenerId = null;
+      _channel.setMethodCallHandler(null);
+    }
     await _incoming.close();
   }
 
