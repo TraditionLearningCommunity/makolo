@@ -111,6 +111,28 @@ capacités de consultation autorisées :
 La maquette 2027 illustre ces modules, mais leur absence de la première
 version est intentionnelle tant que le contrat propriétaire manque.
 
+## Dernière consolidation UX (12 novembre 2026)
+
+- L'action « Lier une démarche » apparaît près des démarches en synthèse
+  et dans les contrôles de la liste détaillée, sans répétition dans
+  la synthèse vide.
+- Les commandes Assignment et Mandate apparaissent auprès de l'aperçu
+  humain ; le menu général reste dédié à l'identité, au cycle de vie,
+  aux dépendances et au rattachement.
+- L'aperçu des personnes est une seule ligne, avec au plus quatre
+  avatars actifs, puis un +N ouvrant la page secondaire. Les deux
+  registres Assignment/Mandate ne sont pas refusionnés dans un faux
+  annuaire commun.
+- Les filtres « à traiter » et « terminées » ouvrent directement la liste
+  des Journeys correspondant aux faits visibles.
+- Aucune carte de dépendances vide n'est affichée pour la décoration ;
+  une relation waived apparaît « Condition levée ».
+- Le porteur est montré dans l'en-tête (lien vers l'Espace existant,
+  quand le slug est connu), les dates réelles dans « Informations »,
+  et l'échéance seulement avec les badges de situation.
+- Une projection non complète n'affiche pas un message définitif
+  « Aucune démarche visible » ni une fausse barre de progression.
+
 ## État local-first et sécurité
 
 Maintenir les clés de projection par Profil/Espace et les contrôles
