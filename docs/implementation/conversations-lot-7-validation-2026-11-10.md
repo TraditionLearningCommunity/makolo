@@ -340,3 +340,33 @@ contact et mandat) et `mobile/test/conversation_c5_mature_test.dart`
 La CI et les tests instrumentés n'ont pas été consultés ou déclenchés
 pendant ce complément, conformément à la demande. Le code reste sur la
 branche de #522, sans fusion de `main`.
+
+### Concurrence et décisions effectivement confirmées
+
+Les acceptations individuelles, collectives et les approbations de demandes
+verrouillent maintenant d'abord la Conversation, puis le record de demande,
+dans le même ordre que les créations propriétaires. La fermeture du parent
+et l'approbation ne peuvent plus se croiser en produisant une admission après
+fermeture. Une invitation expirée passe à `expired` avant un éventuel
+contrôle de consentement : l'acceptation ne réactive rien.
+
+Un `POST` de décision qui arrive après une action contraire reçoit
+désormais un **conflit HTTP 409** dans les APIs individuelles, collectives
+et de demandes. Le Web compare également l'état réellement retourné à
+l'action demandée ; il ne présente plus une annulation ou approbation
+concurrente comme un succès fictif. L'expiration conserve son libellé
+distinct. Les répétitions compatibles restent idempotentes.
+
+Pour les invitations collectives, `collective_invitation_accept_allowed`
+vérifie maintenant l'autorité de l'émetteur **au moment du consentement**,
+en plus du droit de représentation courant du destinataire et de l'état
+actif du collectif. Les APIs et les vues Web/Flutter affichent
+`can_accept` sans accorder de droit : l'acceptation est revalidée dans
+le service transactionnel.
+
+Les nouvelles assertions de `conversations/test_participation_inbox.py`
+et `conversations/test_lot7_closure.py` couvrent les décisions concurrentes
+contradictoires, les expirations, les invitations collectives dont le mandat
+émetteur a été révoqué, et le maintien du refus. Les tests ont été écrits
+mais **pas exécutés** dans cette intervention, à la demande. Aucune action
+CI, aucun merge ni déploiement.
