@@ -220,13 +220,23 @@ void main() {
     );
     await tester.pump();
 
+    expect(find.text('Mes documents'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
     expect(find.text('Passeport RDC'), findsOneWidget);
     expect(find.text('Formulaire'), findsWidgets);
     expect(find.text('Tous'), findsOneWidget);
     expect(find.text('À échéance'), findsOneWidget);
     expect(find.text('Archivés'), findsOneWidget);
+    expect(find.byTooltip('Rechercher'), findsOneWidget);
+    expect(find.byTooltip('Actualiser'), findsOneWidget);
     expect(find.byTooltip('Filtrer'), findsOneWidget);
     expect(find.byTooltip('Trier'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byTooltip('Rechercher'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byTooltip('Fermer la recherche'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Passeport');
     await tester.pump(const Duration(milliseconds: 400));
@@ -237,6 +247,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Passeport RDC'), findsNothing);
     expect(find.text('Aucun résultat'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Fermer la recherche'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Mes documents'), findsOneWidget);
+    expect(find.text('Passeport RDC'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
