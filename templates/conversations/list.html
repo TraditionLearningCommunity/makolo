@@ -58,6 +58,7 @@
       {% endfor %}
     </section>
   {% endif %}
+  {% include 'conversations/_participation_overview.html' %}
   <section aria-label="Mes conversations" class="divide-y overflow-hidden rounded-2xl border" style="border-color:var(--mk-border)">
     {% if q %}
       {% for result in search_results %}
