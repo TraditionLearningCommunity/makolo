@@ -38,6 +38,7 @@ class _TrustResourceCollectionScreenState
   String _sort = 'recent';
 
   bool _initializing = true;
+  bool _searching = false;
   bool _refreshing = false;
   bool _refreshFailed = false;
   bool _loadingMore = false;
@@ -69,6 +70,7 @@ class _TrustResourceCollectionScreenState
       _status = 'all';
       _type = '';
       _sort = 'recent';
+      _searching = false;
       _search.clear();
       _bind();
       unawaited(_ensureFirstPage());
@@ -246,6 +248,61 @@ class _TrustResourceCollectionScreenState
     });
   }
 
+  void _openSearch() {
+    if (_searching) return;
+    setState(() => _searching = true);
+  }
+
+  void _closeSearch() {
+    _searchDebounce?.cancel();
+    if (_search.text.isNotEmpty) _search.clear();
+    if (_query.isNotEmpty) {
+      _setScope(query: '');
+    }
+    if (mounted) setState(() => _searching = false);
+  }
+
+  Widget _appBarTitle(int? total) {
+    if (_searching) {
+      return TextField(
+        controller: _search,
+        autofocus: true,
+        onChanged: _onSearchChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: widget.family == TrustResourceFamily.proofs
+              ? 'Rechercher dans mes preuves'
+              : 'Rechercher dans mes titres',
+          border: InputBorder.none,
+          isDense: true,
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: Text(_title)),
+        if (total != null) ...[
+          const SizedBox(width: MakoloSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$total',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Future<void> _showSort() async {
     final value = await showModalBottomSheet<String>(
       context: context,
@@ -366,30 +423,42 @@ class _TrustResourceCollectionScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
-        actions: [
-          MakoloIconActionButton(
-            tooltip: 'Actualiser',
-            icon: Icons.refresh_rounded,
-            onPressed: _refreshing ? null : _refreshFirst,
+    return StreamBuilder<List<StoredProjection>>(
+      stream: _pages,
+      initialData: const [],
+      builder: (context, pagesSnapshot) {
+        final view = _TrustCollectionView.fromPages(
+          pagesSnapshot.data ?? const [],
+          family: widget.family,
+          query: _query,
+          status: _status,
+          type: _type,
+          sort: _sort,
+        );
+        return Scaffold(
+          appBar: AppBar(
+            title: _appBarTitle(view.total),
+            actions: [
+              if (_searching)
+                MakoloIconActionButton(
+                  tooltip: 'Fermer la recherche',
+                  icon: Icons.close_rounded,
+                  onPressed: _closeSearch,
+                )
+              else
+                MakoloIconActionButton(
+                  tooltip: 'Rechercher',
+                  icon: Icons.search_rounded,
+                  onPressed: _openSearch,
+                ),
+              MakoloIconActionButton(
+                tooltip: 'Actualiser',
+                icon: Icons.refresh_rounded,
+                onPressed: _refreshing ? null : _refreshFirst,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: StreamBuilder<List<StoredProjection>>(
-        stream: _pages,
-        initialData: const [],
-        builder: (context, pagesSnapshot) {
-          final view = _TrustCollectionView.fromPages(
-            pagesSnapshot.data ?? const [],
-            family: widget.family,
-            query: _query,
-            status: _status,
-            type: _type,
-            sort: _sort,
-          );
-          return StreamBuilder<TrustResourceSourceState>(
+          body: StreamBuilder<TrustResourceSourceState>(
             stream: _source,
             initialData: TrustResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
@@ -414,34 +483,14 @@ class _TrustResourceCollectionScreenState
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(MakoloSpacing.inner),
                       children: [
-                        TextField(
-                          controller: _search,
-                          onChanged: _onSearchChanged,
-                          textInputAction: TextInputAction.search,
-                          decoration: const InputDecoration(
-                            hintText: 'Rechercher',
-                            prefixIcon: Icon(Icons.search_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: MakoloSpacing.md),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(children: _statusChips()),
-                        ),
-                        const SizedBox(height: MakoloSpacing.sm),
                         Row(
                           children: [
-                            if (view.total != null && view.total! > 0)
-                              Text(
-                                '${view.total}',
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                    ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(children: _statusChips()),
                               ),
-                            const Spacer(),
+                            ),
                             MakoloIconActionButton(
                               tooltip: 'Filtrer',
                               icon: Icons.tune_rounded,
@@ -454,6 +503,7 @@ class _TrustResourceCollectionScreenState
                             ),
                           ],
                         ),
+                        const SizedBox(height: MakoloSpacing.sm),
                         if (view.hasSnapshot &&
                             (source.reachability ==
                                     ReachabilityState.unreachable ||
@@ -519,12 +569,11 @@ class _TrustResourceCollectionScreenState
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
-}
 
 class _TrustContinuityNotice extends StatelessWidget {
   const _TrustContinuityNotice();
