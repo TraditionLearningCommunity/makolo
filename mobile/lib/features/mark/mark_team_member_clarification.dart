@@ -5,10 +5,7 @@ import '../../design/action_controls.dart';
 /// Clarifies one owner-defined Space team action. The backend, not these
 /// fields, decides whether the actor may manage this Space.
 class MarkTeamMemberClarification extends StatefulWidget {
-  const MarkTeamMemberClarification({
-    super.key,
-    required this.onSubmit,
-  });
+  const MarkTeamMemberClarification({super.key, required this.onSubmit});
 
   final void Function(String email, String role) onSubmit;
 
@@ -39,9 +36,7 @@ class _MarkTeamMemberClarificationState
         email.length > 254 ||
         role.length > 120) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vérifiez l’adresse e-mail et le rôle.'),
-        ),
+        const SnackBar(content: Text('Vérifiez l’adresse e-mail et le rôle.')),
       );
       return;
     }

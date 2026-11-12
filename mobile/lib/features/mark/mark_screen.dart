@@ -196,7 +196,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _pendingConfirmationKey = draft['pending_confirmation_key']?.toString();
       final priorTeam = draft['team_member'];
       if (priorTeam is Map &&
-          priorTeam['email'] is String && priorTeam['role'] is String) {
+          priorTeam['email'] is String &&
+          priorTeam['role'] is String) {
         _teamMember = {
           'email': priorTeam['email'] as String,
           'role': priorTeam['role'] as String,
@@ -918,8 +919,7 @@ class _MarkScreenState extends State<MarkScreen> {
     final proposal = _result;
     if (_busy || proposal?.state != 'needs_confirmation') return;
     final action = proposal?.action;
-    if (action?['code'] == 'add_team_member' &&
-        _actor is SpaceActorContext) {
+    if (action?['code'] == 'add_team_member' && _actor is SpaceActorContext) {
       final target = action?['target'];
       if (target is! Map ||
           target['email'] is! String ||
@@ -946,11 +946,7 @@ class _MarkScreenState extends State<MarkScreen> {
         attachments: _attachments,
         links: _links,
         allowTextOnly: _attachments.isNotEmpty || _links.isNotEmpty,
-        confirmation: {
-          'code': 'add_team_member',
-          'email': email,
-          'role': role,
-        },
+        confirmation: {'code': 'add_team_member', 'email': email, 'role': role},
       );
       if (!mounted ||
           revision != _draftRevision ||
@@ -1068,8 +1064,8 @@ class _MarkScreenState extends State<MarkScreen> {
       if (confirmed != true) return;
       _textOnlyConsent = true;
     }
-    allowTextOnly = _textOnlyConsent &&
-        (attachments.isNotEmpty || links.isNotEmpty);
+    allowTextOnly =
+        _textOnlyConsent && (attachments.isNotEmpty || links.isNotEmpty);
     setState(() => _busy = true);
     final result = await repository.submit(
       actor: actor,
@@ -1408,11 +1404,11 @@ class _MarkScreenState extends State<MarkScreen> {
                         onConfirm:
                             _result!.state == 'needs_confirmation' &&
                                 ((_result!.action?['code'] ==
-                                          'redeem_recognition' &&
-                                      actor is PersonalActorContext) ||
-                                  (_result!.action?['code'] ==
-                                          'add_team_member' &&
-                                      actor is SpaceActorContext))
+                                            'redeem_recognition' &&
+                                        actor is PersonalActorContext) ||
+                                    (_result!.action?['code'] ==
+                                            'add_team_member' &&
+                                        actor is SpaceActorContext))
                             ? () => unawaited(_confirmAction())
                             : null,
                         onOpenHandoff: switch (markHandoffRoute(
@@ -1508,7 +1504,8 @@ class _MarkResultView extends StatelessWidget {
                             ),
                     ),
               if (result.needsInput &&
-                  (question?['code'] == 'team_member_identity_and_responsibility' ||
+                  (question?['code'] ==
+                          'team_member_identity_and_responsibility' ||
                       question?['code'] == 'team_member_details_invalid'))
                 MarkTeamMemberClarification(onSubmit: onTeamMember),
               if (result.needsInput)
