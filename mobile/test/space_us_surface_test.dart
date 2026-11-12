@@ -296,6 +296,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('scanner cannot edit Space Passport without update permission', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['handoffs'] as Map<String, dynamic>).remove('settings');
+    (projection['handoffs'] as Map<String, dynamic>).remove('passport');
+    (projection['primary_role'] as Map<String, dynamic>)['label'] = 'Scanneur';
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Scanneur'), findsOneWidget);
+    expect(find.byKey(const Key('space-us-edit-passport')), findsNothing);
+    expect(find.text('Modifier les informations collectives'), findsNothing);
+    await tester.tap(find.byKey(const Key('space-us-primary-role')));
+    expect(opened.single, '/space/atelier/us/responsibilities');
+  });
+
+  testWidgets('empty authorized team has a compact link, not a false count', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['team'] as Map<String, dynamic>)['items'] = [];
+    (projection['team'] as Map<String, dynamic>).remove('active_members');
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('space-us-team-link-empty')), findsOneWidget);
+    expect(find.textContaining('membres'), findsNothing);
+    await tester.tap(find.byKey(const Key('space-us-team-link-empty')));
+    expect(opened.single, '/space/atelier/us/team');
+  });
+
   testWidgets('activity-only projection never shows institution data', (
     tester,
   ) async {
@@ -644,11 +698,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Nos relations'), findsOneWidget);
-    final card = tester.widget<InkWell>(
-      find.byKey(const Key('space-us-entry-relationships')),
-    );
-    expect(card.onTap, isNull);
+    expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
+    expect(find.byKey(const Key('space-us-edit-passport')), findsOneWidget);
   });
   testWidgets('Nous switches to the shared grid and keeps owner handoffs', (
     tester,
