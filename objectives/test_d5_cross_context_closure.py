@@ -112,6 +112,48 @@ class D5CrossContextClosureTests(TestCase):
     def project_url(self, project):
         return reverse("objectives_api:project-detail", args=[project.pk])
 
+    def test_many_team_members_cannot_hide_an_authorized_space_coordinator(self):
+        from objectives.forms import DossierAssignmentForm
+
+        # The old UI sliced Team candidates to 50 *before* testing their
+        # permissions, so one legitimate manager could disappear entirely.
+        team = Team.objects.get(organization=self.space_a)
+        people = User.objects.bulk_create([
+            User(username=f"d5-team-unmandated-{index:03d}", first_name="A")
+            for index in range(55)
+        ])
+        TeamMembership.objects.bulk_create([
+            TeamMembership(team=team, user=person) for person in people
+        ])
+        coordinator = User.objects.create_user(
+            username="d5-authorized-space-coordinator", first_name="Z",
+        )
+        grant_space_role(
+            profile=coordinator, space=self.space_a,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
+        )
+        self.assertFalse(
+            TeamMembership.objects.filter(user=coordinator).exists(),
+        )
+
+        web_candidates = set(
+            DossierAssignmentForm(dossier=self.dossier_a)
+            .fields["assignee"].queryset.values_list("pk", flat=True)
+        )
+        self.assertIn(coordinator.pk, web_candidates)
+        self.assertNotIn(people[0].pk, web_candidates)
+
+        self.client.force_authenticate(user=self.owner)
+        detail = self.client.get(
+            self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+        )
+        self.assertEqual(detail.status_code, 200, detail.data)
+        displayed = detail.data["data"]["candidates"]["assignees"]
+        self.assertIn(
+            str(coordinator.pk), {row["id"] for row in displayed},
+        )
+        self.assertFalse(detail.data["data"]["candidates"]["assignees_partial"])
+
     def test_space_coordination_candidates_include_mandates_not_team_authority(self):
         from objectives.forms import DossierAssignmentForm
         from objectives.models import DossierAssignment
