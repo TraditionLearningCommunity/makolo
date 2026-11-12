@@ -946,57 +946,210 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
   }
 
   Future<void> _projectAccess(Map<String, dynamic> project) async {
-    final members = _list(_map(project['collaboration'])['members']);
+    final owner = _map(project['owner']);
+    final collaboration = _map(project['collaboration']);
+    final members = _list(collaboration['members']);
+    final contributors = _list(collaboration['contributors']);
+    final manage = collaboration['can_manage_authority'] == true;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (sheet) => SafeArea(
         child: ListView(
           shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
           children: [
-            const ListTile(
-              title: Text('Accès au Projet'),
-              subtitle: Text(
-                'Les responsabilités de Dossier restent indépendantes '
-                'des permissions du Projet.',
-              ),
+            Text(
+              'Personnes et accès',
+              style: Theme.of(sheet).textTheme.titleLarge,
             ),
+            const SizedBox(height: 10),
             ListTile(
-              leading: const Icon(Icons.person_add_alt_outlined),
-              title: const Text('Donner accès à une personne'),
-              onTap: () {
-                Navigator.pop(sheet);
-                _grantProjectAccess(project);
-              },
+              leading: Icon(
+                owner['kind'] == 'space'
+                    ? Icons.groups_2_outlined
+                    : Icons.person_outline_rounded,
+              ),
+              title: Text(
+                _text(owner['kind'] == 'space'
+                    ? owner['label']
+                    : owner['holder']),
+              ),
+              subtitle: const Text('Porteur'),
             ),
+            if (members.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Accès délégués'),
+              ),
             for (final member in members)
               ListTile(
-                leading: const Icon(Icons.person_outline),
+                leading: const Icon(Icons.shield_outlined),
                 title: Text(_text(member['label'])),
                 subtitle: Text(_text(member['role'])),
                 trailing: _has(member, 'revoke')
-                    ? const Icon(Icons.person_remove_outlined)
-                    : null,
-                onTap: _has(member, 'revoke') && _enabled
-                    ? () async {
-                        Navigator.pop(sheet);
-                        final yes = await _confirm(
-                          'Retirer cet accès ?',
-                          'La personne perdra ce mandat Projet. '
-                              'Ses éventuelles responsabilités sur les Dossiers '
-                              'ne seront pas supprimées.',
-                          'Révoquer',
-                        );
-                        if (yes && mounted) {
-                          await _send('${_base}authority/', {
-                            'action': 'revoke',
-                            'mandate_id': _text(member['id']),
-                          });
-                        }
-                      }
+                    ? IconButton(
+                        tooltip: 'Retirer cet accès',
+                        icon: const Icon(Icons.person_remove_outlined),
+                        onPressed: _enabled
+                            ? () async {
+                                Navigator.pop(sheet);
+                                final yes = await _confirm(
+                                  'Retirer cet accès ?',
+                                  'Ce mandat Projet sera révoqué.',
+                                  'Révoquer',
+                                );
+                                if (yes && mounted) {
+                                  await _send('${_base}authority/', {
+                                    'action': 'revoke',
+                                    'mandate_id': _text(member['id']),
+                                  });
+                                }
+                              }
+                            : null,
+                      )
                     : null,
               ),
+            if (contributors.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Interventions visibles'),
+              ),
+            for (final contributor in contributors)
+              ListTile(
+                leading: const Icon(Icons.person_outline_rounded),
+                title: Text(_text(contributor['label'])),
+              ),
+            if (collaboration['contributors_partial'] == true)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Interventions visibles uniquement.'),
+              ),
+            if (manage)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: MakoloActionButton(
+                  label: 'Donner accès',
+                  appearance: MakoloActionAppearance.primary,
+                  icon: Icons.person_add_alt_1_outlined,
+                  onPressed: _enabled
+                      ? () {
+                          Navigator.pop(sheet);
+                          _grantProjectAccess(project);
+                        }
+                      : null,
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  String _initials(String label) {
+    final words = label.trim().split(RegExp(r'\\s+'));
+    if (words.isEmpty || label.trim().isEmpty) return '?';
+    return words.take(2).map((word) => word[0].toUpperCase()).join();
+  }
+
+  Widget _peoplePreview(Map<String, dynamic> project) {
+    final owner = _map(project['owner']);
+    final collaboration = _map(project['collaboration']);
+    final members = _list(collaboration['members']);
+    final people = <Map<String, dynamic>>[];
+    if (owner['kind'] == 'profile' && _text(owner['holder']).isNotEmpty) {
+      people.add({
+        'profile_id': owner['id'],
+        'label': owner['holder'],
+      });
+    }
+    for (final member in members) {
+      if (!people.any(
+        (person) => person['profile_id'] == member['profile_id'],
+      )) {
+        people.add(member);
+      }
+    }
+    final shown = people.take(4).toList();
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      child: InkWell(
+        onTap: () => _projectAccess(project),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.people_outline_rounded, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Personnes et accès',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    'Voir',
+                    style: TextStyle(color: scheme.primary),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: scheme.primary),
+                ],
+              ),
+              const SizedBox(height: 9),
+              Row(
+                children: [
+                  if (owner['kind'] == 'space') ...[
+                    CircleAvatar(
+                      radius: 17,
+                      backgroundColor: scheme.primaryContainer,
+                      child: Icon(
+                        Icons.groups_2_outlined,
+                        color: scheme.onPrimaryContainer,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  for (final person in shown) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(right: 5),
+                      child: Tooltip(
+                        message: _text(person['label']),
+                        child: CircleAvatar(
+                          radius: 17,
+                          backgroundColor: scheme.primaryContainer,
+                          child: Text(
+                            _initials(_text(person['label'])),
+                            style: TextStyle(
+                              color: scheme.onPrimaryContainer,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.add_rounded, size: 19),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1337,50 +1490,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
             appearance: MakoloActionAppearance.quiet,
           ),
-        if (rows.isNotEmpty) const SizedBox(height: 10),
-        _peopleSection(project),
-      ],
-    );
-  }
 
-  Widget _peopleSection(Map<String, dynamic> project) {
-    final collaboration = _map(project['collaboration']);
-    final members = _list(collaboration['members']);
-    final contributors = _list(collaboration['contributors']);
-    // Empty collaboration does not warrant a permanent card or a zero count.
-    // Access management remains available through the Project action menu.
-    if (members.isEmpty && contributors.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Personnes et responsabilités',
-          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        for (final member in members)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.shield_outlined),
-            title: Text(_text(member['label'])),
-            subtitle: Text(_text(member['role'])),
-          ),
-        for (final contributor in contributors)
-          ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.person_outline),
-            title: Text(_text(contributor['label'])),
-            subtitle: const Text('Responsabilité de Dossier'),
-          ),
-        if (collaboration['contributors_partial'] == true)
-          Text(
-            'Interventions visibles uniquement.',
-            style: textTheme.bodySmall,
-          ),
       ],
     );
   }
@@ -1826,6 +1936,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                                   ),
                                 ],
                                 const SizedBox(height: 12),
+                                _peoplePreview(project),
+                                const SizedBox(height: 10),
                                 if (_mode == _ProjectMode.summary)
                                   _summary(project, rows, more)
                                 else if (_mode == _ProjectMode.dossiers)
