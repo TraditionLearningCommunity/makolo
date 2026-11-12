@@ -1,12 +1,12 @@
 {% extends 'base/app.html' %}
 {% load conversation_tags static %}
-{% block title %}{{ point.title|default:'Échange' }} | Makolo{% endblock %}
+{% block title %}{{ point.title|default:'Discussion' }} | Makolo{% endblock %}
 {% block content %}
 <main class="mx-auto max-w-3xl pb-16">
   <a class="mb-5 inline-block text-sm font-semibold" href="{% url 'conversations:detail' conversation.pk %}?focus={{ point.pk }}#point-{{ point.pk }}" style="color:var(--mk-brand)">Retour à la conversation</a>
   <header class="mb-7">
-    <p class="mk-kicker">Échange</p>
-    <h1 class="mk-page-title mt-2">{{ point.title|default:'Échange' }}</h1>
+    <p class="mk-kicker">Discussion</p>
+    <h1 class="mk-page-title mt-2">{{ point.title|default:'Discussion' }}</h1>
     {% if point.body %}<p class="mt-2 whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ point.body }}</p>{% endif %}
   </header>
   {% if entries %}
@@ -21,7 +21,7 @@
       {% endfor %}
     </div>
   {% else %}
-    <p class="text-sm" style="color:var(--mk-muted)">Aucune contribution accessible.</p>
+    <p class="text-sm" style="color:var(--mk-muted)">Aucun message pour le moment.</p>
   {% endif %}
   {% if next_cursor %}
     <a href="?cursor={{ next_cursor }}" class="mk-action-button mt-5" data-variant="secondary">Voir la suite</a>
@@ -30,7 +30,7 @@
     <form method="post" action="{% url 'conversations:point-exchange' point.pk %}" class="mt-8 space-y-3 border-t pt-5" style="border-color:var(--mk-border)">{% csrf_token %}
       <input type="hidden" name="client_reference" value="{{ client_reference }}">
       <label for="exchange-reply" class="sr-only">Répondre</label>
-      <textarea name="body" id="exchange-reply" class="mk-input w-full" rows="3" required maxlength="5000" placeholder="Écrire…"></textarea>
+      <textarea name="body" id="exchange-reply" class="mk-input w-full" rows="3" required maxlength="5000" placeholder="Écrire un message…"></textarea>
       <button class="mk-action-button" data-variant="primary" type="submit">Envoyer</button>
     </form>
   {% endif %}
