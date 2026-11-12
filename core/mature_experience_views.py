@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from secrets import token_hex
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core import signing
 from django.http import HttpResponseBadRequest
@@ -408,19 +410,72 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
     template_name = "core/makolo_mark.html"
     login_url = "core:login"
 
+    _SELECTED_KINDS = frozenset({
+        "access",
+        "journey",
+        "dossier",
+        "project",
+        "occurrence",
+        "discovery_item",
+        "recognition_reward",
+    })
+
     def post(self, request, *args, **kwargs):
-        text = (request.POST.get("intent") or "").strip()[:MARK_TEXT_MAX_LENGTH]
+        text = (request.POST.get("intent") or "").strip()
         if not text:
             context = self.get_context_data(
-                mark_error="Dites simplement ce que vous voulez faire."
+                mark_error="Dites simplement ce que vous voulez faire.",
+                mark_text=text,
             )
             return self.render_to_response(context, status=400)
+        if len(text) > MARK_TEXT_MAX_LENGTH:
+            context = self.get_context_data(
+                mark_error=f"Votre demande doit contenir au maximum {MARK_TEXT_MAX_LENGTH} caractères.",
+                mark_text=text,
+            )
+            return self.render_to_response(context, status=400)
+        if request.POST.get("cancel_confirmation"):
+            return self.render_to_response(self.get_context_data(mark_text=text))
+
+        # A selected object only narrows a lookup. It cannot supply a Profile,
+        # Space, Mandate or Permission. All owners revalidate on every request.
+        mark_context = {}
+        selected_kind = (request.POST.get("selected_kind") or "").strip()
+        selected_id = (request.POST.get("selected_id") or "").strip()
+        selected_family = (request.POST.get("selected_family") or "").strip()
+        if selected_kind in self._SELECTED_KINDS and 0 < len(selected_id) <= 128:
+            if selected_kind != "discovery_item" or selected_family:
+                mark_context["selected"] = {
+                    "kind": selected_kind,
+                    "id": selected_id,
+                    **({"family": selected_family[:80]} if selected_family else {}),
+                }
+
+        # Recognition is the only personal Mark mutation with an explicit
+        # owner-confirmation contract here. A browser retry keeps the same key;
+        # the Recognition owner validates the target and idempotency.
+        confirm_code = (request.POST.get("confirm_code") or "").strip()
+        key = (request.POST.get("idempotency_key") or "").strip()
+        if (
+            confirm_code == "redeem_recognition"
+            and selected_kind == "recognition_reward"
+            and mark_context.get("selected", {}).get("id") == (
+                request.POST.get("confirm_target_id") or ""
+            )
+            and len(key) == 32
+            and all(char in "0123456789abcdef" for char in key)
+        ):
+            mark_context["confirmation"] = {
+                "code": "redeem_recognition",
+                "target_id": selected_id,
+            }
+            mark_context["idempotency_key"] = key
 
         result = orchestrate_mark(
             profile=request.user,
             input_kind="text",
             value=text,
-            context={},
+            context=mark_context,
         )
         target = mark_web_url(result)
         if target:
@@ -435,6 +490,8 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
                 "forbidden",
             },
             mark_result=result,
+            mark_confirmation_key=(
+                token_hex(16) if result["state"] == "needs_confirmation" else None
+            ),
         )
         return self.render_to_response(context)
-
