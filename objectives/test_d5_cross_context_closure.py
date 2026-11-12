@@ -112,6 +112,56 @@ class D5CrossContextClosureTests(TestCase):
     def project_url(self, project):
         return reverse("objectives_api:project-detail", args=[project.pk])
 
+    def test_space_coordination_candidates_include_mandates_not_team_authority(self):
+        from objectives.forms import DossierAssignmentForm
+        from objectives.models import DossierAssignment
+        from objectives.selectors import collaboration_candidates_for_dossier
+
+        # A person can hold a Dossier Mandate without joining a Space Team.
+        mandate_only = User.objects.create_user(username="d5-mandate-only")
+        role = Role.objects.get(
+            scope_type=AuthorityScope.DOSSIER,
+            code=SystemRoleCode.DOSSIER_MANAGER,
+        )
+        grant_dossier_role(
+            profile=mandate_only, dossier=self.dossier_a,
+            role=role, granted_by=self.owner,
+        )
+        self.assertFalse(TeamMembership.objects.filter(user=mandate_only).exists())
+        candidates = collaboration_candidates_for_dossier(self.dossier_a)
+        self.assertIn(mandate_only, candidates)
+        # A Team member may be a grant candidate but cannot coordinate
+        # unless an effective permission exists.
+        self.assertIn(self.outsider, candidates)
+
+        form = DossierAssignmentForm(dossier=self.dossier_a)
+        allowed = set(form.fields["assignee"].queryset.values_list(
+            "pk", flat=True,
+        ))
+        self.assertIn(mandate_only.pk, allowed)
+        self.assertNotIn(self.outsider.pk, allowed)
+
+        self.client.force_authenticate(user=self.owner)
+        detail = self.client.get(
+            self.dossier_url(self.dossier_a) + self.scope(self.space_a),
+        )
+        self.assertEqual(detail.status_code, 200, detail.data)
+        projected = {
+            row["id"] for row in detail.data["data"]["candidates"]["assignees"]
+        }
+        self.assertIn(str(mandate_only.pk), projected)
+        self.assertNotIn(str(self.outsider.pk), projected)
+        attempt = self.client.post(
+            reverse("objectives_api:dossier-actions", args=[self.dossier_a.pk])
+            + self.scope(self.space_a),
+            {"action": "assignment_add", "assignee_id": str(self.outsider.pk)},
+            format="json",
+        )
+        self.assertEqual(attempt.status_code, 400, attempt.data)
+        self.assertFalse(DossierAssignment.objects.filter(
+            dossier=self.dossier_a, assignee=self.outsider,
+        ).exists())
+
     def test_dossier_people_links_follow_profile_visibility_not_mandates(self):
         from accounts.models import UserProfile
 
