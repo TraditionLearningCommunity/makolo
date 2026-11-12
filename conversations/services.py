@@ -534,6 +534,11 @@ def create_conversation_invitation(*, actor, conversation: Conversation, invitee
 
 @transaction.atomic
 def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitation, accept: bool):
+    # Serialize consent with closing the Conversation. Keep the parent lock
+    # before the child lock, as in create_conversation_invitation.
+    Conversation.objects.select_for_update(of=("self",)).get(
+        pk=invitation.conversation_id,
+    )
     locked = ConversationInvitation.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=invitation.pk)
     if locked.invitee_id != getattr(actor, "pk", None):
         raise PermissionDenied("Seule la personne invitée peut répondre.")
@@ -613,6 +618,10 @@ def withdraw_join_request(*, actor, join_request: ConversationJoinRequest):
 
 @transaction.atomic
 def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, approve: bool):
+    # A manager cannot approve after a concurrent lifecycle transition.
+    Conversation.objects.select_for_update(of=("self",)).get(
+        pk=join_request.conversation_id,
+    )
     locked = ConversationJoinRequest.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=join_request.pk)
     if not can_manage_conversation(actor, locked.conversation):
         raise PermissionDenied("Vous ne pouvez pas traiter cette demande d’entrée.")
