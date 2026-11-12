@@ -149,7 +149,7 @@
         return;
       }
       const title = ownerForm.elements.namedItem('title');
-      if (title) title.value = file.name.replace(/\\.[^.]+$/, '').slice(0, 220);
+      if (title) title.value = file.name.replace(/\.[^.]+$/, '').slice(0, 220);
       ['kind', 'sensitivity'].forEach((name) => {
         const select = ownerForm.elements.namedItem(name);
         if (!(select instanceof HTMLSelectElement)) return;
