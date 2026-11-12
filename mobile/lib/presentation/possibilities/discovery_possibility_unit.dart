@@ -1548,39 +1548,41 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           children: [
             if (saveAvailable) ...[
               Expanded(
-              child: MakoloRoundedActionSlot(
-                active: saved,
-                phase: savePhase,
-                child: IconButton(
-                  key: Key(
-                    widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
-                  ),
-                  onPressed:
-                      !_saving &&
-                          widget.allowOwnerActions &&
-                          ((widget.onSave != null && canToggle) ||
-                              (widget.allowSavePrompt &&
-                                  widget.onSignIn != null))
-                      ? _save
-                      : null,
-                  tooltip: _saving
-                      ? 'Enregistrement…'
-                      : _saveFailed
-                      ? 'Échec de l’enregistrement. Réessayer'
-                      : saved
-                      ? (widget.detailMode
-                            ? 'Retirer des enregistrements'
-                            : 'Enregistré')
-                      : 'Enregistrer',
-                  icon: MakoloActionFeedback(
-                    phase: savePhase,
-                    child: DiscoveryOrbitIcon(
-                      saved: saved,
-                      color: theme.colorScheme.primary,
+                child: MakoloRoundedActionSlot(
+                  active: saved,
+                  phase: savePhase,
+                  child: IconButton(
+                    key: Key(
+                      widget.detailMode
+                          ? 'discover-save-n2'
+                          : 'discover-save-n1',
+                    ),
+                    onPressed:
+                        !_saving &&
+                            widget.allowOwnerActions &&
+                            ((widget.onSave != null && canToggle) ||
+                                (widget.allowSavePrompt &&
+                                    widget.onSignIn != null))
+                        ? _save
+                        : null,
+                    tooltip: _saving
+                        ? 'Enregistrement…'
+                        : _saveFailed
+                        ? 'Échec de l’enregistrement. Réessayer'
+                        : saved
+                        ? (widget.detailMode
+                              ? 'Retirer des enregistrements'
+                              : 'Enregistré')
+                        : 'Enregistrer',
+                    icon: MakoloActionFeedback(
+                      phase: savePhase,
+                      child: DiscoveryOrbitIcon(
+                        saved: saved,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ),
                 ),
-              ),
               ),
               if (!widget.detailMode || shareAvailable)
                 const SizedBox(width: MakoloSpacing.sm),
@@ -1596,23 +1598,22 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                 ),
               ),
-              if (shareAvailable)
-                const SizedBox(width: MakoloSpacing.sm),
+              if (shareAvailable) const SizedBox(width: MakoloSpacing.sm),
             ],
             if (shareAvailable)
               Expanded(
-              child: MakoloRoundedActionSlot(
-                child: DiscoveryShareControl(
-                  item: item,
-                  api: widget.shareApi,
-                  authenticated: widget.shareAuthenticated,
-                  onSignIn: widget.onSignIn,
-                  enabled: !widget.detailMode || widget.allowOwnerActions,
-                  iconOnly: true,
-                  baseUri: widget.baseUri,
+                child: MakoloRoundedActionSlot(
+                  child: DiscoveryShareControl(
+                    item: item,
+                    api: widget.shareApi,
+                    authenticated: widget.shareAuthenticated,
+                    onSignIn: widget.onSignIn,
+                    enabled: !widget.detailMode || widget.allowOwnerActions,
+                    iconOnly: true,
+                    baseUri: widget.baseUri,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -1805,9 +1806,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 ],
               ),
             ),
-          if (widget.detailMode &&
-              !widget.collectiveReadOnly &&
-              showActionBar) ...actionBar,
+          if (widget.detailMode && !widget.collectiveReadOnly && showActionBar)
+            ...actionBar,
           if (widget.detailMode)
             DiscoveryN2DepthSection(
               item: item,
