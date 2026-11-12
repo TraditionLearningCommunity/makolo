@@ -99,6 +99,14 @@ def grant_project_authority(*, actor, project, profile, role):
     if not getattr(profile, "is_active", False):
         raise ValidationError("Le collaborateur doit disposer d'un compte Makolo actif.")
     validate_role_for_project(role)
+    existing = current_mandates().select_for_update().filter(
+        profile=profile, project=project,
+        scope_type=AuthorityScope.PROJECT,
+    )
+    if existing.exclude(role_id=role.pk).exists():
+        raise ValidationError(
+            "Cette personne a déjà un accès Projet. Modifiez son rôle."
+        )
     return grant_project_role(
         profile=profile, project=project, role=role, granted_by=actor,
         source="objectives-service",
