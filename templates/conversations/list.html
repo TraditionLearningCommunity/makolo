@@ -23,7 +23,7 @@
       <div class="space-y-2">
         {% for invitation in pending_invitations %}
           <article class="mk-panel flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-            <div><p class="font-semibold">Invitation à une conversation</p>{% if invitation.expires_at %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">Jusqu’au {{ invitation.expires_at|date:'d/m/Y à H:i' }}</p>{% endif %}</div>
+            <div><p class="font-semibold">Invitation à une conversation</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Envoyée par @{{ invitation.created_by.username }}</p>{% if invitation.expires_at %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">Jusqu’au {{ invitation.expires_at|date:'d/m/Y à H:i' }}</p>{% endif %}</div>
             <form method="post" action="{% url 'conversations:invitation-respond' invitation.pk %}" class="flex gap-2">{% csrf_token %}
               <button class="mk-action-button" data-variant="secondary" name="decision" value="decline" type="submit">Refuser</button>
               <button class="mk-action-button" data-variant="primary" name="decision" value="accept" type="submit">Accepter</button>
@@ -43,7 +43,7 @@
           <div>
             <p class="font-semibold">{{ invitation.space.name|default:invitation.group.name }}</p>
             <p class="text-xs" style="color:var(--mk-muted)">
-              Demande d'accès collectif · décision du responsable
+              Invitation par @{{ invitation.created_by.username }} · décision du responsable
             </p>
           </div>
           <form method="post" action="{% url 'conversations:collective-respond' invitation.pk %}"
