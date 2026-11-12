@@ -111,54 +111,55 @@ void main() {
     expect(find.byType(CircleAvatar), findsNothing);
   });
 
-  testWidgets('Own Dossier responsibility opens personal Passport, not public view', (
-    tester,
-  ) async {
-    final db = MakoloDatabase.memory();
-    addTearDown(db.close);
-    final store = ProfileStore(db, 'viewer');
-    final repo = ObjectiveRepository(
-      database: db,
-      store: store,
-      profileId: 'viewer',
-    );
-    await store.putProjection(
-      kind: ObjectiveRepository.dossierProjectionKind,
-      resourceKey: 'dossier-self',
-      schemaVersion: 1,
-      payload: {
-        'identity': {'kind': 'dossier', 'id': 'dossier-self'},
-        'objective': {'title': 'Ma coordination'},
-        'owner': {'kind': 'profile', 'label': 'Personnel'},
-        'assignments': [
-          {
-            'id': 'self-assignment',
-            'label': 'Vous',
-            'profile_id': 'viewer',
-            'profile_url': '/me/passport',
-            'profile_view': 'self',
-          },
-        ],
-        'mandates': [],
-      },
-    );
-    String? openedPublic;
-    var openedSelf = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DossierPeopleScreen(
-          id: 'dossier-self',
-          repository: repo,
-          onOpenPerson: (id) => openedPublic = id,
-          onOpenMyPassport: () => openedSelf = true,
+  testWidgets(
+    'Own Dossier responsibility opens personal Passport, not public view',
+    (tester) async {
+      final db = MakoloDatabase.memory();
+      addTearDown(db.close);
+      final store = ProfileStore(db, 'viewer');
+      final repo = ObjectiveRepository(
+        database: db,
+        store: store,
+        profileId: 'viewer',
+      );
+      await store.putProjection(
+        kind: ObjectiveRepository.dossierProjectionKind,
+        resourceKey: 'dossier-self',
+        schemaVersion: 1,
+        payload: {
+          'identity': {'kind': 'dossier', 'id': 'dossier-self'},
+          'objective': {'title': 'Ma coordination'},
+          'owner': {'kind': 'profile', 'label': 'Personnel'},
+          'assignments': [
+            {
+              'id': 'self-assignment',
+              'label': 'Vous',
+              'profile_id': 'viewer',
+              'profile_url': '/me/passport',
+              'profile_view': 'self',
+            },
+          ],
+          'mandates': [],
+        },
+      );
+      String? openedPublic;
+      var openedSelf = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DossierPeopleScreen(
+            id: 'dossier-self',
+            repository: repo,
+            onOpenPerson: (id) => openedPublic = id,
+            onOpenMyPassport: () => openedSelf = true,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 150));
-    await tester.ensureVisible(find.text('Vous'));
-    await tester.tap(find.text('Vous'));
-    expect(openedSelf, isTrue);
-    expect(openedPublic, isNull);
-  });
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 150));
+      await tester.ensureVisible(find.text('Vous'));
+      await tester.tap(find.text('Vous'));
+      expect(openedSelf, isTrue);
+      expect(openedPublic, isNull);
+    },
+  );
 }
