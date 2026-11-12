@@ -120,23 +120,30 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
                         invitation.status = "cancelled"
                         invitation.responded_at = timezone.now()
                         invitation.save(update_fields=["status", "responded_at", "updated_at"])
+                if invitation.status != "cancelled":
+                    raise ValidationError("Cette invitation a changé. Actualisez son état.")
                 messages.success(request, "Invitation annulée.")
             elif action == "revoke" and managing:
                 access = get_object_or_404(
                     ConversationCollectiveAccess, conversation=conversation,
                     pk=request.POST.get("collective_id"),
                 )
-                revoke_collective_access(actor=request.user, access=access)
+                revoked = revoke_collective_access(actor=request.user, access=access)
+                if revoked.status != "revoked":
+                    raise ValidationError("Cet accès a changé. Actualisez son état.")
                 messages.success(request, "Accès collectif retiré.")
             elif action in {"approve", "reject"} and managing:
                 pending = get_object_or_404(
                     ConversationJoinRequest, conversation=conversation,
                     pk=request.POST.get("join_request_id"),
                 )
-                respond_to_join_request(
+                result = respond_to_join_request(
                     actor=request.user, join_request=pending,
                     approve=action == "approve",
                 )
+                expected = "approved" if action == "approve" else "rejected"
+                if result.status != expected:
+                    raise ValidationError("Cette demande a changé. Actualisez son état.")
                 messages.success(request, "Demande traitée.")
             elif action == "leave":
                 leave_conversation(actor=request.user, conversation=conversation)
@@ -186,10 +193,13 @@ class ConversationCollectiveRespondWebView(LoginRequiredMixin, View):
             messages.error(request, "Choisissez Accepter ou Refuser.")
         else:
             try:
-                answer_collective_invitation(
+                result = answer_collective_invitation(
                     actor=request.user, access=access,
                     accept=decision == "accept",
                 )
+                expected = "active" if decision == "accept" else "declined"
+                if result.status != expected:
+                    raise ValidationError("Cette invitation a changé. Actualisez son état.")
                 messages.success(request, "Décision enregistrée.")
             except (ValidationError, PermissionDenied) as exc:
                 messages.error(request, "; ".join(getattr(exc, "messages", [str(exc)])))
