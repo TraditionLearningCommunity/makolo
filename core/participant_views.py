@@ -453,6 +453,9 @@ class ParticipantJourneyDetailView(LoginRequiredMixin, TemplateView):
                 "journey_form_requests": list(
                     journey.form_requests.select_related("form_version").order_by("created_at", "id")
                 ),
+                "journey_transitions": list(
+                    journey.transitions.order_by("-created_at", "-pk")[:10]
+                ),
                 "pending_request": pending_request,
                 "rejected_request": rejected_request,
                 "payment_url": payment_url,
