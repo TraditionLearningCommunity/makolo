@@ -146,6 +146,10 @@ void main() {
         find.byKey(const Key('space-us-entry-relationships')),
         findsNothing,
       );
+      await tester.ensureVisible(
+        find.byKey(const Key('space-us-primary-role')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('space-us-primary-role')));
       expect(routes.last, '/space/atelier/us/responsibilities');
       await tester.scrollUntilVisible(
@@ -258,9 +262,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(description), findsOneWidget);
+      // Role navigation now belongs to identity, not a separate territory.
+      // Long descriptions remain bounded to two lines.
+      expect(find.byKey(const Key('space-us-primary-role')), findsOneWidget);
       expect(
         tester.getSize(find.byKey(const Key('space-us-identity-card'))).height,
-        lessThan(200),
+        lessThan(260),
       );
       expect(find.text('Lubumbashi, Congo-Kinshasa'), findsOneWidget);
       expect(tester.takeException(), isNull);
