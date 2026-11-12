@@ -15,7 +15,47 @@
     <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
   </form>
 
-  {% if mark_needs_clarification %}
+  {% if mark_result %}
+  <section class="mk-mark-clarify" aria-live="polite" aria-labelledby="mark-result-title">
+    <h2 id="mark-result-title">{{ mark_result.message }}</h2>
+
+    {% if mark_result.question.options %}
+    <div class="mk-mark-starts" role="group" aria-label="Choisir un élément">
+      {% for option in mark_result.question.options %}
+      {% if option.kind and option.id %}
+      <form method="post" class="mk-mark-option">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="{{ mark_text }}">
+        <input type="hidden" name="selected_kind" value="{{ option.kind }}">
+        <input type="hidden" name="selected_id" value="{{ option.id }}">
+        {% if option.family %}<input type="hidden" name="selected_family" value="{{ option.family }}">{% endif %}
+        <button type="submit" class="mk-action-button" data-variant="secondary">{{ option.label|default:"Choisir cet élément" }}</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mark_result.state == "needs_confirmation" and mark_result.action.code == "redeem_recognition" %}
+    <div class="mk-panel mt-4 p-4">
+      <p>{{ mark_result.action.summary }}</p>
+      <form method="post" class="mk-mark-form">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="{{ mark_text }}">
+        <input type="hidden" name="selected_kind" value="recognition_reward">
+        <input type="hidden" name="selected_id" value="{{ mark_result.action.target.id }}">
+        <input type="hidden" name="confirm_code" value="redeem_recognition">
+        <input type="hidden" name="confirm_target_id" value="{{ mark_result.action.target.id }}">
+        <input type="hidden" name="idempotency_key" value="{{ mark_confirmation_key }}">
+        <button type="submit" class="mk-action-button" data-variant="primary">Confirmer cette utilisation</button>
+        <button type="submit" class="mk-action-button" data-variant="quiet" name="cancel_confirmation" value="1">Annuler cette proposition</button>
+      </form>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if mark_needs_clarification and not mark_result.question.options %}
   <section class="mk-mark-clarify" aria-labelledby="mark-clarify-title">
     <h2 id="mark-clarify-title">Que souhaitez-vous faire ?</h2>
     <div class="mk-mark-starts">
