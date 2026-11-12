@@ -88,6 +88,6 @@ void main() {
     await tester.pump();
     expect(repository.attempts, 1);
     expect(find.text('Texte important à conserver'), findsOneWidget);
-    expect(find.text('Envoi non conservé. Réessayer.'), findsOneWidget);
+    expect(find.text('Envoi non conservé. Réessayez.'), findsOneWidget);
   });
 }
