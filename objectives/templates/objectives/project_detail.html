@@ -15,7 +15,7 @@
       <div>
         <p class="mk-project__eyebrow">Projet</p>
         <h1>{{ project.title }}</h1>
-        {% if project.description %}<p class="mk-project__desc">{{ project.description }}</p>{% endif %}
+
         <div class="mk-project__facts">
           <span>{{ project.get_lifecycle_display }}</span>
           {% if project.starts_on %}<span>Début : {{ project.starts_on|date:"d/m/Y" }}</span>{% endif %}
@@ -69,6 +69,20 @@
       <i data-lucide="calendar-days" aria-hidden="true"></i>
     </button>
   </div>
+  {% if project.description %}
+  <section class="mk-project__description" data-project-description
+           aria-label="Informations du Projet">
+    <i data-lucide="info" aria-hidden="true"></i>
+    <div class="mk-project__description-body">
+      <p data-project-description-text>{{ project.description }}</p>
+      <button type="button" class="mk-project__description-toggle"
+              data-project-description-toggle hidden aria-expanded="false"
+              aria-label="Lire toutes les informations" title="Lire toutes les informations">
+        <i data-lucide="chevron-down" aria-hidden="true"></i>
+      </button>
+    </div>
+  </section>
+  {% endif %}
   <section class="mk-project__presentation">
     <div data-project-content aria-live="polite">
       <h2>Dossiers visibles</h2>
