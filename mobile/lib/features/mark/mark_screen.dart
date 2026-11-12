@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:go_router/go_router.dart';
@@ -96,8 +97,15 @@ class _MarkScreenState extends State<MarkScreen> {
       _input.clear();
       _meStream = widget.runtime.personal?.watchMe();
       unawaited(_restoreDraft());
-    } else if (oldWidget.runtime.personal != widget.runtime.personal) {
-      _meStream = widget.runtime.personal?.watchMe();
+    } else {
+      if (oldWidget.runtime.personal != widget.runtime.personal) {
+        _meStream = widget.runtime.personal?.watchMe();
+      }
+      if (!mapEquals(oldWidget.selectedContext, widget.selectedContext)) {
+        _selectedContext = widget.selectedContext;
+        _result = null;
+        unawaited(_saveDraft());
+      }
     }
   }
 
@@ -484,6 +492,14 @@ class _MarkScreenState extends State<MarkScreen> {
     }
   }
 
+  Future<void> _removeSelectedContext() async {
+    setState(() {
+      _selectedContext = null;
+      _result = null;
+    });
+    await _saveDraft();
+  }
+
   Future<void> _chooseOption(Map option) async {
     if (_busy || _restoring) return;
     final selected = markClarificationSelection(option);
@@ -758,9 +774,22 @@ class _MarkScreenState extends State<MarkScreen> {
                       if (_selectedContext != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Élément sélectionné pour cette demande',
-                            style: Theme.of(context).textTheme.bodySmall,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Élément sélectionné pour cette demande',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                              MakoloIconActionButton(
+                                icon: Icons.close,
+                                tooltip: 'Retirer le contexte sélectionné',
+                                onPressed: _busy
+                                    ? null
+                                    : () => unawaited(_removeSelectedContext()),
+                              ),
+                            ],
                           ),
                         ),
                       const SizedBox(height: 12),
