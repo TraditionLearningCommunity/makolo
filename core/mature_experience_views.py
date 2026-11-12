@@ -423,6 +423,26 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
         "recognition_reward",
     })
 
+    def _selected_context(self, params):
+        kind = (params.get("selected_kind") or "").strip()
+        identity = (params.get("selected_id") or "").strip()
+        family = (params.get("selected_family") or "").strip()
+        if kind not in self._SELECTED_KINDS or not 0 < len(identity) <= 128:
+            return None
+        if kind == "discovery_item" and not family:
+            return None
+        return {
+            "kind": kind,
+            "id": identity,
+            **({"family": family[:80]} if family else {}),
+        }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        supplied = self.request.POST if self.request.method == "POST" else self.request.GET
+        context["mark_selected"] = self._selected_context(supplied)
+        return context
+
     def post(self, request, *args, **kwargs):
         text = (request.POST.get("intent") or "").strip()
         if not text:
@@ -443,16 +463,10 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
         # A selected object only narrows a lookup. It cannot supply a Profile,
         # Space, Mandate or Permission. All owners revalidate on every request.
         mark_context = {}
-        selected_kind = (request.POST.get("selected_kind") or "").strip()
-        selected_id = (request.POST.get("selected_id") or "").strip()
-        selected_family = (request.POST.get("selected_family") or "").strip()
-        if selected_kind in self._SELECTED_KINDS and 0 < len(selected_id) <= 128:
-            if selected_kind != "discovery_item" or selected_family:
-                mark_context["selected"] = {
-                    "kind": selected_kind,
-                    "id": selected_id,
-                    **({"family": selected_family[:80]} if selected_family else {}),
-                }
+        selected = self._selected_context(request.POST)
+        selected_kind = selected["kind"] if selected else ""
+        if selected is not None:
+            mark_context["selected"] = selected
 
         # Recognition is the only personal Mark mutation with an explicit
         # owner-confirmation contract here. A browser retry keeps the same key;
