@@ -29,7 +29,7 @@ from .point_services import (
 from .history import page_points_for_profile
 from .timeline import recent_timeline_for_profile, group_timeline_points
 from .attention_projection import conversation_attention_sections
-from .participant_services import collective_invitation_inbox
+from .participant_services import collective_invitation_inbox, invitation_accept_allowed
 from .participation_inbox import participation_inbox_for_profile
 from .presentation import (
     catch_up_summary,
@@ -94,6 +94,10 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                 ).select_related("conversation", "created_by")
                 .order_by("created_at", "id")[:50]
             )
+            for invitation in invitations:
+                invitation.can_accept = invitation_accept_allowed(
+                    self.request.user, invitation,
+                )
         context.update(
             {
                 "tab": tab,
