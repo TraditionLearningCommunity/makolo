@@ -544,18 +544,18 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
         raise PermissionDenied("Seule la personne invitée peut répondre.")
     if locked.status != ConversationInvitationStatus.PENDING:
         return locked
-    if accept:
-        # An old invitation cannot revive a revoked mandate, closed contact
-        # policy or blocked relationship. The response owner remains atomic.
-        from .participant_services import invitation_accept_allowed
-        if not invitation_accept_allowed(actor, locked):
-            raise ValidationError("Cette invitation ne peut plus être acceptée.")
     now = timezone.now()
     if locked.expires_at and now >= locked.expires_at:
         locked.status = ConversationInvitationStatus.EXPIRED
         locked.responded_at = now
         locked.save(update_fields=["status", "responded_at", "updated_at"])
         return locked
+    if accept:
+        # An old invitation cannot revive a revoked mandate, closed contact
+        # policy or blocked relationship. The response owner remains atomic.
+        from .participant_services import invitation_accept_allowed
+        if not invitation_accept_allowed(actor, locked):
+            raise ValidationError("Cette invitation ne peut plus être acceptée.")
     locked.status = ConversationInvitationStatus.ACCEPTED if accept else ConversationInvitationStatus.DECLINED
     locked.responded_at = now
     locked.save(update_fields=["status", "responded_at", "updated_at"])
