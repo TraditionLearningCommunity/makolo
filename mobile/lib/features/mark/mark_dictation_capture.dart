@@ -68,8 +68,10 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     switch (type) {
       case 'listening':
         setState(() => _status = 'Écoute en cours');
+        return;
       case 'processing':
         setState(() => _status = 'Reconnaissance en cours');
+        return;
       case 'partial':
       case 'final':
         if (next.isNotEmpty) {
@@ -85,18 +87,23 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
             _status = 'Vous pouvez modifier le texte avant de continuer.';
           });
         }
+        return;
       case 'empty':
         setState(() {
           _active = false;
           _busy = false;
           _error = 'Aucune parole reconnue. Vous pouvez réessayer ou écrire.';
         });
+        return;
       case 'error':
         setState(() {
           _active = false;
           _busy = false;
           _error = 'La dictée système est indisponible ou a été interrompue.';
         });
+        return;
+      default:
+        return;
     }
   }
 
