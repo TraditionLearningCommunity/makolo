@@ -33,6 +33,7 @@ from recognition.selectors import account_for_profile, redemptions_requiring_ben
 from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
 from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
+from personal_assets.forms import PersonalAssetCreateForm
 from personal_assets.selectors import personal_assets_for_controller
 from readiness import ReadinessStatus, resolve_many
 from readiness.presentation import readiness_next_action_label
@@ -441,6 +442,7 @@ class MakoloMarkView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         supplied = self.request.POST if self.request.method == "POST" else self.request.GET
         context["mark_selected"] = self._selected_context(supplied)
+        context["mark_asset_form"] = PersonalAssetCreateForm()
         return context
 
     def post(self, request, *args, **kwargs):
