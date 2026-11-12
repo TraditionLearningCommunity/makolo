@@ -979,7 +979,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         if (_mediaPath != null) {
           setState(
             () =>
-                _error = 'Envoi de ce média indisponible sans stockage local.',
+                _error = 'Envoi indisponible.',
           );
           return;
         }
@@ -1000,7 +1000,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       }
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Envoi non conservé. Réessayer.');
+        setState(() => _error = 'Envoi non conservé. Réessayez.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -1016,7 +1016,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
       'confirmation' => 'Confirmation',
       'question' => 'Question',
       'request' => 'Demande',
-      'exchange' => 'Échange',
+      'exchange' => 'Discussion',
       _ => 'Information',
     };
     return Padding(
