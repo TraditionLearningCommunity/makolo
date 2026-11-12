@@ -141,9 +141,7 @@
     </div>
 </div>
 {% if nearby_active and map_items %}{{ map_items|json_script:"discovery-map-data" }}{{ map_config|json_script:"discovery-map-config" }}{% endif %}
-{% if not request.user.is_authenticated %}{% include 'discovery/_preview.html' %}{% endif %}
+
 {% endblock %}
-{% block workspace_context %}
-{% if request.user.is_authenticated %}{% include 'discovery/_preview.html' %}{% endif %}
-{% endblock %}
+
 {% block extra_js %}{% if nearby_active and map_items %}<script defer src="{% static 'dist/discovery-map.js' %}"></script>{% else %}<script defer src="{% static 'dist/discovery-geolocation.js' %}"></script>{% endif %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}
