@@ -68,7 +68,7 @@ def _profile_in_audience(
         return False
     return _cached(
         cache,
-        audience.pk,
+        (getattr(profile, "pk", None), audience.pk, at),
         lambda: profile_in_audience(profile, audience, at=at),
     )
 
@@ -97,6 +97,7 @@ def point_attention_reason(
     audience_membership_cache=None,
     conversation_visibility_cache=None,
     conversation_manage_cache=None,
+    conversation_history_cache=None,
 ):
     """Only an authorized, currently possible action may count as attention.
 
@@ -114,10 +115,22 @@ def point_attention_reason(
         return None
     if point.valid_until and point.valid_until <= at:
         return None
-    if not point_visible_to(profile, point, at=at):
+    if not point_visible_to(
+        profile, point, at=at,
+        visibility_cache=conversation_visibility_cache,
+        audience_cache=audience_membership_cache,
+        history_cache=conversation_history_cache,
+    ):
         return None
 
-    capabilities = point_interactions_for_profile(profile, point, at=at)
+    capabilities = point_interactions_for_profile(
+        profile, point, at=at,
+        visibility_cache=conversation_visibility_cache,
+        audience_cache=audience_membership_cache,
+        history_cache=conversation_history_cache,
+        manage_cache=conversation_manage_cache,
+        attention_only=True,
+    )
     expected = bool(
         point.expected_action_audience_id
         and _profile_in_audience(
@@ -198,6 +211,8 @@ def attention_points_for_profile(profile, *, at=None, limit=100, only_actionable
     audience_membership_cache = {}
     conversation_visibility_cache = {}
     conversation_manage_cache = {}
+    conversation_history_cache = {}
+    # These dictionaries live only for this owner read, never across requests.
     # The global list may start with many Points invisible to this viewer.
     # Stream until the *authorized* limit rather than returning a false zero.
     for point in candidates.iterator(chunk_size=120):
@@ -208,6 +223,7 @@ def attention_points_for_profile(profile, *, at=None, limit=100, only_actionable
             audience_membership_cache=audience_membership_cache,
             conversation_visibility_cache=conversation_visibility_cache,
             conversation_manage_cache=conversation_manage_cache,
+            conversation_history_cache=conversation_history_cache,
         )
         if reason and (not only_actionable or reason in ACTION_REASONS):
             items.append(
