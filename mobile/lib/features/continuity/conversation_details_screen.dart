@@ -992,7 +992,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       return _empty(
         context,
         Icons.folder_outlined,
-        'Aucune ressource du contexte n’est disponible ici.',
+        'Aucune ressource ici.',
       );
     }
     final route = _map(data['subject'])['route']?.toString();
@@ -1004,7 +1004,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
       children: [
         Text(
-          'Ressources du contexte',
+          'Ressources',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -1012,13 +1012,13 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: Text(resource['title']?.toString() ?? 'Ressource'),
-            subtitle: Text(
-              resource['description']?.toString().isNotEmpty == true
-                  ? resource['description'].toString()
-                  : 'Disponible selon les droits du contexte',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
+            subtitle: resource['description']?.toString().isNotEmpty == true
+                ? Text(
+                    resource['description'].toString(),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : null,
             trailing: opensJourney
                 ? const Icon(Icons.chevron_right_rounded)
                 : null,
