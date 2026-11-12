@@ -249,13 +249,23 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     ),
                   ),
                 Expanded(
-                  child: _SpaceProjectionBody(
-                    surface: widget.surface,
-                    projection: snapshot.data,
-                    fallbackSpaceName: actor.space.slug,
-                    spaceId: actor.space.id,
-                    onRefresh: _refresh,
-                    mediaBaseUri: widget.runtime.api?.baseUri,
+                  child: StreamBuilder<List<SpaceSummary>>(
+                    stream: repository.watchInventory(),
+                    builder: (context, inventory) {
+                      final known = (inventory.data ?? const <SpaceSummary>[])
+                          .where((item) => item.identity == actor.space);
+                      final knownName = known.isEmpty
+                          ? actor.space.slug
+                          : known.first.name;
+                      return _SpaceProjectionBody(
+                        surface: widget.surface,
+                        projection: snapshot.data,
+                        fallbackSpaceName: knownName,
+                        spaceId: actor.space.id,
+                        onRefresh: _refresh,
+                        mediaBaseUri: widget.runtime.api?.baseUri,
+                      );
+                    },
                   ),
                 ),
               ],
@@ -432,6 +442,26 @@ class _SpaceProjectionBody extends StatelessWidget {
       key: Key('space-initial-structure-${surface.name}'),
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
+        if (surface == SpaceShellSurface.us) ...[
+          MakoloCard(
+            child: Row(
+              children: [
+                Icon(
+                  Icons.apartment_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Text(
+                    fallbackSpaceName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.md),
+        ],
         for (final title in sections) ...[
           Text(title, style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: MakoloSpacing.sm),
