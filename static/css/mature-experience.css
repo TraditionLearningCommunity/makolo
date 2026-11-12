@@ -126,6 +126,17 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 
 /* Discover 2028 — compose one owner-backed field beside its spatial view.
    Content layout only; buttons, tokens and map behavior remain shared. */
+@media (min-width:1200px) {
+  /* Spatial exploration already has its own live context panel. A second
+     preview column would shrink both the opportunities and the map. */
+  .mk-workspace[data-workspace-layout="explore"]:has(.mk-discovery-workspace[data-discovery-layout="spatial"]) {
+    display:block;
+  }
+  .mk-workspace:has(.mk-discovery-workspace[data-discovery-layout="spatial"]) .mk-discovery-preview,
+  .mk-discovery-workspace[data-discovery-layout="spatial"] .mk-discovery-preview-action {
+    display:none;
+  }
+}
 @media (min-width:1024px) {
   .mk-discovery-workspace[data-discovery-layout="spatial"] .mk-discovery-results {
     display:flex;
