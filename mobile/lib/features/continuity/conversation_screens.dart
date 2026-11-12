@@ -169,6 +169,27 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
   }
 
+  Future<void> _openInvitations() async {
+    unawaited(_refreshInvitationsIfNeeded());
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: 0.85,
+        child: _ConversationInvitationInbox(
+          repository: widget.repository,
+          onRefresh: () => _refreshInvitationsIfNeeded(force: true),
+          onOpen: (id) {
+            Navigator.of(sheetContext).pop();
+            widget.onOpen(id);
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _refresh() async {
     unawaited(_refreshInvitationsIfNeeded(force: true));
     await _refreshList();
@@ -377,6 +398,25 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               appBar: AppBar(
                 title: const Text('Conversations'),
                 actions: [
+                  StreamBuilder<StoredProjection?>(
+                    stream: widget.repository.watchInvitations(),
+                    builder: (context, snapshot) {
+                      final count = _ConversationInvitation.fromProjection(
+                        snapshot.data,
+                      ).length;
+                      return IconButton(
+                        key: const Key('conversation-invitations-open'),
+                        tooltip: 'Invitations reçues',
+                        onPressed: _openInvitations,
+                        icon: count > 0
+                            ? Badge.count(
+                                count: count,
+                                child: const Icon(Icons.mail_outline_rounded),
+                              )
+                            : const Icon(Icons.mail_outline_rounded),
+                      );
+                    },
+                  ),
                   IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refresh,
@@ -723,6 +763,61 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
           },
         );
       },
+    );
+  }
+}
+
+class _ConversationInvitationInbox extends StatelessWidget {
+  const _ConversationInvitationInbox({
+    required this.repository,
+    required this.onRefresh,
+    required this.onOpen,
+  });
+
+  final ConversationRepository repository;
+  final Future<void> Function() onRefresh;
+  final void Function(String id) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Invitations'),
+        actions: [
+          IconButton(
+            tooltip: 'Actualiser les invitations',
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      body: StreamBuilder<StoredProjection?>(
+        stream: repository.watchInvitations(),
+        builder: (context, snapshot) {
+          final invitations = _ConversationInvitation.fromProjection(
+            snapshot.data,
+          );
+          return ListView(
+            padding: const EdgeInsets.all(MakoloSpacing.inner),
+            children: [
+              if (snapshot.data == null)
+                const Text(
+                  'Invitations non encore disponibles sur cet appareil.',
+                )
+              else if (invitations.isEmpty)
+                const Text('Aucune invitation à traiter.'),
+              for (final invitation in invitations) ...[
+                _ConversationInvitationCard(
+                  invitation: invitation,
+                  repository: repository,
+                  onOpen: onOpen,
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -2804,7 +2899,7 @@ class _PointCardState extends State<_PointCard> {
             alignment: Alignment.centerLeft,
             child: MakoloActionButton(
               key: Key('conversation-exchange-open-${point.id}'),
-              label: 'Voir l’échange',
+              label: 'Ouvrir la discussion',
               onPressed: widget.onOpenExchange,
               icon: Icons.forum_outlined,
               appearance: MakoloActionAppearance.quiet,
