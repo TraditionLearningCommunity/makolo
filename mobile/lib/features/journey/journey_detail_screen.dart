@@ -464,6 +464,27 @@ class _JourneyContent extends StatelessWidget {
                 child: _JourneyOutcomeCard(presentation: presentation),
               ),
             ],
+            if (presentation.serviceResult != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                title: 'Réponse de l’organisme',
+                child: MakoloCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        presentation.serviceResult!.label,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                      const Text(
+                        'Cette réponse est distincte de l’état de votre démarche Makolo.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             if (presentation.canRespondInvitation &&
                 !presentation.isTerminal) ...[
               Padding(
