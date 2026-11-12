@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -15,6 +16,8 @@ class DocumentFormScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onSaved,
+    this.markFileId,
+    this.markFileName,
   }) : assetId = null;
 
   const DocumentFormScreen.version({
@@ -22,10 +25,13 @@ class DocumentFormScreen extends StatefulWidget {
     required this.repository,
     required String this.assetId,
     required this.onSaved,
-  });
+  }) : markFileId = null,
+       markFileName = null;
 
   final ResourceRepository repository;
   final String? assetId;
+  final String? markFileId;
+  final String? markFileName;
   final ValueChanged<String> onSaved;
 
   bool get isVersion => assetId != null;
@@ -59,12 +65,17 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   bool _busy = false;
   bool _saved = false;
   bool _saveFailed = false;
+  bool _loadingMarkFile = false;
+  String? _prefillError;
 
   @override
   void initState() {
     super.initState();
     if (!widget.isVersion) {
       unawaited(_loadOptions());
+      if (widget.markFileId != null) {
+        unawaited(_loadMarkFile());
+      }
     }
   }
 
@@ -105,7 +116,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   }
 
   Future<void> _pickFile() async {
-    if (_busy) return;
+    if (_busy || _loadingMarkFile) return;
     final picked = await _picker.pick(allowedExtensions: _extensions);
     if (!mounted || picked.isEmpty) return;
     final source = picked.first;
@@ -145,6 +156,69 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
     }
   }
 
+  Future<void> _loadMarkFile() async {
+    final fileId = widget.markFileId;
+    if (fileId == null || fileId.isEmpty || widget.isVersion) return;
+    setState(() {
+      _loadingMarkFile = true;
+      _prefillError = null;
+    });
+    try {
+      final store = await _store();
+      final source = await store.read(fileId);
+      if (source == null ||
+          source.profileId != widget.repository.profileId ||
+          source.owner != 'profile' ||
+          source.purpose != 'mark_intake' ||
+          !await File(source.path).exists()) {
+        throw StateError('Mark file is unavailable in this Profile');
+      }
+      final suffix = p.extension(source.path).toLowerCase();
+      final candidate = p.basename(widget.markFileName ?? '');
+      final filename = p.extension(candidate).toLowerCase() == suffix &&
+              _contentType(candidate) != null
+          ? candidate
+          : 'Document$suffix';
+      if (_contentType(filename) == null) {
+        throw StateError('Mark document format not supported by PersonalAsset');
+      }
+
+      // The owner form works with its own staged copy. Cancelling or failing
+      // this form must never delete the original Mark draft attachment.
+      final copy = await store.stageCopy(
+        fileId:
+            'personal-asset-mark-${widget.repository.profileId}-'
+            '${DateTime.now().toUtc().microsecondsSinceEpoch}',
+        owner: 'PersonalAsset',
+        sourceFilename: filename,
+        purpose: 'personal_asset_create',
+        sensitivity: _sensitivity,
+        writeTo: (destinationPath) async {
+          await File(source.path).copy(destinationPath);
+        },
+      );
+      if (!mounted) {
+        await store.remove(copy.fileId);
+        return;
+      }
+      setState(() {
+        _file = copy;
+        _filename = filename;
+        if (_title.text.trim().isEmpty) {
+          _title.text = p.basenameWithoutExtension(filename);
+        }
+      });
+    } on Object {
+      if (mounted) {
+        setState(() => _prefillError =
+            'Cette pièce n’est pas accessible depuis Mes documents. '
+            'Vous pouvez choisir un autre fichier.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMarkFile = false);
+    }
+  }
+
   Future<void> _chooseDate({required bool expiry}) async {
     final initial = expiry ? _expiresAt : _issuedAt;
     final now = DateTime.now();
@@ -165,7 +239,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
   }
 
   Future<void> _submit() async {
-    if (_busy || _saved) return;
+    if (_busy || _saved || _loadingMarkFile) return;
     final file = _file;
     final filename = _filename;
     if (file == null || filename == null) {
@@ -252,7 +326,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
           MakoloIconActionButton(
             tooltip: 'Enregistrer',
             icon: Icons.check_rounded,
-            onPressed: _busy || _saved ? null : _submit,
+            onPressed: _busy || _saved || _loadingMarkFile ? null : _submit,
             phase: _busy
                 ? MakoloActionPhase.processing
                 : _saved
@@ -314,8 +388,15 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
             ),
             const SizedBox(height: MakoloSpacing.lg),
           ],
+          if (_prefillError != null) ...[
+            Text(
+              _prefillError!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            const SizedBox(height: MakoloSpacing.sm),
+          ],
           MakoloCard(
-            onTap: _busy ? null : _pickFile,
+            onTap: _busy || _loadingMarkFile ? null : _pickFile,
             child: Row(
               children: [
                 Icon(
@@ -363,7 +444,7 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
               ),
             ],
           ),
-          if (_busy) ...[
+          if (_busy || _loadingMarkFile) ...[
             const SizedBox(height: MakoloSpacing.lg),
             const LinearProgressIndicator(),
           ],
