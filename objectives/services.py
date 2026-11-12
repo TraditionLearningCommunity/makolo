@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Mandate
+from authorization.selectors import current_mandates
 from authorization.services import can, grant_dossier_role, grant_project_role, revoke_mandate, validate_role_for_dossier, validate_role_for_project
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
@@ -116,6 +117,38 @@ def revoke_project_authority(*, actor, project, mandate):
     if mandate is None:
         raise ValidationError("Ce Mandat n'appartient pas au Projet.")
     return revoke_mandate(mandate=mandate, actor=actor)
+
+
+@transaction.atomic
+def replace_project_authority(*, actor, project, mandate, role):
+    """Explicit role replacement: one server-authorized atomic transition.
+
+    A Project grant never transfers rights in Dossiers or Conversations.
+    Only effective mandates for the same person and the same Project are
+    replaced; historical mandates remain revoked, not deleted.
+    """
+    _require_authenticated(actor)
+    project = _locked_project(project)
+    if not can_manage_project_authority(actor, project):
+        raise PermissionDenied("Autorité d'administration des accès du Projet requise.")
+    validate_role_for_project(role)
+    selected = current_mandates().select_for_update().filter(
+        pk=mandate.pk, scope_type=AuthorityScope.PROJECT, project=project,
+    ).first()
+    if selected is None:
+        raise ValidationError("Ce mandat Projet n'est plus actif.")
+    current = list(current_mandates().select_for_update().filter(
+        scope_type=AuthorityScope.PROJECT, project=project,
+        profile_id=selected.profile_id,
+    ))
+    if len(current) == 1 and current[0].role_id == role.pk:
+        return selected
+    for previous in current:
+        revoke_mandate(mandate=previous, actor=actor)
+    return grant_project_role(
+        profile=selected.profile, project=project, role=role,
+        granted_by=actor, source="objectives-service",
+    )
 
 
 def can_use_journey_for_dossier(actor, journey):
