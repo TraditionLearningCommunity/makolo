@@ -132,6 +132,24 @@ def _collective_manage_allowed(actor, *, space=None, group=None):
     ))
 
 
+def collective_invitation_accept_allowed(actor, access):
+    """Live consent + current sender and representative authority."""
+    return bool(
+        access.status == ConversationCollectiveStatus.PENDING
+        and access.conversation.lifecycle == ConversationLifecycle.OPEN
+        and (not access.expires_at or access.expires_at > timezone.now())
+        and access.created_by.is_active
+        and can_manage_conversation(access.created_by, access.conversation)
+        and _collective_manage_allowed(
+            actor, space=access.space, group=access.group,
+        )
+        and (
+            (access.space is not None and _eligible_space(access.space))
+            or (access.group is not None and access.group.status == GroupStatus.ACTIVE)
+        )
+    )
+
+
 def _visible_group(actor, group, *, exact=False):
     if group.status != GroupStatus.ACTIVE:
         return False
@@ -329,12 +347,14 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
 @transaction.atomic
 def answer_collective_invitation(*, actor, access, accept):
     locked = ConversationCollectiveAccess.objects.select_for_update().select_related(
-        "space", "group", "conversation",
+        "space", "group", "conversation", "created_by",
     ).get(pk=access.pk)
     if not _collective_manage_allowed(actor, space=locked.space, group=locked.group):
         raise PermissionDenied("Autorité de représentation insuffisante.")
     if locked.status != ConversationCollectiveStatus.PENDING:
         return locked
+    if accept and not collective_invitation_accept_allowed(actor, locked):
+        raise ValidationError("Cette invitation collective ne peut plus être acceptée.")
     now = timezone.now()
     if locked.expires_at and now >= locked.expires_at:
         locked.status = ConversationCollectiveStatus.EXPIRED
