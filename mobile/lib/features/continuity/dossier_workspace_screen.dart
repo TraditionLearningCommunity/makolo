@@ -806,7 +806,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   _projectAction(data);
                 case 'lifecycle':
                   _lifecycle(data);
-               }
+              }
             },
             itemBuilder: (_) => [
               if (menu.contains('edit'))
@@ -826,7 +826,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   value: 'lifecycle',
                   child: Text('Changer l’état'),
                 ),
- 
             ],
           ),
       ],
