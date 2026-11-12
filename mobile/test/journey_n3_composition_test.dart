@@ -109,7 +109,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text("Recevoir un badge d'accès conférence"), findsOneWidget);
-      expect(find.text('09h00'), findsOneWidget);
+      expect(find.text('09h'), findsOneWidget);
       expect(find.text('Lubumbashi'), findsOneWidget);
       expect(find.byKey(const Key('journey-relative-day')), findsOneWidget);
       expect(find.text('Africa/Lubumbashi'), findsNothing);
