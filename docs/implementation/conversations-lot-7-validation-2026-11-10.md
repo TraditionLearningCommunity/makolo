@@ -300,3 +300,43 @@ fichiers GitHub, code et tests ajoutés/poussés sur #522. Aucune CI, exécution
 Django/PostgreSQL, analyse/formatage Flutter ou recette Android n'a été
 déclenchée ici, conformément à la demande. Le statut de compilation et de
 recette reste non attesté. Aucune fusion avec `main`.
+
+### Complément de fermeture : retrait, consentement et vérité locale
+
+- Une demande d'entrée personnelle peut maintenant être **retirée** avec
+  `withdraw_join_request`, sous verrou transactionnel et uniquement par le
+  demandeur tant que son statut est `pending`. Une demande `approved` ne
+  peut pas être transformée artificiellement en `cancelled` : quitter une
+  participation suit sa commande existante. L'endpoint privé
+  `POST /api/v1/conversations/join-requests/<uuid>/withdraw/` et la route
+  Web `POST /conversations/join-requests/<uuid>/withdraw/` réutilisent le
+  domaine Conversations, sans nouvelle migration. La commande reste
+  accessible au demandeur après perte de lecture du contexte.
+- Sur Web, « Mes demandes d'entrée » comporte « Retirer ma demande » avec
+  CSRF. Sur Flutter, la même commande exige le statut `cancelled` et l'ID
+  attendus avant d'enlever la ligne de la projection locale par Profil ;
+  un échec de rafraîchissement conserve cette confirmation propriétaire.
+  Les créations d'invitation et d'entrée vérifient aussi désormais leur
+  accusé de réception avant toute annonce de succès.
+- Les invitations reçues distinguent l'auteur (`username`), leur contexte
+  (`context_kind`) et `can_accept` autoritatif. Ce dernier vérifie
+  état, contact, blocage, mandat actuel de l'émetteur et représentation
+  Space éventuelle. L'absence de pouvoir d'acceptation laisse l'action
+  Refuser disponible. Aucun titre ou média privé n'est divulgué.
+- Les sections de coordination existantes sont bornées. Les clés
+  `more_received` et `more_collective`, ainsi que les `more_*` des
+  demandes, distinguent clairement fenêtre partielle et liste exhaustive.
+  Ce sont des informations de pagination, jamais un nombre de personnes
+  à contacter ni un indicateur d'engagement.
+- Le rafraîchissement explicite du volet mobile peut désormais présenter
+  une erreur contextualisée sans effacer les données locales utiles.
+  Le rafraîchissement passif reste discret.
+
+Tests **ajoutés et non exécutés dans cette intervention** :
+`conversations/test_participation_inbox.py` (retrait après révocation,
+refus d'annuler une demande approuvée, contrat Web/API, fenêtre bornée,
+contact et mandat) et `mobile/test/conversation_c5_mature_test.dart`
+(retrait confirmé malgré incident de lecture, refus de faux ACK).
+La CI et les tests instrumentés n'ont pas été consultés ou déclenchés
+pendant ce complément, conformément à la demande. Le code reste sur la
+branche de #522, sans fusion de `main`.
