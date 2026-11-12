@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/interaction_primitives.dart';
 import '../../design/action_controls.dart';
+import '../../design/behavior_primitives.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -284,7 +285,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
           if (snapshot.data == null) {
             return Center(
               child: _refreshing
-                  ? const CircularProgressIndicator()
+                  ? const MakoloSkeleton(lines: 5)
                   : MakoloActionButton(
                       label: 'Réessayer',
                       onPressed: () => unawaited(_refresh()),
@@ -301,15 +302,8 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                   const SizedBox(height: 88),
                   const Icon(Icons.radar_outlined, size: 44),
                   const SizedBox(height: 16),
-                  const Center(child: Text('Aucune veille enregistrée.')),
+                  const Center(child: Text('Aucune veille pour le moment.')),
                   const SizedBox(height: 10),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 28),
-                    child: Text(
-                      'Indiquez ce que Makolo doit continuer à rechercher pour vous.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
                   const SizedBox(height: 24),
                   Center(
                     child: MakoloActionButton(
@@ -478,7 +472,7 @@ class _DiscoveryWatchResultsScreenState
           if (snapshot.data == null) {
             return Center(
               child: _refreshing
-                  ? const CircularProgressIndicator()
+                  ? const MakoloSkeleton(lines: 5)
                   : MakoloActionButton(
                       label: 'Réessayer',
                       onPressed: () => unawaited(_refresh()),
@@ -497,7 +491,7 @@ class _DiscoveryWatchResultsScreenState
                     padding: EdgeInsets.all(MakoloSpacing.inner),
                     child: Center(
                       child: Text(
-                        'Aucune possibilité trouvée pour cette veille.',
+                        'Aucune correspondance pour le moment.',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -519,7 +513,7 @@ class _DiscoveryWatchResultsScreenState
                       // not an Activity-only depth or an engagement action.
                       widget.onOpenItem(item.family, item.id);
                     },
-                    semanticLabel: 'Possibilité. ${item.title}',
+                    semanticLabel: 'Opportunité. ${item.title}',
                     child: MakoloStatusMetadataAction(
                       title: item.title,
                       subtitle: item.summary.isEmpty ? null : item.summary,
