@@ -375,77 +375,133 @@ class _PreparationResourceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icon = resource.downloadUrl != null
+        ? (resource.mimeType == 'application/pdf'
+            ? Icons.picture_as_pdf_outlined
+            : resource.mimeType?.startsWith('image/') == true
+            ? Icons.image_outlined : Icons.description_outlined)
+        : resource.externalUrl != null
+        ? Icons.link_rounded : Icons.notes_rounded;
     return MakoloCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MakoloStatusMetadataAction(
-            title: resource.title,
-            subtitle: resource.description,
-            status: MakoloStatus(label: resource.kindLabel),
-            metadata: [
-              if (resource.version > 1)
-                MakoloMetadataItem('Version ${resource.version}'),
-              if (resource.occurrenceId != null)
-                const MakoloMetadataItem(
-                  'Liée à une occurrence',
-                  icon: Icons.event_outlined,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, size: 25, color: Theme.of(context).colorScheme.secondary),
+              const SizedBox(width: MakoloSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(resource.title,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    if (resource.description != null &&
+                        resource.description != resource.text)
+                      Text(resource.description!,
+                          style: Theme.of(context).textTheme.bodySmall),
+                    if (resource.version > 1)
+                      Text('Version ${resource.version}',
+                          style: Theme.of(context).textTheme.labelSmall),
+                  ],
                 ),
+              ),
             ],
           ),
           if (resource.text != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text(resource.text!),
-          ],
-          if (resource.externalUrl != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final opened = await onOpenExternal(resource.externalUrl!);
-                if (!opened && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Ce lien externe n’est pas disponible pour le moment.',
-                      ),
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.open_in_new_rounded),
-              label: const Text('Ouvrir le site externe'),
+            _ExpandableResourceText(
+              key: ValueKey('resource-text:${resource.id}:${resource.version}'),
+              text: resource.text!,
             ),
           ],
+          if (resource.externalUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final opened = await onOpenExternal(resource.externalUrl!);
+                  if (!opened && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text(
+                        'Ce lien ne peut pas être ouvert pour le moment.',
+                      )),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Ouvrir le lien'),
+              ),
+            ),
           if (resource.downloadUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            FilledButton.tonalIcon(
-              onPressed: downloading ? null : onOpenFile,
-              icon: downloading
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      downloaded
-                          ? Icons.description_outlined
-                          : Icons.download_rounded,
-                    ),
-              label: Text(downloading ? 'Ouverture…' : 'Ouvrir le document'),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            TextButton.icon(
-              onPressed: downloading ? null : onExportFile,
-              icon: const Icon(Icons.download_outlined),
-              label: const Text('Enregistrer une copie'),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              downloaded ? 'Document disponible' : 'Document à ouvrir',
-              style: Theme.of(context).textTheme.bodySmall,
+            Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: downloading ? null : onOpenFile,
+                  icon: downloading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.visibility_outlined),
+                  label: Text(downloading ? 'Ouverture…' : 'Consulter'),
+                ),
+                TextButton.icon(
+                  onPressed: downloading ? null : onExportFile,
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Enregistrer une copie'),
+                ),
+              ],
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ExpandableResourceText extends StatefulWidget {
+  const _ExpandableResourceText({super.key, required this.text});
+
+  final String text;
+
+  @override
+  State<_ExpandableResourceText> createState() => _ExpandableResourceTextState();
+}
+
+class _ExpandableResourceTextState extends State<_ExpandableResourceText> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(covariant _ExpandableResourceText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text != widget.text) _expanded = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final longContent =
+        widget.text.length > 400 || '\n'.allMatches(widget.text).length > 7;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.text,
+          maxLines: longContent && !_expanded ? 6 : null,
+          overflow: longContent && !_expanded
+              ? TextOverflow.ellipsis : TextOverflow.visible,
+        ),
+        if (longContent)
+          TextButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(_expanded ? 'Réduire' : 'Lire la suite'),
+          ),
+      ],
     );
   }
 }
