@@ -329,6 +329,7 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertContains(response, 'data-mk-mark-voice')
         self.assertContains(response, 'data-mk-mark-link-input')
         self.assertNotContains(response, 'name="attachments"')
+        self.assertNotContains(response, 'data-mk-mark-owner-form')
         self.assertIn("no-store", response["Cache-Control"])
 
     def test_space_mark_cancel_confirmation_does_not_execute_owner_mutation(self):
