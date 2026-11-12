@@ -31,7 +31,6 @@
   {% endif %}
   <section class="mt-7" aria-labelledby="history-results-title">
     <h2 id="history-results-title" class="text-base font-extrabold">Points accessibles</h2>
-    <p class="mt-2 text-xs" style="color:var(--mk-muted)">Chaque page conserve l’ordre ancien → récent. Les Points terminés se déplient sans perdre leur position.</p>
     <div aria-live="polite" class="mt-4 space-y-3">
       {% for group in history_groups %}
         {% ifchanged group.day %}
