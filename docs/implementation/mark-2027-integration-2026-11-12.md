@@ -97,6 +97,7 @@ Le périmètre de cette passe étend **la préparation et l'interface**, pas les
 - Un brouillon texte/liens est stocké uniquement dans `sessionStorage` de l'onglet, borné à l'acteur utilisateur/Space. **Les fichiers File/Blob ne persistent pas après navigation/rechargement**. Le bouton d'effacement supprime le brouillon de l'onglet, sans prétendre annuler une décision métier déjà confirmée.
 - Le Web personnel reçoit désormais les éléments sélectionnés en entrée `selected_kind/selected_id/selected_family`, strictement bornés ; l'orchestrateur propriétaire continue de vérifier l'existence et l'autorité. Le contexte peut être retiré sans supprimer le texte.
 - Les réponses Mark Web sont servies avec `no-store`. Space permet d'annuler la confirmation Team sans la déclencher et rejette une demande vide ou plus longue que 600 caractères sans troncature silencieuse.
+- **Handoff de fichier Web personnel réellement exécutable** : une pièce PDF/DOC/DOCX/TXT/JPEG/PNG sélectionnée dans Mark peut remplir, sans téléversement automatique, le formulaire canonique `PersonalAssetCreateForm` intégré dans le parcours. L'utilisateur vérifie le titre, le type et la confidentialité puis soumet directement le `POST` existant de `personal_assets:add` avec CSRF et `multipart/form-data`. Le propriétaire PersonalAsset valide et renvoie le résultat ; Mark ne persiste aucun fichier métier ni ne crée de nouvelle API d'upload. Les autres médias restent locaux et non interprétés. Si le navigateur ne permet pas `DataTransfer`, le lien d'ouverture de Mes documents garde un repli explicite.
 
 ### Handoffs Flutter ajoutés
 
@@ -104,13 +105,13 @@ Le périmètre de cette passe étend **la préparation et l'interface**, pas les
 
 ### Contrats et preuves source
 
-- Fichiers Web ajoutés : `templates/partials/mark_input_tools.html`, `static/js/mark-intake.js`, `static/css/mark-intake.css`.
-- Fichiers Web modifiés : `templates/base/app.html`, `templates/core/makolo_mark.html`, `templates/organizations/space/mark_ws5.html`, `core/mature_experience_views.py`, `organizations/space_ws5_web.py`.
+- Fichiers Web ajoutés : `templates/partials/mark_input_tools.html`, `templates/partials/mark_personal_asset_form.html`, `static/js/mark-intake.js`, `static/css/mark-intake.css`.
+- Fichiers Web modifiés : `templates/base/app.html`, `templates/core/makolo_mark.html`, `templates/organizations/space/mark_ws5.html`, `core/mature_experience_views.py`, `organizations/space_ws5_web.py`. Le propriétaire `personal_assets/views.py` et ses règles n'ont pas été remplacés.
 - Fichiers Flutter modifiés : `mobile/lib/features/mark/mark_navigation.dart`, `mobile/test/mark_navigation_test.dart`.
 - Tests serveur ajoutés dans `core/test_mature_personal_experience.py` et `organizations/test_ws5_space_day_of_live_scanner_mark_web.py` pour le Web, les contextes sélectionnés, l'absence de faux upload, la limite textuelle, le cache privé et l'annulation.
 
 ### État réel et obstacles
 
-**Implémentation écrite, mais non compilée ni exécutée dans cet environnement connecté GitHub.** Les tests Dart, Python, E2E Web et Android, la validation visuelle, le formatter canonique et la recette multi-écran restent à réaliser séparément. Le parcours direct de transfert multimodal entre Mark et chaque owner, l'interprétation visuelle, les PDF, la compréhension audio générique et toute intelligence nécessitant un fournisseur/modèle ou des contrats propriétaires non présents restent des capacités **non closes**, pas des fonctionnalités simulées.
+**Implémentation écrite, mais non compilée ni exécutée dans cet environnement connecté GitHub.** Les tests Dart, Python, E2E Web et Android, la validation visuelle, le formatter canonique et la recette multi-écran restent à réaliser séparément. Le parcours générique de transfert multimodal entre Mark et tous les autres owners, l'interprétation visuelle, les PDF, la compréhension audio générique et toute intelligence nécessitant un fournisseur/modèle ou des contrats propriétaires non présents restent des capacités **non closes**, pas des fonctionnalités simulées.
 
 Aucune CI, aucun workflow ni aucune configuration de workflow n'a été lancée, annulée ou modifiée dans cette passe. La PR #522 demeure ouverte et `main` non modifiée.
