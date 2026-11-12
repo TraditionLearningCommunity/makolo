@@ -194,6 +194,47 @@ class ProjectAuthorityIntegrationTests(TestCase):
             403,
         )
 
+    def test_grant_does_not_create_competing_project_roles(self):
+        first_id = self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.endpoint("objectives_api:project-authority"),
+            {
+                "action": "grant",
+                "profile_id": str(self.viewer.pk),
+                "role_code": SystemRoleCode.PROJECT_MANAGER,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(Mandate.objects.get(pk=first_id).is_current())
+        self.assertEqual(
+            Mandate.objects.filter(
+                project=self.project, profile=self.viewer,
+                status="active",
+            ).count(), 1,
+        )
+
+    def test_web_project_role_replacement_uses_same_service(self):
+        old_id = self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
+        self.client.force_authenticate(user=None)
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("objectives:project-authority", args=[self.project.pk]),
+            {
+                "action": "replace", "mandate_id": old_id,
+                "role_code": SystemRoleCode.PROJECT_MANAGER,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Mandate.objects.get(pk=old_id).is_current())
+        self.assertEqual(
+            Mandate.objects.filter(
+                project=self.project, profile=self.viewer,
+                status="active", role__code=SystemRoleCode.PROJECT_MANAGER,
+            ).count(), 1,
+        )
+
     def test_other_project_mandate_cannot_be_replaced(self):
         initial_id = self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
         self.client.force_authenticate(user=self.owner)
