@@ -314,6 +314,30 @@ def _journey_history(journey):
     ]
 
 
+def _service_request(journey):
+    """Recipient-safe facts pinned by Services; not inferred Journey state."""
+    try:
+        context = journey.service_context
+    except (ObjectDoesNotExist, AttributeError):
+        return None
+    objective = (context.objective or "").strip()
+    revision = context.opportunity_revision if context.opportunity_revision_id else None
+    if not objective and revision is None:
+        return None
+    opportunity = None
+    if revision is not None and context.opportunity_id:
+        opportunity = {
+            "id": str(context.opportunity_id),
+            "title": revision.title,
+            "issuer": revision.issuer_name or None,
+            "publication_state": context.opportunity.publication_status,
+        }
+    return {
+        "objective": objective or None,
+        "opportunity": opportunity,
+    }
+
+
 def _service_result(journey):
     """Disclose only the recipient's owner-established external outcome."""
     try:
@@ -411,6 +435,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         "steps": _journey_step_summaries(journey),
         "history": _journey_history(journey),
         "service_result": _service_result(journey),
+        "service_request": _service_request(journey),
         "requests": {"pending": pending, "rejected": rejected},
         "requirements": _service_requirements(journey),
         "forms": form_links,
