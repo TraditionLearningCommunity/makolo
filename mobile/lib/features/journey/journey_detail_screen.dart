@@ -21,6 +21,7 @@ import '../../sync/freshness.dart';
 import '../continuity/conversation_context_screen.dart';
 import '../continuity/conversation_repository.dart';
 import '../preparation/preparation_repository.dart';
+import 'journey_composition.dart';
 import 'journey_repository.dart';
 import 'journey_selector.dart';
 import 'journey_time_presentation.dart';
@@ -425,6 +426,11 @@ class _JourneyContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = _nextActionButton();
+    final composition = JourneyComposition.from(
+      presentation,
+      resourcesKnown: resourcesKnown,
+      resourcesCount: resourcesPreview.length,
+    );
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
@@ -524,111 +530,20 @@ class _JourneyContent extends StatelessWidget {
                 child: Text(invitationNotice!),
               ),
             if (!presentation.isTerminal &&
-                presentation.nextActionLabel != null) ...[
+                !presentation.canRespondInvitation &&
+                composition.situation != JourneySituation.calm) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: MakoloSpacing.inner,
                 ),
-                child: MakoloCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.arrow_outward_rounded,
-                            color: _journeyAccent(context),
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          Text(
-                            'Pour avancer',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(presentation.nextActionLabel!),
-                      if (action != null) ...[
-                        const SizedBox(height: MakoloSpacing.md),
-                        action,
-                      ],
-                    ],
-                  ),
+                child: _JourneySituationPanel(
+                  presentation: presentation,
+                  composition: composition,
+                  primaryAction: action,
+                  ownerAction: _ownerActionForLink,
                 ),
               ),
-              const SizedBox(height: MakoloSpacing.lg),
-            ],
-            if (presentation.rejectedRequests > 0) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
-                ),
-                child: MakoloAttentionBlock(
-                  title: 'Une demande a été refusée',
-                  body: 'Consultez les informations de votre démarche.',
-                  icon: Icons.info_outline_rounded,
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
-            ],
-            if (presentation.pendingRequests > 0 &&
-                presentation.waiting.isEmpty &&
-                presentation.actorInterventions.isEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
-                ),
-                child: const MakoloCard(
-                  child: ListTile(
-                    leading: Icon(Icons.hourglass_empty_rounded),
-                    title: Text('En attente de réponse'),
-                  ),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
-            ],
-            if (presentation.liveLink != null ||
-                presentation.dayOfLink != null) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
-                ),
-                child: MakoloCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            presentation.liveLink != null
-                                ? Icons.bolt_rounded
-                                : Icons.today_rounded,
-                            color: _journeyAccent(context),
-                          ),
-                          const SizedBox(width: MakoloSpacing.sm),
-                          Text(
-                            presentation.liveLink != null
-                                ? 'Makolo Live'
-                                : 'Jour J',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: MakoloSpacing.sm),
-                      MakoloActionButton(
-                        label: presentation.liveLink != null
-                            ? 'Ouvrir Makolo Live'
-                            : 'Ouvrir Jour J',
-                        onPressed: presentation.liveLink != null
-                            ? () => onOpenLive(presentation.liveLink!)
-                            : () => onOpenDayOf(presentation.dayOfLink!),
-                        appearance: MakoloActionAppearance.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.lg),
+              const SizedBox(height: MakoloSpacing.md),
             ],
             if (presentation.steps.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
@@ -909,6 +824,122 @@ class _JourneyContent extends StatelessWidget {
 
 /// Terminal labels are solely the owner Journey state, never an invented
 /// success or a percentage computed from unrelated capabilities.
+/// One human-readable current situation. No synthetic task or owner state.
+class _JourneySituationPanel extends StatelessWidget {
+  const _JourneySituationPanel({
+    required this.presentation,
+    required this.composition,
+    required this.primaryAction,
+    required this.ownerAction,
+  });
+
+  final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
+  final Widget? primaryAction;
+  final Widget? Function(String label, String? link, {bool primary})
+      ownerAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final situation = composition.situation;
+    final firstBlocker = presentation.blockers.isNotEmpty
+        ? presentation.blockers.first
+        : null;
+    final firstWaiting = presentation.waiting.isNotEmpty
+        ? presentation.waiting.first
+        : null;
+    final title = switch (situation) {
+      JourneySituation.blocked => 'Ce qui bloque',
+      JourneySituation.choices => 'Plusieurs possibilités',
+      JourneySituation.waiting => 'En attente',
+      JourneySituation.action => 'Pour avancer',
+      _ => '',
+    };
+    final icon = switch (situation) {
+      JourneySituation.blocked => Icons.report_problem_outlined,
+      JourneySituation.choices => Icons.alt_route_rounded,
+      JourneySituation.waiting => Icons.hourglass_top_rounded,
+      _ => Icons.arrow_outward_rounded,
+    };
+    final detail = switch (situation) {
+      JourneySituation.blocked =>
+        firstBlocker?.summary ?? 'Une demande a été refusée.',
+      JourneySituation.waiting =>
+        firstWaiting?.summary ?? 'Une réponse est attendue.',
+      JourneySituation.action || JourneySituation.choices =>
+        presentation.nextActionLabel,
+      _ => null,
+    };
+    final color = situation == JourneySituation.blocked
+        ? Theme.of(context).colorScheme.error
+        : _journeyAccent(context);
+    final seen = <String>{};
+    return DecoratedBox(
+      key: const Key('journey-current-situation'),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 21),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Text(title,
+                    style: Theme.of(context).textTheme.titleMedium),
+                ),
+              ],
+            ),
+            if (detail != null && detail.trim().isNotEmpty &&
+                detail.trim().toLowerCase() !=
+                    presentation.title.trim().toLowerCase()) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(detail),
+            ],
+            if (situation == JourneySituation.blocked &&
+                firstBlocker?.reason != null &&
+                firstBlocker!.reason != firstBlocker.summary) ...[
+              const SizedBox(height: MakoloSpacing.xs),
+              Text(firstBlocker.reason!,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ],
+            if (situation == JourneySituation.choices) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              for (final item in presentation.actorInterventions)
+                if (item.nextLink != null &&
+                    item.nextLink!.isNotEmpty &&
+                    seen.add(item.key.isNotEmpty ? item.key : item.nextLink!)) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                    child: ownerAction(
+                      item.nextLabel ?? item.summary,
+                      item.nextLink,
+                    ) ?? Text(item.summary),
+                  ),
+                ],
+              if (presentation.nextActionLink != null &&
+                  seen.add(presentation.nextActionKey ??
+                      presentation.nextActionLink!))
+                primaryAction ?? const SizedBox.shrink(),
+            ] else if (primaryAction != null &&
+                (situation == JourneySituation.action ||
+                 situation == JourneySituation.blocked)) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              primaryAction!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _JourneyOutcomeCard extends StatelessWidget {
   const _JourneyOutcomeCard({required this.presentation});
 
