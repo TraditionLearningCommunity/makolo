@@ -536,6 +536,41 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         .toString()
         .trim();
     if (personal.isNotEmpty) add('personal_state', 'Ma situation', personal);
+    // Owner facts stay unchanged; only the compact reading order varies.
+    final kind = item.representation?['presentation_kind']?.toString();
+    final priority = kind == 'transport'
+        ? const <String>[
+            'place_departure',
+            'place_arrival',
+            'when',
+            'price',
+            'capacity',
+            'place',
+          ]
+        : kind == 'funding'
+        ? const <String>[
+            'deadline_at',
+            'when',
+            'price',
+            'capacity',
+            'place',
+          ]
+        : const <String>[
+            'when',
+            'place',
+            'capacity',
+            'price',
+            'deadline_at',
+          ];
+    final order = <String, int>{};
+    for (var index = 0; index < priority.length; index++) {
+      order[priority[index]] = index;
+    }
+    facts.sort(
+      (a, b) => (order[a['code']] ?? priority.length).compareTo(
+        order[b['code']] ?? priority.length,
+      ),
+    );
     return facts;
   }
 
@@ -1443,7 +1478,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   Widget _facts(BuildContext context) {
     final facts = widget.detailMode || _allFacts
         ? _reliableFacts
-        : _reliableFacts.take(3).toList();
+        : _reliableFacts.take(4).toList();
     if (facts.isEmpty) return const SizedBox.shrink();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1689,7 +1724,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                           const SizedBox(height: MakoloSpacing.sm),
                         ],
                         if (_reliableFacts.isNotEmpty) _facts(context),
-                        if (!widget.detailMode && _reliableFacts.length > 3)
+                        if (!widget.detailMode && _reliableFacts.length > 4)
                           TextButton.icon(
                             onPressed: () =>
                                 setState(() => _allFacts = !_allFacts),
