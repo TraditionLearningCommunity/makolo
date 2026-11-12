@@ -1056,7 +1056,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                 items: [
                   const DropdownMenuItem<String>(
                     value: '',
-                    child: Text('Toutes les possibilités'),
+                    child: Text('Toutes les opportunités'),
                   ),
                   for (final watch in watches)
                     DropdownMenuItem<String>(
