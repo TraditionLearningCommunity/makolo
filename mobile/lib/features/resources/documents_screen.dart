@@ -37,6 +37,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   String _sort = 'recent';
 
   bool _initializing = true;
+  bool _searching = false;
   bool _refreshing = false;
   bool _refreshFailed = false;
   bool _loadingMore = false;
@@ -243,6 +244,59 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     });
   }
 
+  void _openSearch() {
+    if (_searching) return;
+    setState(() => _searching = true);
+  }
+
+  void _closeSearch() {
+    _searchDebounce?.cancel();
+    if (_search.text.isNotEmpty) _search.clear();
+    if (_query.isNotEmpty) {
+      _setScope(query: '');
+    }
+    if (mounted) setState(() => _searching = false);
+  }
+
+  Widget _appBarTitle(int? total) {
+    if (_searching) {
+      return TextField(
+        controller: _search,
+        autofocus: true,
+        onChanged: _onSearchChanged,
+        textInputAction: TextInputAction.search,
+        decoration: const InputDecoration(
+          hintText: 'Rechercher dans mes documents',
+          border: InputBorder.none,
+          isDense: true,
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Flexible(child: Text('Mes documents')),
+        if (total != null) ...[
+          const SizedBox(width: MakoloSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '$total',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Future<void> _showSort() async {
     final value = await showModalBottomSheet<String>(
       context: context,
@@ -377,35 +431,47 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes documents'),
-        actions: [
-          MakoloIconActionButton(
-            tooltip: 'Ajouter',
-            icon: Icons.add_rounded,
-            onPressed: widget.onAddDocument,
+    return StreamBuilder<List<StoredProjection>>(
+      stream: _pages,
+      initialData: const [],
+      builder: (context, pagesSnapshot) {
+        final view = _DocumentsView.fromPages(
+          pagesSnapshot.data ?? const [],
+          query: _query,
+          view: _view,
+          kind: _kind,
+          sensitivity: _sensitivity,
+          sort: _sort,
+        );
+        return Scaffold(
+          appBar: AppBar(
+            title: _appBarTitle(view.total),
+            actions: [
+              if (_searching)
+                MakoloIconActionButton(
+                  tooltip: 'Fermer la recherche',
+                  icon: Icons.close_rounded,
+                  onPressed: _closeSearch,
+                )
+              else
+                MakoloIconActionButton(
+                  tooltip: 'Rechercher',
+                  icon: Icons.search_rounded,
+                  onPressed: _openSearch,
+                ),
+              MakoloIconActionButton(
+                tooltip: 'Ajouter',
+                icon: Icons.add_rounded,
+                onPressed: widget.onAddDocument,
+              ),
+              MakoloIconActionButton(
+                tooltip: 'Actualiser',
+                icon: Icons.refresh_rounded,
+                onPressed: _refreshing ? null : _refreshFirst,
+              ),
+            ],
           ),
-          MakoloIconActionButton(
-            tooltip: 'Actualiser',
-            icon: Icons.refresh_rounded,
-            onPressed: _refreshing ? null : _refreshFirst,
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<StoredProjection>>(
-        stream: _pages,
-        initialData: const [],
-        builder: (context, pagesSnapshot) {
-          final view = _DocumentsView.fromPages(
-            pagesSnapshot.data ?? const [],
-            query: _query,
-            view: _view,
-            kind: _kind,
-            sensitivity: _sensitivity,
-            sort: _sort,
-          );
-          return StreamBuilder<ResourceSourceState>(
+          body: StreamBuilder<ResourceSourceState>(
             stream: _source,
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
@@ -431,54 +497,34 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(MakoloSpacing.inner),
                       children: [
-                        TextField(
-                          controller: _search,
-                          onChanged: _onSearchChanged,
-                          textInputAction: TextInputAction.search,
-                          decoration: const InputDecoration(
-                            hintText: 'Rechercher',
-                            prefixIcon: Icon(Icons.search_rounded),
-                          ),
-                        ),
-                        const SizedBox(height: MakoloSpacing.md),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _ViewChip(
-                                label: 'Tous',
-                                selected: _view == 'current',
-                                onSelected: () => _setScope(view: 'current'),
-                              ),
-                              const SizedBox(width: MakoloSpacing.sm),
-                              _ViewChip(
-                                label: 'À échéance',
-                                selected: _view == 'expiring',
-                                onSelected: () => _setScope(view: 'expiring'),
-                              ),
-                              const SizedBox(width: MakoloSpacing.sm),
-                              _ViewChip(
-                                label: 'Archivés',
-                                selected: _view == 'archived',
-                                onSelected: () => _setScope(view: 'archived'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: MakoloSpacing.sm),
                         Row(
                           children: [
-                            if (view.total != null && view.total! > 0)
-                              Text(
-                                '${view.total}',
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
+                            Expanded(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    _ViewChip(
+                                      label: 'Tous',
+                                      selected: _view == 'current',
+                                      onSelected: () => _setScope(view: 'current'),
                                     ),
+                                    const SizedBox(width: MakoloSpacing.sm),
+                                    _ViewChip(
+                                      label: 'À échéance',
+                                      selected: _view == 'expiring',
+                                      onSelected: () => _setScope(view: 'expiring'),
+                                    ),
+                                    const SizedBox(width: MakoloSpacing.sm),
+                                    _ViewChip(
+                                      label: 'Archivés',
+                                      selected: _view == 'archived',
+                                      onSelected: () => _setScope(view: 'archived'),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            const Spacer(),
+                            ),
                             MakoloIconActionButton(
                               tooltip: 'Filtrer',
                               icon: Icons.tune_rounded,
@@ -491,6 +537,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: MakoloSpacing.sm),
                         if (view.hasSnapshot &&
                             (source.reachability ==
                                     ReachabilityState.unreachable ||
@@ -561,12 +608,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
-}
 
 class _ResourceContinuityNotice extends StatelessWidget {
   const _ResourceContinuityNotice({required this.message});
