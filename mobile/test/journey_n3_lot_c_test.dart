@@ -225,6 +225,47 @@ void main() {
     expect(find.text('Démarche réalisée'), findsNothing);
   });
 
+  testWidgets('Service request gives its goal and pinned withdrawn source', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-service');
+    await store.putProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-service-context',
+      schemaVersion: 1,
+      payload: {
+        ..._payload('Candidature accompagnée'),
+        'identity': {'workflow': 'service'},
+        'service_request': {
+          'objective': 'Obtenir une bourse pour mes études',
+          'opportunity': {
+            'id': 'opp-1',
+            'title': 'Bourse annuelle',
+            'issuer': 'Fondation locale',
+            'publication_state': 'withdrawn',
+          },
+        },
+      },
+    );
+    final repository = JourneyRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-service',
+    );
+    await tester.pumpWidget(_journey('journey-service-context', repository));
+    await tester.pumpAndSettle();
+    expect(find.text('Votre demande'), findsOneWidget);
+    expect(find.text('Obtenir une bourse pour mes études'), findsOneWidget);
+    expect(find.text('Bourse annuelle'), findsOneWidget);
+    expect(find.text('Fondation locale'), findsOneWidget);
+    expect(
+      find.text('Cette opportunité n’est plus publiée. Votre demande conserve sa référence.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('a Journey switches Profiles without showing old local facts', (
     tester,
   ) async {
