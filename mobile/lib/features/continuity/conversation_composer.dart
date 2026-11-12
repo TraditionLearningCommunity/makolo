@@ -286,7 +286,7 @@ class _ConversationComposerState extends State<ConversationComposer> {
       _focus.unfocus();
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Envoi non conservé. Réessayer.');
+        setState(() => _error = 'Envoi non conservé.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
