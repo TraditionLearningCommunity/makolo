@@ -127,6 +127,15 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
     unawaited(_refresh());
   }
 
+  @override
+  void didUpdateWidget(covariant DiscoveryWatchesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.repository, oldWidget.repository)) {
+      _refreshing = false;
+      unawaited(_refresh());
+    }
+  }
+
   Future<void> _refresh() async {
     if (_refreshing) return;
     setState(() => _refreshing = true);
@@ -424,12 +433,25 @@ class _DiscoveryWatchResultsScreenState
     unawaited(_acquire());
   }
 
+  @override
+  void didUpdateWidget(covariant DiscoveryWatchResultsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.watchId != widget.watchId ||
+        !identical(oldWidget.repository, widget.repository)) {
+      _page = 1;
+      _refreshing = false;
+      unawaited(_acquire());
+    }
+  }
+
   Future<void> _acquire() async {
     // Render the actor-scoped local page first, then refresh quietly.
     final watchId = widget.watchId;
+    final repository = widget.repository;
     final page = _page;
-    await widget.repository.readWatchResults(watchId, page: page);
-    if (!mounted || widget.watchId != watchId || _page != page) return;
+    await repository.readWatchResults(watchId, page: page);
+    if (!mounted || !identical(repository, widget.repository) ||
+        widget.watchId != watchId || _page != page) return;
     unawaited(_refresh());
   }
 
