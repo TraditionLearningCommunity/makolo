@@ -47,6 +47,8 @@ class MarkRepository {
     required String inputKind,
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
+    String? pendingConfirmationCode,
+    String? pendingConfirmationKey,
   }) async {
     final drafts = runtime.drafts;
     if (drafts == null) return;
@@ -62,6 +64,10 @@ class MarkRepository {
         'input_kind': inputKind,
         'selected': selected,
         'attachments': attachments,
+        if (pendingConfirmationCode != null)
+          'pending_confirmation_code': pendingConfirmationCode,
+        if (pendingConfirmationKey != null)
+          'pending_confirmation_key': pendingConfirmationKey,
       },
     );
   }
@@ -94,6 +100,8 @@ class MarkRepository {
     Map<String, String>? selected,
     List<Map<String, dynamic>> attachments = const [],
     bool allowTextOnly = false,
+    Map<String, dynamic>? confirmation,
+    String? idempotencyKey,
   }) async {
     await saveDraft(
       actor: actor,
@@ -101,6 +109,8 @@ class MarkRepository {
       inputKind: inputKind,
       selected: selected,
       attachments: attachments,
+      pendingConfirmationCode: confirmation?['code']?.toString(),
+      pendingConfirmationKey: idempotencyKey,
     );
 
     // FileRecords are local references. Neither Mark owner API accepts media
@@ -123,6 +133,8 @@ class MarkRepository {
 
     final context = <String, dynamic>{
       ...?selected == null ? null : {'selected': selected},
+      if (confirmation != null) 'confirmation': confirmation,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
     };
 
     try {
@@ -171,6 +183,17 @@ class MarkRepository {
       }
       return result;
     } on MakoloTransportError {
+      if (confirmation != null) {
+        // The owner may have committed the mutation before transport failed.
+        // Do not label it a draft or retry it blindly.
+        return const MarkResult(
+          state: 'confirmation_unknown',
+          message:
+              'Le résultat n’a pas pu être vérifié. Consultez le propriétaire '
+              'avant de renouveler cette action.',
+          offline: true,
+        );
+      }
       return const MarkResult(
         state: 'offline_draft',
         message: 'Enregistré sur cet appareil. Makolo n’a pas pu revalider le contexte à distance.',
