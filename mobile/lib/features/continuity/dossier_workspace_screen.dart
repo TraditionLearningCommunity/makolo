@@ -84,6 +84,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
     required this.onOpenJourney,
     this.onOpenProject,
     this.onOpenPerson,
+    this.onOpenPeople,
     this.api,
     this.conversations,
     this.onOpenConversation,
@@ -97,6 +98,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final ValueChanged<String> onOpenJourney;
   final ValueChanged<String>? onOpenProject;
   final ValueChanged<String>? onOpenPerson;
+  final VoidCallback? onOpenPeople;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
   final ActorContextController? actorContext;
@@ -1086,6 +1088,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           key: const PageStorageKey<String>('dossier-people-preview'),
           shape: const Border(),
           collapsedShape: const Border(),
+          trailing: widget.onOpenPeople == null
+              ? null
+              : IconButton(
+                  tooltip: 'Voir les personnes et responsabilités',
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  onPressed: widget.onOpenPeople,
+                ),
           leading: Icon(Icons.people_outline, color: scheme.primary),
           title: const Text(
             'Personnes et responsabilités',
