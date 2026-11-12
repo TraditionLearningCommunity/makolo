@@ -254,6 +254,25 @@ class ParticipationInboxTests(TestCase):
         self.join_request.refresh_from_db()
         self.assertEqual(self.join_request.status, "pending")
 
+    def test_expired_invitation_becomes_terminal_without_admission(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.invitation.expires_at = timezone.now() - timedelta(seconds=1)
+        self.invitation.save(update_fields=["expires_at", "updated_at"])
+        self.client.force_login(self.invitee)
+        endpoint = reverse(
+            "conversations-api:invitation-respond",
+            kwargs={"invitation_pk": self.invitation.pk},
+        )
+        result = self.client.post(
+            endpoint, {"decision": "accept"},
+            content_type="application/json",
+        )
+        self.assertEqual(result.status_code, 409)
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, "expired")
+        self.assertEqual(self._inbox(self.invitee)["results"], [])
+
     def test_approved_request_cannot_be_silently_rejected_by_second_manager_action(self):
         respond_to_join_request(
             actor=self.manager, join_request=self.join_request,
