@@ -259,7 +259,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   Widget build(BuildContext context) {
     final current = actor;
     return Scaffold(
-      appBar: AppBar(title: const Text('Identité de l’Espace')),
+      appBar: AppBar(title: const Text('Modifier notre Passeport')),
       body: current == null
           ? const Center(
               child: Text(
