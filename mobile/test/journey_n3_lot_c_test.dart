@@ -197,6 +197,39 @@ void main() {
     expect(find.text('Démarche réalisée'), findsNothing);
   });
 
+  testWidgets('a finished Service Journey does not claim external success', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-service');
+    await store.putProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-service-finished',
+      schemaVersion: 1,
+      payload: {
+        ..._payload('Recevoir une réponse', status: 'fulfilled'),
+        'identity': {'workflow': 'service'},
+        'service_result': {
+          'code': 'unsuccessful',
+          'label': 'Échec externe',
+        },
+      },
+    );
+    final repository = JourneyRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-service',
+    );
+    await tester.pumpWidget(
+      _journey('journey-service-finished', repository),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Échec externe'), findsOneWidget);
+    expect(find.text('Suivi terminé dans Makolo'), findsOneWidget);
+    expect(find.text('Démarche réalisée'), findsNothing);
+  });
+
   testWidgets('a Journey switches Profiles without showing old local facts', (
     tester,
   ) async {
