@@ -1547,7 +1547,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         child: Row(
           children: [
             if (saveAvailable) ...[
-            Expanded(
+              Expanded(
               child: MakoloRoundedActionSlot(
                 active: saved,
                 phase: savePhase,
@@ -1581,8 +1581,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: MakoloSpacing.sm),
+              ),
+              if (!widget.detailMode || shareAvailable)
+                const SizedBox(width: MakoloSpacing.sm),
             ],
             if (!widget.detailMode) ...[
               Expanded(
@@ -1595,10 +1596,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                 ),
               ),
-              const SizedBox(width: MakoloSpacing.sm),
+              if (shareAvailable)
+                const SizedBox(width: MakoloSpacing.sm),
             ],
             if (shareAvailable)
-            Expanded(
+              Expanded(
               child: MakoloRoundedActionSlot(
                 child: DiscoveryShareControl(
                   item: item,
