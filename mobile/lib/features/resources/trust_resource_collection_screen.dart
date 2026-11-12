@@ -574,6 +574,7 @@ class _TrustResourceCollectionScreenState
       },
     );
   }
+}
 
 class _TrustContinuityNotice extends StatelessWidget {
   const _TrustContinuityNotice();
