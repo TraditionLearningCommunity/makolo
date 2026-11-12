@@ -81,6 +81,16 @@ class OccurrenceExperienceContent extends StatelessWidget {
     return value.toString();
   }
 
+  static String _accessStateLabel(String? state) => switch (state) {
+    'pending' => 'En préparation',
+    'valid' => 'Valide à la dernière vérification',
+    'used' => 'Déjà utilisé',
+    'revoked' => 'Révoqué',
+    'expired' => 'Expiré',
+    'cancelled' => 'Annulé',
+    _ => 'À vérifier',
+  };
+
   static String _capacityValue(Map<String, dynamic> item) {
     if (item['unlimited'] == true) return 'sans limite configurée';
     return '${item['available'] ?? 'à vérifier'} disponible(s)';
@@ -162,7 +172,8 @@ class OccurrenceExperienceContent extends StatelessWidget {
                   const SizedBox(height: MakoloSpacing.xs),
                   const Text(
                     'Les informations conservées ne confirment ni les droits actuels '
-                    'ni une action serveur. Actualisez pour agir.',
+                    'ni une action serveur. Un justificatif déjà autorisé peut '
+                    'être présenté localement selon les conditions Access.',
                   ),
                 ],
               ),
@@ -448,7 +459,7 @@ class OccurrenceExperienceContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Mon accès · ${_text(access['state']) ?? 'à vérifier'}'),
+                Text('Mon accès · ${_accessStateLabel(_text(access['state']))}'),
                 Text(
                   access['usable'] == true
                       ? 'Utilisable selon ses conditions'
