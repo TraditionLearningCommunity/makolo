@@ -1131,16 +1131,15 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       radius: 18,
       backgroundColor: scheme.primaryContainer,
       foregroundImage: image,
-      child: image == null
-          ? Text(
-              _initials(label),
-              style: TextStyle(
-                color: scheme.onPrimaryContainer,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-              ),
-            )
-          : null,
+      // Initials remain the fallback if the public image fails to load.
+      child: Text(
+        _initials(label),
+        style: TextStyle(
+          color: scheme.onPrimaryContainer,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
     );
     return Tooltip(
       message: interactive && _canOpenProjectPerson(person)
