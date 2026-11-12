@@ -9,6 +9,8 @@ import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
 import '../../features/discovery/discovery_selector.dart';
+import '../media/retained_public_discovery_image.dart';
+import 'discovery_offline_store.dart';
 import 'discovery_reader.dart';
 import 'discovery_n2_depth.dart';
 import 'discovery_save_icon.dart';
@@ -232,6 +234,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _expanded = false;
   int _galleryPage = 0;
   bool _allResources = false;
+  bool _allFacts = false;
   bool? _confirmedSaved;
   bool _followingBusy = false;
   bool _followFailed = false;
@@ -268,6 +271,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       _expanded = false;
       _galleryPage = 0;
       _allResources = false;
+      _allFacts = false;
     }
   }
 
@@ -696,6 +700,42 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return url.toString();
   }
 
+  Widget _renderPublishedImage(
+    Map<String, String> image, {
+    required BoxFit fit,
+  }) {
+    final url = Uri.parse(image['url']!);
+    final base = widget.baseUri;
+    if (base != null &&
+        url.origin == base.origin &&
+        DiscoveryOfflineStore.isPublishedRecognitionUri(
+          url,
+          trustedOrigin: base,
+        )) {
+      return RetainedPublicDiscoveryImage(
+        url: url,
+        trustedOrigin: base,
+        placeholder: const MakoloMediaSkeleton(),
+        fit: fit,
+      );
+    }
+    return Image.network(
+      url.toString(),
+      width: double.infinity,
+      height: double.infinity,
+      fit: fit,
+      semanticLabel: image['label'],
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : const MakoloMediaSkeleton(),
+      errorBuilder: (_, _, _) => Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
   Widget _media(BuildContext context) {
     final images = <Map<String, String>>[];
     final byUrl = <String, int>{};
@@ -731,21 +771,24 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (images.isEmpty) return const SizedBox.shrink();
     if (images.length == 1) {
       final image = images.first;
-      return InkWell(
-        key: const Key('discover-media-main'),
-        onTap: () => _openReader([
-          DiscoveryReaderItem(
-            title: image['label']!,
-            uri: Uri.parse(image['url']!),
-            mimeType: image['mime']!,
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(MakoloRadii.card),
+        child: AspectRatio(
+          aspectRatio: widget.detailMode ? 4 / 3 : 16 / 10,
+          child: InkWell(
+            key: const Key('discover-media-main'),
+            onTap: () => _openReader([
+              DiscoveryReaderItem(
+                title: image['label']!,
+                uri: Uri.parse(image['url']!),
+                mimeType: image['mime']!,
+              ),
+            ]),
+            child: _renderPublishedImage(
+              image,
+              fit: widget.detailMode ? BoxFit.contain : BoxFit.cover,
+            ),
           ),
-        ]),
-        child: Image.network(
-          image['url']!,
-          width: double.infinity,
-          fit: BoxFit.fitWidth,
-          semanticLabel: image['label'],
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
       );
     }
@@ -753,7 +796,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       key: const Key('discover-media-gallery'),
       children: [
         AspectRatio(
-          aspectRatio: 4 / 3,
+          aspectRatio: widget.detailMode ? 4 / 3 : 16 / 10,
           child: PageView.builder(
             key: ValueKey('discover-gallery-${item.candidateKey}'),
             itemCount: images.length,
@@ -769,12 +812,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       mimeType: image['mime']!,
                     ),
                 ], index: index),
-                child: Image.network(
-                  image['url']!,
-                  fit: BoxFit.contain,
-                  semanticLabel: image['label'],
-                  errorBuilder: (_, _, _) =>
-                      const Center(child: Text('Image indisponible.')),
+                child: _renderPublishedImage(
+                  image,
+                  fit: widget.detailMode ? BoxFit.contain : BoxFit.cover,
                 ),
               );
             },
@@ -783,7 +823,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
           child: Text(
-            '${_galleryPage + 1} / ${images.length} · Faire glisser pour parcourir',
+            '${_galleryPage + 1} / ${images.length}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -1387,7 +1427,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Widget _facts(BuildContext context) {
-    final facts = _reliableFacts;
+    final facts = widget.detailMode || _allFacts
+        ? _reliableFacts
+        : _reliableFacts.take(3).toList();
     if (facts.isEmpty) return const SizedBox.shrink();
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1535,6 +1577,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _media(context),
           Padding(
             padding: EdgeInsets.symmetric(
               horizontal: widget.detailMode ? 16 : 14,
@@ -1624,12 +1667,27 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Informations pratiques',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        const SizedBox(height: MakoloSpacing.sm),
+                        if (widget.detailMode) ...[
+                          Text(
+                            'Informations pratiques',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: MakoloSpacing.sm),
+                        ],
                         if (_reliableFacts.isNotEmpty) _facts(context),
+                        if (!widget.detailMode && _reliableFacts.length > 3)
+                          TextButton.icon(
+                            onPressed: () =>
+                                setState(() => _allFacts = !_allFacts),
+                            icon: Icon(
+                              _allFacts
+                                  ? Icons.expand_less_rounded
+                                  : Icons.expand_more_rounded,
+                            ),
+                            label: Text(
+                              _allFacts ? 'Voir moins' : 'Autres informations',
+                            ),
+                          ),
                         for (final note
                             in widget.detailMode
                                 ? const <String>[]
@@ -1652,17 +1710,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               ],
             ),
           ),
-          if (widget.detailMode &&
-              !widget.allowOwnerActions &&
-              !widget.collectiveReadOnly)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Text(
-                'Informations conservées. Une connexion et une '
-                'vérification sont nécessaires pour agir.',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
           if (widget.detailMode &&
               widget.allowOwnerActions &&
               !widget.collectiveReadOnly &&
@@ -1717,7 +1764,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       '/occurrences/${Uri.encodeComponent(id)}',
                     ),
             ),
-          _media(context),
           if (resources.isNotEmpty) _resourceSection(context, resources),
           if (!widget.detailMode) ...actionBar,
           if (widget.onSelect != null)
