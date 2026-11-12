@@ -131,18 +131,33 @@ void main() {
     await tester.pump();
 
     expect(find.text('Mes preuves'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
     expect(find.text('Toutes'), findsOneWidget);
     expect(find.text('Actives'), findsOneWidget);
     expect(find.text('Révoquées'), findsOneWidget);
     expect(find.text('Journey accomplie'), findsOneWidget);
     expect(find.text('Service complété'), findsOneWidget);
+    expect(find.byTooltip('Rechercher'), findsOneWidget);
+    expect(find.byTooltip('Actualiser'), findsOneWidget);
     expect(find.byTooltip('Filtrer'), findsOneWidget);
     expect(find.byTooltip('Trier'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byTooltip('Rechercher'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byTooltip('Fermer la recherche'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Formation');
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Journey accomplie'), findsOneWidget);
     expect(find.text('Service complété'), findsNothing);
+
+    await tester.tap(find.byTooltip('Fermer la recherche'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Mes preuves'), findsOneWidget);
+    expect(find.text('Service complété'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -211,10 +226,14 @@ void main() {
     await tester.pump();
 
     expect(find.text('Mes titres'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
     expect(find.text('Certificat Makolo'), findsOneWidget);
     expect(find.textContaining('Institut Makolo · Valide'), findsOneWidget);
     expect(find.text('Valides'), findsOneWidget);
     expect(find.text('Révoqués'), findsOneWidget);
+    expect(find.byTooltip('Rechercher'), findsOneWidget);
+    expect(find.byTooltip('Actualiser'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
