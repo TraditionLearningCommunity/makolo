@@ -970,17 +970,30 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             ),
             const SizedBox(height: 10),
             ListTile(
-              leading: Icon(
-                owner['kind'] == 'space'
-                    ? Icons.groups_2_outlined
-                    : Icons.person_outline_rounded,
-              ),
-              title: Text(
-                _text(owner['kind'] == 'space'
-                    ? owner['label']
-                    : owner['holder']),
-              ),
+              leading: owner['kind'] == 'profile'
+                  ? _projectAvatar({
+                      'label': owner['holder'],
+                      'avatar_url': owner['avatar_url'],
+                      'profile_view': owner['profile_view'],
+                      'profile_id': owner['id'],
+                    })
+                  : const Icon(Icons.groups_2_outlined),
+              title: Text(_text(
+                owner['kind'] == 'space' ? owner['label'] : owner['holder'],
+              )),
               subtitle: const Text('Porteur'),
+              onTap: owner['kind'] == 'profile' &&
+                      _canOpenProjectPerson({
+                        'profile_view': owner['profile_view'],
+                      })
+                  ? () {
+                      Navigator.pop(sheet);
+                      _openProjectPerson({
+                        'profile_view': owner['profile_view'],
+                        'profile_id': owner['id'],
+                      });
+                    }
+                  : null,
             ),
             if (members.isNotEmpty)
               const Padding(
@@ -989,29 +1002,45 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             for (final member in members)
               ListTile(
-                leading: const Icon(Icons.shield_outlined),
+                leading: _projectAvatar(member),
                 title: Text(_text(member['label'])),
                 subtitle: Text(_text(member['role'])),
-                trailing: _has(member, 'revoke')
-                    ? IconButton(
-                        tooltip: 'Retirer cet accès',
-                        icon: const Icon(Icons.person_remove_outlined),
-                        onPressed: _enabled
-                            ? () async {
-                                Navigator.pop(sheet);
-                                final yes = await _confirm(
-                                  'Retirer cet accès ?',
-                                  'Ce mandat Projet sera révoqué.',
-                                  'Révoquer',
-                                );
-                                if (yes && mounted) {
-                                  await _send('${_base}authority/', {
-                                    'action': 'revoke',
-                                    'mandate_id': _text(member['id']),
-                                  });
-                                }
-                              }
-                            : null,
+                onTap: _canOpenProjectPerson(member)
+                    ? () {
+                        Navigator.pop(sheet);
+                        _openProjectPerson(member);
+                      }
+                    : null,
+                trailing: _has(member, 'revoke') && manage
+                    ? PopupMenuButton<String>(
+                        tooltip: 'Gérer le rôle',
+                        enabled: _enabled,
+                        onSelected: (value) async {
+                          Navigator.pop(sheet);
+                          if (value == 'replace') {
+                            await _changeProjectRole(project, member);
+                            return;
+                          }
+                          final yes = await _confirm(
+                            'Retirer cet accès ?',
+                            'Ce mandat Projet sera révoqué.',
+                            'Révoquer',
+                          );
+                          if (yes && mounted) {
+                            await _send('${_base}authority/', {
+                              'action': 'revoke',
+                              'mandate_id': _text(member['id']),
+                            });
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'replace', child: Text('Changer le rôle'),
+                          ),
+                          PopupMenuItem(
+                            value: 'revoke', child: Text('Retirer l’accès'),
+                          ),
+                        ],
                       )
                     : null,
               ),
@@ -1022,8 +1051,15 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ),
             for (final contributor in contributors)
               ListTile(
-                leading: const Icon(Icons.person_outline_rounded),
+                leading: _projectAvatar(contributor),
                 title: Text(_text(contributor['label'])),
+                subtitle: const Text('Intervention visible'),
+                onTap: _canOpenProjectPerson(contributor)
+                    ? () {
+                        Navigator.pop(sheet);
+                        _openProjectPerson(contributor);
+                      }
+                    : null,
               ),
             if (collaboration['contributors_partial'] == true)
               const Padding(
@@ -1130,11 +1166,13 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           children: [
             const ListTile(title: Text('Changer le rôle')),
             for (final role in roles)
-              RadioListTile<String>(
+              ListTile(
                 title: Text(_text(role['label'])),
-                value: _text(role['code']),
-                groupValue: _text(member['role_code']),
-                onChanged: (value) => Navigator.pop(dialog, value),
+                selected: _text(role['code']) == _text(member['role_code']),
+                trailing: _text(role['code']) == _text(member['role_code'])
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.pop(dialog, _text(role['code'])),
               ),
           ],
         ),
