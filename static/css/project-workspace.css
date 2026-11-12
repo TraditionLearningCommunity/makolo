@@ -213,3 +213,37 @@
 .mk-project__people:target {
   scroll-margin-top:20px;
 }
+
+
+/* Project people are a compact preview with an on-demand depth, not a
+   second full list below the three workspace views. */
+.mk-project__people-open {
+  display:inline-flex;align-items:center;gap:2px;
+  border:0;background:none;color:var(--violet);
+  cursor:pointer;padding:8px 4px;min-height:44px;
+  font-size:13px;font-weight:700;
+}
+.mk-project__people-open svg {width:17px;height:17px}
+.mk-project__avatar-row > :is(a,button) {cursor:pointer}
+.mk-project__avatar img {
+  width:100%;height:100%;object-fit:cover;border-radius:50%;
+}
+.mk-project__people-dialog {padding:14px 18px;width:min(96%,560px)}
+.mk-project__people-dialog .mk-project__people {
+  margin:0;border:0;padding:0;
+}
+.mk-project__people-dialog h2 {font-size:21px;margin:0 0 12px}
+.mk-project__people-dialog h3 {font-size:14px;margin:15px 0 6px}
+.mk-project__people-dialog .mk-project__person {gap:9px}
+.mk-project__people-dialog .mk-project__person a {color:var(--violet)}
+.mk-project__people-dialog details form {
+  margin:8px 0;display:flex;gap:6px;
+  flex-wrap:wrap;align-items:center;
+}
+.mk-project__people-dialog details select {
+  min-height:40px;border:1px solid var(--edge);
+  padding:7px;border-radius:9px;
+}
+.mk-project__people-close {
+  display:flex;justify-content:flex-end;margin:12px 0 0;
+}
