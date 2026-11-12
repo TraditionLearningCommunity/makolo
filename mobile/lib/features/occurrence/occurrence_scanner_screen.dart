@@ -278,7 +278,8 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
             const {400, 422}.contains(error.statusCode);
         _needsReview = !invalidRequest;
         _result = {
-          'accepted': false,
+          // A missing response cannot establish either acceptance or refusal.
+          'accepted': invalidRequest ? false : null,
           'message':
               error is MakoloApiError &&
                   const {401, 403, 404}.contains(error.statusCode)
