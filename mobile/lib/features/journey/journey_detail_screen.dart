@@ -567,32 +567,27 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-            if (presentation.resourcesLink != null &&
-                (!resourcesKnown || resourcesPreview.isNotEmpty)) ...[
+            if (composition.hasDocuments) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Pour me préparer',
+                title: 'Documents et ressources',
                 child: MakoloCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final resource in resourcesPreview.take(3))
-                        ListTile(
-                          dense: true,
-                          visualDensity: VisualDensity.compact,
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(
-                            _resourceIcon(resource),
-                            color: _journeyAccent(context),
-                          ),
-                          title: Text(resource.title),
-                          subtitle: resource.description == null
-                              ? null
-                              : Text(
-                                  resource.description!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                      if (resourcesPreview.isNotEmpty)
+                        SizedBox(
+                          height: 105,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: resourcesPreview.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: MakoloSpacing.sm),
+                            itemBuilder: (context, index) =>
+                                _JourneyResourceTile(
+                                  resource: resourcesPreview[index],
                                 ),
+                          ),
                         ),
                       Align(
                         alignment: Alignment.centerRight,
@@ -601,13 +596,9 @@ class _JourneyContent extends StatelessWidget {
                               onOpenResources(presentation.resourcesLink!),
                           icon: const Icon(Icons.arrow_forward_rounded),
                           iconAlignment: IconAlignment.end,
-                          label: Text(
-                            !resourcesKnown
-                                ? 'Voir les documents'
-                                : resourcesPreview.length > 3
-                                ? 'Voir les ${resourcesPreview.length} ressources'
-                                : 'Voir toutes les ressources',
-                          ),
+                          label: Text(resourcesKnown
+                              ? 'Voir les ${resourcesPreview.length} ressources'
+                              : 'Voir les ressources'),
                         ),
                       ),
                     ],
@@ -1477,6 +1468,53 @@ IconData _resourceIcon(JourneyResourcePreview resource) {
     'file' => Icons.description_outlined,
     _ => Icons.folder_open_outlined,
   };
+}
+
+class _JourneyResourceTile extends StatelessWidget {
+  const _JourneyResourceTile({required this.resource});
+
+  final JourneyResourcePreview resource;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = switch (resource.kind) {
+      'url' => 'Lien',
+      'text' => 'Instruction',
+      'file' => 'Document',
+      _ => 'Ressource',
+    };
+    return Semantics(
+      label: '${resource.title}. $type',
+      child: ExcludeSemantics(
+        child: Container(
+          width: 154,
+          padding: const EdgeInsets.all(MakoloSpacing.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(_resourceIcon(resource),
+                  size: 22, color: _journeyAccent(context)),
+              const SizedBox(height: 5),
+              Text(resource.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              if (resource.description != null)
+                Text(resource.description!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _JourneyPracticalCard extends StatelessWidget {
