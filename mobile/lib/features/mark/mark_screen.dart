@@ -299,13 +299,26 @@ class _MarkScreenState extends State<MarkScreen> {
     }
     final ingress = _ingress;
     final profileId = widget.runtime.session?.profileId;
-    if (ingress == null || profileId == null || profileId.isEmpty) return;
-    final coordinator = await _fileCoordinator();
-    if (!mounted || coordinator == null || _restoring) return;
+    if (ingress == null ||
+        !ingress.hasPendingShare ||
+        profileId == null ||
+        profileId.isEmpty) {
+      return;
+    }
+    // Reserve the processor before the first asynchronous acquisition to
+    // prevent two share signals from writing the same Mark draft concurrently.
+    _processingShare = true;
     final revision = _draftRevision;
     final actor = _actor;
-    _processingShare = true;
     try {
+      final coordinator = await _fileCoordinator();
+      if (!mounted ||
+          coordinator == null ||
+          _restoring ||
+          revision != _draftRevision ||
+          actor != _actor) {
+        return;
+      }
       SharedPayload? payload;
       while (mounted &&
           revision == _draftRevision &&
