@@ -813,4 +813,91 @@ void main() {
     );
   });
 
+  testWidgets('C5: my pending request can be withdrawn without detail access', (
+    tester,
+  ) async {
+    var withdrawn = false;
+    final repository = repositoryFor((request) async {
+      if (request.url.path ==
+          '/api/v1/conversations/join-requests/request-1/withdraw/') {
+        withdrawn = true;
+        return const MockResponse(
+          '{"id":"request-1","status":"cancelled"}',
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/invitations/') {
+        // A refresh failure cannot undo the confirmed withdrawal.
+        return const MockResponse('{"detail":"temporary"}', 500);
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return const MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.listProjectionKind,
+      schemaVersion: 1,
+      payload: {'count': 0, 'results': []},
+    );
+    await store.putProjection(
+      kind: ConversationRepository.invitationsProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'count': 0,
+        'results': [],
+        'my_join_requests': [
+          {
+            'id': 'request-1',
+            'conversation_id': null,
+            'status': 'pending',
+          },
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationListScreen(repository: repository, onOpen: (_) {}),
+    );
+    await tester.tap(find.byKey(const Key('conversation-invitations-open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Mes demandes d’entrée'), findsOneWidget);
+    expect(find.text('Voir ma demande'), findsNothing);
+    final withdraw = find.text('Retirer ma demande');
+    await tester.ensureVisible(withdraw);
+    await tester.tap(withdraw);
+    await tester.pumpAndSettle();
+    expect(withdrawn, isTrue);
+    expect(find.text('Retirer ma demande'), findsNothing);
+    expect((await repository.readInvitations())!.payload['my_join_requests'], isEmpty);
+  });
+
+  test('C5: wrong join withdrawal ACK preserves unconfirmed local request', () async {
+    final repository = repositoryFor((request) async {
+      if (request.url.path.endsWith('/request-1/withdraw/')) {
+        return const MockResponse('{"id":"request-1","status":"pending"}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+    await store.putProjection(
+      kind: ConversationRepository.invitationsProjectionKind,
+      schemaVersion: 1,
+      payload: {
+        'count': 0,
+        'results': [],
+        'my_join_requests': [
+          {'id': 'request-1', 'status': 'pending'},
+        ],
+      },
+    );
+    await expectLater(
+      repository.withdrawJoinRequest('request-1'),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      (await repository.readInvitations())!.payload['my_join_requests'],
+      isNotEmpty,
+    );
+  });
+
 }
