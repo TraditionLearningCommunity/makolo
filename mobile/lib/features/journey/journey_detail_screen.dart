@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../design/action_controls.dart';
 
@@ -801,7 +800,9 @@ class _JourneyHistoryRow extends StatelessWidget {
           color: _journeyAccent(context)),
       title: Text(entry.label),
       subtitle: Text(
-        DateFormat('d MMM yyyy · HH:mm', 'fr').format(entry.at.toLocal()),
+        '${MaterialLocalizations.of(context).formatMediumDate(entry.at.toLocal())}'
+        ' · ${entry.at.toLocal().hour.toString().padLeft(2, '0')}:'
+        '${entry.at.toLocal().minute.toString().padLeft(2, '0')}',
       ),
     );
   }
@@ -1048,12 +1049,14 @@ class _JourneyIdentity extends StatelessWidget {
         facts?.startAt?.toLocal();
     final dateLabel = date == null
         ? null
-        : DateFormat('EEE d MMM', 'fr').format(date);
+        : MaterialLocalizations.of(context).formatMediumDate(date);
     final startTime = JourneyDayPresentation.clock(facts?.startTime) ??
         (facts?.startAt == null
             ? null
-            : DateFormat('HH:mm').format(facts!.startAt!.toLocal())
-                .replaceFirst(':', 'h'));
+            : JourneyDayPresentation.clock(
+                '${facts!.startAt!.toLocal().hour.toString().padLeft(2, '0')}:'
+                '${facts.startAt!.toLocal().minute.toString().padLeft(2, '0')}',
+              ));
     final endTime = JourneyDayPresentation.clock(facts?.endTime);
     final sameDay = facts?.endDate == null ||
         facts?.endDate == facts?.startDate;
