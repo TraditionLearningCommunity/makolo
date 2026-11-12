@@ -12,6 +12,7 @@ import 'conversation_details_screen.dart';
 import 'conversation_history_screen.dart';
 import 'history_screen.dart';
 import 'dossier_workspace_screen.dart';
+import 'dossier_people_screen.dart';
 import 'project_workspace_screen.dart';
 
 List<RouteBase> continuityRoutes(AppRuntime runtime) => [
@@ -211,6 +212,26 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
     },
   ),
   GoRoute(
+    path: '/dossiers/:id/people',
+    builder: (context, state) {
+      final repository = runtime.objectives;
+      if (repository == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Personnes et responsabilités',
+          message: 'Ce Dossier n’est pas disponible sur cet appareil.',
+        );
+      }
+      return DossierPeopleScreen(
+        id: state.pathParameters['id']!,
+        repository: repository,
+        actorContext: runtime.actorContext,
+        onOpenPerson: (id) => context.push(
+          '/people/${Uri.encodeComponent(id)}',
+        ),
+      );
+    },
+  ),
+  GoRoute(
     path: '/dossiers/:id',
     builder: (context, state) {
       runtime.recovery.rememberLocation(state.uri.toString());
@@ -242,6 +263,9 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenProject: (id) => context.push('/projects/$id'),
         onOpenPerson: (id) => context.push(
           '/people/${Uri.encodeComponent(id)}',
+        ),
+        onOpenPeople: () => context.push(
+          '/dossiers/${Uri.encodeComponent(state.pathParameters['id']!)}/people',
         ),
         onOpenJourney: (id) => context.push('/journeys/$id'),
       );
