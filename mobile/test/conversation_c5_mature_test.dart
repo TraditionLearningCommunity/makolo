@@ -477,6 +477,39 @@ void main() {
     },
   );
 
+  testWidgets(
+    'C5: attention panel keeps expansion state separate from scroll offset',
+    (tester) async {
+      final repository = repositoryFor((request) async {
+        if (request.url.path == '/api/v1/conversations/conversation-1/') {
+          return const MockResponse(
+            '{"id":"conversation-1","title":"Coordination",'
+            '"points":[],"essential":[],"composer":{"can_create":false,'
+            '"media_kinds":[]},'
+            '"attention":{"action_count":1,'
+            '"for_me":[{"id":"point-1","label":"Action en cours"}],'
+            '"to_resolve":[],"to_know":[]}}',
+            200,
+          );
+        }
+        throw StateError('Unexpected request');
+      });
+      await repository.refreshDetail('conversation-1');
+      await PresentationHarness.pump(
+        tester,
+        child: ConversationDetailScreen(
+          id: 'conversation-1',
+          repository: repository,
+          onOpenHistory: () {},
+        ),
+      );
+      await tester.tap(find.textContaining('À présent · 1 action'));
+      await tester.pumpAndSettle();
+      expect(find.text('Action en cours'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('C5: closed Conversation does not display a composer', (
     tester,
   ) async {
