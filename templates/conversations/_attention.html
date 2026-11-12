@@ -11,10 +11,6 @@
       <span class="text-sm" style="color:var(--mk-muted)">Aucune action attendue de vous actuellement</span>
     {% endif %}
   </div>
-  <p class="mt-1 text-xs" style="color:var(--mk-muted)">
-    Cette synthèse présente les actions et informations utiles maintenant.
-    Le fil des Points reste dans l'ordre chronologique en dessous.
-  </p>
   <div class="mt-4 grid gap-4 md:grid-cols-3">
     <div>
       <h3 class="mb-2 text-sm font-bold">Pour moi · {{ attention.for_me|length }}</h3>
@@ -53,10 +49,4 @@
       {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune nouveauté utile à signaler.</p>{% endfor %}
     </div>
   </div>
-  {% if attention.more_actions %}
-    <p class="mt-4 text-xs" style="color:var(--mk-muted)">
-      Cette synthèse affiche les premiers Points de chaque catégorie.
-      Les autres actions restent accessibles dans le fil et l'historique.
-    </p>
-  {% endif %}
 </section>
