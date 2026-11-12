@@ -12,7 +12,7 @@ from groups.models import (
     GroupMembershipStatus,
 )
 from opportunities.models import OpportunityKind, OpportunitySourceType
-from opportunities.services import create_opportunity, create_opportunity_revision, create_opportunity_source, publish_opportunity_revision
+from opportunities.services import create_opportunity, create_opportunity_revision, create_opportunity_source, publish_opportunity_revision, withdraw_opportunity
 
 from .models import OpportunityPolicy, ServiceIntakeQuestion, ServiceIntakeQuestionType, ServiceKind
 from .services import add_template_step, create_plan_template, create_service_details, publish_plan_template
@@ -113,6 +113,54 @@ class ServiceParticipantWebTests(TestCase):
                 activity=self.none_service.activity
             ).count(), 2,
         )
+
+    def test_web_start_two_open_tabs_have_independent_operation_keys(self):
+        self.client.force_login(self.participant)
+        url = reverse("services:start", kwargs={"pk": self.none_service.pk})
+        first_key = self.client.get(url).context["operation_key"]
+        second_key = self.client.get(url).context["operation_key"]
+        self.assertNotEqual(first_key, second_key)
+        first = self.client.post(url, {
+            "operation_key": first_key, "objective": "Premier projet",
+        })
+        second = self.client.post(url, {
+            "operation_key": second_key, "objective": "Deuxième projet",
+        })
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertNotEqual(first["Location"], second["Location"])
+        self.assertEqual(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.none_service.activity
+            ).count(), 2,
+        )
+
+    def test_web_replay_survives_withdrawn_opportunity_and_preserves_revision(self):
+        self.client.force_login(self.participant)
+        url = reverse("services:start", kwargs={"pk": self.required_service.pk})
+        operation_key = self.client.get(url).context["operation_key"]
+        payload = {
+            "operation_key": operation_key,
+            "objective": "Candidater à la bourse",
+            "opportunity": str(self.opportunity.pk),
+        }
+        accepted = self.client.post(url, payload)
+        self.assertEqual(accepted.status_code, 302)
+        journey = self.participant.beneficiary_journeys.get(
+            activity=self.required_service.activity
+        )
+        original_revision = journey.service_context.opportunity_revision_id
+        withdraw_opportunity(opportunity=self.opportunity, actor=self.manager)
+        replay = self.client.post(url, payload)
+        self.assertEqual(replay.status_code, 302)
+        self.assertEqual(replay["Location"], accepted["Location"])
+        self.assertEqual(
+            self.participant.beneficiary_journeys.filter(
+                activity=self.required_service.activity
+            ).count(), 1,
+        )
+        journey.service_context.refresh_from_db()
+        self.assertEqual(journey.service_context.opportunity_revision_id, original_revision)
 
     def test_web_start_rejects_reused_key_with_changed_payload(self):
         self.client.force_login(self.participant)
