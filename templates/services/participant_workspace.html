@@ -60,7 +60,7 @@
     {% if artifacts %}
     <div class="mt-4 space-y-3">
       {% for artifact in artifacts %}
-      {% can_export_artifact request.user artifact as artifact_exportable %}
+      {% can_export_artifact viewer artifact as artifact_exportable %}
       <article class="rounded-xl border p-4" style="border-color:var(--mk-border)">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="min-w-0">
