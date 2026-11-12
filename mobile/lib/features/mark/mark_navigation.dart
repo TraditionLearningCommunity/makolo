@@ -42,6 +42,7 @@ String? markHandoffRoute(MarkResult result, ActorContext actor) {
     'discovery/watch' || 'discovery/watches' => '/discover/watches',
     'discovery/saved' || 'discovery/saved_possibility' => '/me/saved',
     'personal_assets/resources' => '/me/resources',
+    'personal_assets/resource_detail' => detail('/me/resources/documents'),
     'history/history' => '/history',
     'passport/passport' => '/me/passport',
     'profile/me' => '/me',
