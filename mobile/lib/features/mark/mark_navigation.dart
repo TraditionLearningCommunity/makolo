@@ -12,9 +12,21 @@ String? markHandoffRoute(MarkResult result, ActorContext actor) {
   if (owner == null || surface == null) return null;
 
   if (actor is SpaceActorContext) {
-    // Nous owns the team experience; a Space handoff does not open a
-    // personal route or infer a mandate.
-    return owner == 'organizations' && surface == 'team' ? '/space/us' : null;
+    // The owner decides authority. A Space destination must stay within
+    // Space-native routes, not the personal /occurrences or /accesses depths.
+    final raw = result.raw['result'];
+    final data = raw is Map ? raw : const {};
+    final identity = data['identity'];
+    final id = identity is Map ? identity['id']?.toString() : null;
+    String? occurrence(String suffix) => id == null || id.trim().isEmpty
+        ? null
+        : '/space/occurrences/${Uri.encodeComponent(id)}$suffix';
+    return switch ('$owner/$surface') {
+      'organizations/team' => '/space/us',
+      'operations/day_of' => occurrence('/day-of'),
+      'scanner/occurrence_context' => occurrence('/scanner'),
+      _ => null,
+    };
   }
 
   final raw = result.raw['result'];
