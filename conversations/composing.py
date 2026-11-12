@@ -249,6 +249,27 @@ def contribute_text(
     body = _clean_text(body, "body")
     if not isinstance(client_reference, str) or not client_reference.strip() or len(client_reference) > 80:
         raise ValidationError({"client_reference": "Référence d'envoi obligatoire."})
+    # The UI may have selected the only active Exchange implicitly, without
+    # sending its point_id. A confirmed reference must still replay exactly
+    # after that Exchange closes, never turn into a new Information Point.
+    prior = PointExchangeEntry.objects.filter(
+        client_reference=client_reference,
+    ).select_related(
+        "point__conversation__policy", "point__visibility_audience",
+        "point__response_audience",
+    ).first()
+    if prior is not None:
+        if (
+            prior.point.conversation_id != conversation.pk
+            or (point_id is not None and str(prior.point_id) != str(point_id))
+        ):
+            raise ValidationError("Cette référence d'idempotence est déjà utilisée.")
+        entry = create_exchange_entry(
+            actor=actor, point=prior.point, body=body,
+            represented_space=represented_space,
+            client_reference=client_reference,
+        )
+        return "exchange", entry, prior.point_id
     exchange_points = _active_exchange_points(actor, conversation)
     target = next((item for item in exchange_points if str(item.pk) == str(point_id)), None) if point_id else (
         exchange_points[0] if len(exchange_points) == 1 else None
@@ -261,25 +282,6 @@ def contribute_text(
         )
         return "exchange", entry, target.pk
     if point_id:
-        # A confirmed message can be retried after its Exchange closes.
-        # Only the exact original subject/content may be reconciled.
-        prior = PointExchangeEntry.objects.filter(
-            client_reference=client_reference,
-        ).select_related(
-            "point__conversation__policy", "point__visibility_audience",
-            "point__response_audience",
-        ).first()
-        if (
-            prior is not None
-            and str(prior.point_id) == str(point_id)
-            and prior.point.conversation_id == conversation.pk
-        ):
-            entry = create_exchange_entry(
-                actor=actor, point=prior.point, body=body,
-                represented_space=represented_space,
-                client_reference=client_reference,
-            )
-            return "exchange", entry, prior.point_id
         raise PermissionDenied("Cet échange n'est plus accessible.")
     if len(exchange_points) > 1:
         raise ValidationError({"point_id": "Choisissez l'échange auquel répondre."})
