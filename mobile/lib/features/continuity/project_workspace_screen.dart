@@ -57,6 +57,8 @@ class ProjectWorkspaceScreen extends StatefulWidget {
     required this.id,
     required this.repository,
     required this.onOpenDossier,
+    this.onOpenPerson,
+    this.onOpenMyPassport,
     this.api,
     this.conversations,
     this.onOpenConversation,
@@ -65,6 +67,8 @@ class ProjectWorkspaceScreen extends StatefulWidget {
   final String id;
   final ObjectiveRepository repository;
   final ValueChanged<String> onOpenDossier;
+  final ValueChanged<String>? onOpenPerson;
+  final VoidCallback? onOpenMyPassport;
   final MakoloApiClient? api;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
@@ -1047,6 +1051,104 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     );
   }
 
+  void _openProjectPerson(Map<String, dynamic> person) {
+    if (_text(person['profile_view']) == 'self') {
+      widget.onOpenMyPassport?.call();
+    } else if (_text(person['profile_view']) == 'public') {
+      final id = _text(person['profile_id']);
+      if (id.isNotEmpty) widget.onOpenPerson?.call(id);
+    }
+  }
+
+  bool _canOpenProjectPerson(Map<String, dynamic> person) =>
+      (_text(person['profile_view']) == 'self' &&
+          widget.onOpenMyPassport != null) ||
+      (_text(person['profile_view']) == 'public' &&
+          widget.onOpenPerson != null);
+
+  ImageProvider<Object>? _projectPhoto(Map<String, dynamic> person) {
+    final raw = _text(person['avatar_url']);
+    if (raw.isEmpty) return null;
+    final input = Uri.tryParse(raw);
+    if (input == null) return null;
+    final uri = input.hasScheme ? input : widget.api?.baseUri.resolveUri(input);
+    if (uri == null || !['https', 'http'].contains(uri.scheme) ||
+        uri.host.isEmpty) return null;
+    return NetworkImage(uri.toString());
+  }
+
+  Widget _projectAvatar(Map<String, dynamic> person) {
+    final label = _text(person['label']);
+    final image = _projectPhoto(person);
+    final scheme = Theme.of(context).colorScheme;
+    final avatar = CircleAvatar(
+      radius: 18,
+      backgroundColor: scheme.primaryContainer,
+      foregroundImage: image,
+      child: image == null
+          ? Text(
+              _initials(label),
+              style: TextStyle(
+                color: scheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+              ),
+            )
+          : null,
+    );
+    return Tooltip(
+      message: _canOpenProjectPerson(person)
+          ? 'Voir le Profil de $label' : label,
+      child: _canOpenProjectPerson(person)
+          ? Semantics(
+              button: true, label: 'Voir le Profil de $label',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: () => _openProjectPerson(person),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: avatar,
+                ),
+              ),
+            )
+          : Padding(padding: const EdgeInsets.all(4), child: avatar),
+    );
+  }
+
+  Future<void> _changeProjectRole(
+    Map<String, dynamic> project,
+    Map<String, dynamic> member,
+  ) async {
+    final roles = _list(_map(project['collaboration'])['roles']);
+    if (roles.isEmpty) return;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (dialog) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            const ListTile(title: Text('Changer le rôle')),
+            for (final role in roles)
+              RadioListTile<String>(
+                title: Text(_text(role['label'])),
+                value: _text(role['code']),
+                groupValue: _text(member['role_code']),
+                onChanged: (value) => Navigator.pop(dialog, value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || selected == null ||
+        selected == _text(member['role_code'])) return;
+    await _send('${_base}authority/', {
+      'action': 'replace',
+      'mandate_id': _text(member['id']),
+      'role_code': selected,
+    });
+  }
+
   String _initials(String label) {
     final words = label.trim().split(RegExp(r'\s+'));
     if (words.isEmpty || label.trim().isEmpty) return '?';
@@ -1062,6 +1164,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       people.add({
         'profile_id': owner['id'],
         'label': owner['holder'],
+        'profile_view': owner['profile_view'],
+        'avatar_url': owner['avatar_url'],
       });
     }
     for (final member in members) {
@@ -1116,26 +1220,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  for (final person in shown) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(right: 5),
-                      child: Tooltip(
-                        message: _text(person['label']),
-                        child: CircleAvatar(
-                          radius: 17,
-                          backgroundColor: scheme.primaryContainer,
-                          child: Text(
-                            _initials(_text(person['label'])),
-                            style: TextStyle(
-                              color: scheme.onPrimaryContainer,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  for (final person in shown) _projectAvatar(person),
                   Container(
                     width: 34,
                     height: 34,
