@@ -44,6 +44,16 @@ POINT_POLICY_CAPABILITY = {
 }
 
 
+def _audience_membership(profile, audience, *, at=None, audience_cache=None):
+    """Memoize a canonical audience decision only within a caller-owned read."""
+    if audience_cache is None:
+        return profile_in_audience(profile, audience, at=at)
+    scope = (getattr(profile, "pk", None), audience.pk, at)
+    if scope not in audience_cache:
+        audience_cache[scope] = profile_in_audience(profile, audience, at=at)
+    return audience_cache[scope]
+
+
 def point_visible_to(
     profile, point, *, at=None,
     visibility_cache=None, audience_cache=None, history_cache=None,
@@ -92,14 +102,9 @@ def point_visible_to(
 
     if not point.visibility_audience_id:
         return True
-    audience_scope = (getattr(profile, "pk", None), point.visibility_audience_id, at)
-    if audience_cache is None:
-        return profile_in_audience(profile, point.visibility_audience, at=at)
-    if audience_scope not in audience_cache:
-        audience_cache[audience_scope] = profile_in_audience(
-            profile, point.visibility_audience, at=at,
-        )
-    return audience_cache[audience_scope]
+    return _audience_membership(
+        profile, point.visibility_audience, at=at, audience_cache=audience_cache,
+    )
 
 
 def point_resolution_visible_to(profile, point, *, at=None):
@@ -119,14 +124,24 @@ def point_resolution_visible_to(profile, point, *, at=None):
 
 
 
-def point_response_allowed(profile, point, *, at=None):
-    if not point_visible_to(profile, point, at=at):
+def point_response_allowed(
+    profile, point, *, at=None,
+    visibility_cache=None, audience_cache=None, history_cache=None,
+):
+    if not point_visible_to(
+        profile, point, at=at,
+        visibility_cache=visibility_cache,
+        audience_cache=audience_cache,
+        history_cache=history_cache,
+    ):
         return False
     # Publishing a Point does not remove its author's right to participate.
     # Everyone else remains constrained by the explicit response audience.
     if point.published_by_id == getattr(profile, "pk", None):
         return True
-    return not point.response_audience_id or profile_in_audience(profile, point.response_audience, at=at)
+    return not point.response_audience_id or _audience_membership(
+        profile, point.response_audience, at=at, audience_cache=audience_cache,
+    )
 
 
 def point_expected_from(profile, point, *, at=None):
