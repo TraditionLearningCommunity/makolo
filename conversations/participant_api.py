@@ -11,6 +11,7 @@ from .collective_models import ConversationCollectiveAccess, ConversationCollect
 from .core_models import (
     Conversation, ConversationInvitation, ConversationInvitationStatus,
     ConversationJoinRequest, ConversationParticipation,
+    ConversationEntryMode, ConversationLifecycle,
 )
 from .detail_presentation import conversation_members_for_profile
 from .participant_services import (
@@ -19,7 +20,8 @@ from .participant_services import (
     revoke_collective_access, search_invitation_candidates,
 )
 from .services import (
-    can_manage_conversation, can_view_conversation, create_join_request,
+    can_manage_conversation, can_view_conversation, context_base_eligible,
+    create_join_request,
     join_conversation, leave_conversation, remove_participation,
     respond_to_join_request,
 )
@@ -246,6 +248,12 @@ class ConversationJoinRequestsAPIView(PrivateNoStoreMixin, views.APIView):
                     # a private full name is not implied by the join request.
                     "label": item.requester.username,
                     "status": item.status,
+                    "can_approve": bool(
+                        conversation.lifecycle == ConversationLifecycle.OPEN
+                        and conversation.entry_mode == ConversationEntryMode.REQUEST
+                        and item.requester.is_active
+                        and context_base_eligible(item.requester, conversation.context)
+                    ),
                 }
                 for item in qs
             ],
