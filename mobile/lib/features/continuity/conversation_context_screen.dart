@@ -166,12 +166,14 @@ class ConversationContextAction extends StatefulWidget {
     required this.kind,
     required this.contextId,
     required this.onOpen,
+    this.iconOnly = false,
   });
 
   final ConversationRepository repository;
   final String kind;
   final String contextId;
   final ValueChanged<String> onOpen;
+  final bool iconOnly;
 
   @override
   State<ConversationContextAction> createState() =>
@@ -226,6 +228,37 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
     }
   }
 
+  void _openRows(List<Map<String, dynamic>> rows) {
+    if (rows.length == 1) {
+      final id = rows.first['id']?.toString();
+      if (id != null) widget.onOpen(id);
+      return;
+    }
+    if (rows.isEmpty) {
+      _ensure();
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final row in rows)
+              ListTile(
+                title: Text(row['title']?.toString() ?? 'Conversation'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  final id = row['id']?.toString();
+                  if (id != null) widget.onOpen(id);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
     future: _future,
@@ -234,41 +267,16 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
       final rows = _contextRows(snapshot.data!);
       final canEnsure = snapshot.data!['can_ensure'] == true;
       if (rows.isEmpty && !canEnsure) return const SizedBox.shrink();
+      final VoidCallback? open = _busy ? null : () => _openRows(rows);
+      if (widget.iconOnly) {
+        return IconButton(
+          tooltip: 'Conversation de cette démarche',
+          onPressed: open,
+          icon: const Icon(Icons.forum_outlined),
+        );
+      }
       return TextButton.icon(
-        onPressed: _busy
-            ? null
-            : () {
-                if (rows.length == 1) {
-                  final id = rows.first['id']?.toString();
-                  if (id != null) widget.onOpen(id);
-                  return;
-                }
-                if (rows.isEmpty) {
-                  _ensure();
-                  return;
-                }
-                showModalBottomSheet<void>(
-                  context: context,
-                  builder: (sheetContext) => SafeArea(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final row in rows)
-                          ListTile(
-                            title: Text(
-                              row['title']?.toString() ?? 'Conversation',
-                            ),
-                            onTap: () {
-                              Navigator.of(sheetContext).pop();
-                              final id = row['id']?.toString();
-                              if (id != null) widget.onOpen(id);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+        onPressed: open,
         icon: const Icon(Icons.forum_outlined),
         label: Text(_busy ? 'Ouverture…' : 'Échanger'),
       );
