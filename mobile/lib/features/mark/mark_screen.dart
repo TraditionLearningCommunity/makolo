@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -52,6 +53,8 @@ class _MarkScreenState extends State<MarkScreen> {
   NativeFileAcquisitionCoordinator? _files;
   ProfileFileStore? _voiceStore;
   bool _voiceCapture = false;
+  String? _pendingConfirmationCode;
+  String? _pendingConfirmationKey;
   Stream<StoredProjection?>? _meStream;
 
   @override
@@ -77,12 +80,16 @@ class _MarkScreenState extends State<MarkScreen> {
       _files = null;
       _voiceStore = null;
       _voiceCapture = false;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
       _actor =
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _result = null;
       _attachments = const [];
       _voiceCapture = false;
       _voiceStore = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
       _restoring = true;
       _busy = false;
@@ -112,6 +119,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _attachments = const [];
       _voiceCapture = false;
       _voiceStore = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
       _selectedContext = widget.selectedContext;
       _restoring = true;
       _busy = false;
@@ -132,6 +141,8 @@ class _MarkScreenState extends State<MarkScreen> {
       return;
     }
     if (draft != null) {
+      _pendingConfirmationCode = draft['pending_confirmation_code']?.toString();
+      _pendingConfirmationKey = draft['pending_confirmation_key']?.toString();
       _input.text = draft['input']?.toString() ?? '';
       final rawSelected = draft['selected'];
       if (_selectedContext == null && rawSelected is Map) {
@@ -335,6 +346,8 @@ class _MarkScreenState extends State<MarkScreen> {
     setState(() {
       _selectedContext = selected;
       _result = null;
+      _pendingConfirmationCode = null;
+      _pendingConfirmationKey = null;
     });
     await _saveDraft();
     if (mounted) await _submit();
@@ -351,7 +364,67 @@ class _MarkScreenState extends State<MarkScreen> {
     inputKind: _attachments.isEmpty ? 'text' : 'document',
     attachments: _attachments,
     selected: _selectedContext,
+    pendingConfirmationCode: _pendingConfirmationCode,
+    pendingConfirmationKey: _pendingConfirmationKey,
   );
+
+  String _newIdempotencyKey() {
+    final random = Random.secure();
+    return List.generate(
+      4,
+      (_) => random.nextInt(1 << 32).toRadixString(16).padLeft(8, '0'),
+    ).join();
+  }
+
+  Future<void> _confirmAction() async {
+    final proposal = _result;
+    if (_busy || proposal?.state != 'needs_confirmation') return;
+    final action = proposal?.action;
+    if (action?['code'] != 'redeem_recognition' ||
+        _actor is! PersonalActorContext) {
+      return;
+    }
+    final target = action?['target'];
+    if (target is! Map ||
+        target['kind'] != 'recognition_reward' ||
+        target['id'] is! String) {
+      _show('Cette confirmation ne peut pas être exécutée ici.');
+      return;
+    }
+    final id = target['id'] as String;
+    final operationKey = _pendingConfirmationKey ?? _newIdempotencyKey();
+    final revision = _draftRevision;
+    final actor = _actor;
+    final repository = _repository;
+    setState(() {
+      _busy = true;
+      _pendingConfirmationCode = 'redeem_recognition';
+      _pendingConfirmationKey = operationKey;
+    });
+    final result = await repository.submit(
+      actor: actor,
+      input: _input.text.trim(),
+      selected: {'kind': 'recognition_reward', 'id': id},
+      attachments: _attachments,
+      allowTextOnly: _attachments.isNotEmpty,
+      confirmation: {'code': 'redeem_recognition', 'target_id': id},
+      idempotencyKey: operationKey,
+    );
+    if (!mounted ||
+        revision != _draftRevision ||
+        repository != _repository ||
+        actor != _actor) {
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _result = result;
+      if (result.state == 'completed') {
+        _pendingConfirmationCode = null;
+        _pendingConfirmationKey = null;
+      }
+    });
+  }
 
   Future<void> _submit() async {
     if (_busy || _restoring) return;
@@ -408,7 +481,19 @@ class _MarkScreenState extends State<MarkScreen> {
     setState(() {
       _busy = false;
       _result = result;
+      if (result.state == 'needs_confirmation' &&
+          result.action?['code'] == 'redeem_recognition') {
+        if (_pendingConfirmationCode != 'redeem_recognition') {
+          _pendingConfirmationKey = null;
+        }
+        _pendingConfirmationCode = 'redeem_recognition';
+        _pendingConfirmationKey ??= _newIdempotencyKey();
+      } else if (result.state != 'confirmation_unknown') {
+        _pendingConfirmationCode = null;
+        _pendingConfirmationKey = null;
+      }
     });
+    if (_pendingConfirmationCode != null) await _saveDraft();
   }
 
   void _show(String message) {
@@ -509,7 +594,12 @@ class _MarkScreenState extends State<MarkScreen> {
                         hintText: 'Ex. Retrouve mon billet pour ce soir',
                         alignLabelWithHint: true,
                       ),
-                      onChanged: (_) => _saveDraft(),
+                      onChanged: (_) {
+                        _result = null;
+                        _pendingConfirmationCode = null;
+                        _pendingConfirmationKey = null;
+                        unawaited(_saveDraft());
+                      },
                     ),
                     if (_selectedContext != null ||
                         _attachments.isNotEmpty) ...[
@@ -617,6 +707,11 @@ class _MarkScreenState extends State<MarkScreen> {
                         onChooseOption: (option) =>
                             unawaited(_chooseOption(option)),
                         onEdit: () => _inputFocus.requestFocus(),
+                        onConfirm: _result!.state == 'needs_confirmation' &&
+                                _result!.action?['code'] == 'redeem_recognition' &&
+                                actor is PersonalActorContext
+                            ? () => unawaited(_confirmAction())
+                            : null,
                         onOpenHandoff: switch (markHandoffRoute(
                           _result!,
                           actor,
@@ -643,12 +738,14 @@ class _MarkResultView extends StatelessWidget {
     required this.onChooseOption,
     required this.onEdit,
     this.onOpenHandoff,
+    this.onConfirm,
   });
 
   final MarkResult result;
   final ValueChanged<Map> onChooseOption;
   final VoidCallback onEdit;
   final VoidCallback? onOpenHandoff;
+  final VoidCallback? onConfirm;
 
   @override
   Widget build(BuildContext context) {
@@ -660,6 +757,7 @@ class _MarkResultView extends StatelessWidget {
       'needs_confirmation' => 'Confirmation nécessaire',
       'offline_draft' => 'Brouillon local',
       'local_attachments_only' => 'Pièces conservées localement',
+      'confirmation_unknown' => 'Résultat à vérifier',
       'completed' => 'Terminé',
       'forbidden' => 'Action non autorisée',
       'unsupported' => 'Pas encore disponible',
@@ -714,6 +812,15 @@ class _MarkResultView extends StatelessWidget {
               if (action?['consequence'] != null) ...[
                 const SizedBox(height: 12),
                 Text(action!['consequence'].toString()),
+              ],
+              if (onConfirm != null) ...[
+                const SizedBox(height: 12),
+                MakoloActionButton(
+                  label: 'Confirmer cette utilisation',
+                  onPressed: onConfirm,
+                  appearance: MakoloActionAppearance.primary,
+                  icon: Icons.check_circle_outline,
+                ),
               ],
               if (onOpenHandoff != null) ...[
                 const SizedBox(height: 12),
