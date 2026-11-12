@@ -835,6 +835,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     final objective = _map(data['objective']);
     final parent = _map(data['parent_project']);
     final readiness = _map(data['readiness']);
+    final owner = _map(data['owner']);
     final deadline = _parse(data['deadline']);
     final theme = Theme.of(context);
     return Column(
@@ -890,6 +891,28 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           ],
         ),
+        if (_text(owner['label']).isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                Icon(
+                  owner['kind'] == 'space'
+                      ? Icons.groups_outlined
+                      : Icons.person_outline_rounded,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Porteur · ' + _text(owner['label']),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (_text(objective['description']).isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
@@ -1205,6 +1228,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   ? () => widget.onOpenJourney(nextId) : null,
             ),
           ),
+        const SizedBox(height: 10),
+        _controls(data),
         _collaboration(data),
         const SizedBox(height: 12),
         Row(
@@ -1318,6 +1343,17 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               ],
             ),
           ),
+        ],
+        if (items.isNotEmpty || dependencies.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'Explorer le Dossier',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _tabs(),
         ],
         // Historical events and resources are not owned by Dossier.
         // Their cards will be enabled only with authoritative projections.
@@ -2049,19 +2085,21 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _header(data),
-                          const SizedBox(height: 9),
-                          _controls(data),
-                          const SizedBox(height: 11),
-                          _tabs(),
                           const SizedBox(height: 12),
                           if (_mode == _DossierMode.overview)
                             _overview(data)
-                          else if (_mode == _DossierMode.list)
-                            _journeyList(data)
-                          else if (_mode == _DossierMode.timeline)
-                            _timeline(data)
-                          else
-                            _dependencyView(data),
+                          else ...[
+                            _controls(data),
+                            const SizedBox(height: 10),
+                            _tabs(),
+                            const SizedBox(height: 12),
+                            if (_mode == _DossierMode.list)
+                              _journeyList(data)
+                            else if (_mode == _DossierMode.timeline)
+                              _timeline(data)
+                            else
+                              _dependencyView(data),
+                          ],
                           if (_busy)
                             const Padding(
                               padding: EdgeInsets.all(10),
