@@ -37,6 +37,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   DateTime? _start, _end, _deadline;
   bool _submitting = false;
   String? _error;
+  String? _confirmedId;
+  String? _confirmedSpaceSlug;
 
   bool get _isProject => widget.kind == 'project';
   bool get _actorValid {
@@ -175,6 +177,15 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       if (id == null || id.isEmpty) {
         throw const FormatException('Invalid Objectives owner response');
       }
+      // Keep the owner's confirmed identity even if the active actor changes
+      // while the list is revalidating. Otherwise the result disappears and
+      // the human may repeat a mutation that already succeeded.
+      if (mounted) {
+        setState(() {
+          _confirmedId = id;
+          _confirmedSpaceSlug = widget.spaceActor?.slug;
+        });
+      }
       // The mutation is confirmed. The parent list is now revalidated.
       try {
         await widget.repository.refreshOrganizerPage(
@@ -195,7 +206,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     } on Object {
       if (mounted) {
         setState(
-          () => _error = 'Création non confirmée. Vérifiez votre connexion et les informations saisies.',
+          () => _error = _confirmedId == null
+              ? 'Création non confirmée. Vérifiez votre connexion et les informations saisies.'
+              : 'Création confirmée, mais ouverture indisponible.',
         );
       }
     } finally {
@@ -205,6 +218,69 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final confirmedId = _confirmedId;
+    if (confirmedId != null) {
+      final owner = _confirmedSpaceSlug;
+      return Scaffold(
+        appBar: AppBar(title: const Text('Création confirmée')),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, size: 42),
+                    const SizedBox(height: 12),
+                    Text(
+                      'La réalisation a été créée.',
+                      style: Theme.of(context).textTheme.titleLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      owner == null
+                          ? 'Elle appartient à votre Profil.'
+                          : 'Elle appartient à l’Espace $owner.',
+                      textAlign: TextAlign.center,
+                    ),
+                    if (!_actorValid) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Le contexte actif a changé. Revenez au contexte '
+                        'de création pour ouvrir cette réalisation.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    MakoloActionButton(
+                      label: 'Ouvrir la réalisation',
+                      onPressed: !_actorValid || _submitting
+                          ? null
+                          : () => widget.onCreated(confirmedId),
+                      appearance: MakoloActionAppearance.primary,
+                      icon: Icons.open_in_new_rounded,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     if (!_actorValid) {
       return const Scaffold(
         body: Center(child: Text('La création doit être rouverte.')),
