@@ -121,7 +121,7 @@ void main() {
       ],
     ));
     expect(p.interventions, isEmpty);
-    expect(p.situation, JourneySituation.action);
+    expect(p.situation, JourneySituation.calm);
   });
 
   test('rich owner facts show only contextual territories they authorize', () {
