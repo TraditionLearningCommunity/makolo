@@ -170,6 +170,12 @@ class ServiceParticipantWebTests(TestCase):
         self.assertNotContains(
             detail, reverse("opportunities:detail", args=[self.opportunity.pk])
         )
+        personal_api = self.client.get(f"/api/v1/me/journeys/{journey.pk}/")
+        self.assertEqual(personal_api.status_code, 200)
+        request_data = personal_api.json()["data"]["service_request"]
+        self.assertEqual(request_data["objective"], payload["objective"])
+        self.assertEqual(request_data["opportunity"]["title"], "Emploi fictif")
+        self.assertEqual(request_data["opportunity"]["publication_state"], "withdrawn")
 
     def test_web_start_rejects_reused_key_with_changed_payload(self):
         self.client.force_login(self.participant)
