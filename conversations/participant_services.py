@@ -358,11 +358,11 @@ def answer_collective_invitation(*, actor, access, accept):
         raise PermissionDenied("Autorité de représentation insuffisante.")
     if locked.status != ConversationCollectiveStatus.PENDING:
         return locked
-    if accept and not collective_invitation_accept_allowed(actor, locked):
-        raise ValidationError("Cette invitation collective ne peut plus être acceptée.")
     now = timezone.now()
     if locked.expires_at and now >= locked.expires_at:
         locked.status = ConversationCollectiveStatus.EXPIRED
+    elif accept and not collective_invitation_accept_allowed(actor, locked):
+        raise ValidationError("Cette invitation collective ne peut plus être acceptée.")
     elif locked.conversation.lifecycle != ConversationLifecycle.OPEN:
         raise ValidationError("Cette Conversation n'accepte plus d'invitations.")
     elif accept and locked.space and not _eligible_space(locked.space):
