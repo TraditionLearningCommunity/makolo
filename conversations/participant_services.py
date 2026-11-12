@@ -94,6 +94,27 @@ def _target_can_be_invited(actor, target, conversation):
                 raise ValidationError("Cette invitation n'est pas disponible.")
 
 
+def invitation_accept_allowed(actor, invitation):
+    """Current eligibility hint; acceptance always rechecks inside the service."""
+    conversation = invitation.conversation
+    if (
+        not getattr(actor, "is_authenticated", False)
+        or not getattr(actor, "is_active", False)
+        or invitation.invitee_id != getattr(actor, "pk", None)
+        or invitation.status != ConversationInvitationStatus.PENDING
+        or conversation.lifecycle != ConversationLifecycle.OPEN
+        or (invitation.expires_at and invitation.expires_at <= timezone.now())
+        or not invitation.created_by.is_active
+        or not can_manage_conversation(invitation.created_by, conversation)
+    ):
+        return False
+    try:
+        _target_can_be_invited(invitation.created_by, actor, conversation)
+    except (ValidationError, PermissionDenied):
+        return False
+    return True
+
+
 def _collective_manage_allowed(actor, *, space=None, group=None):
     if not getattr(actor, "is_authenticated", False) or not actor.is_active:
         return False
