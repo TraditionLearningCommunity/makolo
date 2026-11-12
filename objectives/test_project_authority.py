@@ -51,6 +51,42 @@ class ProjectAuthorityIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         return response.data["mandate_id"]
 
+    def test_project_collaboration_reports_partial_when_owner_occupies_slot(self):
+        # The owner used to occupy a bounded candidate slot, causing a
+        # false "complete" flag when 51 other known collaborators existed.
+        owner_name = self.owner.first_name
+        self.owner.first_name = "A"
+        self.owner.save(update_fields=["first_name"])
+        try:
+            role = Role.objects.get(
+                scope_type=AuthorityScope.DOSSIER,
+                code=SystemRoleCode.DOSSIER_VIEWER,
+            )
+            for index in range(51):
+                collaborator = User.objects.create_user(
+                    username=f"project-candidate-{index:03d}",
+                    first_name="Z",
+                )
+                grant_dossier_role(
+                    profile=collaborator, dossier=self.dossier,
+                    role=role, granted_by=self.owner,
+                )
+            self.client.force_authenticate(user=self.owner)
+            response = self.client.get(
+                self.endpoint("objectives_api:project-detail"),
+            )
+            self.assertEqual(response.status_code, 200, response.data)
+            collaboration = response.data["data"]["collaboration"]
+            self.assertEqual(len(collaboration["candidate_profiles"]), 50)
+            self.assertTrue(collaboration["candidate_profiles_partial"])
+            self.assertNotIn(
+                str(self.owner.pk),
+                {item["id"] for item in collaboration["candidate_profiles"]},
+            )
+        finally:
+            self.owner.first_name = owner_name
+            self.owner.save(update_fields=["first_name"])
+
     def test_project_viewer_sees_only_project_and_own_authority(self):
         self.grant(self.viewer, SystemRoleCode.PROJECT_VIEWER)
         self.client.force_authenticate(user=self.viewer)
