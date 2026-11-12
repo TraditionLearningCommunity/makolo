@@ -533,9 +533,13 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Confirmer cette modification ?'),
-        content: const Text(
-          'Retirer cette personne de la conversation ?'
+        title: Text(
+          switch (operation) {
+            'remove' => 'Retirer cette personne ?',
+            'cancel' => 'Annuler cette invitation ?',
+            'revoke' => 'Retirer cet accès collectif ?',
+            _ => 'Confirmer ?',
+          },
         ),
         actions: [
           TextButton(
