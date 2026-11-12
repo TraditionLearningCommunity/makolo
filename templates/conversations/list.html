@@ -26,7 +26,11 @@
             <div><p class="font-semibold">Invitation à une conversation</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Envoyée par @{{ invitation.created_by.username }}</p>{% if invitation.expires_at %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">Jusqu’au {{ invitation.expires_at|date:'d/m/Y à H:i' }}</p>{% endif %}</div>
             <form method="post" action="{% url 'conversations:invitation-respond' invitation.pk %}" class="flex gap-2">{% csrf_token %}
               <button class="mk-action-button" data-variant="secondary" name="decision" value="decline" type="submit">Refuser</button>
+              {% if invitation.can_accept %}
               <button class="mk-action-button" data-variant="primary" name="decision" value="accept" type="submit">Accepter</button>
+              {% else %}
+              <span class="text-xs" style="color:var(--mk-muted)">Acceptation indisponible</span>
+              {% endif %}
             </form>
           </article>
         {% endfor %}
