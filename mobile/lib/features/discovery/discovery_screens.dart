@@ -1203,8 +1203,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Sources externes non vérifiées par Makolo. '
-                  'Consultez-les avant toute démarche.',
+                  'Ces sources ne sont pas confirmées par Makolo.',
                 ),
                 if (result.leads.isEmpty)
                   const Padding(
@@ -1269,7 +1268,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         _searchChanged(_search.text, immediate: true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Recherche affinée. Vérifiez les critères.'),
+            content: Text('Recherche affinée.'),
           ),
         );
       } else {
@@ -1576,13 +1575,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.auto_awesome_outlined),
-              label: const Text('Clarifier ma recherche'),
+                  : const Icon(Icons.tune_rounded),
+              label: const Text('Affiner la recherche'),
             ),
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Des frais peuvent s’appliquer selon votre service connecté.',
+                'Frais possibles selon le service connecté.',
                 style: TextStyle(fontSize: 11),
               ),
             ),
@@ -1611,7 +1610,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.menu_book_outlined),
-            label: const Text('Chercher des sources externes'),
+            label: const Text('Explorer d’autres sources'),
           ),
         ),
       ),
