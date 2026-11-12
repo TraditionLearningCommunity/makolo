@@ -455,15 +455,6 @@ class _JourneyContent extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
-            if (presentation.isTerminal) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
-                ),
-                child: _JourneyOutcomeCard(presentation: presentation),
-              ),
-            ],
             if (presentation.serviceResult != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
@@ -483,6 +474,15 @@ class _JourneyContent extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+            ],
+            if (presentation.isTerminal) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
+                child: _JourneyOutcomeCard(presentation: presentation),
               ),
             ],
             if (presentation.canRespondInvitation &&
@@ -1026,6 +1026,10 @@ class _JourneyOutcomeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final outcome = switch (presentation.stateCode) {
+      'fulfilled' when presentation.workflowKind == 'service' => (
+        'Suivi terminé dans Makolo',
+        Icons.check_circle_outline_rounded,
+      ),
       'fulfilled' => ('Démarche réalisée', Icons.check_circle_outline_rounded),
       'rejected' => ('Demande refusée', Icons.info_outline_rounded),
       'cancelled' => ('Démarche annulée', Icons.cancel_outlined),
