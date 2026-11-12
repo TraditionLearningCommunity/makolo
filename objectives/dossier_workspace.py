@@ -10,6 +10,7 @@ from authorization.models import AuthorityScope, Role
 from django.urls import reverse
 from objectives.models import DossierJourneyDependencyState
 from objectives.readiness import resolve_dossier_readiness
+from objectives.project_workspace import _profile_public_presentation
 from objectives.selectors import (
     active_assignments_for_dossier,
     active_project_for_dossier,
@@ -146,6 +147,18 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
             ) if can_edit else None,
         })
 
+    # Reuse the Profile owner's visibility decision used by Project.
+    # An Assignment or Mandate may disclose a responsibility without granting
+    # a link to the person's private Passeport.
+    profile_links = {}
+
+    def visible_profile(profile):
+        if profile.pk not in profile_links:
+            profile_links[profile.pk] = _profile_public_presentation(
+                profile, actor=viewer,
+            )
+        return profile_links[profile.pk]
+
     active_assignments = list(active_assignments_for_dossier(dossier))
     assignments = [
         {
@@ -154,6 +167,7 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
             "profile_id": str(item.assignee_id),
             "assigned_at": _iso(item.assigned_at),
             "self": item.assignee_id == viewer.pk,
+            **visible_profile(item.assignee),
             "capabilities": ["remove"] if manage else [],
             "web_remove_url": reverse(
                 "objectives:dossier-unassign", kwargs={
@@ -169,6 +183,7 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
         mandates = [
             {"id": str(item.pk), "profile": _person(item.profile),
              "profile_id": str(item.profile_id),
+             **visible_profile(item.profile),
              "role": item.role.name, "capabilities": ["revoke"],
              "web_revoke_url": reverse(
                  "objectives:dossier-revoke-authority", kwargs={
@@ -184,10 +199,12 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
     for item in assignments:
         people_preview.setdefault(item["profile_id"], {
             "profile_id": item["profile_id"], "label": item["label"],
+            "profile_url": item.get("profile_url"),
         })
     for item in mandates:
         people_preview.setdefault(item["profile_id"], {
             "profile_id": item["profile_id"], "label": item["profile"],
+            "profile_url": item.get("profile_url"),
         })
     people_values = list(people_preview.values())
 
