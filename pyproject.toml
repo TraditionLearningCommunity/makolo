@@ -1,0 +1,5 @@
+# Vercel Preview builds use Neon's isolated database branch.
+# Never migrate the production Neon branch from the Makolo test project.
+# requirements.txt remains the canonical Python dependency manifest.
+[tool.vercel.scripts]
+build = 'if [ "$VERCEL_ENV" = "preview" ]; then if [ -z "$DATABASE_URL_UNPOOLED" ]; then echo "DATABASE_URL_UNPOOLED missing for Preview migration" >&2; exit 1; fi; DATABASE_URL="$DATABASE_URL_UNPOOLED" python manage.py migrate --noinput; fi'
