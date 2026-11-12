@@ -33,8 +33,8 @@ Ordre recommandé au-dessus du pli, si les données existent :
    ou utilisateur autorisé à gérer responsabilités et accès ;
 10. Démarches : aperçu jusqu'à 3 Journeys visibles, compteur et lien
     vers la liste complète ; état vide contextualisé si aucune ;
-11. Conditions/dépendances : accordéon si relations visibles ou
-    possibilité de gérer ces relations ;
+11. Conditions/dépendances : accordéon seulement si relations
+    réellement visibles ; les commandes de gestion restent dans le menu ;
 12. Modes Liste/Chronologie/Dépendances regroupés après la synthèse,
     sans les imposer au-dessus du contenu.
 
@@ -53,8 +53,10 @@ objectives/dossier_workspace.py ; Profile reste la personne globale.
   supplémentaires visibles. Les personnes cachées ne sont pas comptées.
 - Un avatar (initiale tant que la photo canonique autorisée manque) est
   tappable vers la route Profil existante /people/:id.
-- Le déploiement des détails conserve deux sections distinctes :
-  coordination opérationnelle (Assignment) et autorisations (Mandate).
+- La page principale affiche une ligne compacte d'avatars, un +N
+  activable et un lien « Personnes et responsabilités » : elle ne
+  reproduit pas une deuxième liste administrative. La page dédiée
+  sépare coordination opérationnelle (Assignment) et autorisations (Mandate).
   Une Assignment ne confère aucun mandat, un membre d'Espace n'est pas
   automatiquement collaborateur du Dossier, et un participant Journey
   n'est pas automatiquement coordinateur.
@@ -77,8 +79,18 @@ objectives/dossier_workspace.py ; Profile reste la personne globale.
   onglets de présentation : proposer « Lier une première démarche »
   uniquement avec la capability dossier.journey.link et une mutation
   réellement autorisée.
-- Une Journey se consulte par sa route canonique, et les modes avancés
-  conservent filtres, tri, chronologie et graphe existants.
+- Une Journey se consulte par sa route canonique. Les badges « à traiter »
+  et « terminées » sont des filtres locaux de la liste, jamais des
+  résultats métier parallèles.
+- Une dépendance levée est signalée comme « Condition levée »,
+  et non comme une condition insatisfaite.
+- Les modes avancés conservent filtres, tri, chronologie et graphe
+  existants ; le changement de vue repositionne en haut de la surface.
+- « Informations du Dossier » regroupe uniquement les dates et échéances
+  réellement connues. Il ne constitue pas un historique d'événements.
+- Le porteur Espace connu permet d'ouvrir le Profil public du collectif,
+  via la route existante ; le propriétaire Profil n'est jamais inféré
+  à partir du libellé « Dossier personnel ». 
 
 ## Modules conditionnels prévus, non fabriqués
 
@@ -124,7 +136,9 @@ recherche infructueuse restent différents.
   déduplication des Profils ;
 - mobile/test/dossier_2027_overview_test.dart : états rempli et vide ;
 - mobile/test/dossier_people_screen_test.dart : vue détaillée, navigation
-  Profil et non-divulgation des personnes absentes de la projection.
+  Profil et non-divulgation des personnes absentes de la projection ;
+- mobile/test/dossier_2027_contextual_test.dart : débordement d'avatars
+  et dépendance levée. 
 
 ## Vérifications obligatoires avant validation UX
 
@@ -136,6 +150,7 @@ Flutter :
     cd mobile
     flutter test test/dossier_2027_overview_test.dart
     flutter test test/dossier_people_screen_test.dart
+    flutter test test/dossier_2027_contextual_test.dart
     flutter test test/objective_dossier_context_test.dart
     flutter analyze
     ./tool/dart_format.sh
