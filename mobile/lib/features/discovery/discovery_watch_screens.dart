@@ -279,6 +279,7 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         ],
       ),
       body: StreamBuilder<StoredProjection?>(
+        key: ValueKey('discover-watches-${widget.repository.profileId}'),
         stream: widget.repository.watchWatches(),
         builder: (context, snapshot) {
           final watches = _selector.list(snapshot.data);
@@ -424,11 +425,12 @@ class _DiscoveryWatchResultsScreenState
   }
 
   Future<void> _acquire() async {
-    final local = await widget.repository.readWatchResults(
-      widget.watchId,
-      page: _page,
-    );
-    if (local == null) await _refresh();
+    // Render the actor-scoped local page first, then refresh quietly.
+    final watchId = widget.watchId;
+    final page = _page;
+    await widget.repository.readWatchResults(watchId, page: page);
+    if (!mounted || widget.watchId != watchId || _page != page) return;
+    unawaited(_refresh());
   }
 
   Future<void> _refresh() async {
@@ -463,6 +465,10 @@ class _DiscoveryWatchResultsScreenState
         ],
       ),
       body: StreamBuilder<StoredProjection?>(
+        // A new Watch or Profile must not inherit a previous snapshot.
+        key: ValueKey(
+          'watch-results-${widget.repository.profileId}-${widget.watchId}-$_page',
+        ),
         stream: widget.repository.watchWatchResults(
           widget.watchId,
           page: _page,
