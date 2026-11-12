@@ -176,3 +176,49 @@ Un nouveau commit après validation invalide l'attestation du HEAD précédent.
 La PR pouvant recevoir des modifications d'autres chantiers, refaire les
 gates globales avant intégration. Préférer le squash merge si l'équipe le
 décide ; vérifier ensuite que `main` est verte.
+
+## 7. Durcissement complémentaire du 12 novembre 2026 — PR #522
+
+Après relecture de la branche en cours, les Lots 1–7 étaient déjà livrés en
+code. Cette intervention n'a **pas recréé leurs modèles, services, APIs,
+lecteurs de média ou moteur d'attention**.
+
+Corrections ciblées supplémentaires :
+
+- **Reprise Exchange** : une référence d'envoi déjà confirmée conserve sa
+  réponse propriétaire après fermeture/résolution du Point. Une nouvelle
+  référence ne rouvre pas la discussion ; la répétition d'une autre charge
+  utile est refusée. Le cas où le compositeur avait choisi implicitement
+  la seule discussion active reste associé au Point initial, sans créer une
+  nouvelle Information.
+- **Auteur et audiences** : l'auteur peut voir son propre Point ciblé
+  lorsqu'il possède toujours le droit d'accès à la Conversation et que la
+  politique d'historique le permet ; les autres destinataires restent
+  soumis à leur audience et l'auteur n'acquiert aucun pouvoir de gestion.
+- **Flutter Conversations** : une entrée « Invitations reçues » précède
+  Actualiser dans la barre supérieure, avec un badge dérivé de la projection
+  locale déjà autorisée. Son volet réutilise les décisions individuelles
+  et collectives existantes, sans invitation ni adhésion implicite.
+- **Langage humain** : « Discussion » remplace « Échange » sur les parcours
+  Exchange visés, sur Web et Flutter. Le modèle interne reste Exchange.
+
+Tests **ajoutés, non revendiqués comme exécutés** :
+`conversations/test_c3_composition.py` (reprise explicite/implicite,
+nouvelle intention refusée, confidentialité, participation de l'auteur),
+`conversations/test_c4_rich.py` (libellé Web) et
+`mobile/test/conversation_c5_mature_test.dart` (accès au volet Invitations
+avec projection locale). Les tests antérieurs ne sont pas supprimés.
+
+**Validation à effectuer avant tout merge :**
+`sh scripts/verify_conversations_lot7.sh`, contrôle PostgreSQL des
+migrations additives, `mobile/tool/dart_format.sh`, analyse/tests Flutter,
+E2E Web, revue d'accès/retrait de permissions, et recette Android.
+Les workflows du HEAD de #522 changent pendant les travaux parallèles :
+leur état doit être relevé à nouveau sur le commit final. Aucun verdict
+global vert ni réussite Android n'est déclaré ici.
+
+**Écarts restant à décider/vérifier avant une clôture produit exhaustive :**
+l'agrégation globale des invitations envoyées et demandes de participation
+dans un lieu unique (les services présents sont attachés aux Conversations),
+ainsi que la recette réelle des médias/permissions sur appareils. Aucune
+API ou information fictive n'est ajoutée pour masquer ces écarts.
