@@ -89,8 +89,13 @@ class _MarkScreenState extends State<MarkScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final next = ProviderScope.containerOf(context)
-        .read(runtimeIngressProvider);
+    RuntimeIngress? next;
+    try {
+      next = ProviderScope.containerOf(context).read(runtimeIngressProvider);
+    } on StateError {
+      // Embedded previews and widget tests can omit the runtime container.
+      next = null;
+    }
     if (identical(next, _ingress)) return;
     _shareSubscription?.cancel();
     _ingress = next;
@@ -502,6 +507,7 @@ class _MarkScreenState extends State<MarkScreen> {
     if (_input.text.length > 600) {
       _show('Texte conservé. Raccourcissez votre demande avant de continuer.');
     }
+    unawaited(_drainSharedInputs());
   }
 
   Future<void> _openVoiceCapture() async {
@@ -933,6 +939,7 @@ class _MarkScreenState extends State<MarkScreen> {
         (_attachments.isNotEmpty || _links.isNotEmpty)) {
       await _saveDraft();
     }
+    unawaited(_drainSharedInputs());
   }
 
   Future<void> _submit() async {
@@ -1009,6 +1016,7 @@ class _MarkScreenState extends State<MarkScreen> {
       }
     });
     if (_pendingConfirmationCode != null) await _saveDraft();
+    unawaited(_drainSharedInputs());
   }
 
   void _show(String message) {
