@@ -19,6 +19,7 @@ import '../../platform/files/system_file_picker.dart';
 import '../../platform/permissions/permission_gateway.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
+import 'mark_voice_capture.dart';
 
 class MarkScreen extends StatefulWidget {
   const MarkScreen({
@@ -49,6 +50,8 @@ class _MarkScreenState extends State<MarkScreen> {
   List<Map<String, dynamic>> _attachments = const [];
   Map<String, String>? _selectedContext;
   NativeFileAcquisitionCoordinator? _files;
+  ProfileFileStore? _voiceStore;
+  bool _voiceCapture = false;
   Stream<StoredProjection?>? _meStream;
 
   @override
@@ -72,10 +75,14 @@ class _MarkScreenState extends State<MarkScreen> {
       _draftRevision++;
       _repository = MarkRepository(widget.runtime);
       _files = null;
+      _voiceStore = null;
+      _voiceCapture = false;
       _actor =
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _result = null;
       _attachments = const [];
+      _voiceCapture = false;
+      _voiceStore = null;
       _selectedContext = widget.selectedContext;
       _restoring = true;
       _busy = false;
@@ -103,6 +110,8 @@ class _MarkScreenState extends State<MarkScreen> {
       _actor = actor;
       _result = null;
       _attachments = const [];
+      _voiceCapture = false;
+      _voiceStore = null;
       _selectedContext = widget.selectedContext;
       _restoring = true;
       _busy = false;
@@ -165,6 +174,48 @@ class _MarkScreenState extends State<MarkScreen> {
       filePicker: const NativeSystemFilePicker(),
     );
     return _files;
+  }
+
+  Future<void> _openVoiceCapture() async {
+    if (_busy || _voiceCapture) return;
+    final revision = _draftRevision;
+    final actor = _actor;
+    final files = await _fileCoordinator();
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
+    if (files == null) {
+      _show('L’enregistrement n’est pas disponible dans cette session.');
+      return;
+    }
+    setState(() {
+      _voiceStore = files.store;
+      _voiceCapture = true;
+    });
+  }
+
+  Future<void> _acceptVoiceFile(StoredLocalFile file) async {
+    final revision = _draftRevision;
+    final actor = _actor;
+    if (!mounted || !_voiceCapture) {
+      await _voiceStore?.remove(file.fileId);
+      return;
+    }
+    setState(() {
+      _attachments = [
+        ..._attachments,
+        {
+          'file_id': file.fileId,
+          'name': 'Enregistrement audio',
+          'purpose': file.purpose,
+          'kind': 'audio',
+        },
+      ];
+    });
+    await _saveDraft();
+    if (!mounted || revision != _draftRevision || actor != _actor) return;
+    setState(() {
+      _voiceCapture = false;
+      _voiceStore = null;
+    });
   }
 
   Future<void> _pickFiles() async {
@@ -516,12 +567,37 @@ class _MarkScreenState extends State<MarkScreen> {
                           appearance: MakoloActionAppearance.secondary,
                           icon: Icons.photo_library_outlined,
                         ),
+                        MakoloActionButton(
+                          label: 'Voix',
+                          onPressed: _busy ? null : _openVoiceCapture,
+                          appearance: MakoloActionAppearance.secondary,
+                          icon: Icons.mic_none,
+                        ),
                       ],
                     ),
+                    if (_voiceCapture && _voiceStore != null) ...[
+                      const SizedBox(height: 12),
+                      MarkVoiceCapture(
+                        key: ValueKey('voice:${widget.runtime.session?.profileId}:$_owner'),
+                        store: _voiceStore!,
+                        owner: _owner,
+                        onCaptured: _acceptVoiceFile,
+                        onClose: () {
+                          if (mounted) {
+                            setState(() {
+                              _voiceCapture = false;
+                              _voiceStore = null;
+                            });
+                          }
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 20),
                     MakoloActionButton(
                       appearance: MakoloActionAppearance.primary,
-                      onPressed: _busy || _restoring ? null : _submit,
+                      onPressed: _busy || _restoring || _voiceCapture
+                          ? null
+                          : _submit,
                       busy: _busy,
                       label: _busy ? 'Envoi…' : 'Continuer',
                     ),
