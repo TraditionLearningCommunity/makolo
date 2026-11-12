@@ -116,6 +116,19 @@ class ServiceHorizontalRequirementTests(TestCase):
             self.context.requirement_assessments.select_related("requirement").order_by("requirement__position")
         )
 
+    def test_web_service_journey_shows_requirement_owner_facts(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.beneficiary)
+        response = self.client.get(
+            reverse("core:participant-journey-detail", args=[self.journey.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Conditions de ma demande")
+        self.assertContains(response, "Requirement 1")
+        self.assertContains(response, "Vérifier mes éléments")
+        self.assertNotContains(response, "Conditions obligatoires")
+
     def test_progress_uses_only_fundamental_states(self):
         states = [
             RequirementAssessmentState.UNASSESSED,
