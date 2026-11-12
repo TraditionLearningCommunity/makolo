@@ -49,6 +49,18 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
             conversation=conversation, requester=self.request.user,
             status="pending",
         ).exists()
+        join_requests = list(
+            ConversationJoinRequest.objects.filter(
+                conversation=conversation, status="pending",
+            ).select_related("requester").order_by("created_at")[:60]
+        ) if managing else []
+        for item in join_requests:
+            item.can_approve = bool(
+                conversation.lifecycle == "open"
+                and conversation.entry_mode == "request"
+                and item.requester.is_active
+                and context_base_eligible(item.requester, conversation.context)
+            )
         context.update({
             "can_join": (
                 eligible and not active and conversation.lifecycle == "open"
@@ -69,12 +81,7 @@ class ConversationParticipantsWebView(LoginRequiredMixin, TemplateView):
                 conversation=conversation, profile=self.request.user,
                 status=ConversationParticipationStatus.ACTIVE,
             ).exists(),
-            "join_requests": (
-                ConversationJoinRequest.objects.filter(
-                    conversation=conversation, status="pending",
-                ).select_related("requester").order_by("created_at")[:60]
-                if managing else []
-            ),
+            "join_requests": join_requests,
         })
         return context
 
