@@ -295,6 +295,10 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
         onOpenDossier: (id) => context.push(
           '/dossiers/$id?from_project=${state.pathParameters['id']}',
         ),
+        onOpenPerson: (id) => context.push(
+          '/people/${Uri.encodeComponent(id)}',
+        ),
+        onOpenMyPassport: () => context.push('/me/passport'),
       );
     },
   ),
