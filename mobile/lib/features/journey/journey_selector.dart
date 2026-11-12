@@ -37,6 +37,20 @@ class JourneyPaymentSummary {
   final String? orderId;
 }
 
+class JourneyOrderSummary {
+  const JourneyOrderSummary({
+    required this.id,
+    required this.state,
+    this.total,
+    this.currency,
+  });
+
+  final String id;
+  final String state;
+  final String? total;
+  final String? currency;
+}
+
 class JourneyPracticalFacts {
   const JourneyPracticalFacts({
     this.startAt,
@@ -193,6 +207,7 @@ class JourneyDetailPresentation {
     this.pendingRequests = 0,
     this.rejectedRequests = 0,
     this.payment,
+    this.order,
     this.payments = const [],
     this.practical,
     this.workflowKind = '',
@@ -241,6 +256,7 @@ class JourneyDetailPresentation {
   final int pendingRequests;
   final int rejectedRequests;
   final JourneyPaymentSummary? payment;
+  final JourneyOrderSummary? order;
   final List<JourneyPaymentSummary> payments;
   final JourneyPracticalFacts? practical;
 
@@ -316,6 +332,7 @@ class JourneyDetailSelector {
       pendingRequests: _maps(requests['pending']).length,
       rejectedRequests: _maps(requests['rejected']).length,
       payment: _payment(payload['payment']),
+      order: _order(payload['payment']),
       payments: _payments(payload['payment']),
       practical: _practical(occurrence),
       summary: summary != null && summary.toLowerCase() != title.toLowerCase()
@@ -369,6 +386,19 @@ class JourneyDetailSelector {
           _string(links['invitation']) != null,
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
+    );
+  }
+
+  static JourneyOrderSummary? _order(Object? value) {
+    final order = _map(_map(value)['order']);
+    final id = _string(order['id']);
+    final state = _string(order['state']);
+    if (id == null || state == null) return null;
+    return JourneyOrderSummary(
+      id: id,
+      state: state,
+      total: _string(order['total']),
+      currency: _string(order['currency']),
     );
   }
 
