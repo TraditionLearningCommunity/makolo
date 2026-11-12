@@ -14,7 +14,7 @@ from .services import (
     create_conversation_invitation, create_join_request,
     ensure_context_conversation, respond_to_conversation_invitation,
     respond_to_join_request, transition_conversation,
-    join_conversation,
+    join_conversation, withdraw_join_request,
 )
 
 User = get_user_model()
@@ -228,6 +228,58 @@ class ParticipationInboxTests(TestCase):
             )
         self.join_request.refresh_from_db()
         self.assertEqual(self.join_request.status, "pending")
+
+    def test_requester_withdraws_pending_request_without_conversation_access(self):
+        self.client.force_login(self.member)
+        url = reverse(
+            "conversations-api:join-withdraw",
+            kwargs={"join_request_pk": self.join_request.pk},
+        )
+        result = self.client.post(url)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["id"], str(self.join_request.pk))
+        self.assertEqual(result.json()["status"], "cancelled")
+        self.assertEqual(self.client.post(url).json()["status"], "cancelled")
+        self.join_request.refresh_from_db()
+        self.assertEqual(self.join_request.status, "cancelled")
+        self.assertEqual(self._inbox(self.member)["my_join_requests"], [])
+
+        manager = self._inbox(self.manager)
+        self.assertEqual(manager["join_requests_to_decide"], [])
+        self.client.force_login(self.unrelated)
+        self.assertEqual(self.client.post(url).status_code, 404)
+
+    def test_withdrawal_never_cancels_approved_participation(self):
+        respond_to_join_request(
+            actor=self.manager, join_request=self.join_request,
+            approve=True,
+        )
+        self.client.force_login(self.member)
+        url = reverse(
+            "conversations-api:join-withdraw",
+            kwargs={"join_request_pk": self.join_request.pk},
+        )
+        self.assertEqual(self.client.post(url).status_code, 400)
+        self.join_request.refresh_from_db()
+        self.assertEqual(self.join_request.status, "approved")
+        from .core_models import ConversationParticipation
+        self.assertTrue(ConversationParticipation.objects.filter(
+            conversation=self.conversation, profile=self.member,
+            status="active",
+        ).exists())
+
+    def test_web_requester_can_withdraw_with_csrf_post(self):
+        self.client.force_login(self.member)
+        page = self.client.get(reverse("conversations:list"))
+        self.assertContains(page, "Retirer ma demande")
+        url = reverse(
+            "conversations:join-withdraw",
+            kwargs={"join_request_pk": self.join_request.pk},
+        )
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.join_request.refresh_from_db()
+        self.assertEqual(self.join_request.status, "cancelled")
 
     def test_pending_request_from_other_group_is_not_in_manager_inbox(self):
         other_group = Group.objects.create(
