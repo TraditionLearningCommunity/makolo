@@ -8,7 +8,7 @@
         {{ attention.action_count }} action{{ attention.action_count|pluralize }} à traiter
       </span>
     {% else %}
-      <span class="text-sm" style="color:var(--mk-muted)">Aucune action attendue de vous actuellement</span>
+      <span class="text-sm" style="color:var(--mk-muted)">Rien à faire maintenant</span>
     {% endif %}
   </div>
   <div class="mt-4 grid gap-4 md:grid-cols-3">
@@ -25,7 +25,7 @@
             </span>
           {% endif %}
         </a>
-      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Rien à répondre ou confirmer.</p>{% endfor %}
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune réponse attendue.</p>{% endfor %}
     </div>
     <div>
       <h3 class="mb-2 text-sm font-bold">À régler · {{ attention.to_resolve|length }}</h3>
@@ -36,7 +36,7 @@
           <span class="mt-1 block">{{ item.label }}</span>
           {% if item.deadline_at %}<span class="mt-1 block text-xs" style="color:var(--mk-muted)">Échéance : {{ item.deadline_at|date:'d/m/Y H:i' }}</span>{% endif %}
         </a>
-      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune décision de clôture due.</p>{% endfor %}
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune décision en attente.</p>{% endfor %}
     </div>
     <div>
       <h3 class="mb-2 text-sm font-bold">À savoir · {{ attention.to_know|length }}</h3>
@@ -46,7 +46,7 @@
           <span class="block text-xs font-semibold" style="color:var(--mk-muted)">{{ item.reason_label }}</span>
           <span class="mt-1 block">{{ item.label }}</span>
         </a>
-      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune nouveauté utile à signaler.</p>{% endfor %}
+      {% empty %}<p class="text-sm" style="color:var(--mk-muted)">Aucune nouveauté.</p>{% endfor %}
     </div>
   </div>
 </section>
