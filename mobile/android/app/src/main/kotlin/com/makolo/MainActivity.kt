@@ -35,6 +35,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var speechChannel: MethodChannel? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var pendingShare: Map<String, Any?>? = null
+    private var shareListenerId: String? = null
     private var launchReady = false
     private var removeNativeSplash: (() -> Unit)? = null
 
@@ -79,11 +80,19 @@ class MainActivity : FlutterFragmentActivity() {
             channel.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "initialShare" -> {
-                        // Consume each Android share intent once; remounting the
-                        // Flutter router must not re-import a previous payload.
+                        shareListenerId = (call.arguments as? Map<*, *>)?.get("listener_id")?.toString()
+                        // The initial payload moves from native memory to the
+                        // transient Flutter inbox only after a listener exists.
                         val payload = pendingShare
                         pendingShare = null
                         result.success(payload)
+                    }
+                    "stopShare" -> {
+                        val candidate = (call.arguments as? Map<*, *>)?.get("listener_id")?.toString()
+                        if (candidate != null && candidate == shareListenerId) {
+                            shareListenerId = null
+                        }
+                        result.success(null)
                     }
                     "copySharedUri" -> copySharedUri(call.arguments, result)
                     else -> result.notImplemented()
@@ -142,10 +151,19 @@ class MainActivity : FlutterFragmentActivity() {
         setIntent(intent)
         val payload = parseShareIntent(intent) ?: return
         val channel = shareChannel
-        if (channel == null) {
+        val listenerId = shareListenerId
+        if (channel == null || listenerId == null) {
             pendingShare = payload
         } else {
-            channel.invokeMethod("shareReceived", payload)
+            channel.invokeMethod("shareReceived", payload, object : MethodChannel.Result {
+                override fun success(result: Any?) {}
+                override fun error(code: String, message: String?, details: Any?) {
+                    pendingShare = payload
+                }
+                override fun notImplemented() {
+                    pendingShare = payload
+                }
+            })
         }
     }
 
