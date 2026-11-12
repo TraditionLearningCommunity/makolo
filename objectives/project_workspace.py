@@ -6,13 +6,12 @@ authorized readiness facts are projected; no hidden Dossier totals are inferred.
 from __future__ import annotations
 
 from django.urls import reverse
-from accounts.models import UserProfile
-from accounts.profile_visibility import ProfileVisibilityResolver
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates
 from authorization.services import can
 
+from objectives.profile_presentation import profile_public_presentation as _profile_public_presentation
 from objectives.readiness import resolve_dossier_readiness
 from objectives.selectors import (
     active_assignments_for_dossier,
@@ -102,40 +101,6 @@ def project_dossier_page(actor, project, *, offset=0, limit=50, actor_context=No
 
 def _person(profile):
     return profile.get_full_name().strip() or profile.username
-
-
-def _profile_public_presentation(profile, *, actor):
-    """Only Profile-owned public/self presentation facts are exposed.
-
-    Project authority reveals a mandate, not another person's private avatar
-    or a right to open their private Passeport.
-    """
-    is_self = actor.pk == profile.pk
-    is_public = bool(getattr(profile, "is_active", False)) and (
-        UserProfile.objects.filter(
-            user_id=profile.pk, public_profile=True,
-        ).exists()
-    )
-    profile_url = (
-        reverse("sharing:passport-me") if is_self
-        else reverse("sharing:passport-profile", kwargs={"profile_id": profile.pk})
-        if is_public else None
-    )
-    avatar_url = None
-    if is_self or (is_public and ProfileVisibilityResolver(
-        owner=profile, viewer=actor,
-    ).field("avatar")):
-        image = getattr(profile, "avatar", None)
-        if image:
-            try:
-                avatar_url = image.url
-            except ValueError:
-                pass
-    return {
-        "profile_url": profile_url,
-        "profile_view": "self" if is_self else "public" if is_public else None,
-        "avatar_url": avatar_url,
-    }
 
 
 def _project_collaboration(actor, project, dossiers, *, partial):
