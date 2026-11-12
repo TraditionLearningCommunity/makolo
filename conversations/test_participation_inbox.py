@@ -129,6 +129,22 @@ class ParticipationInboxTests(TestCase):
         )
         self.assertEqual(result.status, "rejected")
 
+    def test_invitation_cannot_transfer_space_representation(self):
+        from organizations.models import Organization
+        space = Organization.objects.create(
+            name="Espace sans mandat", created_by=self.manager,
+        )
+        self.invitation.represented_space = space
+        self.invitation.save(update_fields=["represented_space", "updated_at"])
+        received = self._inbox(self.invitee)
+        self.assertFalse(received["results"][0]["can_accept"])
+        with self.assertRaises(ValidationError):
+            respond_to_conversation_invitation(
+                actor=self.invitee, invitation=self.invitation, accept=True,
+            )
+        self.invitation.refresh_from_db()
+        self.assertEqual(self.invitation.status, "pending")
+
     def test_changed_contact_policy_withdraws_acceptance_without_erasing_invitation(self):
         from .contact_models import ProfileContactPolicy, ContactPolicyMode
         ProfileContactPolicy.objects.create(
