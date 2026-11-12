@@ -1513,33 +1513,38 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       return '$reason · Échéance : $deadline';
     }
 
-    Widget group(String name, List<Map<String, dynamic>> entries) => entries.isEmpty
+    Widget group(String name, List<Map<String, dynamic>> entries) =>
+        entries.isEmpty
         ? const SizedBox.shrink()
         : Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 3),
-          child: Text(
-            '$name · ${entries.length}',
-            style: theme.textTheme.labelLarge,
-          ),
-        ),
-        for (final item in entries)
-          ListTile(
-            dense: true,
-            key: Key('conversation-attention-${item['id']}'),
-            title: Text(
-              item['label']?.toString() ?? 'Point',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(subtitleFor(item)),
-            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-            onTap: () => _openAttentionPoint(item['id']?.toString() ?? ''),
-          ),
-      ],
-    );
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 3),
+                child: Text(
+                  '$name · ${entries.length}',
+                  style: theme.textTheme.labelLarge,
+                ),
+              ),
+              for (final item in entries)
+                ListTile(
+                  dense: true,
+                  key: Key('conversation-attention-${item['id']}'),
+                  title: Text(
+                    item['label']?.toString() ?? 'Point',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(subtitleFor(item)),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                  ),
+                  onTap: () =>
+                      _openAttentionPoint(item['id']?.toString() ?? ''),
+                ),
+            ],
+          );
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: Card(
@@ -1576,9 +1581,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   if (focus['more_actions'] == true)
                     const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text(
-                        'Voir les autres éléments dans le fil.',
-                      ),
+                      child: Text('Voir les autres éléments dans le fil.'),
                     ),
                   const SizedBox(height: 8),
                 ],
@@ -2990,9 +2993,7 @@ class _PointCardState extends State<_PointCard> {
         // The authoritative state may have changed concurrently.
       }
       if (mounted) {
-        setState(
-          () => _feedback = 'Clôture non confirmée.'
-        );
+        setState(() => _feedback = 'Clôture non confirmée.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -3094,10 +3095,7 @@ class _PointCardState extends State<_PointCard> {
           // Preserve the resolution draft for an explicit retry.
         }
         if (mounted) {
-          setState(
-            () => _feedback =
-                'Résultat non enregistré.'
-          );
+          setState(() => _feedback = 'Résultat non enregistré.');
         }
       } finally {
         if (mounted) setState(() => _busy = false);

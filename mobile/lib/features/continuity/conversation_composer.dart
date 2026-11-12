@@ -977,10 +977,7 @@ class _ComposePointSheetState extends State<_ComposePointSheet> {
         if (mounted) widget.onQueued();
       } else {
         if (_mediaPath != null) {
-          setState(
-            () =>
-                _error = 'Envoi indisponible.',
-          );
+          setState(() => _error = 'Envoi indisponible.');
           return;
         }
         _reference ??= _newConversationReference();

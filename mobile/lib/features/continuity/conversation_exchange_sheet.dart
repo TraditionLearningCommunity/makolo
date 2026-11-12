@@ -283,14 +283,12 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
           _revoked = true;
           _rows = [];
         }
-        _error = _revoked ? 'Cette Discussion n’est plus accessible.' : 'Actualisation impossible.';
+        _error = _revoked
+            ? 'Cette Discussion n’est plus accessible.'
+            : 'Actualisation impossible.';
       });
     } on Object {
-      if (mounted)
-        setState(
-          () =>
-              _error = 'Actualisation impossible.',
-        );
+      if (mounted) setState(() => _error = 'Actualisation impossible.');
     }
   }
 
@@ -324,9 +322,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       await _refresh();
     } on Object {
       if (mounted)
-        setState(
-          () => _error = 'Impossible d’actualiser les messages.',
-        );
+        setState(() => _error = 'Impossible d’actualiser les messages.');
     } finally {
       if (mounted)
         setState(() {
@@ -389,10 +385,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       }
       await _refresh();
     } on Object {
-      if (mounted)
-        setState(
-          () => _error = 'Envoi non confirmé.',
-        );
+      if (mounted) setState(() => _error = 'Envoi non confirmé.');
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -846,11 +839,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     try {
       await widget.repository.markVisibleExchangeRead(widget.pointId, visible);
     } on Object {
-      if (mounted)
-        setState(
-          () =>
-              _error = 'Lecture non confirmée.',
-        );
+      if (mounted) setState(() => _error = 'Lecture non confirmée.');
     }
   }
 
@@ -1160,9 +1149,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                               if (transfer.state ==
                                                   FileTransferState
                                                       .ownerConfirmationRequired)
-                                                const Text(
-                                                  'Envoi à vérifier',
-                                                ),
+                                                const Text('Envoi à vérifier'),
                                             ],
                                           );
                                         },

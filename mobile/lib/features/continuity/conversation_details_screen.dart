@@ -533,14 +533,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(
-          switch (operation) {
-            'remove' => 'Retirer cette personne ?',
-            'cancel' => 'Annuler cette invitation ?',
-            'revoke' => 'Retirer cet accès collectif ?',
-            _ => 'Confirmer ?',
-          },
-        ),
+        title: Text(switch (operation) {
+          'remove' => 'Retirer cette personne ?',
+          'cancel' => 'Annuler cette invitation ?',
+          'revoke' => 'Retirer cet accès collectif ?',
+          _ => 'Confirmer ?',
+        }),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -610,10 +608,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         refresh(() => entries.remove(row));
       } on Object {
         if (sheetContext.mounted) {
-          refresh(
-            () => decisionError =
-                'Décision non confirmée.',
-          );
+          refresh(() => decisionError = 'Décision non confirmée.');
         }
       } finally {
         if (sheetContext.mounted) refresh(() => pendingDecisionId = null);
@@ -759,9 +754,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           )
         else ...[
           if (people.isEmpty)
-            const ListTile(
-              title: Text('Aucun participant ajouté'),
-            ),
+            const ListTile(title: Text('Aucun participant ajouté')),
           for (final member in people)
             ListTile(
               leading: CircleAvatar(
@@ -792,9 +785,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
           ListTile(
             leading: const Icon(Icons.groups_outlined),
             title: Text(derived['label']?.toString() ?? 'Groupe'),
-            subtitle: Text(
-              'Via le groupe · ${derived['identifier'] ?? ''}'
-            ),
+            subtitle: Text('Via le groupe · ${derived['identifier'] ?? ''}'),
           ),
         ],
         if (manage) ...[
@@ -989,11 +980,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
   Widget _resources(BuildContext context, Map<String, dynamic> data) {
     final resources = _maps(data['resources']);
     if (resources.isEmpty) {
-      return _empty(
-        context,
-        Icons.folder_outlined,
-        'Aucune ressource ici.',
-      );
+      return _empty(context, Icons.folder_outlined, 'Aucune ressource ici.');
     }
     final route = _map(data['subject'])['route']?.toString();
     final opensJourney =
@@ -1003,10 +990,7 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
       children: [
-        Text(
-          'Ressources',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Ressources', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         for (final resource in resources)
           ListTile(
