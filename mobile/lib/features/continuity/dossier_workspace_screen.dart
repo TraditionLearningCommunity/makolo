@@ -1427,12 +1427,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _dossierInformation(Map<String, dynamic> data) {
-    final owner = _map(data['owner']);
     final deadline = _parse(data['deadline']);
     final created = _parse(data['created_at']);
     final updated = _parse(data['updated_at']);
-    if (owner.isEmpty && created == null && updated == null &&
-        deadline == null) return const SizedBox.shrink();
+    if (created == null && updated == null && deadline == null) {
+      return const SizedBox.shrink();
+    }
     return ExpansionTile(
       key: const PageStorageKey<String>('dossier-information'),
       leading: const Icon(Icons.info_outline_rounded),
@@ -1443,14 +1443,6 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       shape: const Border(),
       collapsedShape: const Border(),
       children: [
-        if (_text(owner['label']).isNotEmpty)
-          ListTile(
-            dense: true,
-            leading: Icon(owner['kind'] == 'space'
-                ? Icons.groups_outlined : Icons.person_outline_rounded),
-            title: const Text('Porteur'),
-            subtitle: Text(_text(owner['label'])),
-          ),
         if (deadline != null)
           ListTile(
             dense: true,
