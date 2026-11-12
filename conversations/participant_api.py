@@ -23,7 +23,7 @@ from .services import (
     can_manage_conversation, can_view_conversation, context_base_eligible,
     create_join_request,
     join_conversation, leave_conversation, remove_participation,
-    respond_to_join_request,
+    respond_to_join_request, withdraw_join_request,
 )
 
 
@@ -230,6 +230,25 @@ class ConversationSelfEntryAPIView(PrivateNoStoreMixin, views.APIView):
         except (ValidationError, PermissionDenied) as exc:
             return _error(exc)
         return Response({"id": str(outcome.pk), "status": outcome.status})
+
+
+class ConversationWithdrawJoinRequestAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, join_request_pk):
+        # The Profile owns this request even if contextual Conversation
+        # visibility was later withdrawn. Never reveal someone else's request.
+        personal_request = get_object_or_404(
+            ConversationJoinRequest, pk=join_request_pk,
+            requester=request.user,
+        )
+        try:
+            result = withdraw_join_request(
+                actor=request.user, join_request=personal_request,
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            return _error(exc)
+        return Response({"id": str(result.pk), "status": result.status})
 
 
 class ConversationJoinRequestsAPIView(PrivateNoStoreMixin, views.APIView):
