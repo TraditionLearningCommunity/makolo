@@ -922,9 +922,9 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                         ),
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: EdgeInsets.fromLTRB(
-                          _mode == OrganizerMode.explorer ? 4 : 16,
+                          _mode == OrganizerMode.explorer ? 8 : 16,
                           10,
-                          _mode == OrganizerMode.explorer ? 4 : 16,
+                          _mode == OrganizerMode.explorer ? 8 : 16,
                           44,
                         ),
                         children: [
@@ -1068,6 +1068,31 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
                                           style: Theme.of(context)
                                               .textTheme
                                               .labelMedium,
+                                        ),
+                                      ),
+                                    if (_mode == OrganizerMode.explorer &&
+                                        shown.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.account_tree_outlined,
+                                              size: 17,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Par organisation',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .labelMedium,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     if (shown.isEmpty)
@@ -1340,117 +1365,126 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   ) {
     final nodes = children(item).where(visible).toList();
     final key = item.key;
-    final expandable = item.kind == 'project' || item.kind == 'dossier';
+    final canExpand =
+        nodes.isNotEmpty && (item.kind == 'project' || item.kind == 'dossier');
     final expanded = _expanded.contains(key) || _hasSelectionFilters;
+    final scheme = Theme.of(context).colorScheme;
+    final details = [
+      item.kindLabel,
+      item.humanState,
+      if (item.kind == 'journey' && item.dossierIds.toSet().length > 1)
+        'Liée à ${item.dossierIds.toSet().length} dossiers',
+      if (item.kind == 'journey' &&
+          item.dossierIds.isNotEmpty &&
+          !item.dossierIds.any(
+            (id) => hierarchy.byKey.containsKey('dossier:$id'),
+          ))
+        'Dossier non chargé',
+      if (item.kind == 'dossier' &&
+          item.projectId != null &&
+          !hierarchy.byKey.containsKey('project:${item.projectId}'))
+        'Projet non chargé',
+      if (item.kind == 'dossier' &&
+          hierarchy.additionalSharedLinks(item) > 0)
+        organizerSharedLinksLabel(hierarchy.additionalSharedLinks(item)),
+    ];
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.only(start: depth * 3.0),
-          child: Row(
-            children: [
-              if (expandable)
-                IconButton(
-                  key: Key('organizer-expand-$key'),
-                  tooltip: expanded
-                      ? 'Replier ${item.title}'
-                      : 'Déplier ${item.title}',
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 44,
-                  ),
-                  padding: EdgeInsets.zero,
-                  onPressed: _hasSelectionFilters
-                      ? null
-                      : () => setState(() {
-                          if (_expanded.contains(key)) {
-                            _expanded.remove(key);
-                          } else {
-                            _expanded.add(key);
-                          }
-                        }),
-                  icon: Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.chevron_right_rounded,
-                  ),
-                  iconSize: 19,
-                )
-              else
-                const SizedBox(width: 28),
-              Expanded(
-                child: InkWell(
-                  key: Key('organizer-open-$key'),
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => widget.onOpenItem(item.kind, item.id),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 48),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(
-                        children: [
-                          Icon(
-                            item.icon,
-                            size: 18,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  item.title,
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(fontWeight: FontWeight.w700),
+          padding: EdgeInsetsDirectional.only(start: depth * 16.0),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: scheme.outlineVariant),
+                left: depth > 0
+                    ? BorderSide(color: scheme.primary.withValues(alpha: .28))
+                    : BorderSide.none,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(start: depth > 0 ? 8 : 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      key: Key('organizer-open-$key'),
+                      borderRadius: BorderRadius.circular(6),
+                      onTap: () => widget.onOpenItem(item.kind, item.id),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 54),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 9),
+                          child: Row(
+                            children: [
+                              Icon(item.icon, size: 19, color: scheme.primary),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.titleSmall
+                                          ?.copyWith(fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      details.join(' · '),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.bodySmall
+                                          ?.copyWith(color: scheme.onSurfaceVariant),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  [
-                                    item.kindLabel,
-                                    item.humanState,
-                                    if (item.kind == 'journey' &&
-                                        item.dossierIds.toSet().length > 1)
-                                      'Liée à ${item.dossierIds.toSet().length} dossiers',
-                                    if (item.kind == 'journey' &&
-                                        item.dossierIds.isNotEmpty &&
-                                        !item.dossierIds.any(
-                                          (id) => hierarchy.byKey.containsKey(
-                                            'dossier:$id',
-                                          ),
-                                        ))
-                                      'Dossier non chargé',
-                                    if (item.kind == 'dossier' &&
-                                        item.projectId != null &&
-                                        !hierarchy.byKey.containsKey(
-                                          'project:${item.projectId}',
-                                        ))
-                                      'Projet non chargé',
-                                    if (item.kind == 'dossier' &&
-                                        hierarchy.additionalSharedLinks(item) >
-                                            0)
-                                      organizerSharedLinksLabel(
-                                        hierarchy.additionalSharedLinks(item),
-                                      ),
-                                  ].join(' · '),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 19,
+                                color: scheme.primary,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 14,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  if (canExpand)
+                    IconButton(
+                      key: Key('organizer-expand-$key'),
+                      tooltip: expanded
+                          ? 'Replier ${item.title}'
+                          : 'Déplier ${item.title}',
+                      onPressed: _hasSelectionFilters
+                          ? null
+                          : () => setState(() {
+                              if (_expanded.contains(key)) {
+                                _expanded.remove(key);
+                              } else {
+                                _expanded.add(key);
+                              }
+                            }),
+                      icon: Icon(
+                        expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      padding: EdgeInsets.zero,
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
         if (expanded)
