@@ -325,7 +325,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
     } on Object {
       if (mounted)
         setState(
-          () => _error = 'Historique indisponible. Les messages déjà reçus sont conservés.',
+          () => _error = 'Impossible d’actualiser les messages.',
         );
     } finally {
       if (mounted)
@@ -568,7 +568,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
         for (final row in _entries(page['results']))
           _searchRows[row['id'].toString()] = row;
         _searchCursor = page['next_cursor']?.toString();
-        _searchFreshness = 'Résultats serveur actualisés';
+        _searchFreshness = 'Résultats actualisés';
       });
     } on MakoloApiError catch (error) {
       if (mounted && generation == _searchGeneration) {
@@ -849,7 +849,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       if (mounted)
         setState(
           () =>
-              _error = 'Lecture non synchronisée. Vos messages sont conservés.',
+              _error = 'Lecture non confirmée.',
         );
     }
   }
@@ -1161,7 +1161,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                                   FileTransferState
                                                       .ownerConfirmationRequired)
                                                 const Text(
-                                                  'Transfert interrompu · Confirmation à vérifier',
+                                                  'Envoi à vérifier',
                                                 ),
                                             ],
                                           );
@@ -1169,7 +1169,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
                                       ),
                                     Text(
                                       intent.isConfirmed
-                                          ? 'Confirmation reçue · Actualisation…'
+                                          ? 'Envoyé'
                                           : intent.isBlocked
                                           ? 'Envoi à vérifier'
                                           : 'En attente',
