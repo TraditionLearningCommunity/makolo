@@ -553,13 +553,17 @@ class _JourneyContent extends StatelessWidget {
                 child: _JourneyPath(steps: presentation.steps),
               ),
             ],
-            if (!presentation.isTerminal &&
-                _hasVisiblePreparation(presentation)) ...[
+            if (composition.hasPreparation) ...[
+              const SizedBox(height: MakoloSpacing.sm),
               MakoloSection(
                 title: 'Ma préparation',
-                child: _ReadinessGroups(
+                child: _JourneyPreparation(
                   presentation: presentation,
-                  ownerAction: _ownerActionForLink,
+                  composition: composition,
+                  ownerAction: (label, link) =>
+                      _ownerActionForLink(label, link),
+                  onOpenForm: onOpenForm,
+                  onOpenRequirement: onOpenRequirement,
                 ),
               ),
             ],
@@ -608,51 +612,6 @@ class _JourneyContent extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ),
-            ],
-            if (presentation.forms.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              MakoloSection(
-                title: 'Mes formulaires',
-                child: Column(
-                  children: [
-                    for (
-                      var index = 0;
-                      index < presentation.forms.length;
-                      index++
-                    ) ...[
-                      _FormCard(
-                        form: presentation.forms[index],
-                        onOpen: onOpenForm,
-                      ),
-                      if (index < presentation.forms.length - 1)
-                        const SizedBox(height: MakoloSpacing.sm),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-            if (presentation.requirements.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              MakoloSection(
-                title: 'Éléments demandés',
-                child: Column(
-                  children: [
-                    for (
-                      var index = 0;
-                      index < presentation.requirements.length;
-                      index++
-                    ) ...[
-                      _ReferenceCard(
-                        reference: presentation.requirements[index],
-                        onTap: () =>
-                            onOpenRequirement(presentation.requirements[index]),
-                      ),
-                      if (index < presentation.requirements.length - 1)
-                        const SizedBox(height: MakoloSpacing.sm),
-                    ],
-                  ],
                 ),
               ),
             ],
@@ -1263,13 +1222,88 @@ bool _showReadinessItem(
   return !(repeatingObjective && item.nextLink == null);
 }
 
-bool _hasVisiblePreparation(JourneyDetailPresentation presentation) {
-  return presentation.ready.isNotEmpty ||
-      presentation.blockers.isNotEmpty ||
-      presentation.waiting.isNotEmpty ||
-      presentation.actorInterventions.any(
-        (item) => _showReadinessItem(presentation, item),
-      );
+class _JourneyPreparation extends StatelessWidget {
+  const _JourneyPreparation({
+    required this.presentation,
+    required this.composition,
+    required this.ownerAction,
+    required this.onOpenForm,
+    required this.onOpenRequirement,
+  });
+
+  final JourneyDetailPresentation presentation;
+  final JourneyComposition composition;
+  final Widget? Function(String, String?) ownerAction;
+  final void Function(JourneyFormSummary) onOpenForm;
+  final void Function(JourneyReference) onOpenRequirement;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReadiness = !presentation.isTerminal &&
+        (presentation.ready.isNotEmpty ||
+            presentation.waiting.isNotEmpty ||
+            presentation.blockers.isNotEmpty ||
+            composition.interventions.isNotEmpty);
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final form in presentation.forms) ...[
+            _FormCard(form: form, onOpen: onOpenForm),
+            const Divider(height: 8),
+          ],
+          for (final requirement in presentation.requirements) ...[
+            _JourneyRequirementRow(
+              reference: requirement,
+              onOpen: onOpenRequirement,
+            ),
+            const Divider(height: 8),
+          ],
+          if (hasReadiness)
+            _ReadinessGroups(
+              presentation: presentation,
+              composition: composition,
+              ownerAction: ownerAction,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyRequirementRow extends StatelessWidget {
+  const _JourneyRequirementRow({
+    required this.reference,
+    required this.onOpen,
+  });
+
+  final JourneyReference reference;
+  final void Function(JourneyReference) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = MakoloHumanization.presentationLabel(reference.state);
+    final fulfilled = const {
+      'satisfied', 'accepted', 'approved', 'completed',
+    }.contains(reference.state);
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        fulfilled ? Icons.check_circle_outline_rounded :
+            Icons.assignment_turned_in_outlined,
+        color: _journeyAccent(context),
+      ),
+      title: Text(reference.label),
+      subtitle: Text([
+        if (reference.isRequired) 'Obligatoire',
+        if (state != null) state,
+      ].join(' · ')),
+      trailing: reference.link == null
+          ? null : const Icon(Icons.chevron_right_rounded),
+      onTap: reference.link == null ? null : () => onOpen(reference),
+    );
+  }
 }
 
 class _ReadinessGroups extends StatelessWidget {
