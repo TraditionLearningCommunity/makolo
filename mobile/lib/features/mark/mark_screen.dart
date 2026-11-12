@@ -301,7 +301,10 @@ class _MarkScreenState extends State<MarkScreen> {
     controller.dispose();
     if (!mounted || revision != _draftRevision || link == null) return;
     if (!_isSafeLink(link) || _links.contains(link)) return;
-    setState(() => _links = [..._links, link]);
+    setState(() {
+      _links = [..._links, link];
+      _textOnlyConsent = false;
+    });
     await _saveDraft();
   }
 
@@ -312,6 +315,7 @@ class _MarkScreenState extends State<MarkScreen> {
           if (item != link) item,
       ],
     );
+    _textOnlyConsent = false;
     await _saveDraft();
   }
 
@@ -362,6 +366,7 @@ class _MarkScreenState extends State<MarkScreen> {
               incoming,
             ].join('\n');
             _result = null;
+            _textOnlyConsent = false;
           });
           await _saveDraft();
           if (_input.text.length > 600) {
@@ -381,6 +386,7 @@ class _MarkScreenState extends State<MarkScreen> {
             setState(() {
               _links = [..._links, link];
               _result = null;
+            _textOnlyConsent = false;
             });
             await _saveDraft();
           }
@@ -431,6 +437,7 @@ class _MarkScreenState extends State<MarkScreen> {
                 },
             ];
             _result = null;
+            _textOnlyConsent = false;
           });
           await _saveDraft();
         } on Object {
@@ -518,6 +525,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _result = null;
       _pendingConfirmationCode = null;
       _pendingConfirmationKey = null;
+      _textOnlyConsent = false;
     });
     unawaited(_saveDraft());
     if (_input.text.length > 600) {
@@ -562,6 +570,7 @@ class _MarkScreenState extends State<MarkScreen> {
         },
       ];
     });
+    _textOnlyConsent = false;
     await _saveDraft();
     if (!mounted || revision != _draftRevision || actor != _actor) return;
     setState(() {
@@ -611,6 +620,7 @@ class _MarkScreenState extends State<MarkScreen> {
         ),
       ];
     });
+    _textOnlyConsent = false;
     await _saveDraft();
   }
 
@@ -656,6 +666,7 @@ class _MarkScreenState extends State<MarkScreen> {
         },
       ];
     });
+    _textOnlyConsent = false;
     await _saveDraft();
   }
 
@@ -830,6 +841,7 @@ class _MarkScreenState extends State<MarkScreen> {
           if (entry['file_id'] != fileId) entry,
       ];
     });
+    _textOnlyConsent = false;
     await _saveDraft();
     if (!mounted || revision != _draftRevision || actor != _actor) return;
     if (fileId == null || fileId.isEmpty) return;
