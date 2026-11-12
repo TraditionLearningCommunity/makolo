@@ -548,20 +548,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             'place',
           ]
         : kind == 'funding'
-        ? const <String>[
-            'deadline_at',
-            'when',
-            'price',
-            'capacity',
-            'place',
-          ]
-        : const <String>[
-            'when',
-            'place',
-            'capacity',
-            'price',
-            'deadline_at',
-          ];
+        ? const <String>['deadline_at', 'when', 'price', 'capacity', 'place']
+        : const <String>['when', 'place', 'capacity', 'price', 'deadline_at'];
     final order = <String, int>{};
     for (var index = 0; index < priority.length; index++) {
       order[priority[index]] = index;
