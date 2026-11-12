@@ -548,6 +548,15 @@ class ConversationInvitationRespondView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, str(exc))
             return redirect("conversations:list")
+        expected = (
+            ConversationInvitationStatus.ACCEPTED
+            if decision == "accept" else ConversationInvitationStatus.DECLINED
+        )
+        if invitation.status != expected:
+            messages.error(
+                request, "Cette invitation a changé. Actualisez son état.",
+            )
+            return redirect("conversations:list")
         if invitation.status == ConversationInvitationStatus.ACCEPTED:
             messages.success(request, "Invitation acceptée.")
             return redirect("conversations:detail", pk=invitation.conversation_id)
