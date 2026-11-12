@@ -274,22 +274,26 @@ def coordination_candidates_for_dossier(dossier):
     This is a presentation selector, not an authorization decision:
     assign_dossier() must still revalidate under its object lock.
     """
-    grants = current_mandates().filter(
-        role__role_permissions__permission__is_active=True,
-    ).filter(
+    scope_permission = (
         Q(
             scope_type=AuthorityScope.DOSSIER, dossier=dossier,
             role__role_permissions__permission__code=PermissionCode.DOSSIER_MANAGE,
         ) | Q(
             scope_type=AuthorityScope.PLATFORM,
             role__role_permissions__permission__code=PermissionCode.PLATFORM_MANAGE,
-        ) | (
-            Q(
-                scope_type=AuthorityScope.SPACE,
-                space_id=dossier.owning_space_id,
-                role__role_permissions__permission__code=PermissionCode.SPACE_MANAGE,
-            ) if dossier.owning_space_id else Q(pk__isnull=True)
-        ),
+        )
+    )
+    if dossier.owning_space_id:
+        scope_permission |= Q(
+            scope_type=AuthorityScope.SPACE,
+            space_id=dossier.owning_space_id,
+            role__role_permissions__permission__code=PermissionCode.SPACE_MANAGE,
+        )
+    # Test the active flag and its code on the same RolePermission join.
+    # Separate .filter() calls could match two different role-permission rows.
+    grants = current_mandates().filter(
+        Q(role__role_permissions__permission__is_active=True)
+        & scope_permission,
     ).values_list("profile_id", flat=True)
     eligible = Q(pk__in=grants) | Q(is_superuser=True)
     if dossier.owner_profile_id:
