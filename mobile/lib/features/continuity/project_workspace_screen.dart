@@ -1284,7 +1284,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       if (_has(project, 'project.dossier.link')) 'link',
       if (_has(project, 'project.edit')) 'edit',
       if (_has(project, 'project.lifecycle')) 'lifecycle',
-      if (_has(project, 'project.authority.manage')) 'authority',
     ];
     if (!create && actions.isEmpty) return const SizedBox.shrink();
     return Row(
@@ -1309,8 +1308,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                   _edit(project);
                 case 'lifecycle':
                   _lifecycle(project);
-                case 'authority':
-                  _projectAccess(project);
               }
             },
             itemBuilder: (_) => [
@@ -1328,11 +1325,6 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 const PopupMenuItem(
                   value: 'lifecycle',
                   child: Text('Changer l’état'),
-                ),
-              if (actions.contains('authority'))
-                const PopupMenuItem(
-                  value: 'authority',
-                  child: Text('Gérer les accès'),
                 ),
             ],
             child: const Padding(
