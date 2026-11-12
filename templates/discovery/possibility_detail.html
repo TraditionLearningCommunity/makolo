@@ -1,9 +1,10 @@
 {% extends discovery_base_template %}
+{% load static %}
 {% block title %}{{ card.title }} | Découvrir Makolo{% endblock %}
 {% block workspace_layout %}explore{% endblock %}
 {% block content %}
 <main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6" data-mk-surface="discover-n2">
-  <a href="{{ return_url }}" class="mk-action-button" data-variant="ghost"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Retour à Découvrir</span></a>
+  <a href="{{ return_url }}" data-discovery-return class="mk-action-button" data-variant="ghost"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i><span class="sr-only">Retour à Découvrir</span></a>
   <article class="mk-panel space-y-6 p-5 sm:p-8">
     <header class="space-y-3">
       {% if card.operator_name %}<p class="text-sm" style="color:var(--mk-muted)">Proposé par {{ card.operator_name }}</p>{% endif %}
@@ -130,3 +131,4 @@
   </article>
 </main>
 {% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/discovery-ux.js' %}"></script>{% endblock %}
