@@ -121,8 +121,8 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
     final id = row['profile_id']?.toString() ?? '';
     // A visible Assignment or Mandate does not open a private Profile.
     // Older cached projections lacking this owner-backed link stay read-only.
-    final canOpen = id.isNotEmpty &&
-        (row['profile_url']?.toString() ?? '').isNotEmpty;
+    final canOpen =
+        id.isNotEmpty && (row['profile_url']?.toString() ?? '').isNotEmpty;
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: CircleAvatar(
