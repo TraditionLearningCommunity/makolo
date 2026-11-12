@@ -123,7 +123,14 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
     final place = [?city, ?country].join(', ');
     final team = _map(payload['team']);
     final ownership = _map(payload['ownership']);
-    final primaryRole = _value(_map(payload['primary_role'])?['label']);
+    final primaryRole = _value(_map(payload['primary_role'])?['label']) ??
+        (limited
+            ? _rows(_map(payload['responsibilities'])?['items'])
+                .where((item) => item['combined'] != true)
+                .map((item) => _value(item['label']))
+                .whereType<String>()
+                .firstOrNull
+            : null);
     final teamVisible =
         !limited && team?['visibility'] == 'visible' && team?['items'] is List;
     final teamRows = teamVisible
