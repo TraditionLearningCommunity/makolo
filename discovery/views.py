@@ -382,6 +382,25 @@ def _web_discovery_card(item):
                 label = f"{label} {ordinal}"
             add_fact(code, label, display, "map-pin")
 
+    # N1 gives the first positions to the owner's most useful published
+    # facts. This is visual ordering, never relevance or admission ranking.
+    kind = representation.get("presentation_kind")
+    if kind == "transport":
+        visible_first = (
+            "place_departure", "place_arrival", "when", "price",
+            "availability", "place",
+        )
+    elif kind == "funding":
+        visible_first = (
+            "deadline_at", "when", "price", "availability", "place",
+        )
+    else:
+        visible_first = (
+            "when", "place", "availability", "price", "deadline_at",
+        )
+    fact_order = {code: index for index, code in enumerate(visible_first)}
+    facts.sort(key=lambda fact: fact_order.get(fact.code, len(fact_order)))
+
     save_action = None
     if links.get("web_saved"):
         is_saved = saved.get("state") == "saved"
