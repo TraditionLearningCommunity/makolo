@@ -67,9 +67,15 @@
         <p class="font-semibold">Demande d'entrée en attente</p>
         <p class="text-xs" style="color:var(--mk-muted)">Transmise le {{ item.created_at|date:'d/m/Y à H:i' }}</p>
       </div>
-      {% if item.conversation_id %}
-      <a class="mk-action-button" data-variant="secondary" href="{% url 'conversations:participants' item.conversation_id %}">Voir ma demande</a>
-      {% endif %}
+      <div class="flex flex-wrap gap-2">
+        {% if item.conversation_id %}
+        <a class="mk-action-button" data-variant="secondary" href="{% url 'conversations:participants' item.conversation_id %}">Voir ma demande</a>
+        {% endif %}
+        <form method="post" action="{% url 'conversations:join-withdraw' item.id %}">
+          {% csrf_token %}
+          <button class="mk-action-button" data-variant="secondary" type="submit">Retirer ma demande</button>
+        </form>
+      </div>
     </article>
     {% endfor %}
     {% if participation_overview.more_my_requests %}
