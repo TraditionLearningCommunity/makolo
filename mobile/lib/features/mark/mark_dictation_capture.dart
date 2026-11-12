@@ -133,7 +133,8 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
         setState(() {
           _busy = false;
           _active = false;
-          _error = 'Impossible de démarrer la dictée. La saisie reste disponible.';
+          _error =
+              'Impossible de démarrer la dictée. La saisie reste disponible.';
         });
       }
     }
@@ -165,7 +166,11 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     } on Object {
       // Native recognizer may already have exited.
     }
-    if (mounted) setState(() { _active = false; _busy = false; });
+    if (mounted)
+      setState(() {
+        _active = false;
+        _busy = false;
+      });
   }
 
   @override
@@ -179,7 +184,9 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.channel.setMethodCallHandler(null);
-    unawaited(widget.channel.invokeMethod<void>('cancel').catchError((Object _) {}));
+    unawaited(
+      widget.channel.invokeMethod<void>('cancel').catchError((Object _) {}),
+    );
     _text.dispose();
     super.dispose();
   }
