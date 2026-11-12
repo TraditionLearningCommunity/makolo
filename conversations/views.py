@@ -548,6 +548,9 @@ class ConversationInvitationRespondView(LoginRequiredMixin, View):
         except (ValidationError, PermissionDenied) as exc:
             messages.error(request, str(exc))
             return redirect("conversations:list")
+        if invitation.status == ConversationInvitationStatus.EXPIRED:
+            messages.info(request, "Cette invitation a expiré.")
+            return redirect("conversations:list")
         expected = (
             ConversationInvitationStatus.ACCEPTED
             if decision == "accept" else ConversationInvitationStatus.DECLINED
@@ -562,8 +565,6 @@ class ConversationInvitationRespondView(LoginRequiredMixin, View):
             return redirect("conversations:detail", pk=invitation.conversation_id)
         if invitation.status == ConversationInvitationStatus.DECLINED:
             messages.success(request, "Invitation refusée.")
-        elif invitation.status == ConversationInvitationStatus.EXPIRED:
-            messages.info(request, "Cette invitation a expiré.")
         return redirect("conversations:list")
 
 
