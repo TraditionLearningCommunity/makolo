@@ -223,6 +223,13 @@
         : '');
     });
 
+    $('[data-mk-mark-clear-selection]')?.addEventListener('click', () => {
+      $('[data-mk-mark-selected]')?.remove();
+      resetConsent();
+      announce('Le contexte sélectionné a été retiré. Votre texte est conservé.');
+      input.focus();
+    });
+
     $('[data-mk-mark-link-toggle]')?.addEventListener('click', () => {
       const editor = $('[data-mk-mark-link-editor]');
       if (!editor) return;
