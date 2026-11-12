@@ -335,8 +335,9 @@ final class WorkspaceContextRepository {
   Stream<StoredProjection?> watchPilot(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.pilot, space);
 
-  /// A previously acquired Space can be selected as a *presentation context*
-  /// without waiting for a new network response. This does not grant any
+  /// A Space listed in an authorized local inventory can be selected as a
+  /// *presentation context* even before its first workspace snapshot.
+  /// This never grants permissions or certifies an owner action. This does not grant any
   /// authority: each owner still validates permissions for its own actions.
   ///
   /// A source explicitly invalidated by its owner, a denied/missing Space,
@@ -348,6 +349,20 @@ final class WorkspaceContextRepository {
     if (!known) return false;
 
     final workspaceState = await readSource(workspaceSource(space));
+    if (workspaceState.invalidated) return false;
+    if (workspaceState.lastSuccessAt == null) {
+      // An authorized inventory is enough to choose a reading perspective
+      // before the first workspace download. It grants no owner action.
+      // A previous explicit denial still forbids that transition.
+      return workspaceState.lastErrorCode == null ||
+          const {
+            'timeout',
+            'makolo_unreachable',
+            'secure_connection_failed',
+            'transport_error',
+            'server_unavailable',
+          }.contains(workspaceState.lastErrorCode);
+    }
     if (!_usableForLocalContext(workspaceState)) return false;
     try {
       final workspace = await readWorkspace(space);
