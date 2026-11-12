@@ -7,7 +7,7 @@ from journeys.models import Journey
 
 from .models import DossierJourneyLink, DossierLifecycle, Project, ProjectLifecycle
 from .selectors import collaboration_candidates_for_dossier, dependency_candidates_for_profile, linkable_journeys_for_profile, manageable_dossiers_for_profile, projects_for_profile
-from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_project
+from .services import ALLOWED_LIFECYCLE_TRANSITIONS, PROJECT_LIFECYCLE_TRANSITIONS, PROJECT_LINKABLE_LIFECYCLES, can_manage_dossier, can_manage_project
 
 
 User = get_user_model()
@@ -205,9 +205,27 @@ class ProjectLifecycleForm(forms.Form):
 
 
 class DossierAssignmentForm(forms.Form):
-    assignee = forms.ModelChoiceField(label="Responsable", queryset=User.objects.none())
+    assignee = forms.ModelChoiceField(
+        label="Responsable de la coordination",
+        queryset=User.objects.none(),
+        help_text=(
+            "La personne doit déjà être autorisée à gérer ce Dossier. "
+            "La désignation ne lui accorde aucun nouveau droit."
+        ),
+    )
+
     def __init__(self, *args, dossier, **kwargs):
-        super().__init__(*args, **kwargs); self.fields["assignee"].queryset = collaboration_candidates_for_dossier(dossier); self.fields["assignee"].label_from_instance = _profile_label
+        super().__init__(*args, **kwargs)
+        # Mirror the bounded authorized candidates exposed to Flutter.
+        # Team membership alone must not be presented as a Dossier mandate.
+        people = list(collaboration_candidates_for_dossier(dossier)[:50])
+        allowed_ids = [
+            person.pk for person in people if can_manage_dossier(person, dossier)
+        ]
+        self.fields["assignee"].queryset = User.objects.filter(
+            pk__in=allowed_ids,
+        ).order_by("first_name", "last_name", "username", "pk")
+        self.fields["assignee"].label_from_instance = _profile_label
 
 
 class DossierAuthorityGrantForm(forms.Form):
