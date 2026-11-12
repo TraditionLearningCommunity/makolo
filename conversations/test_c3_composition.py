@@ -14,7 +14,10 @@ from .audience_models import ConversationAudienceRuleKind, ConversationAudienceR
 from .audience_services import add_audience_rule, create_audience_set
 from .core_models import Conversation, ConversationContextKind
 from .point_models import ConversationPoint, ConversationPointKind, ConversationPointResponseMode, ConversationResponseVisibility, PointExchangeEntry
-from .point_services import create_exchange_entry, create_point, resolve_point
+from .point_services import (
+    create_exchange_entry, create_point, resolve_point,
+    point_visible_to, point_response_allowed, submit_point_response,
+)
 from .services import activate_participation, ensure_context_conversation
 
 
@@ -139,6 +142,17 @@ class ConversationC3CompositionTests(TestCase):
         self.assertEqual(poll.response_mode, "single_choice")
         self.assertEqual(poll.visibility_audience, second_audience)
         self.assertEqual(poll.options.count(), 2)
+        # Recipients are targeted; the author is not silently excluded.
+        self.assertTrue(point_visible_to(self.owner, poll))
+        self.assertTrue(point_response_allowed(self.owner, poll))
+        self.assertFalse(point_visible_to(self.member, poll))
+        choice = poll.options.order_by("position").first()
+        vote = submit_point_response(
+            actor=self.owner, point=poll, value=str(choice.pk),
+            client_reference="c3-author-vote",
+        )
+        self.assertEqual(vote.actor_id, self.owner.pk)
+        self.assertEqual(poll.responses.count(), 1)
         self.assertEqual(
             self._post({
                 "mode": "point", "kind": "confirmation", "title": "Vous serez là ?",
@@ -223,6 +237,39 @@ class ConversationC3CompositionTests(TestCase):
 
         self.client.force_login(self.outsider)
         self.assertEqual(self._post(payload).status_code, 404)
+
+    def test_implicit_exchange_send_replay_does_not_create_information(self):
+        self.client.force_login(self.owner)
+        started = self._post({
+            "mode": "point", "kind": "exchange", "title": "Équipe",
+            "client_reference": "c3-implicit-exchange",
+        })
+        self.assertEqual(started.status_code, 200)
+        point_id = started.json()["point_id"]
+        self.client.force_login(self.member)
+        payload = {
+            "mode": "text", "body": "Oui, cela avance.",
+            "client_reference": "c3-implicit-message",
+        }
+        first = self._post(payload)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["point_id"], point_id)
+
+        self.client.force_login(self.owner)
+        resolve_point(
+            actor=self.owner, point=ConversationPoint.objects.get(pk=point_id),
+            summary="Discussion terminée",
+        )
+        self.client.force_login(self.member)
+        replay = self._post(payload)
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay.json()["id"], first.json()["id"])
+        self.assertEqual(replay.json()["kind"], "exchange")
+        self.assertEqual(ConversationPoint.objects.count(), 1)
+        self.assertEqual(PointExchangeEntry.objects.count(), 1)
+        changed = self._post({**payload, "body": "Texte différent"})
+        self.assertEqual(changed.status_code, 400)
+        self.assertEqual(PointExchangeEntry.objects.count(), 1)
 
     def test_direct_profile_conversation_is_composable_only_after_owner_ensures_it(self):
         # Consent is established by the domain before the UI opens this
