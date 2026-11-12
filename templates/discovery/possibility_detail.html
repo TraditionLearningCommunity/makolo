@@ -38,6 +38,8 @@
     </div>
     {% endif %}
 
+    {% include 'discovery/_action_bar.html' with card=card detail=True %}
+
     {% if card.description and card.description != card.summary %}
     <section aria-label="Présentation" class="whitespace-pre-line leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</section>
     {% endif %}
