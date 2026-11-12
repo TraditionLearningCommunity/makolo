@@ -129,6 +129,7 @@ def _project_collaboration(actor, project, dossiers, *, partial):
         })
     contributors = {}
     candidates = {}
+    candidate_source_truncated = False
     for dossier in dossiers:
         manageable = can_manage_dossier(actor, dossier)
         for assignment in active_assignments_for_dossier(dossier):
@@ -143,9 +144,15 @@ def _project_collaboration(actor, project, dossiers, *, partial):
             })
             contributor["dossier_ids"].append(str(dossier.pk))
         if authority and manageable:
-            # Reuse the same bounded, authorized list as Dossier collaboration.
-            for person in collaboration_candidates_for_dossier(dossier)[:51]:
-                if person.is_active and person.pk != project.owner_profile_id:
+            # Exclude the bearer *before* the bounded slice. Otherwise a
+            # skipped first candidate can conceal a 51st available person.
+            pool = collaboration_candidates_for_dossier(dossier)
+            if project.owner_profile_id:
+                pool = pool.exclude(pk=project.owner_profile_id)
+            choices = list(pool[:51])
+            candidate_source_truncated |= len(choices) > 50
+            for person in choices[:50]:
+                if person.is_active:
                     candidates[str(person.pk)] = {
                         "id": str(person.pk), "label": _person(person),
                     }
@@ -154,7 +161,9 @@ def _project_collaboration(actor, project, dossiers, *, partial):
         "contributors": list(contributors.values()),
         "contributors_partial": bool(partial),
         "candidate_profiles": list(candidates.values())[:50] if authority else [],
-        "candidate_profiles_partial": len(candidates) > 50 if authority else False,
+        "candidate_profiles_partial": (
+            bool(partial) or candidate_source_truncated or len(candidates) > 50
+        ) if authority else False,
         "roles": [
             {"code": role.code, "label": role.name}
             for role in Role.objects.filter(
