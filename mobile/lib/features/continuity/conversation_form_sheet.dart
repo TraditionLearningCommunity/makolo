@@ -310,7 +310,7 @@ class _ConversationFormSheetState extends State<ConversationFormSheet> {
       }
     } on Object {
       if (mounted) {
-        setState(() => _error = 'Envoi non conservé. Réessayer.');
+        setState(() => _error = 'Envoi non conservé.');
       }
     } finally {
       if (mounted) setState(() => _sending = false);
