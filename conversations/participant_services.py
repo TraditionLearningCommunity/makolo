@@ -354,7 +354,9 @@ def collective_invitation_inbox(actor, *, limit=30):
         return []
     candidates = ConversationCollectiveAccess.objects.filter(
         status=ConversationCollectiveStatus.PENDING,
-    ).select_related("space", "group", "conversation").order_by("-created_at")[:400]
+    ).select_related(
+        "space", "group", "conversation__context", "created_by",
+    ).order_by("-created_at")[:400]
     return [
         item for item in candidates
         if (not item.expires_at or item.expires_at > timezone.now())
