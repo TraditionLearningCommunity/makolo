@@ -1360,8 +1360,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
               label: const Text('Lier une première démarche'),
             ),
         ],
-        if (dependencies.isNotEmpty ||
-            _cap(data, 'dossier.dependency.add')) ...[
+        if (dependencies.isNotEmpty) ...[
           const SizedBox(height: 9),
           Card(
             elevation: 0,
@@ -1384,9 +1383,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 for (final dep in dependencies.take(3))
                   ListTile(
                     dense: true,
-                    leading: Icon(dep['satisfied'] == true
-                        ? Icons.check_circle_outline
-                        : Icons.radio_button_unchecked),
+                    leading: Icon(
+                      _text(dep['state']) == 'waived'
+                          ? Icons.remove_circle_outline
+                          : dep['satisfied'] == true
+                              ? Icons.check_circle_outline
+                              : Icons.radio_button_unchecked,
+                    ),
                     title: Text(_text(dep['required_label'])),
                     subtitle: Text(
                       _text(dep['state']) == 'waived'
