@@ -1084,8 +1084,22 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       return const SizedBox.shrink();
     }
     final preview = _map(data['people_preview']);
-    final people = _rows(preview['people']);
-    final remaining = (preview['remaining'] is num)
+    final hasPreview = data['people_preview'] is Map;
+    // Older local snapshots may predate the optional people_preview field.
+    // Keep already-visible names without inventing Profile links or totals.
+    final people = hasPreview
+        ? _rows(preview['people'])
+        : [
+            ...assignments.map((item) => {
+              'label': item['label'],
+              'profile_id': item['profile_id'],
+            }),
+            ...mandates.map((item) => {
+              'label': item['profile'],
+              'profile_id': item['profile_id'],
+            }),
+          ].take(4).toList();
+    final remaining = hasPreview && preview['remaining'] is num
         ? (preview['remaining'] as num).toInt() : 0;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
