@@ -317,11 +317,14 @@ class _MarkScreenState extends State<MarkScreen> {
       );
       return;
     }
+    final selectedNames = <String>[];
     final result = await coordinator.pickFiles(
       owner: _owner,
       purpose: 'mark_intake',
-      fileIdFor: (index, file) =>
-          'mark-${DateTime.now().microsecondsSinceEpoch}-$index',
+      fileIdFor: (index, file) {
+        selectedNames.add(file.name);
+        return 'mark-${DateTime.now().microsecondsSinceEpoch}-$index';
+      },
     );
     if (!mounted || revision != _draftRevision) return;
     if (!result.acquired) {
@@ -331,11 +334,14 @@ class _MarkScreenState extends State<MarkScreen> {
     setState(() {
       _attachments = [
         ..._attachments,
-        ...result.files.map(
-          (file) => {
-            'file_id': file.fileId,
-            'name': file.path.split('/').last,
-            'purpose': file.purpose,
+        ...result.files.asMap().entries.map(
+          (entry) => {
+            'file_id': entry.value.fileId,
+            'name': entry.key < selectedNames.length &&
+                    selectedNames[entry.key].trim().isNotEmpty
+                ? selectedNames[entry.key].trim()
+                : 'Document',
+            'purpose': entry.value.purpose,
           },
         ),
       ];
@@ -379,7 +385,7 @@ class _MarkScreenState extends State<MarkScreen> {
         ..._attachments,
         {
           'file_id': result.files.single.fileId,
-          'name': result.files.single.path.split('/').last,
+          'name': capture ? 'Photo' : 'Image',
           'purpose': result.files.single.purpose,
           'kind': 'photo',
         },
@@ -764,8 +770,8 @@ class _MarkScreenState extends State<MarkScreen> {
                     TextField(
                       controller: _input,
                       focusNode: _inputFocus,
-                      minLines: 7,
-                      maxLines: 12,
+                      minLines: 4,
+                      maxLines: 9,
                       maxLength: 600,
                       textInputAction: TextInputAction.newline,
                       decoration: const InputDecoration(
