@@ -1,17 +1,25 @@
 {% extends 'base/app.html' %}
 {% block title %}Makolo | Mark{% endblock %}
 {% block content %}
-<div class="mk-mark-page" data-mk-surface="mark">
+<div class="mk-mark-page" data-mk-surface="mark" data-mk-mark-root
+  data-mk-mark-scope="personal:{{ request.user.pk }}">
+  <section class="mk-mark-window" data-mk-mark-window aria-label="Demande Makolo">
+    <div class="mk-mark-window-tools" role="group" aria-label="Affichage de Makolo Mark">
+      <button type="button" data-mk-mark-float hidden>Ouvrir en fenêtre</button>
+      <button type="button" data-mk-mark-minimize hidden>Réduire</button>
+      <button type="button" data-mk-mark-inline hidden>Afficher sur la page</button>
+    </div>
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
     <h1>Qu’est-ce que vous avez en tête ?</h1>
   </section>
 
-  <form method="post" class="mk-mark-form">
+  <form method="post" class="mk-mark-form" data-mk-mark-form>
     {% csrf_token %}
     <label for="mark-intent" class="sr-only">Votre demande</label>
     <textarea id="mark-intent" name="intent" maxlength="600" rows="4" placeholder="Ex. Retrouve mon billet pour ce soir" autocomplete="off">{{ mark_text|default:'' }}</textarea>
     {% if mark_error %}<p class="mk-mark-error" role="alert">{{ mark_error }}</p>{% endif %}
+    {% include 'partials/mark_input_tools.html' with mark_scope='personal' %}
     <button type="submit" class="mk-now-cta mk-action-button" data-variant="primary">Continuer</button>
   </form>
 
@@ -65,5 +73,7 @@
     </div>
   </section>
   {% endif %}
+  </section>
+  <button type="button" class="mk-mark-restore" data-mk-mark-restore hidden>Reprendre ma demande</button>
 </div>
 {% endblock %}
