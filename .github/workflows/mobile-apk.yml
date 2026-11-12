@@ -30,7 +30,7 @@ on:
         default: ""
         type: string
   push:
-    branches: [main]
+    branches: [main, fix/discover-a-continuation-context-20261014]
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
@@ -127,10 +127,10 @@ jobs:
           done
           echo "Both DEV configurations validated (no provider values printed)."
       - name: Build Android DEV debug APK (PythonAnywhere)
-        if: github.event_name != 'workflow_dispatch' || inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'))
         run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-pythonanywhere.json
       - name: Publish Android DEV debug APK (PythonAnywhere)
-        if: github.event_name != 'workflow_dispatch' || inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'pythonanywhere' || inputs.backend_target == 'both'))
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: makolo-android-dev-pythonanywhere-${{ github.sha }}
@@ -138,7 +138,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Build Android DEV debug APK (Vercel PR 522)
-        if: github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'vercel' || inputs.backend_target == 'both')
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || ((github.event_name == 'push' && github.ref != 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'vercel' || inputs.backend_target == 'both')))
         run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-vercel.json
       - name: Publish Android DEV debug APK (Vercel PR 522)
         if: github.event_name == 'workflow_dispatch' && (inputs.backend_target == 'vercel' || inputs.backend_target == 'both')
