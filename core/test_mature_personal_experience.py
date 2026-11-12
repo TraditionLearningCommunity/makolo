@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -138,3 +140,86 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(response, "Explorer des possibilités")
         self.assertContains(response, "Reprendre quelque chose")
         self.assertContains(response, "Retrouver ce que j’ai déjà")
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_mark_web_clarification_can_submit_selected_owner_target(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "needs_clarification",
+            "message": "Laquelle voulez-vous ouvrir ?",
+            "question": {
+                "options": [
+                    {"kind": "journey", "id": "selected-journey", "label": "Ma démarche"}
+                ]
+            },
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": "Retrouve ma démarche"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ma démarche")
+        self.assertContains(response, 'name="selected_id" value="selected-journey"')
+
+        self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Retrouve ma démarche",
+                "selected_kind": "journey",
+                "selected_id": "selected-journey",
+                "profile_id": "untrusted",
+            },
+        )
+        self.assertEqual(
+            orchestrate.call_args.kwargs["context"],
+            {"selected": {"kind": "journey", "id": "selected-journey"}},
+        )
+
+    @patch("core.mature_experience_views.orchestrate_mark")
+    def test_mark_web_recognition_confirmation_is_owner_scoped(self, orchestrate):
+        orchestrate.return_value = {
+            "state": "needs_confirmation",
+            "message": "Vérifiez votre récompense.",
+            "action": {
+                "code": "redeem_recognition",
+                "summary": "Utiliser cette récompense ?",
+                "target": {"kind": "recognition_reward", "id": "reward-id"},
+            },
+        }
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": "Utilise ma récompense"}
+        )
+        self.assertContains(response, "Confirmer cette utilisation")
+        self.assertContains(response, 'name="idempotency_key"')
+
+        self.client.post(
+            reverse("core:makolo-mark"),
+            {
+                "intent": "Utilise ma récompense",
+                "selected_kind": "recognition_reward",
+                "selected_id": "reward-id",
+                "confirm_code": "redeem_recognition",
+                "confirm_target_id": "reward-id",
+                "idempotency_key": "a" * 32,
+            },
+        )
+        self.assertEqual(
+            orchestrate.call_args.kwargs["context"],
+            {
+                "selected": {"kind": "recognition_reward", "id": "reward-id"},
+                "confirmation": {
+                    "code": "redeem_recognition",
+                    "target_id": "reward-id",
+                },
+                "idempotency_key": "a" * 32,
+            },
+        )
+
+    def test_mark_web_does_not_silently_truncate_a_long_intention(self):
+        original = "Je cherche " + "une activité " * 70
+        response = self.client.post(
+            reverse("core:makolo-mark"), {"intent": original}
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response, "au maximum 600 caractères", status_code=400
+        )
+        self.assertContains(response, original, status_code=400)
