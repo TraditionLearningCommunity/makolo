@@ -228,8 +228,31 @@ def current_dossier_authority_mandates(dossier, *, at=None):
 
 
 def collaboration_candidates_for_dossier(dossier):
-    """Bounded existing principals only; this is not a global user search."""
+    """Known Dossier principals, not a global directory or an authority grant.
+
+    An effective Dossier mandate remains a known relationship even when the
+    holder is not a member of a Team in the owning Space. Team membership can
+    offer a candidate but never confers Dossier management authority.
+    """
+    known_ids = set(
+        current_dossier_authority_mandates(dossier).values_list(
+            "profile_id", flat=True,
+        ),
+    )
+    known_ids.update(
+        active_assignments_for_dossier(dossier).values_list(
+            "assignee_id", flat=True,
+        ),
+    )
+    candidates = User.objects.filter(is_active=True)
     if dossier.owning_space_id:
-        return User.objects.filter(is_active=True, team_memberships__team__organization=dossier.owning_space, team_memberships__status=TeamMembershipStatus.ACTIVE).distinct().order_by("first_name", "last_name", "username", "pk")
-    known_ids = {dossier.owner_profile_id}; known_ids.update(current_dossier_authority_mandates(dossier).values_list("profile_id", flat=True)); known_ids.update(active_assignments_for_dossier(dossier).values_list("assignee_id", flat=True))
-    return User.objects.filter(pk__in=known_ids, is_active=True).order_by("first_name", "last_name", "username", "pk")
+        return candidates.filter(
+            Q(
+                team_memberships__team__organization_id=dossier.owning_space_id,
+                team_memberships__status=TeamMembershipStatus.ACTIVE,
+            ) | Q(pk__in=known_ids)
+        ).distinct().order_by("first_name", "last_name", "username", "pk")
+    known_ids.add(dossier.owner_profile_id)
+    return candidates.filter(pk__in=known_ids).order_by(
+        "first_name", "last_name", "username", "pk",
+    )
