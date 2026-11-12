@@ -1527,6 +1527,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         ? MakoloActionPhase.available
         : MakoloActionPhase.unavailable;
 
+    final shareAvailable =
+        (!widget.detailMode || widget.allowOwnerActions) &&
+        ((widget.shareAuthenticated &&
+                widget.shareApi != null &&
+                ((item.links['web'] ?? '').isNotEmpty ||
+                    (item.links['web_share'] ?? '').isNotEmpty)) ||
+            (!widget.shareAuthenticated &&
+                (item.links['web'] ?? '').isNotEmpty));
+    final showActionBar = !widget.detailMode || saveAvailable || shareAvailable;
     final resources = _resourceEntries;
     final actionBar = <Widget>[
       const Divider(height: 1),
@@ -1537,6 +1546,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         ),
         child: Row(
           children: [
+            if (saveAvailable) ...[
             Expanded(
               child: MakoloRoundedActionSlot(
                 active: saved,
@@ -1572,8 +1582,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 ),
               ),
             ),
+            const SizedBox(width: MakoloSpacing.sm),
+            ],
             if (!widget.detailMode) ...[
-              const SizedBox(width: MakoloSpacing.sm),
               Expanded(
                 child: MakoloRoundedActionSlot(
                   child: IconButton(
@@ -1584,8 +1595,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                 ),
               ),
+              const SizedBox(width: MakoloSpacing.sm),
             ],
-            const SizedBox(width: MakoloSpacing.sm),
+            if (shareAvailable)
             Expanded(
               child: MakoloRoundedActionSlot(
                 child: DiscoveryShareControl(
@@ -1791,7 +1803,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 ],
               ),
             ),
-          if (widget.detailMode && !widget.collectiveReadOnly) ...actionBar,
+          if (widget.detailMode &&
+              !widget.collectiveReadOnly &&
+              showActionBar) ...actionBar,
           if (widget.detailMode)
             DiscoveryN2DepthSection(
               item: item,
@@ -1802,7 +1816,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
             ),
           if (resources.isNotEmpty) _resourceSection(context, resources),
-          if (!widget.detailMode) ...actionBar,
+          if (!widget.detailMode && showActionBar) ...actionBar,
           if (widget.onSelect != null)
             TextButton.icon(
               key: ValueKey('discover-map-action-${widget.item.candidateKey}'),
