@@ -732,7 +732,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
 
   Future<void> _assign(Map<String, dynamic> payload) async {
     final selected = await _choose(
-      'Désigner un responsable',
+      'Désigner un responsable de coordination',
       _rows(_map(payload['candidates'])['assignees']),
     );
     if (selected == null || !mounted) return;
@@ -1211,7 +1211,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                         TextButton.icon(
                           onPressed: _canMutate ? () => _assign(data) : null,
                           icon: const Icon(Icons.person_add_alt_1_outlined),
-                          label: const Text('Responsabilité'),
+                          label: const Text('Coordination'),
                         ),
                       if (canGrant)
                         TextButton.icon(
