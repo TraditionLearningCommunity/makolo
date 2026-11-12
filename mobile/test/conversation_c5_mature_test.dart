@@ -503,7 +503,7 @@ void main() {
           onOpenHistory: () {},
         ),
       );
-      await tester.tap(find.textContaining('À présent · 1 action'));
+      await tester.tap(find.textContaining('À présent · 1 à traiter'));
       await tester.pumpAndSettle();
       expect(find.text('Action en cours'), findsOneWidget);
       expect(tester.takeException(), isNull);
