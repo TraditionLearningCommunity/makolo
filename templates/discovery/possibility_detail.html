@@ -10,7 +10,6 @@
       {% if card.type_labels %}<div class="flex flex-wrap gap-2">{% for label in card.type_labels %}<span class="mk-badge">{{ label }}</span>{% endfor %}</div>{% endif %}
       <h1 class="mk-page-title">{{ card.title }}</h1>
       {% if card.summary %}<p class="text-base">{{ card.summary }}</p>{% endif %}
-      {% if card.description and card.description != card.summary %}<div class="whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ card.description }}</div>{% endif %}
     </header>
 
     {% if card.representation.image_url or card.gallery_media %}
@@ -39,15 +38,18 @@
     </div>
     {% endif %}
 
+    {% if card.description and card.description != card.summary %}
+    <section aria-label="Présentation" class="whitespace-pre-line leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</section>
+    {% endif %}
 
     {% if card.facts %}
     <section aria-label="Faits établis" class="space-y-3">
       <h2 class="text-lg font-bold">Informations pratiques</h2>
       <dl class="grid gap-3 sm:grid-cols-2">
         {% for fact in card.facts %}
-        <div class="flex min-w-0 items-start gap-3 rounded-xl p-3" style="background:var(--mk-surface-muted)">
-          {% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="mt-1 h-4 w-4 shrink-0" style="color:var(--mk-primary)" aria-hidden="true"></i>{% endif %}
-          <div class="min-w-0"><dt class="text-xs" style="color:var(--mk-muted)">{{ fact.label }}</dt><dd class="mt-1 break-words font-semibold">{{ fact.value }}</dd></div>
+        <div class="min-w-0 rounded-xl p-3" style="background:var(--mk-surface-muted)">
+          <dt class="flex items-center gap-2 text-xs" style="color:var(--mk-muted)">{% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="h-4 w-4 shrink-0" style="color:var(--mk-primary)" aria-hidden="true"></i>{% endif %}{{ fact.label }}</dt>
+          <dd class="mt-1 break-words font-semibold">{{ fact.value }}</dd>
         </div>
         {% endfor %}
       </dl>
