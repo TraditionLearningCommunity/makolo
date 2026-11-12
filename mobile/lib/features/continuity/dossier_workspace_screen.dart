@@ -83,6 +83,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenJourney,
     this.onOpenProject,
+    this.onOpenPerson,
     this.api,
     this.conversations,
     this.onOpenConversation,
@@ -95,6 +96,7 @@ class DossierWorkspaceScreen extends StatefulWidget {
   final MakoloApiClient? api;
   final ValueChanged<String> onOpenJourney;
   final ValueChanged<String>? onOpenProject;
+  final ValueChanged<String>? onOpenPerson;
   final ConversationRepository? conversations;
   final ValueChanged<String>? onOpenConversation;
   final ActorContextController? actorContext;
@@ -1067,10 +1069,10 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (assignments.isEmpty && mandates.isEmpty && !canAssign && !canGrant) {
       return const SizedBox.shrink();
     }
-    final entries = [
-      ...assignments.map((item) => _text(item['label'])),
-      ...mandates.map((item) => _text(item['profile'])),
-    ].where((name) => name.isNotEmpty).toList();
+    final preview = _map(data['people_preview']);
+    final people = _rows(preview['people']);
+    final remaining = (preview['remaining'] is num)
+        ? (preview['remaining'] as num).toInt() : 0;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 12),
@@ -1089,36 +1091,47 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             'Personnes et responsabilités',
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
-          subtitle: entries.isEmpty
+          subtitle: people.isEmpty
               ? const Text('Aucune personne visible')
               : Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Row(
                     children: [
-                      for (final name in entries.take(4))
+                      for (final person in people.take(4))
                         Padding(
                           padding: const EdgeInsets.only(right: 5),
                           child: Tooltip(
-                            message: name,
-                            child: CircleAvatar(
-                              radius: 16,
-                              backgroundColor: scheme.primaryContainer,
-                              child: Text(
-                                name.trim().isEmpty ? '•' :
-                                    name.trim().substring(0, 1).toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: scheme.onPrimaryContainer,
+                            message: _text(person['label']),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: widget.onOpenPerson == null ||
+                                      _text(person['profile_id']).isEmpty
+                                  ? null
+                                  : () => widget.onOpenPerson!(
+                                        _text(person['profile_id']),
+                                      ),
+                              child: CircleAvatar(
+                                radius: 17,
+                                backgroundColor: scheme.primaryContainer,
+                                child: Text(
+                                  _text(person['label']).isEmpty
+                                      ? '•'
+                                      : _text(person['label'])
+                                          .substring(0, 1).toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: scheme.onPrimaryContainer,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      if (entries.length > 4)
+                      if (remaining > 0)
                         CircleAvatar(
-                          radius: 16,
+                          radius: 17,
                           child: Text(
-                            '+' + (entries.length - 4).toString(),
+                            '+' + remaining.toString(),
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
@@ -1137,6 +1150,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 leading: const Icon(Icons.person_outline),
                 title: Text(_text(item['label'])),
                 subtitle: const Text('Responsabilité opérationnelle'),
+                onTap: widget.onOpenPerson == null ||
+                        _text(item['profile_id']).isEmpty
+                    ? null
+                    : () => widget.onOpenPerson!(
+                          _text(item['profile_id']),
+                        ),
                 trailing: _cap(item, 'remove')
                     ? IconButton(
                         tooltip: 'Retirer la responsabilité',
@@ -1157,6 +1176,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 leading: const Icon(Icons.shield_outlined),
                 title: Text(_text(item['profile'])),
                 subtitle: Text('Mandat · ' + _text(item['role'])),
+                onTap: widget.onOpenPerson == null ||
+                        _text(item['profile_id']).isEmpty
+                    ? null
+                    : () => widget.onOpenPerson!(
+                          _text(item['profile_id']),
+                        ),
                 trailing: _cap(item, 'revoke')
                     ? IconButton(
                         tooltip: 'Révoquer le mandat',
