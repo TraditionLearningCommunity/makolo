@@ -403,6 +403,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                     builder: (context, snapshot) {
                       final count = _ConversationInvitation.fromProjection(
                         snapshot.data,
+                      ).length + _ConversationPendingRow.fromProjection(
+                        snapshot.data,
+                        'join_requests_to_decide',
                       ).length;
                       return IconButton(
                         key: const Key('conversation-invitations-open'),
@@ -797,6 +800,18 @@ class _ConversationInvitationInbox extends StatelessWidget {
           final invitations = _ConversationInvitation.fromProjection(
             snapshot.data,
           );
+          final toDecide = _ConversationPendingRow.fromProjection(
+            snapshot.data,
+            'join_requests_to_decide',
+          );
+          final sent = _ConversationPendingRow.fromProjection(
+            snapshot.data,
+            'sent_results',
+          );
+          final mine = _ConversationPendingRow.fromProjection(
+            snapshot.data,
+            'my_join_requests',
+          );
           return ListView(
             padding: const EdgeInsets.all(MakoloSpacing.inner),
             children: [
@@ -804,19 +819,250 @@ class _ConversationInvitationInbox extends StatelessWidget {
                 const Text(
                   'Invitations non encore disponibles sur cet appareil.',
                 )
-              else if (invitations.isEmpty)
-                const Text('Aucune invitation à traiter.'),
-              for (final invitation in invitations) ...[
-                _ConversationInvitationCard(
-                  invitation: invitation,
-                  repository: repository,
-                  onOpen: onOpen,
-                ),
+              else if (invitations.isEmpty &&
+                  toDecide.isEmpty &&
+                  sent.isEmpty &&
+                  mine.isEmpty)
+                const Text('Aucune invitation ou demande en attente.'),
+              if (invitations.isNotEmpty) ...[
+                Text('Invitations reçues',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: MakoloSpacing.sm),
+                for (final invitation in invitations) ...[
+                  _ConversationInvitationCard(
+                    key: Key('conversation-received-${invitation.id}'),
+                    invitation: invitation,
+                    repository: repository,
+                    onOpen: onOpen,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
               ],
+              if (toDecide.isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Text('Demandes à examiner',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: MakoloSpacing.sm),
+                for (final row in toDecide) ...[
+                  _ConversationPendingActionCard(
+                    key: Key('conversation-request-${row.id}'),
+                    row: row,
+                    repository: repository,
+                    isJoinRequest: true,
+                    onOpen: onOpen,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
+              ],
+              if (sent.isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Text('Invitations envoyées',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: MakoloSpacing.sm),
+                for (final row in sent) ...[
+                  _ConversationPendingActionCard(
+                    key: Key('conversation-sent-${row.id}'),
+                    row: row,
+                    repository: repository,
+                    onOpen: onOpen,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
+              ],
+              if (mine.isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.md),
+                Text('Mes demandes d’entrée',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: MakoloSpacing.sm),
+                for (final row in mine) ...[
+                  MakoloCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Demande en attente de décision'),
+                        if (row.conversationId != null)
+                          MakoloActionButton(
+                            label: 'Voir ma demande',
+                            onPressed: () => onOpen(row.conversationId!),
+                            appearance: MakoloActionAppearance.quiet,
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
+              ],
+              if (snapshot.data?.payload['more_sent'] == true ||
+                  snapshot.data?.payload['more_join_requests'] == true ||
+                  snapshot.data?.payload['more_my_requests'] == true)
+                const Padding(
+                  padding: EdgeInsets.only(top: MakoloSpacing.sm),
+                  child: Text(
+                    'D’autres demandes peuvent être consultées dans les Conversations concernées.',
+                  ),
+                ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _ConversationPendingRow {
+  const _ConversationPendingRow({
+    required this.id,
+    required this.kind,
+    this.conversationId,
+    this.identifier,
+    this.canApprove = true,
+  });
+
+  final String id;
+  final String kind;
+  final String? conversationId;
+  final String? identifier;
+  final bool canApprove;
+
+  static List<_ConversationPendingRow> fromProjection(
+    StoredProjection? projection,
+    String section,
+  ) {
+    return [
+      for (final row in _maps(projection?.payload[section]))
+        if (_string(row['id']) != null)
+          _ConversationPendingRow(
+            id: _string(row['id'])!,
+            kind: _string(row['kind']) ?? '',
+            conversationId: _string(row['conversation_id']),
+            identifier: _string(row['identifier']),
+            canApprove: row['can_approve'] != false,
+          ),
+    ];
+  }
+}
+
+class _ConversationPendingActionCard extends StatefulWidget {
+  const _ConversationPendingActionCard({
+    super.key,
+    required this.row,
+    required this.repository,
+    required this.isJoinRequest,
+    required this.onOpen,
+  });
+
+  final _ConversationPendingRow row;
+  final ConversationRepository repository;
+  final bool isJoinRequest;
+  final void Function(String id) onOpen;
+
+  @override
+  State<_ConversationPendingActionCard> createState() =>
+      _ConversationPendingActionCardState();
+}
+
+class _ConversationPendingActionCardState
+    extends State<_ConversationPendingActionCard> {
+  bool _busy = false;
+  bool _confirmed = false;
+  String? _error;
+
+  Future<void> _decide(bool accept) async {
+    final id = widget.row.conversationId;
+    if (_busy || _confirmed || id == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (widget.isJoinRequest) {
+        await widget.repository.decideJoinRequest(
+          conversationId: id,
+          requestId: widget.row.id,
+          approve: accept,
+        );
+      } else {
+        await widget.repository.manageConversationParticipant(
+          conversationId: id,
+          operation: widget.row.kind == 'profile' ? 'cancel' : 'revoke',
+          resourceId: widget.row.id,
+        );
+      }
+      if (mounted) setState(() => _confirmed = true);
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Décision non confirmée. Actualisez avant de réessayer.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final row = widget.row;
+    final label = row.identifier == null
+        ? 'Demande d’entrée'
+        : row.kind == 'profile' || widget.isJoinRequest
+            ? '@${row.identifier}'
+            : row.identifier!;
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: MakoloSpacing.xs),
+          Text(
+            widget.isJoinRequest
+                ? 'Demande d’entrée en attente'
+                : 'Invitation en attente d’acceptation',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (widget.isJoinRequest && !row.canApprove)
+            const Text('Cette entrée n’est plus éligible. Vous pouvez la refuser.'),
+          if (_confirmed)
+            const Text('Décision confirmée.'),
+          if (_error != null)
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          const SizedBox(height: MakoloSpacing.sm),
+          Wrap(
+            spacing: MakoloSpacing.sm,
+            runSpacing: MakoloSpacing.xs,
+            children: [
+              if (row.conversationId != null)
+                MakoloActionButton(
+                  label: 'Ouvrir la conversation',
+                  onPressed: () => widget.onOpen(row.conversationId!),
+                  appearance: MakoloActionAppearance.quiet,
+                ),
+              if (!_confirmed && widget.isJoinRequest) ...[
+                MakoloActionButton(
+                  label: 'Refuser',
+                  onPressed: _busy ? null : () => _decide(false),
+                  appearance: MakoloActionAppearance.secondary,
+                ),
+                if (row.canApprove)
+                  MakoloActionButton(
+                    label: _busy ? 'En cours…' : 'Accepter',
+                    onPressed: _busy ? null : () => _decide(true),
+                    appearance: MakoloActionAppearance.primary,
+                    busy: _busy,
+                  ),
+              ],
+              if (!_confirmed && !widget.isJoinRequest)
+                MakoloActionButton(
+                  label: 'Annuler l’invitation',
+                  onPressed: _busy ? null : () => _decide(false),
+                  appearance: MakoloActionAppearance.secondary,
+                  busy: _busy,
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
