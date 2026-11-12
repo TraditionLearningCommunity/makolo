@@ -1588,8 +1588,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           for (final row in intervention)
             ListTile(
               title: Text(_text(row['title'])),
-              subtitle: const Text(
-                'Une action est requise selon les faits visibles.',
+              subtitle: Text(
+                _text(_map(row['readiness'])['hidden_signal']).isNotEmpty
+                    ? _text(_map(row['readiness'])['hidden_signal'])
+                    : 'Action requise',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => widget.onOpenDossier(_text(row['id'])),
@@ -1784,7 +1786,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               ? null
               : DateTime(deadline.year, deadline.month, deadline.day);
           return switch (_time) {
-            _ProjectTime.all => true,
+            _ProjectTime.all => day != null,
             _ProjectTime.next30 =>
               day != null &&
                   !day.isBefore(today) &&
@@ -1792,7 +1794,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             _ProjectTime.overdue =>
               day != null && day.isBefore(today) && row['state'] == 'active',
             _ProjectTime.undated => day == null,
-            _ProjectTime.active => row['state'] == 'active',
+            _ProjectTime.active => day != null && row['state'] == 'active',
           };
         }).toList()..sort((a, b) {
           final aDate = _text(a['deadline']), bDate = _text(b['deadline']);
@@ -1868,7 +1870,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
         const SizedBox(height: 11),
         if (milestones.isEmpty)
-          _empty('Aucun jalon visible.')
+          _empty(_time == _ProjectTime.undated
+              ? 'Aucun Dossier sans échéance.'
+              : 'Aucune échéance visible.')
         else
           for (final row in milestones)
             ListTile(
