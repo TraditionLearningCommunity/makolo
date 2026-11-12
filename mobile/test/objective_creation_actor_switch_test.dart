@@ -33,16 +33,16 @@ class _ActorStore implements ActorContextStore {
 
 class _DelayedObjectiveApi extends MakoloApiClient {
   _DelayedObjectiveApi()
-      : super(
-          baseUri: Uri.parse('https://makolo.invalid/'),
-          tokenStore: MemoryTokenStore(
-            session: const AuthSession(
-              accessToken: 'test',
-              refreshToken: 'test',
-              profileId: 'viewer',
-            ),
+    : super(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(
+          session: const AuthSession(
+            accessToken: 'test',
+            refreshToken: 'test',
+            profileId: 'viewer',
           ),
-        );
+        ),
+      );
 
   final Completer<ApiResponse> response = Completer<ApiResponse>();
   int calls = 0;
@@ -100,10 +100,9 @@ void main() {
         find.byType(TextFormField).first,
         'Réalisation commune',
       );
-      await tester.tap(find.widgetWithText(
-        MakoloActionButton,
-        'Créer un dossier',
-      ));
+      await tester.tap(
+        find.widgetWithText(MakoloActionButton, 'Créer un dossier'),
+      );
       await tester.pump();
 
       expect(api.calls, 1);
@@ -123,9 +122,11 @@ void main() {
       expect(find.textContaining('l’Espace atelier-test'), findsOneWidget);
       expect(opened, isNull);
       expect(
-        tester.widget<MakoloActionButton>(
-          find.widgetWithText(MakoloActionButton, 'Ouvrir la réalisation'),
-        ).onPressed,
+        tester
+            .widget<MakoloActionButton>(
+              find.widgetWithText(MakoloActionButton, 'Ouvrir la réalisation'),
+            )
+            .onPressed,
         isNull,
       );
 
