@@ -170,7 +170,9 @@
             <form method="post" class="flex gap-2">{% csrf_token %}
               <input type="hidden" name="join_request_id" value="{{ item.pk }}">
               <button type="submit" name="action" value="reject" class="mk-action-button" data-variant="secondary">Refuser</button>
+              {% if item.can_approve %}
               <button type="submit" name="action" value="approve" class="mk-action-button" data-variant="primary">Accepter</button>
+              {% endif %}
             </form>
           </div>
         {% endfor %}
