@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../design/action_controls.dart';
 
 /// Native Services owner handoff. The server owns eligibility, idempotence
 /// and the actual Journey; Discovery only provides the typed Service identity.
@@ -33,6 +34,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   bool _attempted = false;
   String? _error;
   Map<String, dynamic>? _requirements;
+  String? _serviceTitle;
+  String? _serviceSummary;
   String _operationKey = _newOperationKey();
 
   String get _interactionId =>
@@ -93,6 +96,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       );
       final body = response.jsonObject();
       final requirements = body['requirements'];
+      final representation = body['representation'];
       final service = body['service'];
       final capabilities = body['capabilities'];
       if (requirements is! Map ||
@@ -106,6 +110,14 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       final choices = body['opportunities'];
       final results = choices is Map ? choices['results'] : null;
       setState(() {
+        final title = representation is Map ? representation['title'] : null;
+        final summary = representation is Map ? representation['summary'] : null;
+        _serviceTitle = title is String && title.trim().isNotEmpty
+            ? title.trim()
+            : null;
+        _serviceSummary = summary is String && summary.trim().isNotEmpty
+            ? summary.trim()
+            : null;
         _requirements = Map<String, dynamic>.from(requirements);
         _opportunities = results is List
             ? results
@@ -147,7 +159,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       if (mounted) {
         setState(
           () => _error =
-              'Impossible de rechercher les Opportunities disponibles.',
+              'Impossible de rechercher les opportunités disponibles.',
         );
       }
     } finally {
@@ -211,19 +223,24 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   Widget build(BuildContext context) {
     final needsOpportunity = _requirements?['opportunity_required'] == true;
     return Scaffold(
-      appBar: AppBar(title: const Text('Commencer un Service')),
+      appBar: AppBar(title: Text(_serviceTitle ?? 'Commencer')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_requirements == null)
-            OutlinedButton.icon(
+            MakoloActionButton(
               onPressed: _prevalidate,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Réessayer'),
+              icon: Icons.refresh_rounded,
+              label: 'Réessayer',
+              appearance: MakoloActionAppearance.secondary,
             )
           else ...[
+            if (_serviceSummary != null) ...[
+              Text(_serviceSummary!),
+              const SizedBox(height: 16),
+            ],
             Text(
               'Votre objectif',
               style: Theme.of(context).textTheme.titleMedium,
@@ -245,7 +262,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 controller: _opportunitySearch,
                 enabled: !_attempted,
                 decoration: InputDecoration(
-                  labelText: 'Rechercher une Opportunity',
+                  labelText: 'Rechercher une opportunité',
                   suffixIcon: IconButton(
                     tooltip: 'Rechercher',
                     onPressed: _searchingOpportunities || _attempted
@@ -261,8 +278,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: needsOpportunity
-                      ? 'Opportunity requise'
-                      : 'Opportunity (facultatif)',
+                      ? 'Opportunité requise'
+                      : 'Opportunité (facultatif)',
                 ),
                 items: [
                   if (_selectedOpportunity != null &&
@@ -276,13 +293,13 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   if (!needsOpportunity)
                     const DropdownMenuItem<String>(
                       value: '',
-                      child: Text('Sans Opportunity'),
+                      child: Text('Sans opportunité'),
                     ),
                   for (final opportunity in _opportunities)
                     DropdownMenuItem<String>(
                       value: opportunity['id']?.toString() ?? '',
                       child: Text(
-                        opportunity['title']?.toString() ?? 'Opportunity',
+                        opportunity['title']?.toString() ?? 'Opportunité',
                       ),
                     ),
                 ],
@@ -295,20 +312,19 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            FilledButton.icon(
+            MakoloActionButton(
               onPressed:
                   _submitting ||
                       (needsOpportunity && _selectedOpportunity == null)
                   ? null
                   : _start,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(
-                _submitting
-                    ? 'Démarrage…'
-                    : _attempted
-                    ? 'Reprendre la demande'
-                    : 'Commencer',
-              ),
+              icon: Icons.play_arrow_rounded,
+              appearance: MakoloActionAppearance.primary,
+              label: _submitting
+                  ? 'Démarrage…'
+                  : _attempted
+                  ? 'Reprendre la demande'
+                  : 'Commencer',
             ),
           ],
           if (_error != null) ...[
