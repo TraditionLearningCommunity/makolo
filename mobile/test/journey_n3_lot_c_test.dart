@@ -170,6 +170,36 @@ void main() {
     expect(find.text('Pour avancer'), findsNothing);
   });
 
+  testWidgets('Service decision remains distinct from an active Journey', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-service');
+    await store.putProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-service',
+      schemaVersion: 1,
+      payload: {
+        ..._payload('Demander une bourse'),
+        'service_result': {
+          'code': 'under_review',
+          'label': 'En revue',
+        },
+      },
+    );
+    final repository = JourneyRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-service',
+    );
+    await tester.pumpWidget(_journey('journey-service', repository));
+    await tester.pumpAndSettle();
+    expect(find.text('Réponse de l’organisme'), findsOneWidget);
+    expect(find.text('En revue'), findsOneWidget);
+    expect(find.text('Démarche réalisée'), findsNothing);
+  });
+
   testWidgets('a Journey switches Profiles without showing old local facts', (
     tester,
   ) async {
