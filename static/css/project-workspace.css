@@ -138,3 +138,34 @@
 .mk-project__subtitle {margin:15px 0 8px}
 .mk-project__card {padding:11px}
 .mk-project__card-meta span {padding:4px 7px}
+
+
+/* The same title-free Project information sits directly below the three views. */
+.mk-project__description {
+  display:flex;align-items:flex-start;gap:10px;
+  margin:2px 0 17px;max-width:780px;
+  color:var(--quiet);
+}
+.mk-project__description > svg {
+  color:var(--violet);width:20px;height:20px;flex:none;margin-top:2px;
+}
+.mk-project__description-body {flex:1;min-width:0}
+.mk-project__description p {
+  margin:0;font-size:14px;line-height:1.5;white-space:pre-wrap;
+  overflow-wrap:anywhere;color:var(--ink);
+}
+.mk-project__description.is-collapsed p {
+  overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:3;line-clamp:3;
+}
+.mk-project__description-toggle {
+  display:flex;align-items:center;justify-content:center;
+  width:44px;min-height:44px;margin:0 0 0 auto;
+  border:0;background:transparent;color:var(--violet);
+  border-radius:11px;cursor:pointer;
+}
+.mk-project__description-toggle[hidden] {display:none!important}
+.mk-project__description-toggle svg {width:21px;height:21px}
+.mk-project__description:not(.is-collapsed) .mk-project__description-toggle svg {
+  transform:rotate(180deg);
+}
