@@ -63,12 +63,20 @@ void main() {
     const dayOf = MarkResult(
       state: 'resolved',
       handoff: {'owner': 'operations', 'surface': 'day_of'},
-      raw: {'result': {'identity': {'id': 'occurrence-id'}}},
+      raw: {
+        'result': {
+          'identity': {'id': 'occurrence-id'},
+        },
+      },
     );
     const scanner = MarkResult(
       state: 'resolved',
       handoff: {'owner': 'scanner', 'surface': 'occurrence_context'},
-      raw: {'result': {'identity': {'id': 'occurrence-id'}}},
+      raw: {
+        'result': {
+          'identity': {'id': 'occurrence-id'},
+        },
+      },
     );
     expect(
       markHandoffRoute(dayOf, space),
@@ -88,7 +96,9 @@ void main() {
     const result = MarkResult(
       state: 'resolved',
       handoff: {'owner': 'operations', 'surface': 'day_of'},
-      raw: {'result': {'reason': 'missing_occurrence'}},
+      raw: {
+        'result': {'reason': 'missing_occurrence'},
+      },
     );
     expect(markHandoffRoute(result, actor), isNull);
   });
