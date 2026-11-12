@@ -12,6 +12,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
     if (!limited) 'location': {'city': 'Lubumbashi', 'country': 'CD'},
   },
   'authority': {'scope': limited ? 'activity_limited' : 'space'},
+  'primary_role': limited ? null : {'code': 'space-admin', 'label': 'Coordination'},
   'team': {
     'visibility': limited ? 'restricted' : 'visible',
     'items': limited
@@ -114,7 +115,7 @@ void main() {
       expect(find.text('AM'), findsOneWidget);
       expect(find.byKey(const Key('space-us-members-strip')), findsOneWidget);
       expect(find.byKey(const Key('space-us-entry-team')), findsNothing);
-      expect(find.text('Partenaires'), findsOneWidget);
+      expect(find.text('Nos relations'), findsNothing);
       expect(find.text('Paramètres institutionnels'), findsNothing);
       expect(tester.takeException(), isNull);
       expect(find.text('Passeport Makolo'), findsNothing);
@@ -139,11 +140,9 @@ void main() {
       await tester.tap(find.text('Nos démarches'));
       expect(routes.last, '/space/atelier/objectives');
 
-      await tester.ensureVisible(
-        find.byKey(const Key('space-us-entry-relationships')),
-      );
-      await tester.tap(find.byKey(const Key('space-us-entry-relationships')));
-      expect(routes.last, '/space/atelier/us/relationships');
+      expect(find.byKey(const Key('space-us-entry-relationships')), findsNothing);
+      await tester.tap(find.byKey(const Key('space-us-primary-role')));
+      expect(routes.last, '/space/atelier/us/responsibilities');
       await tester.scrollUntilVisible(
         find.byKey(const Key('space-us-entry-resources')),
         250,
@@ -160,13 +159,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('space-us-entry-trust')));
       expect(routes.last, '/space/atelier/us/trust');
-      await tester.scrollUntilVisible(
-        find.text('Modifier les informations collectives'),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Modifier les informations collectives'));
+      await tester.ensureVisible(find.byKey(const Key('space-us-edit-passport')));
+      await tester.tap(find.byKey(const Key('space-us-edit-passport')));
       expect(routes.last, '/space/atelier/us/settings');
       await tester.scrollUntilVisible(
         find.text('Comprendre notre activité'),
@@ -211,8 +205,8 @@ void main() {
         findsOneWidget,
       );
 
-      final first = find.byKey(const Key('space-us-grid-responsibilities'));
-      final second = find.byKey(const Key('space-us-grid-relationships'));
+      final first = find.byKey(const Key('space-us-grid-resources'));
+      final second = find.byKey(const Key('space-us-grid-ownership'));
       expect(first, findsOneWidget);
       expect(second, findsOneWidget);
       await tester.ensureVisible(first);
@@ -225,7 +219,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       await tester.tap(second);
-      expect(routes.last, '/space/atelier/us/relationships');
+      expect(routes.last, '/space/atelier/us/ownership');
     });
   }
 
@@ -283,7 +277,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final settings = find.byKey(const Key('space-us-manage-settings'));
+    final settings = find.byKey(const Key('space-us-edit-passport'));
     await tester.scrollUntilVisible(
       settings,
       250,
@@ -566,7 +560,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('AM'), findsOneWidget);
     expect(find.text('Partenaires'), findsNothing);
-    expect(find.text('Nos relations'), findsOneWidget);
+    expect(find.text('Nos relations'), findsNothing);
   });
 
   testWidgets('Nous presents institutional documents without private data', (
