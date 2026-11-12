@@ -112,6 +112,34 @@ class D5CrossContextClosureTests(TestCase):
     def project_url(self, project):
         return reverse("objectives_api:project-detail", args=[project.pk])
 
+    def test_people_preview_only_contains_visible_profiles_and_deduplicates(self):
+        # The member is an Assignment holder and a Dossier mandate holder;
+        # without authority to manage mandates, only their own Assignment
+        # must be disclosed in the compact summary.
+        url = self.dossier_url(self.dossier_a) + self.scope(self.space_a)
+        self.client.force_authenticate(user=self.member)
+        own = self.client.get(url)
+        self.assertEqual(own.status_code, 200, own.data)
+        people = own.data["data"]["people_preview"]
+        self.assertEqual(people["remaining"], 0)
+        self.assertEqual(
+            [entry["profile_id"] for entry in people["people"]],
+            [str(self.member.pk)],
+        )
+        self.assertEqual(own.data["data"]["mandates"], [])
+
+        # The owner sees both Assignment and Mandate facts for the member,
+        # but the preview must show that human Profile only once.
+        self.client.force_authenticate(user=self.owner)
+        manager = self.client.get(url)
+        self.assertEqual(manager.status_code, 200, manager.data)
+        preview = manager.data["data"]["people_preview"]
+        ids = [entry["profile_id"] for entry in preview["people"]]
+        self.assertEqual(ids.count(str(self.member.pk)), 1)
+        self.assertEqual(preview["remaining"], 0)
+        self.assertTrue(manager.data["data"]["mandates"])
+        self.assertTrue(manager.data["data"]["assignments"])
+
     def test_move_preserves_dossier_and_shared_journey_identities(self):
         a = self.client.get(self.dossier_url(self.dossier_a) + self.scope(self.space_a))
         b = self.client.get(self.dossier_url(self.dossier_b) + self.scope(self.space_b))
