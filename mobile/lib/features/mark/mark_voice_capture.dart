@@ -220,7 +220,12 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
   @override
   void dispose() {
     _ticker?.cancel();
-    unawaited(_recorder.cancel().catchError((Object _) {}).then((_) => _recorder.dispose()));
+    unawaited(
+      _recorder
+          .cancel()
+          .catchError((Object _) {})
+          .then((_) => _recorder.dispose()),
+    );
     unawaited(_player.dispose());
     unawaited(_removeTemporaryFile());
     final staged = _staged;
@@ -232,7 +237,8 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
 
   @override
   Widget build(BuildContext context) {
-    final time = '${(_seconds ~/ 60).toString().padLeft(2, '0')}:'
+    final time =
+        '${(_seconds ~/ 60).toString().padLeft(2, '0')}:'
         '${(_seconds % 60).toString().padLeft(2, '0')}';
     return Card(
       child: Padding(
@@ -240,7 +246,10 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Enregistrement audio', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Enregistrement audio',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             const Text(
               'Cet audio reste sur cet appareil. Il ne sera ni transcrit '
@@ -252,7 +261,10 @@ class _MarkVoiceCaptureState extends State<MarkVoiceCapture> {
             ],
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
             const SizedBox(height: 12),
             Wrap(
