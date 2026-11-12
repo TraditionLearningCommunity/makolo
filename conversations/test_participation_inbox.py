@@ -103,7 +103,7 @@ class ParticipationInboxTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Invitations envoyées")
         self.assertContains(page, "Demandes à examiner")
-        self.assertContains(page, "Annuler l&#x27;invitation", html=False)
+        self.assertContains(page, "Annuler l\'invitation")
         self.client.force_login(self.unrelated)
         outsider = self.client.get(reverse("conversations:list"))
         self.assertNotContains(outsider, self.member.username)
