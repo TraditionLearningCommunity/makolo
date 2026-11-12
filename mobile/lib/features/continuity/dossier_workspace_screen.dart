@@ -2030,8 +2030,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
       (required.dy + dependent.dy + 76) / 2,
     );
     return Positioned(
-      left: mid.dx - 12,
-      top: mid.dy - 12,
+      left: mid.dx - 24,
+      top: mid.dy - 24,
       child: Tooltip(
         message: 'Voir le prérequis',
         child: Semantics(
@@ -2040,9 +2040,11 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
           child: InkWell(
             onTap: () => _explainDependency(dependency, byId),
             child: const SizedBox(
-              width: 26,
-              height: 26,
-              child: Icon(Icons.info_outline_rounded, size: 17),
+              width: 48,
+              height: 48,
+              child: Center(
+                child: Icon(Icons.info_outline_rounded, size: 18),
+              ),
             ),
           ),
         ),
