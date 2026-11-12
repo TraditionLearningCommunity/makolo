@@ -289,7 +289,8 @@ void main() {
     final unknown = SpaceActorIdentity(id: 'unknown', slug: 'unknown');
     expect(await repository.hasAcquiredSpaceContext(space), isFalse);
     await repository.refreshInventory();
-    expect(await repository.hasAcquiredSpaceContext(space), isFalse);
+    // Inventory-known Spaces may open before the first workspace fetch.
+    expect(await repository.hasAcquiredSpaceContext(space), isTrue);
     await repository.refreshWorkspace(space);
     expect(await repository.hasAcquiredSpaceContext(space), isTrue);
     expect(await repository.hasAcquiredSpaceContext(unknown), isFalse);
@@ -1041,6 +1042,56 @@ void main() {
       expect(posted, isTrue);
       expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
       expect(harness.actorContext.value, const PersonalActorContext());
+    },
+  );
+
+  testWidgets(
+    'actor picker opens an inventory-known Space without first workspace data',
+    (tester) async {
+      var offline = false;
+      var requests = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          requests++;
+          if (offline) throw const SocketException('offline');
+          if (request.url.path.endsWith('/space-x/')) {
+            fail('Workspace must not be a prerequisite to choose the context');
+          }
+          return MockResponse(jsonEncode([_inventoryRow()]), 200);
+        },
+      );
+      addTearDown(harness.close);
+      final space = SpaceActorIdentity(id: 'space-x', slug: 'space-x');
+      await harness.repository.refreshInventory();
+      offline = true;
+      final beforeSelection = requests;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloActorPicker(context, runtime: runtime),
+                child: const Text('Choisir un contexte'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Choisir un contexte'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Space X'));
+      await tester.pumpAndSettle();
+      expect(harness.actorContext.value, SpaceActorContext(space: space));
+      expect(requests, beforeSelection);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 
