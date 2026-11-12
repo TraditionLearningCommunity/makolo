@@ -1500,7 +1500,8 @@ class _MarkResultView extends StatelessWidget {
                             ),
                     ),
               if (result.needsInput &&
-                  question?['code'] == 'team_member_identity_and_responsibility')
+                  (question?['code'] == 'team_member_identity_and_responsibility' ||
+                      question?['code'] == 'team_member_details_invalid'))
                 MarkTeamMemberClarification(onSubmit: onTeamMember),
               if (result.needsInput)
                 Padding(
