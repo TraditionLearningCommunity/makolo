@@ -224,7 +224,9 @@ class _ConversationAttachmentViewerState
         );
       }
     } finally {
-      if (file != _file && await file.exists()) await file.delete();
+      if (file != null && file != _file && await file.exists()) {
+        await file.delete();
+      }
       if (mounted) setState(() => _exporting = false);
     }
   }
