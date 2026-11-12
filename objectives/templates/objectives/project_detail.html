@@ -83,32 +83,62 @@
     </div>
   </section>
   {% endif %}
-  <a class="mk-project__people-preview" href="#project-people-details"
-     aria-label="Voir les personnes et les accès du Projet">
-    <span class="mk-project__people-preview-heading">
+  <section class="mk-project__people-preview" aria-label="Personnes et accès">
+    <div class="mk-project__people-preview-heading">
       <i data-lucide="users" aria-hidden="true"></i>
       <strong>Personnes et accès</strong>
-      <span>Voir</span><i data-lucide="chevron-right" aria-hidden="true"></i>
-    </span>
-    <span class="mk-project__avatar-row">
+      <button class="mk-project__people-open" type="button"
+              data-dialog-open="project-people" aria-label="Voir les personnes et accès du Projet">
+        Voir <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="mk-project__avatar-row">
       {% if workspace.owner.kind == "space" %}
         <span class="mk-project__avatar mk-project__avatar--space"
-              title="{{ workspace.owner.label }}" aria-label="Porteur : {{ workspace.owner.label }}">
+              title="Porteur : {{ workspace.owner.label }}">
           <i data-lucide="building-2" aria-hidden="true"></i>
         </span>
       {% elif workspace.owner.holder %}
-        <span class="mk-project__avatar" title="{{ workspace.owner.holder }}"
-              aria-label="Porteur : {{ workspace.owner.holder }}"><i data-lucide="user-round" aria-hidden="true"></i></span>
-      {% endif %}
-      {% for member in workspace.collaboration.members|slice:":4" %}
-        <span class="mk-project__avatar" title="{{ member.label }}"
-              aria-label="{{ member.label }} · {{ member.role }}">
+        {% if workspace.owner.profile_url %}
+        <a class="mk-project__avatar" href="{{ workspace.owner.profile_url }}"
+           title="Voir {{ workspace.owner.holder }}">
+          {% if workspace.owner.avatar_url %}
+            <img src="{{ workspace.owner.avatar_url }}" alt="{{ workspace.owner.holder }}" loading="lazy">
+          {% else %}
+            <i data-lucide="user-round" aria-hidden="true"></i>
+          {% endif %}
+        </a>
+        {% else %}
+        <span class="mk-project__avatar" title="{{ workspace.owner.holder }}">
           <i data-lucide="user-round" aria-hidden="true"></i>
         </span>
+        {% endif %}
+      {% endif %}
+      {% for member in workspace.collaboration.members|slice:":4" %}
+        {% if member.profile_id != workspace.owner.id %}
+          {% if member.profile_url %}
+          <a class="mk-project__avatar" href="{{ member.profile_url }}"
+             title="Voir {{ member.label }}">
+            {% if member.avatar_url %}
+              <img src="{{ member.avatar_url }}" alt="{{ member.label }}" loading="lazy">
+            {% else %}
+              <i data-lucide="user-round" aria-hidden="true"></i>
+            {% endif %}
+          </a>
+          {% else %}
+          <span class="mk-project__avatar" title="{{ member.label }}">
+            <i data-lucide="user-round" aria-hidden="true"></i>
+          </span>
+          {% endif %}
+        {% endif %}
       {% endfor %}
-      <span class="mk-project__avatar mk-project__avatar--more" aria-hidden="true"><i data-lucide="plus"></i></span>
-    </span>
-  </a>
+      <button class="mk-project__avatar mk-project__avatar--more"
+              type="button" data-dialog-open="project-people"
+              aria-label="Voir toutes les personnes et accès">
+        <i data-lucide="plus" aria-hidden="true"></i>
+      </button>
+    </div>
+  </section>
   <section class="mk-project__presentation">
     <div data-project-content aria-live="polite">
       <h2>Dossiers visibles</h2>
@@ -125,8 +155,8 @@
     </div>
   </section>
 
-  <section class="mk-project__people" id="project-people-details"
-           aria-label="Personnes et accès du Projet">
+  <dialog id="project-people" class="mk-project__dialog mk-project__people-dialog" aria-label="Personnes et accès du Projet">
+  <section class="mk-project__people">
     <h2>Personnes et accès</h2>
     <div class="mk-project__person">
       <div>
@@ -135,9 +165,6 @@
       </div>
     </div>
     <div class="mk-project__people-heading">
-      <div>
-        <h2>Personnes et responsabilités</h2>
-      </div>
       {% if access_form %}
       <button class="mk-action-button" data-variant="secondary" type="button"
               data-dialog-open="project-authority">
@@ -145,15 +172,28 @@
       </button>
       {% endif %}
     </div>
+    {% if workspace.collaboration.members %}<h3>Accès délégués</h3>{% endif %}
     {% for member in workspace.collaboration.members %}
       <div class="mk-project__person">
         <div>
-          <strong>{{ member.label }}</strong>
+          {% if member.profile_url %}<a href="{{ member.profile_url }}"><strong>{{ member.label }}</strong></a>{% else %}<strong>{{ member.label }}</strong>{% endif %}
           <small>Accès Projet · {{ member.role }}</small>
         </div>
         {% if access_form and "revoke" in member.capabilities %}
         <details>
-          <summary>Retirer l’accès</summary>
+          <summary>Gérer l’accès</summary>
+          <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="replace">
+            <input type="hidden" name="mandate_id" value="{{ member.id }}">
+            <label for="project-role-{{ member.id }}">Rôle</label>
+            <select id="project-role-{{ member.id }}" name="role_code" required>
+              {% for role in workspace.collaboration.roles %}
+                <option value="{{ role.code }}"{% if role.code == member.role_code %} selected{% endif %}>{{ role.label }}</option>
+              {% endfor %}
+            </select>
+            <button class="mk-action-button" data-variant="secondary" type="submit">Changer le rôle</button>
+          </form>
           <form method="post" action="{% url 'objectives:project-authority' project.pk %}{{ scope_query }}">
             {% csrf_token %}
             <input type="hidden" name="action" value="revoke">
@@ -171,7 +211,7 @@
     {% for contributor in workspace.collaboration.contributors %}
       <div class="mk-project__person">
         <div>
-          <strong>{{ contributor.label }}</strong>
+          {% if contributor.profile_url %}<a href="{{ contributor.profile_url }}"><strong>{{ contributor.label }}</strong></a>{% else %}<strong>{{ contributor.label }}</strong>{% endif %}
           <small>Coordination de {{ contributor.dossier_ids|length }} Dossier(s) visible(s)</small>
         </div>
       </div>
@@ -180,6 +220,11 @@
       <p class="mk-project__hint">Interventions visibles uniquement.</p>
     {% endif %}
   </section>
+  <div class="mk-project__people-close">
+    <button type="button" class="mk-action-button" data-variant="secondary"
+            data-dialog-close>Fermer</button>
+  </div>
+  </dialog>
 
   {% if access_form %}
   <dialog id="project-authority" class="mk-project__dialog">
