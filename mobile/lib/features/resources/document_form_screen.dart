@@ -175,7 +175,8 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
       }
       final suffix = p.extension(source.path).toLowerCase();
       final candidate = p.basename(widget.markFileName ?? '');
-      final filename = p.extension(candidate).toLowerCase() == suffix &&
+      final filename =
+          p.extension(candidate).toLowerCase() == suffix &&
               _contentType(candidate) != null
           ? candidate
           : 'Document$suffix';
@@ -210,9 +211,11 @@ class _DocumentFormScreenState extends State<DocumentFormScreen> {
       });
     } on Object {
       if (mounted) {
-        setState(() => _prefillError =
-            'Cette pièce n’est pas accessible depuis Mes documents. '
-            'Vous pouvez choisir un autre fichier.');
+        setState(
+          () => _prefillError =
+              'Cette pièce n’est pas accessible depuis Mes documents. '
+              'Vous pouvez choisir un autre fichier.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingMarkFile = false);

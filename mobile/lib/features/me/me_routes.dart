@@ -430,7 +430,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                     final markFile = state.uri.queryParameters['mark_file'];
                     return DocumentFormScreen.create(
                       repository: repository,
-                      markFileId: markFile != null &&
+                      markFileId:
+                          markFile != null &&
                               markFile.isNotEmpty &&
                               markFile.length <= 160
                           ? markFile
