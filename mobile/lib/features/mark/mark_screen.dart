@@ -427,7 +427,9 @@ class _MarkScreenState extends State<MarkScreen> {
             context: context,
             builder: (dialogContext) => AlertDialog(
               title: const Text('Enregistrement audio'),
-              content: const Text('Écoutez votre fichier enregistré sur cet appareil.'),
+              content: const Text(
+                'Écoutez votre fichier enregistré sur cet appareil.',
+              ),
               actions: [
                 TextButton(
                   onPressed: () => unawaited(player.play()),
@@ -790,8 +792,8 @@ class _MarkScreenState extends State<MarkScreen> {
                                 item['kind'] == 'audio'
                                     ? Icons.mic_none
                                     : item['kind'] == 'photo'
-                                        ? Icons.image_outlined
-                                        : Icons.attach_file,
+                                    ? Icons.image_outlined
+                                    : Icons.attach_file,
                                 size: 18,
                               ),
                               label: Text(item['name']?.toString() ?? 'Pièce'),
