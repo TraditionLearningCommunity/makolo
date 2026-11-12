@@ -8,6 +8,8 @@ from django.http import HttpResponseBadRequest
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 from core.mark_orchestration import MARK_TEXT_MAX_LENGTH, mark_web_url, orchestrate_mark
 from core.web.fragments import FragmentTemplateMixin
@@ -406,6 +408,7 @@ class MatureParticipantConsiderationsView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@method_decorator(never_cache, name="dispatch")
 class MakoloMarkView(LoginRequiredMixin, TemplateView):
     template_name = "core/makolo_mark.html"
     login_url = "core:login"
