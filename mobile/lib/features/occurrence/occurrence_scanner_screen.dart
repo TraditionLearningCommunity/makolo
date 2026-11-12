@@ -129,7 +129,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool resumeAfterReview = false}) async {
     if (!_actorValid || _checking) return;
     final epoch = ++_epoch;
     setState(() {
@@ -162,7 +162,12 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
       if (!mounted || epoch != _epoch || !_actorValid) return;
       setState(() {
         _context = data;
-        _needsReview = false;
+        // A fresh mandate check is not evidence of an earlier scan result.
+        // Only explicit operator acknowledgement can release this hold.
+        if (resumeAfterReview) {
+          _needsReview = false;
+          _result = null;
+        }
       });
     } on Object catch (error) {
       if (!mounted || epoch != _epoch) return;
@@ -177,7 +182,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     }
   }
 
-  Future<void> _offerToken(String raw) async {
+  Future<void> _offerToken(String raw, {bool fromCamera = false}) async {
     final token = raw.trim();
     if (token.isEmpty ||
         token.length > 1024 ||
@@ -191,9 +196,15 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     }
     final revision = _epoch;
     setState(() {
-      _confirming = true;
+      _confirming = !fromCamera;
       _camera = false;
     });
+    // Starting the camera is the deliberate scan gesture. Avoid one modal
+    // per attendee; manual entry still requires explicit confirmation.
+    if (fromCamera) {
+      await _submit(token);
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -261,13 +272,19 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
     } on Object catch (error) {
       if (!mounted || _epoch != currentEpoch) return;
       setState(() {
-        _needsReview = true;
+        // A client-side validation refusal is known; a lost response is not.
+        final invalidRequest =
+            error is MakoloApiError &&
+            const {400, 422}.contains(error.statusCode);
+        _needsReview = !invalidRequest;
         _result = {
           'accepted': false,
           'message':
               error is MakoloApiError &&
                   const {401, 403, 404}.contains(error.statusCode)
               ? 'Votre autorisation de contrôle doit être revérifiée.'
+              : invalidRequest
+              ? 'Code refusé. Corrigez la saisie avant un nouveau contrôle.'
               : 'Contrôle non confirmé. Vérifiez la connexion avant un nouvel essai.',
         };
         if (error is MakoloApiError &&
@@ -368,7 +385,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                     child: MakoloCodeScanner(
                       onCode: (code) {
                         if (_camera && !_busy && !_needsReview) {
-                          unawaited(_offerToken(code.value));
+                          unawaited(_offerToken(code.value, fromCamera: true));
                         }
                       },
                     ),
@@ -393,7 +410,7 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                   onPressed: _busy || _checking || _confirming || _needsReview
                       ? null
                       : () => _offerToken(_code.text),
-                  label: 'Vérifier ce code',
+                  label: 'Contrôler ce code',
                   icon: Icons.verified_outlined,
                   phase: _busy || _confirming
                       ? MakoloActionPhase.processing
@@ -407,12 +424,15 @@ class _OccurrenceScannerScreenState extends State<OccurrenceScannerScreen>
                   const SizedBox(height: 8),
                   const Text(
                     'Résultat non confirmé. Consultez les contrôles existants '
-                    'et revérifiez l’autorisation avant un nouveau scan.',
+                    'avant de reprendre. Un nouveau scan n’est pas un moyen '
+                    'de confirmer la tentative précédente.',
                   ),
                   MakoloActionButton(
-                    label: 'Revérifier le contexte',
+                    label: 'Contrôle précédent vérifié : reprendre',
                     icon: Icons.refresh_rounded,
-                    onPressed: _checking || _busy ? null : _load,
+                    onPressed: _checking || _busy
+                        ? null
+                        : () => _load(resumeAfterReview: true),
                   ),
                 ],
                 const SizedBox(height: 16),
