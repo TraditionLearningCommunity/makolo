@@ -31,9 +31,7 @@
           </label>
         </div>
         <p class="text-xs" style="color:var(--mk-muted)">
-          Les suggestions peuvent afficher un prénom et un nom, mais
-          l'invitation vise toujours l'identifiant exact. Les Profils privés
-          ne sont pas publiquement suggérés.
+          Choisissez l'identifiant exact de votre destinataire.
         </p>
         <div data-identity-suggestions class="space-y-2" aria-live="polite"
              role="listbox" aria-label="Suggestions d'identifiants"></div>
@@ -45,7 +43,7 @@
   {% endif %}
 
   <section class="mk-panel p-5" aria-labelledby="participants-heading">
-    <h2 id="participants-heading" class="text-lg font-bold">Participations explicites</h2>
+    <h2 id="participants-heading" class="text-lg font-bold">Participants ajoutés</h2>
     {% if members.scope == 'restricted' %}
       <p class="mt-4 text-sm" style="color:var(--mk-muted)">
         La liste des autres participants est réservée aux responsables.
@@ -69,13 +67,13 @@
             {% endif %}
           </div>
         {% empty %}
-          <p class="py-3 text-sm" style="color:var(--mk-muted)">Aucune participation explicite.</p>
+          <p class="py-3 text-sm" style="color:var(--mk-muted)">Aucun participant ajouté.</p>
         {% endfor %}
       </div>
       {% if members.derived %}
         <p class="mt-4 text-sm">Accès dérivé du Groupe
           <strong>{{ members.derived.label }}</strong>
-          ({{ members.derived.identifier }}) : il n'ajoute pas de participants explicites.
+          ({{ members.derived.identifier }}).
         </p>
       {% endif %}
     {% endif %}
