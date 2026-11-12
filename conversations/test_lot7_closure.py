@@ -35,6 +35,7 @@ from .core_models import (
 )
 from .participant_services import (
     answer_collective_invitation, invite_identifier, revoke_collective_access,
+    collective_invitation_accept_allowed,
 )
 from .point_interactions import point_interactions_for_profile
 from .point_models import ConversationPointKind, ConversationPointResponseMode
@@ -305,6 +306,38 @@ class Lot7CollectiveConsentTests(TestCase):
             owner_profile=self.representative,
             discoverability=GroupDiscoverability.LISTED,
         )
+
+    def test_collective_invitation_refuses_revoked_sender_authority(self):
+        kind, link = invite_identifier(
+            actor=self.manager, conversation=self.conversation,
+            kind="group", identifier=self.group.slug,
+        )
+        self.assertEqual(kind, "group")
+        self.assertTrue(collective_invitation_accept_allowed(
+            self.representative, link,
+        ))
+        self.manager.is_active = False
+        self.manager.save(update_fields=["is_active"])
+        link.refresh_from_db()
+        self.assertFalse(collective_invitation_accept_allowed(
+            self.representative, link,
+        ))
+        self.client.force_login(self.representative)
+        inbox = self.client.get(reverse("conversations-api:invitation-list"))
+        self.assertEqual(inbox.status_code, 200)
+        pending = inbox.json()["collective_results"]
+        self.assertEqual(len(pending), 1)
+        self.assertFalse(pending[0]["can_accept"])
+        with self.assertRaises(ValidationError):
+            answer_collective_invitation(
+                actor=self.representative, access=link, accept=True,
+            )
+        link.refresh_from_db()
+        self.assertEqual(link.status, "pending")
+        declined = answer_collective_invitation(
+            actor=self.representative, access=link, accept=False,
+        )
+        self.assertEqual(declined.status, "declined")
 
     def test_collective_requires_acceptance_and_membership_is_dynamic(self):
         old_point = create_point(
