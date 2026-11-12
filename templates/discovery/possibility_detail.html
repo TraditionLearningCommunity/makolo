@@ -60,7 +60,7 @@
     {% endif %}
 
     {% if n2.assessment.favorable or n2.assessment.limiting or n2.assessment.unknown %}
-    <section aria-label="Connaissance de cette possibilité" class="space-y-3">
+    <section aria-label="Conditions de cette opportunité" class="space-y-3">
       <h2 class="text-lg font-bold">À savoir</h2>
       {% if n2.assessment.favorable %}
       <div><h3 class="font-semibold">Ce qui facilite</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.favorable %}<li>{{ label }}</li>{% endfor %}</ul></div>
@@ -75,7 +75,7 @@
     {% endif %}
 
     {% if n2.variants %}
-    <section aria-label="Variantes de cette possibilité" class="space-y-3">
+    <section aria-label="Variantes de cette opportunité" class="space-y-3">
       <h2 class="text-lg font-bold">Réalisations proposées</h2>
       <div class="grid gap-3 sm:grid-cols-2">
         {% for variant in n2.variants %}
