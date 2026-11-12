@@ -10,12 +10,17 @@
     {% if service_context.opportunity_revision_id %}
     <div class="mt-4 rounded-xl border p-4" style="border-color:var(--mk-border)">
       <p class="text-xs font-semibold" style="color:var(--mk-muted)">Opportunité concernée</p>
+      {% if service_context.opportunity.publication_status == 'published' %}
       <a class="mt-1 block font-bold" href="{% url 'opportunities:detail' service_context.opportunity_id %}">{{ service_context.opportunity_revision.title }}</a>
+      {% else %}
+      <p class="mt-1 font-bold">{{ service_context.opportunity_revision.title }}</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">L’opportunité n’est plus publiée. Votre demande conserve sa référence.</p>
+      {% endif %}
       {% if service_context.opportunity_revision.issuer_name %}
       <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ service_context.opportunity_revision.issuer_name }}</p>
       {% endif %}
       {% if service_context.opportunity.current_revision_id != service_context.opportunity_revision_id %}
-      <p class="mt-3 text-sm" style="color:var(--mk-muted)">L'opportunité a été mise à jour. Votre demande conserve la version choisie tant que vous ne décidez pas de la modifier.</p>
+      <p class="mt-3 text-sm" style="color:var(--mk-muted)">L’opportunité a été mise à jour. Votre demande conserve la version enregistrée lors de son démarrage.</p>
       {% endif %}
     </div>
     {% endif %}
@@ -52,7 +57,6 @@
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="service-documents-title" class="text-lg font-extrabold">Pièces de ma demande</h2>
       <div class="flex flex-wrap gap-2">
-        <a class="mk-action-button" data-variant="secondary" href="{% url 'personal_assets:use-in-journey' journey.pk %}">Ma Bibliothèque</a>
         <a class="mk-action-button" data-variant="secondary" href="{% url 'sharing:inbound-create' %}?journey={{ journey.pk }}">Importer</a>
         <a class="mk-action-button" data-variant="primary" href="{% url 'services:participant-artifact-upload' journey.pk %}">Ajouter une pièce</a>
       </div>
