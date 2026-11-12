@@ -739,6 +739,11 @@ class _JourneyContent extends StatelessWidget {
       );
     }
     if (presentation.dayOfLink == link) {
+      final facts = presentation.practical;
+      if (JourneyDayPresentation.dayOffset(
+        facts?.startDate, DateTime.now(),
+        timezoneName: facts?.timezone,
+      ) != 0) return null;
       return MakoloActionButton(
         appearance: appearance,
         label: label,
@@ -1306,7 +1311,11 @@ class _JourneyPreparation extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final form in presentation.forms) ...[
-            _FormCard(form: form, onOpen: onOpenForm),
+            _FormCard(
+              form: form,
+              onOpen: onOpenForm,
+              isTerminal: presentation.isTerminal,
+            ),
             const Divider(height: 8),
           ],
           for (final requirement in presentation.requirements) ...[
@@ -1670,14 +1679,19 @@ class _JourneyPaymentCard extends StatelessWidget {
 }
 
 class _FormCard extends StatelessWidget {
-  const _FormCard({required this.form, required this.onOpen});
+  const _FormCard({
+    required this.form,
+    required this.onOpen,
+    this.isTerminal = false,
+  });
 
   final JourneyFormSummary form;
   final void Function(JourneyFormSummary form) onOpen;
+  final bool isTerminal;
 
   @override
   Widget build(BuildContext context) {
-    final label = form.canComplete
+    final label = isTerminal ? 'Consulter' : form.canComplete
         ? 'À compléter'
         : MakoloHumanization.presentationLabel(form.state);
     final deadline = form.dueAt == null
