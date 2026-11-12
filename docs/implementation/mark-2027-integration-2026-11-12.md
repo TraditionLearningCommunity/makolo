@@ -18,14 +18,16 @@ Le runtime fait foi ; la présence d'une capacité dans l'architecture général
 | Orchestration déterministe personnelle | Existante, réutilisée | `core/mark_orchestration.py` |
 | Orchestration Space | Existante, réutilisée | `organizations/api/space_mark_projection.py` |
 | Entrée serveur Mark | Texte uniquement | Les deux APIs annoncent `accepted_input_kinds=["text"]` |
-| Texte Flutter, brouillon par acteur | Existant, conservé | `mark_repository.dart`, `DraftRepository` |
+| Texte Flutter, brouillon par acteur | Existant, sérialisation des autosaves ajoutée | `mark_repository.dart`, `DraftRepository` |
 | Clarifications Flutter | Options réellement sélectionnables pour les types autorisés | `mark_navigation.dart`, `mark_screen.dart` ; nouveau passage par l'orchestrateur propriétaire |
 | Handoffs Flutter | Routes explicitement connues, pas de navigation vers des URLs API | `mark_navigation.dart` ; certains owners restent sans route native vérifiée |
 | Confirmation Recognition Flutter | Confirmation owner-backed et clé d'idempotence locale | `mark_repository.dart`, `mark_screen.dart` ; jamais de retry aveugle en résultat ambigu |
-| Photo, image, documents | Acquisition locale déjà existante, retrait et aperçu photo ajoutés | `ProfileFileStore`, `NativeFileAcquisitionCoordinator` ; aucun transfert Mark prétendu |
-| Audio | Capture Android locale, pause/reprise/arrêt, écoute et interruption | `record`, `just_audio`, permissions natives existantes ; **pas de transcription** |
-| Liens | Collage contrôlé HTTP(S), retrait, brouillon local | Aucune exploration arbitraire, aucun enrichissement serveur prétendu |
+| Photo, image, documents | Acquisition et aperçu local ; remise explicite vers le formulaire propriétaire PersonalAsset pour les formats admissibles | `ProfileFileStore`, `DocumentFormScreen.create`, `ResourceRepository.createDocument` ; pas de transfert générique Mark |
+| Audio | Enregistrement local, pause/reprise/arrêt/écoute ; dictée native conditionnelle Android, texte éditable | `record`, `just_audio`, Android `SpeechRecognizer`, sans garantie offline ou langue |
+| Liens | Collage contrôlé HTTP(S), retrait, brouillon local ; partage Android entrants | Aucune exploration arbitraire, aucun enrichissement serveur prétendu |
 | Web personnel | Choix de clarification et confirmation Recognition par formulaires POST/CSRF | `core/mature_experience_views.py`, `templates/core/makolo_mark.html` |
+| Space Flutter | Clarification de l'identité/du rôle d'un membre d'équipe, confirmation par owner | `organizations/api/space_mark_projection.py`, `mark_team_member_clarification.dart` ; autorité serveur inchangée |
+| Partage système Android | Texte, URL, fichiers routés vers Mark et copiés localement par Profile | `MainActivity.kt`, `system_share_receiver.dart`, `runtime_ingress_listener.dart`, `SharedPayloadCoordinator` ; entrée native conditionnelle |
 | Retour après handoff | Retour natif via navigation existante | Restauration exhaustive du contexte de retour non certifiée |
 | Profil et Space | Stockages et routes distincts | Changer de contexte ne confère aucun Mandate/Permission |
 | LLM | Non requis | Aucun service IA ajouté |
@@ -34,11 +36,11 @@ Le runtime fait foi ; la présence d'une capacité dans l'architecture général
 
 Une photo, un document, un audio ou une URL conservés dans le brouillon ne sont **pas** transmis par `POST /api/v1/me/mark/` ou le Mark Space. Le repository refuse de les présenter comme une soumission multimodale. Lorsque du texte les accompagne, une confirmation explicite permet de traiter **le texte seul** ; les supports restent locaux. Une réponse `completed` pour ce texte ne supprime pas les supports non envoyés.
 
-La proposition multimodale de bout en bout n'est donc **pas déclarée mature**. Le futur raccordement devra cibler des propriétaires précis et leur contrat de transfert, d'exploitation, d'autorisation et de confirmation, sans introduire une table `MarkIntent` ou une `Proof` parallèle.
+La proposition multimodale générique de bout en bout n'est donc **pas déclarée mature**. Une remise propriétaire précise existe désormais pour un document personnel : Mark ouvre la création dans Mes documents avec une copie locale séparée, puis le service PersonalAsset accepte ou refuse effectivement l'envoi. Il n'existe toujours pas d'endpoint Mark universel de fichiers, ni de `MarkIntent` ou de `Proof` parallèle.
 
 ### Voix : garantie réelle
 
-Le dépôt contient déjà `record`, `just_audio`, la permission de microphone et le manifeste Android avec `RECORD_AUDIO`. Le nouveau parcours utilise ces dépendances déjà déclarées pour produire une pièce audio locale, plutôt qu'un microphone décoratif. La durée est bornée à 120 secondes. L'enregistrement interrompu est mis en pause lorsque cela fonctionne ; le stockage reste attaché au Profil. La dictée et sa couverture linguistique ne sont pas annoncées, car aucun moteur de transcription utilisable par Mark n'a été constaté.
+Le dépôt contient déjà `record`, `just_audio`, la permission microphone et Android `RECORD_AUDIO`. L'enregistrement produit une pièce audio locale bornée à 120 secondes. Une seconde voie facultative appelle le `SpeechRecognizer` du système Android s'il est installé et disponible : les résultats sont visibles, modifiables et ne rejoignent l'intention qu'après choix de l'utilisateur. Cette capacité peut dépendre de la langue, des services et du réseau du téléphone ; elle ne promet aucun fonctionnement offline ni transcription universelle. Sans cette capacité, l'audio local et le texte manuel restent disponibles. Aucun LLM n'est nécessaire.
 
 ## Fichiers modifiés / ajoutés
 
@@ -46,8 +48,13 @@ Le dépôt contient déjà `record`, `just_audio`, la permission de microphone e
 - `mobile/lib/features/mark/mark_repository.dart` : brouillons des références locales, confirmations et états de transport non confirmé.
 - `mobile/lib/features/mark/mark_screen.dart` : composer, clarifications, destination, contexte, pièces, photo, audio, URL, confirmations.
 - `mobile/lib/features/mark/mark_voice_capture.dart` : capture audio et lecture locales.
+- `mobile/lib/features/mark/mark_dictation_capture.dart` : dictée Android native conditionnelle, correction humaine.
+- `mobile/lib/features/mark/mark_team_member_clarification.dart` : clarification Space Team.
+- `mobile/lib/features/me/me_routes.dart` et `mobile/lib/features/resources/document_form_screen.dart` : passage du fichier Mark au formulaire PersonalAsset.
+- `mobile/lib/runtime/runtime_ingress.dart`, `mobile/lib/runtime/runtime_ingress_listener.dart`, `mobile/lib/platform/sharing/system_share_receiver.dart`, `mobile/android/app/src/main/kotlin/com/makolo/MainActivity.kt`, `mobile/android/app/src/main/AndroidManifest.xml` : réception native des partages et dictée.
 - `mobile/test/mark_navigation_test.dart` : routes et sélection sans autorité implicite.
-- `mobile/test/mark_mature_test.dart` : entrée native et statuts locaux honnêtes.
+- `mobile/test/mark_mature_test.dart` : entrée native, statuts locaux et ordre de sauvegarde.
+- `mobile/test/mark_share_ingress_test.dart`, `mobile/test/mark_dictation_capture_test.dart`, `mobile/test/mark_team_member_clarification_test.dart` : isolation du partage, indisponibilité native, détails Space.
 - `core/mature_experience_views.py` : continuité des options et confirmations Web, sans troncature silencieuse.
 - `templates/core/makolo_mark.html` : contrôles d'action Web accessibles.
 - `core/test_mature_personal_experience.py` : tests de contrat Web.
@@ -60,15 +67,18 @@ Le dépôt contient déjà `record`, `just_audio`, la permission de microphone e
 
 Les tests ajoutés restent **tests écrits, non exécutés**. Aucun succès compilateur ou validation native n'est revendiqué. Les CI ne sont pas utilisées comme critères de progression de cette passe. La PR demeure ouverte, sans fusion.
 
-## Écarts non clos
+## Écarts non clos au 12 novembre 2026
 
-1. Transfert propriétaire réellement confirmé des supports Mark et récupération après incident, avec destination et usage métiers explicites.
-2. Interprétation utile de supports lorsque des mécanismes concrets existent ; pas de faux OCR, transcription, vision ou LLM.
-3. Réception complète du partage système vers Mark et sélection d'objets contextuels multiples, selon le contrat natif.
-4. Dictée conditionnelle et langues réellement supportées : choix technologique encore à justifier par les appareils cibles.
-5. Couverture de tous les handoffs Space et personnels par routes natives existantes, sans URL API arbitraire.
-6. Reprise complète après crash/révocation/changement de compte, et nettoyage de fichiers avec tests exécutés.
-7. Aperçu PDF/document et validation propriétaire de type/taille, plus contrôles d'accessibilité et responsive sur appareils réels.
-8. Web multimodal réel, au-delà de la continuité textuelle corrigée ici.
+1. L'orchestration Mark serveur reste **texte uniquement** : les médias transmis aux propriétaires restent des actions distinctes ; aucune compréhension visuelle ou audio générique n'a été inventée.
+2. Une pièce audio peut être capturée localement ; aucun propriétaire canonique d'upload audio depuis Mark n'a été prouvé. Seule la dictée conditionnelle peut produire du texte exploitable.
+3. Le partage système est intégré pour Android ; aucune validation native ni prise en charge iOS/Web équivalente n'est revendiquée. La validation des permissions réelles et les récupérations après crash sont ouvertes.
+4. Les handoffs Personal/Space non couverts par une route Flutter vérifiée restent honnêtement indisponibles au lieu d'utiliser arbitrairement une URL API.
+5. Le parcours Web reste principalement textuel ; Mark Web n'a pas de capture ni de transfert multimodal direct validés.
+6. La revue visuelle Compact/Medium/Wide, la compilation Android, l'exécution des tests Django/Flutter, les golden tests et l'accessibilité instrumentée demeurent non exécutées.
+7. Les fichiers personnels sont remis au propriétaire avec choix utilisateur explicite : posséder un document ne confirme ni Proof, ni Requirement, ni Readiness.
 
-Aucun de ces points ne peut être déclaré fermé par la seule présence d'un bouton ou d'un modèle générique. Les propriétaires Django conservent la vérité et les décisions métier.
+### Conditions de clôture instrumentée distinctes
+
+Cette passe GitHub a modifié les sources et ajouté les tests, mais **aucun test ni build n'a été exécuté** dans ce mode de travail. L'état doit être considéré comme `SOURCE MODIFIÉE — NON VALIDÉE SUR APPAREIL` jusqu'aux contrôles locaux appropriés. Aucun workflow GitHub Actions n'a été lancé, annulé, désactivé ou modifié ici. Aucun merge n'a été effectué.
+
+**Frontière impérative :** les propriétaires Django conservent Permissions, Mandates, Access, Payment, Resource/Proof et les confirmations effectives. Les médias privés ne sont pas des vérités métier sous prétexte d'être joints à Mark.
