@@ -222,6 +222,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         _selectedOpportunity == null) {
       return;
     }
+    var requestDispatched = false;
     setState(() {
       _submitting = true;
       _error = null;
@@ -240,6 +241,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       }
       final api = widget.runtime.api;
       if (api == null) throw StateError('Session unavailable');
+      // A response can be lost after a successful owner mutation. Retry with
+      // the same key and payload as soon as transport dispatch begins.
+      requestDispatched = true;
       final response = await api.post(
         'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/',
         headers: {'Idempotency-Key': _operationKey},
@@ -302,10 +306,34 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       }
     } on Object {
       if (!mounted) return;
-      setState(() {
-        _error =
-            'Aucune confirmation reçue. Réessayez sans modifier la demande.';
-      });
+      if (!requestDispatched) {
+        // No API call started: a local save/session failure is not a Journey.
+        setState(() {
+          _attempted = false;
+          _error =
+              'La demande n’a pas été envoyée. Vérifiez votre session ou le stockage local.';
+        });
+        try {
+          await widget.runtime.interactions?.save(_interactionId, {
+            'idempotency_key': _operationKey,
+            'objective': _objective.text.trim(),
+            'opportunity': _selectedOpportunity,
+            'attempted': false,
+          });
+        } on Object {
+          if (mounted) {
+            setState(() {
+              _error =
+                  'La demande n’a pas été envoyée. Son brouillon local n’a pas pu être enregistré.';
+            });
+          }
+        }
+      } else {
+        setState(() {
+          _error =
+              'Aucune confirmation reçue. Réessayez sans modifier la demande.';
+        });
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
