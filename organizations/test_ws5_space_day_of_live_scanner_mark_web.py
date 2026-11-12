@@ -317,3 +317,57 @@ class WS5SpaceDayOfLiveScannerMarkWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Terminé")
         self.assertNotContains(response, "Consulter Makolo Live")
+
+    def test_space_mark_shared_desktop_preparation_and_privacy(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self._url("organizations:space-mark"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-mk-mark-root')
+        self.assertContains(response, 'data-mk-mark-window')
+        self.assertContains(response, 'data-mk-mark-restore')
+        self.assertContains(response, 'data-mk-mark-files')
+        self.assertContains(response, 'data-mk-mark-voice')
+        self.assertContains(response, 'data-mk-mark-link-input')
+        self.assertNotContains(response, 'name="attachments"')
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_space_mark_cancel_confirmation_does_not_execute_owner_mutation(self):
+        self.client.force_login(self.owner)
+        before = self.client.post(
+            self._url("organizations:space-mark"),
+            {
+                "value": "Ajoute un membre",
+                "team_member_email": self.operator.email,
+                "team_member_role": "finance",
+            },
+        )
+        self.assertEqual(before.context["mark_result"]["state"], "needs_confirmation")
+        self.assertContains(before, 'name="cancel_confirmation"')
+
+        cancelled = self.client.post(
+            self._url("organizations:space-mark"),
+            {
+                "value": "Ajoute un membre",
+                "team_member_email": self.operator.email,
+                "team_member_role": "finance",
+                "confirm_code": "add_team_member",
+                "confirm_email": self.operator.email,
+                "confirm_role": "finance",
+                "cancel_confirmation": "1",
+            },
+        )
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertNotIn("mark_result", cancelled.context)
+        self.assertContains(cancelled, "Ajoute un membre")
+
+    def test_space_mark_rejects_overlong_input_without_truncation(self):
+        self.client.force_login(self.owner)
+        message = "Organiser " * 85
+        response = self.client.post(
+            self._url("organizations:space-mark"), {"value": message},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response, "maximum 600 caractères", status_code=400,
+        )
+        self.assertContains(response, message, status_code=400)
