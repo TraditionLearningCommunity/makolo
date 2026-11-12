@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -472,6 +473,82 @@ class _MarkScreenState extends State<MarkScreen> {
     }
   }
 
+  Future<void> _saveToPersonalResources(Map<String, dynamic> item) async {
+    final actor = _actor;
+    final runtime = widget.runtime;
+    if (actor is! PersonalActorContext ||
+        _busy ||
+        _restoring ||
+        _voiceCapture ||
+        runtime.resources == null ||
+        runtime.session?.profileId != runtime.resources?.profileId) {
+      return;
+    }
+    final fileId = item['file_id']?.toString();
+    if (fileId == null || fileId.isEmpty) return;
+    final revision = _draftRevision;
+    try {
+      final coordinator = await _fileCoordinator();
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
+      final file = await coordinator?.store.read(fileId);
+      if (file == null ||
+          file.owner != 'profile' ||
+          file.purpose != 'mark_intake' ||
+          !await File(file.path).exists()) {
+        _show('Ce document local n’est plus accessible.');
+        return;
+      }
+      const supported = {'.pdf', '.docx', '.doc', '.txt', '.jpg', '.jpeg', '.png'};
+      final extension = p.extension(file.path).toLowerCase();
+      if (!supported.contains(extension)) {
+        _show('Ce format ne peut pas être conservé comme document.');
+        return;
+      }
+      final candidate = p.basename(item['name']?.toString() ?? '');
+      final fileName = p.extension(candidate).toLowerCase() == extension
+          ? candidate
+          : 'Document$extension';
+      final destination = Uri(
+        path: '/me/resources/documents/add',
+        queryParameters: {'mark_file': fileId, 'mark_name': fileName},
+      ).toString();
+      final savedId = await context.push<String>(destination);
+      if (!mounted ||
+          revision != _draftRevision ||
+          actor != _actor ||
+          !identical(runtime, widget.runtime) ||
+          savedId == null ||
+          savedId.trim().isEmpty) {
+        return;
+      }
+      setState(() {
+        _attachments = [
+          for (final attachment in _attachments)
+            if (attachment['file_id'] == fileId)
+              {...attachment, 'saved_asset_id': savedId}
+            else
+              attachment,
+        ];
+        _result = MarkResult(
+          state: 'completed',
+          message: 'Document confirmé dans Mes ressources.',
+          handoff: const {
+            'owner': 'personal_assets',
+            'surface': 'resource_detail',
+          },
+          raw: {
+            'result': {'kind': 'personal_asset', 'id': savedId},
+          },
+        );
+      });
+      await _saveDraft();
+    } on Object {
+      if (mounted && revision == _draftRevision) {
+        _show('La conservation du document n’a pas été confirmée.');
+      }
+    }
+  }
+
   Future<void> _removeAttachment(Map<String, dynamic> item) async {
     final revision = _draftRevision;
     final actor = _actor;
@@ -836,7 +913,7 @@ class _MarkScreenState extends State<MarkScreen> {
                                   : () => unawaited(_removeLink(link)),
                               deleteButtonTooltipMessage: 'Retirer ce lien',
                             ),
-                          for (final item in _attachments)
+                          for (final item in _attachments) ...[
                             InputChip(
                               avatar: Icon(
                                 item['kind'] == 'audio'
@@ -846,7 +923,10 @@ class _MarkScreenState extends State<MarkScreen> {
                                     : Icons.attach_file,
                                 size: 18,
                               ),
-                              label: Text(item['name']?.toString() ?? 'Pièce'),
+                              label: Text(
+                                '${item['name']?.toString() ?? 'Pièce'}'
+                                '${item['saved_asset_id'] != null ? ' ✓' : ''}',
+                              ),
                               onPressed: _busy
                                   ? null
                                   : () => unawaited(_previewAttachment(item)),
@@ -855,6 +935,20 @@ class _MarkScreenState extends State<MarkScreen> {
                                   : () => unawaited(_removeAttachment(item)),
                               deleteButtonTooltipMessage: 'Retirer cette pièce',
                             ),
+                            if (actor is PersonalActorContext &&
+                                widget.runtime.resources != null &&
+                                item['kind'] != 'audio' &&
+                                item['saved_asset_id'] == null)
+                              MakoloIconActionButton(
+                                icon: Icons.drive_file_move_outline,
+                                tooltip: 'Conserver dans Mes documents',
+                                onPressed: _busy || _restoring
+                                    ? null
+                                    : () => unawaited(
+                                          _saveToPersonalResources(item),
+                                        ),
+                              ),
+                          ],
                         ],
                       ),
                       if (_attachments.isNotEmpty || _links.isNotEmpty)
