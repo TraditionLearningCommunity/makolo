@@ -19,7 +19,9 @@ ServiceStartFailureKind classifyServiceStartFailure(Object error) {
     if (error.statusCode == 409) {
       return ServiceStartFailureKind.conflict;
     }
-    if (error.statusCode == 401 || error.statusCode == 403 || error.statusCode == 404) {
+    if (error.statusCode == 401 ||
+        error.statusCode == 403 ||
+        error.statusCode == 404) {
       return ServiceStartFailureKind.unavailable;
     }
   }
@@ -290,7 +292,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
           });
         case ServiceStartFailureKind.unavailable:
           setState(() {
-            _error = 'Ce Service n’est plus accessible avec votre compte actuel.';
+            _error =
+                'Ce Service n’est plus accessible avec votre compte actuel.';
           });
         case ServiceStartFailureKind.retryable:
           setState(() {
@@ -300,7 +303,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error = 'Aucune confirmation reçue. Réessayez sans modifier la demande.';
+        _error =
+            'Aucune confirmation reçue. Réessayez sans modifier la demande.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -362,7 +366,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 onSubmitted: (_) => _searchOpportunities(),
               ),
               DropdownButtonFormField<String>(
-                key: ValueKey('service-opportunity-${_selectedOpportunity ?? 'none'}'),
+                key: ValueKey(
+                  'service-opportunity-${_selectedOpportunity ?? 'none'}',
+                ),
                 initialValue: _selectedOpportunity,
                 isExpanded: true,
                 decoration: InputDecoration(
