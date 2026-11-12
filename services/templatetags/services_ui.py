@@ -117,7 +117,15 @@ def service_participant_workspace(context, journey):
         "obligations": obligations,
         "submissions": submissions,
         "outcomes": outcomes,
-        "timeline": _timeline(service_context, steps, artifacts, notes, obligations, submissions, outcomes),
+        "supplementary_timeline": [
+            item for item in _timeline(
+                service_context, steps, artifacts, notes, obligations, submissions, outcomes
+            ) if item["kind"] not in {"journey", "step", "payment", "note"}
+        ][:12],
+        "reuse_candidates": [
+            row for row in requirement_rows
+            if row["assessment"].status not in {"satisfied", "not_applicable"}
+        ],
         "required_steps_count": len(required_steps),
         "completed_required_steps_count": len(completed_required),
         "required_requirements_count": len(required_requirements),
