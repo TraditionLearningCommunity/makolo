@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,10 @@ import '../../platform/camera/system_media_picker.dart';
 import '../../platform/files/native_file_acquisition.dart';
 import '../../platform/files/system_file_picker.dart';
 import '../../platform/permissions/permission_gateway.dart';
+import '../../platform/sharing/shared_payload_coordinator.dart';
+import '../../platform/sharing/system_share_receiver.dart';
+import '../../runtime/runtime_ingress.dart';
+import '../../runtime/runtime_providers.dart';
 import 'mark_navigation.dart';
 import 'mark_repository.dart';
 import 'mark_voice_capture.dart';
@@ -61,6 +66,9 @@ class _MarkScreenState extends State<MarkScreen> {
   String? _pendingConfirmationCode;
   String? _pendingConfirmationKey;
   Stream<StoredProjection?>? _meStream;
+  RuntimeIngress? _ingress;
+  StreamSubscription<void>? _shareSubscription;
+  bool _processingShare = false;
 
   @override
   void initState() {
@@ -72,6 +80,21 @@ class _MarkScreenState extends State<MarkScreen> {
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
     _selectedContext = widget.selectedContext;
     _restoreDraft();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = ProviderScope.containerOf(context).read(
+      runtimeIngressProvider,
+    );
+    if (identical(next, _ingress)) return;
+    _shareSubscription?.cancel();
+    _ingress = next;
+    _shareSubscription = next?.sharesChanged.listen((_) {
+      unawaited(_drainSharedInputs());
+    });
+    unawaited(_drainSharedInputs());
   }
 
   @override
@@ -113,6 +136,7 @@ class _MarkScreenState extends State<MarkScreen> {
   @override
   void dispose() {
     widget.runtime.actorContext?.removeListener(_onActorChanged);
+    _shareSubscription?.cancel();
     _input.dispose();
     _inputFocus.dispose();
     super.dispose();
@@ -182,6 +206,7 @@ class _MarkScreenState extends State<MarkScreen> {
       }
     }
     setState(() => _restoring = false);
+    unawaited(_drainSharedInputs());
   }
 
   Future<NativeFileAcquisitionCoordinator?> _fileCoordinator() async {
@@ -262,6 +287,129 @@ class _MarkScreenState extends State<MarkScreen> {
       ],
     );
     await _saveDraft();
+  }
+
+  Future<void> _drainSharedInputs() async {
+    if (_processingShare ||
+        _restoring ||
+        _busy ||
+        _voiceCapture ||
+        !mounted ||
+        widget.runtime.drafts == null) {
+      return;
+    }
+    final ingress = _ingress;
+    final profileId = widget.runtime.session?.profileId;
+    if (ingress == null || profileId == null || profileId.isEmpty) return;
+    final coordinator = await _fileCoordinator();
+    if (!mounted || coordinator == null || _restoring) return;
+    final revision = _draftRevision;
+    final actor = _actor;
+    _processingShare = true;
+    try {
+      SharedPayload? payload;
+      while (mounted &&
+          revision == _draftRevision &&
+          actor == _actor &&
+          (payload = ingress.takeShare(profileId: profileId)) != null) {
+        final item = payload!;
+        if (item.kind == SharedPayloadKind.text) {
+          final incoming = item.text?.trim() ?? '';
+          if (incoming.isEmpty) continue;
+          setState(() {
+            _input.text = [
+              if (_input.text.trim().isNotEmpty) _input.text.trim(),
+              incoming,
+            ].join('\n');
+            _result = null;
+          });
+          await _saveDraft();
+          if (_input.text.length > 600) {
+            _show('Texte conservé. Raccourcissez votre demande avant de continuer.');
+          }
+          continue;
+        }
+        if (item.kind == SharedPayloadKind.url) {
+          final link = item.url?.toString() ?? '';
+          if (!_isSafeLink(link)) {
+            _show('Ce lien partagé n’est pas pris en charge.');
+            continue;
+          }
+          if (!_links.contains(link)) {
+            setState(() {
+              _links = [..._links, link];
+              _result = null;
+            });
+            await _saveDraft();
+          }
+          continue;
+        }
+        if (item.files.length > 4) {
+          _show('Sélectionnez au maximum quatre fichiers à la fois.');
+          continue;
+        }
+        List<StoredLocalFile> acquired = const [];
+        try {
+          final captured = await SharedPayloadCoordinator(
+            coordinator.store,
+          ).capture(
+            item,
+            owner: _owner,
+            purpose: 'mark_intake',
+            sensitivity: 'private',
+            fileIdFor: (index, source) =>
+                'mark-share-${DateTime.now().microsecondsSinceEpoch}-$index',
+          );
+          acquired = captured.files;
+          final tooLarge = <StoredLocalFile>[];
+          for (final file in acquired) {
+            if (await File(file.path).length() > 25 * 1024 * 1024) {
+              tooLarge.add(file);
+            }
+          }
+          if (tooLarge.isNotEmpty ||
+              !mounted ||
+              revision != _draftRevision ||
+              actor != _actor) {
+            throw StateError('Shared file invalid or Mark actor changed');
+          }
+          setState(() {
+            _attachments = [
+              ..._attachments,
+              for (var index = 0; index < acquired.length; index++)
+                {
+                  'file_id': acquired[index].fileId,
+                  'name': p.basename(item.files[index].name),
+                  'purpose': acquired[index].purpose,
+                  if ({'.png', '.jpg', '.jpeg'}.contains(
+                    p.extension(acquired[index].path).toLowerCase(),
+                  ))
+                    'kind': 'photo',
+                },
+            ];
+            _result = null;
+          });
+          await _saveDraft();
+        } on Object {
+          for (final file in acquired) {
+            try {
+              await coordinator.store.remove(file.fileId);
+            } on Object {
+              // Unreferenced Profile staging remains for routine cleanup.
+            }
+          }
+          if (mounted && revision == _draftRevision) {
+            _show('Le fichier partagé n’a pas été conservé. Réessayez depuis le partage.');
+          }
+        }
+      }
+    } on Object {
+      if (mounted && revision == _draftRevision) {
+        _show('Ce contenu partagé n’a pas pu être ajouté.');
+      }
+    } finally {
+      _processingShare = false;
+    }
   }
 
   Future<void> _openVoiceCapture() async {
