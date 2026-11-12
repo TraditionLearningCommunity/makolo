@@ -1157,7 +1157,8 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                               customBorder: const CircleBorder(),
                               onTap:
                                   widget.onOpenPerson == null ||
-                                      _text(person['profile_id']).isEmpty
+                                      _text(person['profile_id']).isEmpty ||
+                                      _text(person['profile_url']).isEmpty
                                   ? null
                                   : () => widget.onOpenPerson!(
                                       _text(person['profile_id']),
