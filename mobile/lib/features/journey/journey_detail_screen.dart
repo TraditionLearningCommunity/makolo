@@ -622,74 +622,47 @@ class _JourneyContent extends StatelessWidget {
                 child: _JourneyPracticalCard(facts: presentation.practical!),
               ),
             ],
-            if (presentation.payments.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.lg),
+            if (composition.hasEngagements) ...[
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'Paiement',
+                title: 'Mes engagements',
+                child: _JourneyEngagements(
+                  presentation: presentation,
+                  onOpenPaymentObligation: onOpenPaymentObligation,
+                  onOpenCommerceOrder: onOpenCommerceOrder,
+                  onOpenAccess: onOpenAccess,
+                ),
+              ),
+            ],
+            if ((presentation.activity?.link != null &&
+                    presentation.activity!.label != presentation.title) ||
+                presentation.occurrence?.link != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.inner,
+                ),
                 child: MakoloCard(
                   child: Column(
                     children: [
-                      for (
-                        var index = 0;
-                        index < presentation.payments.length;
-                        index++
-                      ) ...[
-                        if (index > 0) const Divider(height: MakoloSpacing.sm),
-                        _JourneyPaymentCard(
-                          payment: presentation.payments[index],
-                          onOpenPaymentObligation: onOpenPaymentObligation,
-                          onOpenCommerceOrder: onOpenCommerceOrder,
+                      if (presentation.activity?.link != null &&
+                          presentation.activity!.label != presentation.title)
+                        _ReferenceCard(
+                          reference: presentation.activity!,
+                          contextLabel: 'Activité',
+                          onTap: () => onOpenActivity(presentation.activity!),
                         ),
-                      ],
+                      if (presentation.occurrence?.link != null)
+                        _ReferenceCard(
+                          reference: presentation.occurrence!,
+                          contextLabel: 'Occurrence',
+                          hideRepeatedTitle: presentation.occurrence!.label ==
+                              presentation.title,
+                          onTap: () =>
+                              onOpenOccurrence(presentation.occurrence!),
+                        ),
                     ],
                   ),
-                ),
-              ),
-            ],
-            if (presentation.activity?.link != null ||
-                presentation.occurrence?.link != null) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              MakoloSection(
-                title: 'Pour en savoir plus',
-                child: Column(
-                  children: [
-                    if (presentation.activity?.link != null)
-                      _ReferenceCard(
-                        reference: presentation.activity!,
-                        contextLabel: 'Activité',
-                        hideRepeatedTitle:
-                            presentation.activity!.label == presentation.title,
-                        onTap: presentation.activity!.link == null
-                            ? null
-                            : () => onOpenActivity(presentation.activity!),
-                      ),
-                    if (presentation.activity?.link != null &&
-                        presentation.occurrence?.link != null)
-                      const SizedBox(height: MakoloSpacing.sm),
-                    if (presentation.occurrence?.link != null)
-                      _ReferenceCard(
-                        reference: presentation.occurrence!,
-                        contextLabel: 'Occurrence',
-                        hideRepeatedTitle:
-                            presentation.occurrence!.label ==
-                            presentation.title,
-                        onTap: presentation.occurrence!.link == null
-                            ? null
-                            : () => onOpenOccurrence(presentation.occurrence!),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            if (presentation.access != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Mon accès',
-                child: _ReferenceCard(
-                  reference: presentation.access!,
-                  onTap: presentation.access!.link == null
-                      ? null
-                      : () => onOpenAccess(presentation.access!),
                 ),
               ),
             ],
@@ -779,6 +752,66 @@ class _JourneyContent extends StatelessWidget {
       );
     }
     return null;
+  }
+}
+
+class _JourneyEngagements extends StatelessWidget {
+  const _JourneyEngagements({
+    required this.presentation,
+    this.onOpenPaymentObligation,
+    this.onOpenCommerceOrder,
+    required this.onOpenAccess,
+  });
+
+  final JourneyDetailPresentation presentation;
+  final ValueChanged<String>? onOpenPaymentObligation;
+  final ValueChanged<String>? onOpenCommerceOrder;
+  final void Function(JourneyReference) onOpenAccess;
+
+  @override
+  Widget build(BuildContext context) {
+    final order = presentation.order;
+    return MakoloCard(
+      child: Column(
+        children: [
+          for (final obligation in presentation.payments) ...[
+            _JourneyPaymentCard(
+              payment: obligation,
+              onOpenPaymentObligation: onOpenPaymentObligation,
+              onOpenCommerceOrder: onOpenCommerceOrder,
+            ),
+            const Divider(height: 8),
+          ],
+          if (order != null)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.shopping_bag_outlined,
+                  color: _journeyAccent(context)),
+              title: const Text('Ma commande'),
+              subtitle: Text([
+                if (presentation.payments.isEmpty &&
+                    order.total != null && order.currency != null)
+                  '${order.total} ${order.currency}',
+                MakoloHumanization.presentationLabel(order.state) ??
+                    order.state,
+              ].join(' · ')),
+              trailing: onOpenCommerceOrder == null
+                  ? null : const Icon(Icons.chevron_right_rounded),
+              onTap: onOpenCommerceOrder == null
+                  ? null : () => onOpenCommerceOrder!(order.id),
+            ),
+          if (order != null && presentation.access != null)
+            const Divider(height: 8),
+          if (presentation.access != null)
+            _ReferenceCard(
+              reference: presentation.access!,
+              onTap: presentation.access!.link == null
+                  ? null : () => onOpenAccess(presentation.access!),
+            ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1641,9 +1674,9 @@ class _ReferenceCard extends StatelessWidget {
       if (contextLabel == null && reference.isRequired) 'Obligatoire',
       if (state != null) state,
     ].join(' · ');
-    return MakoloCard(
-      onTap: onTap,
-      child: ListTile(
+    return ListTile(
+        dense: true,
+        onTap: onTap,
         contentPadding: EdgeInsets.zero,
         leading: Icon(symbol, color: _journeyAccent(context)),
         title: Text(title),
@@ -1651,7 +1684,6 @@ class _ReferenceCard extends StatelessWidget {
         trailing: onTap == null
             ? null
             : const Icon(Icons.chevron_right_rounded),
-      ),
     );
   }
 }
