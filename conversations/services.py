@@ -540,14 +540,11 @@ def respond_to_conversation_invitation(*, actor, invitation: ConversationInvitat
     if locked.status != ConversationInvitationStatus.PENDING:
         return locked
     if accept:
-        if not actor.is_active:
-            raise PermissionDenied("Ce Profil n'est pas actif.")
-        if locked.conversation.lifecycle != ConversationLifecycle.OPEN:
-            raise ValidationError("Cette Conversation n'accepte plus d'invitations.")
-        # Consent cannot revive an access that has become blocked or closed
-        # since the invitation was sent.
-        from .participant_services import _target_can_be_invited
-        _target_can_be_invited(locked.created_by, actor, locked.conversation)
+        # An old invitation cannot revive a revoked mandate, closed contact
+        # policy or blocked relationship. The response owner remains atomic.
+        from .participant_services import invitation_accept_allowed
+        if not invitation_accept_allowed(actor, locked):
+            raise ValidationError("Cette invitation ne peut plus être acceptée.")
     now = timezone.now()
     if locked.expires_at and now >= locked.expires_at:
         locked.status = ConversationInvitationStatus.EXPIRED
