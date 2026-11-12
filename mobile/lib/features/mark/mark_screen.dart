@@ -49,6 +49,7 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _busy = false;
   bool _restoring = true;
   List<Map<String, dynamic>> _attachments = const [];
+  List<String> _links = const [];
   Map<String, String>? _selectedContext;
   NativeFileAcquisitionCoordinator? _files;
   ProfileFileStore? _voiceStore;
@@ -86,6 +87,7 @@ class _MarkScreenState extends State<MarkScreen> {
           widget.runtime.actorContext?.value ?? const PersonalActorContext();
       _result = null;
       _attachments = const [];
+      _links = const [];
       _voiceCapture = false;
       _voiceStore = null;
       _pendingConfirmationCode = null;
@@ -117,6 +119,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _actor = actor;
       _result = null;
       _attachments = const [];
+      _links = const [];
       _voiceCapture = false;
       _voiceStore = null;
       _pendingConfirmationCode = null;
@@ -152,6 +155,13 @@ class _MarkScreenState extends State<MarkScreen> {
               entry.key as String: entry.value as String,
         };
       }
+      final rawLinks = draft['links'];
+      if (rawLinks is List) {
+        _links = [
+          for (final link in rawLinks)
+            if (link is String && _isSafeLink(link)) link,
+        ];
+      }
       final raw = draft['attachments'];
       if (raw is List) {
         _attachments = [
@@ -185,6 +195,65 @@ class _MarkScreenState extends State<MarkScreen> {
       filePicker: const NativeSystemFilePicker(),
     );
     return _files;
+  }
+
+  bool _isSafeLink(String raw) {
+    if (raw.isEmpty || raw.length > 2048) return false;
+    final uri = Uri.tryParse(raw);
+    return uri != null &&
+        (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty;
+  }
+
+  Future<void> _addLink() async {
+    final revision = _draftRevision;
+    final controller = TextEditingController();
+    var accepted = false;
+    final link = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, refresh) => AlertDialog(
+          title: const Text('Ajouter un lien'),
+          content: TextField(
+            key: const ValueKey('mark-url-input'),
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: const InputDecoration(hintText: 'https://…'),
+            onChanged: (value) => refresh(
+              () => accepted = _isSafeLink(value.trim()),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: accepted
+                  ? () => Navigator.pop(dialogContext, controller.text.trim())
+                  : null,
+              child: const Text('Ajouter'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (!mounted || revision != _draftRevision || link == null) return;
+    if (!_isSafeLink(link) || _links.contains(link)) return;
+    setState(() => _links = [..._links, link]);
+    await _saveDraft();
+  }
+
+  Future<void> _removeLink(String link) async {
+    setState(() => _links = [
+      for (final item in _links)
+        if (item != link) item,
+    ]);
+    await _saveDraft();
   }
 
   Future<void> _openVoiceCapture() async {
@@ -363,6 +432,7 @@ class _MarkScreenState extends State<MarkScreen> {
     input: _input.text,
     inputKind: _attachments.isEmpty ? 'text' : 'document',
     attachments: _attachments,
+    links: _links,
     selected: _selectedContext,
     pendingConfirmationCode: _pendingConfirmationCode,
     pendingConfirmationKey: _pendingConfirmationKey,
@@ -406,7 +476,8 @@ class _MarkScreenState extends State<MarkScreen> {
       input: _input.text.trim(),
       selected: {'kind': 'recognition_reward', 'id': id},
       attachments: _attachments,
-      allowTextOnly: _attachments.isNotEmpty,
+      links: _links,
+      allowTextOnly: _attachments.isNotEmpty || _links.isNotEmpty,
       confirmation: {'code': 'redeem_recognition', 'target_id': id},
       idempotencyKey: operationKey,
     );
@@ -429,7 +500,7 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _submit() async {
     if (_busy || _restoring) return;
     final input = _input.text.trim();
-    if (input.isEmpty && _attachments.isEmpty) {
+    if (input.isEmpty && _attachments.isEmpty && _links.isEmpty) {
       _show('Écrivez une demande ou ajoutez une pièce.');
       return;
     }
@@ -437,15 +508,16 @@ class _MarkScreenState extends State<MarkScreen> {
     final actor = _actor;
     final repository = _repository;
     final attachments = List<Map<String, dynamic>>.of(_attachments);
+    final links = List<String>.of(_links);
     var allowTextOnly = false;
-    if (attachments.isNotEmpty && input.isNotEmpty) {
+    if ((attachments.isNotEmpty || links.isNotEmpty) && input.isNotEmpty) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Continuer avec le texte seulement ?'),
           content: const Text(
-            'Les pièces restent enregistrées sur cet appareil. '
-            'Elles ne seront ni envoyées ni analysées par Makolo.',
+            'Les pièces et liens restent dans le brouillon local. '
+            'Ils ne seront ni envoyés ni analysés par Makolo.',
           ),
           actions: [
             TextButton(
@@ -469,6 +541,7 @@ class _MarkScreenState extends State<MarkScreen> {
       input: input,
       inputKind: 'text',
       attachments: attachments,
+      links: links,
       selected: _selectedContext,
       allowTextOnly: allowTextOnly,
     );
@@ -602,7 +675,8 @@ class _MarkScreenState extends State<MarkScreen> {
                       },
                     ),
                     if (_selectedContext != null ||
-                        _attachments.isNotEmpty) ...[
+                        _attachments.isNotEmpty ||
+                        _links.isNotEmpty) ...[
                       if (_selectedContext != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -616,6 +690,22 @@ class _MarkScreenState extends State<MarkScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
+                          for (final link in _links)
+                            Chip(
+                              avatar: const Icon(Icons.link, size: 18),
+                              label: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 280),
+                                child: Text(
+                                  link,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              onDeleted: _busy
+                                  ? null
+                                  : () => unawaited(_removeLink(link)),
+                              deleteButtonTooltipMessage: 'Retirer ce lien',
+                            ),
                           for (final item in _attachments)
                             Chip(
                               avatar: const Icon(Icons.attach_file, size: 18),
@@ -627,12 +717,12 @@ class _MarkScreenState extends State<MarkScreen> {
                             ),
                         ],
                       ),
-                      if (_attachments.isNotEmpty)
+                      if (_attachments.isNotEmpty || _links.isNotEmpty)
                         const Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text(
-                            'Pièces enregistrées sur cet appareil uniquement. '
-                            'Elles ne sont pas envoyées avec la demande.',
+                            'Pièces et liens conservés dans le brouillon local. '
+                            'Ils ne sont pas transmis avec la demande.',
                           ),
                         ),
                     ],
@@ -664,6 +754,12 @@ class _MarkScreenState extends State<MarkScreen> {
                           onPressed: _busy ? null : _openVoiceCapture,
                           appearance: MakoloActionAppearance.secondary,
                           icon: Icons.mic_none,
+                        ),
+                        MakoloActionButton(
+                          label: 'Lien',
+                          onPressed: _busy ? null : _addLink,
+                          appearance: MakoloActionAppearance.secondary,
+                          icon: Icons.link,
                         ),
                       ],
                     ),
@@ -759,6 +855,7 @@ class _MarkResultView extends StatelessWidget {
       'needs_confirmation' => 'Confirmation nécessaire',
       'offline_draft' => 'Brouillon local',
       'local_attachments_only' => 'Pièces conservées localement',
+      'local_references_only' => 'Liens conservés localement',
       'confirmation_unknown' => 'Résultat à vérifier',
       'completed' => 'Terminé',
       'forbidden' => 'Action non autorisée',
