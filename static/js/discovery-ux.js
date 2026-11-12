@@ -56,8 +56,6 @@
   }
 
   const map = window.__makoloDiscoveryMap;
-  if (!map || typeof map.on !== 'function') return;
-
   let failed = false;
   const failGracefully = () => {
     if (failed) return;
@@ -78,5 +76,15 @@
     }
   };
 
-  map.on('error', failGracefully);
+  if (!map || typeof map.on !== 'function') {
+    // The deployed bundle may decline initialization: keep the list.
+    if (document.getElementById('discovery-map')) failGracefully();
+    return;
+  }
+  map.on('error', () => {
+    // Raster tile errors after initialization may recover.
+    if (typeof map.getSource === 'function' &&
+        map.getSource('discovery-results')) return;
+    failGracefully();
+  });
 })();
