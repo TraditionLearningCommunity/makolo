@@ -932,13 +932,15 @@ class _ConversationInvitationInboxState
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
               ],
-              if (snapshot.data?.payload['more_sent'] == true ||
+              if (snapshot.data?.payload['more_received'] == true ||
+                  snapshot.data?.payload['more_collective'] == true ||
+                  snapshot.data?.payload['more_sent'] == true ||
                   snapshot.data?.payload['more_join_requests'] == true ||
                   snapshot.data?.payload['more_my_requests'] == true)
                 const Padding(
                   padding: EdgeInsets.only(top: MakoloSpacing.sm),
                   child: Text(
-                    'D’autres demandes peuvent être consultées dans les Conversations concernées.',
+                    'La liste affichée est partielle. Actualisez ou consultez les Conversations concernées.',
                   ),
                 ),
             ],
