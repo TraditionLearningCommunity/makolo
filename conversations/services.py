@@ -594,6 +594,24 @@ def create_join_request(*, actor, conversation: Conversation, represented_space=
 
 
 @transaction.atomic
+def withdraw_join_request(*, actor, join_request: ConversationJoinRequest):
+    """Withdraw a pending personal intent; never revoke approved access."""
+    locked = ConversationJoinRequest.objects.select_for_update(
+        of=("self",),
+    ).get(pk=join_request.pk)
+    if locked.requester_id != getattr(actor, "pk", None):
+        raise PermissionDenied("Cette demande d'entrée ne vous appartient pas.")
+    if locked.status == ConversationJoinRequestStatus.CANCELLED:
+        return locked
+    if locked.status != ConversationJoinRequestStatus.PENDING:
+        raise ValidationError("Cette demande a déjà été traitée.")
+    locked.status = ConversationJoinRequestStatus.CANCELLED
+    locked.responded_at = timezone.now()
+    locked.save(update_fields=["status", "responded_at", "updated_at"])
+    return locked
+
+
+@transaction.atomic
 def respond_to_join_request(*, actor, join_request: ConversationJoinRequest, approve: bool):
     locked = ConversationJoinRequest.objects.select_for_update(of=("self",)).select_related("conversation__context").get(pk=join_request.pk)
     if not can_manage_conversation(actor, locked.conversation):
