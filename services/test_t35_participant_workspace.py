@@ -1,9 +1,13 @@
+from tempfile import TemporaryDirectory
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
-from journeys.collaboration_models import JourneyNote, JourneyNoteVisibility
+from journeys.collaboration_models import JourneyArtifactKind, JourneyNote, JourneyNoteVisibility
+from journeys.collaboration_services import create_artifact
 
 from .models import ServiceKind
 from .services import create_service_details, create_service_journey
@@ -35,6 +39,31 @@ class ServiceParticipantWorkspaceTests(TestCase):
         self.assertContains(response, "Refaire mon CV")
         self.assertContains(response, "Visible au bénéficiaire")
         self.assertNotContains(response, "Secret interne opérateur")
+
+    def test_export_action_uses_beneficiary_identity_in_included_template(self):
+        with TemporaryDirectory() as temporary_media:
+            with override_settings(MEDIA_ROOT=temporary_media):
+                artifact = create_artifact(
+                    journey=self.journey,
+                    uploaded_file=SimpleUploadedFile(
+                        "cv.pdf", b"%PDF-1.4\\nDocument CV\\n%%EOF",
+                        content_type="application/pdf",
+                    ),
+                    uploaded_by=self.participant,
+                    kind=JourneyArtifactKind.CV,
+                    title="Mon CV utilisable",
+                )
+                self.client.force_login(self.participant)
+                response = self.client.get(
+                    reverse("core:participant-journey-detail", args=[self.journey.pk])
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Mon CV utilisable")
+                self.assertContains(
+                    response,
+                    reverse("journeys:artifact-download", args=[artifact.pk]),
+                )
+                self.assertContains(response, "Exporter")
 
     def test_foreign_participant_still_cannot_load_services_workspace(self):
         self.client.force_login(self.other)
