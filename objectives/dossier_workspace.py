@@ -15,6 +15,7 @@ from objectives.selectors import (
     active_assignments_for_dossier,
     active_project_for_dossier,
     collaboration_candidates_for_dossier,
+    coordination_candidates_for_dossier,
     current_dossier_authority_mandates,
     linkable_journeys_for_profile,
     projects_for_profile,
@@ -217,13 +218,13 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
         )
         candidates["journeys"] = choices
         candidates["journeys_partial"] = partial
-        people = list(collaboration_candidates_for_dossier(dossier)[:51])
-        # An Assignment does not grant Dossier authority; the service verifies it.
-        candidates["assignees"] = [
-            {"id": str(person.pk), "label": _person(person)}
-            for person in people[:50] if can_manage_dossier(person, dossier)
-        ]
-        candidates["assignees_partial"] = len(people) > 50
+        # Filter by effective coordination authority before slicing. A large
+        # Team must not displace the only authorized manager from page one.
+        assignees, assignees_partial = _choices(
+            coordination_candidates_for_dossier(dossier), label=_person,
+        )
+        candidates["assignees"] = assignees
+        candidates["assignees_partial"] = assignees_partial
     if project_manage:
         # Only Projects the viewer can manage are valid destinations.
         project_choices = projects_for_profile(viewer)
