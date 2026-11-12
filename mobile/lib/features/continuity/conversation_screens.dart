@@ -3226,7 +3226,7 @@ class _PointCardState extends State<_PointCard> {
                         repository: widget.repository,
                         attachments: option.attachments,
                       ),
-                    if (point.pollCountFor(option.id) != null)
+                    if ((point.pollCountFor(option.id) ?? 0) > 0)
                       Padding(
                         padding: const EdgeInsets.only(top: MakoloSpacing.xs),
                         child: Text(
@@ -3238,7 +3238,8 @@ class _PointCardState extends State<_PointCard> {
                 ),
               ),
             ),
-          if (point.pollResults['response_count'] is num)
+          if (point.pollResults['response_count'] is num &&
+              (point.pollResults['response_count'] as num) > 0)
             Padding(
               padding: const EdgeInsets.only(top: MakoloSpacing.sm),
               child: Text(
@@ -3400,9 +3401,8 @@ class _PointCardState extends State<_PointCard> {
             ),
           ),
         if (!widget.readOnly) ...[
-          const SizedBox(height: MakoloSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.centerRight,
             child: MakoloActionButton(
               key: Key('conversation-point-revisit-${point.id}'),
               label: _busy
