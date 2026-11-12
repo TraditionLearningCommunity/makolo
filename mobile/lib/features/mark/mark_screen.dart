@@ -580,7 +580,9 @@ class _MarkScreenState extends State<MarkScreen> {
                     if (_voiceCapture && _voiceStore != null) ...[
                       const SizedBox(height: 12),
                       MarkVoiceCapture(
-                        key: ValueKey('voice:${widget.runtime.session?.profileId}:$_owner'),
+                        key: ValueKey(
+                          'voice:${widget.runtime.session?.profileId}:$_owner',
+                        ),
                         store: _voiceStore!,
                         owner: _owner,
                         onCaptured: _acceptVoiceFile,
