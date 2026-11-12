@@ -311,8 +311,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         // No API call started: a local save/session failure is not a Journey.
         setState(() {
           _attempted = false;
-          _error =
-              'La demande n’a pas été envoyée. Vérifiez votre session ou le stockage local.';
+          _error = 'La demande n’a pas été envoyée. Vérifiez votre session ou le stockage local.';
         });
         try {
           await widget.runtime.interactions?.save(_interactionId, {
@@ -324,8 +323,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         } on Object {
           if (mounted) {
             setState(() {
-              _error =
-                  'La demande n’a pas été envoyée. Son brouillon local n’a pas pu être enregistré.';
+              _error = 'La demande n’a pas été envoyée. Son brouillon local n’a pas pu être enregistré.';
             });
           }
         }

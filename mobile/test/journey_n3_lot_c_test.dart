@@ -210,10 +210,7 @@ void main() {
       payload: {
         ..._payload('Recevoir une réponse', status: 'fulfilled'),
         'identity': {'workflow': 'service'},
-        'service_result': {
-          'code': 'unsuccessful',
-          'label': 'Échec externe',
-        },
+        'service_result': {'code': 'unsuccessful', 'label': 'Échec externe'},
       },
     );
     final repository = JourneyRepository(
@@ -221,9 +218,7 @@ void main() {
       store: store,
       profileId: 'profile-service',
     );
-    await tester.pumpWidget(
-      _journey('journey-service-finished', repository),
-    );
+    await tester.pumpWidget(_journey('journey-service-finished', repository));
     await tester.pumpAndSettle();
     expect(find.text('Échec externe'), findsOneWidget);
     expect(find.text('Suivi terminé dans Makolo'), findsOneWidget);
