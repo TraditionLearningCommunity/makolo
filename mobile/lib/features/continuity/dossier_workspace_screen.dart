@@ -772,14 +772,13 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
   }
 
   Widget _controls(Map<String, dynamic> data) {
-    final canLink = _cap(data, 'dossier.journey.link');
+    final canLink = _mode != _DossierMode.overview &&
+        _cap(data, 'dossier.journey.link');
     final menu = [
       if (_cap(data, 'dossier.edit')) 'edit',
       if (_cap(data, 'dossier.dependency.add')) 'dependency',
       if (_cap(data, 'dossier.project.manage')) 'project',
       if (_cap(data, 'dossier.lifecycle')) 'lifecycle',
-      if (_cap(data, 'dossier.assignment.manage')) 'assign',
-      if (_cap(data, 'dossier.authority.manage')) 'grant',
     ];
     if (!canLink && menu.isEmpty) return const SizedBox.shrink();
     return Row(
@@ -807,11 +806,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   _projectAction(data);
                 case 'lifecycle':
                   _lifecycle(data);
-                case 'assign':
-                  _assign(data);
-                case 'grant':
-                  _grant(data);
-              }
+               }
             },
             itemBuilder: (_) => [
               if (menu.contains('edit'))
@@ -831,16 +826,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                   value: 'lifecycle',
                   child: Text('Changer l’état'),
                 ),
-              if (menu.contains('assign'))
-                const PopupMenuItem(
-                  value: 'assign',
-                  child: Text('Responsabilité'),
-                ),
-              if (menu.contains('grant'))
-                const PopupMenuItem(
-                  value: 'grant',
-                  child: Text('Gérer les accès'),
-                ),
+ 
             ],
           ),
       ],
@@ -1163,11 +1149,18 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                           ),
                         ),
                       if (remaining > 0)
-                        CircleAvatar(
-                          radius: 17,
-                          child: Text(
-                            '+' + remaining.toString(),
-                            style: const TextStyle(fontSize: 11),
+                        Tooltip(
+                          message: 'Voir les autres personnes',
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: widget.onOpenPeople,
+                            child: CircleAvatar(
+                              radius: 17,
+                              child: Text(
+                                '+' + remaining.toString(),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
                           ),
                         ),
                     ],
@@ -1304,6 +1297,12 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
                 ),
               ),
             ),
+            if (_cap(data, 'dossier.journey.link') && items.isNotEmpty)
+              IconButton(
+                tooltip: 'Lier une démarche',
+                icon: const Icon(Icons.add_link_rounded),
+                onPressed: _canMutate ? () => _link(data) : null,
+              ),
             if (items.isNotEmpty)
               TextButton.icon(
                 onPressed: () => _selectMode(_DossierMode.list),
@@ -1337,15 +1336,7 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
             ),
           for (final item in items.take(3))
             _journeyTile(item, compact: true),
-          if (items.length > 3)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _selectMode(_DossierMode.list),
-                icon: const Icon(Icons.list_rounded),
-                label: const Text('Toutes les démarches'),
-              ),
-            ),
+ 
         ] else ...[
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
