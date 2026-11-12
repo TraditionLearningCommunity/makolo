@@ -244,3 +244,52 @@
   flex: 1;
   min-width: 190px;
 }
+
+.mk-mark-reference-save {
+  border-left: 1px solid var(--mk-border);
+  padding: 4px 8px;
+  min-height: 32px;
+  font-size: .77rem;
+  color: var(--mk-brand);
+  font-weight: 750;
+}
+.mk-mark-owner-panel {
+  margin-top: 18px;
+  padding: clamp(14px, 3vw, 22px);
+  border: 1px solid var(--mk-border);
+  border-radius: 20px;
+  background: var(--mk-surface-solid);
+  display: grid;
+  gap: 12px;
+}
+.mk-mark-owner-panel > h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.mk-mark-owner-panel > p {
+  font-size: .84rem;
+  color: var(--mk-muted);
+  line-height: 1.5;
+}
+.mk-mark-owner-fields {
+  margin-bottom: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.mk-mark-owner-fields label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  font-size: .82rem;
+}
+.mk-mark-owner-fields input,
+.mk-mark-owner-fields select {
+  min-width: 0;
+  width: 100%;
+}
+@media (max-width: 680px) {
+  .mk-mark-owner-fields { grid-template-columns: 1fr; }
+}
