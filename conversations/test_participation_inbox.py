@@ -99,6 +99,31 @@ class ParticipationInboxTests(TestCase):
         self.assertEqual(outsider["my_join_requests"], [])
         self.assertEqual(outsider["results"], [])
 
+    def test_received_invitations_report_a_bounded_window(self):
+        second_group = Group.objects.create(
+            name="Autre coordination", owner_profile=self.manager,
+        )
+        second_conversation = ensure_context_conversation(
+            actor=self.manager, kind=ConversationContextKind.GROUP,
+            group=second_group,
+        )
+        create_conversation_invitation(
+            actor=self.manager, conversation=second_conversation,
+            invitee=self.invitee,
+        )
+        self.client.force_login(self.invitee)
+        response = self.client.get(
+            reverse("conversations-api:invitation-list"),
+            {"limit": 1},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["count"], 1)
+        self.assertTrue(payload["more_received"])
+        self.assertEqual(len(payload["results"]), 1)
+        self.assertIn("more_collective", payload)
+        self.assertNotIn("password", str(payload))
+
     def test_web_inbox_links_only_to_owner_managed_actions(self):
         self.client.force_login(self.manager)
         page = self.client.get(reverse("conversations:list"))
