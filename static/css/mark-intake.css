@@ -230,3 +230,17 @@
   display: block;
   object-fit: contain;
 }
+
+.mk-mark-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--mk-muted);
+  font-size: .86rem;
+}
+.mk-mark-selected > span {
+  flex: 1;
+  min-width: 190px;
+}
