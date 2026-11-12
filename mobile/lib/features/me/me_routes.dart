@@ -427,8 +427,15 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                         message: 'Ajout indisponible sur cet appareil.',
                       );
                     }
+                    final markFile = state.uri.queryParameters['mark_file'];
                     return DocumentFormScreen.create(
                       repository: repository,
+                      markFileId: markFile != null &&
+                              markFile.isNotEmpty &&
+                              markFile.length <= 160
+                          ? markFile
+                          : null,
+                      markFileName: state.uri.queryParameters['mark_name'],
                       onSaved: (id) => context.pop(id),
                     );
                   },
