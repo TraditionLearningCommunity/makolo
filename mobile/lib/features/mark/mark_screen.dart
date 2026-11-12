@@ -771,6 +771,7 @@ class _MarkScreenState extends State<MarkScreen> {
                     TextField(
                       controller: _input,
                       focusNode: _inputFocus,
+                      readOnly: _busy || _restoring,
                       minLines: 4,
                       maxLines: 9,
                       maxLength: 600,
