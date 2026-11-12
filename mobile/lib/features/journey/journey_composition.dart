@@ -53,7 +53,7 @@ class JourneyComposition {
         ? JourneySituation.choices
         : actionableKeys.isNotEmpty ||
               p.canRespondInvitation ||
-              p.actorInterventions.isNotEmpty
+              interventions.isNotEmpty
         ? JourneySituation.action
         : p.waiting.isNotEmpty || p.pendingRequests > 0
         ? JourneySituation.waiting
