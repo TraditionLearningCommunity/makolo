@@ -210,7 +210,7 @@ class _ConversationHistoryScreenState extends State<ConversationHistoryScreen> {
           _error = 'Cette conversation n’est plus accessible.';
         } else if (error.statusCode == 400 && cursor != null) {
           _nextCursor = null;
-          _error = 'La suite a changé. Relancez la recherche.';
+          _error = 'Résultats modifiés. Relancez la recherche.';
         } else {
           _error = _rows.isNotEmpty
               ? 'Actualisation indisponible. La dernière lecture est conservée.'
