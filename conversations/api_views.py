@@ -19,7 +19,10 @@ from organizations.models import Organization
 from .attention import has_conversation_attention
 from .attention_projection import conversation_attention_sections
 from .point_interactions import point_interactions_for_profile
-from .participant_services import collective_invitation_inbox, invitation_accept_allowed
+from .participant_services import (
+    collective_invitation_inbox, invitation_accept_allowed,
+    collective_invitation_accept_allowed,
+)
 from .participation_inbox import participation_inbox_for_profile
 from .detail_presentation import conversation_detail_extra_for_profile
 from .history import page_points_for_profile, point_personal_result
@@ -1055,6 +1058,7 @@ class ConversationInvitationListAPIView(PrivateNoStoreMixin, views.APIView):
                     "invited_by": item.created_by.username,
                     "context_kind": item.conversation.context.kind,
                     "kind": "space" if item.space_id else "group",
+                    "can_accept": collective_invitation_accept_allowed(request.user, item),
                     "identifier": item.space.slug if item.space_id else item.group.slug,
                     "label": item.space.name if item.space_id else item.group.name,
                     "status": item.status,
