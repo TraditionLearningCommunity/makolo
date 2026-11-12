@@ -36,7 +36,7 @@
       {% if card.gallery_media %}
       <div class="flex snap-x gap-3 overflow-x-auto p-3">
         {% for media in card.gallery_media %}
-        <a href="{{ media.resource.url }}" target="_blank" rel="noopener noreferrer" class="shrink-0 snap-start rounded-xl" aria-label="Agrandir {{ media.resource.alt_text|default:card.title }}"><img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-36 rounded-xl object-contain" loading="lazy" decoding="async"></a>
+        <a href="{{ media.resource.url }}" target="_blank" rel="noopener noreferrer" class="shrink-0 snap-start rounded-xl" aria-label="Agrandir {{ media.resource.alt_text|default:card.title }}"><img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-36 rounded-xl object-contain" style="max-height:9rem" loading="lazy" decoding="async"></a>
         {% endfor %}
       </div>
       {% endif %}
