@@ -103,7 +103,10 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
       await tester.pump();
       await tester.tap(find.text('Voix'));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.text('Enregistrer un audio'), findsOneWidget);
+      await tester.tap(find.text('Enregistrer un audio'));
+      await tester.pumpAndSettle();
       expect(
         find.text('L’enregistrement n’est pas disponible dans cette session.'),
         findsOneWidget,
