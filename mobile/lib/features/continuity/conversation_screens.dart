@@ -1302,9 +1302,7 @@ class _ConversationInvitationCardState
             Padding(
               padding: const EdgeInsets.only(top: MakoloSpacing.xs),
               child: Text(
-                'Seul un responsable autorisé peut accepter. '
-                'Les membres actuels conservent leur appartenance canonique. '
-                '${widget.invitation.identifier ?? ''}',
+                'Pour ${widget.invitation.identifier ?? 'ce collectif'}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -1577,8 +1575,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                        'D’autres actions restent accessibles dans le fil '
-                        'et dans l’historique de la conversation.',
+                        'Voir les autres éléments dans le fil.',
                       ),
                     ),
                   const SizedBox(height: 8),
@@ -2292,7 +2289,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: Text(
-                  'Point ciblé · hors des derniers échanges',
+                  'Point recherché'
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
               ),
@@ -2959,8 +2956,7 @@ class _PointCardState extends State<_PointCard> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clore les réponses ?'),
         content: const Text(
-          'Les personnes ne pourront plus répondre à ce Point. '
-          'Cette action ne modifie aucune autre donnée métier.',
+          'Personne ne pourra ajouter de réponse après la clôture.',
         ),
         actions: [
           TextButton(
@@ -2993,7 +2989,7 @@ class _PointCardState extends State<_PointCard> {
       }
       if (mounted) {
         setState(
-          () => _feedback = 'Ce Point a pu changer. Clôture non confirmée : vérifiez son état.',
+          () => _feedback = 'Clôture non confirmée.'
         );
       }
     } finally {
@@ -3019,8 +3015,7 @@ class _PointCardState extends State<_PointCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Décrivez ce qui a été décidé. La résolution ne change '
-                      'aucun statut de paiement, d’accès ou de démarche.',
+                      'Indiquez la conclusion retenue.',
                     ),
                     const SizedBox(height: MakoloSpacing.md),
                     TextField(
@@ -3103,7 +3098,7 @@ class _PointCardState extends State<_PointCard> {
         if (mounted) {
           setState(
             () => _feedback =
-                'Résolution non confirmée. Votre texte est conservé ici.',
+                'Résultat non enregistré.'
           );
         }
       } finally {
@@ -3588,8 +3583,7 @@ class _PointCardState extends State<_PointCard> {
               initiallyExpanded: false,
               children: [
                 Text(
-                  'Clore les réponses ou consigner un résultat de coordination. '
-                  'Cela ne modifie pas les données métier du contexte.',
+                  'Terminer les réponses ou noter une conclusion.',
                   style: theme.bodySmall?.copyWith(color: muted),
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
