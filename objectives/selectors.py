@@ -246,6 +246,14 @@ def collaboration_candidates_for_dossier(dossier):
     )
     candidates = User.objects.filter(is_active=True)
     if dossier.owning_space_id:
+        # A Space Mandate is itself a known relationship: its holder need
+        # not also belong to a Team. This does not grant Dossier authority.
+        known_ids.update(
+            current_mandates().filter(
+                scope_type=AuthorityScope.SPACE,
+                space_id=dossier.owning_space_id,
+            ).values_list("profile_id", flat=True),
+        )
         return candidates.filter(
             Q(
                 team_memberships__team__organization_id=dossier.owning_space_id,
@@ -256,3 +264,36 @@ def collaboration_candidates_for_dossier(dossier):
     return candidates.filter(pk__in=known_ids).order_by(
         "first_name", "last_name", "username", "pk",
     )
+
+
+def coordination_candidates_for_dossier(dossier):
+    """Authorized coordination choices before pagination.
+
+    Filter by *current, effective* permission-bearing Mandates rather than
+    taking the first 50 Team members and only then checking authority.
+    This is a presentation selector, not an authorization decision:
+    assign_dossier() must still revalidate under its object lock.
+    """
+    grants = current_mandates().filter(
+        role__role_permissions__permission__is_active=True,
+    ).filter(
+        Q(
+            scope_type=AuthorityScope.DOSSIER, dossier=dossier,
+            role__role_permissions__permission__code=PermissionCode.DOSSIER_MANAGE,
+        ) | Q(
+            scope_type=AuthorityScope.PLATFORM,
+            role__role_permissions__permission__code=PermissionCode.PLATFORM_MANAGE,
+        ) | (
+            Q(
+                scope_type=AuthorityScope.SPACE,
+                space_id=dossier.owning_space_id,
+                role__role_permissions__permission__code=PermissionCode.SPACE_MANAGE,
+            ) if dossier.owning_space_id else Q(pk__isnull=True)
+        ),
+    ).values_list("profile_id", flat=True)
+    eligible = Q(pk__in=grants) | Q(is_superuser=True)
+    if dossier.owner_profile_id:
+        eligible |= Q(pk=dossier.owner_profile_id)
+    return collaboration_candidates_for_dossier(dossier).filter(
+        eligible,
+    ).distinct().order_by("first_name", "last_name", "username", "pk")
