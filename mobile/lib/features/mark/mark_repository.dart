@@ -75,13 +75,15 @@ class MarkRepository {
     final previous = _draftWrites[id] ?? Future<void>.value();
     final write = previous
         .catchError((Object _) {})
-        .then((_) => drafts.saveLocal(
-              draftId: id,
-              owner: _owner(actor),
-              resourceKind: 'mark_intake',
-              resourceId: id,
-              payload: payload,
-            ));
+        .then(
+          (_) => drafts.saveLocal(
+            draftId: id,
+            owner: _owner(actor),
+            resourceKind: 'mark_intake',
+            resourceId: id,
+            payload: payload,
+          ),
+        );
     _draftWrites[id] = write;
     return write;
   }
