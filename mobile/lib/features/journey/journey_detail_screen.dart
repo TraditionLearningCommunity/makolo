@@ -660,7 +660,13 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-
+            if (presentation.history.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              MakoloSection(
+                title: 'Historique',
+                child: _JourneyHistory(entries: presentation.history),
+              ),
+            ],
           ],
         ),
       ),
@@ -751,6 +757,53 @@ class _JourneyContent extends StatelessWidget {
       );
     }
     return null;
+  }
+}
+
+class _JourneyHistory extends StatelessWidget {
+  const _JourneyHistory({required this.entries});
+
+  final List<JourneyHistoryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    return MakoloCard(
+      child: Column(
+        children: [
+          for (final entry in entries.take(3))
+            _JourneyHistoryRow(entry: entry),
+          if (entries.length > 3)
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: Text('Voir les ${entries.length - 3} autres changements'),
+              children: [
+                for (final entry in entries.skip(3))
+                  _JourneyHistoryRow(entry: entry),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyHistoryRow extends StatelessWidget {
+  const _JourneyHistoryRow({required this.entry});
+
+  final JourneyHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(Icons.history_rounded,
+          color: _journeyAccent(context)),
+      title: Text(entry.label),
+      subtitle: Text(
+        DateFormat('d MMM yyyy · HH:mm', 'fr').format(entry.at.toLocal()),
+      ),
+    );
   }
 }
 
