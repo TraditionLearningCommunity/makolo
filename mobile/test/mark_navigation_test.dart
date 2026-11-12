@@ -56,6 +56,43 @@ void main() {
     expect(markHandoffRoute(result, const PersonalActorContext()), isNull);
   });
 
+  test('Space Jour J and Scanner use Space routes only', () {
+    final space = SpaceActorContext(
+      space: SpaceActorIdentity(id: 'space-id', slug: 'space-slug'),
+    );
+    const dayOf = MarkResult(
+      state: 'resolved',
+      handoff: {'owner': 'operations', 'surface': 'day_of'},
+      raw: {'result': {'identity': {'id': 'occurrence-id'}}},
+    );
+    const scanner = MarkResult(
+      state: 'resolved',
+      handoff: {'owner': 'scanner', 'surface': 'occurrence_context'},
+      raw: {'result': {'identity': {'id': 'occurrence-id'}}},
+    );
+    expect(
+      markHandoffRoute(dayOf, space),
+      '/space/occurrences/occurrence-id/day-of',
+    );
+    expect(
+      markHandoffRoute(scanner, space),
+      '/space/occurrences/occurrence-id/scanner',
+    );
+    expect(markHandoffRoute(scanner, const PersonalActorContext()), isNull);
+  });
+
+  test('Space cannot open a destination without a verified occurrence', () {
+    final actor = SpaceActorContext(
+      space: SpaceActorIdentity(id: 'space-id', slug: 'space-slug'),
+    );
+    const result = MarkResult(
+      state: 'resolved',
+      handoff: {'owner': 'operations', 'surface': 'day_of'},
+      raw: {'result': {'reason': 'missing_occurrence'}},
+    );
+    expect(markHandoffRoute(result, actor), isNull);
+  });
+
   test('clarification selection excludes unknown or incomplete targets', () {
     expect(
       markClarificationSelection({'kind': 'journey', 'id': 'journey-id'}),
