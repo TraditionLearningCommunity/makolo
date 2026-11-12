@@ -25,7 +25,8 @@ from objectives.services import (
     can_manage_project, can_manage_project_authority, create_dossier,
     grant_project_authority, link_dossier_to_project,
     move_dossier_to_project, set_project_lifecycle,
-    revoke_project_authority, unlink_dossier_from_project, update_project,
+    revoke_project_authority,
+    replace_project_authority, unlink_dossier_from_project, update_project,
 )
 from objectives.api_views import _page_args
 
@@ -70,7 +71,7 @@ class ProjectDossierActionInput(serializers.Serializer):
 
 
 class ProjectAuthorityInput(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["grant", "revoke"])
+    action = serializers.ChoiceField(choices=["grant", "replace", "revoke"])
     profile_id = serializers.UUIDField(required=False)
     email = serializers.EmailField(required=False)
     role_code = serializers.ChoiceField(
@@ -84,6 +85,11 @@ class ProjectAuthorityInput(serializers.Serializer):
                 raise serializers.ValidationError("Profil et rôle requis.")
             if attrs.get("profile_id") and attrs.get("email"):
                 raise serializers.ValidationError("Utilisez un seul identifiant de Profil.")
+        elif attrs["action"] == "replace":
+            if not attrs.get("mandate_id") or not attrs.get("role_code"):
+                raise serializers.ValidationError("Mandat et nouveau rôle requis.")
+            if attrs.get("profile_id") or attrs.get("email"):
+                raise serializers.ValidationError("La personne est identifiée par son mandat.")
         elif not attrs.get("mandate_id"):
             raise serializers.ValidationError({"mandate_id": "Mandat requis."})
         return attrs
@@ -128,9 +134,21 @@ class ProjectAuthorityAPIView(APIView):
                         scope_type=AuthorityScope.PROJECT, project=project,
                     ), pk=values["mandate_id"],
                 )
-                revoke_project_authority(
-                    actor=request.user, project=project, mandate=mandate,
-                )
+                if values["action"] == "replace":
+                    role = get_object_or_404(
+                        Role.objects.filter(
+                            is_active=True, is_system=True,
+                            scope_type=AuthorityScope.PROJECT,
+                        ), code=values["role_code"],
+                    )
+                    mandate = replace_project_authority(
+                        actor=request.user, project=project,
+                        mandate=mandate, role=role,
+                    )
+                else:
+                    revoke_project_authority(
+                        actor=request.user, project=project, mandate=mandate,
+                    )
         except (PermissionDenied, ValidationError) as exc:
             return _command_error(exc)
         return Response({
