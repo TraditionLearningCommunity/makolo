@@ -3619,10 +3619,10 @@ Future<Object?> _collectResponseValue(
             context: context,
             builder: (context) => SimpleDialog(
               title: Text(
-                  point.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                point.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               children: [
                 SimpleDialogOption(
                   onPressed: () => Navigator.pop(context, true),
@@ -3641,10 +3641,10 @@ Future<Object?> _collectResponseValue(
             context: context,
             builder: (context) => SimpleDialog(
               title: Text(
-                  point.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                point.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               children: [
                 for (final option in point.options)
                   SimpleDialogOption(
@@ -3744,10 +3744,10 @@ Future<Object?> _collectResponseValue(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(
-                  point.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+            point.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           content: TextField(
             controller: controller,
             autofocus: true,
