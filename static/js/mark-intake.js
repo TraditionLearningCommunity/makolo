@@ -465,11 +465,26 @@
         setMode('inline');
       }
     });
-    window.addEventListener('resize', () => {
+    function handleResize() {
       if (!window.matchMedia('(min-width: 1200px)').matches && mode !== 'inline') {
         setMode('inline');
       }
-    });
+    }
+    function teardown() {
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('htmx:beforeSwap', beforeSwap);
+      window.removeEventListener('pagehide', teardown);
+      try { recognizer?.abort(); } catch (_) {}
+      recognizer = null;
+      closePreview();
+    }
+    function beforeSwap(event) {
+      const target = event.detail?.target || event.target;
+      if (target && (target === root || target.contains?.(root))) teardown();
+    }
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('htmx:beforeSwap', beforeSwap);
+    window.addEventListener('pagehide', teardown);
     // Files intentionally cannot survive a navigation/reload; the server must
     // never be told that they were submitted by the text-only Mark endpoint.
   }
