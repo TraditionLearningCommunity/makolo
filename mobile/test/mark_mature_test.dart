@@ -52,6 +52,21 @@ void main() {
     },
   );
 
+  test('a local URL is not treated as an interpreted reference', () async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+    final result = await MarkRepository(runtime).submit(
+      actor: const PersonalActorContext(),
+      input: '',
+      links: ['https://example.org/opportunity'],
+    );
+    expect(result.state, 'local_references_only');
+    expect(result.message, contains('pas interprétés'));
+  });
+
   testWidgets(
     'initial Mark keeps input dominant and exposes native intake actions',
     (tester) async {
@@ -69,6 +84,7 @@ void main() {
       expect(find.text('Joindre'), findsOneWidget);
       expect(find.text('Photo'), findsOneWidget);
       expect(find.text('Image'), findsOneWidget);
+      expect(find.text('Lien'), findsOneWidget);
       expect(find.text('Voix'), findsOneWidget);
       expect(find.text('Continuer'), findsOneWidget);
       expect(find.textContaining('A1'), findsNothing);
