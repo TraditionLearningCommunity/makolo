@@ -787,13 +787,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           aspectRatio: widget.detailMode ? 4 / 3 : 16 / 10,
           child: InkWell(
             key: const Key('discover-media-main'),
-            onTap: () => _openReader([
-              DiscoveryReaderItem(
-                title: image['label']!,
-                uri: Uri.parse(image['url']!),
-                mimeType: image['mime']!,
-              ),
-            ]),
+            onTap: widget.detailMode
+                ? () => _openReader([
+                    DiscoveryReaderItem(
+                      title: image['label']!,
+                      uri: Uri.parse(image['url']!),
+                      mimeType: image['mime']!,
+                    ),
+                  ])
+                : widget.onOpen,
             child: _renderPublishedImage(
               image,
               fit: widget.detailMode ? BoxFit.contain : BoxFit.cover,
@@ -814,14 +816,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             itemBuilder: (context, index) {
               final image = images[index];
               return InkWell(
-                onTap: () => _openReader([
-                  for (final image in images)
-                    DiscoveryReaderItem(
-                      title: image['label']!,
-                      uri: Uri.parse(image['url']!),
-                      mimeType: image['mime']!,
-                    ),
-                ], index: index),
+                onTap: widget.detailMode
+                    ? () => _openReader([
+                        for (final image in images)
+                          DiscoveryReaderItem(
+                            title: image['label']!,
+                            uri: Uri.parse(image['url']!),
+                            mimeType: image['mime']!,
+                          ),
+                      ], index: index)
+                    : widget.onOpen,
                 child: _renderPublishedImage(
                   image,
                   fit: widget.detailMode ? BoxFit.contain : BoxFit.cover,
