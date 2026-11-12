@@ -10,7 +10,7 @@ from authorization.models import AuthorityScope, Role
 from django.urls import reverse
 from objectives.models import DossierJourneyDependencyState
 from objectives.readiness import resolve_dossier_readiness
-from objectives.project_workspace import _profile_public_presentation
+from objectives.profile_presentation import profile_public_presentation
 from objectives.selectors import (
     active_assignments_for_dossier,
     active_project_for_dossier,
@@ -154,7 +154,7 @@ def dossier_workspace(viewer, dossier, *, actor_context=None):
 
     def visible_profile(profile):
         if profile.pk not in profile_links:
-            profile_links[profile.pk] = _profile_public_presentation(
+            profile_links[profile.pk] = profile_public_presentation(
                 profile, actor=viewer,
             )
         return profile_links[profile.pk]
