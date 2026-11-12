@@ -386,7 +386,7 @@ class _MarkScreenState extends State<MarkScreen> {
             setState(() {
               _links = [..._links, link];
               _result = null;
-            _textOnlyConsent = false;
+              _textOnlyConsent = false;
             });
             await _saveDraft();
           }

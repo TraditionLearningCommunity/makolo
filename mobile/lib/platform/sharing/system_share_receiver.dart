@@ -54,20 +54,18 @@ class AndroidSystemShareReceiver implements SystemShareReceiver {
 
   @override
   Future<SharedPayload?> initial() async {
-    final raw = await _channel.invokeMethod<Object?>(
-      'initialShare',
-      {'listener_id': _listenerId},
-    );
+    final raw = await _channel.invokeMethod<Object?>('initialShare', {
+      'listener_id': _listenerId,
+    });
     return _decode(raw);
   }
 
   @override
   Future<void> dispose() async {
     try {
-      await _channel.invokeMethod<void>(
-        'stopShare',
-        {'listener_id': _listenerId},
-      );
+      await _channel.invokeMethod<void>('stopShare', {
+        'listener_id': _listenerId,
+      });
     } on Object {
       // Shutdown must never block navigation or session cleanup.
     }
