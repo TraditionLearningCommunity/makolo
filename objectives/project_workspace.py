@@ -111,9 +111,11 @@ def _profile_public_presentation(profile, *, actor):
     or a right to open their private Passeport.
     """
     is_self = actor.pk == profile.pk
-    is_public = UserProfile.objects.filter(
-        user_id=profile.pk, public_profile=True,
-    ).exists()
+    is_public = bool(getattr(profile, "is_active", False)) and (
+        UserProfile.objects.filter(
+            user_id=profile.pk, public_profile=True,
+        ).exists()
+    )
     profile_url = (
         reverse("sharing:passport-me") if is_self
         else reverse("sharing:passport-profile", kwargs={"profile_id": profile.pk})
