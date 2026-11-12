@@ -22,7 +22,8 @@ from .collective_models import ConversationCollectiveAccess, ConversationCollect
 from .contact_models import ContactPolicyMode, ProfileContactPolicy
 from .contact_services import profiles_blocked
 from .core_models import (
-    ConversationInvitation, ConversationInvitationStatus, ConversationParticipation,
+    Conversation, ConversationInvitation, ConversationInvitationStatus,
+    ConversationParticipation,
     ConversationParticipationStatus, ConversationLifecycle, ConversationEntryMode,
     ConversationJoinRequest, ConversationJoinRequestStatus,
 )
@@ -346,6 +347,10 @@ def invite_identifier(*, actor, conversation, kind, identifier, client_reference
 
 @transaction.atomic
 def answer_collective_invitation(*, actor, access, accept):
+    # Parent first: do not accept consent after a concurrent closure.
+    Conversation.objects.select_for_update(of=("self",)).get(
+        pk=access.conversation_id,
+    )
     locked = ConversationCollectiveAccess.objects.select_for_update().select_related(
         "space", "group", "conversation", "created_by",
     ).get(pk=access.pk)
