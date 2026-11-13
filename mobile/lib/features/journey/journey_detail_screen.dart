@@ -1168,7 +1168,6 @@ class _JourneyOutcomeCard extends StatelessWidget {
                   outcome.$1,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-
               ],
             ),
           ),
@@ -1417,8 +1416,7 @@ class _JourneyHeroFact extends StatelessWidget {
       child: ExcludeSemantics(
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width -
-                2 * MakoloSpacing.md,
+            maxWidth: MediaQuery.sizeOf(context).width - 2 * MakoloSpacing.md,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
