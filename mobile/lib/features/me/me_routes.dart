@@ -57,7 +57,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             return true;
           }
           if (destination.kind == 'support_collection') {
-            context.push('/me/support');
+            context.push('/appuis');
             return true;
           }
           if (destination.kind == 'considerations') {
