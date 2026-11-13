@@ -181,7 +181,8 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           _end = _restoredDate(data['ends_on']);
           _deadline = _restoredDate(data['deadline']);
         }
-        _attempted = state == 'verification_required' ||
+        _attempted =
+            state == 'verification_required' ||
             (state == 'confirmed' && (id is! String || id.isEmpty));
         if (state == 'confirmed' && id is String && id.isNotEmpty) {
           _confirmedId = id;
@@ -209,13 +210,18 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     _autosave?.cancel();
     _autosave = Timer(const Duration(milliseconds: 350), () {
       final values = _snapshot('editing');
-      unawaited(_draft.save(values).then((_) {
-        if (mounted && _draftSaveFailed) {
-          setState(() => _draftSaveFailed = false);
-        }
-      }).catchError((Object _) {
-        if (mounted) setState(() => _draftSaveFailed = true);
-      }));
+      unawaited(
+        _draft
+            .save(values)
+            .then((_) {
+              if (mounted && _draftSaveFailed) {
+                setState(() => _draftSaveFailed = false);
+              }
+            })
+            .catchError((Object _) {
+              if (mounted) setState(() => _draftSaveFailed = true);
+            }),
+      );
     });
   }
 
@@ -401,10 +407,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           widget.spaceActor != submittedSpace ||
           !identical(widget.repository, submittedRepository)) {
         // Nothing reached Django. Restore the editable draft for that scope.
-        await submittedDraft.save({
-          ...values,
-          'submission_state': 'editing',
-        });
+        await submittedDraft.save({...values, 'submission_state': 'editing'});
         if (mounted) setState(() => _attempted = false);
         return;
       }
@@ -474,14 +477,12 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
         widget.onCreated(id);
       }
     } on MakoloApiError catch (error) {
-      final definitive = requestStarted &&
+      final definitive =
+          requestStarted &&
           const {400, 401, 403, 404, 422}.contains(error.statusCode);
       if (definitive) {
         try {
-          await submittedDraft.save({
-            ...values,
-            'submission_state': 'editing',
-          });
+          await submittedDraft.save({...values, 'submission_state': 'editing'});
           if (mounted) {
             setState(() {
               _attempted = false;
