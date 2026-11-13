@@ -733,6 +733,7 @@ void main() {
     expect(find.text('Nos ressources'), findsOneWidget);
     expect(find.text('0 élément visible'), findsNothing);
     expect(find.text('0 éléments visibles'), findsNothing);
+    expect(find.text('Aucune ressource dans cet aperçu.'), findsNothing);
   });
 
   testWidgets('Nous switches to the shared grid and keeps owner handoffs', (
