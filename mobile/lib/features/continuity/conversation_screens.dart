@@ -3506,8 +3506,12 @@ class _PointCardState extends State<_PointCard> {
               Text(
                 responseIntent.isConfirmed
                     ? 'Envoyé'
+                    : responseIntent.state == 'conflict'
+                    ? 'Réponse refusée'
+                    : responseIntent.state == 'awaiting_confirmation'
+                    ? 'À vérifier'
                     : responseIntent.isBlocked && !responseIntent.retryScheduled
-                    ? 'Non confirmé'
+                    ? 'Non envoyé'
                     : 'En attente',
                 style: theme.labelSmall?.copyWith(color: muted),
               ),
