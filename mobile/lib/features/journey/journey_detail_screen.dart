@@ -381,6 +381,30 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   }
 }
 
+const double _journeyContentInset = MakoloSpacing.compact;
+
+/// The source description remains authoritative, but need not restate the
+/// exact objective before its useful explanation.
+String? _journeyDescription(JourneyDetailPresentation presentation) {
+  final description = presentation.summary?.trim();
+  if (description == null || description.isEmpty) return null;
+  final title = presentation.title.trim();
+  if (title.isEmpty) return description;
+  if (description.toLowerCase() == title.toLowerCase()) return null;
+  if (!description.toLowerCase().startsWith(title.toLowerCase())) {
+    return description;
+  }
+  final rest = description.substring(title.length).trimLeft();
+  if (rest.isEmpty) return null;
+  for (final separator in ['—', ':', '–', '-']) {
+    if (rest.startsWith(separator)) {
+      final explanation = rest.substring(separator.length).trim();
+      return explanation.isEmpty ? null : explanation;
+    }
+  }
+  return description;
+}
+
 class _JourneyContent extends StatelessWidget {
   const _JourneyContent({
     required this.presentation,
@@ -429,6 +453,7 @@ class _JourneyContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final action = _nextActionButton();
+    final description = _journeyDescription(presentation);
     final composition = JourneyComposition.from(
       presentation,
       resourcesKnown: resourcesKnown,
@@ -439,7 +464,7 @@ class _JourneyContent extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 760),
         child: ListView(
           key: const PageStorageKey<String>('journey-detail-content'),
-          padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
+          padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
           children: [
             _JourneyIdentity(
               presentation: presentation,
@@ -447,22 +472,23 @@ class _JourneyContent extends StatelessWidget {
               onOpenDayOf: onOpenDayOf,
               onOpenLive: onOpenLive,
             ),
-            if (presentation.summary != null)
+            if (description != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.inner,
+                  _journeyContentInset,
                   MakoloSpacing.sm,
-                  MakoloSpacing.inner,
+                  _journeyContentInset,
                   0,
                 ),
                 child: Text(
-                  presentation.summary!,
+                  description,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
             if (presentation.serviceRequest != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Votre demande',
                 child: MakoloCard(
                   child: Column(
@@ -508,7 +534,7 @@ class _JourneyContent extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                 ),
                 child: MakoloActionButton(
                   label: 'Pièces de ma démarche',
@@ -520,6 +546,7 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.serviceResult != null) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Réponse de l’organisme',
                 child: MakoloCard(
                   child: Column(
@@ -538,11 +565,15 @@ class _JourneyContent extends StatelessWidget {
                 ),
               ),
             ],
-            if (presentation.isTerminal) ...[
-              const SizedBox(height: MakoloSpacing.lg),
+            // The cover already states a completed/declined/cancelled Journey.
+            // Only Service needs a separate final note to distinguish
+            // Makolo follow-up from an external decision.
+            if (presentation.isTerminal &&
+                presentation.workflowKind == 'service') ...[
+              const SizedBox(height: MakoloSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                 ),
                 child: _JourneyOutcomeCard(presentation: presentation),
               ),
@@ -551,7 +582,7 @@ class _JourneyContent extends StatelessWidget {
                 !presentation.isTerminal) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                   vertical: MakoloSpacing.lg,
                 ),
                 child: Card(
@@ -606,7 +637,7 @@ class _JourneyContent extends StatelessWidget {
             if (invitationNotice != null)
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                 ),
                 child: Text(invitationNotice!),
               ),
@@ -615,7 +646,7 @@ class _JourneyContent extends StatelessWidget {
                 composition.situation != JourneySituation.calm) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                 ),
                 child: _JourneySituationPanel(
                   presentation: presentation,
@@ -628,8 +659,9 @@ class _JourneyContent extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.md),
             ],
             if (presentation.steps.isNotEmpty) ...[
-              const SizedBox(height: MakoloSpacing.lg),
+              const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Où j’en suis',
                 child: _JourneyPath(
                   steps: presentation.steps,
@@ -640,6 +672,7 @@ class _JourneyContent extends StatelessWidget {
             if (composition.hasPreparation) ...[
               const SizedBox(height: MakoloSpacing.sm),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Ma préparation',
                 child: _JourneyPreparation(
                   presentation: presentation,
@@ -652,56 +685,64 @@ class _JourneyContent extends StatelessWidget {
               ),
             ],
             if (composition.hasDocuments) ...[
-              const SizedBox(height: MakoloSpacing.md),
+              const SizedBox(height: MakoloSpacing.sm),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _journeyContentInset,
+                ),
                 title: 'Documents et ressources',
-                child: MakoloCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (resourcesPreview.isNotEmpty)
-                        SizedBox(
-                          height: 105,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: resourcesPreview.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: MakoloSpacing.sm),
-                            itemBuilder: (context, index) =>
-                                _JourneyResourceTile(
-                                  resource: resourcesPreview[index],
-                                ),
-                          ),
-                        ),
-                      Align(
-                        alignment: Alignment.centerRight,
+                child: resourcesPreview.isEmpty
+                    ? Align(
+                        alignment: Alignment.centerLeft,
                         child: TextButton.icon(
                           onPressed: () =>
                               onOpenResources(presentation.resourcesLink!),
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          iconAlignment: IconAlignment.end,
-                          label: Text(
-                            resourcesKnown
-                                ? 'Voir les ${resourcesPreview.length} ressources'
-                                : 'Voir les ressources',
-                          ),
+                          icon: const Icon(Icons.folder_open_outlined),
+                          label: const Text('Consulter les ressources'),
+                        ),
+                      )
+                    : MakoloCard(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MakoloSpacing.compact,
+                          vertical: MakoloSpacing.sm,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final resource in resourcesPreview.take(2))
+                              _JourneyResourceTile(resource: resource),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: () => onOpenResources(
+                                  presentation.resourcesLink!,
+                                ),
+                                icon: const Icon(Icons.arrow_forward_rounded),
+                                iconAlignment: IconAlignment.end,
+                                label: Text(
+                                  resourcesKnown
+                                      ? 'Voir les ${resourcesPreview.length} ressources'
+                                      : 'Voir les ressources',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
               ),
             ],
             if (_hasAdditionalPracticalFacts(presentation.practical)) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
-                title: 'À savoir',
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
+                title: 'Sur place',
                 child: _JourneyPracticalCard(facts: presentation.practical!),
               ),
             ],
             if (composition.hasEngagements) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Mes engagements',
                 child: _JourneyEngagements(
                   presentation: presentation,
@@ -717,7 +758,7 @@ class _JourneyContent extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: MakoloSpacing.inner,
+                  horizontal: _journeyContentInset,
                 ),
                 child: MakoloCard(
                   child: Column(
@@ -747,6 +788,7 @@ class _JourneyContent extends StatelessWidget {
             if (presentation.history.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.md),
               MakoloSection(
+                padding: const EdgeInsets.symmetric(horizontal: _journeyContentInset),
                 title: 'Historique',
                 child: _JourneyHistory(entries: presentation.history),
               ),
