@@ -91,6 +91,14 @@ void main() {
           ),
           'Avenue centrale · Lubumbashi',
         );
+        expect(
+          JourneyDayPresentation.additionalPlace(
+            name: 'Kampala',
+            locality: 'Kampala',
+            address: 'Centre-ville, Kampala',
+          ),
+          'Centre-ville',
+        );
       },
     );
   });
