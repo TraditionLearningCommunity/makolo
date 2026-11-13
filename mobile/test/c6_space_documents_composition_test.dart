@@ -10,6 +10,7 @@ import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/resources/resource_presentation.dart';
+import 'package:makolo_mobile/features/space/space_document_detail_screen.dart';
 import 'package:makolo_mobile/features/space/space_documents_screen.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
 import 'package:makolo_mobile/features/space/space_us_resources_screen.dart';
@@ -121,6 +122,93 @@ void main() {
     expect(find.byTooltip('Actualiser'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets(
+    'Space document detail shares the Resources presentation without duplicate versions',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final actor = await ActorContextController.restore(
+        profileId: 'profile-a',
+        store: _LocalActorStore(),
+      );
+      addTearDown(actor.dispose);
+      await actor.selectSpace(
+        SpaceActorIdentity(id: 'space-a', slug: 'atelier'),
+      );
+      const documentId = '00000000-0000-4000-8000-000000000001';
+      final repository = WorkspaceContextRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        actorContext: actor,
+      );
+      await store.putProjection(
+        kind: SpaceSyncKeys.documentDetailProjectionKind,
+        resourceKey: SpaceSyncKeys.documentDetailResourceKey(
+          'space-a',
+          documentId,
+        ),
+        schemaVersion: 1,
+        payload: {
+          'document': {
+            'id': documentId,
+            'title': 'Statuts du collectif',
+            'visibility': 'restricted',
+            'latest_version': 1,
+            'versions': [
+              {
+                'id': '00000000-0000-4000-8000-000000000002',
+                'number': 1,
+                'mime_type': 'application/pdf',
+              },
+            ],
+          },
+          'can_manage': true,
+          'shares': <Object>[],
+        },
+      );
+      final tokens = MemoryTokenStore(
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+      );
+      final runtime = AppRuntime(
+        tokens: tokens,
+        session: const AuthSession(
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          profileId: 'profile-a',
+        ),
+        recovery: SessionRecoveryController(),
+        actorContext: actor,
+        database: database,
+        store: store,
+        space: repository,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SpaceDocumentDetailScreen(
+            runtime: runtime,
+            slug: 'atelier',
+            documentId: documentId,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ResourceDocumentHeader), findsOneWidget);
+      expect(find.text('Statuts du collectif'), findsOneWidget);
+      expect(find.text('Version 1'), findsOneWidget);
+      expect(find.text('Versions précédentes'), findsNothing);
+      expect(find.text('Nouvelle version'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'Space documents retain prior list on outage but revoke on 403 or switch',
