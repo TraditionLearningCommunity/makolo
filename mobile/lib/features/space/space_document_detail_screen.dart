@@ -611,242 +611,356 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final doc = _document;
-    final versions = <Map<String, dynamic>>[
-      for (final row in doc?['versions'] as List? ?? [])
-        if (row is Map<String, dynamic>) row,
-    ];
-    final currentVersion = versions.isEmpty ? null : versions.first;
-    final previousVersions = versions.length <= 1
-        ? const <Map<String, dynamic>>[]
-        : versions.skip(1).toList(growable: false);
+    final actor = _actor;
+    final repository = widget.runtime.space;
+    if (actor == null || repository == null) {
+      _document = null;
+      _shares = const [];
+      _canManage = false;
+      _canUseNetwork = false;
+      return Scaffold(
+        appBar: AppBar(title: const Text('Document')),
+        body: const Center(child: Text('Cet Espace n’est plus actif.')),
+      );
+    }
 
-    bool canPreview(Map<String, dynamic> version) =>
-        version['mime_type'] == 'application/pdf' ||
-        version['mime_type'] == 'image/jpeg' ||
-        version['mime_type'] == 'image/png';
-
-    List<Widget> previousVersionActions(Map<String, dynamic> version) => [
-      MakoloIconActionButton(
-        tooltip: 'Télécharger',
-        onPressed: _working ? null : () => _download(version),
-        icon: Icons.download_rounded,
-      ),
-      PopupMenuButton<String>(
-        tooltip: 'Plus',
-        enabled: !_working,
-        onSelected: (value) {
-          if (value == 'share') {
-            _share(version);
-          } else if (value == 'reuse') {
-            _reuse(version);
-          }
-        },
-        itemBuilder: (context) => [
-          if (_canManage)
-            const PopupMenuItem(
-              value: 'share',
-              child: ListTile(
-                leading: Icon(Icons.share_outlined),
-                title: Text('Partager'),
-                contentPadding: EdgeInsets.zero,
-              ),
-            ),
-          const PopupMenuItem(
-            value: 'reuse',
-            child: ListTile(
-              leading: Icon(Icons.drive_file_move_outline),
-              title: Text('Utiliser dans une démarche'),
-              contentPadding: EdgeInsets.zero,
-            ),
+    final source = repository.documentDetailSource(
+      actor.space,
+      widget.documentId,
+    );
+    return StreamBuilder<OwnerSourceState>(
+      stream: repository.watchSource(source),
+      initialData: OwnerSourceState.unknown,
+      builder: (context, sourceSnapshot) {
+        final sourceState = sourceSnapshot.data ?? OwnerSourceState.unknown;
+        return StreamBuilder(
+          stream: repository.watchDocumentDetail(
+            actor.space,
+            widget.documentId,
           ),
-        ],
-      ),
-    ];
+          builder: (context, detailSnapshot) {
+            final payload = detailSnapshot.data?.payload;
+            final rawDocument = payload?['document'];
+            final doc = rawDocument is Map<String, dynamic>
+                ? rawDocument
+                : rawDocument is Map
+                ? rawDocument.map(
+                    (key, value) => MapEntry(key.toString(), value),
+                  )
+                : null;
+            final networkAvailable =
+                !_initializing &&
+                !_refreshing &&
+                sourceState.lastSuccessAt != null &&
+                sourceState.lastErrorCode == null &&
+                !sourceState.invalidated;
+            final canManage =
+                networkAvailable && payload?['can_manage'] == true;
+            final shares = canManage
+                ? <Map<String, dynamic>>[
+                    for (final raw in payload?['shares'] as List? ?? const [])
+                      if (raw is Map<String, dynamic>)
+                        raw
+                      else if (raw is Map)
+                        raw.map(
+                          (key, value) => MapEntry(key.toString(), value),
+                        ),
+                  ]
+                : const <Map<String, dynamic>>[];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Document'),
-        actions: [
-          if (currentVersion != null)
-            MakoloIconActionButton(
-              tooltip: 'Télécharger',
-              onPressed: _working ? null : () => _download(currentVersion),
-              icon: Icons.download_rounded,
-            ),
-          if (currentVersion != null && _canManage)
-            MakoloIconActionButton(
-              tooltip: 'Partager',
-              onPressed: _working ? null : () => _share(currentVersion),
-              icon: Icons.share_outlined,
-            ),
-          PopupMenuButton<String>(
-            tooltip: 'Plus',
-            enabled: !_working,
-            onSelected: (value) {
-              if (value == 'reuse' && currentVersion != null) {
-                _reuse(currentVersion);
-              } else if (value == 'edit') {
-                _edit();
-              } else if (value == 'archive') {
-                _archive();
-              } else if (value == 'refresh') {
-                _load();
-              }
-            },
-            itemBuilder: (context) => [
-              if (currentVersion != null)
-                const PopupMenuItem(
-                  value: 'reuse',
-                  child: ListTile(
-                    leading: Icon(Icons.drive_file_move_outline),
-                    title: Text('Utiliser dans une démarche'),
-                    contentPadding: EdgeInsets.zero,
+            _document = doc;
+            _shares = shares;
+            _canManage = canManage;
+            _canUseNetwork = networkAvailable;
+
+            final versions = <Map<String, dynamic>>[
+              for (final row in doc?['versions'] as List? ?? const [])
+                if (row is Map<String, dynamic>)
+                  row
+                else if (row is Map)
+                  row.map(
+                    (key, value) => MapEntry(key.toString(), value),
                   ),
-                ),
-              if (_canManage)
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: ListTile(
-                    leading: Icon(Icons.edit_outlined),
-                    title: Text('Modifier'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              if (_canManage)
-                const PopupMenuItem(
-                  value: 'archive',
-                  child: ListTile(
-                    leading: Icon(Icons.archive_outlined),
-                    title: Text('Archiver'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ),
-              const PopupMenuItem(
-                value: 'refresh',
-                child: ListTile(
-                  leading: Icon(Icons.refresh_rounded),
-                  title: Text('Actualiser'),
-                  contentPadding: EdgeInsets.zero,
-                ),
+            ];
+            final currentVersion = versions.isEmpty ? null : versions.first;
+            final previousVersions = versions.length <= 1
+                ? const <Map<String, dynamic>>[]
+                : versions.skip(1).toList(growable: false);
+
+            bool canPreview(Map<String, dynamic> version) =>
+                version['mime_type'] == 'application/pdf' ||
+                version['mime_type'] == 'image/jpeg' ||
+                version['mime_type'] == 'image/png';
+
+            List<Widget> previousVersionActions(
+              Map<String, dynamic> version,
+            ) => [
+              MakoloIconActionButton(
+                tooltip: 'Télécharger',
+                onPressed: _working || !networkAvailable
+                    ? null
+                    : () => _download(version),
+                icon: Icons.download_rounded,
               ),
-            ],
-          ),
-        ],
-      ),
-      body: _loading && doc == null
-          ? const Center(child: CircularProgressIndicator.adaptive())
-          : _error != null && doc == null
-          ? Center(child: Text(_error!))
-          : doc == null
-          ? const Center(child: Text('Document indisponible.'))
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(MakoloSpacing.inner),
-                    children: [
-                      ResourceDocumentHeader(
-                        title: doc['title']?.toString() ?? 'Document',
-                        subtitle: doc['visibility'] == 'restricted'
-                            ? 'Confidentiel'
-                            : 'Équipe autorisée',
+              PopupMenuButton<String>(
+                tooltip: 'Plus',
+                enabled: !_working && networkAvailable,
+                onSelected: (value) {
+                  if (value == 'share') {
+                    _share(version);
+                  } else if (value == 'reuse') {
+                    _reuse(version);
+                  }
+                },
+                itemBuilder: (context) => [
+                  if (canManage)
+                    const PopupMenuItem(
+                      value: 'share',
+                      child: ListTile(
+                        leading: Icon(Icons.share_outlined),
+                        title: Text('Partager'),
+                        contentPadding: EdgeInsets.zero,
                       ),
-                      if (_error != null) ...[
-                        const SizedBox(height: MakoloSpacing.sm),
-                        Text(
-                          _error!,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                      const SizedBox(height: MakoloSpacing.lg),
+                    ),
+                  const PopupMenuItem(
+                    value: 'reuse',
+                    child: ListTile(
+                      leading: Icon(Icons.drive_file_move_outline),
+                      title: Text('Utiliser dans une démarche'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ];
+
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Document'),
+                actions: [
+                  if (currentVersion != null)
+                    MakoloIconActionButton(
+                      tooltip: 'Télécharger',
+                      onPressed: _working || !networkAvailable
+                          ? null
+                          : () => _download(currentVersion),
+                      icon: Icons.download_rounded,
+                    ),
+                  if (currentVersion != null && canManage)
+                    MakoloIconActionButton(
+                      tooltip: 'Partager',
+                      onPressed: _working
+                          ? null
+                          : () => _share(currentVersion),
+                      icon: Icons.share_outlined,
+                    ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Plus',
+                    enabled: !_working,
+                    onSelected: (value) {
+                      if (value == 'reuse' && currentVersion != null) {
+                        _reuse(currentVersion);
+                      } else if (value == 'edit') {
+                        _edit();
+                      } else if (value == 'archive') {
+                        _archive();
+                      } else if (value == 'refresh') {
+                        _load();
+                      }
+                    },
+                    itemBuilder: (context) => [
                       if (currentVersion != null)
-                        ResourceVersionCard(
-                          leading: Icons.description_outlined,
-                          title:
-                              'Version ${currentVersion['number'] ?? doc['latest_version'] ?? 1}',
-                          subtitle:
-                              currentVersion['mime_type']?.toString() ??
-                              'Document',
-                          onTap: canPreview(currentVersion) && !_working
-                              ? () => _preview(currentVersion)
-                              : null,
-                        ),
-                      if (_canManage) ...[
-                        const SizedBox(height: MakoloSpacing.md),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: MakoloActionButton(
-                            label: 'Nouvelle version',
-                            icon: Icons.add_rounded,
-                            appearance: MakoloActionAppearance.quiet,
-                            onPressed: _working ? null : _replace,
+                        PopupMenuItem(
+                          value: 'reuse',
+                          enabled: networkAvailable,
+                          child: const ListTile(
+                            leading: Icon(Icons.drive_file_move_outline),
+                            title: Text('Utiliser dans une démarche'),
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                      ],
-                      if (previousVersions.isNotEmpty) ...[
-                        const SizedBox(height: MakoloSpacing.xl),
-                        ResourceSectionHeader(
-                          title: 'Versions précédentes',
-                          count: previousVersions.length,
-                        ),
-                        const SizedBox(height: MakoloSpacing.sm),
-                        for (final version in previousVersions)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: MakoloSpacing.sm,
-                            ),
-                            child: ResourceVersionCard(
-                              title: 'v${version['number']}',
-                              subtitle:
-                                  version['mime_type']?.toString() ??
-                                  'Document',
-                              onTap: canPreview(version) && !_working
-                                  ? () => _preview(version)
-                                  : null,
-                              actions: previousVersionActions(version),
-                            ),
+                      if (canManage)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(Icons.edit_outlined),
+                            title: Text('Modifier'),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                      ],
-                      if (_canManage && _shares.isNotEmpty) ...[
-                        const SizedBox(height: MakoloSpacing.xl),
-                        ResourceSectionHeader(
-                          title: 'Partages',
-                          count: _shares.length,
                         ),
-                        const SizedBox(height: MakoloSpacing.sm),
-                        for (final share in _shares)
-                          ListTile(
-                            leading: const Icon(Icons.person_outline_rounded),
-                            title: Text('@${share['recipient'] ?? ''}'),
-                            subtitle: Text(
-                              share['active'] == true ? 'Actif' : 'Terminé',
-                            ),
-                            trailing: share['active'] == true
-                                ? MakoloIconActionButton(
-                                    tooltip: 'Révoquer',
-                                    onPressed: _working
-                                        ? null
-                                        : () => _revoke(share['id'].toString()),
-                                    icon: Icons.close_rounded,
-                                  )
-                                : null,
+                      if (canManage)
+                        const PopupMenuItem(
+                          value: 'archive',
+                          child: ListTile(
+                            leading: Icon(Icons.archive_outlined),
+                            title: Text('Archiver'),
+                            contentPadding: EdgeInsets.zero,
                           ),
-                      ],
-                      const SizedBox(height: 70),
+                        ),
+                      PopupMenuItem(
+                        value: 'refresh',
+                        enabled: !_refreshing,
+                        child: const ListTile(
+                          leading: Icon(Icons.refresh_rounded),
+                          title: Text('Actualiser'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                ],
               ),
-            ),
+              body: sourceState.invalidated
+                  ? const Center(child: Text('Document indisponible.'))
+                  : doc == null && _initializing
+                  ? const Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    )
+                  : doc == null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Document indisponible.'),
+                          const SizedBox(height: MakoloSpacing.md),
+                          MakoloActionButton(
+                            label: 'Réessayer',
+                            appearance: MakoloActionAppearance.quiet,
+                            onPressed: _load,
+                            icon: Icons.refresh_rounded,
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 760),
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(MakoloSpacing.inner),
+                            children: [
+                              ResourceDocumentHeader(
+                                title: doc['title']?.toString() ?? 'Document',
+                                subtitle: doc['visibility'] == 'restricted'
+                                    ? 'Confidentiel'
+                                    : 'Équipe autorisée',
+                              ),
+                              if (sourceState.lastErrorCode != null &&
+                                  !sourceState.invalidated) ...[
+                                const SizedBox(height: MakoloSpacing.sm),
+                                Text(
+                                  'Données enregistrées sur cet appareil. '
+                                  'Mise à jour indisponible.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                ),
+                              ],
+                              const SizedBox(height: MakoloSpacing.lg),
+                              if (currentVersion != null)
+                                ResourceVersionCard(
+                                  leading: Icons.description_outlined,
+                                  title:
+                                      'Version ${currentVersion['number'] ?? doc['latest_version'] ?? 1}',
+                                  subtitle:
+                                      currentVersion['mime_type']?.toString() ??
+                                      'Document',
+                                  onTap:
+                                      canPreview(currentVersion) &&
+                                          !_working &&
+                                          networkAvailable
+                                      ? () => _preview(currentVersion)
+                                      : null,
+                                ),
+                              if (canManage) ...[
+                                const SizedBox(height: MakoloSpacing.md),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: MakoloActionButton(
+                                    label: 'Nouvelle version',
+                                    icon: Icons.add_rounded,
+                                    appearance: MakoloActionAppearance.quiet,
+                                    onPressed: _working ? null : _replace,
+                                  ),
+                                ),
+                              ],
+                              if (previousVersions.isNotEmpty) ...[
+                                const SizedBox(height: MakoloSpacing.xl),
+                                ResourceSectionHeader(
+                                  title: 'Versions précédentes',
+                                  count: previousVersions.length,
+                                ),
+                                const SizedBox(height: MakoloSpacing.sm),
+                                for (final version in previousVersions)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: MakoloSpacing.sm,
+                                    ),
+                                    child: ResourceVersionCard(
+                                      title: 'v${version['number']}',
+                                      subtitle:
+                                          version['mime_type']?.toString() ??
+                                          'Document',
+                                      onTap:
+                                          canPreview(version) &&
+                                              !_working &&
+                                              networkAvailable
+                                          ? () => _preview(version)
+                                          : null,
+                                      actions: previousVersionActions(
+                                        version,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                              if (canManage && shares.isNotEmpty) ...[
+                                const SizedBox(height: MakoloSpacing.xl),
+                                ResourceSectionHeader(
+                                  title: 'Partages',
+                                  count: shares.length,
+                                ),
+                                const SizedBox(height: MakoloSpacing.sm),
+                                for (final share in shares)
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.person_outline_rounded,
+                                    ),
+                                    title: Text(
+                                      '@${share['recipient'] ?? ''}',
+                                    ),
+                                    subtitle: Text(
+                                      share['active'] == true
+                                          ? 'Actif'
+                                          : 'Terminé',
+                                    ),
+                                    trailing: share['active'] == true
+                                        ? MakoloIconActionButton(
+                                            tooltip: 'Révoquer',
+                                            onPressed: _working
+                                                ? null
+                                                : () => _revoke(
+                                                    share['id'].toString(),
+                                                  ),
+                                            icon: Icons.close_rounded,
+                                          )
+                                        : null,
+                                  ),
+                              ],
+                              const SizedBox(height: 70),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+            );
+          },
+        );
+      },
     );
   }
 }
