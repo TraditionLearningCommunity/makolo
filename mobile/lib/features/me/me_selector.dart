@@ -411,6 +411,7 @@ class MeSelector {
             id: entry.key,
           ),
           title: _supportLabel(entry.key),
+          canOpen: true,
           subtitle: value?['needs_response'] == true
               ? 'Une réponse peut être nécessaire.'
               : null,
