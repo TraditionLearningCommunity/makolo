@@ -355,8 +355,11 @@ class SpaceUsResourcesTests(TestCase):
         n2 = self.client.get(url + "?detail=resources")
         self.assertEqual(n2.status_code, 200)
         self.assertEqual(n2["Cache-Control"], "private, no-store")
-        self.assertContains(n2, "Passeports émis")
+        self.assertContains(n2, "Médias de présentation")
         self.assertContains(n2, "Modèles de présentation")
+        self.assertContains(n2, "Thèmes de présentation")
+        self.assertContains(n2, "Passeports émis")
+        self.assertContains(n2, "Titres émis")
         self.assertContains(n2, reverse(
             "sharing:passport-space-history", kwargs={"slug": self.space.slug}
         ))
