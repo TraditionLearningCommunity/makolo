@@ -268,9 +268,12 @@
       });
       add(area, stats);
     }
+    const urgent = rows.filter((row) =>
+      (row.readiness || {}).state === 'action_required').slice(0, 2);
+    const urgentIds = new Set(urgent.map(row => String(row.id)));
     const today = localDay(new Date());
     const deadlines = rows.filter((row) => parse(row.deadline) &&
-      parse(row.deadline) >= today)
+      parse(row.deadline) >= today && !urgentIds.has(String(row.id)))
       .sort((a, b) => parse(a.deadline).localeCompare(parse(b.deadline)));
     if (deadlines.length) {
       const next = el('p', 'mk-project__hint');
@@ -279,9 +282,6 @@
       add(next, el('span', '', ' · ' + when(deadlines[0].deadline)));
       add(area, next);
     }
-    const action = rows.filter((row) =>
-      (row.readiness || {}).state === 'action_required');
-    const urgent = action.slice(0, 2);
     if (urgent.length) {
       add(area, el('h3', 'mk-project__subtitle', 'À suivre'));
       for (const row of urgent) {
@@ -305,8 +305,7 @@
     all.type = 'button';
     all.addEventListener('click', () => { state.view = 'dossiers'; render(); });
     add(title, all); add(area, title);
-    const shown = new Set(urgent.map(row => String(row.id)));
-    const complementary = rows.filter(row => !shown.has(String(row.id)))
+    const complementary = rows.filter(row => !urgentIds.has(String(row.id)))
       .slice(0, 3);
     if (complementary.length) {
       const cards = el('div', 'mk-project__cards mk-project__cards--preview');
