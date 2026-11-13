@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/actor_context.dart';
+import '../../app/runtime/actor_context_controller.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
 import '../../data/files/profile_paths.dart';
@@ -376,6 +377,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
         builder: (_) => JourneyOwnerFileReader(
           api: api,
           profileId: _repository.profileId,
+          actorContext: widget.runtime.actorContext,
+          space: widget.space,
           path: path,
           title: piece['title']?.toString() ?? 'Pièce',
           mime: piece['mime_type']?.toString() ?? '',
@@ -626,10 +629,14 @@ class JourneyOwnerFileReader extends StatefulWidget {
     required this.path,
     required this.title,
     required this.mime,
+    this.actorContext,
+    this.space,
   });
 
   final MakoloApiClient api;
   final String profileId;
+  final ActorContextController? actorContext;
+  final SpaceActorIdentity? space;
   final String path;
   final String title;
   final String mime;
@@ -643,10 +650,28 @@ class JourneyOwnerFileReaderState extends State<JourneyOwnerFileReader> {
   bool _busy = true;
   String? _error;
 
+  bool get _validContext {
+    if (widget.space == null) return true;
+    final active = widget.actorContext?.value;
+    return active is SpaceActorContext && active.space == widget.space;
+  }
+
   @override
   void initState() {
     super.initState();
+    widget.actorContext?.addListener(_contextChanged);
     unawaited(_load());
+  }
+
+  void _contextChanged() {
+    if (!mounted || _validContext) return;
+    final path = _path;
+    setState(() {
+      _path = null;
+      _busy = false;
+      _error = 'Ce document privé n’est plus visible dans le contexte sélectionné.';
+    });
+    if (path != null) unawaited(_clear(path));
   }
 
   Future<void> _load() async {
@@ -678,7 +703,7 @@ class JourneyOwnerFileReaderState extends State<JourneyOwnerFileReader> {
       await folder.create(recursive: true);
       final local = '${folder.path}/piece.$suffix';
       await widget.api.download(widget.path, destinationPath: local);
-      if (!mounted) {
+      if (!mounted || !_validContext) {
         await _clear(local);
         return;
       }
@@ -706,6 +731,7 @@ class JourneyOwnerFileReaderState extends State<JourneyOwnerFileReader> {
 
   @override
   void dispose() {
+    widget.actorContext?.removeListener(_contextChanged);
     final path = _path;
     if (path != null) unawaited(_clear(path));
     super.dispose();
