@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../network/api_error.dart';
 import 'journey_artifact_repository.dart';
 
@@ -29,6 +30,7 @@ class _SpaceBeneficiaryJourneysScreenState
     extends State<SpaceBeneficiaryJourneysScreen> {
   late SpaceBeneficiaryJourneyListRepository _repository;
   bool _refreshing = false;
+  bool _loadingMore = false;
   bool _denied = false;
   String? _message;
   int _epoch = 0;
@@ -99,6 +101,71 @@ class _SpaceBeneficiaryJourneysScreenState
     }
   }
 
+  Future<void> _more() async {
+    if (_loadingMore || !_actorValid || _denied || _refreshing) return;
+    final previous = await _repository.store.readProjection(
+      SpaceBeneficiaryJourneyListRepository.projectionKind,
+      resourceKey: widget.space.id,
+    );
+    final offset = previous?.payload['next_offset'];
+    if (offset is! int || offset < 1) return;
+    setState(() => _loadingMore = true);
+    try {
+      final response = await widget.runtime.api!.get(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.space.slug)}/beneficiary/journeys/?offset=$offset',
+      );
+      final page = response.jsonObject();
+      final scope = page['space'];
+      if (scope is! Map ||
+          scope['id'] != widget.space.id ||
+          page['journeys'] is! List ||
+          !_actorValid) {
+        throw const FormatException('Mismatched Space continuation page');
+      }
+      final seen = <String>{};
+      final combined = <Map<String, dynamic>>[];
+      for (final source in [previous?.payload['journeys'], page['journeys']]) {
+        if (source is! List) continue;
+        for (final value in source) {
+          if (value is! Map) continue;
+          final row = Map<String, dynamic>.from(value);
+          final id = row['id'];
+          if (id is String && seen.add(id)) combined.add(row);
+        }
+      }
+      final next = <String, dynamic>{
+        ...?previous?.payload,
+        'journeys': combined,
+        'has_more': page['has_more'] == true,
+        'next_offset': page['next_offset'],
+      };
+      await _repository.store.putProjection(
+        kind: SpaceBeneficiaryJourneyListRepository.projectionKind,
+        resourceKey: widget.space.id,
+        schemaVersion: 1,
+        payload: next,
+      );
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        await _repository.store.deleteProjection(
+          SpaceBeneficiaryJourneyListRepository.projectionKind,
+          resourceKey: widget.space.id,
+        );
+        if (mounted) setState(() => _denied = true);
+      } else if (mounted) {
+        setState(() => _message = 'Les demandes suivantes sont momentanément indisponibles.');
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _message = 'Les demandes suivantes n’ont pas été récupérées.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -159,10 +226,13 @@ class _SpaceBeneficiaryJourneysScreenState
                       ),
                     ),
                   if (snapshot.data?.payload['has_more'] == true)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 16),
-                      child: Text(
-                        'D’autres demandes existent. Affinez votre suivi depuis cet Espace.',
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: MakoloActionButton(
+                        label: 'Afficher plus de demandes',
+                        icon: Icons.expand_more_rounded,
+                        busy: _loadingMore,
+                        onPressed: _loadingMore ? null : _more,
                       ),
                     ),
                 ],
