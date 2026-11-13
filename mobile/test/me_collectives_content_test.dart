@@ -178,6 +178,13 @@ void main() {
     tester,
   ) async {
     await _show(tester, collectives: _data(partial: true), hasMore: true);
+    // The fourth filter starts outside the narrow viewport. Interact with
+    // the actual horizontal strip before tapping its target.
+    await tester.drag(
+      find.byKey(const Key('me-collectives-filter-scroller')),
+      const Offset(-500, 0),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('me-collectives-filter-groups')));
     await tester.pumpAndSettle();
     expect(find.text('Espaces où je peux agir'), findsNothing);
