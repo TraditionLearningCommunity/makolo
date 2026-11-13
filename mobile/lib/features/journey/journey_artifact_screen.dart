@@ -318,8 +318,7 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
       } on Object {
         if (mounted) {
           setState(() {
-            _message =
-                'Pièce reçue par Makolo. Un brouillon local résiduel pourra être nettoyé plus tard.';
+            _message = 'Pièce reçue par Makolo. Un brouillon local résiduel pourra être nettoyé plus tard.';
           });
         }
       }
@@ -438,7 +437,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                     (payload!['capabilities'] as Map)['upload'] == true;
                 final canUploadRestricted =
                     payload?['capabilities'] is Map &&
-                    (payload!['capabilities'] as Map)['upload_restricted'] == true;
+                    (payload!['capabilities'] as Map)['upload_restricted'] ==
+                        true;
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
@@ -587,7 +587,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                             : 'Envoyer cette version',
                         icon: Icons.file_upload_outlined,
                         appearance: MakoloActionAppearance.primary,
-                        onPressed: _busy ||
+                        onPressed:
+                            _busy ||
                                 _staged == null ||
                                 (_sensitivity == 'restricted' &&
                                     !canUploadRestricted)
