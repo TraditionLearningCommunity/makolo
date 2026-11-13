@@ -262,7 +262,10 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
                 "subtitle": row.achievement.badge_label or "Contribution reconnue",
                 "symbol": "award",
             })
+        incoming_ids = {row.pk for row in incoming_rows}
         for row in recognition_benefits:
+            if row.pk in incoming_ids:
+                continue
             recognition_cards.append({
                 "title": row.reward.name, "subtitle": row.get_status_display(),
                 "symbol": "badge-check",
