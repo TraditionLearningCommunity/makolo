@@ -486,219 +486,263 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
   }
 
+
+  /// A family is an entry point, not an endless list. Detail stays folded
+  /// until the participant explicitly wants it.
   Widget _section(
     String family,
     String title,
     Object? source, {
     String Function(Map<String, dynamic>)? details,
     bool actions = false,
+    IconData icon = Icons.list_alt_outlined,
   }) {
     final rows = _rows(source);
     if (rows.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        key: PageStorageKey<String>('appuis:' + _scope + ':' + family + ':' + title),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+        title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+        subtitle: Text(rows.length == 1 ? '1 élément' : rows.length.toString() + ' éléments'),
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
           for (final row in rows)
             ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_label(row)),
-              subtitle: Text(
-                details?.call(row) ??
-                    _text(
-                      row['status_label'] ??
-                          row['description'] ??
-                          row['status'] ??
-                          row['created_at'],
-                    ),
-              ),
-              trailing: actions
-                  ? Wrap(
-                      spacing: 0,
-                      children: [
-                        for (final command in [
-                          'accept',
-                          'decline',
-                          'redeem',
-                          'cancel',
-                        ])
-                          if (_action(row, family, command) != null)
-                            TextButton(
-                              onPressed: _busy
-                                  ? null
-                                  : () => _execute(row, family, command),
-                              child: Text(switch (command) {
-                                'accept' => 'Accepter',
-                                'decline' => 'Refuser',
-                                'cancel' => 'Annuler',
-                                _ => 'Utiliser',
-                              }),
-                            ),
-                      ],
-                    )
-                  : null,
+              dense: true,
+              title: Text(_label(row), maxLines: 2, overflow: TextOverflow.ellipsis),
+              subtitle: () {
+                final detail = details?.call(row) ??
+                    _text(row['status_label'] ?? row['description'] ??
+                        row['status'] ?? row['created_at']);
+                return detail.trim().isEmpty ? null : Text(
+                  detail, maxLines: 2, overflow: TextOverflow.ellipsis,
+                );
+              }(),
+              trailing: actions ? Wrap(
+                spacing: 0,
+                children: [
+                  for (final command in ['accept', 'decline', 'redeem', 'cancel'])
+                    if (_action(row, family, command) != null)
+                      TextButton(
+                        onPressed: _busy ? null : () => _execute(row, family, command),
+                        child: Text(switch (command) {
+                          'accept' => 'Accepter',
+                          'decline' => 'Refuser',
+                          'cancel' => 'Annuler',
+                          _ => 'Utiliser',
+                        }),
+                      ),
+                ],
+              ) : null,
             ),
         ],
       ),
     );
   }
 
+  static bool _positive(Object? value) {
+    if (value is num) return value > 0;
+    return (num.tryParse(_text(value).replaceAll(',', '.')) ?? 0) > 0;
+  }
+
+  static String _programId(Map<String, dynamic> row) {
+    final program = row['program'];
+    return _text(program is Map ? program['id'] : program);
+  }
+
+  Widget _heading(String label, IconData symbol) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 18, 4, 12),
+    child: Row(children: [
+      Icon(symbol, size: 22, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label,
+          style: Theme.of(context).textTheme.titleLarge)),
+    ]),
+  );
+
+  /// One card per Loyalty program, even when the owner has several rows.
+  /// A zero balance is not promoted to a metric. Details are on demand.
+  Widget _personalLoyalty(Map<String, dynamic> data) {
+    final accounts = _rows(data['accounts']);
+    final memberships = _rows(data['memberships']);
+    final rewards = _rows(data['available_rewards']);
+    final history = _rows(data['rewards']);
+    final keys = <String>{};
+    for (final row in [...accounts, ...memberships, ...rewards]) {
+      final id = _programId(row);
+      if (id.isNotEmpty) keys.add(id);
+    }
+    final cards = <Widget>[];
+    for (final id in keys) {
+      final owned = accounts.where((row) => _programId(row) == id).toList();
+      final joined = memberships.where((row) => _programId(row) == id).toList();
+      final available = rewards.where((row) => _programId(row) == id).toList();
+      final account = owned.isNotEmpty ? owned.first : <String, dynamic>{};
+      final membership = joined.isNotEmpty ? joined.first : <String, dynamic>{};
+      final reward = available.isNotEmpty ? available.first : <String, dynamic>{};
+      final organization = _text(account['organization_name'] ??
+          membership['organization_name'] ??
+          _map(reward['organization'])['name']);
+      final programName = _text(account['program_name']);
+      final balance = account['points_balance'];
+      final tier = _text(_map(account['current_tier'])['name']);
+      final unit = _text(account['points_name']);
+      final details = [
+        if (_positive(balance))
+          _text(balance) + (unit.isEmpty ? ' points' : ' ' + unit),
+        if (tier.isNotEmpty) tier,
+        if (available.isNotEmpty)
+          available.length.toString() + ' avantage' +
+              (available.length == 1 ? '' : 's') + ' disponible' +
+              (available.length == 1 ? '' : 's'),
+      ];
+      cards.add(Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        clipBehavior: Clip.antiAlias,
+        child: ExpansionTile(
+          key: PageStorageKey<String>('loyalty:' + _scope + ':' + id),
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            child: Icon(Icons.card_giftcard_outlined,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
+          ),
+          title: Text(programName.isNotEmpty ? programName :
+              (organization.isEmpty ? 'Programme de fidélité' : organization),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (programName.isNotEmpty && organization.isNotEmpty)
+                Text(organization, maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (details.isNotEmpty)
+                Text(details.join(' · '), maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                    )),
+            ],
+          ),
+          children: [
+            for (final row in joined)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.verified_outlined),
+                title: Text(_text(row['plan_name']).isEmpty
+                    ? 'Adhésion' : _text(row['plan_name'])),
+                subtitle: Text(_text(row['status'])),
+                trailing: _action(row, 'loyalty', 'cancel') == null
+                    ? null : TextButton(
+                      onPressed: _busy ? null :
+                          () => _execute(row, 'loyalty', 'cancel'),
+                      child: const Text('Annuler'),
+                    ),
+              ),
+            for (final row in available)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.redeem_outlined),
+                title: Text(_label(row)),
+                subtitle: _positive(row['points_cost'])
+                    ? Text(_text(row['points_cost']) + ' ' +
+                        _text(row['points_name'])) : null,
+                trailing: _action(row, 'loyalty', 'redeem') == null
+                    ? null : TextButton(
+                      onPressed: _busy ? null :
+                          () => _execute(row, 'loyalty', 'redeem'),
+                      child: const Text('Utiliser'),
+                    ),
+              ),
+            for (final row in owned)
+              for (final movement in _rows(row['recent_activity']))
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.history_outlined),
+                  title: Text(_text(movement['description']).isEmpty
+                      ? 'Mouvement' : _text(movement['description'])),
+                  trailing: _positive(movement['points_delta'])
+                      ? Text('+' + _text(movement['points_delta'])) : null,
+                ),
+          ],
+        ),
+      ));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (cards.isNotEmpty) _heading('Fidélité', Icons.loyalty_outlined),
+      ...cards,
+      _section('loyalty', 'Récompenses obtenues', history,
+          icon: Icons.workspace_premium_outlined),
+    ]);
+  }
+
   Widget _family(String family, Map<String, dynamic> data) {
     final account = _map(data['account']);
     final program = _map(data['program']);
-    final accounts = _rows(data['accounts']);
-    final memberships = _rows(data['memberships']);
     final relationships = _rows(data['relationships']);
-    final exists = switch (family) {
-      'recognition' =>
-        account.isNotEmpty ||
-            _rows(data['incoming']).isNotEmpty ||
-            _rows(data['benefits_received']).isNotEmpty,
-      'loyalty' =>
-        _space
-            ? program.isNotEmpty
-            : accounts.isNotEmpty ||
-                  memberships.isNotEmpty ||
-                  _rows(data['available_rewards']).isNotEmpty,
-      _ => relationships.isNotEmpty,
-    };
-    if (!exists) return const SizedBox.shrink();
-    final title = switch (family) {
-      'recognition' => 'Reconnaissance',
-      'loyalty' => _space ? 'Fidélité de l’Espace' : 'Fidélité',
-      _ => 'Partenariats',
-    };
-    final credits = _map(data['summary'])['available_credits'];
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            if (family == 'recognition' && credits != null)
-              Text(_text(credits) + ' crédits Recognition disponibles'),
-            if (family == 'loyalty' && _space) Text(_text(program['name'])),
-            if (family == 'recognition') ...[
-              _section(
-                family,
-                'Demandes reçues',
-                data['incoming'],
-                actions: true,
-              ),
-              _section(
-                family,
-                'Récompenses',
-                data['rewards'],
-                details: (r) => _text(r['points_cost']) + ' crédits',
-                actions: true,
-              ),
-              _section(family, 'Contributions reconnues', data['achievements']),
-              _section(family, 'Avantages reçus', data['benefits_received']),
-              _section(family, 'Utilisations', data['redemptions']),
-              _section(
-                family,
-                'Historique des mouvements',
-                data['recent_activity'],
-                details: (r) => _text(r['credits_delta']),
-              ),
-            ],
-            if (family == 'loyalty' && !_space) ...[
-              _section(
-                family,
-                'Mes programmes',
-                accounts,
-                details: (r) =>
-                    _text(r['organization_name']) +
-                    ' · ' +
-                    _text(r['points_balance']) +
-                    ' ' +
-                    _text(r['points_name']),
-              ),
-              _section(
-                family,
-                'Mes adhésions',
-                memberships,
-                details: (r) => _text(r['status']),
-                actions: true,
-              ),
-              _section(
-                family,
-                'Récompenses utilisables',
-                data['available_rewards'],
-                actions: true,
-              ),
-              _section(family, 'Récompenses obtenues', data['rewards']),
-              for (final row in accounts)
-                _section(
-                  family,
-                  'Mouvements · ' + _text(row['organization_name']),
-                  row['recent_activity'],
-                  details: (r) => _text(r['points_delta']),
-                ),
-            ],
-            if (family == 'loyalty' && _space) ...[
-              _section(family, 'Niveaux', program['tiers']),
-              _section(
-                family,
-                'Adhésions proposées',
-                program['membership_plans'],
-              ),
-              _section(family, 'Récompenses proposées', program['rewards']),
-            ],
-            if (family == 'partners') ...[
-              _section(
-                family,
-                'Relations établies',
-                relationships,
-                details: (r) {
-                  final org = _map(r['organization']);
-                  return [
-                    _text(r['status_label'] ?? r['status']),
-                    _text(org['name'] ?? r['organization_name']),
-                  ].where((part) => part.isNotEmpty).join(' · ');
-                },
-              ),
-              _section(family, 'Campagnes associées', data['campaigns']),
-              _section(
-                family,
-                'Codes de parrainage',
-                data['codes'],
-                details: (r) =>
-                    _text(r['partner_name']) +
-                    ' · ' +
-                    (r['is_usable'] == true ? 'Utilisable' : 'Non utilisable'),
-              ),
-              _section(
-                family,
-                'Commissions',
-                data['commissions'],
-                details: (r) =>
-                    _text(r['amount']) +
-                    ' ' +
-                    _text(r['currency']) +
-                    ' · ' +
-                    _text(r['status']),
-              ),
-              _section(
-                family,
-                'Versements',
-                data['payouts'],
-                details: (r) =>
-                    _text(r['amount']) +
-                    ' ' +
-                    _text(r['currency']) +
-                    ' · ' +
-                    _text(r['status']),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+    if (family == 'loyalty' && !_space) {
+      return _personalLoyalty(data);
+    }
+    if (family == 'recognition') {
+      final credits = _map(data['summary'])['available_credits'];
+      final visible = account.isNotEmpty ||
+          _rows(data['incoming']).isNotEmpty ||
+          _rows(data['benefits_received']).isNotEmpty ||
+          _rows(data['achievements']).isNotEmpty;
+      if (!visible) return const SizedBox.shrink();
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _heading('Reconnaissance', Icons.workspace_premium_outlined),
+        if (_positive(credits))
+          Card(child: ListTile(
+            leading: const Icon(Icons.stars_outlined),
+            title: Text(_text(credits) + ' crédits disponibles'),
+          )),
+        _section(family, 'Réponses attendues', data['incoming'],
+            actions: true, icon: Icons.mark_email_unread_outlined),
+        _section(family, 'Récompenses', data['rewards'],
+            details: (row) => _positive(row['points_cost'])
+                ? _text(row['points_cost']) + ' crédits' : '',
+            actions: true, icon: Icons.redeem_outlined),
+        _section(family, 'Contributions reconnues', data['achievements'],
+            icon: Icons.military_tech_outlined),
+        _section(family, 'Avantages reçus', data['benefits_received'],
+            icon: Icons.card_giftcard_outlined),
+        _section(family, 'Utilisations', data['redemptions'],
+            icon: Icons.check_circle_outline),
+        _section(family, 'Mouvements', data['recent_activity'],
+            icon: Icons.history_outlined),
+      ]);
+    }
+    if (family == 'loyalty') {
+      if (program.isEmpty) return const SizedBox.shrink();
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _heading('Fidélité', Icons.loyalty_outlined),
+        Card(child: ListTile(
+          leading: const Icon(Icons.storefront_outlined),
+          title: Text(_text(program['name'])),
+          subtitle: const Text('Programme de cet Espace'),
+        )),
+        _section(family, 'Niveaux', program['tiers'], icon: Icons.layers_outlined),
+        _section(family, 'Formules', program['membership_plans'],
+            icon: Icons.card_membership_outlined),
+        _section(family, 'Avantages proposés', program['rewards'],
+            icon: Icons.redeem_outlined),
+      ]);
+    }
+    if (relationships.isEmpty) return const SizedBox.shrink();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _heading('Partenariats', Icons.handshake_outlined),
+      _section(family, 'Relations', relationships,
+          icon: Icons.people_outline),
+      _section(family, 'Campagnes', data['campaigns'],
+          icon: Icons.campaign_outlined),
+      _section(family, 'Codes de parrainage', data['codes'],
+          icon: Icons.qr_code_outlined),
+      _section(family, 'Commissions', data['commissions'],
+          icon: Icons.receipt_long_outlined),
+      _section(family, 'Versements', data['payouts'],
+          icon: Icons.payments_outlined),
+    ]);
   }
 
   @override
