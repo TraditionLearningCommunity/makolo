@@ -145,6 +145,8 @@ def _file_params(request, journey, *, allow_step=True):
         raise ValidationError({"kind": "Type de pièce invalide."})
     if sensitivity not in JourneyArtifactSensitivity.values:
         raise ValidationError({"sensitivity": "Sensibilité invalide."})
+    if kind == JourneyArtifactKind.IDENTITY_DOCUMENT and sensitivity != JourneyArtifactSensitivity.RESTRICTED:
+        raise ValidationError({"sensitivity": "Un document d’identité doit rester restreint."})
     step = None
     if allow_step and request.data.get("step_id"):
         step = JourneyStep.objects.filter(
