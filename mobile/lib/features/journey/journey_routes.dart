@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
@@ -35,7 +36,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       if (runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Preuve',
           message:
@@ -59,7 +60,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       if (space == null ||
           runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Proposer une preuve',
           message: 'Sélectionnez cet Espace pour poursuivre.',
@@ -81,7 +82,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     builder: (context, state) {
       if (runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Pièces',
           message:
@@ -104,7 +105,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       if (space == null ||
           runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Demandes de cet Espace',
           message: 'Sélectionnez cet Espace pour reprendre ses demandes.',
@@ -126,7 +127,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       if (space == null ||
           runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Demande de cet Espace',
           message: 'Sélectionnez cet Espace pour retrouver sa demande.',
@@ -146,7 +147,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     path: '/space/:slug/beneficiary/journeys/:id/intake',
     builder: (context, state) {
       final space = _activeSpace(runtime, state.pathParameters['slug']!);
-      if (space == null || runtime.session == null) {
+      if (space == null || runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Questions de la demande',
           message: 'Sélectionnez cet Espace pour reprendre ses réponses.',
@@ -169,7 +170,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       if (space == null ||
           runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Pièces du dossier',
           message: 'Sélectionnez cet Espace pour consulter ses pièces.',
@@ -192,7 +193,7 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
       if (space == null ||
           runtime.database == null ||
           runtime.store == null ||
-          runtime.session == null) {
+          runtime.session?.profileId == null) {
         return const MakoloSecondaryScreen(
           title: 'Ressources',
           message: 'Sélectionnez cet Espace pour retrouver ses ressources.',

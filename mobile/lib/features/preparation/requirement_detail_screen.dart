@@ -34,7 +34,6 @@ class RequirementDetailScreen extends StatefulWidget {
   final String? detailPath;
   final Future<void> Function(String link)? onOpenOwnerLink;
   final VoidCallback? onOpenEvidence;
-  final VoidCallback? onOpenEvidence;
 
   @override
   State<RequirementDetailScreen> createState() =>
@@ -187,6 +186,7 @@ class _RequirementContent extends StatelessWidget {
 
   final _RequirementPresentation presentation;
   final Future<void> Function(String link)? onOpenOwnerLink;
+  final VoidCallback? onOpenEvidence;
 
   @override
   Widget build(BuildContext context) {

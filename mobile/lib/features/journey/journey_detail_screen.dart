@@ -39,7 +39,6 @@ class JourneyDetailScreen extends StatefulWidget {
     this.onOpenPaymentObligation,
     this.onOpenCommerceOrder,
     this.onOpenArtifacts,
-    this.onOpenArtifacts,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -60,7 +59,6 @@ class JourneyDetailScreen extends StatefulWidget {
   final PreparationResourcesRepository? resourcesRepository;
   final ValueChanged<String>? onOpenPaymentObligation;
   final ValueChanged<String>? onOpenCommerceOrder;
-  final VoidCallback? onOpenArtifacts;
   final VoidCallback? onOpenArtifacts;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
@@ -390,6 +388,7 @@ class _JourneyContent extends StatelessWidget {
     required this.resourcesKnown,
     this.onOpenPaymentObligation,
     this.onOpenCommerceOrder,
+    this.onOpenArtifacts,
     required this.invitationEnabled,
     required this.invitationDecision,
     required this.invitationPhase,
@@ -412,6 +411,7 @@ class _JourneyContent extends StatelessWidget {
   final bool resourcesKnown;
   final ValueChanged<String>? onOpenPaymentObligation;
   final ValueChanged<String>? onOpenCommerceOrder;
+  final VoidCallback? onOpenArtifacts;
   final bool invitationEnabled;
   final String? invitationDecision;
   final MakoloActionPhase invitationPhase;

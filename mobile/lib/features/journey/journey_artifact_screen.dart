@@ -87,7 +87,7 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
   JourneyArtifactRepository _openRepository() => JourneyArtifactRepository(
     database: widget.runtime.database!,
     store: widget.runtime.store!,
-    profileId: widget.runtime.session!.profileId,
+    profileId: widget.runtime.session!.profileId!,
     sync: widget.runtime.sync,
   );
 
@@ -552,12 +552,12 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Confidentialité',
                         ),
-                        items: const [
-                          DropdownMenuItem(
+                        items: [
+                          const DropdownMenuItem(
                             value: 'normal',
                             child: Text('Normale'),
                           ),
-                          DropdownMenuItem(
+                          const DropdownMenuItem(
                             value: 'sensitive',
                             child: Text('Sensible'),
                           ),
