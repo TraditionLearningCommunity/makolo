@@ -270,7 +270,9 @@ class _ConversationContextActionState extends State<ConversationContextAction> {
       final VoidCallback? open = _busy ? null : () => _openRows(rows);
       if (widget.iconOnly) {
         return IconButton(
-          tooltip: 'Conversation de cette démarche',
+          tooltip: widget.kind == 'project'
+              ? 'Échanger autour du Projet'
+              : 'Conversation de cette démarche',
           onPressed: open,
           icon: const Icon(Icons.forum_outlined),
         );
