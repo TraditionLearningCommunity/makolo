@@ -1477,8 +1477,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     children: [
                       Text(
                         _text(row['title']),
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w700, decoration: TextDecoration.none),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.none,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -1551,9 +1553,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     // Summary = useful next steps + a complementary glimpse, not a repeated
     // rendering of the same Dossiers already shown under "À suivre".
     final followIds = intervention.map((row) => _text(row['id'])).toSet();
-    final preview = rows.where(
-      (row) => !followIds.contains(_text(row['id'])),
-    ).take(3).toList();
+    final preview = rows
+        .where((row) => !followIds.contains(_text(row['id'])))
+        .take(3)
+        .toList();
     final indicators = <(int, String)>[
       if (rows.isNotEmpty) (rows.length, 'dossiers'),
       if (active > 0) (active, 'en cours'),
@@ -1644,9 +1647,8 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               Expanded(
                 child: Text(
                   'Dossiers',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               TextButton(
