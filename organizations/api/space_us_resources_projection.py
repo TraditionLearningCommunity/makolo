@@ -1,8 +1,9 @@
 """Space-owned resources for Nous: compose established owners, never copy files.
 
 This is a bounded read model. It is not an asset store or an authorization
-grant: Sharing owns issued Passport documents and Presentation owns reusable
-templates/themes. PersonalAsset and ActivityResource never become Space assets.
+grant: SpaceDocument owns institutional documents, Presentation owns reusable
+media/templates/themes, Sharing owns issued Passport documents, and Trust owns
+issued Credentials. PersonalAsset and ActivityResource never become Space assets.
 """
 from __future__ import annotations
 
