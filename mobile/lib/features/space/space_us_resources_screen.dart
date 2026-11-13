@@ -139,8 +139,7 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                     refreshing: _refreshing,
                     onRefresh: _refresh,
                     entries: const [],
-                    emptyMessage:
-                        'Ces ressources ne sont pas accessibles avec vos droits actuels.',
+                    emptyMessage: 'Ces ressources ne sont pas accessibles avec vos droits actuels.',
                   );
                 }
 
@@ -177,12 +176,10 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                       key: const Key('space-resources-passports'),
                       icon: Icons.badge_outlined,
                       title: 'Passeports émis',
-                      subtitle:
-                          'Documents institutionnels émis par cet Espace',
+                      subtitle: 'Documents institutionnels émis par cet Espace',
                       count: passportCount,
                       onTap:
-                          passportHandoff ==
-                              '/space/${widget.slug}/us/passport'
+                          passportHandoff == '/space/${widget.slug}/us/passport'
                           ? () => context.push(passportHandoff!)
                           : null,
                     ),
@@ -221,11 +218,12 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                         child: Text(
                           'Les ressources affichées proviennent de la '
                           'dernière consultation disponible.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
                       )
                     : null;

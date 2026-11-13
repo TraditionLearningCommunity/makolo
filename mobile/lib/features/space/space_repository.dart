@@ -609,7 +609,10 @@ final class WorkspaceContextRepository {
     final source = resourcesSource(space);
     final state = await readSource(source);
     if (state.invalidated &&
-        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+        const {
+          'permission_denied',
+          'not_found',
+        }.contains(state.lastErrorCode)) {
       return false;
     }
     final projection = await readResources(space);
