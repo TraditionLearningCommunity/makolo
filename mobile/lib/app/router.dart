@@ -748,6 +748,7 @@ GoRouter createMakoloRouter(
           }
           return ObjectiveOrganizerScreen(
             repository: repository,
+            drafts: runtime.drafts,
             spaceSlug: actor.space.slug,
             actorContext: runtime.actorContext,
             onOpenItem: (kind, id) {
