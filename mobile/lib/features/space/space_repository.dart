@@ -123,6 +123,23 @@ final class SpaceSyncKeys {
 
   static const inventoryProjectionKind = 'space.inventory';
   static const inventorySourceKey = 'space.inventory';
+  static const documentsProjectionKind = 'space.documents';
+
+  static String documentsResourceKey(
+    String spaceId, {
+    required String query,
+    required int offset,
+  }) =>
+      '${Uri.encodeComponent(spaceId)}|'
+      '${Uri.encodeComponent(query.trim())}|$offset';
+
+  static String documentsSourceKey(
+    String spaceId, {
+    required String query,
+    required int offset,
+  }) =>
+      'space:${Uri.encodeComponent(spaceId)}:documents:'
+      '${Uri.encodeComponent(query.trim())}:$offset';
 
   static String perspectiveKey(ActorPerspective perspective) =>
       perspective.isAll ? 'all' : perspective.id!;
@@ -257,6 +274,47 @@ final class WorkspaceContextRepository {
     );
   }
 
+  SyncSourceDefinition documentsSource(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) {
+    final normalizedQuery = query.trim();
+    final path = _spaceSegmentPath(
+      space.slug,
+      'documents',
+      queryParameters: {
+        if (normalizedQuery.isNotEmpty) 'q': normalizedQuery,
+        'offset': '$offset',
+      },
+    );
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.documentsSourceKey(
+        space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      owner: 'SpaceDocument',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: path,
+      projectionKind: SpaceSyncKeys.documentsProjectionKind,
+      resourceKey: SpaceSyncKeys.documentsResourceKey(
+        space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) => _parseDocuments(
+        response,
+        expectedSpaceId: space.id,
+        query: normalizedQuery,
+        offset: offset,
+      ),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
   SyncSourceDefinition relationshipsSource(SpaceActorIdentity space) {
     return _spaceSource(
       space: space,
@@ -328,6 +386,44 @@ final class WorkspaceContextRepository {
 
   Stream<StoredProjection?> watchUs(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.us, space);
+
+  Stream<List<StoredProjection>> watchDocumentPages(
+    SpaceActorIdentity space, {
+    String query = '',
+  }) {
+    final normalizedQuery = query.trim();
+    return store.watchProjections(SpaceSyncKeys.documentsProjectionKind).map(
+      (pages) {
+        final selected = pages.where((page) {
+          final payload = page.payload;
+          return payload['space_id']?.toString() == space.id &&
+              (payload['_query']?.toString() ?? '') == normalizedQuery;
+        }).toList()
+          ..sort((a, b) {
+            final left = a.payload['_offset'];
+            final right = b.payload['_offset'];
+            final leftOffset = left is num ? left.toInt() : 0;
+            final rightOffset = right is num ? right.toInt() : 0;
+            return leftOffset.compareTo(rightOffset);
+          });
+        return selected;
+      },
+    );
+  }
+
+  Future<StoredProjection?> readDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) =>
+      store.readProjection(
+        SpaceSyncKeys.documentsProjectionKind,
+        resourceKey: SpaceSyncKeys.documentsResourceKey(
+          space.id,
+          query: query.trim(),
+          offset: offset,
+        ),
+      );
 
   Stream<StoredProjection?> watchRelationships(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.relationships, space);
@@ -467,6 +563,58 @@ final class WorkspaceContextRepository {
   ) => _refresh(workSource(space, perspective));
 
   Future<void> refreshUs(SpaceActorIdentity space) => _refresh(usSource(space));
+
+  Future<bool> shouldRefreshDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+    DateTime? now,
+  }) async {
+    final source = documentsSource(space, query: query, offset: offset);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readDocumentPage(
+      space,
+      query: query,
+      offset: offset,
+    );
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) async {
+    if (!await shouldRefreshDocumentPage(
+      space,
+      query: query,
+      offset: offset,
+    )) {
+      return;
+    }
+    await refreshDocumentPage(space, query: query, offset: offset);
+  }
+
+  Future<void> refreshDocumentPage(
+    SpaceActorIdentity space, {
+    String query = '',
+    int offset = 0,
+  }) =>
+      _refresh(documentsSource(space, query: query, offset: offset));
 
   Future<void> refreshRelationships(SpaceActorIdentity space) =>
       _refresh(relationshipsSource(space));
@@ -753,6 +901,35 @@ final class WorkspaceContextRepository {
       _requiredBool(section, 'has_more');
     }
     return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseDocuments(
+    ApiResponse response, {
+    required String expectedSpaceId,
+    required String query,
+    required int offset,
+  }) {
+    final payload = response.jsonObject();
+    if (payload['space_id']?.toString() != expectedSpaceId) {
+      throw const FormatException(
+        'Space documents response does not match Space id.',
+      );
+    }
+    if (payload['items'] is! List ||
+        payload['has_more'] is! bool ||
+        payload['can_manage'] is! bool ||
+        payload['count'] is! num ||
+        payload['next_offset'] is! num) {
+      throw const FormatException('Space documents response is incomplete.');
+    }
+    return AcquiredProjection(
+      schemaVersion: 1,
+      payload: {
+        ...payload,
+        '_query': query,
+        '_offset': offset,
+      },
+    );
   }
 
   static AcquiredProjection _parseUs(
