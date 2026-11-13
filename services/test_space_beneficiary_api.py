@@ -13,6 +13,11 @@ from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.services import can, grant_space_role, revoke_mandate
 from groups.models import ActivityGroupEligibility, ActivityGroupEligibilityStatus, Group
 from journeys.models import Journey, JourneyStatus
+from questionnaires.models import QuestionType, FormResponse
+from questionnaires.services import (
+    add_question, create_form, create_form_version,
+    publish_form_version, request_form,
+)
 from organizations.models import Organization
 
 from .models import ServiceDetails, ServiceKind, ServiceIntakeQuestion, ServiceIntakeQuestionType
@@ -227,6 +232,49 @@ class ApplicantSpaceServiceAPITests(TestCase):
                 self.login(self.unmandated)
                 self.assertEqual(self.api.get(url).status_code, 404)
                 self.assertEqual(self.api.get(original).status_code, 404)
+
+    def test_space_questionnaire_is_answered_by_real_mandated_profile(self):
+        form = create_form(
+            activity=self.activity, actor=self.provider,
+            key="applicant-details", title="Fiche de l’institution",
+        )
+        version = create_form_version(form=form, actor=self.provider)
+        add_question(
+            form_version=version, actor=self.provider,
+            key="contact", label="Contact de l’institution",
+            question_type=QuestionType.SHORT_TEXT, position=1,
+            required=True,
+        )
+        publish_form_version(form_version=version, actor=self.provider)
+        self.login(self.manager)
+        journey = Journey.objects.get(pk=self.start().data["journey"]["id"])
+        request = request_form(
+            form_version=version, journey=journey, actor=self.provider,
+        )
+        url = reverse("questionnaire-request-detail", args=[request.pk])
+        save = reverse("questionnaire-response-save", args=[request.pk])
+        submit = reverse("questionnaire-response-submit", args=[request.pk])
+
+        self.login(self.unmandated)
+        self.assertEqual(self.api.get(url).status_code, 404)
+        self.assertEqual(
+            self.api.post(save, {"answers": {"contact": "Intrus"}}, format="json").status_code,
+            404,
+        )
+        self.login(self.manager)
+        self.assertEqual(self.api.get(url).status_code, 200)
+        self.assertEqual(
+            self.api.post(save, {"answers": {"contact": "Responsable"}}, format="json").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.api.post(submit, {}, format="json").status_code, 200,
+        )
+        response = FormResponse.objects.get(request=request)
+        self.assertEqual(response.respondent_id, self.manager.pk)
+        self.assertEqual(response.status, "submitted")
+        self.login(self.unmandated)
+        self.assertEqual(self.api.get(url).status_code, 404)
 
     def test_identity_document_upload_requires_restricted_space_authority(self):
         self.login(self.manager)
