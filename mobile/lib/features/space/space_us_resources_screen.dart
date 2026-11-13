@@ -156,61 +156,63 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                 }
 
                 final counts = _map(resourcePayload['counts']);
+                int? visibleCount(String key) {
+                  final value = _int(counts[key]) ?? 0;
+                  return value > 0 ? value : null;
+                }
+
+                final passportHandoff = _text(handoffs['passport']);
                 final entries = <ResourceHubEntryData>[
                   ResourceHubEntryData(
                     key: const Key('space-resources-documents'),
                     icon: Icons.folder_copy_outlined,
                     title: 'Nos documents',
                     subtitle: 'Fichiers et pièces de cet Espace',
-                    count: _int(counts['document']),
+                    count: visibleCount('document'),
                     onTap: () =>
                         context.push('/space/${widget.slug}/us/documents'),
                   ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-assets'),
+                    icon: Icons.photo_library_outlined,
+                    title: 'Nos médias',
+                    subtitle: 'Images et assets de présentation du Space',
+                    count: visibleCount('asset'),
+                  ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-templates'),
+                    icon: Icons.content_copy_outlined,
+                    title: 'Nos modèles',
+                    subtitle: 'Modèles de présentation réutilisables',
+                    count: visibleCount('template'),
+                  ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-themes'),
+                    icon: Icons.palette_outlined,
+                    title: 'Nos thèmes',
+                    subtitle: 'Thèmes de présentation réutilisables',
+                    count: visibleCount('theme'),
+                  ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-passports'),
+                    icon: Icons.badge_outlined,
+                    title: 'Passeports émis',
+                    subtitle: 'Documents institutionnels produits par cet Espace',
+                    count: visibleCount('passport'),
+                    onTap:
+                        passportHandoff ==
+                            '/space/${widget.slug}/us/passport'
+                        ? () => context.push(passportHandoff!)
+                        : null,
+                  ),
+                  ResourceHubEntryData(
+                    key: const Key('space-resources-credentials'),
+                    icon: Icons.workspace_premium_outlined,
+                    title: 'Titres émis',
+                    subtitle: 'Attestations et certificats délivrés par cet Espace',
+                    count: visibleCount('credential'),
+                  ),
                 ];
-
-                final passportCount = _int(counts['passport']) ?? 0;
-                final passportHandoff = _text(handoffs['passport']);
-                if (passportCount > 0) {
-                  entries.add(
-                    ResourceHubEntryData(
-                      key: const Key('space-resources-passports'),
-                      icon: Icons.badge_outlined,
-                      title: 'Passeports émis',
-                      subtitle: 'Documents institutionnels émis par cet Espace',
-                      count: passportCount,
-                      onTap:
-                          passportHandoff == '/space/${widget.slug}/us/passport'
-                          ? () => context.push(passportHandoff!)
-                          : null,
-                    ),
-                  );
-                }
-
-                final templateCount = _int(counts['template']) ?? 0;
-                if (templateCount > 0) {
-                  entries.add(
-                    ResourceHubEntryData(
-                      key: const Key('space-resources-templates'),
-                      icon: Icons.content_copy_outlined,
-                      title: 'Modèles de présentation',
-                      subtitle: 'Modèles publiés appartenant à cet Espace',
-                      count: templateCount,
-                    ),
-                  );
-                }
-
-                final themeCount = _int(counts['theme']) ?? 0;
-                if (themeCount > 0) {
-                  entries.add(
-                    ResourceHubEntryData(
-                      key: const Key('space-resources-themes'),
-                      icon: Icons.palette_outlined,
-                      title: 'Thèmes de présentation',
-                      subtitle: 'Thèmes publiés appartenant à cet Espace',
-                      count: themeCount,
-                    ),
-                  );
-                }
 
                 final notice = state.lastErrorCode != null
                     ? Semantics(
