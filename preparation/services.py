@@ -124,8 +124,11 @@ def can_view_resource(actor, resource, *, eligible_activity_ids=None):
 
 def resources_for_journey(*, journey, actor):
     is_beneficiary = getattr(actor, "is_authenticated", False) and journey.beneficiary_id == actor.pk
+    from services.space_beneficiary import can_read_space_service_journey
+
+    is_space_beneficiary = can_read_space_service_journey(actor, journey)
     is_manager = getattr(actor, "is_authenticated", False) and can(actor, PermissionCode.ACTIVITY_MANAGE, activity=journey.activity)
-    if not is_beneficiary and not is_manager:
+    if not is_beneficiary and not is_space_beneficiary and not is_manager:
         raise PermissionDenied("Accès refusé aux Resources de cette Journey.")
     visibility = [ResourceVisibility.PUBLIC, ResourceVisibility.PARTICIPANT]
     if is_manager:
