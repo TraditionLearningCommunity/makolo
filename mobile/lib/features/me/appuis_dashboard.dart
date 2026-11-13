@@ -450,8 +450,14 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
               );
       }
       final programs = AppuisViewData.programs(data);
+      final obtained = AppuisViewData.rows(data['rewards']);
       return Column(
         children: [
+          if (programs.isEmpty && obtained.isNotEmpty)
+            _card(Icons.workspace_premium_outlined,
+              'Récompenses obtenues',
+              highlight: obtained.length.toString() + ' récompense(s)',
+              open: () => _openFamily(family)),
           for (final row in (all ? programs : programs.take(3)))
             _card(
               Icons.card_giftcard_outlined,
