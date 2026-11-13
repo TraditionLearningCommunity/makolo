@@ -8,6 +8,7 @@ import 'journey_detail_screen.dart';
 import 'journey_artifact_screen.dart';
 import 'space_beneficiary_journey_screen.dart';
 import 'space_beneficiary_resources_screen.dart';
+import 'space_beneficiary_journeys_screen.dart';
 import '../questionnaires/questionnaire_form_screen.dart';
 import '../questionnaires/questionnaire_repository.dart';
 
@@ -46,6 +47,24 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         ),
         runtime: runtime,
         journeyId: state.pathParameters['id']!,
+      );
+    },
+  ),
+  GoRoute(
+    path: '/space/:slug/beneficiary/journeys',
+    builder: (context, state) {
+      final space = _activeSpace(runtime, state.pathParameters['slug']!);
+      if (space == null || runtime.database == null || runtime.store == null ||
+          runtime.session == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Demandes de cet Espace',
+          message: 'Sélectionnez cet Espace pour reprendre ses demandes.',
+        );
+      }
+      return SpaceBeneficiaryJourneysScreen(
+        key: ValueKey('space-journey-list:${runtime.session!.profileId}:${space.id}'),
+        runtime: runtime,
+        space: space,
       );
     },
   ),
