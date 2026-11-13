@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 import 'package:makolo_mobile/features/continuity/objective_organizer_screen.dart';
 import 'package:makolo_mobile/features/continuity/objective_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
@@ -143,4 +146,59 @@ void main() {
       expect(opened.last, 'journey:j');
     },
   );
+  testWidgets('organizer shows a quiet pending draft symbol beside Create', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final drafts = DraftRepository(
+      database: db,
+      outbox: OutboxRepository(db, 'current'),
+      profileId: 'current',
+    );
+    await drafts.saveLocal(
+      draftId: 'objectives:create:current:dossier:personal',
+      owner: 'Objectives',
+      resourceKind: 'objective.creation',
+      resourceId: 'dossier:personal',
+      payload: {
+        'title': 'Un résultat en attente',
+        'submission_state': 'verification_required',
+      },
+    );
+    final projection = StoredProjection(
+      kind: 'objective.organizer.collection',
+      schemaVersion: 1,
+      receivedAt: DateTime.now().toUtc(),
+      payload: {
+        'actor': {'type': 'profile', 'id': 'current'},
+        'actor_context': {'kind': 'personal'},
+        'page': {
+          'offset': 0,
+          'limit': 50,
+          'next_offset': 0,
+          'has_more': false,
+        },
+        'items': <Object>[],
+      },
+    );
+    String? resumed;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ObjectiveOrganizerScreen(
+          repository: _OwnerPreviewRepository(projection),
+          drafts: drafts,
+          onOpenItem: (_, _) {},
+          onCreate: (kind) => resumed = kind,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('À vérifier : Dossier'), findsOneWidget);
+    expect(find.byTooltip('Créer un projet'), findsOneWidget);
+    await tester.tap(find.byTooltip('À vérifier : Dossier'));
+    expect(resumed, 'dossier');
+    expect(await db.select(db.outboxOperations).get(), isEmpty);
+  });
+
 }
