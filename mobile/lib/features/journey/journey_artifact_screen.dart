@@ -310,8 +310,19 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
         _title.clear();
         _message = 'Pièce reçue par Makolo. Elle n’est pas automatiquement validée comme condition.';
       });
-      await widget.runtime.interactions?.clear(_intentId);
-      await (await _files()).remove(local.fileId);
+      // The owner already confirmed the artifact. A local cleanup failure
+      // must never turn that confirmed outcome into a false send error.
+      try {
+        await widget.runtime.interactions?.clear(_intentId);
+        await (await _files()).remove(local.fileId);
+      } on Object {
+        if (mounted) {
+          setState(() {
+            _message =
+                'Pièce reçue par Makolo. Un brouillon local résiduel pourra être nettoyé plus tard.';
+          });
+        }
+      }
       unawaited(_refresh());
     } on MakoloApiError catch (error) {
       if (!mounted) return;
