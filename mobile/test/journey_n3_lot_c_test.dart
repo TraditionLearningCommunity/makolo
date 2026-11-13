@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/journey/journey_detail_screen.dart';
+import 'package:makolo_mobile/features/journey/journey_composition.dart';
 import 'package:makolo_mobile/features/journey/journey_repository.dart';
 import 'package:makolo_mobile/features/journey/journey_selector.dart';
 
@@ -142,6 +143,24 @@ void main() {
     expect(presentation.payments.single.obligationId, 'payment-obligation');
   });
 
+  test('a terminal Journey without Forms or Requirements has no preparation', () {
+    final projection = StoredProjection(
+      kind: JourneyRepository.projectionKind,
+      resourceKey: 'journey-done',
+      schemaVersion: 1,
+      receivedAt: DateTime.utc(2026, 11, 13),
+      payload: _payload('Une démarche terminée', status: 'fulfilled'),
+    );
+    final presentation = const JourneyDetailSelector().select(
+      projection: projection,
+      source: JourneySourceState.unknown,
+      now: DateTime.utc(2026, 11, 13),
+    );
+    final composition = JourneyComposition.from(presentation);
+    expect(presentation.isTerminal, isTrue);
+    expect(composition.hasPreparation, isFalse);
+  });
+
   testWidgets('a terminal Journey has an outcome and no fabricated action', (
     tester,
   ) async {
@@ -170,7 +189,10 @@ void main() {
     // or empty preparation surface should restate it below.
     expect(find.text('Réalisée'), findsOneWidget);
     expect(find.text('Démarche réalisée'), findsNothing);
-    expect(find.text('Ma préparation'), findsNothing);
+    // The owner FormRequest remains consultable even after the Journey ends,
+    // but cannot masquerade as an active next action.
+    expect(find.text('Ma préparation'), findsOneWidget);
+    expect(find.text('Mon formulaire'), findsOneWidget);
     expect(find.text('Pour avancer'), findsNothing);
   });
 
