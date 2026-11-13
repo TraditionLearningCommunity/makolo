@@ -47,6 +47,14 @@ class AppuisViewData {
     return grouped.values.toList(growable: false);
   }
 
+  static int availableRewardCount(
+      Map<String, dynamic> loyalty, Map<String, dynamic> program) {
+    final id = programId(program);
+    if (id.isEmpty) return 0;
+    return rows(loyalty['available_rewards'])
+        .where((reward) => programId(reward) == id).length;
+  }
+
   static bool visible(String family, Map<String, dynamic> data, bool space) {
     if (family == 'loyalty') {
       return space
@@ -219,8 +227,13 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                   ],
                 ),
               ),
-              if (open != null)
-                Icon(Icons.chevron_right_rounded, color: color.primary),
+              if (open != null) ...[
+                const SizedBox(width: 4),
+                Text('Ouvrir', style: TextStyle(color: color.primary,
+                    fontSize: 12, fontWeight: FontWeight.w700)),
+                Icon(Icons.chevron_right_rounded, color: color.primary,
+                    size: 18),
+              ],
             ],
           ),
         ),
@@ -434,7 +447,10 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                   AppuisViewData.text(
                     AppuisViewData.map(row['current_tier'])['name'],
                   ),
-              ].join(' · '),
+                if (AppuisViewData.availableRewardCount(data, row) > 0)
+                AppuisViewData.availableRewardCount(data, row).toString() +
+                    ' avantage(s) disponible(s)',
+            ].join(' · '),
               open: () => _openProgram(row),
             ),
         ],
