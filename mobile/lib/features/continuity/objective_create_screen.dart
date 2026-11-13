@@ -137,8 +137,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
         _attempted ||
         _submitting ||
         _restoring ||
-        _restoreFailed)
+        _restoreFailed) {
       return;
+    }
     setState(() {
       switch (field) {
         case 'start':
