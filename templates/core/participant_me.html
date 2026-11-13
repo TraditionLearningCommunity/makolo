@@ -233,20 +233,18 @@
       <section class="mk-me-n1-section" aria-labelledby="me-support">
         <div class="mk-me-n1-heading">
           <span class="mk-me-n1-icon" aria-hidden="true">✧</span>
-          <h2 id="me-support"><a href="{% url 'core:participant-appuis' %}">Mes appuis</a></h2>
-          <a class="mk-action-button" data-variant="link" href="{% url 'core:participant-appuis' %}">Voir mes appuis</a>
+          <h2 id="me-support">Mes appuis</h2>
         </div>
-        <div class="mk-me-n1-panel">
-          {% if me_projection.support.recognition.available %}<p>Reconnaissance · {{ me_projection.support.recognition.points_balance }} crédits disponibles{% if me_projection.support.recognition.needs_response %} · Une réponse attendue{% endif %}</p>{% endif %}
-          {% if me_projection.support.loyalty.available %}<p>Fidélité · {{ me_projection.support.loyalty.account_count }} programme(s) · {{ me_projection.support.loyalty.subscription_count }} adhésion(s)</p>{% endif %}
-          {% for item in support_links %}
-            <a class="mk-me-n1-person-row" href="{{ item.url }}">
-              <span class="mk-me-n1-monogram" aria-hidden="true">{{ item.label|first|upper }}</span>
-              <span class="mk-me-n1-row-copy"><strong>{{ item.label }}</strong></span>
-              <span aria-hidden="true">›</span>
-            </a>
-          {% endfor %}
-        </div>
+        <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-appuis' %}">
+          <span class="mk-me-n1-handoff-icon" aria-hidden="true">✧</span>
+          <span class="mk-me-n1-row-copy">
+            <strong>Retrouver mes appuis</strong>
+            <small>
+              {% if me_projection.support.recognition.available %}Reconnaissance{% endif %}{% if me_projection.support.recognition.available and me_projection.support.loyalty.available %} · {% endif %}{% if me_projection.support.loyalty.available %}Fidélité{% endif %}{% if me_projection.support.partners.available %}{% if me_projection.support.recognition.available or me_projection.support.loyalty.available %} · {% endif %}Partenariats{% endif %}
+            </small>
+          </span>
+          <span class="mk-me-n1-arrow" aria-hidden="true">›</span>
+        </a>
       </section>
     {% endif %}
   </div>
