@@ -50,6 +50,17 @@ void main() {
         if (!reachable) {
           return const MockResponse('{"error":"unavailable"}', 503);
         }
+        if (request.url.path.endsWith('/respond/')) {
+          return MockResponse(
+            jsonEncode({
+              'id': 'response-confirmed',
+              'point_id': 'point-vote',
+              'status': 'active',
+              'value': (request.data as Map)['value'],
+            }),
+            200,
+          );
+        }
         if (request.url.path.endsWith('/media/')) {
           return MockResponse(
             jsonEncode({
@@ -128,6 +139,44 @@ void main() {
       expect(rows.single.ownerIdempotencyKey, reference);
       expect(rows.single.replayPolicy, ReplayPolicy.idempotent.wireValue);
       expect(rows.single.resourceId, 'conv-1');
+    },
+  );
+
+  test(
+    'a Point response survives offline and replays once with the same reference',
+    () async {
+      reachable = false;
+      final reference = await delivery.queue(
+        conversationId: 'conv-1',
+        mode: 'response',
+        pointId: 'point-vote',
+        responseValue: false,
+        representedSpaceId: 'space-1',
+      );
+      expect(requests, isEmpty);
+      final pending = await delivery.watchOutgoing('conv-1').first;
+      expect(pending.single.kind, 'response');
+      expect(pending.single.pointId, 'point-vote');
+      expect(pending.single.responseValue, false);
+      expect(pending.single.representedSpaceId, 'space-1');
+      expect(pending.single.state, OutboxState.queued.wireValue);
+      final rows = await database.select(database.outboxOperations).get();
+      expect(rows.single.ownerIdempotencyKey, reference);
+      expect(rows.single.replayPolicy, ReplayPolicy.idempotent.wireValue);
+
+      reachable = true;
+      final worker = processor();
+      await worker.run();
+      await worker.run();
+      expect(requests.length, 1);
+      expect(requests.single.url.path,
+          '/api/v1/conversations/points/point-vote/respond/');
+      final sent = requests.single.data as Map;
+      expect(sent['client_reference'], reference);
+      expect(sent['represented_space_id'], 'space-1');
+      expect(sent['value'], false);
+      final confirmed = await database.select(database.outboxOperations).get();
+      expect(confirmed.single.state, OutboxState.confirmed.wireValue);
     },
   );
 
