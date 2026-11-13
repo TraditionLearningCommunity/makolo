@@ -26,7 +26,6 @@ from organizations.console_context import authorized_spaces
 from organizations.models import OrganizationFollow, ProfileFollow, TeamMembership, TeamMembershipStatus
 from objectives.models import DossierLifecycle, ProjectLifecycle
 from objectives.selectors import dossiers_for_profile, projects_for_profile
-from partners.models import Partner, PartnerStatus
 from payments.models import PaymentStatus
 from payments.selectors import get_payments_visible_to
 from recognition.selectors import account_for_profile, redemptions_requiring_beneficiary_response
@@ -376,21 +375,13 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
                 }
             )
 
-        # Partner details remain an owner route, not an API link or a
-        # second copy of the partnership in the N1 projection.
+        # N1 is a short contextual gateway. Partner detail belongs in Appuis,
+        # not an unbounded collection of owner links on the Moi root.
         if (support.get("partners") or {}).get("available"):
-            personal_partners = (
-                Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
-                .select_related("organization")
-                .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
-            )
-            for partner in personal_partners:
-                support_links.append(
-                    {
-                        "label": partner.organization.name,
-                        "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
-                    }
-                )
+            support_links.append({
+                "label": "Partenariats",
+                "url": reverse("core:participant-appuis"),
+            })
 
         context["support_links"] = support_links
         return context
