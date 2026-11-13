@@ -192,7 +192,7 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
         recognition_reward_rows = list(context["recognition_rewards"])
         incoming_rows = list(context["recognition_incoming"])
 
-        if recognition_visible if space is not None else True:
+        if space is None or recognition_visible:
             recognition_benefits = list(
                 RecognitionRedemption.objects.filter(
                     **(
@@ -299,6 +299,12 @@ class AppuisWebView(LoginRequiredMixin, TemplateView):
                 ) if achievement_rows else (
                     "récompense" if recognition_count == 1 else "récompenses"
                 ),
+            })
+        elif recognition_credits is not None:
+            metrics.append({
+                "icon": "star", "value": recognition_credits,
+                "label": "crédit Recognition" if recognition_credits == 1
+                         else "crédits Recognition",
             })
         if partner_rows:
             metrics.append({
