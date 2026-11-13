@@ -348,9 +348,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
               appBar: AppBar(
                 title: const Text('Document'),
                 actions: [
-                  if (detail != null && detail.versions.isNotEmpty)
+                  if (detail != null && detail.versions.length > 1)
                     MakoloIconActionButton(
-                      tooltip: 'Versions',
+                      tooltip: 'Historique des versions',
                       icon: Icons.history_rounded,
                       onPressed: _scrollToVersions,
                     ),
@@ -551,20 +551,35 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                         )
                                       : null,
                                 ),
-                              const SizedBox(height: MakoloSpacing.xl),
-                              Row(
-                                key: _versionsKey,
-                                children: [
-                                  Text(
-                                    'Versions',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge,
+                              if (detail.addVersionPath != null &&
+                                  ownerAvailable) ...[
+                                const SizedBox(height: MakoloSpacing.md),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: MakoloActionButton(
+                                    label: 'Nouvelle version',
+                                    icon: Icons.add_rounded,
+                                    appearance: MakoloActionAppearance.quiet,
+                                    onPressed: canUseNetworkActions
+                                        ? widget.onAddVersion
+                                        : null,
                                   ),
-                                  const Spacer(),
-                                  if (detail.versions.isNotEmpty)
+                                ),
+                              ],
+                              if (detail.versions.length > 1) ...[
+                                const SizedBox(height: MakoloSpacing.xl),
+                                Row(
+                                  key: _versionsKey,
+                                  children: [
                                     Text(
-                                      '${detail.versions.length}',
+                                      'Versions précédentes',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge,
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${detail.versions.where((version) => !version.current).length}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .labelLarge
@@ -574,34 +589,25 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                                                 .primary,
                                           ),
                                     ),
-                                  if (detail.addVersionPath != null &&
-                                      ownerAvailable) ...[
-                                    const SizedBox(width: MakoloSpacing.xs),
-                                    MakoloIconActionButton(
-                                      tooltip: 'Nouvelle version',
-                                      icon: Icons.add_rounded,
-                                      onPressed: canUseNetworkActions
-                                          ? widget.onAddVersion
-                                          : null,
-                                    ),
                                   ],
-                                ],
-                              ),
-                              const SizedBox(height: MakoloSpacing.sm),
-                              for (final version in detail.versions)
-                                _VersionRow(
-                                  version: version,
-                                  canDownload:
-                                      version.downloadPath != null &&
-                                      canDownload,
-                                  onDownload:
-                                      version.downloadPath == null ||
-                                          !canDownload ||
-                                          _downloading ||
-                                          _sharing
-                                      ? null
-                                      : () => _download(detail, version),
                                 ),
+                                const SizedBox(height: MakoloSpacing.sm),
+                                for (final version in detail.versions)
+                                  if (!version.current)
+                                    _VersionRow(
+                                      version: version,
+                                      canDownload:
+                                          version.downloadPath != null &&
+                                          canDownload,
+                                      onDownload:
+                                          version.downloadPath == null ||
+                                              !canDownload ||
+                                              _downloading ||
+                                              _sharing
+                                          ? null
+                                          : () => _download(detail, version),
+                                    ),
+                              ],
                             ],
                           ),
                         ),
