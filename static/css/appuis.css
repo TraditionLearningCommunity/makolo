@@ -120,6 +120,16 @@
   border: 0; color: var(--ap-primary); background: transparent;
   font: inherit; font-weight: 700; cursor: pointer; padding: 12px 0;
 }
+[data-mk-surface="appuis"] .ap-family-detail {
+  margin-top: 15px; padding: 12px 14px;
+  border: 1px solid var(--ap-border); border-radius: 16px;
+  background: #fff;
+}
+[data-mk-surface="appuis"] .ap-family-detail summary {
+  cursor: pointer; font-weight: 700; color: var(--ap-primary);
+}
+[data-mk-surface="appuis"] .ap-family-detail .ap-grid { margin-top: 13px; }
+[data-mk-surface="appuis"] .ap-family-detail .ap-card { background: #fcfbff; }
 [data-mk-surface="appuis"] .ap-note,
 [data-mk-surface="appuis"] .ap-empty { color: var(--ap-muted); }
 [data-mk-surface="appuis"] .ap-empty {
