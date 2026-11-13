@@ -517,11 +517,7 @@ void main() {
       );
       expect((await repository.readSource(source)).lastErrorCode, isNotNull);
       expect(
-        await repository.readDocumentPage(
-          space,
-          query: 'statuts',
-          offset: 20,
-        ),
+        await repository.readDocumentPage(space, query: 'statuts', offset: 20),
         isNotNull,
         reason: 'Transport failure keeps acquired continuation pages.',
       );
@@ -535,11 +531,7 @@ void main() {
       );
       expect((await repository.readSource(source)).invalidated, isTrue);
       expect(
-        await repository.readDocumentPage(
-          space,
-          query: 'statuts',
-          offset: 20,
-        ),
+        await repository.readDocumentPage(space, query: 'statuts', offset: 20),
         isNull,
         reason: 'Owner denial withdraws sibling continuation pages too.',
       );

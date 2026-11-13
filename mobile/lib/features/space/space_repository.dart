@@ -812,11 +812,7 @@ final class WorkspaceContextRepository {
       offset: 0,
     );
     if (first == null) return;
-    await _deleteDocumentPages(
-      space,
-      query: normalizedQuery,
-      keepOffset: 0,
-    );
+    await _deleteDocumentPages(space, query: normalizedQuery, keepOffset: 0);
   }
 
   Future<void> _deleteDocumentPages(
