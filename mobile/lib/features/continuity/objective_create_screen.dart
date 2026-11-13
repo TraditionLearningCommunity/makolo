@@ -584,6 +584,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                       appearance: MakoloActionAppearance.primary,
                       icon: Icons.open_in_new_rounded,
                     ),
+                    const SizedBox(height: 8),
+                    MakoloActionButton(
+                      label: 'Créer un autre',
+                      onPressed: !_actorValid || _submitting ? null : _startAnother,
+                      appearance: MakoloActionAppearance.quiet,
+                      icon: Icons.add_rounded,
+                    ),
                   ],
                 ),
               ),
@@ -644,6 +651,47 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   ] else
                     _dateField('deadline', 'Échéance', _deadline),
                   const SizedBox(height: 24),
+                  if (_restoreFailed)
+                    TextButton.icon(
+                      onPressed: _retryRestore,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Réessayer'),
+                    ),
+                  if (_attempted) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_outlined,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'À vérifier',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        if (widget.onReview != null)
+                          TextButton.icon(
+                            onPressed: _submitting ? null : widget.onReview,
+                            icon: const Icon(Icons.search_rounded),
+                            label: const Text('Mes démarches'),
+                          ),
+                        TextButton.icon(
+                          onPressed: _submitting ? null : _resumeAfterReview,
+                          icon: const Icon(Icons.edit_note_rounded),
+                          label: const Text('Reprendre'),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (_error != null) ...[
                     Text(
                       _error!,
