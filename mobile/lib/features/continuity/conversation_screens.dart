@@ -2888,6 +2888,7 @@ class _PointCardState extends State<_PointCard> {
   Object? _lastValue;
   Object? _unconfirmedResponse;
   bool _hasUnconfirmedResponse = false;
+  bool _locallyQueued = false;
   final Set<String> _choices = {};
   String _resolutionDraft = '';
   final Set<String> _resolutionSelections = {};
@@ -2918,8 +2919,10 @@ class _PointCardState extends State<_PointCard> {
         );
       _unconfirmedResponse = null;
       _hasUnconfirmedResponse = false;
+      _locallyQueued = false;
       _clientReference = null;
     }
+    if (widget.responseIntent != null) _locallyQueued = false;
   }
 
   String _referenceFor(Object? value) {
@@ -2990,7 +2993,7 @@ class _PointCardState extends State<_PointCard> {
   }
 
   Future<void> _submitResponse(Object? value) async {
-    if (_busy) return;
+    if (_busy || _locallyQueued) return;
     setState(() {
       _busy = true;
       _feedback = null;
@@ -3006,6 +3009,7 @@ class _PointCardState extends State<_PointCard> {
           responseValue: value,
           representedSpaceId: widget.representedSpaceId,
         );
+        _locallyQueued = true;
       } else {
         await widget.repository.respondToPoint(
           conversationId: widget.conversationId,
@@ -3202,7 +3206,7 @@ class _PointCardState extends State<_PointCard> {
         (!responseIntent.isConfirmed ||
             !point.hasRespondedForScope(widget.representedSpaceId));
     final canRespond =
-        !waitingForOwner &&
+        !_locallyQueued && !waitingForOwner &&
         (widget.representedSpaceId == null
             ? point.canRespond
             : point.responseWindowOpen) &&
@@ -3477,6 +3481,10 @@ class _PointCardState extends State<_PointCard> {
               appearance: MakoloActionAppearance.quiet,
             ),
           ),
+        if (_locallyQueued && responseIntent == null) ...[
+          const SizedBox(height: MakoloSpacing.xs),
+          Text('En attente', style: theme.labelSmall?.copyWith(color: muted)),
+        ],
         if (responseIntent != null &&
             !point.hasRespondedForScope(widget.representedSpaceId)) ...[
           const SizedBox(height: MakoloSpacing.xs),
