@@ -275,7 +275,16 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Flexible(child: Text('Mes documents')),
+        Flexible(
+          child: Text(
+            'Mes documents',
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
         if (total != null) ...[
           const SizedBox(width: MakoloSpacing.sm),
           Container(
@@ -525,6 +534,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                       onSelected: () =>
                                           _setScope(view: 'archived'),
                                     ),
+                                    const SizedBox(width: MakoloSpacing.md),
                                   ],
                                 ),
                               ),
@@ -700,6 +710,8 @@ class _ViewChip extends StatelessWidget {
   Widget build(BuildContext context) => ChoiceChip(
     label: Text(label),
     selected: selected,
+    visualDensity: VisualDensity.compact,
+    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
     onSelected: (_) => onSelected(),
   );
 }
