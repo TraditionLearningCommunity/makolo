@@ -213,8 +213,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
       if (!mounted ||
           repo != widget.repository ||
           id != widget.id ||
-          revision != _contextRevision)
+          revision != _contextRevision) {
         return;
+      }
       // Recheck scoped Project authority on entry even with a fresh cache.
       if (spaceSlug != null ||
           snapshot == null ||
@@ -1115,8 +1116,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final uri = input.hasScheme ? input : widget.api?.baseUri.resolveUri(input);
     if (uri == null ||
         !['https', 'http'].contains(uri.scheme) ||
-        uri.host.isEmpty)
+        uri.host.isEmpty) {
       return null;
+    }
     return NetworkImage(uri.toString());
   }
 
@@ -1186,8 +1188,9 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         ),
       ),
     );
-    if (!mounted || selected == null || selected == _text(member['role_code']))
+    if (!mounted || selected == null || selected == _text(member['role_code'])) {
       return;
+    }
     await _send('${_base}authority/', {
       'action': 'replace',
       'mandate_id': _text(member['id']),
