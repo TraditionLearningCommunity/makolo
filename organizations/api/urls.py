@@ -14,6 +14,7 @@ from services.space_beneficiary_api import (
     SpaceBeneficiaryServiceStartAPIView,
     SpaceBeneficiaryJourneyAPIView,
     SpaceBeneficiaryIntakeAPIView,
+    SpaceBeneficiaryRequirementAPIView,
 )
 
 from space_assets.api_views import (
@@ -72,6 +73,11 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path(
+        "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/requirements/<uuid:assessment_id>/",
+        SpaceBeneficiaryRequirementAPIView.as_view(),
+        name="workspace-beneficiary-requirement",
+    ),
     path(
         "workspaces/<slug:slug>/beneficiary/journeys/<uuid:journey_id>/resources/",
         SpaceBeneficiaryResourcesAPIView.as_view(),
