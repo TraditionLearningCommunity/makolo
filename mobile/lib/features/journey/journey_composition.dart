@@ -34,8 +34,9 @@ class JourneyComposition {
     // useful separate card. The owner check itself is still kept intact.
     final interventions = p.actorInterventions
         .where((item) {
-          if (item.key == p.nextActionKey && p.nextActionKey != null)
+          if (item.key == p.nextActionKey && p.nextActionKey != null) {
             return false;
+          }
           final repeatsTitle =
               item.summary.trim().toLowerCase() == p.title.trim().toLowerCase();
           return !repeatsTitle || item.nextLink != null;

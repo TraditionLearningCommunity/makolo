@@ -453,8 +453,9 @@ class _DiscoveryWatchResultsScreenState
     if (!mounted ||
         !identical(repository, widget.repository) ||
         widget.watchId != watchId ||
-        _page != page)
+        _page != page) {
       return;
+    }
     unawaited(_refresh());
   }
 

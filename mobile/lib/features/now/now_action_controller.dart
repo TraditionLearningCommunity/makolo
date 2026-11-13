@@ -150,8 +150,9 @@ class _NowActionGroupState extends State<NowActionGroup> {
         _sending ||
         _confirming ||
         _needsVerification ||
-        _confirmedByOwner)
+        _confirmedByOwner) {
       return;
+    }
     final path = NowOwnerAction.authorizedPath(widget.situation, action);
     if (path == null) return;
 

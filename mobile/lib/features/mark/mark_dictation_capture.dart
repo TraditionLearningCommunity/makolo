@@ -166,11 +166,12 @@ class _MarkDictationCaptureState extends State<MarkDictationCapture>
     } on Object {
       // Native recognizer may already have exited.
     }
-    if (mounted)
+    if (mounted) {
       setState(() {
         _active = false;
         _busy = false;
       });
+    }
   }
 
   @override

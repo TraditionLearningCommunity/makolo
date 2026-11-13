@@ -189,8 +189,9 @@ class SpaceBeneficiaryJourneyRepository {
 
   Future<void> refresh(SpaceActorIdentity space, String journeyId) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Space Journey sync is not available.');
+    }
     await engine.refreshSource(sourceFor(space, journeyId));
   }
 }

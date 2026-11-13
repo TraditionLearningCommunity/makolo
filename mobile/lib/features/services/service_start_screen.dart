@@ -231,8 +231,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   }
 
   Future<void> _start() async {
-    if (_loading || _submitting || _requirements == null || !_actorValid)
+    if (_loading || _submitting || _requirements == null || !_actorValid) {
       return;
+    }
     if (_requirements!['opportunity_required'] == true &&
         _selectedOpportunity == null) {
       return;
