@@ -644,7 +644,7 @@ class _ConversationExchangeSheetState extends State<ConversationExchangeSheet>
       // target into the viewport without fetching any unrelated history.
       for (var attempt = 0; attempt < 55 && mounted; attempt++) {
         final target = _messageKeys[id]?.currentContext;
-        if (target != null) {
+        if (target != null && target.mounted) {
           await Scrollable.ensureVisible(
             target,
             alignment: .45,
