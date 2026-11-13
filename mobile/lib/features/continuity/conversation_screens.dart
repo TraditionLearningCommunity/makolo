@@ -3154,113 +3154,121 @@ class _PointCardState extends State<_PointCard> {
             attachments: point.attachments,
           ),
         if (point.kind == 'poll' && point.options.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          Text(
-            point.responseMode == 'multiple_choice'
-                ? 'Choisissez une ou plusieurs réponses'
-                : 'Choisissez une réponse',
-            style: theme.titleSmall,
-          ),
+          const SizedBox(height: MakoloSpacing.sm),
           for (final option in point.options)
             Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-              child: Container(
-                padding: const EdgeInsets.all(MakoloSpacing.sm),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        if (point.responseMode == 'multiple_choice' &&
-                            canRespond &&
-                            !widget.readOnly)
-                          Checkbox(
-                            value: _choices.contains(option.id),
-                            onChanged: _busy
-                                ? null
-                                : (checked) => setState(() {
-                                    if (checked == true) {
-                                      _choices.add(option.id);
-                                    } else {
-                                      _choices.remove(option.id);
-                                    }
-                                  }),
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Builder(
+                builder: (context) {
+                  final multiple = point.responseMode == 'multiple_choice';
+                  final selected = multiple
+                      ? _choices.contains(option.id)
+                      : point
+                          .selectedOptionsForScope(widget.representedSpaceId)
+                          .contains(option.id);
+                  final count = point.pollCountFor(option.id) ?? 0;
+                  final active = canRespond && !widget.readOnly && !_busy;
+                  return Material(
+                    color: selected
+                        ? Theme.of(context).colorScheme.primary.withValues(
+                            alpha: 0.08,
                           )
-                        else
-                          Icon(
-                            point
-                                    .selectedOptionsForScope(
-                                      widget.representedSpaceId,
-                                    )
-                                    .contains(option.id)
-                                ? Icons.check_circle_rounded
-                                : Icons.radio_button_unchecked_rounded,
-                            size: 18,
-                            color: muted,
-                          ),
-                        const SizedBox(width: MakoloSpacing.sm),
-                        Expanded(
-                          child: Text(option.label, style: theme.bodyMedium),
-                        ),
-                        if (point.responseMode == 'single_choice' &&
-                            canRespond &&
-                            !widget.readOnly)
-                          TextButton(
-                            onPressed: _busy
+                        : Theme.of(context).colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Semantics(
+                          selected: selected,
+                          button: active,
+                          child: InkWell(
+                            key: Key('conversation-poll-choice-${option.id}'),
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: !active
                                 ? null
+                                : multiple
+                                ? () => setState(() {
+                                    if (selected) {
+                                      _choices.remove(option.id);
+                                    } else {
+                                      _choices.add(option.id);
+                                    }
+                                  })
                                 : () => _submitResponse(option.id),
-                            child: const Text('Choisir'),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: MakoloSpacing.sm,
+                                vertical: MakoloSpacing.sm,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    selected
+                                        ? Icons.check_circle_rounded
+                                        : multiple
+                                        ? Icons.check_box_outline_blank_rounded
+                                        : Icons.radio_button_unchecked_rounded,
+                                    size: 20,
+                                    color: selected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : muted,
+                                  ),
+                                  const SizedBox(width: MakoloSpacing.sm),
+                                  Expanded(
+                                    child: Text(
+                                      option.label,
+                                      style: theme.bodyMedium,
+                                    ),
+                                  ),
+                                  if (count > 0)
+                                    Text(
+                                      '${count}',
+                                      style: theme.labelSmall?.copyWith(
+                                        color: muted,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (option.attachments.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: MakoloSpacing.sm,
+                            ),
+                            child: ConversationMediaGroup(
+                              key: Key('conversation-option-media-${option.id}'),
+                              repository: widget.repository,
+                              attachments: option.attachments,
+                            ),
                           ),
                       ],
                     ),
-                    if (option.attachments.isNotEmpty)
-                      ConversationMediaGroup(
-                        key: Key('conversation-option-media-${option.id}'),
-                        repository: widget.repository,
-                        attachments: option.attachments,
-                      ),
-                    if ((point.pollCountFor(option.id) ?? 0) > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                        child: Text(
-                          '${point.pollCountFor(option.id)} sélection(s)',
-                          style: theme.bodySmall?.copyWith(color: muted),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          if (point.pollResults['response_count'] is num &&
-              (point.pollResults['response_count'] as num) > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
-              child: Text(
-                '${point.pollResults['response_count']} participation(s) · '
-                'résultats agrégés, sans identité des répondants',
-                style: theme.bodySmall?.copyWith(color: muted),
+                  );
+                },
               ),
             ),
           if (point.responseMode == 'multiple_choice' &&
               canRespond &&
               !widget.readOnly) ...[
             const SizedBox(height: MakoloSpacing.sm),
-            MakoloActionButton(
-              label: _busy ? 'Envoi…' : 'Valider mes choix',
-              busy: _busy,
-              appearance: MakoloActionAppearance.primary,
+            FilledButton(
               onPressed: _busy || _choices.isEmpty
                   ? null
                   : () => _submitResponse(_choices.toList()..sort()),
+              child: Text(_busy ? 'Envoi…' : 'Valider'),
             ),
           ],
+          if (point.pollResults['response_count'] is num &&
+              (point.pollResults['response_count'] as num) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(
+                '${point.pollResults['response_count']} participation(s)',
+                style: theme.bodySmall?.copyWith(color: muted),
+              ),
+            ),
         ],
         if (point.exchangePreview.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.sm),
