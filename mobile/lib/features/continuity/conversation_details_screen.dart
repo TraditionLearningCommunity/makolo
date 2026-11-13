@@ -489,8 +489,9 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                                   kind: kind,
                                   identifier: input.text.trim(),
                                 );
-                                if (sheetContext.mounted)
+                                if (sheetContext.mounted) {
                                   Navigator.of(sheetContext).pop();
+                                }
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -563,10 +564,11 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         resourceId: resourceId,
       );
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error = 'Action non confirmée. Actualisez les participants.',
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -685,11 +687,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
         action: action,
       );
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'Demande non confirmée. Actualisez pour connaître votre état.',
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -869,11 +872,12 @@ class _ConversationDetailsScreenState extends State<ConversationDetailsScreen> {
                         action: 'leave',
                       );
                     } on Object {
-                      if (mounted)
+                      if (mounted) {
                         setState(
                           () => _error =
                               'Sortie non confirmée. Vérifiez votre accès.',
                         );
+                      }
                     } finally {
                       if (mounted) setState(() => _busy = null);
                     }
