@@ -12,6 +12,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from organizations.models import Organization
 from personal_assets.models import PersonalAsset
+from presentations.asset_models import PresentationAsset
 from presentations.enums import Provenance, VersionStatus, Visibility
 from presentations.essential import ESSENTIAL_MANIFEST, ESSENTIAL_THEME
 from presentations.models import (
@@ -21,6 +22,7 @@ from presentations.models import (
     PresentationThemeVersion,
 )
 from sharing.models import PassportSnapshot, PublicSubjectKind
+from trust.credential_models import Credential, CredentialType
 
 
 class SpaceUsResourcesTests(TestCase):
@@ -97,11 +99,39 @@ class SpaceUsResourcesTests(TestCase):
             tokens=ESSENTIAL_THEME,
             created_by=self.owner,
         )
+    def _asset(self, space):
+        return PresentationAsset.objects.create(
+            provenance=Provenance.SPACE,
+            owner_space=space,
+            uploaded_by=self.owner,
+            mime_type="image/png",
+            size=4,
+            checksum="a" * 64,
+        )
+
+    def _credential(self, space):
+        activity = Activity.objects.create(
+            title="Activité certifiante",
+            slug="activite-certifiante",
+            created_by=self.owner,
+            space=space,
+        )
+        return Credential.objects.create(
+            subject_profile=self.member,
+            issuer_space=space,
+            issued_by=self.owner,
+            activity=activity,
+            credential_type=CredentialType.ATTESTATION,
+            title="Attestation institutionnelle",
+        )
+
 
     def test_n1_and_n2_compose_only_genuine_space_owners(self):
         issued = self._snapshot(self.space)
         self._template(self.space)
         self._theme(self.space)
+        self._asset(self.space)
+        self._credential(self.space)
         self._snapshot(self.other_space, variant="public")
         PersonalAsset.objects.create(
             controller=self.owner,
@@ -114,14 +144,14 @@ class SpaceUsResourcesTests(TestCase):
         )
         self.assertEqual(root.status_code, 200, root.data)
         self.assertEqual(root.data["resources"]["visibility"], "visible")
-        self.assertEqual(root.data["resources"]["count"], 3)
+        self.assertEqual(root.data["resources"]["count"], 5)
         self.assertEqual(
             root.data["handoffs"]["resources"],
             f"/space/{self.space.slug}/us/resources",
         )
         self.assertEqual(
             {row["owner"] for row in root.data["resources"]["items"]},
-            {"sharing", "presentations"},
+            {"sharing", "presentations", "trust"},
         )
         self.assertNotIn("Document personnel secret", str(root.data))
         self.assertNotIn(self.other_space.slug, str(root.data))
@@ -132,7 +162,12 @@ class SpaceUsResourcesTests(TestCase):
         self.assertEqual(docs["Cache-Control"], "private, no-store")
         self.assertEqual(docs.data["items"][0]["id"], str(issued.pk))
         self.assertEqual(docs.data["counts"], {
-            "document": 0, "passport": 1, "template": 1, "theme": 1,
+            "document": 0,
+            "asset": 1,
+            "template": 1,
+            "theme": 1,
+            "passport": 1,
+            "credential": 1,
         })
         self.assertEqual(
             self.client.get(self.url + "?kind=template").data["items"][0]["title"],
@@ -141,6 +176,14 @@ class SpaceUsResourcesTests(TestCase):
         self.assertEqual(
             self.client.get(self.url + "?kind=theme").data["items"][0]["title"],
             "Thème institutionnel",
+        )
+        self.assertEqual(
+            self.client.get(self.url + "?kind=asset").data["items"][0]["owner"],
+            "presentations",
+        )
+        self.assertEqual(
+            self.client.get(self.url + "?kind=credential").data["items"][0]["title"],
+            "Attestation institutionnelle",
         )
         self.assertNotIn("payload", str(docs.data))
 
@@ -174,6 +217,8 @@ class SpaceUsResourcesTests(TestCase):
         # but never confidential documents or issued Passport snapshots.
         self.assertEqual(root.data["resources"]["counts"]["passport"], 0)
         self.assertEqual(root.data["resources"]["counts"]["document"], 0)
+        self.assertEqual(root.data["resources"]["counts"]["asset"], 0)
+        self.assertEqual(root.data["resources"]["counts"]["credential"], 0)
         self.assertEqual(
             self.client.get(self.url).status_code, 200,
         )
