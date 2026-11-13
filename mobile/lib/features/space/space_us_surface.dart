@@ -503,10 +503,19 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
                               },
                             ),
                     ),
-                    if (pilotTarget != null) ...[
+                    if (pilotTarget != null || !limited) ...[
                       const SizedBox(height: MakoloSpacing.inner),
                       _sectionTitle(context, 'Informations et gestion', ''),
                     ],
+                    if (!limited)
+                      _managementAction(
+                        context,
+                        'Nos appuis',
+                        'Reconnaissance et partenariats de cet Espace',
+                        Icons.handshake_outlined,
+                        '/appuis',
+                        open,
+                      ),
                     if (pilotTarget != null)
                       _managementAction(
                         context,
