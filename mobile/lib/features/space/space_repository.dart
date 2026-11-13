@@ -124,6 +124,13 @@ final class SpaceSyncKeys {
   static const inventoryProjectionKind = 'space.inventory';
   static const inventorySourceKey = 'space.inventory';
   static const documentsProjectionKind = 'space.documents';
+  static const resourcesProjectionKind = 'space.resources';
+
+  static String resourcesResourceKey(String spaceId) =>
+      Uri.encodeComponent(spaceId);
+
+  static String resourcesSourceKey(String spaceId) =>
+      'space:${Uri.encodeComponent(spaceId)}:resources';
 
   static String documentsResourceKey(
     String spaceId, {
@@ -274,6 +281,26 @@ final class WorkspaceContextRepository {
     );
   }
 
+  SyncSourceDefinition resourcesSource(SpaceActorIdentity space) {
+    return SyncSourceDefinition(
+      sourceKey: SpaceSyncKeys.resourcesSourceKey(space.id),
+      owner: 'SpaceResources',
+      actorScope: SyncActorScope.space(spaceId: space.id),
+      path: _spaceSegmentPath(
+        space.slug,
+        'us/resources',
+        queryParameters: const {'kind': 'document', 'offset': '0'},
+      ),
+      projectionKind: SpaceSyncKeys.resourcesProjectionKind,
+      resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      category: SyncSourceCategory.keyedDetail,
+      freshnessPolicy: surfaceFreshness,
+      parser: (response) =>
+          _parseResources(response, expectedSpaceId: space.id),
+      applier: applyProjectionSnapshot,
+    );
+  }
+
   SyncSourceDefinition documentsSource(
     SpaceActorIdentity space, {
     String query = '',
@@ -386,6 +413,18 @@ final class WorkspaceContextRepository {
 
   Stream<StoredProjection?> watchUs(SpaceActorIdentity space) =>
       _watchSpace(SpaceProjectionKind.us, space);
+
+  Stream<StoredProjection?> watchResources(SpaceActorIdentity space) =>
+      store.watchProjection(
+        SpaceSyncKeys.resourcesProjectionKind,
+        resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      );
+
+  Future<StoredProjection?> readResources(SpaceActorIdentity space) =>
+      store.readProjection(
+        SpaceSyncKeys.resourcesProjectionKind,
+        resourceKey: SpaceSyncKeys.resourcesResourceKey(space.id),
+      );
 
   Stream<List<StoredProjection>> watchDocumentPages(
     SpaceActorIdentity space, {
@@ -562,6 +601,39 @@ final class WorkspaceContextRepository {
   ) => _refresh(workSource(space, perspective));
 
   Future<void> refreshUs(SpaceActorIdentity space) => _refresh(usSource(space));
+
+  Future<bool> shouldRefreshResources(
+    SpaceActorIdentity space, {
+    DateTime? now,
+  }) async {
+    final source = resourcesSource(space);
+    final state = await readSource(source);
+    if (state.invalidated &&
+        const {'permission_denied', 'not_found'}.contains(state.lastErrorCode)) {
+      return false;
+    }
+    final projection = await readResources(space);
+    if (projection == null ||
+        state.lastSuccessAt == null ||
+        state.lastErrorCode != null ||
+        state.invalidated) {
+      return true;
+    }
+    return surfaceFreshness.evaluate(
+          projection,
+          now: (now ?? DateTime.now()).toUtc(),
+        ) !=
+        FreshnessState.fresh;
+  }
+
+  Future<void> ensureResources(SpaceActorIdentity space) async {
+    if (await shouldRefreshResources(space)) {
+      await refreshResources(space);
+    }
+  }
+
+  Future<void> refreshResources(SpaceActorIdentity space) =>
+      _refresh(resourcesSource(space));
 
   Future<bool> shouldRefreshDocumentPage(
     SpaceActorIdentity space, {
@@ -896,6 +968,28 @@ final class WorkspaceContextRepository {
       _requiredString(section, 'empty_message');
       _requiredList(section, 'items');
       _requiredBool(section, 'has_more');
+    }
+    return AcquiredProjection(schemaVersion: 1, payload: payload);
+  }
+
+  static AcquiredProjection _parseResources(
+    ApiResponse response, {
+    required String expectedSpaceId,
+  }) {
+    final payload = response.jsonObject();
+    if (payload['space_id']?.toString() != expectedSpaceId) {
+      throw const FormatException(
+        'Space resources response does not match Space id.',
+      );
+    }
+    if (payload['counts'] is! Map ||
+        payload['items'] is! List ||
+        payload['total_count'] is! num ||
+        payload['count'] is! num ||
+        payload['has_more'] is! bool ||
+        payload['next_offset'] is! num ||
+        payload['kind'] != 'document') {
+      throw const FormatException('Space resources response is incomplete.');
     }
     return AcquiredProjection(schemaVersion: 1, payload: payload);
   }
