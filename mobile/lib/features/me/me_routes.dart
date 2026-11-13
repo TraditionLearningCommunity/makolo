@@ -145,6 +145,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 )
               : ObjectiveOrganizerScreen(
                   repository: runtime.objectives!,
+                  drafts: runtime.drafts,
                   onOpenItem: (kind, id) {
                     if (kind == 'project') {
                       context.push('/projects/$id');
