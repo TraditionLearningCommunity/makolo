@@ -39,6 +39,9 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
         detailPath: reference?.link,
         repository: repository,
         onOpenOwnerLink: (link) => _openOwnerLink(runtime, link),
+        onOpenEvidence: () => context.push(
+          '/journeys/${state.pathParameters['journeyId']}/requirements/${state.pathParameters['assessmentId']}/evidence',
+        ),
       );
     },
   ),
