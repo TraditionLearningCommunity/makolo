@@ -383,6 +383,7 @@ class ConversationLocalDelivery {
           'media',
           'semantic_media',
           'response',
+          'media_response',
         }.contains(mode)) {
       throw ArgumentError('Unsupported conversation composition');
     }
@@ -390,13 +391,16 @@ class ConversationLocalDelivery {
         ((pointId ?? '').isEmpty || responseValue == null)) {
       throw ArgumentError('A Point and a response value are required');
     }
+    if (mode == 'media_response' && (pointId ?? '').isEmpty) {
+      throw ArgumentError('A Point is required for a media response');
+    }
     final reference = _reference();
     final deviceId = await tokens.deviceInstanceId();
     String? stagedPath;
     final stagedSemantic = mode == 'semantic_media'
         ? await _stageSemanticMedia(reference, semanticMedia ?? const [])
         : <Map<String, dynamic>>[];
-    if (mode == 'media') {
+    if (mode == 'media' || mode == 'media_response') {
       if (filePath == null ||
           filename == null ||
           mediaKind == null ||
@@ -463,7 +467,7 @@ class ConversationLocalDelivery {
     } on Object {
       if (stagedPath != null) {
         try {
-          if (mode == 'media') {
+          if (mode == 'media' || mode == 'media_response') {
             await (await _fileStore()).remove(reference);
           } else {
             await File(stagedPath).delete();
@@ -523,7 +527,7 @@ class ConversationLocalDelivery {
       pointId: payload['point_id']?.toString(),
       representedSpaceId: payload['represented_space_id']?.toString(),
       responseValue: payload['value'],
-      kind: mode == 'response'
+      kind: mode == 'response' || mode == 'media_response'
           ? 'response'
           : mode == 'form'
           ? 'form_request'
@@ -587,6 +591,7 @@ class ConversationLocalDelivery {
           'media',
           'semantic_media',
           'response',
+          'media_response',
         }.contains(mode)) {
       return OutboxResolution.conflict;
     }
@@ -611,6 +616,40 @@ class ConversationLocalDelivery {
       if (confirmed['point_id']?.toString() != pointId ||
           confirmed['id'] == null ||
           !{'active', 'superseded'}.contains(confirmed['status'])) {
+        return OutboxResolution.awaitingConfirmation;
+      }
+    } else if (mode == 'media_response') {
+      final pointId = payload['point_id']?.toString() ?? '';
+      final path = payload['local_file_path']?.toString() ?? '';
+      final filename = payload['filename']?.toString() ?? '';
+      final kind = payload['media_kind']?.toString() ?? '';
+      if (pointId.isEmpty || path.isEmpty || filename.isEmpty ||
+          !{'file', 'image', 'voice', 'audio'}.contains(kind) ||
+          !await File(path).exists()) {
+        return OutboxResolution.conflict;
+      }
+      final response = await _uploadIntent(
+        operation.intentId,
+        'api/v1/conversations/points/$pointId/reply-media/',
+        fileId: payload['local_file_id']?.toString(),
+        fields: {
+          'client_reference': operation.intentId,
+          'kind': kind,
+          'mime_type': mediaMime(filename, kind),
+          'represented_space_id': payload['represented_space_id'],
+        },
+        files: [
+          MakoloUploadFile(
+            fieldName: 'file',
+            path: path,
+            filename: filename,
+          ),
+        ],
+      );
+      confirmed = response.jsonObject();
+      if (confirmed['point_id']?.toString() != pointId ||
+          confirmed['response_id'] is! String ||
+          confirmed['attachment'] is! Map) {
         return OutboxResolution.awaitingConfirmation;
       }
     } else if (mode == 'semantic_media') {
