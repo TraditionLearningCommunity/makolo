@@ -904,7 +904,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: roleCode,
+                      initialValue: roleCode,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Rôle'),
                       items: [
@@ -937,7 +937,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                 Navigator.pop(dialog, <String, dynamic>{
                   'action': 'grant',
                   'role_code': roleCode,
-                  if (profileId != null) 'profile_id': profileId,
+                  'profile_id': ?profileId,
                   if (profileId == null) 'email': email.text.trim(),
                 });
               },
