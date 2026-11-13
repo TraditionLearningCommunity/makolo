@@ -481,6 +481,32 @@ void main() {
       expect(acquired, isNotNull);
       expect(acquired!.payload['count'], 1);
       expect(acquired.payload['_query'], 'statuts');
+      await harness.store.putProjection(
+        kind: SpaceSyncKeys.documentsProjectionKind,
+        resourceKey: SpaceSyncKeys.documentsResourceKey(
+          'space-x',
+          query: 'statuts',
+          offset: 20,
+        ),
+        schemaVersion: 1,
+        payload: {
+          'space_id': 'space-x',
+          'count': 21,
+          'items': [
+            {
+              'id': '00000000-0000-4000-8000-000000000020',
+              'title': 'Statuts anciens',
+              'visibility': 'restricted',
+              'latest_version': 1,
+            },
+          ],
+          'has_more': false,
+          'next_offset': 21,
+          'can_manage': true,
+          '_query': 'statuts',
+          '_offset': 20,
+        },
+      );
 
       phase = 'offline';
       await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
@@ -490,6 +516,15 @@ void main() {
         reason: 'Transport failure keeps the acquired reading snapshot.',
       );
       expect((await repository.readSource(source)).lastErrorCode, isNotNull);
+      expect(
+        await repository.readDocumentPage(
+          space,
+          query: 'statuts',
+          offset: 20,
+        ),
+        isNotNull,
+        reason: 'Transport failure keeps acquired continuation pages.',
+      );
 
       phase = 'denied';
       await repository.refreshDocumentPage(space, query: 'statuts', offset: 0);
@@ -499,6 +534,15 @@ void main() {
         reason: 'Owner denial withdraws the cached collection page.',
       );
       expect((await repository.readSource(source)).invalidated, isTrue);
+      expect(
+        await repository.readDocumentPage(
+          space,
+          query: 'statuts',
+          offset: 20,
+        ),
+        isNull,
+        reason: 'Owner denial withdraws sibling continuation pages too.',
+      );
     },
   );
 
