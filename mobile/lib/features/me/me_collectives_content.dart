@@ -147,7 +147,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
   }
 
   Widget _more(MeItemPresentation item) => MakoloActionMenu(
-    tooltip: 'Autres actions pour ' + item.title,
+    tooltip: 'Autres actions pour ${item.title}',
     actions: const [
       MakoloInteractionAction(
         id: 'preview',
@@ -279,16 +279,17 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SingleChildScrollView(
+          key: const Key('me-collectives-filter-scroller'),
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
               for (final tab in tabs) ...[
                 ChoiceChip(
-                  key: Key('me-collectives-filter-' + tab.$1.name),
+                  key: Key('me-collectives-filter-${tab.$1.name}'),
                   selected: _tab == tab.$1,
                   label: Text(
                     tab.$3 != null && tab.$3! > 0
-                        ? tab.$2 + ' (' + tab.$3.toString() + ')'
+                        ? '${tab.$2} (${tab.$3})'
                         : tab.$2,
                   ),
                   onSelected: (_) => _choose(tab.$1),
@@ -408,7 +409,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     return SizedBox(
       width: 255,
       child: Card(
-        key: Key('me-collective-space-' + item.destination.id),
+        key: Key('me-collective-space-${item.destination.id}'),
         margin: EdgeInsets.zero,
         color: scheme.surface,
         shape: RoundedRectangleBorder(
@@ -480,7 +481,7 @@ class _MeCollectivesContentState extends State<MeCollectivesContent> {
     final member = relationship == 'membership';
     return Card(
       key: Key(
-        'me-collective-' + item.destination.kind + '-' + item.destination.id,
+        'me-collective-${item.destination.kind}-${item.destination.id}',
       ),
       margin: const EdgeInsets.only(bottom: 8),
       color: scheme.surface,
