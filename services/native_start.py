@@ -23,7 +23,7 @@ class ServiceStartIdempotencyConflict(Exception):
     """A previously accepted key was reused for a different operation."""
 
 
-def _fingerprint(*, service, actor, operation_key: str) -> str:
+def _fingerprint(*, service, actor, operation_key: str, beneficiary_space=None) -> str:
     if not isinstance(operation_key, str) or not _OPERATION_KEY_RE.fullmatch(
         operation_key
     ):
@@ -32,15 +32,16 @@ def _fingerprint(*, service, actor, operation_key: str) -> str:
         )
     if not getattr(actor, "is_authenticated", False):
         raise PermissionDenied("Un Profile authentifié est nécessaire.")
+    scope = f":space:{beneficiary_space.pk}" if beneficiary_space is not None else ""
     material = (
-        f"services.start.v1:{actor.pk}:{service.pk}:{operation_key}"
+        f"services.start.v1:{actor.pk}:{service.pk}:{operation_key}{scope}"
     ).encode("utf-8")
     return hashlib.sha256(material).hexdigest()
 
 
 def _replay_or_conflict(
     *, context, service, actor, objective: str, opportunity=None,
-    opportunity_id=None,
+    opportunity_id=None, beneficiary_space=None,
 ):
     existing = context.journey
     if not isinstance(objective, str):
@@ -59,7 +60,10 @@ def _replay_or_conflict(
             ) from None
     if (
         existing.initiated_by_id != actor.pk
-        or existing.beneficiary_id != actor.pk
+        or existing.beneficiary_id != (None if beneficiary_space else actor.pk)
+        or existing.beneficiary_space_id != (
+            beneficiary_space.pk if beneficiary_space is not None else None
+        )
         or existing.activity_id != service.activity_id
         or context.objective != (objective or "").strip()
         or context.opportunity_id != requested_opportunity_id
@@ -72,6 +76,7 @@ def _replay_or_conflict(
 
 def replay_native_start_if_exists(
     *, service, actor, operation_key: str, objective="", opportunity_id=None,
+    beneficiary_space=None,
 ):
     """Return the accepted result even if new creation rules changed later.
 
@@ -79,7 +84,10 @@ def replay_native_start_if_exists(
     is checked against the original actor, Service, objective and Opportunity,
     not against a newly published revision.
     """
-    key = _fingerprint(service=service, actor=actor, operation_key=operation_key)
+    key = _fingerprint(
+        service=service, actor=actor, operation_key=operation_key,
+        beneficiary_space=beneficiary_space,
+    )
     existing = (
         ServiceJourneyContext.objects.select_related("journey")
         .filter(start_operation_fingerprint=key)
@@ -90,11 +98,13 @@ def replay_native_start_if_exists(
     return _replay_or_conflict(
         context=existing, service=service, actor=actor,
         objective=objective, opportunity_id=opportunity_id,
+        beneficiary_space=beneficiary_space,
     )
 
 
 def start_service_journey_idempotently(
     *, service, actor, operation_key: str, objective="", opportunity=None,
+    beneficiary_space=None,
 ):
     """Start once; replay returns the original Journey with no new mutation.
 
@@ -102,7 +112,10 @@ def start_service_journey_idempotently(
     validated published Opportunity selection. This owner helper still
     enforces actor binding and never accepts a beneficiary ID from clients.
     """
-    key = _fingerprint(service=service, actor=actor, operation_key=operation_key)
+    key = _fingerprint(
+        service=service, actor=actor, operation_key=operation_key,
+        beneficiary_space=beneficiary_space,
+    )
     existing = (
         ServiceJourneyContext.objects.select_related("journey")
         .filter(start_operation_fingerprint=key)
@@ -112,6 +125,7 @@ def start_service_journey_idempotently(
         return _replay_or_conflict(
             context=existing, service=service, actor=actor,
             objective=objective, opportunity=opportunity,
+            beneficiary_space=beneficiary_space,
         )
 
     # Keep template selection aligned with the current Services Web flow.
@@ -125,7 +139,8 @@ def start_service_journey_idempotently(
         journey = create_service_journey(
             service=service,
             initiated_by=actor,
-            beneficiary=actor,
+            beneficiary=actor if beneficiary_space is None else None,
+            beneficiary_space=beneficiary_space,
             objective=objective,
             template=template,
             opportunity=opportunity,
@@ -144,5 +159,6 @@ def start_service_journey_idempotently(
         return _replay_or_conflict(
             context=existing, service=service, actor=actor,
             objective=objective, opportunity=opportunity,
+            beneficiary_space=beneficiary_space,
         )
     return journey, True
