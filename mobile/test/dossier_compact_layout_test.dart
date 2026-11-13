@@ -39,11 +39,7 @@ void main() {
         'updated_at': '2026-11-10T12:00:00Z',
         'visible_journeys_complete': true,
         'visible_journeys': [
-          {
-            'id': 'journey-1',
-            'label': 'Première démarche',
-            'state': 'draft',
-          },
+          {'id': 'journey-1', 'label': 'Première démarche', 'state': 'draft'},
         ],
         'visible_dependencies': [],
         'assignments': [],
