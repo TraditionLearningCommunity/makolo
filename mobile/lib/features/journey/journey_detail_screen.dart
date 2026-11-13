@@ -1554,7 +1554,7 @@ class _JourneyStepRow extends StatelessWidget {
           ? null
           : Text(
               [
-                if (label != null) label,
+                ?label,
                 if (dependencies.isNotEmpty)
                   'Après : ${dependencies.join(', ')}',
               ].join(' · '),
@@ -1659,7 +1659,7 @@ class _JourneyRequirementRow extends StatelessWidget {
       subtitle: Text(
         [
           if (reference.isRequired) 'Obligatoire',
-          if (state != null) state,
+          ?state,
         ].join(' · '),
       ),
       trailing: reference.link == null
@@ -1943,7 +1943,7 @@ class _JourneyPaymentCard extends StatelessWidget {
           ? null
           : Text(
               [
-                if (label != null) label,
+                ?label,
                 if (payment.reason != null && payment.reason!.isNotEmpty)
                   payment.reason!,
               ].join(' · '),
@@ -1986,7 +1986,7 @@ class _FormCard extends StatelessWidget {
       title: Text(form.title),
       subtitle: Text(
         [
-          if (label != null) label,
+          ?label,
           if (form.required) 'Obligatoire',
           if (deadline != null) 'Avant le $deadline',
         ].join(' · '),
@@ -2034,7 +2034,7 @@ class _ReferenceCard extends StatelessWidget {
           reference.label != contextLabel)
         reference.label,
       if (contextLabel == null && reference.isRequired) 'Obligatoire',
-      if (state != null) state,
+      ?state,
     ].join(' · ');
     return ListTile(
       dense: true,
