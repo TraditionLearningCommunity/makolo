@@ -577,7 +577,19 @@ class _SpaceBeneficiaryIntakeScreenState
             ? 'La demande a été reçue. Son état est défini par le Service.'
             : 'Réponses enregistrées par le Service.';
       });
-      await widget.runtime.interactions?.clear(_draftKey);
+      // Once the Service confirmed submission, local draft cleanup
+      // failures cannot turn that confirmation into a misleading error.
+      try {
+        await widget.runtime.interactions?.clear(_draftKey);
+      } on Object {
+        if (mounted) {
+          setState(() {
+            _error = confirm
+                ? 'Demande reçue. Le brouillon local n’a pas pu être nettoyé.'
+                : 'Réponses enregistrées. Le brouillon local reste présent.';
+          });
+        }
+      }
       if (confirm && mounted) Navigator.of(context).pop();
     } on Object {
       if (mounted) {
