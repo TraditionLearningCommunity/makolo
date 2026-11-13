@@ -49,6 +49,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
   bool _refreshing = false;
   bool _working = false;
   bool _previewOpen = false;
+  final GlobalKey _versionsKey = GlobalKey();
 
   SpaceActorContext? get _actor {
     final actor = widget.runtime.actorContext?.value;
@@ -168,6 +169,17 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
         // Hub reconciliation is best effort after owner confirmation.
       }
     }
+  }
+
+  void _scrollToVersions() {
+    final target = _versionsKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+      alignment: 0.05,
+    );
   }
 
   Future<void> _replace() async {
@@ -742,6 +754,12 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
               appBar: AppBar(
                 title: const Text('Document'),
                 actions: [
+                  if (previousVersions.isNotEmpty)
+                    MakoloIconActionButton(
+                      tooltip: 'Historique des versions',
+                      icon: Icons.history_rounded,
+                      onPressed: _scrollToVersions,
+                    ),
                   if (currentVersion != null)
                     MakoloIconActionButton(
                       tooltip: 'Télécharger',
@@ -892,6 +910,7 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
                               if (previousVersions.isNotEmpty) ...[
                                 const SizedBox(height: MakoloSpacing.xl),
                                 ResourceSectionHeader(
+                                  key: _versionsKey,
                                   title: 'Versions précédentes',
                                   count: previousVersions.length,
                                 ),
