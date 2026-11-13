@@ -56,16 +56,25 @@ void main() {
       actorContext: actor,
     );
     await store.putProjection(
+      kind: SpaceSyncKeys.resourcesProjectionKind,
+      resourceKey: SpaceSyncKeys.resourcesResourceKey('space-a'),
+      schemaVersion: 1,
+      payload: {
+        'space_id': 'space-a',
+        'kind': 'document',
+        'count': 2,
+        'total_count': 6,
+        'counts': {'document': 2, 'passport': 1, 'template': 2, 'theme': 1},
+        'items': const [],
+        'has_more': false,
+        'next_offset': 0,
+      },
+    );
+    await store.putProjection(
       kind: SpaceProjectionKind.us.wireValue,
       resourceKey: SpaceSyncKeys.resourceKey('space-a'),
       schemaVersion: 1,
       payload: {
-        'resources': {
-          'visibility': 'visible',
-          'count': 6,
-          'counts': {'document': 2, 'passport': 1, 'template': 2, 'theme': 1},
-          'items': const [],
-        },
         'handoffs': {
           'resources': '/space/atelier/us/resources',
           'passport': '/space/atelier/us/passport',
