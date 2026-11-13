@@ -62,6 +62,7 @@ from .console_views import (
     SpaceRequestApproveView,
     SpaceRequestRejectView,
 )
+from core.appuis_web import AppuisWebView
 from .space_web_views import (
     SpaceDiscoverView,
     SpaceInteroperabilityView,
@@ -174,6 +175,7 @@ urlpatterns = [
     path("<slug:slug>/retrieval/occurrences/<uuid:occurrence_id>/", SpaceRetrievalOccurrenceDetailView.as_view(), name="space-retrieval-occurrence-detail"),
     path("<slug:slug>/retrieval/orders/<uuid:order_id>/", SpaceRetrievalOrderDetailView.as_view(), name="space-retrieval-order-detail"),
     path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
+    path("<slug:slug>/us/appuis/", AppuisWebView.as_view(), name="space-us-appuis"),
     path("<slug:slug>/us/connections/", SpaceInteroperabilityView.as_view(), name="space-interoperability"),
     path("<slug:slug>/relationships/", SpaceRelationshipsView.as_view(), name="space-relationships"),
     path("<slug:slug>/pilot/", SpacePilotView.as_view(), name="space-pilot"),
