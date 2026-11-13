@@ -141,8 +141,9 @@ class ConversationEntryStore {
       final old = await store.readProjection(kind, resourceKey: '$pointId:$id');
       if (old != null &&
           (old.payload['last_change_version'] as int) >
-              (row['last_change_version'] as int))
+              (row['last_change_version'] as int)) {
         continue;
+      }
       await store.putProjection(
         kind: kind,
         resourceKey: '$pointId:$id',
