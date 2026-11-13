@@ -71,10 +71,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
     return selected is SpaceActorContext && selected.space == widget.space;
   }
 
-  String get _path => JourneyArtifactRepository.path(
-    widget.journeyId,
-    space: widget.space,
-  );
+  String get _path =>
+      JourneyArtifactRepository.path(widget.journeyId, space: widget.space);
 
   @override
   void initState() {
@@ -154,8 +152,12 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
         _kind = _kinds.containsKey(remembered?['kind'])
             ? remembered!['kind'] as String
             : 'other';
-        _sensitivity = const {'normal', 'sensitive', 'restricted'}
-                .contains(remembered?['sensitivity'])
+        _sensitivity =
+            const {
+              'normal',
+              'sensitive',
+              'restricted',
+            }.contains(remembered?['sensitivity'])
             ? remembered!['sensitivity'] as String
             : 'sensitive';
         _versionOf = remembered?['version_of'] is String
@@ -196,7 +198,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
         await _repository.store.deleteProjection(
           JourneyArtifactRepository.projectionKind,
           resourceKey: JourneyArtifactRepository.resourceKey(
-            widget.journeyId, space: widget.space,
+            widget.journeyId,
+            space: widget.space,
           ),
         );
         if (mounted) setState(() => _denied = true);
@@ -226,7 +229,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
       final file = selected.first;
       final store = await _files();
       final random = Random.secure();
-      final fileId = 'journey-piece-${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 30)}';
+      final fileId =
+          'journey-piece-${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 30)}';
       final staged = await store.stageCopy(
         fileId: fileId,
         owner: 'JourneyArtifact',
@@ -246,7 +250,8 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
     } on Object {
       if (mounted) {
         setState(() {
-          _message = 'La pièce n’a pas été préparée. Votre brouillon est conservé.';
+          _message =
+              'La pièce n’a pas été préparée. Votre brouillon est conservé.';
         });
       }
     }
@@ -363,7 +368,9 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Ce dossier n’est plus accessible dans ce contexte.'),
+                child: Text(
+                  'Ce dossier n’est plus accessible dans ce contexte.',
+                ),
               ),
             )
           : StreamBuilder<StoredProjection?>(
@@ -372,9 +379,13 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                 final payload = snapshot.data?.payload;
                 final raw = payload?['artifacts'];
                 final pieces = raw is List
-                    ? raw.whereType<Map>().map((row) => Map<String, dynamic>.from(row)).toList()
+                    ? raw
+                          .whereType<Map>()
+                          .map((row) => Map<String, dynamic>.from(row))
+                          .toList()
                     : <Map<String, dynamic>>[];
-                final canUpload = payload?['capabilities'] is Map &&
+                final canUpload =
+                    payload?['capabilities'] is Map &&
                     (payload!['capabilities'] as Map)['upload'] == true;
                 return ListView(
                   padding: const EdgeInsets.all(20),
@@ -387,12 +398,16 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                     if (snapshot.data == null && !_loading)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Text('Aucune liste locale disponible. Actualisez pour consulter vos pièces.'),
+                        child: Text(
+                          'Aucune liste locale disponible. Actualisez pour consulter vos pièces.',
+                        ),
                       ),
                     if (snapshot.data != null && pieces.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 18),
-                        child: Text('Aucune pièce enregistrée pour cette démarche.'),
+                        child: Text(
+                          'Aucune pièce enregistrée pour cette démarche.',
+                        ),
                       ),
                     for (final piece in pieces)
                       Card(
@@ -401,44 +416,69 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(piece['title']?.toString() ?? 'Pièce',
-                                  style: Theme.of(context).textTheme.titleMedium),
-                              Text('Version ${piece['version']} · ${piece['status']}'),
+                              Text(
+                                piece['title']?.toString() ?? 'Pièce',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                'Version ${piece['version']} · ${piece['status']}',
+                              ),
                               const SizedBox(height: 8),
                               Wrap(
                                 spacing: 8,
                                 children: [
                                   if (piece['capabilities'] is Map &&
-                                      (piece['capabilities'] as Map)['download'] == true)
+                                      (piece['capabilities']
+                                              as Map)['download'] ==
+                                          true)
                                     MakoloActionButton(
                                       label: 'Lire',
                                       icon: Icons.visibility_outlined,
-                                      onPressed: _busy ? null : () {
-                                        final download = piece['links'] is Map
-                                            ? (piece['links'] as Map)['download']
-                                            : null;
-                                        if (download is String && download.isNotEmpty) {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute<void>(
-                                              builder: (_) => _PrivatePieceReader(
-                                                api: widget.runtime.api!,
-                                                profileId: _repository.profileId,
-                                                path: download,
-                                                title: piece['title']?.toString() ?? 'Pièce',
-                                                mime: piece['mime_type']?.toString() ?? '',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      },
+                                      onPressed: _busy
+                                          ? null
+                                          : () {
+                                              final download =
+                                                  piece['links'] is Map
+                                                  ? (piece['links']
+                                                        as Map)['download']
+                                                  : null;
+                                              if (download is String &&
+                                                  download.isNotEmpty) {
+                                                Navigator.of(context).push(
+                                                  MaterialPageRoute<void>(
+                                                    builder: (_) =>
+                                                        _PrivatePieceReader(
+                                                          api: widget
+                                                              .runtime
+                                                              .api!,
+                                                          profileId: _repository
+                                                              .profileId,
+                                                          path: download,
+                                                          title:
+                                                              piece['title']
+                                                                  ?.toString() ??
+                                                              'Pièce',
+                                                          mime:
+                                                              piece['mime_type']
+                                                                  ?.toString() ??
+                                                              '',
+                                                        ),
+                                                  ),
+                                                );
+                                              }
+                                            },
                                     ),
                                   if (canUpload &&
                                       piece['capabilities'] is Map &&
-                                      (piece['capabilities'] as Map)['new_version'] == true)
+                                      (piece['capabilities']
+                                              as Map)['new_version'] ==
+                                          true)
                                     MakoloActionButton(
                                       label: 'Nouvelle version',
                                       icon: Icons.history_rounded,
-                                      onPressed: _busy ? null : () => _newVersion(piece),
+                                      onPressed: _busy
+                                          ? null
+                                          : () => _newVersion(piece),
                                     ),
                                 ],
                               ),
@@ -449,7 +489,9 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                     if (canUpload) ...[
                       const SizedBox(height: 18),
                       Text(
-                        _versionOf == null ? 'Ajouter une pièce' : 'Nouvelle version',
+                        _versionOf == null
+                            ? 'Ajouter une pièce'
+                            : 'Nouvelle version',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
@@ -466,37 +508,60 @@ class _JourneyArtifactScreenState extends State<JourneyArtifactScreen> {
                           initialValue: _kind,
                           decoration: const InputDecoration(labelText: 'Type'),
                           items: _kinds.entries
-                              .map((item) => DropdownMenuItem(
-                                    value: item.key,
-                                    child: Text(item.value),
-                                  ))
+                              .map(
+                                (item) => DropdownMenuItem(
+                                  value: item.key,
+                                  child: Text(item.value),
+                                ),
+                              )
                               .toList(),
-                          onChanged: _busy ? null : (value) {
-                            if (value != null) setState(() => _kind = value);
-                          },
+                          onChanged: _busy
+                              ? null
+                              : (value) {
+                                  if (value != null)
+                                    setState(() => _kind = value);
+                                },
                         ),
                       DropdownButtonFormField<String>(
                         initialValue: _sensitivity,
-                        decoration: const InputDecoration(labelText: 'Confidentialité'),
+                        decoration: const InputDecoration(
+                          labelText: 'Confidentialité',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'normal', child: Text('Normale')),
-                          DropdownMenuItem(value: 'sensitive', child: Text('Sensible')),
-                          DropdownMenuItem(value: 'restricted', child: Text('Restreinte')),
+                          DropdownMenuItem(
+                            value: 'normal',
+                            child: Text('Normale'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'sensitive',
+                            child: Text('Sensible'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'restricted',
+                            child: Text('Restreinte'),
+                          ),
                         ],
-                        onChanged: _busy ? null : (value) {
-                          if (value != null) setState(() => _sensitivity = value);
-                        },
+                        onChanged: _busy
+                            ? null
+                            : (value) {
+                                if (value != null)
+                                  setState(() => _sensitivity = value);
+                              },
                       ),
                       const SizedBox(height: 12),
                       if (_filename != null) Text(_filename!),
                       MakoloActionButton(
-                        label: _filename == null ? 'Choisir un fichier' : 'Remplacer le fichier choisi',
+                        label: _filename == null
+                            ? 'Choisir un fichier'
+                            : 'Remplacer le fichier choisi',
                         icon: Icons.attach_file_rounded,
                         onPressed: _busy ? null : _pick,
                       ),
                       const SizedBox(height: 8),
                       MakoloActionButton(
-                        label: _versionOf == null ? 'Ajouter à ma démarche' : 'Envoyer cette version',
+                        label: _versionOf == null
+                            ? 'Ajouter à ma démarche'
+                            : 'Envoyer cette version',
                         icon: Icons.file_upload_outlined,
                         appearance: MakoloActionAppearance.primary,
                         onPressed: _busy || _staged == null ? null : _send,
@@ -517,7 +582,8 @@ String? _mime(String? filename) {
     'pdf' => 'application/pdf',
     'txt' => 'text/plain',
     'doc' => 'application/msword',
-    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'docx' =>
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'jpg' || 'jpeg' => 'image/jpeg',
     'png' => 'image/png',
     _ => null,
@@ -556,7 +622,10 @@ class _PrivatePieceReaderState extends State<_PrivatePieceReader> {
 
   Future<void> _load() async {
     if (!const {
-      'application/pdf', 'image/jpeg', 'image/png', 'text/plain',
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'text/plain',
     }.contains(widget.mime)) {
       if (mounted) {
         setState(() {
@@ -619,10 +688,12 @@ class _PrivatePieceReaderState extends State<_PrivatePieceReader> {
     body: _busy
         ? const Center(child: CircularProgressIndicator.adaptive())
         : _error != null
-        ? Center(child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Text(_error!),
-          ))
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(_error!),
+            ),
+          )
         : _reader(),
   );
 
@@ -644,8 +715,6 @@ class _PrivatePieceReaderState extends State<_PrivatePieceReader> {
         },
       );
     }
-    return InteractiveViewer(
-      child: Center(child: Image.file(File(path))),
-    );
+    return InteractiveViewer(child: Center(child: Image.file(File(path))));
   }
 }
