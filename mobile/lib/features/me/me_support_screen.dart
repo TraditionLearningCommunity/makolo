@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/api_error.dart';
 import '../../sync/sync_status.dart';
+import '../../sync/owner_source_state.dart';
 
 /// Shared Profile/Space composition of owner-backed Recognition, Loyalty and
 /// Partners. There is no Appuis domain, no inferred right and no local spending.
@@ -29,6 +31,8 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   int _generation = 0;
   bool _loading = true;
   bool _busy = false;
+  bool _denied = false;
+  StreamSubscription<OwnerSourceState>? _personalSource;
 
   String get _scope => _actor is SpaceActorContext
       ? 'space:' + (_actor as SpaceActorContext).space.id
@@ -40,6 +44,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     super.initState();
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
     widget.runtime.actorContext?.addListener(_actorChanged);
+    _bindPersonalSource();
     unawaited(_load());
   }
 
@@ -47,6 +52,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
   void dispose() {
     _generation++;
     widget.runtime.actorContext?.removeListener(_actorChanged);
+    unawaited(_personalSource?.cancel());
     super.dispose();
   }
 
@@ -59,8 +65,51 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     _snapshots.clear();
     _errors.clear();
     _pendingKeys.clear();
+    _denied = false;
     setState(() => _loading = true);
     unawaited(_load());
+  }
+
+  void _bindPersonalSource() {
+    final personal = widget.runtime.personal;
+    if (personal == null) return;
+    _personalSource = personal.watchMeSource().listen((source) {
+      if (!mounted || _space) return;
+      if (source.invalidated) {
+        _generation++;
+        _denied = true;
+        _snapshots.clear();
+        _pendingKeys.clear();
+        setState(() {});
+        final store = widget.runtime.store;
+        if (store != null) {
+          for (final family in families) {
+            unawaited(store.deleteProjection('appuis.' + family,
+                resourceKey: 'personal'));
+          }
+        }
+      } else if (_denied) {
+        _denied = false;
+        unawaited(_load());
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant MeSupportScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime != widget.runtime) {
+      oldWidget.runtime.actorContext?.removeListener(_actorChanged);
+      unawaited(_personalSource?.cancel());
+      widget.runtime.actorContext?.addListener(_actorChanged);
+      _bindPersonalSource();
+      _generation++;
+      _actor = widget.runtime.actorContext?.value ??
+          const PersonalActorContext();
+      _snapshots.clear();
+      _denied = false;
+      unawaited(_load());
+    }
   }
 
   bool _current(int generation, ActorContext actor) =>
@@ -97,7 +146,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = ++_generation;
     final actor = _actor;
     final store = widget.runtime.store;
-    if (store == null || widget.runtime.api == null) {
+    if (_denied || store == null || widget.runtime.api == null) {
       if (_current(generation, actor)) setState(() => _loading = false);
       return;
     }
@@ -122,7 +171,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final generation = _generation;
     final api = widget.runtime.api;
     final store = widget.runtime.store;
-    if (_busy || api == null || store == null || !_current(generation, actor))
+    if (_denied || _busy || api == null || store == null || !_current(generation, actor))
       return;
     setState(() => _busy = true);
     try {
@@ -139,6 +188,10 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           final payload = body is List
               ? <String, dynamic>{'relationships': body}
               : Map<String, dynamic>.from(body as Map);
+          if (family == 'partners') {
+            await _includePartnerActivity(payload, actor, generation);
+          }
+          if (!_current(generation, actor)) return;
           await store.putProjection(
             kind: 'appuis.' + family,
             resourceKey: _scope,
@@ -188,6 +241,54 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     }
   }
 
+  /// Owner datasets stay separate, filtered by this actor's Partner IDs.
+  Future<void> _includePartnerActivity(
+      Map<String, dynamic> payload, ActorContext actor, int generation) async {
+    final api = widget.runtime.api;
+    if (api == null) return;
+    final ids = _rows(payload['relationships'])
+        .map((row) => _text(row['id']))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) return;
+    final organization = actor is SpaceActorContext
+        ? '?organization=' + Uri.encodeQueryComponent(actor.space.id)
+        : '';
+    for (final family in ['codes', 'commissions', 'payouts']) {
+      if (!_current(generation, actor)) return;
+      try {
+        final response = await api.get(
+            'api/v1/partners/' + family + '/' + organization);
+        if (!_current(generation, actor)) return;
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) continue;
+        payload[family] = decoded.whereType<Map>().map(_map)
+            .where((row) => ids.contains(_text(row['partner'])))
+            .toList(growable: false);
+      } on Object {
+        // No optional failure can invalidate the established relation.
+      }
+    }
+    final campaigns = _rows(payload['codes'])
+        .map((row) => _text(row['campaign']))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (campaigns.isNotEmpty && _current(generation, actor)) {
+      try {
+        final response = await api.get(
+            'api/v1/partners/campaigns/' + organization);
+        final decoded = jsonDecode(response.body);
+        if (decoded is List && _current(generation, actor)) {
+          payload['campaigns'] = decoded.whereType<Map>().map(_map)
+              .where((row) => campaigns.contains(_text(row['id'])))
+              .toList(growable: false);
+        }
+      } on Object {
+        // Keep the valid owner rows already acquired.
+      }
+    }
+  }
+
   static Map<String, dynamic> _map(Object? value) => value is Map
       ? value.map((key, value) => MapEntry(key.toString(), value))
       : {};
@@ -204,6 +305,7 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
     final reward = _map(row['reward']);
     for (final value in [
       row['name'],
+      row['code'],
       row['reward_name'],
       row['display_name'],
       row['program_name'],
@@ -514,7 +616,9 @@ class _MeSupportScreenState extends State<MeSupportScreen> {
           ),
         ],
       ),
-      body: _loading && !hasRows
+      body: _denied
+          ? const Center(child: Text('Ces appuis ne sont plus accessibles.'))
+          : _loading && !hasRows
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: offline ? () async {} : _refresh,
