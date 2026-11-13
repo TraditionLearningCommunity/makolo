@@ -68,3 +68,25 @@ Il n'y a aucune limite artificielle à N. Le calcul utilise les jours civils et 
 ## Hors de la refonte
 
 Pas de refonte de Découvrir, Notifications, Conversations, En cours, Moi/Mes démarches ; aucun nouveau N3. Les sources de vérité canoniques restent inchangées. Une capacité non projetée par le propriétaire (par exemple une position en liste d'attente inconnue) **n'est pas simulée** pour enrichir artificiellement l'interface.
+
+
+## Recette Android du 13 novembre 2026 — couverture et suppression des redites
+
+- La zone **Mon objectif** est désormais une couverture Makolo pleine largeur, sans marges extérieures : dégradé de marque, cible (et non passeport), titre, état, conversation si autorisée, repère Jour J, puis calendrier et lieu lisibles.
+- Les sections internes gardent une marge de lecture compacte (12 dp), sans modifier les espacements globaux des autres écrans.
+- La plage horaire de la même journée est affichée **une seule fois** en haut. Si l'Occurrence se termine à une autre date, cette fin est conservée dans la couverture plutôt que dans une carte secondaire.
+- Le nom du lieu est conservé dans la couverture. Une précision d'adresse non répétée (ex. « Centre-ville » au lieu de « Centre-ville, Kampala ») peut apparaître à cet endroit ; aucune carte d'adresse ne la répète plus en bas.
+- **Sur place** n'apparaît que pour une véritable consigne d'arrivée différente de l'adresse et du nom du lieu. Sans consigne utile, aucune section n'est rendue.
+- Une description identique à l'objectif, ou commençant par « titre — » / « titre : », n'affiche pas deux fois le titre. Les autres descriptions conservent leur contenu métier.
+- Les démarches terminales n'affichent plus une seconde carte disant « Réalisée » sous le statut déjà présent dans la couverture. Le cas Service conserve sa distinction entre suivi Makolo et décision extérieure. Une préparation de Readiness devenue vide après terminaison ne crée plus de carte.
+- Les documents déjà acquis sont montrés en lignes compactes avec leur type ; lorsqu'on connaît seulement la destination propriétaire, on propose un simple lien sans fausse carte remplie de vide.
+- Aucun changement de propriété, API, mutation, permission, synchronisation ni de navigation depuis les autres N2.
+
+### Tests de non-régression
+
+- `mobile/test/journey_n3_composition_test.dart` : largeur de couverture 340 dp, icône cible, plage horaire, ville présente une fois, aucune section Adresse/Fin prévue redondante, ressources locales.
+- `mobile/test/journey_cover_practical_test.dart` : véritable consigne sur place maintenue sans refaire une carte d'adresse ou de fin d'horaire.
+- `mobile/test/journey_time_presentation_test.dart` : suffixe de ville supprimé d'une adresse qui le contient déjà.
+- `mobile/test/journey_n3_lot_c_test.dart` : résultat terminal présenté une seule fois et absence de préparation vide.
+
+**Exécution :** les changements sont poussés sur #522. Le résultat visuel Android doit encore être contrôlé après mise à jour du projet local ; le code et les tests ne sont pas réputés validés tant que `Mobile CI`, `Mobile Format` et les tests ciblés n'ont pas confirmé le HEAD courant.
