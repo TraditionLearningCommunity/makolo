@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/action_controls.dart';
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -24,6 +25,7 @@ class RequirementDetailScreen extends StatefulWidget {
     required this.repository,
     this.detailPath,
     this.onOpenOwnerLink,
+    this.onOpenEvidence,
   });
 
   final String journeyId;
@@ -31,6 +33,8 @@ class RequirementDetailScreen extends StatefulWidget {
   final RequirementRepository repository;
   final String? detailPath;
   final Future<void> Function(String link)? onOpenOwnerLink;
+  final VoidCallback? onOpenEvidence;
+  final VoidCallback? onOpenEvidence;
 
   @override
   State<RequirementDetailScreen> createState() =>
@@ -162,6 +166,7 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   content: _RequirementContent(
                     presentation: presentation,
                     onOpenOwnerLink: widget.onOpenOwnerLink,
+                    onOpenEvidence: widget.onOpenEvidence,
                   ),
                 ),
               ),
@@ -174,7 +179,11 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
 }
 
 class _RequirementContent extends StatelessWidget {
-  const _RequirementContent({required this.presentation, this.onOpenOwnerLink});
+  const _RequirementContent({
+    required this.presentation,
+    this.onOpenOwnerLink,
+    this.onOpenEvidence,
+  });
 
   final _RequirementPresentation presentation;
   final Future<void> Function(String link)? onOpenOwnerLink;
@@ -204,6 +213,23 @@ class _RequirementContent extends StatelessWidget {
             child: MakoloCard(child: Text(presentation.consequence!)),
           ),
           const SizedBox(height: MakoloSpacing.xl),
+        ],
+        if (onOpenEvidence != null &&
+            presentation.state != 'satisfied' &&
+            presentation.state != 'not_applicable') ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+              vertical: MakoloSpacing.sm,
+            ),
+            child: MakoloActionButton(
+              label: 'Proposer une pièce comme preuve',
+              icon: Icons.attach_file_rounded,
+              appearance: MakoloActionAppearance.secondary,
+              onPressed: onOpenEvidence,
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.md),
         ],
         MakoloSection(
           title: 'Comment avancer',
