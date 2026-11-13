@@ -115,10 +115,22 @@ class JourneyDayPresentation {
     final shown = place(name: name, locality: locality);
     final candidates = <String>[];
     for (final candidate in [address, locality]) {
-      final value = candidate?.trim();
+      var value = candidate?.trim();
       if (value == null || value.isEmpty) continue;
-      if (value.toLowerCase() == shown?.toLowerCase()) continue;
-      if (candidates.any((old) => old.toLowerCase() == value.toLowerCase())) {
+      // An owner's address may already include the city. Present it once.
+      for (final repeated in [shown, locality]) {
+        if (repeated == null || repeated.trim().isEmpty) continue;
+        for (final separator in [', ', ' · ', ' - ']) {
+          final suffix = '$separator${repeated.trim()}';
+          if (value!.toLowerCase().endsWith(suffix.toLowerCase())) {
+            value = value.substring(0, value.length - suffix.length).trim();
+          }
+        }
+      }
+      if (value.isEmpty || value.toLowerCase() == shown?.toLowerCase()) {
+        continue;
+      }
+      if (candidates.any((old) => old.toLowerCase() == value!.toLowerCase())) {
         continue;
       }
       candidates.add(value);
