@@ -775,64 +775,119 @@ class _DossierWorkspaceState extends State<DossierWorkspaceScreen> {
     if (yes) await _command('mandate_revoke', {'mandate_id': row['id']});
   }
 
-  Widget _controls(Map<String, dynamic> data) {
-    final canLink =
-        _mode != _DossierMode.overview && _cap(data, 'dossier.journey.link');
+  Widget _linkAction(Map<String, dynamic> data) {
+    return Tooltip(
+      message: 'Lier une démarche',
+      child: FilledButton.tonalIcon(
+        onPressed: _canMutate && _cap(data, 'dossier.journey.link')
+            ? () => _link(data)
+            : null,
+        icon: const Icon(Icons.add_link_rounded, size: 18),
+        label: const Text('Lier'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+
+  /// Owner actions belong in the top AppBar, not between Dossier sections.
+  Widget _dossierMenu(Map<String, dynamic> data) {
     final menu = [
       if (_cap(data, 'dossier.edit')) 'edit',
       if (_cap(data, 'dossier.dependency.add')) 'dependency',
       if (_cap(data, 'dossier.project.manage')) 'project',
       if (_cap(data, 'dossier.lifecycle')) 'lifecycle',
     ];
-    if (!canLink && menu.isEmpty) return const SizedBox.shrink();
-    return Row(
-      children: [
-        if (canLink)
-          MakoloActionButton(
-            label: 'Lier une démarche',
-            onPressed: _canMutate ? () => _link(data) : null,
-            icon: Icons.link_rounded,
-            appearance: MakoloActionAppearance.primary,
+    if (menu.isEmpty) return const SizedBox.shrink();
+    return PopupMenuButton<String>(
+      tooltip: 'Actions du Dossier',
+      enabled: _canMutate,
+      icon: const Icon(Icons.more_horiz_rounded),
+      onSelected: (action) {
+        switch (action) {
+          case 'edit':
+            _edit(data);
+          case 'dependency':
+            _newDependency(data);
+          case 'project':
+            _projectAction(data);
+          case 'lifecycle':
+            _lifecycle(data);
+        }
+      },
+      itemBuilder: (_) => [
+        if (menu.contains('edit'))
+          const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+        if (menu.contains('dependency'))
+          const PopupMenuItem(
+            value: 'dependency',
+            child: Text('Ajouter un prérequis'),
           ),
-        if (canLink && menu.isNotEmpty) const SizedBox(width: 9),
-        if (menu.isNotEmpty)
-          PopupMenuButton<String>(
-            tooltip: 'Actions du Dossier',
-            enabled: _canMutate,
-            icon: const Icon(Icons.more_horiz_rounded),
-            onSelected: (action) {
-              switch (action) {
-                case 'edit':
-                  _edit(data);
-                case 'dependency':
-                  _newDependency(data);
-                case 'project':
-                  _projectAction(data);
-                case 'lifecycle':
-                  _lifecycle(data);
-              }
-            },
-            itemBuilder: (_) => [
-              if (menu.contains('edit'))
-                const PopupMenuItem(value: 'edit', child: Text('Modifier')),
-              if (menu.contains('dependency'))
-                const PopupMenuItem(
-                  value: 'dependency',
-                  child: Text('Ajouter un prérequis'),
-                ),
-              if (menu.contains('project'))
-                const PopupMenuItem(
-                  value: 'project',
-                  child: Text('Rattachement au Projet'),
-                ),
-              if (menu.contains('lifecycle'))
-                const PopupMenuItem(
-                  value: 'lifecycle',
-                  child: Text('Changer l’état'),
-                ),
-            ],
+        if (menu.contains('project'))
+          const PopupMenuItem(
+            value: 'project',
+            child: Text('Rattachement au Projet'),
+          ),
+        if (menu.contains('lifecycle'))
+          const PopupMenuItem(
+            value: 'lifecycle',
+            child: Text('Changer l’état'),
           ),
       ],
+    );
+  }
+
+  /// Keep view icons attached to Démarches, never in a separate footer.
+  Widget _journeysHeading(Map<String, dynamic> data) {
+    final showViews = _mode != _DossierMode.overview ||
+        _rows(data['visible_journeys']).isNotEmpty ||
+        _rows(data['visible_dependencies']).isNotEmpty;
+    final canLink = _cap(data, 'dossier.journey.link') &&
+        (_mode == _DossierMode.overview || _mode == _DossierMode.list);
+    final theme = Theme.of(context);
+    Widget heading() => Row(
+      children: [
+        Icon(Icons.route_outlined, color: theme.colorScheme.primary, size: 21),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Démarches',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (canLink) _linkAction(data),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!showViews) return heading();
+        if (constraints.maxWidth >= 560) {
+          return Row(
+            children: [
+              Expanded(child: heading()),
+              const SizedBox(width: 12),
+              SizedBox(width: 224, child: _tabs()),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            heading(),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: SizedBox(width: 224, child: _tabs()),
+            ),
+          ],
+        );
+      },
     );
   }
 
