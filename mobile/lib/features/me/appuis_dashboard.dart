@@ -584,6 +584,9 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
                 }),
                 onTap: () {
                   Navigator.pop(sheet);
+                  // Root owner reconciliation must not leave a stale depth.
+                  final navigator = Navigator.of(context);
+                  if (navigator.canPop()) navigator.pop();
                   unawaited(widget.onAction(row, family, action));
                 },
               ),
