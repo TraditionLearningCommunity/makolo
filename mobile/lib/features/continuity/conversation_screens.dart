@@ -2959,13 +2959,25 @@ class _PointCardState extends State<_PointCard> {
       _feedback = null;
     });
     try {
-      await widget.repository.respondToPoint(
-        conversationId: widget.conversationId,
-        pointId: widget.point.id,
-        value: value,
-        clientReference: _referenceFor(value),
-        representedSpaceId: widget.representedSpaceId,
-      );
+      final delivery = widget.repository.delivery;
+      if (delivery != null) {
+        // Durable intent first; the owner confirmation arrives through Sync.
+        await delivery.queue(
+          conversationId: widget.conversationId,
+          mode: 'response',
+          pointId: widget.point.id,
+          responseValue: value,
+          representedSpaceId: widget.representedSpaceId,
+        );
+      } else {
+        await widget.repository.respondToPoint(
+          conversationId: widget.conversationId,
+          pointId: widget.point.id,
+          value: value,
+          clientReference: _referenceFor(value),
+          representedSpaceId: widget.representedSpaceId,
+        );
+      }
       _clientReference = null;
       _hasUnconfirmedResponse = false;
       _unconfirmedResponse = null;
@@ -3147,7 +3159,12 @@ class _PointCardState extends State<_PointCard> {
   @override
   Widget build(BuildContext context) {
     final point = widget.point;
+    final responseIntent = widget.responseIntent;
+    final waitingForOwner = responseIntent != null &&
+        (!responseIntent.isConfirmed ||
+            !point.hasRespondedForScope(widget.representedSpaceId));
     final canRespond =
+        !waitingForOwner &&
         (widget.representedSpaceId == null
             ? point.canRespond
             : point.responseWindowOpen) &&
@@ -3422,6 +3439,35 @@ class _PointCardState extends State<_PointCard> {
               appearance: MakoloActionAppearance.quiet,
             ),
           ),
+        if (responseIntent != null &&
+            !point.hasRespondedForScope(widget.representedSpaceId)) ...[
+          const SizedBox(height: MakoloSpacing.xs),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                responseIntent.isConfirmed
+                    ? Icons.check_rounded
+                    : responseIntent.isBlocked &&
+                        !responseIntent.retryScheduled
+                    ? Icons.error_outline_rounded
+                    : Icons.schedule_rounded,
+                size: 15,
+                color: muted,
+              ),
+              const SizedBox(width: MakoloSpacing.xs),
+              Text(
+                responseIntent.isConfirmed
+                    ? 'Envoyé'
+                    : responseIntent.isBlocked &&
+                        !responseIntent.retryScheduled
+                    ? 'Non confirmé'
+                    : 'En attente',
+                style: theme.labelSmall?.copyWith(color: muted),
+              ),
+            ],
+          ),
+        ],
         if (_hasUnconfirmedResponse && !widget.readOnly) ...[
           const SizedBox(height: MakoloSpacing.sm),
           Wrap(
