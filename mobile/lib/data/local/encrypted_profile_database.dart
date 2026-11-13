@@ -117,7 +117,7 @@ class EncryptedProfileDatabase {
         throw const ProfileDatabaseLocked();
       return database;
     } on Object {
-      database.dispose();
+      database.close();
       rethrow;
     }
   }
@@ -186,11 +186,11 @@ class EncryptedProfileDatabase {
         source.execute('VACUUM INTO ${_quote(temporary.path)}');
         target = _open(temporary.path);
         target.execute('PRAGMA rekey = ${_quote(key)}');
-        target.dispose();
+        target.close();
         target = null;
         target = _open(temporary.path, key: key);
         _compare(source, target);
-        target.dispose();
+        target.close();
         target = null;
         final durable = temporary.openSync(mode: FileMode.append);
         durable.flushSync();
@@ -200,9 +200,9 @@ class EncryptedProfileDatabase {
       if (encrypted.existsSync()) {
         target = _open(encrypted.path, key: key);
         if (source != null) _compare(source, target);
-        target.dispose();
+        target.close();
         target = null;
-        source?.dispose();
+        source?.close();
         source = null;
         // Only after encrypted reopen and exact logical verification. On any
         // failure both copies remain; startup never silently chooses empty data.
@@ -216,8 +216,8 @@ class EncryptedProfileDatabase {
         throw const ProfileDatabaseLocked();
       }
     } finally {
-      target?.dispose();
-      source?.dispose();
+      target?.close();
+      source?.close();
     }
   }
 
