@@ -132,7 +132,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       lastDate: DateTime(2100),
       helpText: 'Choisir une date',
     );
-    if (date == null || !mounted) return;
+    if (date == null || !mounted || _attempted || _submitting) return;
     setState(() {
       switch (field) {
         case 'start':
@@ -146,6 +146,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           break;
       }
     });
+    _scheduleDraft();
   }
 
   DateTime? _restoredDate(Object? value) =>
@@ -337,13 +338,15 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       children: [
         MakoloIconActionButton(
           tooltip: 'Choisir : $label',
-          onPressed: _submitting ? null : () => _chooseDate(field),
+          onPressed: _submitting || _restoring || _attempted
+              ? null
+              : () => _chooseDate(field),
           icon: Icons.calendar_today_outlined,
         ),
         if (value != null)
           MakoloIconActionButton(
             tooltip: 'Effacer : $label',
-            onPressed: _submitting
+            onPressed: _submitting || _restoring || _attempted
                 ? null
                 : () => setState(() {
                     switch (field) {
@@ -357,6 +360,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                         _deadline = null;
                         break;
                     }
+                    _scheduleDraft();
                   }),
             icon: Icons.close_rounded,
           ),
@@ -518,7 +522,10 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     if (confirmedId != null) {
       final owner = _confirmedSpaceSlug;
       return Scaffold(
-        appBar: AppBar(title: const Text('Création confirmée')),
+        appBar: AppBar(
+          title: const Text('Création confirmée'),
+          actions: [_draftMark()],
+        ),
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
@@ -593,7 +600,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     final project = _isProject;
     final title = project ? 'Créer un projet' : 'Créer un dossier';
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(title), actions: [_draftMark()]),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -607,7 +614,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     controller: _title,
                     autofocus: true,
                     maxLength: 220,
-                    enabled: !_submitting,
+                    enabled: !_submitting && !_restoring && !_attempted,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: project
@@ -623,7 +630,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   TextFormField(
                     controller: _description,
                     maxLines: 4,
-                    enabled: !_submitting,
+                    enabled: !_submitting && !_restoring && !_attempted,
                     decoration: const InputDecoration(
                       labelText: 'Description (facultative)',
                       border: OutlineInputBorder(),
@@ -648,7 +655,9 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   ],
                   MakoloActionButton(
                     label: _submitting ? 'Confirmation…' : title,
-                    onPressed: _submitting ? null : _submit,
+                    onPressed: _submitting || _restoring || _restoreFailed || _attempted
+                        ? null
+                        : _submit,
                     busy: _submitting,
                     icon: Icons.check_rounded,
                     appearance: MakoloActionAppearance.primary,
