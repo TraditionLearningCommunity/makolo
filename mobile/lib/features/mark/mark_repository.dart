@@ -67,10 +67,8 @@ class MarkRepository {
       ],
       'links': List<String>.of(links),
       if (teamMember != null) 'team_member': Map<String, String>.of(teamMember),
-      if (pendingConfirmationCode != null)
-        'pending_confirmation_code': pendingConfirmationCode,
-      if (pendingConfirmationKey != null)
-        'pending_confirmation_key': pendingConfirmationKey,
+      'pending_confirmation_code': ?pendingConfirmationCode,
+      'pending_confirmation_key': ?pendingConfirmationKey,
     };
     // Autosave, share ingress, confirmation and deletion can interleave.
     // Serialize by actor and snapshot each payload before it is enqueued.
@@ -172,8 +170,8 @@ class MarkRepository {
 
     final context = <String, dynamic>{
       ...?selected == null ? null : {'selected': selected},
-      if (confirmation != null) 'confirmation': confirmation,
-      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      'confirmation': ?confirmation,
+      'idempotency_key': ?idempotencyKey,
     };
 
     try {
@@ -197,7 +195,7 @@ class MarkRepository {
             },
             'context': {
               ...context,
-              if (teamMember != null) 'team_member': teamMember,
+              'team_member': ?teamMember,
               if (!perspective.isAll) 'responsibility': perspective.id,
             },
           },
