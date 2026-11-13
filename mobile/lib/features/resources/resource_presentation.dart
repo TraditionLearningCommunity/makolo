@@ -353,7 +353,7 @@ class ResourceSectionHeader extends StatelessWidget {
         ),
         if (action != null) const SizedBox(width: MakoloSpacing.xs),
       ],
-      if (action != null) action!,
+      ?action,
     ],
   );
 }
