@@ -1,5 +1,5 @@
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import ValidationError as DRFValidationError, NotFound
 from .media_services import add_questionnaire_media, remove_questionnaire_media, ensure_media_access, serialize_media, media_sections
@@ -15,18 +15,34 @@ from .models import FormRequest
 from .services import save_response, submit_response
 
 
-def _request_for(user, pk):
-    return get_object_or_404(
+def _request_for(user, pk, *, write=False):
+    row = get_object_or_404(
         FormRequest.objects.select_related(
             "journey",
             "journey__beneficiary",
+            "journey__beneficiary_space",
             "target_profile",
             "form_version",
             "form_version__form",
         ).prefetch_related("form_version__questions", "response__answers__question"),
-        Q(journey__beneficiary=user) | Q(target_profile=user),
         pk=pk,
     )
+    if row.target_profile_id == user.pk or (
+        row.journey_id and row.journey.beneficiary_id == user.pk
+    ):
+        return row
+    if row.journey_id and row.journey.beneficiary_space_id:
+        from services.space_beneficiary import (
+            can_act_for_space_service_journey, can_read_space_service_journey,
+        )
+
+        allowed = (
+            can_act_for_space_service_journey(user, row.journey)
+            if write else can_read_space_service_journey(user, row.journey)
+        )
+        if allowed:
+            return row
+    raise Http404
 
 
 def _serialize(form_request):
@@ -86,8 +102,19 @@ class FormRequestListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from organizations.api.workspace_projection import workspace_spaces
+        from services.space_beneficiary import can_read_space_service
+
+        permitted_space_ids = [
+            space.pk for space in workspace_spaces(request.user)
+            if can_read_space_service(request.user, space)
+        ]
         rows = (
-            FormRequest.objects.filter(Q(journey__beneficiary=request.user) | Q(target_profile=request.user))
+            FormRequest.objects.filter(
+                Q(journey__beneficiary=request.user)
+                | Q(target_profile=request.user)
+                | Q(journey__beneficiary_space_id__in=permitted_space_ids)
+            )
             .select_related("journey", "journey__beneficiary", "target_profile", "form_version", "form_version__form")
             .prefetch_related("form_version__questions", "response__answers__question")
             .order_by("created_at", "id")
@@ -106,7 +133,7 @@ class FormResponseSaveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        form_request = _request_for(request.user, pk)
+        form_request = _request_for(request.user, pk, write=True)
         answers = request.data.get("answers", {})
         if not isinstance(answers, dict):
             return Response({"detail": "answers doit être un objet."}, status=status.HTTP_400_BAD_REQUEST)
@@ -122,7 +149,7 @@ class FormResponseSubmitAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        form_request = _request_for(request.user, pk)
+        form_request = _request_for(request.user, pk, write=True)
         try:
             submit_response(request=form_request, actor=request.user)
         except ValidationError as exc:
