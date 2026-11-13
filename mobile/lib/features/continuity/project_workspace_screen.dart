@@ -1308,7 +1308,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             child: ListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.folder_symlink_outlined),
+              leading: Icon(Icons.folder_open_outlined),
               title: Text('Rattacher un dossier'),
             ),
           ),
@@ -1455,17 +1455,17 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
     final canOrganize = _has(row, 'unlink') || _has(row, 'move');
     return Card(
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 7),
+      margin: const EdgeInsets.only(bottom: 5),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         child: Row(
           children: [
             Icon(Icons.folder_outlined, color: scheme.primary, size: 23),
-            const SizedBox(width: 9),
+            const SizedBox(width: 7),
             Expanded(
               child: InkWell(
                 onTap: () => widget.onOpenDossier(_text(row['id'])),
@@ -1477,10 +1477,10 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
                     children: [
                       Text(
                         _text(row['title']),
-                        style: Theme.of(context).textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w700, decoration: TextDecoration.none),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         [
                           _humanState(row['state']),
@@ -1546,7 +1546,20 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
         .toList();
     final intervention = rows
         .where((r) => _map(r['readiness'])['state'] == 'action_required')
-        .take(3);
+        .take(2)
+        .toList();
+    // Summary = useful next steps + a complementary glimpse, not a repeated
+    // rendering of the same Dossiers already shown under "À suivre".
+    final followIds = intervention.map((row) => _text(row['id'])).toSet();
+    final preview = rows.where(
+      (row) => !followIds.contains(_text(row['id'])),
+    ).take(3).toList();
+    final indicators = <(int, String)>[
+      if (rows.isNotEmpty) (rows.length, 'dossiers'),
+      if (active > 0) (active, 'en cours'),
+      if (draft > 0) (draft, 'à préparer'),
+      if (done > 0) (done, 'terminés'),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1558,20 +1571,27 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        if (rows.isNotEmpty)
-          Wrap(
-            spacing: 9,
-            runSpacing: 9,
-            children: [
-              if (rows.isNotEmpty)
-                _metric(
-                  rows.length,
-                  partial ? 'Dossiers affichés' : 'Dossiers',
-                ),
-              if (active > 0) _metric(active, 'En cours'),
-              if (draft > 0) _metric(draft, 'En préparation'),
-              if (done > 0) _metric(done, 'Terminés'),
-            ],
+        if (indicators.isNotEmpty)
+          Semantics(
+            label: indicators.map((v) => '${v.$1} ${v.$2}').join(', '),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var index = 0; index < indicators.length; index++) ...[
+                    if (index > 0)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        child: Text(
+                          '·',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    _metric(indicators[index].$1, indicators[index].$2),
+                  ],
+                ],
+              ),
+            ),
           ),
         if (next.isNotEmpty)
           ListTile(
@@ -1584,7 +1604,7 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
             onTap: () => widget.onOpenDossier(_text(next.first['id'])),
           ),
         if (intervention.isNotEmpty) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 9),
           Text(
             'À suivre',
             style: Theme.of(context).textTheme.titleMedium
@@ -1592,59 +1612,68 @@ class _ProjectWorkspaceScreenState extends State<ProjectWorkspaceScreen> {
           ),
           for (final row in intervention)
             ListTile(
-              title: Text(_text(row['title'])),
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+              visualDensity: VisualDensity.compact,
+              leading: Icon(
+                Icons.error_outline_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(
+                _text(row['title']),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(decoration: TextDecoration.none),
+              ),
               subtitle: Text(
                 _text(_map(row['readiness'])['hidden_signal']).isNotEmpty
                     ? _text(_map(row['readiness'])['hidden_signal'])
                     : 'Action requise',
               ),
-              trailing: const Icon(Icons.chevron_right_rounded),
+              trailing: const Icon(Icons.chevron_right_rounded, size: 18),
               onTap: () => widget.onOpenDossier(_text(row['id'])),
             ),
         ],
-        if (rows.isNotEmpty) const SizedBox(height: 14),
-        if (rows.isNotEmpty)
-          Text(
-            'Dossiers du Projet',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        if (rows.isNotEmpty) const SizedBox(height: 9),
         if (rows.isEmpty)
           _empty('Aucun dossier visible pour le moment.')
-        else
-          for (final row in rows.take(4)) _dossierCard(row, project),
-        if (rows.length > 4)
-          MakoloActionButton(
-            label: 'Voir les dossiers',
-            onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
-            appearance: MakoloActionAppearance.quiet,
+        else ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Dossiers',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _mode = _ProjectMode.dossiers),
+                child: const Text('Voir tout'),
+              ),
+            ],
           ),
+          for (final row in preview) _dossierCard(row, project),
+        ],
       ],
     );
   }
 
-  Widget _metric(int count, String title) => Container(
-    constraints: const BoxConstraints(minWidth: 96),
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-    decoration: BoxDecoration(
-      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$count',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+  Widget _metric(int count, String title) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        '$count',
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).colorScheme.primary,
         ),
-        const SizedBox(height: 7),
-        Text(title, style: Theme.of(context).textTheme.labelSmall),
-      ],
-    ),
+      ),
+      const SizedBox(width: 4),
+      Text(title, style: Theme.of(context).textTheme.labelSmall),
+    ],
   );
 
   Widget _filter(
