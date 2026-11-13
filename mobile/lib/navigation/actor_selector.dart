@@ -71,10 +71,7 @@ class MakoloActorSelectorTile extends StatelessWidget {
 }
 
 class _MakoloActorPicker extends StatefulWidget {
-  const _MakoloActorPicker({
-    required this.runtime,
-    this.preferredSpaceId,
-  });
+  const _MakoloActorPicker({required this.runtime, this.preferredSpaceId});
 
   final AppRuntime runtime;
   final String? preferredSpaceId;
@@ -191,11 +188,10 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
           final spaces = widget.preferredSpaceId == null
               ? inventory
               : inventory
-                  .where(
-                    (space) =>
-                        space.identity.id == widget.preferredSpaceId,
-                  )
-                  .toList(growable: false);
+                    .where(
+                      (space) => space.identity.id == widget.preferredSpaceId,
+                    )
+                    .toList(growable: false);
           return SafeArea(
             top: false,
             child: SingleChildScrollView(
