@@ -151,7 +151,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
   @override
   Widget build(BuildContext context) {
     final slug = _spaceSlug;
-    final identity = widget.id + ':' + (slug ?? 'personal');
+    final identity = '${widget.id}:${slug ?? 'personal'}';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Personnes et responsabilités'),
@@ -164,7 +164,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
         ],
       ),
       body: StreamBuilder<OwnerSourceState>(
-        key: ValueKey('people-owner:' + identity),
+        key: ValueKey('people-owner:$identity'),
         stream: widget.repository.watchSource(
           ObjectiveDepth.dossier,
           widget.id,
@@ -179,7 +179,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
             );
           }
           return StreamBuilder<StoredProjection?>(
-            key: ValueKey('people-detail:' + identity),
+            key: ValueKey('people-detail:$identity'),
             stream: widget.repository.watch(
               ObjectiveDepth.dossier,
               widget.id,
@@ -261,8 +261,7 @@ class _DossierPeopleScreenState extends State<DossierPeopleScreen> {
                         _personTile(
                           item,
                           'profile',
-                          'Mandat · ' +
-                              (item['role']?.toString() ?? 'Rôle non précisé'),
+                          'Mandat · ${item['role']?.toString() ?? 'Rôle non précisé'}',
                         ),
                     const SizedBox(height: 12),
                     Text(
