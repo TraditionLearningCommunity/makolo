@@ -277,10 +277,13 @@ class SpaceBeneficiaryJourneyListRepository {
   final String profileId;
   final SyncEngine? sync;
 
-  SyncSourceDefinition sourceFor(SpaceActorIdentity space) => SyncSourceDefinition(
+  SyncSourceDefinition sourceFor(
+    SpaceActorIdentity space,
+  ) => SyncSourceDefinition(
     sourceKey: 'space-beneficiary-journals:${space.id}',
     owner: 'Services',
-    path: 'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/',
+    path:
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/beneficiary/journeys/',
     projectionKind: projectionKind,
     resourceKey: space.id,
     actorScope: SyncActorScope.space(spaceId: space.id),

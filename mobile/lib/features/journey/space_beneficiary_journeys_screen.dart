@@ -86,7 +86,9 @@ class _SpaceBeneficiaryJourneysScreenState
         );
         if (mounted) setState(() => _denied = true);
       } else {
-        setState(() => _message = 'Connexion indisponible. Les demandes déjà connues restent visibles.');
+        setState(
+          () => _message = 'Connexion indisponible. Les demandes déjà connues restent visibles.',
+        );
       }
     } on Object {
       if (mounted && epoch == _epoch) {
@@ -111,7 +113,9 @@ class _SpaceBeneficiaryJourneysScreenState
     ),
     body: !_actorValid || _denied
         ? const Center(
-            child: Text('Les demandes ne sont pas accessibles pour cet Espace.'),
+            child: Text(
+              'Les demandes ne sont pas accessibles pour cet Espace.',
+            ),
           )
         : StreamBuilder<StoredProjection?>(
             stream: _repository.watch(widget.space),
@@ -128,7 +132,9 @@ class _SpaceBeneficiaryJourneysScreenState
                   if (snapshot.data == null && !_refreshing)
                     const Text('Aucune liste locale disponible actuellement.'),
                   if (snapshot.data != null && journeys.isEmpty)
-                    const Text('Cet Espace n’a pas encore de demande Services.'),
+                    const Text(
+                      'Cet Espace n’a pas encore de demande Services.',
+                    ),
                   for (final journey in journeys)
                     Card(
                       child: ListTile(
@@ -155,7 +161,9 @@ class _SpaceBeneficiaryJourneysScreenState
                   if (snapshot.data?.payload['has_more'] == true)
                     const Padding(
                       padding: EdgeInsets.only(top: 16),
-                      child: Text('D’autres demandes existent. Affinez votre suivi depuis cet Espace.'),
+                      child: Text(
+                        'D’autres demandes existent. Affinez votre suivi depuis cet Espace.',
+                      ),
                     ),
                 ],
               );
