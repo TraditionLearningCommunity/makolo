@@ -29,15 +29,19 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/journeys/:id/artifacts',
     builder: (context, state) {
-      if (runtime.database == null || runtime.store == null ||
+      if (runtime.database == null ||
+          runtime.store == null ||
           runtime.session == null) {
         return const MakoloSecondaryScreen(
           title: 'Pièces',
-          message: 'Les pièces privées ne sont pas disponibles sur cet appareil.',
+          message:
+              'Les pièces privées ne sont pas disponibles sur cet appareil.',
         );
       }
       return JourneyArtifactScreen(
-        key: ValueKey('profile-pieces:${runtime.session!.profileId}:${state.pathParameters['id']}'),
+        key: ValueKey(
+          'profile-pieces:${runtime.session!.profileId}:${state.pathParameters['id']}',
+        ),
         runtime: runtime,
         journeyId: state.pathParameters['id']!,
       );
@@ -47,7 +51,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     path: '/space/:slug/beneficiary/journeys/:id',
     builder: (context, state) {
       final space = _activeSpace(runtime, state.pathParameters['slug']!);
-      if (space == null || runtime.database == null || runtime.store == null ||
+      if (space == null ||
+          runtime.database == null ||
+          runtime.store == null ||
           runtime.session == null) {
         return const MakoloSecondaryScreen(
           title: 'Demande de cet Espace',
@@ -55,7 +61,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         );
       }
       return SpaceBeneficiaryJourneyScreen(
-        key: ValueKey('space-journey:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}'),
+        key: ValueKey(
+          'space-journey:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}',
+        ),
         runtime: runtime,
         space: space,
         journeyId: state.pathParameters['id']!,
@@ -73,7 +81,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         );
       }
       return SpaceBeneficiaryIntakeScreen(
-        key: ValueKey('space-intake:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}'),
+        key: ValueKey(
+          'space-intake:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}',
+        ),
         runtime: runtime,
         space: space,
         journeyId: state.pathParameters['id']!,
@@ -84,7 +94,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     path: '/space/:slug/beneficiary/journeys/:id/artifacts',
     builder: (context, state) {
       final space = _activeSpace(runtime, state.pathParameters['slug']!);
-      if (space == null || runtime.database == null || runtime.store == null ||
+      if (space == null ||
+          runtime.database == null ||
+          runtime.store == null ||
           runtime.session == null) {
         return const MakoloSecondaryScreen(
           title: 'Pièces du dossier',
@@ -92,7 +104,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         );
       }
       return JourneyArtifactScreen(
-        key: ValueKey('space-pieces:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}'),
+        key: ValueKey(
+          'space-pieces:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}',
+        ),
         runtime: runtime,
         space: space,
         journeyId: state.pathParameters['id']!,
@@ -103,7 +117,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
     path: '/space/:slug/beneficiary/journeys/:id/resources',
     builder: (context, state) {
       final space = _activeSpace(runtime, state.pathParameters['slug']!);
-      if (space == null || runtime.database == null || runtime.store == null ||
+      if (space == null ||
+          runtime.database == null ||
+          runtime.store == null ||
           runtime.session == null) {
         return const MakoloSecondaryScreen(
           title: 'Ressources',
@@ -111,7 +127,9 @@ List<RouteBase> journeyRoutes(AppRuntime runtime) => [
         );
       }
       return SpaceBeneficiaryResourcesScreen(
-        key: ValueKey('space-preparation:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}'),
+        key: ValueKey(
+          'space-preparation:${runtime.session!.profileId}:${space.id}:${state.pathParameters['id']}',
+        ),
         runtime: runtime,
         space: space,
         journeyId: state.pathParameters['id']!,

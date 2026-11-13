@@ -85,16 +85,21 @@ class _SpaceBeneficiaryResourcesScreenState
         await _repository.store.deleteProjection(
           SpaceBeneficiaryResourcesRepository.projectionKind,
           resourceKey: SpaceBeneficiaryResourcesRepository.resourceKey(
-            widget.space, widget.journeyId,
+            widget.space,
+            widget.journeyId,
           ),
         );
         if (mounted) setState(() => _denied = true);
       } else {
-        setState(() => _error = 'Impossible de récupérer les ressources récentes.');
+        setState(
+          () => _error = 'Impossible de récupérer les ressources récentes.',
+        );
       }
     } on Object {
       if (mounted && revision == _epoch) {
-        setState(() => _error = 'La connexion est indisponible. Les ressources locales restent lisibles.');
+        setState(
+          () => _error = 'La connexion est indisponible. Les ressources locales restent lisibles.',
+        );
       }
     } finally {
       if (mounted && revision == _epoch) setState(() => _loading = false);
@@ -114,36 +119,49 @@ class _SpaceBeneficiaryResourcesScreenState
       ],
     ),
     body: !_actorValid || _denied
-        ? const Center(child: Text('Ressources non accessibles pour cet Espace.'))
+        ? const Center(
+            child: Text('Ressources non accessibles pour cet Espace.'),
+          )
         : StreamBuilder<StoredProjection?>(
             stream: _repository.watch(widget.space, widget.journeyId),
             builder: (context, snapshot) {
               final raw = snapshot.data?.payload['resources'];
-              final resources = raw is List ? raw.whereType<Map>().toList() : <Map>[];
+              final resources = raw is List
+                  ? raw.whereType<Map>().toList()
+                  : <Map>[];
               return ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
                   if (_loading) const LinearProgressIndicator(),
                   if (_error != null) Text(_error!),
                   if (snapshot.data == null && !_loading)
-                    const Text('Les ressources ne sont pas encore disponibles localement.'),
+                    const Text(
+                      'Les ressources ne sont pas encore disponibles localement.',
+                    ),
                   if (snapshot.data != null && resources.isEmpty)
                     const Text('Aucune ressource publiée pour cette démarche.'),
                   for (final resource in resources)
                     Card(
                       child: ListTile(
-                        title: Text(resource['title']?.toString() ?? 'Ressource'),
-                        subtitle: Text(resource['description']?.toString() ?? ''),
+                        title: Text(
+                          resource['title']?.toString() ?? 'Ressource',
+                        ),
+                        subtitle: Text(
+                          resource['description']?.toString() ?? '',
+                        ),
                         trailing: resource['kind'] == 'file'
                             ? const Icon(Icons.insert_drive_file_outlined)
                             : null,
                         onTap: () {
                           final path = resource['download_url'];
                           if (resource['kind'] == 'text') {
-                            _showText(resource['title']?.toString() ?? 'Ressource',
-                                resource['text']?.toString() ?? '');
+                            _showText(
+                              resource['title']?.toString() ?? 'Ressource',
+                              resource['text']?.toString() ?? '',
+                            );
                           } else if (resource['kind'] == 'file' &&
-                              path is String && path.isNotEmpty &&
+                              path is String &&
+                              path.isNotEmpty &&
                               widget.runtime.api != null) {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
@@ -151,7 +169,9 @@ class _SpaceBeneficiaryResourcesScreenState
                                   api: widget.runtime.api!,
                                   profileId: _repository.profileId,
                                   path: path,
-                                  title: resource['title']?.toString() ?? 'Ressource',
+                                  title:
+                                      resource['title']?.toString() ??
+                                      'Ressource',
                                   mime: resource['mime_type']?.toString() ?? '',
                                 ),
                               ),
