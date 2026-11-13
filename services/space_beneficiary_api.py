@@ -174,6 +174,40 @@ class SpaceBeneficiaryServiceStartAPIView(APIView):
         }, status=201 if created else 200)
 
 
+class SpaceBeneficiaryJourneyListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, slug):
+        space = _space(request, slug)
+        rows = list(
+            Journey.objects.filter(
+                beneficiary_space=space, workflow=WorkflowKind.SERVICE,
+            )
+            .select_related("activity", "service_context")
+            .order_by("-created_at", "-pk")[:51]
+        )
+        return _reply({
+            "space": {
+                "id": str(space.pk), "slug": space.slug, "name": space.name,
+            },
+            "journeys": [
+                {
+                    "id": str(row.pk),
+                    "title": row.activity.title,
+                    "status": row.status,
+                    "created_at": row.created_at.isoformat(),
+                    "objective": row.service_context.objective or None,
+                    "link": reverse(
+                        "organizations_api:workspace-beneficiary-journey",
+                        kwargs={"slug": space.slug, "journey_id": row.pk},
+                    ),
+                }
+                for row in rows[:50]
+            ],
+            "has_more": len(rows) > 50,
+        })
+
+
 class SpaceBeneficiaryJourneyAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
