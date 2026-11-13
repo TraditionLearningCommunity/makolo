@@ -376,7 +376,14 @@ class ConversationLocalDelivery {
     List<Map<String, dynamic>>? semanticMedia,
   }) async {
     if (conversationId.trim().isEmpty ||
-        !{'text', 'point', 'form', 'media', 'semantic_media', 'response'}.contains(mode)) {
+        !{
+          'text',
+          'point',
+          'form',
+          'media',
+          'semantic_media',
+          'response',
+        }.contains(mode)) {
       throw ArgumentError('Unsupported conversation composition');
     }
     if (mode == 'response' &&
@@ -573,13 +580,21 @@ class ConversationLocalDelivery {
     final mode = payload['mode']?.toString() ?? '';
     if (conversationId.isEmpty ||
         operation.resourceId != conversationId ||
-        !{'text', 'point', 'form', 'media', 'semantic_media', 'response'}.contains(mode)) {
+        !{
+          'text',
+          'point',
+          'form',
+          'media',
+          'semantic_media',
+          'response',
+        }.contains(mode)) {
       return OutboxResolution.conflict;
     }
     final Map<String, dynamic> confirmed;
     if (mode == 'response') {
       final pointId = payload['point_id']?.toString() ?? '';
-      if (pointId.isEmpty || !payload.containsKey('value') ||
+      if (pointId.isEmpty ||
+          !payload.containsKey('value') ||
           payload['value'] == null) {
         return OutboxResolution.conflict;
       }

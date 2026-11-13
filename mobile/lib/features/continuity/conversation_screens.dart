@@ -2430,14 +2430,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
           next++;
         }
         children.add(
-          _completedTimelineGroup(
-            context,
-            [
-              for (final candidate in combined.sublist(index, next))
-                candidate.point!,
-            ],
-            outgoing: outgoing,
-          ),
+          _completedTimelineGroup(context, [
+            for (final candidate in combined.sublist(index, next))
+              candidate.point!,
+          ], outgoing: outgoing),
         );
         index = next;
       } else if (entry.point != null) {
