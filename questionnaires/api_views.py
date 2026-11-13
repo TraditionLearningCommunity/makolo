@@ -32,14 +32,11 @@ def _request_for(user, pk, *, write=False):
     ):
         return row
     if row.journey_id and row.journey.beneficiary_space_id:
-        from services.space_beneficiary import (
-            can_act_for_space_service_journey, can_read_space_service_journey,
-        )
+        from services.space_beneficiary import can_act_for_space_service_journey
 
-        allowed = (
-            can_act_for_space_service_journey(user, row.journey)
-            if write else can_read_space_service_journey(user, row.journey)
-        )
+        # Forms contain personal responses. Even a read-only Space mandate
+        # must not implicitly disclose their private answers.
+        allowed = can_act_for_space_service_journey(user, row.journey)
         if allowed:
             return row
     raise Http404
@@ -103,11 +100,11 @@ class FormRequestListAPIView(APIView):
 
     def get(self, request):
         from organizations.api.workspace_projection import workspace_spaces
-        from services.space_beneficiary import can_read_space_service
+        from services.space_beneficiary import can_act_for_space
 
         permitted_space_ids = [
             space.pk for space in workspace_spaces(request.user)
-            if can_read_space_service(request.user, space)
+            if can_act_for_space(request.user, space)
         ]
         rows = (
             FormRequest.objects.filter(
