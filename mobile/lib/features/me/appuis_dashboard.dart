@@ -413,7 +413,9 @@ class _AppuisDashboardState extends State<AppuisDashboard> {
   List<Map<String, dynamic>> _recognitionRows() {
     final data = _data('recognition');
     final incoming = AppuisViewData.rows(data['incoming']);
-    final incomingIds = incoming.map((row) => AppuisViewData.text(row['id'])).toSet();
+    final incomingIds = incoming
+        .map((row) => AppuisViewData.text(row['id']))
+        .toSet();
     return [
       for (final row in incoming)
         {...row, '_kind': 'Réponse attendue', '_icon': 'incoming'},
