@@ -543,7 +543,10 @@ def create_artifact_version(*, artifact, uploaded_file, uploaded_by, sensitivity
     previous = JourneyArtifact.objects.select_for_update(of=("self",)).select_related("journey", "journey__activity", "step").order_by().get(pk=artifact.pk)
     if not is_beneficiary(uploaded_by, previous.journey) and not can_write_space_beneficiary_artifact(
         uploaded_by, previous.journey,
-        restricted=(sensitivity or previous.sensitivity) == JourneyArtifactSensitivity.RESTRICTED,
+        restricted=(
+            previous.sensitivity == JourneyArtifactSensitivity.RESTRICTED
+            or sensitivity == JourneyArtifactSensitivity.RESTRICTED
+        ),
     ):
         ensure_case_access(uploaded_by, previous.journey, write=True, restricted=(sensitivity or previous.sensitivity) == JourneyArtifactSensitivity.RESTRICTED)
     if JourneyArtifact.objects.filter(supersedes=previous).exists():
