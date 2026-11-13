@@ -54,6 +54,10 @@ jobs:
       - name: Toolchain
         run: flutter --version
 
+      - name: Resolve Flutter formatting dependencies
+        working-directory: mobile
+        run: flutter pub get
+
       - name: Format Dart sources
         working-directory: mobile
         run: bash tool/dart_format.sh write
