@@ -294,6 +294,7 @@ class SpaceBeneficiaryJourneyAPIView(APIView):
             projection="space.service.journey.detail",
             data=details,
             generated_at=observed_at,
+            scope="space",
         ))
 
 
