@@ -528,6 +528,13 @@ void main() {
       ),
       isTrue,
     );
+    final support = withSupport.territories.singleWhere(
+      (territory) => territory.presentation.key == 'support',
+    );
+    expect(support.items, hasLength(1));
+    expect(support.items.single.destination.kind, 'support_collection');
+    expect(support.items.single.destination.id, 'recognition');
+    expect(support.items.single.canOpen, isTrue);
   });
 
   test('sparse remains section-first with local empty territories', () {
