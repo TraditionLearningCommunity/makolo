@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../design/action_controls.dart';
@@ -5,6 +7,9 @@ import '../../design/action_controls.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
+import '../../repositories/draft_repository.dart';
+import 'objective_creation_draft.dart';
 import 'objective_repository.dart';
 
 /// Owner-backed creation; an offline form is not a confirmed Project/Dossier.
@@ -14,7 +19,9 @@ class ObjectiveCreateScreen extends StatefulWidget {
     required this.kind,
     required this.api,
     required this.repository,
+    required this.drafts,
     required this.onCreated,
+    this.onReview,
     this.spaceActor,
     this.actorContext,
   });
@@ -22,7 +29,9 @@ class ObjectiveCreateScreen extends StatefulWidget {
   final String kind;
   final MakoloApiClient api;
   final ObjectiveRepository repository;
+  final DraftRepository drafts;
   final ValueChanged<String> onCreated;
+  final VoidCallback? onReview;
   final SpaceActorIdentity? spaceActor;
   final ActorContextController? actorContext;
 
@@ -34,7 +43,13 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
   final _form = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
+  late ObjectiveCreationDraft _draft;
+  Timer? _autosave;
   DateTime? _start, _end, _deadline;
+  bool _restoring = true;
+  bool _restoreFailed = false;
+  bool _draftSaveFailed = false;
+  bool _attempted = false;
   bool _submitting = false;
   String? _error;
   String? _confirmedId;
