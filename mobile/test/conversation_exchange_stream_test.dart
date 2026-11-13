@@ -149,8 +149,9 @@ void main() {
     () async {
       final requested = <int>[];
       final repo = repository((request) async {
-        if (request.url.path.endsWith('/receipts/'))
+        if (request.url.path.endsWith('/receipts/')) {
           return const MockResponse('{"entries":[]}', 200);
+        }
         final after = int.parse(request.url.queryParameters['after_version']!);
         requested.add(after);
         return MockResponse(
