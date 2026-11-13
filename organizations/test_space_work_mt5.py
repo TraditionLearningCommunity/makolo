@@ -80,6 +80,7 @@ class MT5CommerceTransportTests(TestCase):
         return CommerceOrder.objects.create(
             journey=journey, payee_space=self.space, buyer=self.buyer,
             status=CommerceOrderStatus.CONFIRMED,
+            payment_mode=PaymentMode.UPFRONT,
             subtotal=Decimal("18.00"), total=Decimal("18.00"),
         )
 
