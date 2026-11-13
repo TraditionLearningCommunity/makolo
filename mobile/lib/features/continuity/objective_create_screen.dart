@@ -132,7 +132,12 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       lastDate: DateTime(2100),
       helpText: 'Choisir une date',
     );
-    if (date == null || !mounted || _attempted || _submitting) return;
+    if (date == null ||
+        !mounted ||
+        _attempted ||
+        _submitting ||
+        _restoring ||
+        _restoreFailed) return;
     setState(() {
       switch (field) {
         case 'start':
@@ -338,7 +343,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
       children: [
         MakoloIconActionButton(
           tooltip: 'Choisir : $label',
-          onPressed: _submitting || _restoring || _attempted
+          onPressed: _submitting || _restoring || _restoreFailed || _attempted
               ? null
               : () => _chooseDate(field),
           icon: Icons.calendar_today_outlined,
@@ -346,7 +351,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
         if (value != null)
           MakoloIconActionButton(
             tooltip: 'Effacer : $label',
-            onPressed: _submitting || _restoring || _attempted
+            onPressed: _submitting || _restoring || _restoreFailed || _attempted
                 ? null
                 : () => setState(() {
                     switch (field) {
@@ -629,7 +634,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                     controller: _title,
                     autofocus: true,
                     maxLength: 220,
-                    enabled: !_submitting && !_restoring && !_attempted,
+                    enabled: !_submitting && !_restoring && !_restoreFailed && !_attempted,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
                       labelText: project
@@ -645,7 +650,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
                   TextFormField(
                     controller: _description,
                     maxLines: 4,
-                    enabled: !_submitting && !_restoring && !_attempted,
+                    enabled: !_submitting && !_restoring && !_restoreFailed && !_attempted,
                     decoration: const InputDecoration(
                       labelText: 'Description (facultative)',
                       border: OutlineInputBorder(),
