@@ -61,6 +61,13 @@ void main() {
             200,
           );
         }
+        if (request.url.path.endsWith('/reply-media/')) {
+          return const MockResponse(
+            '{"point_id":"point-vote","response_id":"response-voice",'
+            '"attachment":{"id":"attachment-voice"}}',
+            200,
+          );
+        }
         if (request.url.path.endsWith('/media/')) {
           return MockResponse(
             jsonEncode({
@@ -226,6 +233,43 @@ void main() {
     expect((requests.single.data as Map)['client_reference'], intent);
     expect((requests.single.data as Map)['questions'], ['Votre nom ?']);
   });
+
+  test(
+    'Point vocal response is staged offline and owner-confirmed once',
+    () async {
+      reachable = false;
+      final recorded = File('${mediaDirectory.path}/vocal.m4a');
+      await recorded.writeAsBytes([1, 2, 3, 4]);
+      final reference = await delivery.queue(
+        conversationId: 'conv-1',
+        mode: 'media_response',
+        pointId: 'point-vote',
+        filePath: recorded.path,
+        filename: 'vocal.m4a',
+        mediaKind: 'voice',
+      );
+      await recorded.delete();
+      final queued = await delivery.watchOutgoing('conv-1').first;
+      expect(queued.single.kind, 'response');
+      expect(queued.single.pointId, 'point-vote');
+      expect(queued.single.reference, reference);
+      final staged = File(queued.single.localFilePath!);
+      expect(await staged.exists(), isTrue);
+      expect(await staged.readAsBytes(), [1, 2, 3, 4]);
+      expect(requests, isEmpty);
+
+      reachable = true;
+      final worker = processor();
+      await worker.run();
+      await worker.run();
+      expect(requests.length, 1);
+      expect(requests.single.url.path,
+          '/api/v1/conversations/points/point-vote/reply-media/');
+      final rows = await database.select(database.outboxOperations).get();
+      expect(rows.single.ownerIdempotencyKey, reference);
+      expect(rows.single.state, OutboxState.confirmed.wireValue);
+    },
+  );
 
   test(
     'private media is copied before sending and survives original deletion',
