@@ -42,6 +42,7 @@ Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un 
 
 - mobile/lib/features/me/me_collectives_content.dart : composition et interactions visuelles opt-in, sans nouveau propriétaire.
 - mobile/lib/features/me/me_collectives_screen.dart : intégration à la profondeur local-first, conservation de la pagination et du refus.
+- mobile/lib/features/me/me_hub.dart : les cartes de la racine Moi ne transmettent plus de compteur zéro.
 - mobile/lib/features/me/me_routes.dart : réemploi du picker d'acteur Makolo ciblé pour l'action Agir.
 - mobile/lib/navigation/actor_selector.dart : filtre opt-in sur l'identifiant du Space demandé ; le sélecteur général reste inchangé.
 - mobile/test/me_collectives_content_test.dart : tests de regroupement, absence de zéro, filtres, recherche partielle, Team≠autorité, offline et navigation Group.
@@ -55,4 +56,4 @@ Ni TeamMembership ni GroupMembership n'accordent une Permission, un Mandate, un 
 5. Dans le picker, vérifier que Agir n'accorde jamais un contexte non acquis ou révoqué.
 6. Vérifier la CI de #522 et éviter tout merge si une gate obligatoire reste rouge.
 
-**Limite connue :** Agir passe par le picker existant, filtré sur le Space de la carte, mais exige toujours une confirmation humaine et la revalidation du contexte acquis. Aucun passage automatique et aucune autorité supplémentaire ne sont créés. Une vraie profondeur Team nécessitera de prouver une destination et sa permission ; la fiche du Space parent ne s'y substitue pas.
+**Limite connue :** Agir passe par le picker existant, filtré sur le Space de la carte, mais exige toujours une confirmation humaine et la revalidation du contexte acquis. Aucune sélection automatique et aucune autorité supplémentaire ne sont créées. Après confirmation d'un autre acteur Space, la navigation ouvre le Now de cet Espace. Une vraie profondeur Team nécessitera de prouver une destination et sa permission ; la fiche du Space parent ne s'y substitue pas.
