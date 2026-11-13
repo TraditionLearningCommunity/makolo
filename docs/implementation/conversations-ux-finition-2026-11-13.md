@@ -54,8 +54,9 @@ de résolution, de téléchargement et d'accès.
   Lorsque la livraison persistante n'est pas configurée, l'ancien transport
   direct et sa reprise explicite restent disponibles.
 - Tests de régression ajoutés pour la réponse booléenne `false` conservée
-  hors connexion et sa seule livraison autorisée, ainsi que pour les choix
-  tactiles et le menu des Points.
+  hors connexion et sa seule livraison autorisée, pour le vocal conservé après
+  suppression de l'original, pour un accusé incomplet qui ne valide jamais
+  le fichier local, ainsi que pour les choix tactiles et le menu des Points.
 
 ## Règles préservées
 
