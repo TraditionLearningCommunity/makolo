@@ -164,6 +164,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 final kind = state.uri.queryParameters['kind'];
                 if (runtime.objectives == null ||
                     runtime.api == null ||
+                    runtime.drafts == null ||
                     (kind != 'project' && kind != 'dossier')) {
                   return const MakoloSecondaryScreen(
                     title: 'Créer',
@@ -181,9 +182,19 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   );
                 }
                 return ObjectiveCreateScreen(
+                  key: ValueKey(
+                    'objective-create:${runtime.objectives!.profileId}:'
+                    '$kind:${spaceSlug ?? 'personal'}',
+                  ),
                   kind: kind!,
                   repository: runtime.objectives!,
+                  drafts: runtime.drafts!,
                   api: runtime.api!,
+                  onReview: () => context.push(
+                    spaceSlug == null
+                        ? '/me/demarches'
+                        : '/space/${Uri.encodeComponent(spaceSlug)}/objectives',
+                  ),
                   spaceActor: spaceSlug != null && actor is SpaceActorContext
                       ? actor.space
                       : null,
