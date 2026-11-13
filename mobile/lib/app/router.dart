@@ -349,6 +349,29 @@ GoRouter createMakoloRouter(
             serviceId: state.pathParameters['id']!,
           ),
         ),
+        GoRoute(
+          path: '/space/:slug/services/:id/start',
+          builder: (context, state) {
+            final selected = runtime.actorContext?.value;
+            final slug = state.pathParameters['slug']!;
+            if (selected is! SpaceActorContext ||
+                selected.space.slug != slug ||
+                runtime.session == null) {
+              return const MakoloSecondaryScreen(
+                title: 'Demande de cet Espace',
+                message: 'Sélectionnez cet Espace pour engager cette demande.',
+              );
+            }
+            return ServiceStartScreen(
+              key: ValueKey(
+                'space-service-start:${runtime.session!.profileId}:${selected.space.id}:${state.pathParameters['id']}',
+              ),
+              runtime: runtime,
+              serviceId: state.pathParameters['id']!,
+              space: selected.space,
+            );
+          },
+        ),
       ],
       GoRoute(
         path: '/obtention/:id/choose',
