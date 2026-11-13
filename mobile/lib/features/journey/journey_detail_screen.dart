@@ -1563,20 +1563,6 @@ class _JourneyStepRow extends StatelessWidget {
   }
 }
 
-bool _showReadinessItem(
-  JourneyDetailPresentation presentation,
-  JourneyReadinessItem item,
-) {
-  if (item.key == presentation.nextActionKey &&
-      presentation.nextActionKey != null) {
-    return false;
-  }
-  final repeatingObjective =
-      item.summary.trim().toLowerCase() ==
-      presentation.title.trim().toLowerCase();
-  return !(repeatingObjective && item.nextLink == null);
-}
-
 class _JourneyPreparation extends StatelessWidget {
   const _JourneyPreparation({
     required this.presentation,
