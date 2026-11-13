@@ -14,6 +14,7 @@ import 'package:makolo_mobile/features/space/space_documents_screen.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
 import 'package:makolo_mobile/features/space/space_us_resources_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/sync/sync_engine.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
@@ -121,6 +122,9 @@ void main() {
   testWidgets(
     'Space documents retain prior list on outage but revoke on 403 or switch',
     (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
       final actor = await ActorContextController.restore(
         profileId: 'profile-a',
         store: _LocalActorStore(),
@@ -169,6 +173,19 @@ void main() {
         }).dio,
       );
       addTearDown(api.close);
+      final sync = SyncEngine(
+        api: api,
+        store: store,
+        database: database,
+        profileId: 'profile-a',
+      );
+      final repository = WorkspaceContextRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+        actorContext: actor,
+        sync: sync,
+      );
       final runtime = AppRuntime(
         tokens: tokens,
         session: const AuthSession(
@@ -179,6 +196,10 @@ void main() {
         recovery: SessionRecoveryController(),
         actorContext: actor,
         api: api,
+        database: database,
+        store: store,
+        sync: sync,
+        space: repository,
       );
       await tester.pumpWidget(
         MaterialApp(
