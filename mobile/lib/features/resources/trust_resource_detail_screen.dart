@@ -124,20 +124,6 @@ class _TrustResourceDetailScreenState extends State<TrustResourceDetailScreen> {
     return api.baseUri.resolveUri(relative);
   }
 
-  Future<void> _verify(_TrustDetail detail) async {
-    final target = _verificationUri(detail);
-    if (target == null) {
-      _message('Vérification indisponible.');
-      return;
-    }
-    try {
-      final opened = await widget.sharing.openExternal(target);
-      if (!opened && mounted) _message('Vérification indisponible.');
-    } on Object {
-      if (mounted) _message('Vérification indisponible.');
-    }
-  }
-
   Future<void> _shareVerification(_TrustDetail detail) async {
     final target = _verificationUri(detail);
     if (target == null) {
@@ -170,9 +156,8 @@ class _TrustResourceDetailScreenState extends State<TrustResourceDetailScreen> {
                 ? _cachedSummary
                 : _TrustDetail.fromPayload(widget.family, projection.payload);
             final ownerAvailable = !source.invalidated && !source.ownerDenied;
-            final canVerifyOrShare =
-                ownerAvailable &&
-                source.reachability == ReachabilityState.reachable;
+            final canShareVerification =
+                ownerAvailable && detail?.verifyPath != null;
 
             return Scaffold(
               appBar: AppBar(
@@ -182,19 +167,9 @@ class _TrustResourceDetailScreenState extends State<TrustResourceDetailScreen> {
                       widget.repository.api != null &&
                       ownerAvailable)
                     MakoloIconActionButton(
-                      tooltip: 'Vérifier',
-                      icon: Icons.verified_outlined,
-                      onPressed: canVerifyOrShare
-                          ? () => _verify(detail!)
-                          : null,
-                    ),
-                  if (detail?.verifyPath != null &&
-                      widget.repository.api != null &&
-                      ownerAvailable)
-                    MakoloIconActionButton(
-                      tooltip: 'Partager',
-                      icon: Icons.send_outlined,
-                      onPressed: canVerifyOrShare
+                      tooltip: 'Partager le lien de vérification',
+                      icon: Icons.share_outlined,
+                      onPressed: canShareVerification
                           ? () => _shareVerification(detail!)
                           : null,
                     ),
