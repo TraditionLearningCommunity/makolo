@@ -669,7 +669,8 @@ class JourneyOwnerFileReaderState extends State<JourneyOwnerFileReader> {
     setState(() {
       _path = null;
       _busy = false;
-      _error = 'Ce document privé n’est plus visible dans le contexte sélectionné.';
+      _error =
+          'Ce document privé n’est plus visible dans le contexte sélectionné.';
     });
     if (path != null) unawaited(_clear(path));
   }
