@@ -9,6 +9,7 @@ import '../../platform/preferences/secure_string_preferences.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/actor_context_controller.dart';
 import '../../data/local/profile_store.dart';
+import '../../repositories/draft_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
@@ -23,6 +24,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenItem,
     required this.onCreate,
+    this.drafts,
     this.spaceSlug,
     this.actorContext,
   });
@@ -30,6 +32,7 @@ class ObjectiveOrganizerScreen extends StatefulWidget {
   final ObjectiveRepository repository;
   final void Function(String kind, String id) onOpenItem;
   final ValueChanged<String> onCreate;
+  final DraftRepository? drafts;
   final String? spaceSlug;
   final ActorContextController? actorContext;
 
@@ -44,6 +47,8 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
   bool _searchOpen = false;
   late Stream<List<StoredProjection>> _pages;
   late Stream<OwnerSourceState> _source;
+  Stream<StoredLocalDraft?>? _dossierDrafts;
+  Stream<StoredLocalDraft?>? _projectDrafts;
   OrganizerMode _mode = OrganizerMode.cards;
   OrganizerSort _sort = OrganizerSort.name;
   OrganizerSort _dateField = OrganizerSort.deadline;
@@ -81,6 +86,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       _requestedOffset = null;
       _canCreateSpace = false;
     });
+    _bind();
     if (_actorValid) {
       // Revalidate the current Space at the owner. A cached page is not
       // evidence that permissions survived an actor switch.
@@ -121,6 +127,7 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
       widget.actorContext?.addListener(_actorChanged);
     }
     if (oldWidget.repository != widget.repository ||
+        oldWidget.drafts != widget.drafts ||
         oldWidget.spaceSlug != widget.spaceSlug ||
         oldWidget.actorContext != widget.actorContext) {
       _scopeRevision++;
@@ -142,6 +149,17 @@ class _ObjectiveOrganizerScreenState extends State<ObjectiveOrganizerScreen> {
     _source = widget.repository.watchOrganizerSource(
       spaceSlug: widget.spaceSlug,
     );
+    final actor = widget.actorContext?.value;
+    final spaceId = widget.spaceSlug != null && actor is SpaceActorContext
+        ? actor.space.id
+        : null;
+    Stream<StoredLocalDraft?>? watchDraft(String kind) => widget.drafts?.watch(
+          owner: 'Objectives',
+          resourceKind: 'objective.creation',
+          resourceId: '$kind:${spaceId ?? 'personal'}',
+        );
+    _dossierDrafts = watchDraft('dossier');
+    _projectDrafts = watchDraft('project');
   }
 
   void _changed() {
