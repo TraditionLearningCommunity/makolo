@@ -684,6 +684,9 @@ class _MarkScreenState extends State<MarkScreen> {
         _show('Cette pièce locale n’est plus disponible.');
         return;
       }
+      // File existence was checked asynchronously: a draft or actor may have
+      // changed while awaiting the platform filesystem.
+      if (!mounted || revision != _draftRevision || actor != _actor) return;
       if (item['kind'] == 'photo') {
         await showDialog<void>(
           context: context,
@@ -794,6 +797,12 @@ class _MarkScreenState extends State<MarkScreen> {
         path: '/me/resources/documents/add',
         queryParameters: {'mark_file': fileId, 'mark_name': fileName},
       ).toString();
+      if (!mounted ||
+          revision != _draftRevision ||
+          actor != _actor ||
+          !identical(runtime, widget.runtime)) {
+        return;
+      }
       final savedId = await context.push<String>(destination);
       if (!mounted ||
           revision != _draftRevision ||
