@@ -66,7 +66,14 @@ void main() {
         'kind': 'document',
         'count': 2,
         'total_count': 6,
-        'counts': {'document': 2, 'passport': 1, 'template': 2, 'theme': 1},
+        'counts': {
+          'document': 2,
+          'asset': 0,
+          'template': 2,
+          'theme': 1,
+          'passport': 1,
+          'credential': 0,
+        },
         'items': const [],
         'has_more': false,
         'next_offset': 0,
@@ -112,11 +119,14 @@ void main() {
     await tester.pump();
 
     expect(find.text('Nos ressources'), findsOneWidget);
-    expect(find.byType(ResourceHubEntry), findsNWidgets(4));
+    expect(find.byType(ResourceHubEntry), findsNWidgets(6));
     expect(find.text('Nos documents'), findsOneWidget);
+    expect(find.text('Nos médias'), findsOneWidget);
+    expect(find.text('Nos modèles'), findsOneWidget);
+    expect(find.text('Nos thèmes'), findsOneWidget);
     expect(find.text('Passeports émis'), findsOneWidget);
-    expect(find.text('Modèles de présentation'), findsOneWidget);
-    expect(find.text('Thèmes de présentation'), findsOneWidget);
+    expect(find.text('Titres émis'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
     expect(find.text('Ressources de cet Espace'), findsNothing);
     expect(find.byType(ChoiceChip), findsNothing);
     expect(find.byTooltip('Actualiser'), findsOneWidget);
