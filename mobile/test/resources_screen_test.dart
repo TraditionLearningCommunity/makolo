@@ -471,7 +471,9 @@ void main() {
             },
           ],
         },
-        'links': {},
+        'links': {
+          'add_version': '/api/v1/me/resources/asset-1/versions/',
+        },
       },
     );
 
@@ -492,6 +494,10 @@ void main() {
 
     expect(find.text('Passeport RDC'), findsOneWidget);
     expect(find.textContaining('Provenance : Inconnue'), findsOneWidget);
+    expect(find.text('Version 2'), findsOneWidget);
+    expect(find.text('Versions précédentes'), findsNothing);
+    expect(find.byTooltip('Historique des versions'), findsNothing);
+    expect(find.text('Nouvelle version'), findsOneWidget);
     expect(
       find.textContaining('Conserver un document ne suffit pas'),
       findsNothing,
