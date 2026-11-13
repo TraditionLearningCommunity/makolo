@@ -255,10 +255,11 @@ class _ConversationListScreenState extends State<ConversationListScreen>
             onRetry: _refreshSpaceRows,
           );
         }
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const MakoloLoadingState(
             label: 'Chargement des conversations de cet Espace…',
           );
+        }
         final response = snapshot.data!;
         final raw = response['results'];
         final rows = (raw is List ? raw : const <Object>[])
@@ -1260,8 +1261,9 @@ class _ConversationInvitationCardState
     if (_busy ||
         widget.invitation.status != 'pending' ||
         widget.invitation.expired ||
-        (accept && !widget.invitation.canAccept))
+        (accept && !widget.invitation.canAccept)) {
       return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -2936,18 +2938,20 @@ class _PointCardState extends State<_PointCard> {
         pointId: widget.point.id,
         revisit: !widget.point.revisit,
       );
-      if (mounted)
+      if (mounted) {
         setState(
           () => _feedback = widget.point.revisit
               ? 'Repère personnel retiré.'
               : 'Point enregistré dans « À savoir ».',
         );
+      }
     } on Object {
-      if (mounted)
+      if (mounted) {
         setState(
           () =>
               _feedback = 'Repère non confirmé. Réessayez après actualisation.',
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
