@@ -122,7 +122,7 @@ class JourneyDayPresentation {
         if (repeated == null || repeated.trim().isEmpty) continue;
         for (final separator in [', ', ' · ', ' - ']) {
           final suffix = '$separator${repeated.trim()}';
-          if (value!.toLowerCase().endsWith(suffix.toLowerCase())) {
+          if (value.toLowerCase().endsWith(suffix.toLowerCase())) {
             value = value.substring(0, value.length - suffix.length).trim();
           }
         }
@@ -130,7 +130,8 @@ class JourneyDayPresentation {
       if (value.isEmpty || value.toLowerCase() == shown?.toLowerCase()) {
         continue;
       }
-      if (candidates.any((old) => old.toLowerCase() == value!.toLowerCase())) {
+      final normalized = value.toLowerCase();
+      if (candidates.any((old) => old.toLowerCase() == normalized)) {
         continue;
       }
       candidates.add(value);
