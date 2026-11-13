@@ -256,7 +256,7 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
     );
     if (reviewed != true || !mounted || !_actorValid) return;
     try {
-      await _draft.save(_snapshot('editing'));
+      await _draft.save(_snapshot('editing'), verifiedReopen: true);
       if (mounted) {
         setState(() {
           _attempted = false;
@@ -411,7 +411,10 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           widget.spaceActor != submittedSpace ||
           !identical(widget.repository, submittedRepository)) {
         // Nothing reached Django. Restore the editable draft for that scope.
-        await submittedDraft.save({...values, 'submission_state': 'editing'});
+        await submittedDraft.save(
+          {...values, 'submission_state': 'editing'},
+          verifiedReopen: true,
+        );
         if (mounted) setState(() => _attempted = false);
         return;
       }
@@ -486,7 +489,10 @@ class _ObjectiveCreateScreenState extends State<ObjectiveCreateScreen> {
           const {400, 401, 403, 404, 422}.contains(error.statusCode);
       if (definitive) {
         try {
-          await submittedDraft.save({...values, 'submission_state': 'editing'});
+          await submittedDraft.save(
+          {...values, 'submission_state': 'editing'},
+          verifiedReopen: true,
+        );
           if (mounted) {
             setState(() {
               _attempted = false;
