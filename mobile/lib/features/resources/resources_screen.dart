@@ -188,6 +188,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       },
     );
   }
+}
 
 class _ResourceCounts {
   const _ResourceCounts({this.documents, this.proofs, this.titles});
