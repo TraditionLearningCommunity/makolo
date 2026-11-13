@@ -182,7 +182,6 @@ class _SpaceUsSurfaceState extends State<SpaceUsSurface> {
           target: resourcesTarget,
           count: displayedResourceCount,
           previews: [
-            if (resourceRows.isEmpty) 'Aucune ressource dans cet aperçu.',
             for (final item in resourceRows.take(3))
               _value(item['title']) ?? 'Ressource',
           ],
