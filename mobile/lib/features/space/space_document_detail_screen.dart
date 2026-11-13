@@ -1,6 +1,7 @@
-import '../../platform/media/native_media_picker.dart';
-
+import 'dart:async';
 import 'dart:io';
+
+import '../../platform/media/native_media_picker.dart';
 
 import 'package:flutter/material.dart';
 
@@ -480,7 +481,13 @@ class _SpaceDocumentDetailScreenState extends State<SpaceDocumentDetailScreen> {
 
   Future<void> _edit() async {
     final doc = _document;
-    if (_working || !_canManage || doc == null || _actor == null) return;
+    if (_working ||
+        !_canManage ||
+        !_canUseNetwork ||
+        doc == null ||
+        _actor == null) {
+      return;
+    }
     final controller = TextEditingController(
       text: doc['title']?.toString() ?? '',
     );
